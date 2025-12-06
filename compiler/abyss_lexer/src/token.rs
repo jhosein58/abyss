@@ -1,4 +1,4 @@
-use core::fmt::{self, Display, Formatter, write};
+use core::fmt::{self, Display, Formatter};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RawTokenKind {
@@ -55,6 +55,7 @@ pub enum TokenKind {
     Star,     // *
     Slash,    // /
     Percent,  // %
+    Amp,      // &
     Comma,    // ,
     Colon,    // :
     Dot,      // .
@@ -99,6 +100,7 @@ impl TokenKind {
             "*" => TokenKind::Star,
             "/" => TokenKind::Slash,
             "%" => TokenKind::Percent,
+            "&" => TokenKind::Amp,
             "," => TokenKind::Comma,
             ":" => TokenKind::Colon,
             "." => TokenKind::Dot,
@@ -142,6 +144,7 @@ impl Display for TokenKind {
             TokenKind::Star => write!(f, "'*'"),
             TokenKind::Slash => write!(f, "'/'"),
             TokenKind::Percent => write!(f, "'%'"),
+            TokenKind::Amp => write!(f, "'&'"),
             TokenKind::Comma => write!(f, "','"),
             TokenKind::Colon => write!(f, "':'"),
             TokenKind::Dot => write!(f, "'.'"),

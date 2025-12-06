@@ -29,10 +29,17 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn advance(&mut self) {
+        self.stream.advance();
+    }
+
     pub fn mark_current_span(&mut self) {
         self.recorded_span = self.stream.current_span()
     }
 
+    pub fn mark_peek_span(&mut self) {
+        self.recorded_span = self.stream.peek_span()
+    }
     pub fn emit_error(&mut self, kind: ParseErrorKind, span: Span) {
         let message = kind.to_string();
         self.errors.push(ParseError {
@@ -44,6 +51,11 @@ impl<'a> Parser<'a> {
 
     pub fn emit_error_at_current(&mut self, kind: ParseErrorKind) {
         let span = self.stream.current_span();
+        self.emit_error(kind, span);
+    }
+
+    pub fn emit_error_at_peek(&mut self, kind: ParseErrorKind) {
+        let span = self.stream.peek_span();
         self.emit_error(kind, span);
     }
 
