@@ -6,6 +6,15 @@ version = 4
 name = "abyss"
 version = "0.1.0"
 dependencies = [
+ "abyss_codegen",
+ "abyss_lexer",
+ "abyss_parser",
+]
+
+[[package]]
+name = "abyss_codegen"
+version = "0.1.0"
+dependencies = [
  "abyss_lexer",
  "abyss_parser",
 ]

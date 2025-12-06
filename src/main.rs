@@ -1,8 +1,13 @@
-use abyss_parser::{parser::Parser, stream::TokenStream};
+use abyss_codegen::{ctarget::ctarget::CTarget, director::Director};
+use abyss_parser::parser::Parser;
 
 fn main() {
     let input = r#"
-        abc
+
+        fn test (a: i32, b: &i32): i32 {
+
+        }
+
        "#;
 
     println!("Code: \n{}", input);
@@ -11,28 +16,9 @@ fn main() {
     let program = parser.parse_program();
 
     println!("{}", parser.format_errors("test.ab"));
-    dbg!(program);
 
-    // let lexer = Lexer::new(input);
-    // let mut parser = Parser::new(lexer);
-    // let program = parser.parse_program();
-
-    // dbg!(program);
-
-    //     let c_target = CTarget::new();
-    //     let mut director = Director::new(c_target);
-
-    //     director.run(program);
-
-    //     let result = director.conclude();
-    //     fs::write("main.c", &result.buffer).expect("failed to write C file");
-
-    //     Command::new("gcc")
-    //         .args(&["main.c", "-o", "out"])
-    //         .status()
-    //         .expect("failed to compile C code");
-
-    //     Command::new("./out")
-    //         .status()
-    //         .expect("failed to execute generated program");
+    let mut target = CTarget::new();
+    let mut director = Director::new(&mut target);
+    director.process_program(&program);
+    println!("{}", director.generate_code());
 }
