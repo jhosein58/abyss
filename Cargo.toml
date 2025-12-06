@@ -1,7 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "abyss_lexer", "abyss_parser",
+    "compiler/abyss_lexer",
+    "compiler/abyss_parser",
+    "compiler/abyss_codegen",
 ]
 
 
@@ -11,5 +13,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-abyss_lexer = { path = "./abyss_lexer" }
-abyss_parser = { path = "./abyss_parser" }
+abyss_lexer = { path = "./compiler/abyss_lexer" }
+abyss_parser = { path = "./compiler/abyss_parser" }
+abyss_codegen = { path = "./compiler/abyss_codegen" }
