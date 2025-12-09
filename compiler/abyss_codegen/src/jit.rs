@@ -21,8 +21,13 @@ pub struct CraneliftTarget {
 }
 
 impl CraneliftTarget {
-    pub fn new() -> Self {
-        let builder = JITBuilder::new(cranelift_module::default_libcall_names()).unwrap();
+    pub fn new(extern_symbols: &[(&str, *const u8)]) -> Self {
+        let mut builder = JITBuilder::new(cranelift_module::default_libcall_names()).unwrap();
+
+        for (name, ptr) in extern_symbols {
+            builder.symbol(*name, *ptr);
+        }
+
         let module = JITModule::new(builder);
 
         Self {
@@ -36,7 +41,6 @@ impl CraneliftTarget {
             current_func_name: String::new(),
         }
     }
-
     pub fn run_fn(&mut self, name: &str) -> Result<i32, String> {
         self.module
             .finalize_definitions()
@@ -69,7 +73,32 @@ impl Target for CraneliftTarget {
 
     fn start_program(&mut self) {
         self.module.clear_context(&mut self.ctx);
-        self.functions_map.clear();
+    }
+
+    fn declare_extern_function(
+        &mut self,
+        name: &str,
+        params: &[(String, MyType)],
+        return_type: MyType,
+    ) {
+        let mut signature = self.module.make_signature();
+
+        for (_, ty) in params {
+            signature.params.push(AbiParam::new(self.to_clif_type(*ty)));
+        }
+
+        if return_type != MyType::Void {
+            signature
+                .returns
+                .push(AbiParam::new(self.to_clif_type(return_type)));
+        }
+
+        let func_id = self
+            .module
+            .declare_function(name, Linkage::Import, &signature)
+            .expect("Failed to declare extern function");
+
+        self.functions_map.insert(name.to_string(), func_id);
     }
 
     fn end_program(&mut self) {}
