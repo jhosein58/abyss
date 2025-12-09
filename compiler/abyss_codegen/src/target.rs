@@ -12,6 +12,8 @@ pub trait Target {
     type Value: Copy + Clone;
     type Block: Copy + Clone;
 
+    fn declare_extern_function(&mut self, name: &str, params: &[(String, Type)], return_type: Type);
+
     fn start_program(&mut self);
     fn end_program(&mut self);
 
