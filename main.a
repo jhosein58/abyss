@@ -1,7 +1,26 @@
-fn main(): i {
+fn main() {
 
-    while 1 == 1 {
-       print_i(10)
+    let len = 1024
+    let a = arr(len)
+
+    let i = 0
+    let i_f = 0.0
+
+    while i < len {
+        arr_set(a, i, i_f * i_f - 100.0)
+        i = i + 1
+        i_f = i_f + 1.0
     }
-    ret 0
+
+    i = 0
+    while i < len {
+        if arr_get(a, i) > 2000.0 {
+            print_f(0.0)
+        }else {
+            print_f(arr_get(a, i))
+        }
+        i = i + 1
+    }
+
+    arr_free(a)
 }
