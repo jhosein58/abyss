@@ -40,44 +40,60 @@ pub enum TokenKind {
     Literal(LiteralKind),
 
     // --- Keywords ---
-    Let,   // let
-    Fn,    // fn
-    Ret,   // ret
-    If,    // if
-    Else,  // else
-    While, // while
-    For,   // for
-    In,    // in
-    As,    // as
-    And,   // and
-    Or,    // or
-    Not,   // not
+    Let, // let
+    Fn,  // fn
 
-    Plus,     // +
-    Minus,    // -
-    Star,     // *
-    Slash,    // /
-    Percent,  // %
-    Amp,      // &
-    Comma,    // ,
-    Colon,    // :
-    Semi,     // ;
-    Dot,      // .
-    OParen,   // (
-    CParen,   // )
-    OBrace,   // {
-    CBrace,   // }
-    OBracket, // [
-    CBracket, // ]
-    Assign,   // =
-    EqEq,     // ==
-    BangEq,   // !=
-    Lt,       // <
-    LtEq,     // <=
-    Gt,       // >
-    GtEq,     // >=
-    RArrow,   // ->
-    REqArrow, // =>
+    Ret,     // ret
+    If,      // if
+    Else,    // else
+    While,   // while
+    For,     // for
+    Forever, // forever
+    Out,     // out
+    Next,    // next
+    In,      // in
+    As,      // as
+    And,     // and
+    Or,      // or
+    Not,     // not
+    True,    // true
+    False,   // false
+    I64,     // i64
+    F64,     // f64
+    U8,      // u8
+    Bool,    // bool
+    Pass,    // pass
+
+    Plus,       // +
+    Minus,      // -
+    Star,       // *
+    Slash,      // /
+    Percent,    // %
+    Amp,        // &
+    Pipe,       // |
+    Caret,      // ^
+    LeftShift,  // <<
+    RightShift, // >>
+    Tilde,      // ~
+    Comma,      // ,
+    Colon,      // :
+    Semi,       // ;
+    Dot,        // .
+    OParen,     // (
+    CParen,     // )
+    OBrace,     // {
+    CBrace,     // }
+    OBracket,   // [
+    CBracket,   // ]
+    Assign,     // =
+    EqEq,       // ==
+    BangEq,     // !=
+    Lt,         // <
+    LtEq,       // <=
+    Gt,         // >
+    GtEq,       // >=
+    RArrow,     // ->
+    REqArrow,   // =>
 
     Unknown,
     Eof,
@@ -93,11 +109,21 @@ impl TokenKind {
             "else" => TokenKind::Else,
             "while" => TokenKind::While,
             "for" => TokenKind::For,
+            "forever" => TokenKind::Forever,
+            "out" => TokenKind::Out,
+            "next" => TokenKind::Next,
             "in" => TokenKind::In,
             "and" => TokenKind::And,
             "or" => TokenKind::Or,
             "not" => TokenKind::Not,
             "as" => TokenKind::As,
+            "true" => TokenKind::True,
+            "false" => TokenKind::False,
+            "i64" => TokenKind::I64,
+            "f64" => TokenKind::F64,
+            "u8" => TokenKind::U8,
+            "bool" => TokenKind::Bool,
+            "pass" => TokenKind::Pass,
             _ => TokenKind::Ident,
         }
     }
@@ -110,6 +136,11 @@ impl TokenKind {
             "/" => TokenKind::Slash,
             "%" => TokenKind::Percent,
             "&" => TokenKind::Amp,
+            "|" => TokenKind::Pipe,
+            "^" => TokenKind::Caret,
+            "<<" => TokenKind::LeftShift,
+            ">>" => TokenKind::RightShift,
+            "~" => TokenKind::Tilde,
             "," => TokenKind::Comma,
             ":" => TokenKind::Colon,
             ";" => TokenKind::Semi,
@@ -150,17 +181,32 @@ impl Display for TokenKind {
             TokenKind::Else => write!(f, "'else'"),
             TokenKind::While => write!(f, "'while'"),
             TokenKind::For => write!(f, "'for'"),
+            TokenKind::Forever => write!(f, "'forever'"),
+            TokenKind::Out => write!(f, "'out'"),
+            TokenKind::Next => write!(f, "'next'"),
             TokenKind::In => write!(f, "'in'"),
             TokenKind::As => write!(f, "'as'"),
             TokenKind::And => write!(f, "'and'"),
             TokenKind::Or => write!(f, "'or'"),
             TokenKind::Not => write!(f, "'not'"),
+            TokenKind::True => write!(f, "'true'"),
+            TokenKind::False => write!(f, "'false'"),
+            TokenKind::I64 => write!(f, "'i64'"),
+            TokenKind::F64 => write!(f, "'f64'"),
+            TokenKind::U8 => write!(f, "'u8'"),
+            TokenKind::Bool => write!(f, "'bool'"),
+            TokenKind::Pass => write!(f, "'pass'"),
             TokenKind::Plus => write!(f, "'+'"),
             TokenKind::Minus => write!(f, "'-'"),
             TokenKind::Star => write!(f, "'*'"),
             TokenKind::Slash => write!(f, "'/'"),
             TokenKind::Percent => write!(f, "'%'"),
             TokenKind::Amp => write!(f, "'&'"),
+            TokenKind::Pipe => write!(f, "'|'"),
+            TokenKind::Caret => write!(f, "'^'"),
+            TokenKind::LeftShift => write!(f, "'<<'"),
+            TokenKind::RightShift => write!(f, "'>>'"),
+            TokenKind::Tilde => write!(f, "'~'"),
             TokenKind::Comma => write!(f, "','"),
             TokenKind::Colon => write!(f, "':'"),
             TokenKind::Semi => write!(f, "';'"),
@@ -180,6 +226,7 @@ impl Display for TokenKind {
             TokenKind::GtEq => write!(f, "'>='"),
             TokenKind::RArrow => write!(f, "'->'"),
             TokenKind::REqArrow => write!(f, "'=>'"),
+
             TokenKind::Unknown => write!(f, "Unknown"),
             TokenKind::Eof => write!(f, "Eof"),
         }

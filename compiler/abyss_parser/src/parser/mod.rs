@@ -20,7 +20,7 @@ pub struct Parser<'a> {
     source_map: SourceMap,
     errors: Vec<ParseError>,
     recorded_span: Span,
-    counter: u32,
+    unique_id_counter: u32,
 }
 
 impl<'a> Parser<'a> {
@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
             source_map: SourceMap::new(input),
             errors: Vec::new(),
             recorded_span: Span { start: 0, end: 0 },
-            counter: 0,
+            unique_id_counter: 0,
         }
     }
 
@@ -206,9 +206,9 @@ impl<'a> Parser<'a> {
     }
 
     fn get_unique_identifier(&mut self) -> String {
-        let id = format!("__abyss_unique_{}", self.counter);
-        self.counter += 1;
-        id
+        let id = self.unique_id_counter;
+        self.unique_id_counter += 1;
+        format!("__internal_{}", id)
     }
 
     fn is(&mut self, kind: TokenKind) -> bool {
