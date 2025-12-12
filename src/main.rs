@@ -1,7 +1,8 @@
 use std::{
     collections::HashMap,
-    fs,
+    fs::{self},
     io::Read,
+    os::raw::c_void,
     sync::{
         Mutex, OnceLock,
         atomic::{AtomicI64, Ordering},
@@ -9,12 +10,9 @@ use std::{
     time::Instant,
 };
 
-use abyss_codegen::{
-    director::Director,
-    jit::CraneliftTarget,
-    target::{Target, Type},
-};
-use abyss_parser::parser::Parser;
+use abyss::AbyssJit;
+use abyss_codegen::{ctarget::ctarget::CTarget, director::Director, target::Target};
+use abyss_parser::{ast::Type, parser::Parser};
 
 pub unsafe extern "C" fn print_i(n: i64) {
     println!("{}", n);
@@ -147,51 +145,67 @@ fn main() {
 
     let t = Instant::now();
 
-    let symbols = [
-        ("print_i", print_i as *const u8),
-        ("print_f", print_f as *const u8),
-        ("rand", rand as *const u8),
-        ("arr", arr_alloc as *const u8),
-        ("arr_set", arr_set as *const u8),
-        ("arr_get", arr_get as *const u8),
-        ("arr_len", arr_len as *const u8),
-        ("arr_free", arr_free as *const u8),
-    ];
+    // let symbols = [
+    //     ("print_i", print_i as *const u8),
+    //     ("print_f", print_f as *const u8),
+    //     ("rand", rand as *const u8),
+    //     ("arr", arr_alloc as *const u8),
+    //     ("arr_set", arr_set as *const u8),
+    //     ("arr_get", arr_get as *const u8),
+    //     ("arr_len", arr_len as *const u8),
+    //     ("arr_free", arr_free as *const u8),
+    // ];
 
-    let mut target = CraneliftTarget::new(&symbols);
-    target.declare_extern_function("print_i", &[("n".to_string(), Type::Int)], Type::Void);
-    target.declare_extern_function("print_f", &[("n".to_string(), Type::Float)], Type::Void);
-    target.declare_extern_function("rand", &[], Type::Float);
-    target.declare_extern_function("arr", &[("s".to_string(), Type::Int)], Type::Int);
+    // let mut target = CraneliftTarget::new(&symbols);
+    //
+    let mut target = CTarget::new();
+    target.declare_extern_function("print_i", &[("n".to_string(), Type::I64)], Type::Void);
+    target.declare_extern_function("print_f", &[("n".to_string(), Type::F64)], Type::Void);
+    target.declare_extern_function("rand", &[], Type::F64);
+    target.declare_extern_function("arr", &[("s".to_string(), Type::I64)], Type::I64);
     target.declare_extern_function(
         "arr_set",
         &[
-            ("a".to_string(), Type::Int),
-            ("i".to_string(), Type::Int),
-            ("v".to_string(), Type::Float),
+            ("a".to_string(), Type::I64),
+            ("i".to_string(), Type::I64),
+            ("v".to_string(), Type::F64),
         ],
         Type::Void,
     );
     target.declare_extern_function(
         "arr_get",
-        &[("a".to_string(), Type::Int), ("i".to_string(), Type::Int)],
-        Type::Float,
+        &[("a".to_string(), Type::I64), ("i".to_string(), Type::I64)],
+        Type::F64,
     );
-    target.declare_extern_function("arr_free", &[("a".to_string(), Type::Int)], Type::Void);
+    target.declare_extern_function("arr_free", &[("a".to_string(), Type::I64)], Type::Void);
 
-    target.declare_extern_function("arr_len", &[("a".to_string(), Type::Int)], Type::Int);
+    target.declare_extern_function("arr_len", &[("a".to_string(), Type::I64)], Type::I64);
     let mut director = Director::new(&mut target);
 
     let mut parser = Parser::new(&input);
     let program = parser.parse_program();
     println!("{}", parser.format_errors("test.a"));
     //dbg!(&program);
+
     director.process_program(&program);
+
+    let code = target.get_code();
+    //println!("{}", code);
+
+    let c_code = code;
+
+    let mut jit = AbyssJit::new();
+    jit.add_function("print_i", print_i as *const c_void);
+    jit.compile(c_code).expect("Compile error");
+    jit.finalize().expect("Relocation error");
 
     println!("Finished in: {}ms", t.elapsed().as_millis());
     println!("Running...\n");
+    type EntryFn = extern "C" fn();
 
-    let _ = target.run_fn("main");
-
-    //println!("\n{}\n", res.unwrap());
+    if let Some(add_func) = jit.get_function::<EntryFn>("entry") {
+        add_func();
+    } else {
+        println!("Function 'entry' not found!");
+    }
 }

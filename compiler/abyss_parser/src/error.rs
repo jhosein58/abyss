@@ -17,6 +17,8 @@ pub enum ParseErrorKind {
     },
     MalformedLiteral(&'static str),
     UnexpectedEof,
+    NotAFunction,
+    Expected(String),
 }
 
 impl Display for ParseErrorKind {
@@ -34,6 +36,12 @@ impl Display for ParseErrorKind {
             }
             ParseErrorKind::UnexpectedEof => {
                 write!(f, "unexpected end of file")
+            }
+            ParseErrorKind::NotAFunction => {
+                write!(f, "not a function")
+            }
+            ParseErrorKind::Expected(expected) => {
+                write!(f, "expected {}", expected)
             }
         }
     }
