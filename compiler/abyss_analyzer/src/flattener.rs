@@ -1,5 +1,5 @@
 use crate::hir::FlatProgram;
-use abyss_parser::ast::{Expr, FunctionBody, FunctionDef, Program, Stmt};
+use abyss_parser::ast::{Expr, FunctionBody, FunctionDef, Lit, Program, Stmt};
 
 pub struct Flattener {
     path: Vec<String>,
@@ -21,6 +21,7 @@ impl Flattener {
 
     fn visit_program(&mut self, program: Program) {
         self.process_modules(program.modules);
+
         self.process_top_level_functions(program.functions);
     }
 
@@ -40,15 +41,30 @@ impl Flattener {
 
     fn visit_function(&mut self, mut func: FunctionDef) {
         let original_name = func.name.clone();
-        let mangled_name = self.generate_mangled_name(&original_name);
 
+        let mangled_name = self.generate_mangled_name(&original_name);
         func.name = mangled_name.clone();
 
+        let mut extracted_inner_funcs = Vec::new();
+
         if let FunctionBody::UserDefined(ref mut stmts) = func.body {
-            self.process_function_body(stmts, &original_name, &mangled_name);
+            let (inner_funcs, mut cleaned_stmts, renames) =
+                self.isolate_inner_functions(stmts, &mangled_name);
+
+            extracted_inner_funcs = inner_funcs;
+
+            self.apply_renames(&mut cleaned_stmts, &renames);
+
+            *stmts = cleaned_stmts;
         }
 
         self.output.functions.push(func);
+
+        self.path.push(original_name);
+        for inner_func in extracted_inner_funcs {
+            self.visit_function(inner_func);
+        }
+        self.path.pop();
     }
 
     fn generate_mangled_name(&self, name: &str) -> String {
@@ -57,22 +73,6 @@ impl Flattener {
         } else {
             format!("{}__{}", self.path.join("__"), name)
         }
-    }
-
-    fn process_function_body(
-        &mut self,
-        stmts: &mut Vec<Stmt>,
-        original_name: &str,
-        mangled_name: &str,
-    ) {
-        let (inner_funcs, mut cleaned_stmts, renames) =
-            self.isolate_inner_functions(stmts, mangled_name);
-
-        self.apply_renames(&mut cleaned_stmts, &renames);
-
-        *stmts = cleaned_stmts;
-
-        self.recurse_on_inner_functions(inner_funcs, original_name);
     }
 
     fn isolate_inner_functions(
@@ -86,30 +86,20 @@ impl Flattener {
 
         for stmt in stmts.drain(..) {
             match stmt {
-                Stmt::FunctionDef(inner_func) => {
+                Stmt::FunctionDef(inner_func_box) => {
+                    let inner_func = *inner_func_box;
                     let old_name = inner_func.name.clone();
-                    let new_name = format!("{}__{}", parent_mangled_name, old_name);
 
-                    renames.push((old_name, new_name));
-                    inner_funcs.push(*inner_func);
+                    let new_global_name = format!("{}__{}", parent_mangled_name, old_name);
+
+                    renames.push((old_name, new_global_name));
+                    inner_funcs.push(inner_func);
                 }
                 _ => cleaned_stmts.push(stmt),
             }
         }
 
         (inner_funcs, cleaned_stmts, renames)
-    }
-
-    fn recurse_on_inner_functions(
-        &mut self,
-        inner_funcs: Vec<FunctionDef>,
-        parent_original_name: &str,
-    ) {
-        self.path.push(parent_original_name.to_string());
-        for inner_func in inner_funcs {
-            self.visit_function(inner_func);
-        }
-        self.path.pop();
     }
 
     fn apply_renames(&self, stmts: &mut [Stmt], renames: &[(String, String)]) {
@@ -126,18 +116,20 @@ impl Flattener {
             Stmt::Let(_, _, Some(expr))
             | Stmt::Const(_, _, Some(expr))
             | Stmt::Ret(expr)
-            | Stmt::Expr(expr) => self.rename_in_expr(expr, renames),
+            | Stmt::Expr(expr) => {
+                self.rename_in_expr(expr, renames);
+            }
 
             Stmt::Assign(lhs, rhs) => {
                 self.rename_in_expr(lhs, renames);
                 self.rename_in_expr(rhs, renames);
             }
 
-            Stmt::If(cond, then_branch, else_branch) => {
+            Stmt::If(cond, then_stmt, else_stmt) => {
                 self.rename_in_expr(cond, renames);
-                self.rename_in_stmt(then_branch, renames);
-                if let Some(else_b) = else_branch {
-                    self.rename_in_stmt(else_b, renames);
+                self.rename_in_stmt(then_stmt, renames);
+                if let Some(else_s) = else_stmt {
+                    self.rename_in_stmt(else_s, renames);
                 }
             }
 
@@ -146,7 +138,9 @@ impl Flattener {
                 self.rename_in_stmt(body, renames);
             }
 
-            Stmt::Block(stmts) => self.apply_renames(stmts, renames),
+            Stmt::Block(stmts) => {
+                self.apply_renames(stmts, renames);
+            }
 
             _ => {}
         }
@@ -154,7 +148,16 @@ impl Flattener {
 
     fn rename_in_expr(&self, expr: &mut Expr, renames: &[(String, String)]) {
         match expr {
-            Expr::Ident(path) => self.try_rename_ident(path, renames),
+            Expr::Ident(path) => {
+                if path.len() == 1 {
+                    for (old, new) in renames {
+                        if &path[0] == old {
+                            path[0] = new.clone();
+                            return;
+                        }
+                    }
+                }
+            }
 
             Expr::Call(callee, args, _) => {
                 self.rename_in_expr(callee, renames);
@@ -168,20 +171,62 @@ impl Flattener {
                 self.rename_in_expr(right, renames);
             }
 
-            Expr::Unary(_, operand) => self.rename_in_expr(operand, renames),
+            Expr::Unary(_, operand) => {
+                self.rename_in_expr(operand, renames);
+            }
 
-            _ => {}
-        }
-    }
+            Expr::Index(arr, idx) => {
+                self.rename_in_expr(arr, renames);
+                self.rename_in_expr(idx, renames);
+            }
 
-    fn try_rename_ident(&self, path: &mut Vec<String>, renames: &[(String, String)]) {
-        if path.len() == 1 {
-            for (old, new) in renames {
-                if &path[0] == old {
-                    path[0] = new.clone();
-                    return;
+            Expr::Deref(inner) | Expr::AddrOf(inner) | Expr::Cast(inner, _) => {
+                self.rename_in_expr(inner, renames);
+            }
+
+            Expr::Member(obj, _) => {
+                self.rename_in_expr(obj, renames);
+            }
+
+            Expr::MethodCall(obj, _, args, _) => {
+                self.rename_in_expr(obj, renames);
+                for arg in args {
+                    self.rename_in_expr(arg, renames);
                 }
             }
+
+            Expr::StructInit(_, fields, _) => {
+                for (_, val_expr) in fields {
+                    self.rename_in_expr(val_expr, renames);
+                }
+            }
+
+            Expr::EnumInit(_, fields, _) => {
+                for field in fields {
+                    self.rename_in_expr(field, renames);
+                }
+            }
+
+            Expr::Ternary(cond, true_val, false_val) => {
+                self.rename_in_expr(cond, renames);
+                self.rename_in_expr(true_val, renames);
+                self.rename_in_expr(false_val, renames);
+            }
+
+            Expr::Match(target, arms) => {
+                self.rename_in_expr(target, renames);
+                for (_, body) in arms {
+                    self.rename_in_expr(body, renames);
+                }
+            }
+
+            Expr::Lit(Lit::Array(exprs)) => {
+                for e in exprs {
+                    self.rename_in_expr(e, renames);
+                }
+            }
+
+            _ => {}
         }
     }
 }
