@@ -1,9 +1,12 @@
 use crate::target::Target;
-use abyss_analyzer::lir::LirType;
+use abyss_analyzer::lir::{LirLiteral, LirType};
+use abyss_parser::ast::{BinaryOp, UnaryOp};
 
 pub struct CTarget {
     output: String,
     indent_level: usize,
+    pending_newline: bool,
+    in_variable_init: bool,
 }
 
 impl CTarget {
@@ -11,6 +14,8 @@ impl CTarget {
         Self {
             output: String::new(),
             indent_level: 0,
+            pending_newline: false,
+            in_variable_init: false,
         }
     }
 
@@ -19,13 +24,25 @@ impl CTarget {
     }
 
     fn pop_indent(&mut self) {
-        self.indent_level -= 1;
+        if self.indent_level > 0 {
+            self.indent_level -= 1;
+        }
     }
 
-    fn emit(&mut self, text: &str) {
-        let indent = "    ".repeat(self.indent_level);
-        self.output.push_str(&format!("\n{}{}", indent, text));
+    fn write(&mut self, text: &str) {
+        if self.pending_newline {
+            self.output.push('\n');
+            self.output.push_str(&"    ".repeat(self.indent_level));
+            self.pending_newline = false;
+        }
+        self.output.push_str(text);
     }
+
+    fn set_newline_pending(&mut self) {
+        self.pending_newline = true;
+    }
+
+    // --- Helper Methods ---
 
     fn type_to_c(&self, ty: &LirType) -> String {
         match ty {
@@ -35,7 +52,71 @@ impl CTarget {
             LirType::Bool => "int".to_string(),
             LirType::Void => "void".to_string(),
             LirType::Pointer(inner) => format!("{}*", self.type_to_c(inner)),
-            _ => "".to_string(),
+            LirType::Array(inner, _) => format!("{}*", self.type_to_c(inner)),
+            LirType::Struct(name) => format!("struct {}", name),
+            LirType::Enum(name) => format!("enum {}", name),
+            LirType::FunctionPtr(args, ret) => {
+                let args_str = args
+                    .iter()
+                    .map(|t| self.type_to_c(t))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{} (*)({})", self.type_to_c(ret), args_str)
+            }
+        }
+    }
+
+    fn literal_to_c(&self, lit: &LirLiteral) -> String {
+        match lit {
+            LirLiteral::Int(i) => format!("{}LL", i),
+            LirLiteral::Float(f) => format!("{}", f),
+            LirLiteral::Bool(b) => {
+                if *b {
+                    "1".to_string()
+                } else {
+                    "0".to_string()
+                }
+            }
+            LirLiteral::Str(s) => {
+                let escaped = s
+                    .replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t");
+                format!("\"{}\"", escaped)
+            }
+            LirLiteral::Null => "NULL".to_string(),
+        }
+    }
+    fn binary_op_to_c(&self, op: BinaryOp) -> &'static str {
+        match op {
+            BinaryOp::Add => "+",
+            BinaryOp::Sub => "-",
+            BinaryOp::Mul => "*",
+            BinaryOp::Div => "/",
+            BinaryOp::Mod => "%",
+            BinaryOp::Eq => "==",
+            BinaryOp::Neq => "!=",
+            BinaryOp::Lt => "<",
+            BinaryOp::Gt => ">",
+            BinaryOp::Lte => "<=",
+            BinaryOp::Gte => ">=",
+            BinaryOp::And => "&&",
+            BinaryOp::Or => "||",
+            BinaryOp::BitAnd => "&",
+            BinaryOp::BitOr => "|",
+            BinaryOp::BitXor => "^",
+            BinaryOp::Shl => "<<",
+            BinaryOp::Shr => ">>",
+        }
+    }
+
+    fn unary_op_to_c(&self, op: UnaryOp) -> &'static str {
+        match op {
+            UnaryOp::Neg => "-",
+            UnaryOp::Not => "!",
+            UnaryOp::BitNot => "~",
         }
     }
 
@@ -44,11 +125,15 @@ impl CTarget {
     }
 
     fn params_to_func_args(&self, params: &[(String, LirType)]) -> String {
-        params
-            .iter()
-            .map(|(name, ty)| format!("{} {}", self.type_to_c(ty), name))
-            .collect::<Vec<String>>()
-            .join(", ")
+        if params.is_empty() {
+            "void".to_string()
+        } else {
+            params
+                .iter()
+                .map(|(name, ty)| format!("{} {}", self.type_to_c(ty), name))
+                .collect::<Vec<String>>()
+                .join(", ")
+        }
     }
 
     fn func_signature(
@@ -57,31 +142,81 @@ impl CTarget {
         params: &[(String, LirType)],
         return_type: &LirType,
     ) -> String {
-        format!("{} {}(", self.type_to_c(return_type), name)
-            + &self.params_to_func_args(params)
-            + ")"
+        format!(
+            "{} {}({})",
+            self.type_to_c(return_type),
+            name,
+            self.params_to_func_args(params)
+        )
     }
 }
 
 impl Target for CTarget {
     fn start_program(&mut self) {
         self.output.clear();
-
-        self.emit("");
-        self.emit("// --- Generated by Abyss CTarget ---");
-        self.emit("");
+        self.output
+            .push_str("// --- Generated by Abyss CTarget ---\n");
+        //self.output.push_str("#include <stdio.h>\n\n");
+        self.pending_newline = false;
     }
 
     fn end_program(&mut self) {
         self.indent_level = 0;
+        self.output.push_str("\n// --- End of generated code ---\n");
+        self.output.push_str("\nint main(void) {\n");
+        self.indent_level = 1;
+        self.pending_newline = true;
+        self.write("entry();");
+        self.set_newline_pending();
+        self.write("return 0;");
+        self.indent_level = 0;
+        self.output.push_str("\n}");
+    }
 
-        self.emit("");
-        self.emit("// --- End of generated code ---");
-        self.emit("");
-        self.emit("int main(void) {");
-        self.emit("    entry();");
-        self.emit("    return 0;");
-        self.emit("}");
+    fn define_struct(&mut self, name: &str, fields: &[(String, LirType)]) {
+        self.write(&format!("struct {} {{", name));
+        self.push_indent();
+        self.set_newline_pending();
+        for (field_name, field_type) in fields {
+            self.write(&format!(
+                "{};",
+                self.params_to_func_args(&[(field_name.clone(), field_type.clone())])
+            ));
+            self.set_newline_pending();
+        }
+        self.pop_indent();
+        self.write("};");
+        self.set_newline_pending();
+        self.write("");
+        self.set_newline_pending();
+    }
+
+    fn define_enum(&mut self, name: &str, variants: &[(String, LirType)]) {
+        self.write(&format!("enum {}_Tag {{", name));
+        self.push_indent();
+        self.set_newline_pending();
+        for (i, (variant_name, _)) in variants.iter().enumerate() {
+            self.write(&format!(
+                "{}_{} = {},",
+                name.to_uppercase(),
+                variant_name.to_uppercase(),
+                i
+            ));
+            self.set_newline_pending();
+        }
+        self.pop_indent();
+        self.write("};");
+        self.set_newline_pending();
+        self.write("");
+        self.set_newline_pending();
+    }
+
+    fn define_global(&mut self, name: &str, ty: &LirType, _has_init: bool) {
+        self.write(&format!(
+            "{};",
+            self.params_to_func_args(&[(name.to_string(), ty.clone())])
+        ));
+        self.set_newline_pending();
     }
 
     fn declare_extern_function(
@@ -90,7 +225,11 @@ impl Target for CTarget {
         params: &[(String, LirType)],
         return_type: &LirType,
     ) {
-        self.emit(&("extern".to_owned() + &self.func_signature(name, params, return_type) + ";"));
+        self.write(&format!(
+            "extern {};",
+            self.func_signature(name, params, return_type)
+        ));
+        self.set_newline_pending();
     }
 
     fn declare_function_proto(
@@ -99,16 +238,255 @@ impl Target for CTarget {
         params: &[(String, LirType)],
         return_type: &LirType,
     ) {
-        self.emit(&(self.func_signature(name, params, return_type) + ";"));
+        self.write(&format!(
+            "{};",
+            self.func_signature(name, params, return_type)
+        ));
+        self.set_newline_pending();
     }
 
     fn begin_function(&mut self, name: &str, params: &[(String, LirType)], return_type: &LirType) {
-        self.emit(&(self.func_signature(name, params, return_type) + " {"));
+        if !self.output.ends_with("\n\n") {
+            self.output.push('\n');
+        }
+        self.pending_newline = false;
+        self.write(&format!(
+            "{} {{",
+            self.func_signature(name, params, return_type)
+        ));
         self.push_indent();
+        self.set_newline_pending();
     }
 
     fn end_function(&mut self) {
         self.pop_indent();
-        self.emit("}");
+        self.write("}");
+        self.set_newline_pending();
+        self.output.push('\n');
+    }
+
+    // --- Statements ---
+    fn stmt_var_decl(&mut self, name: &str, ty: &LirType, has_init: bool) {
+        let decl = match ty {
+            LirType::Array(inner, size) => format!("{} {}[{}]", self.type_to_c(inner), name, size),
+            _ => format!("{} {}", self.type_to_c(ty), name),
+        };
+
+        self.write(&decl);
+
+        if has_init {
+            self.write(" = ");
+            self.in_variable_init = true;
+        } else {
+            self.write(";");
+            self.set_newline_pending();
+        }
+    }
+
+    fn expr_array_init_start(&mut self, ty_opt: Option<&LirType>) {
+        if self.in_variable_init {
+            self.write("{ ");
+        } else {
+            if let Some(inner_ty) = ty_opt {
+                let type_str = self.type_to_c(inner_ty);
+                self.write(&format!("({}[]) {{ ", type_str));
+            } else {
+                self.write("(long long[]) { ");
+            }
+        }
+    }
+
+    fn stmt_var_init_end(&mut self) {
+        self.in_variable_init = false;
+        self.write(";");
+        self.set_newline_pending();
+    }
+    fn expr_array_init_sep(&mut self) {
+        self.write(", ");
+    }
+
+    fn expr_array_init_end(&mut self) {
+        self.write(" }");
+    }
+
+    fn expr_ternary_mid1(&mut self) {
+        self.write(" ? ");
+    }
+
+    fn expr_ternary_mid2(&mut self) {
+        self.write(" : ");
+    }
+
+    fn stmt_assign_start(&mut self, _lhs_is_ptr: bool) {
+        self.write(" = ");
+    }
+
+    fn stmt_assign_end(&mut self) {
+        self.write(";");
+        self.set_newline_pending();
+    }
+
+    fn stmt_return_start(&mut self) {
+        self.write("return ");
+    }
+
+    fn stmt_return_end(&mut self) {
+        self.write(";");
+        self.set_newline_pending();
+    }
+
+    fn stmt_break(&mut self) {
+        self.write("break;");
+        self.set_newline_pending();
+    }
+
+    fn stmt_continue(&mut self) {
+        self.write("continue;");
+        self.set_newline_pending();
+    }
+
+    fn stmt_expr_end(&mut self) {
+        self.write(";");
+        self.set_newline_pending();
+    }
+
+    // --- Control Flow ---
+    fn begin_block(&mut self) {
+        self.write("{");
+        self.push_indent();
+        self.set_newline_pending();
+    }
+
+    fn end_block(&mut self) {
+        self.pop_indent();
+        self.write("}");
+        self.set_newline_pending();
+    }
+
+    fn begin_if(&mut self) {
+        self.write("if (");
+    }
+
+    fn begin_if_body(&mut self) {
+        self.write(") ");
+    }
+
+    fn begin_else(&mut self) {
+        self.write("else ");
+    }
+
+    fn end_if(&mut self) {
+        // handled by end_block usually
+    }
+
+    fn begin_while(&mut self) {
+        self.write("while (");
+    }
+
+    fn begin_while_body(&mut self) {
+        self.write(") ");
+    }
+
+    fn end_while(&mut self) {}
+
+    fn begin_switch(&mut self) {
+        self.write("switch (");
+    }
+
+    fn begin_switch_body(&mut self) {
+        self.write(") {");
+        self.push_indent();
+        self.set_newline_pending();
+    }
+
+    fn begin_case(&mut self, lit: &LirLiteral) {
+        self.write(&format!("case {}:", self.literal_to_c(lit)));
+        self.push_indent();
+        self.set_newline_pending();
+    }
+
+    fn begin_default(&mut self) {
+        self.write("default:");
+        self.push_indent();
+        self.set_newline_pending();
+    }
+
+    fn end_case(&mut self) {
+        self.write("break;");
+        self.pop_indent();
+        self.set_newline_pending();
+    }
+
+    fn end_switch(&mut self) {
+        self.pop_indent();
+        self.write("}");
+        self.set_newline_pending();
+    }
+
+    // --- Expressions ---
+    fn expr_lit(&mut self, lit: &LirLiteral) {
+        self.write(&self.literal_to_c(lit));
+    }
+
+    fn expr_ident(&mut self, name: &str) {
+        self.write(name);
+    }
+
+    fn expr_binary_start(&mut self, _op: BinaryOp) {
+        self.write("(");
+    }
+    fn expr_binary_mid(&mut self, op: BinaryOp) {
+        self.write(&format!(" {} ", self.binary_op_to_c(op)));
+    }
+    fn expr_binary_end(&mut self) {
+        self.write(")");
+    }
+
+    fn expr_unary_start(&mut self, op: UnaryOp) {
+        self.write(&format!("({}", self.unary_op_to_c(op)));
+    }
+    fn expr_unary_end(&mut self) {
+        self.write(")");
+    }
+
+    fn expr_call_start(&mut self, name: &str) {
+        self.write(&format!("{}(", name));
+    }
+    fn expr_call_arg_sep(&mut self) {
+        self.write(", ");
+    }
+    fn expr_call_end(&mut self) {
+        self.write(")");
+    }
+
+    fn expr_member(&mut self, field: &str, is_pointer: bool) {
+        self.write(if is_pointer { "->" } else { "." });
+        self.write(field);
+    }
+
+    fn expr_index_start(&mut self) {
+        self.write("[");
+    }
+    fn expr_index_end(&mut self) {
+        self.write("]");
+    }
+
+    fn expr_cast_start(&mut self, target_ty: &LirType) {
+        self.write(&format!("({})", self.type_to_c(target_ty)));
+    }
+    fn expr_cast_end(&mut self) {}
+
+    fn expr_deref_start(&mut self) {
+        self.write("(*");
+    }
+    fn expr_deref_end(&mut self) {
+        self.write(")");
+    }
+
+    fn expr_addrof_start(&mut self) {
+        self.write("(&");
+    }
+    fn expr_addrof_end(&mut self) {
+        self.write(")");
     }
 }
