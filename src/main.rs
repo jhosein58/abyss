@@ -1,20 +1,17 @@
 use std::{
     collections::HashMap,
     ffi::CStr,
-    fs::{self},
-    io::Read,
-    os::raw::{c_char, c_double, c_longlong, c_void},
+    os::raw::{c_char, c_double, c_int, c_longlong, c_void},
     sync::{
         Mutex, OnceLock,
         atomic::{AtomicI64, Ordering},
     },
-    time::Instant,
 };
 
 use abyss::AbyssJit;
 use abyss_analyzer::{flattener::Flattener, ir::Ir};
 use abyss_codegen::{ctarget::ctarget::CTarget, director::Director};
-use abyss_parser::ast::{FunctionBody, Stmt, get_debug_prog};
+use abyss_parser::ast::get_debug_prog;
 // use abyss_codegen::{ctarget::ctarget::CTarget, director::Director, target::Target};
 // use abyss_parser::{ast::Type, parser::Parser};
 
@@ -206,23 +203,24 @@ fn main() {
 
     println!("{}", target.get_code());
 
-    let c_code = r#"
+    let c_code = target.get_code();
 
-
-
-          void entry() {
-
-              while(1) {
-
-              }
-          }
-      "#;
+    unsafe extern "C" {
+        fn printf(format: *const c_char, ...) -> c_int;
+        fn memset(s: *mut c_void, c: c_int, n: usize) -> *mut c_void;
+        fn memcpy(dest: *mut c_void, src: *const c_void, n: usize) -> *mut c_void;
+    }
 
     let mut jit = AbyssJit::new().unwrap();
+
+    jit.add_function("printf", printf as *const c_void);
+    jit.add_function("memset", memset as *const c_void);
+    jit.add_function("memcpy", memcpy as *const c_void);
 
     jit.compile(c_code).expect("Compile error");
     jit.finalize().expect("Relocation error");
 
+    println!("\n------------------------\n");
     type FnType = extern "C" fn();
 
     let func = jit
