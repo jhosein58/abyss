@@ -1,13 +1,8 @@
-// use std::{
-//     fs,
-//     io::Read,
-//     os::raw::{c_char, c_int, c_void},
-//     time::Instant,
-// };
+use abyss::{Abyss, CTarget};
 
-// use abyss::AbyssJit;
-// use abyss_analyzer::{flattener::Flattener, ir::Ir};
-// use abyss_codegen::{ctarget::ctarget::CTarget, director::Director};
-// use abyss_parser::parser::Parser;
-
-fn main() {}
+fn main() {
+    let code = include_str!("../main.a");
+    let mut abyss = Abyss::new(code, CTarget::new());
+    //abyss.run();
+    println!("Code:\n{}", abyss.compile());
+}

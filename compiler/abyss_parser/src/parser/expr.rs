@@ -9,9 +9,10 @@ use crate::{
 };
 
 #[derive(PartialEq, PartialOrd, Clone, Copy, Debug)]
+#[repr(u8)]
 enum Precedence {
     _None = 0,
-    Assignment = 1,
+    _Assignment = 1,
     Or = 2,
     And = 3,
     BitwiseOr = 4,
@@ -26,18 +27,33 @@ enum Precedence {
     Call = 13,
 }
 
+impl Precedence {
+    fn get_next_power(&self) -> u8 {
+        let val = *self as u8;
+        match self {
+            Self::_Assignment => val,
+            _ => val + 1,
+        }
+    }
+}
+
 impl<'a> Parser<'a> {
     pub fn parse_expr(&mut self) -> Option<Expr> {
-        self.parse_expr_bp(Precedence::Assignment)
+        self.parse_expr_bp(0)
     }
 
-    fn parse_expr_bp(&mut self, min_bp: Precedence) -> Option<Expr> {
+    fn parse_expr_bp(&mut self, min_bp: u8) -> Option<Expr> {
+        self.skip_newlines();
+
         let mut lhs = self.parse_prefix()?;
 
         loop {
-            while let Some(postfix_bp) = self.get_postfix_binding_power(self.stream.current().kind)
+            self.skip_newlines();
+
+            while let Some(postfix_prec) =
+                self.get_postfix_binding_power(self.stream.current().kind)
             {
-                if postfix_bp < min_bp {
+                if (postfix_prec as u8) < min_bp {
                     break;
                 }
                 lhs = self.parse_postfix(lhs)?;
@@ -50,7 +66,10 @@ impl<'a> Parser<'a> {
             {
                 break;
             }
-            if let Some(infix_bp) = self.get_infix_binding_power(current_kind) {
+
+            if let Some(infix_prec) = self.get_infix_binding_power(current_kind) {
+                let infix_bp = infix_prec as u8;
+
                 if infix_bp < min_bp {
                     break;
                 }
@@ -58,7 +77,13 @@ impl<'a> Parser<'a> {
                 self.advance();
                 let op = self.token_to_binary_op(current_kind);
 
-                let rhs = self.parse_expr_bp(infix_bp)?;
+                let next_min_bp = infix_prec.get_next_power();
+
+                let rhs = match self.parse_expr_bp(next_min_bp) {
+                    Some(e) => e,
+                    None => break,
+                };
+
                 lhs = Expr::Binary(Box::new(lhs), op, Box::new(rhs));
             } else {
                 break;
@@ -69,6 +94,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_prefix(&mut self) -> Option<Expr> {
+        self.skip_newlines();
         let token_kind = self.stream.current().kind;
 
         match token_kind {
@@ -98,8 +124,16 @@ impl<'a> Parser<'a> {
             TokenKind::Ident => {
                 let name = self.stream.current_lit().to_string();
                 self.advance();
-                Some(Expr::Ident(vec![name]))
+                let path = vec![name];
+
+                if self.stream.is(TokenKind::OBrace) {
+                    let generics = Vec::new();
+                    return self.parse_struct_literal(path, generics);
+                }
+
+                Some(Expr::Ident(path))
             }
+
             TokenKind::OParen => {
                 self.advance();
                 let expr = self.parse_expr()?;
@@ -131,19 +165,19 @@ impl<'a> Parser<'a> {
                     TokenKind::Star => {
                         self.advance();
                         return Some(Expr::Deref(Box::new(
-                            self.parse_expr_bp(Precedence::Unary)?,
+                            self.parse_expr_bp(Precedence::Unary as u8)?,
                         )));
                     }
                     TokenKind::Amp => {
                         self.advance();
                         return Some(Expr::AddrOf(Box::new(
-                            self.parse_expr_bp(Precedence::Unary)?,
+                            self.parse_expr_bp(Precedence::Unary as u8)?,
                         )));
                     }
                     _ => unreachable!(),
                 };
                 self.advance();
-                let rhs = self.parse_expr_bp(Precedence::Unary)?;
+                let rhs = self.parse_expr_bp(Precedence::Unary as u8)?;
                 Some(Expr::Unary(op, Box::new(rhs)))
             }
             _ => {
@@ -156,10 +190,51 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn get_postfix_binding_power(&self, kind: TokenKind) -> Option<Precedence> {
+        Some(match kind {
+            TokenKind::OParen | TokenKind::OBracket | TokenKind::As | TokenKind::Dot => {
+                Precedence::Call
+            }
+            _ => return None,
+        })
+    }
+
     fn parse_postfix(&mut self, lhs: Expr) -> Option<Expr> {
         let token_kind = self.stream.current().kind;
 
         match token_kind {
+            TokenKind::Dot => {
+                self.advance();
+
+                if !self.stream.is(TokenKind::Ident) {
+                    self.emit_error_at_current(ParseErrorKind::Expected(
+                        "Field or method name".to_string(),
+                    ));
+                    return None;
+                }
+
+                let name = self.stream.current_lit().to_string();
+                self.advance();
+                if self.stream.is(TokenKind::OParen) {
+                    self.advance();
+
+                    let mut args = Vec::new();
+                    if !self.stream.is(TokenKind::CParen) {
+                        loop {
+                            args.push(self.parse_expr()?);
+                            if !self.stream.consume(TokenKind::Comma) {
+                                break;
+                            }
+                        }
+                    }
+                    self.consume(TokenKind::CParen)?;
+
+                    Some(Expr::MethodCall(Box::new(lhs), name, args, Vec::new()))
+                } else {
+                    Some(Expr::Member(Box::new(lhs), name))
+                }
+            }
+
             TokenKind::OParen => {
                 self.advance();
                 let mut args = Vec::new();
@@ -225,13 +300,6 @@ impl<'a> Parser<'a> {
             TokenKind::LeftShift | TokenKind::RightShift => Precedence::Shift,
             TokenKind::Plus | TokenKind::Minus => Precedence::Term,
             TokenKind::Star | TokenKind::Slash | TokenKind::Percent => Precedence::Factor,
-            _ => return None,
-        })
-    }
-
-    fn get_postfix_binding_power(&self, kind: TokenKind) -> Option<Precedence> {
-        Some(match kind {
-            TokenKind::OParen | TokenKind::OBracket | TokenKind::As => Precedence::Call,
             _ => return None,
         })
     }
@@ -309,5 +377,50 @@ impl<'a> Parser<'a> {
         }
 
         Some(base_type)
+    }
+
+    fn parse_struct_literal(&mut self, path: Vec<String>, generics: Vec<Type>) -> Option<Expr> {
+        self.consume(TokenKind::OBrace)?;
+
+        let mut fields = Vec::new();
+
+        while !self.stream.is(TokenKind::CBrace) && !self.stream.is_at_end() {
+            self.skip_newlines();
+            if self.stream.is(TokenKind::CBrace) {
+                break;
+            }
+
+            if !self.stream.is(TokenKind::Ident) {
+                self.emit_error_at_current(ParseErrorKind::Expected("Field name".to_string()));
+                return None;
+            }
+            let field_name = self.stream.current_lit().to_string();
+            self.advance();
+
+            if !self.stream.consume(TokenKind::Colon) {
+                self.emit_error_at_current(ParseErrorKind::Expected(
+                    "Colon ':' after field name".to_string(),
+                ));
+                return None;
+            }
+
+            let value_expr = self.parse_expr()?;
+            fields.push((field_name, value_expr));
+
+            if !self.stream.consume(TokenKind::Comma) {
+                if !self.stream.is(TokenKind::CBrace) {
+                    self.emit_error_at_current(ParseErrorKind::Expected(
+                        "Comma or closing brace".to_string(),
+                    ));
+                    return None;
+                }
+            }
+
+            self.skip_newlines();
+        }
+
+        self.consume(TokenKind::CBrace)?;
+
+        Some(Expr::StructInit(path, fields, generics))
     }
 }
