@@ -1,5 +1,7 @@
-use abyss_analyzer::{flattener::Flattener, hir::FlatProgram, ir::Ir, lir::LirProgram};
-use abyss_codegen::{ctarget::ctarget::CTarget, director::Director};
+use abyss_analyzer::{
+    collector::Collector, flattener::Flattener, hir::FlatProgram, ir::Ir, lir::LirProgram,
+};
+use abyss_codegen::{director::Director, target::Target};
 use abyss_parser::{ast::Program, parser::Parser};
 use include_dir::{Dir, include_dir};
 use std::{
@@ -7,6 +9,8 @@ use std::{
     time::Instant,
 };
 use tempfile::TempDir;
+
+pub use abyss_codegen::ctarget::ctarget::CTarget;
 
 static TCC_MINIMAL_FS: Dir = include_dir!("tcc_minimal");
 
@@ -142,14 +146,18 @@ impl Drop for AbyssJit {
     }
 }
 
-pub struct Abyss<'a> {
+pub struct Abyss<'a, T: Target> {
     parser: Parser<'a>,
+    target: T,
+    jit: AbyssJit,
 }
 
-impl<'a> Abyss<'a> {
-    pub fn new(source: &'a str) -> Self {
+impl<'a, T: Target> Abyss<'a, T> {
+    pub fn new(source: &'a str, target: T) -> Self {
         Self {
             parser: Parser::new(source),
+            target,
+            jit: AbyssJit::new().unwrap(),
         }
     }
 
@@ -163,23 +171,27 @@ impl<'a> Abyss<'a> {
 
     pub fn parse_flatten(&mut self) -> FlatProgram {
         let program = self.parse();
+
         let flattener = Flattener::new();
         flattener.flatten(program)
     }
 
     pub fn build_ir(&mut self) -> LirProgram {
         let program = self.parse_flatten();
-        let ir = Ir::build(&program);
+        let ctx = Collector::collect(&program);
+        let ir = Ir::build(&program, ctx.expect("Context error."));
         ir
     }
 
     pub fn compile(&mut self) -> String {
-        let program = self.parse_flatten();
-        let ir = Ir::build(&program);
-        let mut target = CTarget::new();
-        let mut compiler = Director::new(&mut target);
+        let ir = self.build_ir();
+        let mut compiler = Director::new(&mut self.target);
         compiler.process_program(&ir);
-        target.get_code().to_string()
+        self.target.emit()
+    }
+
+    pub fn add_fn(&mut self, name: &str, func: *const c_void) {
+        self.jit.add_function(name, func);
     }
 
     pub fn run(&mut self) {
@@ -196,7 +208,8 @@ impl<'a> Abyss<'a> {
             fn exit(status: c_int) -> !;
         }
 
-        let mut jit = AbyssJit::new().unwrap();
+        let code = self.compile();
+        let jit = &mut self.jit;
 
         jit.add_function("printf", printf as *const c_void);
         jit.add_function("memset", memset as *const c_void);
@@ -206,7 +219,7 @@ impl<'a> Abyss<'a> {
         jit.add_function("free", free as *const c_void);
         jit.add_function("exit", exit as *const c_void);
 
-        jit.compile(&self.compile()).expect("Compile error");
+        jit.compile(&code).expect("Compile error");
         jit.finalize().expect("Relocation error");
 
         println!("Finished in: {}ms", t.elapsed().as_millis());

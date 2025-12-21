@@ -10,7 +10,8 @@ local libs_dir = "libs"
 local minimal_dir = "tcc_minimal"
 local include_out_dir = minimal_dir .. "/include"
 
-local cc = "zig cc"
+-- local cc = "zig cc"
+local cc = "zig cc -target x86_64-linux-musl"
 local ar = "zig ar"
 
 function exec(cmd)
@@ -51,7 +52,8 @@ mkdir(include_out_dir)
 
 print("\n>> [1/3] Building libtcc.a (Host Library)...")
 
-local cflags_host = "-c -Os -fno-stack-protector -DTCC_IS_NATIVE -DTCC_TARGET_X86_64"
+-- local cflags_host = "-c -Os -fno-stack-protector -DTCC_IS_NATIVE -DTCC_TARGET_X86_64"
+local cflags_host = "-std=gnu11 -c -fPIC -Os -fno-stack-protector -DTCC_IS_NATIVE -DTCC_TARGET_X86_64"
 
 
 if target_os == "linux" then
@@ -71,7 +73,8 @@ print("\n>> [2/3] Building libtcc1.a (Runtime Support)...")
 
 local libtcc1_src = src_dir .. "/lib/libtcc1.c"
 
-local cflags_rt = "-c -Os -fno-stack-protector -DTCC_TARGET_X86_64"
+-- local cflags_rt = "-c -Os -fno-stack-protector -DTCC_TARGET_X86_64"
+local cflags_rt = "-c -fPIC -Os -fno-stack-protector -DTCC_TARGET_X86_64"
 
 exec(string.format("%s %s -I%s -o libtcc1.o %s", cc, cflags_rt, src_dir, libtcc1_src))
 

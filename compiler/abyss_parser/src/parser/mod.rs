@@ -12,6 +12,7 @@ use crate::{
 pub mod block;
 pub mod expr;
 pub mod func;
+pub mod globals;
 pub mod stmt;
 
 pub struct Parser<'a> {
@@ -144,19 +145,57 @@ impl<'a> Parser<'a> {
 
     pub fn parse_program(&mut self) -> Program {
         let mut functions = Self::get_std_externs();
+        let mut structs = Vec::new();
+        let mut statics = Vec::new();
+        let modules = Vec::new();
+        let enums = Vec::new();
 
-        while self.stream.current().kind != TokenKind::Eof {
-            if let Some(func) = self.parse_function() {
-                functions.push(func);
+        while !self.stream.is_at_end() {
+            self.skip_newlines();
+
+            if self.stream.is_at_end() {
+                break;
+            }
+
+            let is_pub = if self.stream.is(TokenKind::Pub) {
+                self.advance();
+                true
+            } else {
+                false
+            };
+
+            match self.stream.current().kind {
+                TokenKind::Fn => {
+                    if let Some(func) = self.parse_function(is_pub) {
+                        functions.push(func);
+                    }
+                }
+                TokenKind::Struct => {
+                    if let Some(st) = self.parse_struct_def(is_pub) {
+                        structs.push(st);
+                    }
+                }
+                TokenKind::Static => {
+                    if let Some(st) = self.parse_static_def(is_pub) {
+                        statics.push(st);
+                    }
+                }
+                _ => {
+                    self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
+                        expected: TokenKind::Fn,
+                        found: self.stream.current().kind,
+                    });
+                    self.advance();
+                }
             }
         }
 
         Program {
-            modules: Vec::new(),
-            structs: Vec::new(),
+            modules,
+            structs,
             functions,
-            statics: Vec::new(),
-            enums: Vec::new(),
+            statics,
+            enums,
         }
     }
 
@@ -164,6 +203,10 @@ impl<'a> Parser<'a> {
         if self.stream.is(kind) {
             self.advance();
         }
+    }
+
+    fn skip_newlines(&mut self) {
+        self.optional(TokenKind::Newline);
     }
 
     pub fn synchronize(&mut self) {

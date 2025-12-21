@@ -19,6 +19,7 @@ pub enum ParseErrorKind {
     UnexpectedEof,
     NotAFunction,
     Expected(String),
+    Message(String),
 }
 
 impl Display for ParseErrorKind {
@@ -42,6 +43,9 @@ impl Display for ParseErrorKind {
             }
             ParseErrorKind::Expected(expected) => {
                 write!(f, "expected {}", expected)
+            }
+            ParseErrorKind::Message(message) => {
+                write!(f, "{}", message)
             }
         }
     }

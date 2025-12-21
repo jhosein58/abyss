@@ -1,3 +1,4 @@
+pub mod collector;
 pub mod flattener;
 pub mod hir;
 pub mod ir;
