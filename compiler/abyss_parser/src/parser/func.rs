@@ -226,4 +226,58 @@ impl<'a> Parser<'a> {
         }
         Type::Void
     }
+
+    pub fn parse_impl_block(&mut self) -> Vec<FunctionDef> {
+        if !self.consume_safely(TokenKind::Impl).is_some() {
+            return Vec::new();
+        }
+
+        let struct_name = match self.read_ident() {
+            Some(name) => name,
+            None => return Vec::new(),
+        };
+
+        if !self.consume_safely(TokenKind::OBrace).is_some() {
+            return Vec::new();
+        }
+
+        let mut methods = Vec::new();
+
+        while !self.stream.is(TokenKind::CBrace) && !self.stream.is_at_end() {
+            self.skip_newlines();
+
+            if self.stream.is(TokenKind::CBrace) {
+                break;
+            }
+
+            let is_pub = if self.stream.is(TokenKind::Pub) {
+                self.advance();
+                true
+            } else {
+                false
+            };
+
+            if self.stream.is(TokenKind::Fn) {
+                if let Some(mut func) = self.parse_function(is_pub) {
+                    let old_name = func.name.clone();
+                    let new_name = format!("{}__{}", struct_name, old_name);
+                    func.name = new_name;
+
+                    methods.push(func);
+                }
+            } else {
+                self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
+                    expected: TokenKind::Fn,
+                    found: self.stream.current().kind,
+                });
+                self.synchronize_func();
+            }
+
+            self.skip_newlines();
+        }
+
+        self.consume_safely(TokenKind::CBrace);
+
+        methods
+    }
 }
