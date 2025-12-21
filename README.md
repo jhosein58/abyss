@@ -6,75 +6,101 @@ Abyss is an experimental, performance-oriented language designed for **Real-Time
 
 ## ⚡ Under the Hood
 
-Abyss is no longer just an interpreter. It leverages the **Tiny C Compiler (TCC)** backend to JIT-compile your scripts directly into machine code with blistering speed.
+Abyss has evolved. It leverages the **Tiny C Compiler (TCC)** backend to JIT-compile your scripts directly into machine code with blistering speed. It now features a fully-fledged type system that maps directly to C memory layouts.
 
-*   **TCC Backend:** Blends the compilation speed of a script with the execution speed of C.
+*   **Native Structs:** Define data layouts that match C structs bit-for-bit.
+*   **Methods & Impls:** Organize logic with `impl` blocks. It looks like OOP, compiles to flat functions.
 *   **Zero Overhead:** No Garbage Collector. No runtime safety nets. You allocate, you free.
-*   **C Interop (FFI):** Seamlessly call host Rust functions or external C libraries.
-*   **Raw Memory Access:** Arrays are just pointers. Structs are just arrays. You have total control.
+*   **Full C Ecosystem:** Call `malloc`, `memcpy`, `printf` or any shared library directly.
+*   **Raw Memory Access:** Pointers are first-class citizens. Array indexing works on raw pointers.
 
 ## 🦀 "Is this Rust?"
 
 It looks like Rust. It feels like Rust. But... **the borrow checker went out for cigarettes and never came back.**
 
-Think of Abyss as `unsafe { Rust }` running on a hot-swappable JIT engine. We adopted the elegant syntax but stripped away the training wheels to give you the dangerous control required for low-level systems experimentation.
+Think of Abyss as `unsafe { Rust }` running on a hot-swappable JIT engine. We adopted the elegant syntax—structs, impl blocks, and type inference—but stripped away the training wheels to give you the dangerous control required for low-level systems experimentation.
 
-## 🩸 The Flavor: Build Your Own Vector
+## 🩸 The Flavor: Zero-Cost Abstractions
 
-Abyss doesn't give you a standard library with bloat. It gives you the tools to build one. Here is how you implement a dynamic Vector using raw memory references and stack arrays:
+Abyss doesn't force a standard library on you. It gives you the power to build one from scratch using `libc` primitives.
+
+Here is a fully functional **Dynamic Vector** implementation. Note how we mix high-level method syntax (`self.push`) with raw C memory management (`malloc`/`free`):
 ```rust
--- A helper to push values into our "Vector" structure
--- vec structure: [capacity, length, data_pointer]
-fn vec_push(vec: &i64, val: i64) {
-    let len: i64 = vec[1]      -- Get current length
-    let ref: &i64 = vec[2]     -- Get pointer to data
-
-    ref[len] = val             -- Write to memory directly
-    vec[1] = len + 1           -- Update length
+-- Define the memory layout (Matches C struct perfectly)
+struct Vec {
+    p: &i64,  -- Pointer to data
+    l: i64,   -- Length
+    c: i64    -- Capacity
 }
 
--- A helper to print the vector content
-fn vec_print(vec: &i64) {
-    let len: i64 = vec[1]
-    let ref: &i64 = vec[2]
+-- Constructor
+fn NewVec: Vec {
+    ret Vec { p: 0, l: 0, c: 0 }
+}
 
-    print("[")
-    -- Robust loops
-    for i in 0 -> len {
-        print_i64(ref[i])
-        if i < len - 1 {
-            print(", ")
-        }
+-- Add behavior to the data
+impl Vec {
+    -- Manual memory management, wrapped in a nice API
+    fn resize(self: &Vec, new_cap: i64) {
+        if new_cap > self.c {
+            -- Direct call to libc malloc/realloc logic
+            let new_ptr: &i64 = malloc(new_cap * size(i64)) as &i64
+
+            if self.p != 0 {
+                memcpy(new_ptr, self.p, self.l * size(i64))
+            }
+
+            free(self.p)
+            self.p = new_ptr
+            self.c = new_cap
+        } 
     }
-    print("]\n")
+
+    fn push(self: &Vec, val: i64) {
+        if self.l == self.c {
+            -- "self.c" is syntactic sugar for accessing struct fields via pointer
+            self.resize(self.c + 1)
+        }
+        -- Array indexing on raw pointers!
+        self.p[self.l] = val
+        self.l += 1
+    }
+
+
+    fn get(self: &Vec, idx: i64): i64 {
+        ret self.p[idx]
+    }
 }
 
 fn entry {
-    -- 1. Allocate raw storage on the stack
-    let arr: i64[100]
+    -- Stack allocation of the struct header
+    let my_vec: Vec = NewVec()
 
-    -- 2. Define our Vector "Header"
-    -- [Capacity: 100, Length: 0, Pointer to Storage: &arr]
-    let vec = [100, 0, &arr]
+    -- Method call syntax (Automatically passes &my_vec as 'self')
+    my_vec.push(1)
+    my_vec.push(20)
+    my_vec.push(300)
 
-    -- 3. Manipulate via functions
-    vec_push(vec, 5)
-    vec_push(vec, 100)
-    vec_push(vec, -3)
+    let val = my_vec.get(1)
+    printf("Vector value at index 1: %d\n", val)
 
-    -- Output: [5, 100, -3]
-    vec_print(vec)
+    -- Remember: In Abyss, you are the Garbage Collector.
+    -- free(my_vec.p) would go here in a real app.
 }
 ```
+
 ## 🚧 Status
 
 **Active Development**
 
-The project has evolved significantly. The core engine now features:
-*   **TCC JIT Integration:** Instant compilation and execution.
-*   **Pointer Arithmetic:** Direct access to memory addresses using `&` syntax.
-*   **Rust FFI:** Two-way communication between Abyss scripts and the Rust host.
-*   **Control Flow:** Robust `for` and `while` loops for complex logic.
+The language has reached a major milestone: **Self-Hosted Data Structures**.
+Current capabilities include:
+
+*   **Structs & Member Access:** Dot notation (`obj.field`) works seamlessly on values and pointers.
+*   **Impl Blocks:** Define methods associated with types. `obj.method()` syntax automatically handles name mangling and pointer passing.
+*   **C Interop (FFI):** Seamlessly call `libc` functions or host Rust functions.
+*   **Pointer Arithmetic:** Treat pointers like arrays when needed.
+*   **Control Flow:** Robust `if`, `while`, and `ret` support.
 
 ---
 *“Safety is an illusion. Speed is real.”*
