@@ -175,11 +175,18 @@ impl<'a> Parser<'a> {
                         structs.push(st);
                     }
                 }
+
+                TokenKind::Impl => {
+                    let impl_methods = self.parse_impl_block();
+                    functions.extend(impl_methods);
+                }
+
                 TokenKind::Static => {
                     if let Some(st) = self.parse_static_def(is_pub) {
                         statics.push(st);
                     }
                 }
+
                 _ => {
                     self.emit_error_at_current(ParseErrorKind::UnexpectedToken {
                         expected: TokenKind::Fn,

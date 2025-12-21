@@ -44,6 +44,7 @@ pub enum TokenKind {
     Const,   // const
     Static,  // static
     Struct,  // struct
+    Impl,    // impl
     Fn,      // fn
     Pub,     // pub
     Ret,     // ret
@@ -110,6 +111,7 @@ impl TokenKind {
             "const" => TokenKind::Const,
             "static" => TokenKind::Static,
             "struct" => TokenKind::Struct,
+            "impl" => TokenKind::Impl,
             "fn" => TokenKind::Fn,
             "pub" => TokenKind::Pub,
             "ret" => TokenKind::Ret,
@@ -187,6 +189,7 @@ impl Display for TokenKind {
             TokenKind::Const => write!(f, "'const'"),
             TokenKind::Static => write!(f, "'static'"),
             TokenKind::Struct => write!(f, "'struct'"),
+            TokenKind::Impl => write!(f, "'impl'"),
             TokenKind::Fn => write!(f, "'fn'"),
             TokenKind::Pub => write!(f, "'pub'"),
             TokenKind::Ret => write!(f, "'ret'"),
