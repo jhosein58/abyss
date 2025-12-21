@@ -35,10 +35,15 @@ impl<'a, T: Target> Director<'a, T> {
         for en in &program.enums {
             self.target.define_enum(&en.name, &en.variants);
         }
-
         for glob in &program.globals {
-            self.target
-                .define_global(&glob.name, &glob.ty, glob.init_value.is_some());
+            self.target.define_global_start(&glob.name, &glob.ty, false);
+
+            if let Some(init_expr) = &glob.init_value {
+                self.target.define_global_init_start();
+                self.process_expr(init_expr);
+            }
+
+            self.target.define_global_end();
         }
 
         for func in &program.functions {
@@ -264,7 +269,24 @@ impl<'a, T: Target> Director<'a, T> {
                 self.target.expr_sizeof(ty);
             }
 
-            LirExpr::StructInit { .. } | LirExpr::EnumInit { .. } => {}
+            LirExpr::StructInit {
+                struct_name,
+                fields,
+            } => {
+                self.target.expr_struct_init_start(struct_name);
+
+                for (i, (field_name, val_expr)) in fields.iter().enumerate() {
+                    if i > 0 {
+                        self.target.expr_struct_init_sep();
+                    }
+                    self.target.expr_struct_init_field_start(field_name);
+                    self.process_expr(val_expr);
+                }
+
+                self.target.expr_struct_init_end();
+            }
+
+            LirExpr::EnumInit { .. } => {}
 
             LirExpr::Ternary(cond, then_expr, else_expr) => {
                 self.process_expr(cond);

@@ -42,6 +42,8 @@ pub enum TokenKind {
     // --- Keywords ---
     Let,     // let
     Const,   // const
+    Static,  // static
+    Struct,  // struct
     Fn,      // fn
     Pub,     // pub
     Ret,     // ret
@@ -106,6 +108,8 @@ impl TokenKind {
         match ident {
             "let" => TokenKind::Let,
             "const" => TokenKind::Const,
+            "static" => TokenKind::Static,
+            "struct" => TokenKind::Struct,
             "fn" => TokenKind::Fn,
             "pub" => TokenKind::Pub,
             "ret" => TokenKind::Ret,
@@ -181,6 +185,8 @@ impl Display for TokenKind {
             TokenKind::Literal(lit) => write!(f, "Literal({})", lit),
             TokenKind::Let => write!(f, "'let'"),
             TokenKind::Const => write!(f, "'const'"),
+            TokenKind::Static => write!(f, "'static'"),
+            TokenKind::Struct => write!(f, "'struct'"),
             TokenKind::Fn => write!(f, "'fn'"),
             TokenKind::Pub => write!(f, "'pub'"),
             TokenKind::Ret => write!(f, "'ret'"),
