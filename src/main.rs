@@ -6,7 +6,7 @@ fn main() {
     let code = std::fs::read_to_string(path).expect("Failed to read main file");
     let mut abyss = Abyss::new(&code, path, CTarget::new());
 
-    //println!("{}", abyss.parse_error());
+    //println!("{}", abyss.compile());
 
     abyss.run();
 }
