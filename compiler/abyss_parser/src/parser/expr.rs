@@ -122,23 +122,7 @@ impl<'a> Parser<'a> {
                 Some(Expr::Lit(Lit::Bool(false)))
             }
             TokenKind::Ident => {
-                let mut path = Vec::new();
-                path.push(self.stream.current_lit().to_string());
-                self.advance();
-
-                while self.stream.is(TokenKind::ColonColon) {
-                    self.advance();
-
-                    if self.stream.is(TokenKind::Ident) {
-                        path.push(self.stream.current_lit().to_string());
-                        self.advance();
-                    } else {
-                        self.emit_error_at_current(ParseErrorKind::Expected(
-                            "Identifier after '::'".to_string(),
-                        ));
-                        return None;
-                    }
-                }
+                let path = self.parse_path()?;
 
                 if self.stream.is(TokenKind::OBrace) {
                     let generics = Vec::new();
@@ -360,9 +344,8 @@ impl<'a> Parser<'a> {
         } else if self.stream.consume(TokenKind::Pass) {
             Type::Void
         } else if self.stream.is(TokenKind::Ident) {
-            let name = self.stream.current_lit().to_string();
-            self.advance();
-            Type::Struct(vec![name], Vec::new())
+            let path = self.parse_path()?;
+            Type::Struct(path, Vec::new())
         } else {
             self.emit_error_at_current(ParseErrorKind::Expected("type name".to_string()));
             return None;
