@@ -1,9 +1,11 @@
-mod stdlib.io;
+mod stdlib.rand;
 
 fn entry {
-   io::print_newline()
-   io::print_f64(3.14)
-   io::print_newline()
-   io::print_i64(42)
-   io::print_newline()
+   let rng: rand::Rng = rand::seed(42);
+
+   for 5 {
+       let random_number = rng.range(-100, 100);
+       printf("%d\n", random_number)
+   }
 }
+
