@@ -34,6 +34,15 @@ impl<'a, T: Target> Director<'a, T> {
             self.target.define_struct(&st.name, &st.fields);
         }
 
+        for union in &program.unions {
+            self.target.define_union(&union.name, &union.variants);
+        }
+
+        for union_struct in &program.union_struct_defs {
+            self.target
+                .define_struct(&union_struct.name, &union_struct.fields);
+        }
+
         for glob in &program.globals {
             self.target.define_global_start(&glob.name, &glob.ty, false);
 
@@ -265,6 +274,12 @@ impl<'a, T: Target> Director<'a, T> {
                 self.target.expr_cast_end();
             }
 
+            LirExpr::Is(inner, ty) => {
+                self.target.expr_is_start();
+                self.process_expr(inner);
+                self.target.expr_is_end(ty);
+            }
+
             LirExpr::SizeOf(ty) => {
                 self.target.expr_sizeof(ty);
             }
@@ -284,6 +299,20 @@ impl<'a, T: Target> Director<'a, T> {
                 }
 
                 self.target.expr_struct_init_end();
+            }
+
+            LirExpr::UnionInit {
+                union_name,
+                variants,
+            } => {
+                self.target.expr_union_init_start(union_name);
+
+                if let Some((field_name, val_expr)) = variants.first() {
+                    self.target.expr_union_init_field_start(field_name);
+                    self.process_expr(val_expr);
+                }
+
+                self.target.expr_union_init_end();
             }
 
             LirExpr::Ternary(cond, then_expr, else_expr) => {

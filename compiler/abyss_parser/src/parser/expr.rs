@@ -123,6 +123,13 @@ impl<'a> Parser<'a> {
                     break;
                 }
 
+                if current_kind == TokenKind::Is {
+                    self.advance();
+                    let target_type = self.parse_type()?;
+                    lhs = Expr::Is(Box::new(lhs), target_type);
+                    continue;
+                }
+
                 self.advance();
                 let op = self.token_to_binary_op(current_kind);
 
@@ -401,6 +408,7 @@ impl<'a> Parser<'a> {
                 let target_type = self.parse_type()?;
                 Some(Expr::Cast(Box::new(lhs), target_type))
             }
+
             _ => unreachable!(),
         }
     }
@@ -436,7 +444,7 @@ impl<'a> Parser<'a> {
             TokenKind::Caret => Precedence::BitwiseXor,
             TokenKind::Amp => Precedence::BitwiseAnd,
             TokenKind::EqEq | TokenKind::BangEq => Precedence::Equality,
-            TokenKind::Lt | TokenKind::Gt | TokenKind::LtEq | TokenKind::GtEq => {
+            TokenKind::Lt | TokenKind::Gt | TokenKind::LtEq | TokenKind::GtEq | TokenKind::Is => {
                 Precedence::Comparison
             }
             TokenKind::LeftShift | TokenKind::RightShift => Precedence::Shift,
@@ -471,16 +479,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_type(&mut self) -> Option<Type> {
+    fn parse_unary_type(&mut self) -> Option<Type> {
         if self.stream.is(TokenKind::Const) {
             self.advance();
-            let inner_type = self.parse_type()?;
+            let inner_type = self.parse_unary_type()?;
             return Some(Type::Const(Box::new(inner_type)));
         }
 
         if self.stream.is(TokenKind::Amp) {
             self.advance();
-            let inner_type = self.parse_type()?;
+            let inner_type = self.parse_unary_type()?;
             return Some(Type::Pointer(Box::new(inner_type)));
         }
 
@@ -516,9 +524,7 @@ impl<'a> Parser<'a> {
             Type::Char
         } else if self.stream.is(TokenKind::Ident) {
             let path = self.parse_path()?;
-
             let generics = self.parse_generic_args()?;
-
             Type::Struct(path, generics)
         } else {
             self.emit_error_at_current(ParseErrorKind::Expected("type name".to_string()));
@@ -548,6 +554,19 @@ impl<'a> Parser<'a> {
         }
 
         Some(base_type)
+    }
+
+    pub fn parse_type(&mut self) -> Option<Type> {
+        let first_type = self.parse_unary_type()?;
+        if self.stream.is(TokenKind::Pipe) {
+            let mut variants = vec![first_type];
+            while self.stream.consume(TokenKind::Pipe) {
+                let next_type = self.parse_unary_type()?;
+                variants.push(next_type);
+            }
+            return Some(Type::Union(variants));
+        }
+        Some(first_type)
     }
 
     fn parse_struct_literal(&mut self, path: Vec<String>, generics: Vec<Type>) -> Option<Expr> {
