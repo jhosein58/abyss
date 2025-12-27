@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 pub type Path = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -8,6 +10,7 @@ pub enum Stmt {
     Const(String, Option<Type>, Option<Expr>),
     FunctionDef(Box<FunctionDef>),
     StructDef(Box<StructDef>),
+    UnionDef(Box<UnionDef>),
     Assign(Expr, Expr),
     Ret(Expr),
     Break,    // out
@@ -29,8 +32,10 @@ pub enum Expr {
     Deref(Box<Expr>),
     AddrOf(Box<Expr>),
     Cast(Box<Expr>, Type),
+    Is(Box<Expr>, Type),
     Member(Box<Expr>, String),
     StructInit(Path, Vec<(String, Expr)>, Vec<Type>),
+    UnionInit(Path, Vec<(String, Expr)>),
     MethodCall(Box<Expr>, String, Vec<Expr>, Vec<Type>),
     SizeOf(Type),
     Match(Box<Expr>, Vec<(Pattern, Expr)>),
@@ -60,6 +65,36 @@ pub enum Type {
     Struct(Path, Vec<Type>),
     Generic(String),
     Function(Vec<Type>, Box<Type>, Vec<Type>), // Function(args, return_type, generics)
+    Union(Vec<Type>),
+}
+
+impl Type {
+    pub fn get_name(&self) -> String {
+        match self {
+            Type::U8 => "u8".to_string(),
+            Type::U16 => "u16".to_string(),
+            Type::U32 => "u32".to_string(),
+            Type::U64 => "u64".to_string(),
+            Type::Usize => "usize".to_string(),
+            Type::I8 => "i8".to_string(),
+            Type::I16 => "i16".to_string(),
+            Type::I32 => "i32".to_string(),
+            Type::I64 => "i64".to_string(),
+            Type::Isize => "isize".to_string(),
+            Type::F32 => "f32".to_string(),
+            Type::F64 => "f64".to_string(),
+            Type::Char => "char".to_string(),
+            Type::Bool => "bool".to_string(),
+            Type::Void => "void".to_string(),
+            Type::Pointer(ty) => format!("ptr_{}", ty.get_name()),
+            Type::Const(ty) => format!("const_{}", ty.get_name()),
+            Type::Array(ty, size) => format!("Arr_{}_{}", ty.get_name(), size),
+            Type::Struct(path, _) => format!("struct_{}", path.join("_")),
+            Type::Generic(name) => name.clone(),
+
+            _ => panic!("Type has no Name"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -136,6 +171,13 @@ pub struct StructDef {
 }
 
 #[derive(Debug, Clone)]
+pub struct UnionDef {
+    pub is_pub: bool,
+    pub name: String,
+    pub fields: Vec<(String, Type)>,
+}
+
+#[derive(Debug, Clone)]
 pub struct StaticDef {
     pub is_pub: bool,
     pub name: String,
@@ -149,6 +191,7 @@ pub struct Program {
     pub modules: Vec<(String, Program, bool)>,
 
     pub structs: Vec<StructDef>,
+    pub unions: Vec<UnionDef>,
     pub functions: Vec<FunctionDef>,
     pub statics: Vec<StaticDef>,
     pub uses: Vec<Path>,

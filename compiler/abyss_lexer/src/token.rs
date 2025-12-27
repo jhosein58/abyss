@@ -57,6 +57,7 @@ pub enum TokenKind {
     Next,    // next
     In,      // in
     As,      // as
+    Is,      // is
     And,     // and
     Or,      // or
     Not,     // not
@@ -142,6 +143,7 @@ impl TokenKind {
             "or" => TokenKind::Or,
             "not" => TokenKind::Not,
             "as" => TokenKind::As,
+            "is" => TokenKind::Is,
             "true" => TokenKind::True,
             "false" => TokenKind::False,
 
@@ -237,6 +239,7 @@ impl Display for TokenKind {
             TokenKind::Next => write!(f, "'next'"),
             TokenKind::In => write!(f, "'in'"),
             TokenKind::As => write!(f, "'as'"),
+            TokenKind::Is => write!(f, "'is'"),
             TokenKind::And => write!(f, "'and'"),
             TokenKind::Or => write!(f, "'or'"),
             TokenKind::Not => write!(f, "'not'"),

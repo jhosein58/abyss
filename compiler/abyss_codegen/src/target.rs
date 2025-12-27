@@ -11,6 +11,7 @@ pub trait Target {
     fn start_program(&mut self);
     fn end_program(&mut self);
     fn define_struct(&mut self, name: &str, fields: &[(String, LirType)]);
+    fn define_union(&mut self, name: &str, variants: &[(String, LirType)]);
 
     // ========================================================================
     // 2. Global Variables
@@ -99,12 +100,13 @@ pub trait Target {
     fn expr_array_init_end(&mut self);
 
     fn expr_struct_init_start(&mut self, struct_name: &str);
-
     fn expr_struct_init_field_start(&mut self, field_name: &str);
-
     fn expr_struct_init_sep(&mut self);
-
     fn expr_struct_init_end(&mut self);
+
+    fn expr_union_init_start(&mut self, union_name: &str);
+    fn expr_union_init_field_start(&mut self, field_name: &str);
+    fn expr_union_init_end(&mut self);
 
     // ========================================================================
     // 7. Expressions
@@ -133,6 +135,9 @@ pub trait Target {
 
     fn expr_cast_start(&mut self, target_ty: &LirType);
     fn expr_cast_end(&mut self);
+
+    fn expr_is_start(&mut self);
+    fn expr_is_end(&mut self, ty: &LirType);
 
     fn expr_deref_start(&mut self);
     fn expr_deref_end(&mut self);

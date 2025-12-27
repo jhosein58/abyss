@@ -1,10 +1,13 @@
 use crate::hir::FlatProgram;
-use abyss_parser::ast::{BinaryOp, Expr, FunctionBody, FunctionDef, Lit, Stmt, StructDef, Type};
+use abyss_parser::ast::{
+    BinaryOp, Expr, FunctionBody, FunctionDef, Lit, Stmt, StructDef, Type, UnionDef,
+};
 use std::collections::{HashMap, VecDeque};
 
 pub struct TypeChecker {
     concrete_funcs: Vec<FunctionDef>,
     concrete_structs: Vec<StructDef>,
+    concrete_unions: Vec<UnionDef>,
     generic_func_templates: HashMap<String, FunctionDef>,
     generic_struct_templates: HashMap<String, StructDef>,
     monomorphization_cache: HashMap<(String, String), String>,
@@ -12,6 +15,9 @@ pub struct TypeChecker {
     pending_funcs: VecDeque<FunctionDef>,
     scopes: Vec<HashMap<String, Type>>,
     local_func_scopes: Vec<HashMap<String, FunctionDef>>,
+    used_type_tags: HashMap<String, i64>,
+    union_struct_defs: Vec<StructDef>,
+    variant_cache: HashMap<String, Vec<Type>>,
 }
 
 impl TypeChecker {
@@ -19,6 +25,7 @@ impl TypeChecker {
         Self {
             concrete_funcs: Vec::new(),
             concrete_structs: Vec::new(),
+            concrete_unions: Vec::new(),
             generic_func_templates: HashMap::new(),
             generic_struct_templates: HashMap::new(),
             monomorphization_cache: HashMap::new(),
@@ -26,6 +33,148 @@ impl TypeChecker {
             pending_funcs: VecDeque::new(),
             scopes: vec![HashMap::new()],
             local_func_scopes: vec![HashMap::new()],
+            used_type_tags: HashMap::new(),
+            union_struct_defs: Vec::new(),
+            variant_cache: HashMap::new(),
+        }
+    }
+
+    pub fn get_type_tag(&mut self, ty: &Type) -> i64 {
+        let (name, id) = match ty {
+            Type::U8 => ("TYPE_TAG_U8".to_string(), 1),
+            Type::U16 => ("TYPE_TAG_U16".to_string(), 2),
+            Type::U32 => ("TYPE_TAG_U32".to_string(), 3),
+            Type::U64 => ("TYPE_TAG_U64".to_string(), 4),
+            Type::Usize => ("TYPE_TAG_USIZE".to_string(), 5),
+            Type::I8 => ("TYPE_TAG_I8".to_string(), 6),
+            Type::I16 => ("TYPE_TAG_I16".to_string(), 7),
+            Type::I32 => ("TYPE_TAG_I32".to_string(), 8),
+            Type::I64 => ("TYPE_TAG_I64".to_string(), 9),
+            Type::Isize => ("TYPE_TAG_ISIZE".to_string(), 10),
+            Type::F32 => ("TYPE_TAG_F32".to_string(), 11),
+            Type::F64 => ("TYPE_TAG_F64".to_string(), 12),
+            Type::Bool => ("TYPE_TAG_BOOL".to_string(), 13),
+            Type::Char => ("TYPE_TAG_CHAR".to_string(), 14),
+            Type::Array(inner, _) if **inner == Type::U8 => ("TYPE_TAG_U8".to_string(), 1),
+            _ => {
+                let s = format!("{:?}", ty);
+                let mut hash: i64 = 0;
+                for c in s.bytes() {
+                    hash = hash.wrapping_add(c as i64);
+                }
+                (format!("TYPE_TAG_{}", hash), hash)
+            }
+        };
+        self.used_type_tags.insert(name, id);
+        id
+    }
+
+    fn get_union_name(&mut self, types: &[Type]) -> String {
+        let mut types_str = types.iter().map(|t| t.get_name()).collect::<Vec<_>>();
+        types_str.sort();
+        types_str.join("_")
+    }
+
+    fn get_or_create_union_struct(&mut self, types: &[Type]) -> String {
+        let mut sorted_types = types.to_vec();
+        sorted_types.sort_by_key(|t| t.get_name());
+
+        let id = self.get_union_name(&sorted_types);
+
+        let struct_name = format!("__Union_{}", id);
+        let inner_struct_name = format!("__UnionInner_{}", id);
+
+        if !self.variant_cache.contains_key(&struct_name) {
+            self.variant_cache
+                .insert(struct_name.clone(), sorted_types.clone());
+        }
+
+        if !self
+            .concrete_unions
+            .iter()
+            .any(|u| u.name == inner_struct_name)
+        {
+            let mut inner_fields = Vec::new();
+            for (i, t) in sorted_types.iter().enumerate() {
+                inner_fields.push((format!("variant_{}", i), t.clone()));
+            }
+
+            let inner_def = UnionDef {
+                is_pub: false,
+                name: inner_struct_name.clone(),
+                fields: inner_fields,
+            };
+            self.concrete_unions.push(inner_def);
+
+            let fields = vec![
+                ("tag".to_string(), Type::I64),
+                (
+                    "data".to_string(),
+                    Type::Struct(vec![inner_struct_name.clone()], vec![]),
+                ),
+            ];
+
+            let struct_def = StructDef {
+                is_pub: false,
+                name: struct_name.clone(),
+                generics: vec![],
+                fields,
+            };
+            self.union_struct_defs.push(struct_def);
+        }
+
+        struct_name
+    }
+
+    fn wrap_expr_for_union(
+        &mut self,
+        mut expr: Expr,
+        expr_ty: Type,
+        variants: &[Type],
+        target_struct_name: String,
+    ) -> (Expr, Type) {
+        if !variants.contains(&expr_ty) {
+            for variant in variants {
+                let is_int_conv = self.is_integer(variant) && self.is_integer(&expr_ty);
+                let is_float_conv = self.is_float(variant) && self.is_float(&expr_ty);
+
+                if is_int_conv || is_float_conv {
+                    expr = Expr::Cast(Box::new(expr), variant.clone());
+                    break;
+                }
+            }
+        }
+
+        let (_, final_rhs_ty) = self.infer_expr(expr.clone());
+        let tag_val = self.get_type_tag(&final_rhs_ty);
+
+        let mut sorted_variants = variants.to_vec();
+        sorted_variants.sort_by_key(|t| t.get_name());
+
+        if let Some(variant_index) = sorted_variants.iter().position(|t| t == &final_rhs_ty) {
+            let inner_struct_name = target_struct_name.replace("__Union_", "__UnionInner_");
+
+            let inner_init = Expr::UnionInit(
+                vec![inner_struct_name.clone()],
+                vec![(format!("variant_{}", variant_index), expr)],
+            );
+
+            let wrapper_init = Expr::StructInit(
+                vec![target_struct_name.clone()],
+                vec![
+                    ("tag".to_string(), Expr::Lit(Lit::Int(tag_val))),
+                    ("data".to_string(), inner_init),
+                ],
+                vec![],
+            );
+
+            let wrapper_type = Type::Struct(vec![target_struct_name], vec![]);
+            (wrapper_init, wrapper_type)
+        } else {
+            panic!(
+                "Type mismatch: Cannot assign {:?} to Union Wrapper {:?} (Variants: {:?})",
+                final_rhs_ty, target_struct_name, variants
+            );
         }
     }
 
@@ -39,8 +188,30 @@ impl TypeChecker {
 
             (Type::Pointer(inner), Type::Pointer(_)) if **inner == Type::Void => true,
 
+            (Type::Union(variants), src_ty) => variants.contains(src_ty),
+
             _ => false,
         }
+    }
+    fn is_integer(&self, t: &Type) -> bool {
+        matches!(
+            t,
+            Type::I8
+                | Type::I16
+                | Type::I32
+                | Type::I64
+                | Type::Isize
+                | Type::U8
+                | Type::U16
+                | Type::U32
+                | Type::U64
+                | Type::Usize
+                | Type::Char
+        )
+    }
+
+    fn is_float(&self, t: &Type) -> bool {
+        matches!(t, Type::F32 | Type::F64)
     }
 
     pub fn check(mut self, program: FlatProgram) -> FlatProgram {
@@ -76,6 +247,8 @@ impl TypeChecker {
         new_program.functions = self.concrete_funcs;
         new_program.structs = self.concrete_structs;
         new_program.statics = program.statics;
+        new_program.unions = self.concrete_unions;
+        new_program.union_struct_defs = self.union_struct_defs;
         new_program
     }
 
@@ -208,6 +381,7 @@ impl TypeChecker {
                 self.resolve_generics_in_expr(inner, generic_names);
                 self.convert_struct_to_generic(ty, generic_names);
             }
+
             Expr::Binary(lhs, _, rhs) => {
                 self.resolve_generics_in_expr(lhs, generic_names);
                 self.resolve_generics_in_expr(rhs, generic_names);
@@ -253,15 +427,28 @@ impl TypeChecker {
 
     fn check_function(&mut self, func: &mut FunctionDef) {
         self.enter_scope();
-        for (param_name, param_type) in &func.params {
+
+        for (param_name, param_type) in &mut func.params {
+            if let Type::Union(variants) = param_type {
+                let struct_name = self.get_or_create_union_struct(variants);
+
+                *param_type = Type::Struct(vec![struct_name], vec![]);
+            }
+
             self.register_var(param_name.clone(), param_type.clone());
         }
+
+        if let Type::Union(variants) = &func.return_type {
+            let struct_name = self.get_or_create_union_struct(variants);
+            func.return_type = Type::Struct(vec![struct_name], vec![]);
+        }
+
         if let FunctionBody::UserDefined(ref mut stmts) = func.body {
             self.check_stmts(stmts);
         }
+
         self.exit_scope();
     }
-
     fn check_stmts(&mut self, stmts: &mut [Stmt]) {
         for stmt in stmts {
             self.check_stmt(stmt);
@@ -272,16 +459,84 @@ impl TypeChecker {
         match stmt {
             Stmt::Let(name, ty_opt, expr_opt) => {
                 if let Some(expr) = expr_opt {
-                    let (new_expr, expr_ty) = self.infer_expr(expr.clone());
+                    let (mut new_expr, mut expr_ty) = self.infer_expr(expr.clone());
+
+                    if let Some(Type::Union(variants)) = ty_opt {
+                        if !variants.contains(&expr_ty) {
+                            for variant in variants {
+                                let is_int_conv =
+                                    self.is_integer(variant) && self.is_integer(&expr_ty);
+                                let is_float_conv =
+                                    self.is_float(variant) && self.is_float(&expr_ty);
+
+                                if is_int_conv || is_float_conv {
+                                    new_expr = Expr::Cast(Box::new(new_expr), variant.clone());
+                                    expr_ty = variant.clone();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    let needs_wrapping = if let Some(Type::Union(variants)) = ty_opt {
+                        variants.contains(&expr_ty)
+                    } else {
+                        false
+                    };
+
+                    if needs_wrapping {
+                        if let Some(Type::Union(variants)) = ty_opt {
+                            let struct_name = self.get_or_create_union_struct(variants);
+                            let inner_struct_name =
+                                struct_name.replace("__Union_", "__UnionInner_");
+
+                            let tag_val = self.get_type_tag(&expr_ty);
+
+                            let mut sorted_variants = variants.clone();
+                            sorted_variants.sort_by_key(|t| t.get_name());
+
+                            let variant_index =
+                                sorted_variants.iter().position(|t| t == &expr_ty).unwrap();
+
+                            let inner_init = Expr::UnionInit(
+                                vec![inner_struct_name],
+                                vec![(format!("variant_{}", variant_index), new_expr)],
+                            );
+
+                            new_expr = Expr::StructInit(
+                                vec![struct_name.clone()],
+                                vec![
+                                    ("tag".to_string(), Expr::Lit(Lit::Int(tag_val))),
+                                    ("data".to_string(), inner_init),
+                                ],
+                                vec![],
+                            );
+
+                            let concrete_struct_type = Type::Struct(vec![struct_name], vec![]);
+                            *ty_opt = Some(concrete_struct_type.clone());
+
+                            expr_ty = concrete_struct_type;
+                        }
+                    }
+
                     *expr = new_expr;
 
                     match ty_opt {
                         Some(explicit_ty) => {
                             if !self.are_types_compatible(explicit_ty, &expr_ty) {
-                                panic!(
-                                    "Type mismatch in let binding for '{}': expected {:?}, found {:?}",
-                                    name, explicit_ty, expr_ty
-                                );
+                                let is_int_conversion =
+                                    self.is_integer(explicit_ty) && self.is_integer(&expr_ty);
+                                let is_float_conversion =
+                                    self.is_float(explicit_ty) && self.is_float(&expr_ty);
+
+                                if is_int_conversion || is_float_conversion {
+                                    *expr = Expr::Cast(Box::new(expr.clone()), explicit_ty.clone());
+                                } else {
+                                    panic!(
+                                        "Type mismatch in let binding for '{}': expected {:?}, found {:?}",
+                                        name, explicit_ty, expr_ty
+                                    );
+                                }
                             }
                         }
                         None => {
@@ -293,6 +548,12 @@ impl TypeChecker {
                     self.register_var(name.clone(), final_ty);
                 } else {
                     match ty_opt {
+                        Some(Type::Union(variants)) => {
+                            let struct_name = self.get_or_create_union_struct(variants);
+                            let concrete_ty = Type::Struct(vec![struct_name], vec![]);
+                            self.register_var(name.clone(), concrete_ty.clone());
+                            *ty_opt = Some(concrete_ty);
+                        }
                         Some(explicit_ty) => {
                             self.register_var(name.clone(), explicit_ty.clone());
                         }
@@ -306,12 +567,6 @@ impl TypeChecker {
                 }
             }
 
-            Stmt::Assign(lhs, rhs) => {
-                let (new_lhs, _) = self.infer_expr(lhs.clone());
-                let (new_rhs, _) = self.infer_expr(rhs.clone());
-                *lhs = new_lhs;
-                *rhs = new_rhs;
-            }
             Stmt::Expr(expr) => {
                 let (new_expr, _) = self.infer_expr(expr.clone());
                 *stmt = Stmt::Expr(new_expr);
@@ -349,6 +604,43 @@ impl TypeChecker {
 
     fn infer_expr(&mut self, expr: Expr) -> (Expr, Type) {
         match expr {
+            Expr::Binary(lhs, BinaryOp::Assign, rhs) => {
+                let (new_lhs, lhs_ty) = self.infer_expr(*lhs);
+                let (mut new_rhs, rhs_ty) = self.infer_expr(*rhs);
+
+                if let Type::Struct(names, _) = &lhs_ty {
+                    let struct_name = &names[0];
+                    if struct_name.starts_with("__Union_") && !struct_name.contains("__UnionInner_")
+                    {
+                        if &rhs_ty != &lhs_ty {
+                            if let Some(variants) = self.variant_cache.get(struct_name).cloned() {
+                                let (wrapped_expr, _) = self.wrap_expr_for_union(
+                                    new_rhs,
+                                    rhs_ty.clone(),
+                                    &variants,
+                                    struct_name.clone(),
+                                );
+                                new_rhs = wrapped_expr;
+                            }
+                        }
+                    }
+                }
+
+                if let Type::Union(variants) = &lhs_ty {
+                    if variants.contains(&rhs_ty) {
+                        let struct_name = self.get_or_create_union_struct(variants);
+                        let (wrapped_expr, _) =
+                            self.wrap_expr_for_union(new_rhs, rhs_ty, variants, struct_name);
+                        new_rhs = wrapped_expr;
+                    }
+                }
+
+                (
+                    Expr::Binary(Box::new(new_lhs), BinaryOp::Assign, Box::new(new_rhs)),
+                    lhs_ty,
+                )
+            }
+
             Expr::Lit(lit) => self.infer_lit(lit),
 
             Expr::Ident(path) => {
@@ -384,9 +676,106 @@ impl TypeChecker {
                     ),
                 }
             }
+            Expr::Is(inner, check_ty) => {
+                let (new_inner, inner_ty) = self.infer_expr(*inner);
+
+                if let Type::Union(variants) = &inner_ty {
+                    if !variants.contains(&check_ty) {
+                        return (Expr::Lit(Lit::Bool(false)), Type::Bool);
+                    }
+                    let tag_access = Expr::Member(Box::new(new_inner), "tag".to_string());
+                    let target_tag = self.get_type_tag(&check_ty);
+                    let comparison = Expr::Binary(
+                        Box::new(tag_access),
+                        BinaryOp::Eq,
+                        Box::new(Expr::Lit(Lit::Int(target_tag))),
+                    );
+                    return (comparison, Type::Bool);
+                }
+
+                if let Type::Struct(path, _) = &inner_ty {
+                    if let Some(struct_name) = path.last() {
+                        if struct_name.starts_with("__Union_") {
+                            let inner_union_name = struct_name.replace("__Union_", "__UnionInner_");
+
+                            let union_contains_type = self
+                                .concrete_unions
+                                .iter()
+                                .find(|u| u.name == inner_union_name)
+                                .map(|u| u.fields.iter().any(|(_, f_ty)| f_ty == &check_ty))
+                                .unwrap_or(false);
+
+                            if union_contains_type {
+                                let tag_access =
+                                    Expr::Member(Box::new(new_inner), "tag".to_string());
+                                let target_tag = self.get_type_tag(&check_ty);
+                                let comparison = Expr::Binary(
+                                    Box::new(tag_access),
+                                    BinaryOp::Eq,
+                                    Box::new(Expr::Lit(Lit::Int(target_tag))),
+                                );
+                                return (comparison, Type::Bool);
+                            } else {
+                                return (Expr::Lit(Lit::Bool(false)), Type::Bool);
+                            }
+                        }
+                    }
+                }
+
+                let result = inner_ty == check_ty;
+                (Expr::Lit(Lit::Bool(result)), Type::Bool)
+            }
 
             Expr::Cast(inner, target_ty) => {
-                let (new_inner, _) = self.infer_expr(*inner);
+                let (new_inner, inner_ty) = self.infer_expr(*inner);
+
+                if let Type::Union(variants) = &inner_ty {
+                    if variants.contains(&target_ty) {
+                        let data_access = Expr::Member(Box::new(new_inner), "data".to_string());
+                        let mut sorted_variants = variants.clone();
+                        sorted_variants.sort_by_key(|t| t.get_name());
+
+                        let variant_index = sorted_variants
+                            .iter()
+                            .position(|t| t == &target_ty)
+                            .expect("Target type not in union");
+
+                        return (
+                            Expr::Member(
+                                Box::new(data_access),
+                                format!("variant_{}", variant_index),
+                            ),
+                            target_ty.clone(),
+                        );
+                    }
+                }
+
+                if let Type::Struct(path, _) = &inner_ty {
+                    if let Some(struct_name) = path.last() {
+                        if struct_name.starts_with("__Union_") {
+                            let inner_union_name = struct_name.replace("__Union_", "__UnionInner_");
+
+                            if let Some(union_def) = self
+                                .concrete_unions
+                                .iter()
+                                .find(|u| u.name == inner_union_name)
+                            {
+                                if let Some((field_name, _)) =
+                                    union_def.fields.iter().find(|(_, f_ty)| f_ty == &target_ty)
+                                {
+                                    let data_access =
+                                        Expr::Member(Box::new(new_inner), "data".to_string());
+
+                                    return (
+                                        Expr::Member(Box::new(data_access), field_name.clone()),
+                                        target_ty.clone(),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
                 (
                     Expr::Cast(Box::new(new_inner), target_ty.clone()),
                     target_ty,
@@ -931,6 +1320,7 @@ impl TypeChecker {
                 self.substitute_expr(inner, map);
                 self.substitute_type(ty, map);
             }
+
             Expr::StructInit(_, fields, generics) => {
                 for (_, e) in fields {
                     self.substitute_expr(e, map);

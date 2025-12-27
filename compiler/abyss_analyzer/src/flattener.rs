@@ -195,6 +195,12 @@ impl Flattener {
             let mangled = format!("{}{}", prefix, s.name);
             self.add_local_rename(s.name.clone(), mangled);
         }
+
+        for u in &program.unions {
+            let mangled = format!("{}{}", prefix, u.name);
+            self.add_local_rename(u.name.clone(), mangled);
+        }
+
         for f in &program.functions {
             let is_extern = matches!(f.body, FunctionBody::Extern);
 
@@ -488,6 +494,19 @@ impl Flattener {
                     self.rename_in_type(g);
                 }
             }
+            Expr::UnionInit(path, variants) => {
+                if path.len() == 1 {
+                    let resolved = self.resolve_name(&path[0]);
+                    path[0] = resolved;
+                } else if path.len() > 1 {
+                    let new_name = path.join("__");
+                    *path = vec![new_name];
+                }
+
+                for (_, val_expr) in variants {
+                    self.rename_in_expr(val_expr);
+                }
+            }
             Expr::Binary(left, _, right) => {
                 self.rename_in_expr(left);
                 self.rename_in_expr(right);
@@ -515,6 +534,10 @@ impl Flattener {
                 }
             }
             Expr::Cast(inner, ty) => {
+                self.rename_in_expr(inner);
+                self.rename_in_type(ty);
+            }
+            Expr::Is(inner, ty) => {
                 self.rename_in_expr(inner);
                 self.rename_in_type(ty);
             }
@@ -572,12 +595,19 @@ impl Flattener {
                 }
             }
             Type::Pointer(inner) => self.rename_in_type(inner),
+            Type::Const(inner) => self.rename_in_type(inner),
             Type::Array(inner, _) => self.rename_in_type(inner),
             Type::Function(args, ret, _generics) => {
                 for arg in args {
                     self.rename_in_type(arg);
                 }
                 self.rename_in_type(ret);
+            }
+
+            Type::Union(types) => {
+                for t in types {
+                    self.rename_in_type(t);
+                }
             }
             _ => {}
         }

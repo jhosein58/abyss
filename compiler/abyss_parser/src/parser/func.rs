@@ -425,6 +425,7 @@ impl<'a> Parser<'a> {
             modules: Vec::new(),
             statics: Vec::new(),
             structs: Vec::new(),
+            unions: Vec::new(),
             uses: Vec::new(),
         };
         match fs::read_dir(dir_path) {

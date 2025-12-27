@@ -57,10 +57,15 @@ pub enum LirExpr {
     Deref(Box<LirExpr>),
 
     Cast(Box<LirExpr>, LirType),
+    Is(Box<LirExpr>, LirType),
 
     StructInit {
         struct_name: String,
         fields: Vec<(String, LirExpr)>,
+    },
+    UnionInit {
+        union_name: String,
+        variants: Vec<(String, LirExpr)>,
     },
 
     Ternary(Box<LirExpr>, Box<LirExpr>, Box<LirExpr>),
@@ -102,12 +107,19 @@ pub enum LirType {
     Array(Box<LirType>, usize),
     Struct(String),
     FunctionPtr(Vec<LirType>, Box<LirType>),
+    Union(Vec<LirType>),
 }
 
 #[derive(Debug, Clone)]
 pub struct LirStructDef {
     pub name: String,
     pub fields: Vec<(String, LirType)>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LirUnionDef {
+    pub name: String,
+    pub variants: Vec<(String, LirType)>,
 }
 
 #[derive(Debug, Clone)]
@@ -130,6 +142,8 @@ pub struct LirFunctionDef {
 #[derive(Debug, Clone, Default)]
 pub struct LirProgram {
     pub structs: Vec<LirStructDef>,
+    pub unions: Vec<LirUnionDef>,
+    pub union_struct_defs: Vec<LirStructDef>,
     pub globals: Vec<LirGlobalVar>,
     pub functions: Vec<LirFunctionDef>,
 }

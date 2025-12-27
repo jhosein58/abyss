@@ -76,6 +76,14 @@ impl Collector {
                 Ok(LirType::Struct(struct_name))
             }
 
+            Type::Union(types) => {
+                let mut lir_types = Vec::new();
+                for t in types {
+                    lir_types.push(Self::convert_type(t)?);
+                }
+                Ok(LirType::Union(lir_types))
+            }
+
             _ => Err(format!(
                 "Type conversion not implemented for {:?}",
                 ast_type

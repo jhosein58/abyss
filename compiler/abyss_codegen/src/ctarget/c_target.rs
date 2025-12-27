@@ -66,7 +66,13 @@ impl CTarget {
             LirType::Const(inner) => format!("const {}", self.type_to_c(inner)),
 
             LirType::Array(inner, _) => format!("{}*", self.type_to_c(inner)),
-            LirType::Struct(name) => format!("struct {}", name),
+            LirType::Struct(name) => {
+                if name.starts_with("__UnionInner_") {
+                    format!("union {}", name)
+                } else {
+                    format!("struct {}", name)
+                }
+            }
             LirType::FunctionPtr(args, ret) => {
                 let args_str = args
                     .iter()
@@ -75,6 +81,8 @@ impl CTarget {
                     .join(", ");
                 format!("{} (*)({})", self.type_to_c(ret), args_str)
             }
+
+            _ => format!("/* Unknown type {:?} */ void", ty),
         }
     }
 
@@ -213,6 +221,39 @@ impl Target for CTarget {
         self.set_newline_pending();
         self.write("");
         self.set_newline_pending();
+    }
+
+    fn define_union(&mut self, name: &str, variants: &[(String, LirType)]) {
+        self.write(&format!("union {} {{", name));
+        self.push_indent();
+        self.set_newline_pending();
+        for (field_name, field_type) in variants {
+            let decl = match field_type {
+                LirType::Array(inner, size) => {
+                    format!("{} {}[{}]", self.type_to_c(inner), field_name, size)
+                }
+                _ => format!("{} {}", self.type_to_c(field_type), field_name),
+            };
+            self.write(&format!("{};", decl));
+            self.set_newline_pending();
+        }
+        self.pop_indent();
+        self.write("};");
+        self.set_newline_pending();
+        self.write("");
+        self.set_newline_pending();
+    }
+
+    fn expr_union_init_start(&mut self, union_name: &str) {
+        self.write(&format!("(union {}){{ ", union_name));
+    }
+
+    fn expr_union_init_field_start(&mut self, field_name: &str) {
+        self.write(&format!(".{} = ", field_name));
+    }
+
+    fn expr_union_init_end(&mut self) {
+        self.write(" }");
     }
 
     fn define_global_start(&mut self, name: &str, ty: &LirType, is_const: bool) {
@@ -543,5 +584,13 @@ impl Target for CTarget {
     }
     fn expr_ternary_mid2(&mut self) {
         self.write(" : ");
+    }
+
+    fn expr_is_start(&mut self) {
+        self.write("(");
+    }
+
+    fn expr_is_end(&mut self, _ty: &LirType) {
+        self.write(")");
     }
 }

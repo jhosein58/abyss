@@ -4,11 +4,13 @@ use crate::{
     hir::FlatProgram,
     lir::{
         LirExpr, LirFunctionDef, LirGlobalVar, LirLiteral, LirProgram, LirStmt, LirStructDef,
-        LirType,
+        LirType, LirUnionDef,
     },
     symbols::Context,
 };
-use abyss_parser::ast::{Expr, FunctionBody, FunctionDef, Lit, StaticDef, Stmt, StructDef, Type};
+use abyss_parser::ast::{
+    Expr, FunctionBody, FunctionDef, Lit, StaticDef, Stmt, StructDef, Type, UnionDef,
+};
 
 pub struct Ir {
     ctx: Context,
@@ -26,6 +28,14 @@ impl Ir {
 
         for s in &flat_ast.structs {
             lir.structs.push(ir_builder.transpile_struct(s));
+        }
+
+        for u in &flat_ast.unions {
+            lir.unions.push(ir_builder.transpile_union(u));
+        }
+
+        for u in &flat_ast.union_struct_defs {
+            lir.union_struct_defs.push(ir_builder.transpile_struct(u));
         }
 
         for s in &flat_ast.statics {
@@ -112,6 +122,8 @@ impl Ir {
             Expr::Lit(Lit::Float(_)) => LirType::F64,
             Expr::Lit(Lit::Bool(_)) => LirType::Bool,
             Expr::Cast(_, ty) => self.transpile_type(ty),
+            Expr::Is(_, _) => LirType::Bool,
+            Expr::Ternary(_, true_expr, _) => self.resolve_expr_type(true_expr),
             _ => LirType::Void,
         }
     }
@@ -143,6 +155,10 @@ impl Ir {
                 LirType::FunctionPtr(lir_args, Box::new(lir_ret))
             }
             Type::Generic(_) => LirType::Void,
+            Type::Union(types) => {
+                let lir_types = types.iter().map(|t| self.transpile_type(t)).collect();
+                LirType::Union(lir_types)
+            }
         }
     }
 
@@ -159,6 +175,18 @@ impl Ir {
         }
     }
 
+    fn transpile_union(&self, def: &UnionDef) -> LirUnionDef {
+        let variants = def
+            .fields
+            .iter()
+            .map(|(name, ty)| (name.clone(), self.transpile_type(ty)))
+            .collect();
+
+        LirUnionDef {
+            name: def.name.clone(),
+            variants,
+        }
+    }
     fn transpile_static(&self, def: &StaticDef) -> LirGlobalVar {
         LirGlobalVar {
             name: def.name.clone(),
@@ -397,6 +425,16 @@ impl Ir {
                     fields: lir_fields,
                 }
             }
+            Expr::UnionInit(path, variants) => {
+                let lir_variants = variants
+                    .iter()
+                    .map(|(n, e)| (n.clone(), self.transpile_expr(e)))
+                    .collect();
+                LirExpr::UnionInit {
+                    union_name: path.join("__"),
+                    variants: lir_variants,
+                }
+            }
             Expr::Index(arr, idx) => LirExpr::Index(
                 Box::new(self.transpile_expr(arr)),
                 Box::new(self.transpile_expr(idx)),
@@ -407,6 +445,15 @@ impl Ir {
                 LirExpr::Cast(Box::new(self.transpile_expr(i)), self.transpile_type(t))
             }
             Expr::SizeOf(t) => LirExpr::SizeOf(self.transpile_type(t)),
+            Expr::Is(inner, ty) => LirExpr::Is(
+                Box::new(self.transpile_expr(inner)),
+                self.transpile_type(ty),
+            ),
+            Expr::Ternary(cond, t, f) => LirExpr::Ternary(
+                Box::new(self.transpile_expr(cond)),
+                Box::new(self.transpile_expr(t)),
+                Box::new(self.transpile_expr(f)),
+            ),
             _ => LirExpr::Lit(LirLiteral::Null),
         }
     }
