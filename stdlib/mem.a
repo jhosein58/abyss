@@ -1,0 +1,3 @@
+pub fn alloc<T>(n: i64): &T {
+    ret malloc(size(T) * n) as &T
+}

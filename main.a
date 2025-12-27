@@ -1,17 +1,17 @@
 
 mod stdlib::pre;
 use pre::string::Str;
+use pre::arr::Arr;
+
+
 
 
 fn app_main {
 
- 
-
-   let a = Str.from("hello world\n");
-
-   printf(a.as_ptr())
-
+   let arr = Arr.new::<i32 | Str>();
+   arr.add(Str.from("hello world") as i32 | Str)
 }
+
 
 
 

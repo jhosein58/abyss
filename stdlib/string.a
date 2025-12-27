@@ -2,7 +2,7 @@
 use pre::arr::Arr;
 
 
-struct Str {
+pub struct Str {
     buf: Arr<u8>
 }
 

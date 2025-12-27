@@ -5,10 +5,15 @@ fn realloc(ptr: &pass, s: i64): &pass;
 fn free(ptr: &pass);
 fn exit(status: i64);
 fn printf(s: const &char, ..): i32;
+fn getchar(): i32;
+fn scanf(fmt: const &char, ..): i32;
+fn atoll(s: const &char): i64;
+fn atof(s: const &char): f64;  
 
 fn print(s: &u8, v: i64);
 
 
+mod mem;
 mod rand;
 mod arr;
 mod string;

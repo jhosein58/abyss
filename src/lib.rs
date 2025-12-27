@@ -253,15 +253,29 @@ impl<'a, T: Target> Abyss<'a, T> {
             fn free(ptr: *mut c_void);
 
             fn exit(status: c_int) -> !;
+
+            fn scanf(format: *const std::ffi::c_char, ...) -> std::ffi::c_int;
+
+            fn getchar() -> std::ffi::c_int;
+            fn atoll(s: *const std::ffi::c_char) -> std::ffi::c_longlong;
+            fn atof(s: *const std::ffi::c_char) -> std::ffi::c_double;
         }
 
-        self.jit.add_function("printf", printf as *const c_void);
-        self.jit.add_function("memset", memset as *const c_void);
-        self.jit.add_function("memcpy", memcpy as *const c_void);
-        self.jit.add_function("malloc", malloc as *const c_void);
-        self.jit.add_function("realloc", realloc as *const c_void);
-        self.jit.add_function("free", free as *const c_void);
-        self.jit.add_function("exit", exit as *const c_void);
+        let add_fn = |name: &str, ptr: *const c_void| {
+            self.jit.add_function(name, ptr);
+        };
+
+        add_fn("printf", printf as *const c_void);
+        add_fn("memset", memset as *const c_void);
+        add_fn("memcpy", memcpy as *const c_void);
+        add_fn("malloc", malloc as *const c_void);
+        add_fn("realloc", realloc as *const c_void);
+        add_fn("free", free as *const c_void);
+        add_fn("exit", exit as *const c_void);
+        add_fn("scanf", scanf as *const std::ffi::c_void);
+        add_fn("getchar", getchar as *const std::ffi::c_void);
+        add_fn("atoll", atoll as *const std::ffi::c_void);
+        add_fn("atof", atof as *const std::ffi::c_void);
     }
 
     pub fn process(&mut self) {

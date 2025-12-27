@@ -169,6 +169,7 @@ impl<'a> Parser<'a> {
             Vec::new()
         };
         let mut structs = Vec::new();
+        let unions = Vec::new();
         let mut statics = Vec::new();
         let mut modules = Vec::new();
         let mut uses = Vec::new();
@@ -245,6 +246,7 @@ impl<'a> Parser<'a> {
         Program {
             modules,
             structs,
+            unions,
             functions,
             statics,
             uses,
