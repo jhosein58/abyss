@@ -1,10 +1,11 @@
 
-use pre::arr::Arr;
+use std::arr::Arr;
 
 
 pub struct Str {
     buf: Arr<u8>
 }
+
 
 
 
@@ -30,18 +31,17 @@ impl Str {
         self.buf.add(ch);
     }
 
-    fn push_cstr(self: &Str, s: &u8) {
+  fn push_cstr(self: &Str, s: &u8) {
         let i = 0;
         while true {
             let c = s[i];
             if c == 0 {
-                out
+                out; 
             }
             self.buf.add(c);
             i += 1;
         }
     }
-
     fn push_str(self: &Str, other: &Str) {
         let len = other.len();
         let i = 0;
@@ -54,10 +54,9 @@ impl Str {
         }
     }
 
-    fn replace(self: &Str, s: &u8) {
+   fn replace(self: &Str, s: &u8) {
         self.buf.clear();
         self.push_cstr(s);
-        self.buf.add(0); 
     }
 
     fn get_at(self: &Str, index: i64): u8 {
@@ -80,6 +79,33 @@ impl Str {
         ret 1; 
     }
 
+
+    fn eq_cstr(self: &Str, s: &u8): i64 {
+        let len = self.len();
+        let i = 0;
+
+        while i < len {
+            let c_char = s[i];
+
+            if c_char == 0 {
+                ret 0;
+            }
+
+            if self.buf.get(i) != c_char {
+                ret 0;
+            }
+
+            i += 1;
+        }
+
+        if s[i] == 0 {
+            ret 1;
+        }
+        
+        ret 0;
+    }
+
+
     fn from(s: &u8): Str {
         let st = Str.new();
         st.push_cstr(s);
@@ -100,7 +126,39 @@ impl Str {
         self.buf.destroy();
     }
 
-    fn print(self: &Str) {
-        print(self.as_ptr(), 0)
+      fn print(self: &Str) {
+       let i = 0;
+       while i < self.len() {
+           printf("%c", self.get_at(i));
+           i += 1;
+       }
     }
+    fn println(self: &Str) {
+        self.print()
+        printf("\n")
+    }
+
+    fn substr(self: &Str, start: i64, len: i64): Str {
+        let result = Str.new();
+
+        let total_len = self.len();
+
+        if len <= 0 then ret result;
+        
+
+        if start < 0 or start >= total_len then ret result;
+
+        let end = start + len;
+        let i = start;
+
+        result.buf.reserve(len);
+
+        while i < end and i < total_len {
+            result.buf.add(self.buf.get(i));
+            i += 1;
+        }
+
+        result;
+}
+
 }

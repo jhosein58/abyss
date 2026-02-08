@@ -257,7 +257,6 @@ impl<'a, T: Target> Abyss<'a, T> {
             fn getchar() -> std::ffi::c_int;
             fn atoll(s: *const std::ffi::c_char) -> std::ffi::c_longlong;
             fn atof(s: *const std::ffi::c_char) -> std::ffi::c_double;
-            fn __isoc99_scanf(format: *const std::ffi::c_char, ...) -> std::ffi::c_int;
             fn fopen(filename: *const c_char, mode: *const c_char) -> *mut FILE;
             fn fclose(stream: *mut FILE) -> c_int;
             fn fread(ptr: *mut c_void, size: usize, nmemb: usize, stream: *mut FILE) -> usize;
@@ -284,7 +283,6 @@ impl<'a, T: Target> Abyss<'a, T> {
         add_fn("getchar", getchar as *const std::ffi::c_void);
         add_fn("atoll", atoll as *const std::ffi::c_void);
         add_fn("atof", atof as *const std::ffi::c_void);
-        add_fn("__isoc99_scanf", __isoc99_scanf as *const std::ffi::c_void);
         add_fn("fopen", fopen as *const c_void);
         add_fn("fclose", fclose as *const c_void);
         add_fn("fread", fread as *const c_void);
@@ -316,7 +314,7 @@ impl<'a, T: Target> Abyss<'a, T> {
         println!("Running...\n");
         (self
             .jit
-            .get_function::<extern "C" fn()>("app_main")
-            .expect("app_main not found"))();
+            .get_function::<extern "C" fn()>("entry")
+            .expect("entry not found"))();
     }
 }

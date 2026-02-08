@@ -208,7 +208,7 @@ impl CTarget {
             return renamed.clone();
         }
         if self.extern_syms.contains(name) || name == "main" {
-            if name == "app_main" {
+            if name == "entry" {
                 return name.to_string();
             }
 
@@ -243,7 +243,7 @@ impl Target for CTarget {
         self.output.push_str("\nint main(void) {\n");
         self.indent_level = 1;
         self.pending_newline = true;
-        self.write("app_main();");
+        self.write("entry();");
         self.set_newline_pending();
         self.write("return 0;");
         self.indent_level = 0;
