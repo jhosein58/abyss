@@ -1,10 +1,14 @@
-mod stdlib::pre;
-use pre::file::File;
-use pre::arr::Arr;
+mod stdlib::std;
 
+struct Test {
+  a: i32
+}
 
-fn app_main {
-    
-  let f = File.read_to_string("main.a")
+fn pi: i64 ret 3
 
+fn entry {
+
+  let t = Test { a: pi() * 300 }
+
+  printf("%lld\n", t.a)
 }

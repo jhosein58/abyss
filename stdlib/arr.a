@@ -51,7 +51,7 @@ impl<T> Arr<T> {
                 }
             }
             
-           let new_ptr = pre::mem::realloc::<T>(self.ptr, new_cap);
+           let new_ptr = std::mem::realloc::<T>(self.ptr, new_cap);
             
             self.ptr = new_ptr;
             self.cap = new_cap;
@@ -128,7 +128,7 @@ impl<T> Arr<T> {
 
     fn destroy(self: &Arr<T>) {
         if self.ptr != 0 {
-            pre::mem::free(self.ptr)
+            std::mem::free(self.ptr)
         }
         self.ptr = 0;
         self.len = 0;

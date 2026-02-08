@@ -1,5 +1,5 @@
-use pre::arr::Arr;
-use pre::string::Str;
+use std::arr::Arr;
+use std::string::Str;
 
 pub struct File {
     handle: &FILE,
