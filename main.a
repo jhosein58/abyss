@@ -1,14 +1,23 @@
 mod stdlib::std;
 
-struct Test {
-  a: i32
-}
 
-fn pi: i64 ret 3
+struct A { }
+struct B { }
+struct C { }
+
+
 
 fn entry {
 
-  let t = Test { a: pi() * 300 }
+    let test: A | B | C = C
 
-  printf("%lld\n", t.a)
+    if test is A
+    printf("A\n")
+
+    else if test is B
+    printf("B\n")
+
+    else printf("C\n")
 }
+
+

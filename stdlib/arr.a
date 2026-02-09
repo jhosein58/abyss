@@ -4,6 +4,26 @@ pub struct Arr<T> {
     cap: i64
 }
 
+pub struct ArrIter<T> {
+    ptr: &Arr<T>,
+    c: i64,
+    len: i64,
+}
+
+impl<T> ArrIter<T> {
+    fn reset_cursor(self: &ArrIter<T>) { 
+      self.c = -1
+    }
+
+    fn has_next(self: &ArrIter<T>): bool {
+      if self.c >= self.len - 1 ret false
+      else ret true
+    }
+    fn bump(self: &ArrIter<T>): T {
+      self.c += 1;
+      ret self.ptr.get(self.c)
+    }
+}
 
 impl<T> Arr<T> {
 
@@ -133,5 +153,13 @@ impl<T> Arr<T> {
         self.ptr = 0;
         self.len = 0;
         self.cap = 0;
+    }
+
+    fn iter(self: &Arr<T>): ArrIter<T> {
+        ArrIter::<T> {
+            ptr: self,
+            c: 0,
+            len: self.len,
+        }
     }
 }

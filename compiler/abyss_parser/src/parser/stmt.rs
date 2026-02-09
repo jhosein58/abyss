@@ -167,6 +167,52 @@ impl<'a> Parser<'a> {
     fn parse_for_stmt(&mut self) -> Option<Stmt> {
         self.consume(Tk::For)?;
 
+        if self.stream.is(Tk::Ident) && self.stream.is_peek(Tk::Colon) {
+            let item_name = self.consume_ident()?;
+            self.consume(Tk::Colon)?;
+            let item_type = self.parse_type()?;
+            self.consume(Tk::In)?;
+            let collection = self.parse_expr()?;
+
+            let col_var = self.get_unique_identifier();
+
+            let reset_call = Stmt::Expr(Expr::MethodCall(
+                Box::new(Expr::Ident(vec![col_var.clone()])),
+                "reset_cursor".to_string(),
+                vec![],
+                vec![],
+            ));
+
+            let has_next = Expr::MethodCall(
+                Box::new(Expr::Ident(vec![col_var.clone()])),
+                "has_next".to_string(),
+                vec![],
+                vec![],
+            );
+
+            let item_decl = Stmt::Let(
+                item_name,
+                Some(item_type),
+                Some(Expr::MethodCall(
+                    Box::new(Expr::Ident(vec![col_var.clone()])),
+                    "bump".to_string(),
+                    vec![],
+                    vec![],
+                )),
+            );
+
+            let mut loop_body = vec![item_decl];
+            loop_body.extend(self.parse_block()?);
+
+            let while_stmt = Stmt::While(has_next, Box::new(Stmt::Block(loop_body)));
+
+            return Some(Stmt::Block(vec![
+                Stmt::Let(col_var.clone(), None, Some(collection)),
+                reset_call,
+                while_stmt,
+            ]));
+        }
+
         if self.stream.is(Tk::Ident) && self.stream.is_peek(Tk::In) {
             let ident = self.consume_ident()?;
             self.consume(Tk::In)?;
@@ -211,44 +257,44 @@ impl<'a> Parser<'a> {
                     Box::new(Stmt::Block(body_stmts)),
                 ),
             ]));
-        } else {
-            let ident = self.get_unique_identifier();
-            let end = self.parse_expr()?;
-
-            let start_expr = Expr::Lit(Lit::Int(-1));
-            let i_type = Type::I64;
-
-            let end_ident = self.get_unique_identifier();
-
-            let inc_stmt = Stmt::Assign(
-                Expr::Ident(vec![ident.clone()]),
-                Expr::Binary(
-                    Box::new(Expr::Ident(vec![ident.clone()])),
-                    BinaryOp::Add,
-                    Box::new(Expr::Lit(Lit::Int(1))),
-                ),
-            );
-
-            let mut body_stmts = vec![inc_stmt];
-            body_stmts.extend(self.parse_block()?);
-
-            return Some(Stmt::Block(vec![
-                Stmt::Let(ident.clone(), Some(i_type.clone()), Some(start_expr)),
-                Stmt::Let(end_ident.clone(), Some(i_type), Some(end)),
-                Stmt::While(
-                    Expr::Binary(
-                        Box::new(Expr::Binary(
-                            Box::new(Expr::Ident(vec![ident])),
-                            BinaryOp::Add,
-                            Box::new(Expr::Lit(Lit::Int(1))),
-                        )),
-                        BinaryOp::Lt,
-                        Box::new(Expr::Ident(vec![end_ident])),
-                    ),
-                    Box::new(Stmt::Block(body_stmts)),
-                ),
-            ]));
         }
+
+        let ident = self.get_unique_identifier();
+        let end = self.parse_expr()?;
+
+        let start_expr = Expr::Lit(Lit::Int(-1));
+        let i_type = Type::I64;
+
+        let end_ident = self.get_unique_identifier();
+
+        let inc_stmt = Stmt::Assign(
+            Expr::Ident(vec![ident.clone()]),
+            Expr::Binary(
+                Box::new(Expr::Ident(vec![ident.clone()])),
+                BinaryOp::Add,
+                Box::new(Expr::Lit(Lit::Int(1))),
+            ),
+        );
+
+        let mut body_stmts = vec![inc_stmt];
+        body_stmts.extend(self.parse_block()?);
+
+        return Some(Stmt::Block(vec![
+            Stmt::Let(ident.clone(), Some(i_type.clone()), Some(start_expr)),
+            Stmt::Let(end_ident.clone(), Some(i_type), Some(end)),
+            Stmt::While(
+                Expr::Binary(
+                    Box::new(Expr::Binary(
+                        Box::new(Expr::Ident(vec![ident])),
+                        BinaryOp::Add,
+                        Box::new(Expr::Lit(Lit::Int(1))),
+                    )),
+                    BinaryOp::Lt,
+                    Box::new(Expr::Ident(vec![end_ident])),
+                ),
+                Box::new(Stmt::Block(body_stmts)),
+            ),
+        ]));
     }
 
     pub fn parse_out_stmt(&mut self) -> Option<Stmt> {
