@@ -17,7 +17,11 @@ pub mod block;
 pub mod expr;
 pub mod func;
 pub mod globals;
+pub mod helpers;
+pub mod precedence;
 pub mod stmt;
+pub mod struct_parser;
+pub mod type_parser;
 
 pub struct Parser<'a> {
     pub source: &'a str,
