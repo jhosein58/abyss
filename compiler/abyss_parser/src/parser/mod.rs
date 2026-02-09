@@ -14,9 +14,9 @@ use crate::{
 };
 
 pub mod block;
+pub mod desugar;
 pub mod expr;
 pub mod func;
-pub mod globals;
 pub mod helpers;
 pub mod precedence;
 pub mod stmt;

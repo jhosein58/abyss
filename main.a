@@ -1,23 +1,14 @@
 mod stdlib::std;
 
 
-struct A { }
-struct B { }
-struct C { }
-
-
 
 fn entry {
 
-    let test: A | B | C = C
+    let a = 2;
 
-    if test is A
-    printf("A\n")
+    a %= 3 ;
 
-    else if test is B
-    printf("B\n")
-
-    else printf("C\n")
+    printf("%lld\n", a)
 }
 
 
