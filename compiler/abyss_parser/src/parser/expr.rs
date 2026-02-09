@@ -27,7 +27,11 @@ impl<'a> Parser<'a> {
 
             let current = self.stream.current().kind;
 
-            if (current == TokenKind::Plus || current == TokenKind::Minus)
+            if (current == TokenKind::Plus
+                || current == TokenKind::Minus
+                || current == TokenKind::Star
+                || current == TokenKind::Slash
+                || current == TokenKind::Percent)
                 && self.stream.is_peek(TokenKind::Assign)
             {
                 break;

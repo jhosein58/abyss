@@ -1,5 +1,5 @@
 use crate::{
-    ast::{BinaryOp, Expr, Lit, Stmt, Type},
+    ast::{BinaryOp, Expr, Lit, Stmt},
     parser::Parser,
 };
 use abyss_lexer::token::TokenKind as Tk;
@@ -28,34 +28,41 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_assignment_or_expr_stmt(&mut self) -> Option<Stmt> {
-        let lhs_expr = self.parse_expr()?;
+        let lhs = self.parse_expr()?;
 
         if self.stream.is(Tk::Assign) {
             self.advance();
-            let rhs_expr = self.parse_expr()?;
-            return Some(Stmt::Assign(lhs_expr, rhs_expr));
+            return Some(Stmt::Assign(lhs, self.parse_expr()?));
         }
 
-        if self.stream.is(Tk::Plus) && self.stream.is_peek(Tk::Assign) {
-            self.advance();
-            self.advance();
+        if let Some(op) = self.try_compound_assign() {
             let rhs = self.parse_expr()?;
             return Some(Stmt::Assign(
-                lhs_expr.clone(),
-                Expr::Binary(Box::new(lhs_expr), BinaryOp::Add, Box::new(rhs)),
-            ));
-        }
-        if self.stream.is(Tk::Minus) && self.stream.is_peek(Tk::Assign) {
-            self.advance();
-            self.advance();
-            let rhs = self.parse_expr()?;
-            return Some(Stmt::Assign(
-                lhs_expr.clone(),
-                Expr::Binary(Box::new(lhs_expr), BinaryOp::Sub, Box::new(rhs)),
+                lhs.clone(),
+                Expr::Binary(Box::new(lhs), op, Box::new(rhs)),
             ));
         }
 
-        Some(Stmt::Expr(lhs_expr))
+        Some(Stmt::Expr(lhs))
+    }
+
+    fn try_compound_assign(&mut self) -> Option<BinaryOp> {
+        let op = match self.stream.current().kind {
+            Tk::Plus => BinaryOp::Add,
+            Tk::Minus => BinaryOp::Sub,
+            Tk::Star => BinaryOp::Mul,
+            Tk::Slash => BinaryOp::Div,
+            Tk::Percent => BinaryOp::Mod,
+            _ => return None,
+        };
+
+        if self.stream.is_peek(Tk::Assign) {
+            self.advance();
+            self.advance();
+            Some(op)
+        } else {
+            None
+        }
     }
 
     fn parse_nested_function(&mut self) -> Option<Stmt> {
@@ -168,133 +175,43 @@ impl<'a> Parser<'a> {
         self.consume(Tk::For)?;
 
         if self.stream.is(Tk::Ident) && self.stream.is_peek(Tk::Colon) {
-            let item_name = self.consume_ident()?;
-            self.consume(Tk::Colon)?;
-            let item_type = self.parse_type()?;
-            self.consume(Tk::In)?;
-            let collection = self.parse_expr()?;
-
-            let col_var = self.get_unique_identifier();
-
-            let reset_call = Stmt::Expr(Expr::MethodCall(
-                Box::new(Expr::Ident(vec![col_var.clone()])),
-                "reset_cursor".to_string(),
-                vec![],
-                vec![],
-            ));
-
-            let has_next = Expr::MethodCall(
-                Box::new(Expr::Ident(vec![col_var.clone()])),
-                "has_next".to_string(),
-                vec![],
-                vec![],
-            );
-
-            let item_decl = Stmt::Let(
-                item_name,
-                Some(item_type),
-                Some(Expr::MethodCall(
-                    Box::new(Expr::Ident(vec![col_var.clone()])),
-                    "bump".to_string(),
-                    vec![],
-                    vec![],
-                )),
-            );
-
-            let mut loop_body = vec![item_decl];
-            loop_body.extend(self.parse_block()?);
-
-            let while_stmt = Stmt::While(has_next, Box::new(Stmt::Block(loop_body)));
-
-            return Some(Stmt::Block(vec![
-                Stmt::Let(col_var.clone(), None, Some(collection)),
-                reset_call,
-                while_stmt,
-            ]));
+            return self.parse_for_each();
         }
 
         if self.stream.is(Tk::Ident) && self.stream.is_peek(Tk::In) {
-            let ident = self.consume_ident()?;
-            self.consume(Tk::In)?;
-            let start = self.parse_expr()?;
-            self.consume(Tk::RArrow)?;
-            let end = self.parse_expr()?;
-
-            let i_type = Type::I64;
-
-            let inc_stmt = Stmt::Assign(
-                Expr::Ident(vec![ident.clone()]),
-                Expr::Binary(
-                    Box::new(Expr::Ident(vec![ident.clone()])),
-                    BinaryOp::Add,
-                    Box::new(Expr::Lit(Lit::Int(1))),
-                ),
-            );
-
-            let mut body_stmts = vec![inc_stmt];
-            body_stmts.extend(self.parse_block()?);
-
-            return Some(Stmt::Block(vec![
-                Stmt::Let(
-                    ident.clone(),
-                    Some(i_type),
-                    Some(Expr::Binary(
-                        Box::new(start),
-                        BinaryOp::Sub,
-                        Box::new(Expr::Lit(Lit::Int(1))),
-                    )),
-                ),
-                Stmt::While(
-                    Expr::Binary(
-                        Box::new(Expr::Binary(
-                            Box::new(Expr::Ident(vec![ident.clone()])),
-                            BinaryOp::Add,
-                            Box::new(Expr::Lit(Lit::Int(1))),
-                        )),
-                        BinaryOp::Lt,
-                        Box::new(end),
-                    ),
-                    Box::new(Stmt::Block(body_stmts)),
-                ),
-            ]));
+            return self.parse_for_range();
         }
 
-        let ident = self.get_unique_identifier();
+        self.parse_for_count()
+    }
+
+    fn parse_for_each(&mut self) -> Option<Stmt> {
+        let item_name = self.consume_ident()?;
+        self.consume(Tk::Colon)?;
+        let item_type = self.parse_type()?;
+        self.consume(Tk::In)?;
+        let collection = self.parse_expr()?;
+        let body = self.parse_block()?;
+
+        Some(self.desugar_for_each(item_name, item_type, collection, body))
+    }
+
+    fn parse_for_range(&mut self) -> Option<Stmt> {
+        let ident = self.consume_ident()?;
+        self.consume(Tk::In)?;
+        let start = self.parse_expr()?;
+        self.consume(Tk::RArrow)?;
         let end = self.parse_expr()?;
+        let body = self.parse_block()?;
 
-        let start_expr = Expr::Lit(Lit::Int(-1));
-        let i_type = Type::I64;
+        Some(self.desugar_for_range(ident, start, end, body))
+    }
 
-        let end_ident = self.get_unique_identifier();
+    fn parse_for_count(&mut self) -> Option<Stmt> {
+        let end = self.parse_expr()?;
+        let body = self.parse_block()?;
 
-        let inc_stmt = Stmt::Assign(
-            Expr::Ident(vec![ident.clone()]),
-            Expr::Binary(
-                Box::new(Expr::Ident(vec![ident.clone()])),
-                BinaryOp::Add,
-                Box::new(Expr::Lit(Lit::Int(1))),
-            ),
-        );
-
-        let mut body_stmts = vec![inc_stmt];
-        body_stmts.extend(self.parse_block()?);
-
-        return Some(Stmt::Block(vec![
-            Stmt::Let(ident.clone(), Some(i_type.clone()), Some(start_expr)),
-            Stmt::Let(end_ident.clone(), Some(i_type), Some(end)),
-            Stmt::While(
-                Expr::Binary(
-                    Box::new(Expr::Binary(
-                        Box::new(Expr::Ident(vec![ident])),
-                        BinaryOp::Add,
-                        Box::new(Expr::Lit(Lit::Int(1))),
-                    )),
-                    BinaryOp::Lt,
-                    Box::new(Expr::Ident(vec![end_ident])),
-                ),
-                Box::new(Stmt::Block(body_stmts)),
-            ),
-        ]));
+        Some(self.desugar_for_count(end, body))
     }
 
     pub fn parse_out_stmt(&mut self) -> Option<Stmt> {
