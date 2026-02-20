@@ -1,27 +1,52 @@
+use std::hash::{Hash, Hasher};
+
 pub type Path = Vec<String>;
 
-#[derive(Debug, Clone)]
-pub enum Stmt {
-    Mod(Path, Option<Box<Stmt>>),
-    Use(Path),
-    Let(String, Option<Type>, Option<Expr>),
-    Const(String, Option<Type>, Option<Expr>),
-    FunctionDef(Box<FunctionDef>),
-    StructDef(Box<StructDef>),
-    UnionDef(Box<UnionDef>),
-    Assign(Expr, Expr),
-    Ret(Expr),
-    Break,    // out
-    Continue, // next
-    Block(Vec<Stmt>),
-    If(Expr, Box<Stmt>, Option<Box<Stmt>>),
-    While(Expr, Box<Stmt>),
-    Expr(Expr),
+#[derive(Debug, Clone, PartialEq, Default, Eq, Hash)]
+pub struct Span {
+    pub line: u32,
+    pub col: u32,
+    pub file_id: u16,
 }
 
-#[derive(Debug, Clone)]
-pub enum Expr {
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Expr {
+    pub kind: ExprKind,
+    pub span: Span,
+    pub id: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ExprKind {
+    Mod(String, Option<Box<Expr>>, bool), // Mod(Name, Body?, is_pub)
+    Use(Path, bool),                      // Use(Module, is_pub)
+    StructDef(Box<StructDef>),            // define struct
+    TraitDef(Box<TraitDef>),              // define trait
+    TypeDef(Box<TypeAlias>),              // define type
+    FunctionDef(Box<FunctionDef>),        // define function
+
+    VarDecl(Pattern, Type, Option<Box<Expr>>),
+    Const(Pattern, Type, Box<Expr>),
+
+    Ret(Option<Box<Expr>>),
+    Break,                                       // out
+    Continue,                                    // next
+    Block(Vec<Expr>, Type),                      // Block(statements, return_type)
+    If(Box<Expr>, Box<Expr>, Option<Box<Expr>>), // If(condition, then, else)
+    For(Pattern, Box<Expr>, Box<Expr>),          // For(pattern, range, body)
+    Range {
+        start: Option<Box<Expr>>,
+        end: Option<Box<Expr>>,
+        step: Option<Box<Expr>>,
+        inclusive: bool,
+    },
+    ForEach(Pattern, Box<Expr>, Box<Expr>), // ForEach(pattern, collection, body)
+    While(Box<Expr>, Box<Expr>),            // While(condition, body)
+    Defer(Box<Expr>),                       // Defer(expression)
+
+    // ---------------------
     Lit(Lit),
+    ArrayInit(Vec<Expr>),
     Ident(Path),
     Binary(Box<Expr>, BinaryOp, Box<Expr>),
     Unary(UnaryOp, Box<Expr>),
@@ -33,14 +58,15 @@ pub enum Expr {
     Is(Box<Expr>, Type),
     Member(Box<Expr>, String),
     StructInit(Path, Vec<(String, Expr)>, Vec<Type>),
-    UnionInit(Path, Vec<(String, Expr)>),
     MethodCall(Box<Expr>, String, Vec<Expr>, Vec<Type>),
     SizeOf(Type),
     Match(Box<Expr>, Vec<(Pattern, Expr)>),
-    Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
+    Lambda(Box<FunctionDef>),
+    Tuple(Vec<Expr>),
+    Then(Box<Expr>, Box<Expr>), // Then(first, second)
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     U8,
     U16,
@@ -56,14 +82,18 @@ pub enum Type {
     F64,
     Char,
     Bool,
-    Void,
+    Unit,
     Pointer(Box<Type>),
     Const(Box<Type>),
     Array(Box<Type>, usize),
     Struct(Path, Vec<Type>),
+    Trait(Path),
+    TypeOf(Box<Expr>),
     Generic(String),
-    Function(Vec<Type>, Box<Type>, Vec<Type>), // Function(args, return_type, generics)
+    Function(Vec<Type>, Box<Type>), // Function(args, return_type)
     Union(Vec<Type>),
+    Infer,
+    Tuple(Vec<Type>),
 }
 
 impl Type {
@@ -83,7 +113,7 @@ impl Type {
             Type::F64 => "f64".to_string(),
             Type::Char => "char".to_string(),
             Type::Bool => "bool".to_string(),
-            Type::Void => "void".to_string(),
+            Type::Unit => "unit".to_string(),
             Type::Pointer(ty) => format!("ptr_{}", ty.get_name()),
             Type::Const(ty) => format!("const_{}", ty.get_name()),
             Type::Array(ty, size) => format!("Arr_{}_{}", ty.get_name(), size),
@@ -95,56 +125,98 @@ impl Type {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
+pub struct OrderedFloat(pub f64);
+
+impl PartialEq for OrderedFloat {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.to_bits() == other.0.to_bits()
+    }
+}
+
+impl Eq for OrderedFloat {}
+
+impl Hash for OrderedFloat {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_bits().hash(state);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Lit {
     Int(i64),
-    Float(f64),
+    Float(OrderedFloat),
     Bool(bool),
     Str(String),
+    Char(char),
     Null,
-    Array(Vec<Expr>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Hash)]
 pub enum BinaryOp {
-    Assign, // =
-    Add,    // +
-    Sub,    // -
-    Mul,    // *
-    Div,    // /
-    Mod,    // %
-    Eq,     // ==
-    Neq,    // !=
-    Lt,     // <
-    Gt,     // >
-    Lte,    // <=
-    Gte,    // >=
-    And,    // and
-    Or,     // or
-
-    BitAnd, // &
-    BitOr,  // |
-    BitXor, // ^
-    Shl,    // <<
-    Shr,    // >>
+    Assign,       // =
+    AssignAdd,    // +=
+    AssignSub,    // -=
+    AssignMul,    // *=
+    AssignDiv,    // /=
+    AssignMod,    // %=
+    AssignBitAnd, // &=
+    AssignBitOr,  // |=
+    AssignBitXor, // ^=
+    AssignShl,    // <<=
+    AssignShr,    // >>=
+    Add,          // +
+    Sub,          // -
+    Mul,          // *
+    Div,          // /
+    Mod,          // %
+    Eq,           // ==
+    Neq,          // !=
+    Lt,           // <
+    Gt,           // >
+    Lte,          // <=
+    Gte,          // >=
+    And,          // and
+    Or,           // or
+    BitAnd,       // &
+    BitOr,        // |
+    BitXor,       // ^
+    Shl,          // <<
+    Shr,          // >>
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnaryOp {
     Neg,    // -x
     Not,    // not x
     BitNot, // ~x
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Pattern {
+    Ident(String),
+
     Lit(Lit),
-    Variant(Path, Vec<String>),
-    Wildcard,
+
+    Tuple(Vec<Pattern>),
+
+    StructDestruct(Path, Vec<(String, Pattern)>),
+
+    VariantDestruct(Path, Vec<Pattern>),
+
+    Wildcard, // let _ =
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Attribute {
+    pub name: String,
+    pub args: Vec<Expr>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionDef {
+    pub attributes: Vec<Attribute>,
     pub is_pub: bool,
     pub name: String,
     pub generics: Vec<String>,
@@ -155,43 +227,44 @@ pub struct FunctionDef {
     pub external_name: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FunctionBody {
-    UserDefined(Vec<Stmt>),
+    UserDefined(Expr),
     Extern,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StructDef {
+    pub attributes: Vec<Attribute>,
     pub is_pub: bool,
     pub name: String,
     pub generics: Vec<String>,
     pub fields: Vec<(String, Type)>,
 }
 
-#[derive(Debug, Clone)]
-pub struct UnionDef {
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeAlias {
     pub is_pub: bool,
     pub name: String,
-    pub fields: Vec<(String, Type)>,
-}
-
-#[derive(Debug, Clone)]
-pub struct StaticDef {
-    pub is_pub: bool,
-    pub name: String,
-    pub generics: Vec<String>,
     pub ty: Type,
-    pub value: Expr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TraitDef {
+    pub attributes: Vec<Attribute>,
+    pub is_pub: bool,
+    pub name: String,
+    pub generics: Vec<String>,
+    pub methods: Vec<TraitMethod>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TraitMethod {
+    pub signature: FunctionDef,
+    pub has_default: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct Program {
-    pub modules: Vec<(String, Program, bool)>,
-
-    pub structs: Vec<StructDef>,
-    pub unions: Vec<UnionDef>,
-    pub functions: Vec<FunctionDef>,
-    pub statics: Vec<StaticDef>,
-    pub uses: Vec<Path>,
+    pub body: Expr,
 }

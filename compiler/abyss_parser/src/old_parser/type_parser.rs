@@ -1,4 +1,8 @@
-use crate::{ast::Type, error::ParseErrorKind, parser::Parser};
+use crate::{
+    ast::{Type, TypeAlias},
+    error::ParseErrorKind,
+    old_parser::Parser,
+};
 use abyss_lexer::token::{LiteralKind, TokenKind};
 
 impl<'a> Parser<'a> {
@@ -91,5 +95,18 @@ impl<'a> Parser<'a> {
         }
         self.emit_error_at_current(ParseErrorKind::Expected("Array size".to_string()));
         None
+    }
+
+    pub fn parse_type_alias(&mut self, is_pub: bool) -> Option<TypeAlias> {
+        self.consume(TokenKind::Type);
+        let name = self.consume_ident()?;
+        self.consume(TokenKind::Colon);
+        let ty = self.parse_type()?;
+
+        let tya = TypeAlias { is_pub, name, ty }.into();
+
+        self.optional(TokenKind::Semi);
+
+        tya
     }
 }

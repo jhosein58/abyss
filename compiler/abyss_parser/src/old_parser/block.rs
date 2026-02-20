@@ -1,6 +1,6 @@
 use abyss_lexer::token::TokenKind;
 
-use crate::{ast::Stmt, parser::Parser};
+use crate::{ast::Stmt, old_parser::Parser};
 
 impl<'a> Parser<'a> {
     pub fn parse_block(&mut self) -> Option<Vec<Stmt>> {

@@ -2,14 +2,13 @@ use std::fmt::{self, Display, Formatter};
 
 use abyss_lexer::token::TokenKind;
 
-use crate::source_map::Span;
-
+#[derive(Debug)]
 pub struct ParseError {
     pub kind: ParseErrorKind,
     pub message: String,
-    pub pos: Span,
 }
 
+#[derive(Debug)]
 pub enum ParseErrorKind {
     UnexpectedToken {
         expected: TokenKind,

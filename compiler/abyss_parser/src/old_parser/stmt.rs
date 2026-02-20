@@ -1,6 +1,6 @@
 use crate::{
-    ast::{BinaryOp, Expr, Lit, Stmt},
-    parser::Parser,
+    ast::{BinaryOp, Expr, ExprKind, Lit, Stmt, StmtKind},
+    old_parser::Parser,
 };
 use abyss_lexer::token::TokenKind as Tk;
 
@@ -28,22 +28,36 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_assignment_or_expr_stmt(&mut self) -> Option<Stmt> {
+        let s = self.get_ast_span();
         let lhs = self.parse_expr()?;
 
         if self.stream.is(Tk::Assign) {
             self.advance();
-            return Some(Stmt::Assign(lhs, self.parse_expr()?));
+            return Some(Stmt {
+                kind: StmtKind::Assign(lhs, self.parse_expr()?),
+                span: s.clone(),
+            });
         }
 
         if let Some(op) = self.try_compound_assign() {
             let rhs = self.parse_expr()?;
-            return Some(Stmt::Assign(
-                lhs.clone(),
-                Expr::Binary(Box::new(lhs), op, Box::new(rhs)),
-            ));
+            return Some(Stmt {
+                kind: StmtKind::Assign(
+                    lhs.clone(),
+                    Expr {
+                        kind: ExprKind::Binary(Box::new(lhs), op, Box::new(rhs)),
+                        span: s.clone(),
+                        ty: None,
+                    },
+                ),
+                span: s,
+            });
         }
 
-        Some(Stmt::Expr(lhs))
+        Some(Stmt {
+            kind: StmtKind::Expr(lhs),
+            span: s,
+        })
     }
 
     fn try_compound_assign(&mut self) -> Option<BinaryOp> {
@@ -66,22 +80,38 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_nested_function(&mut self) -> Option<Stmt> {
+        let s = self.get_ast_span();
         let func_def = self.parse_function(false)?;
 
-        Some(Stmt::FunctionDef(Box::new(func_def)))
+        Some(Stmt {
+            kind: StmtKind::FunctionDef(Box::new(func_def)),
+            span: s,
+        })
     }
     fn parse_forever_stmt(&mut self) -> Option<Stmt> {
+        let s = self.get_ast_span();
         self.consume(Tk::Forever)?;
 
         let body_stmts = self.parse_block()?;
 
-        Some(Stmt::While(
-            Expr::Lit(Lit::Bool(true)),
-            Box::new(Stmt::Block(body_stmts)),
-        ))
+        Some(Stmt {
+            kind: StmtKind::While(
+                Expr {
+                    kind: ExprKind::Lit(Lit::Bool(true)),
+                    span: s.clone(),
+                    ty: None,
+                },
+                Box::new(Stmt {
+                    kind: StmtKind::Block(body_stmts),
+                    span: s.clone(),
+                }),
+            ),
+            span: s,
+        })
     }
 
     fn parse_let_stmt(&mut self) -> Option<Stmt> {
+        let s = self.get_ast_span();
         self.consume(Tk::Let)?;
 
         let name = self.consume_ident()?;
@@ -100,20 +130,35 @@ impl<'a> Parser<'a> {
             None
         };
 
-        Some(Stmt::Let(name, explicit_type, expr))
+        Some(Stmt {
+            kind: StmtKind::Let(name, explicit_type, expr),
+            span: s,
+        })
     }
 
     fn parse_ret_stmt(&mut self) -> Option<Stmt> {
+        let s = self.get_ast_span();
         self.consume(Tk::Ret)?;
         if self.is(Tk::Semi) || self.is(Tk::Newline) {
             self.advance();
-            return Some(Stmt::Ret(Expr::Lit(Lit::Null)));
+            return Some(Stmt {
+                kind: StmtKind::Ret(Expr {
+                    kind: ExprKind::Lit(Lit::Null),
+                    span: s.clone(),
+                    ty: None,
+                }),
+                span: s,
+            });
         }
         let expr = self.parse_expr()?;
-        Some(Stmt::Ret(expr))
+        Some(Stmt {
+            kind: StmtKind::Ret(expr),
+            span: s.clone(),
+        })
     }
 
     fn parse_if_stmt(&mut self) -> Option<Stmt> {
+        let s = self.get_ast_span();
         self.consume(Tk::If)?;
 
         let condition = self.parse_expr()?;
@@ -126,7 +171,10 @@ impl<'a> Parser<'a> {
             then_stmts = self.parse_block()?;
         }
 
-        let then_branch = Box::new(Stmt::Block(then_stmts));
+        let then_branch = Box::new(Stmt {
+            kind: StmtKind::Block(then_stmts),
+            span: s.clone(),
+        });
 
         self.optional(Tk::Newline);
 
@@ -140,7 +188,10 @@ impl<'a> Parser<'a> {
                     Some(Box::new(nested_if))
                 } else {
                     let else_stmts = self.parse_block()?;
-                    Some(Box::new(Stmt::Block(else_stmts)))
+                    Some(Box::new(Stmt {
+                        kind: StmtKind::Block(else_stmts),
+                        span: s.clone(),
+                    }))
                 }
             } else {
                 let stmt = self.parse_stmt()?;
@@ -150,25 +201,27 @@ impl<'a> Parser<'a> {
             None
         };
 
-        Some(Stmt::If(condition, then_branch, else_branch))
+        Some(Stmt {
+            kind: StmtKind::If(condition, then_branch, else_branch),
+            span: s.clone(),
+        })
     }
 
     fn parse_while_stmt(&mut self) -> Option<Stmt> {
+        let s = self.get_ast_span();
         self.consume(Tk::While)?;
         let condition = self.parse_expr()?;
         let body_stmts = self.parse_block()?;
-        Some(Stmt::While(condition, Box::new(Stmt::Block(body_stmts))))
-    }
-
-    fn consume_ident(&mut self) -> Option<String> {
-        if self.stream.is(Tk::Ident) {
-            let span = self.stream.current_span();
-            let name = self.source[span.start..span.end].to_string();
-            self.advance();
-            Some(name)
-        } else {
-            None
-        }
+        Some(Stmt {
+            kind: StmtKind::While(
+                condition,
+                Box::new(Stmt {
+                    kind: StmtKind::Block(body_stmts),
+                    span: s.clone(),
+                }),
+            ),
+            span: s.clone(),
+        })
     }
 
     fn parse_for_stmt(&mut self) -> Option<Stmt> {
@@ -215,12 +268,20 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_out_stmt(&mut self) -> Option<Stmt> {
+        let s = self.get_ast_span();
         self.consume(Tk::Out)?;
-        Some(Stmt::Break)
+        Some(Stmt {
+            kind: StmtKind::Break,
+            span: s,
+        })
     }
 
     pub fn parse_next_stmt(&mut self) -> Option<Stmt> {
+        let s = self.get_ast_span();
         self.consume(Tk::Next)?;
-        Some(Stmt::Continue)
+        Some(Stmt {
+            kind: StmtKind::Continue,
+            span: s,
+        })
     }
 }

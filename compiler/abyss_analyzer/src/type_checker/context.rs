@@ -18,6 +18,8 @@ pub struct TypeContext {
     pub local_func_scopes: Vec<HashMap<String, FunctionDef>>,
 
     pub pending_funcs: VecDeque<FunctionDef>,
+
+    pub type_aliases: HashMap<String, Type>,
 }
 
 impl TypeContext {
@@ -36,6 +38,7 @@ impl TypeContext {
             scopes: vec![HashMap::new()],
             local_func_scopes: vec![HashMap::new()],
             pending_funcs: VecDeque::new(),
+            type_aliases: HashMap::new(),
         }
     }
 
@@ -85,34 +88,10 @@ impl TypeContext {
         }
         None
     }
-
-    pub fn get_type_tag(&mut self, ty: &Type) -> i64 {
-        let (name, id) = match ty {
-            Type::U8 => ("TYPE_TAG_U8".to_string(), 1),
-            Type::U16 => ("TYPE_TAG_U16".to_string(), 2),
-            Type::U32 => ("TYPE_TAG_U32".to_string(), 3),
-            Type::U64 => ("TYPE_TAG_U64".to_string(), 4),
-            Type::Usize => ("TYPE_TAG_USIZE".to_string(), 5),
-            Type::I8 => ("TYPE_TAG_I8".to_string(), 6),
-            Type::I16 => ("TYPE_TAG_I16".to_string(), 7),
-            Type::I32 => ("TYPE_TAG_I32".to_string(), 8),
-            Type::I64 => ("TYPE_TAG_I64".to_string(), 9),
-            Type::Isize => ("TYPE_TAG_ISIZE".to_string(), 10),
-            Type::F32 => ("TYPE_TAG_F32".to_string(), 11),
-            Type::F64 => ("TYPE_TAG_F64".to_string(), 12),
-            Type::Bool => ("TYPE_TAG_BOOL".to_string(), 13),
-            Type::Char => ("TYPE_TAG_CHAR".to_string(), 14),
-            Type::Array(inner, _) if **inner == Type::U8 => ("TYPE_TAG_U8".to_string(), 1),
-            _ => {
-                let s = format!("{:?}", ty);
-                let mut hash: i64 = 0;
-                for c in s.bytes() {
-                    hash = hash.wrapping_add(c as i64);
-                }
-                (format!("TYPE_TAG_{}", hash), hash)
-            }
-        };
-        self.used_type_tags.insert(name, id);
-        id
+    pub fn register_type_alias(&mut self, name: String, ty: Type) {
+        self.type_aliases.insert(name, ty);
+    }
+    pub fn get_type_alias(&mut self, name: String) -> Option<&Type> {
+        self.type_aliases.get(&name)
     }
 }

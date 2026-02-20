@@ -1,7 +1,7 @@
 use crate::{
     ast::{Expr, Type},
     error::ParseErrorKind,
-    parser::Parser,
+    old_parser::Parser,
 };
 use abyss_lexer::token::TokenKind;
 

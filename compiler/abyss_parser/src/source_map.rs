@@ -1,19 +1,3 @@
-#[derive(Debug, Clone, Copy)]
-pub struct Span {
-    pub start: usize,
-    pub end: usize,
-}
-
-impl Span {
-    pub fn new(start: usize, end: usize) -> Self {
-        Self { start, end }
-    }
-
-    pub fn len(&self) -> usize {
-        (self.end - self.start) as usize
-    }
-}
-
 pub struct Position {
     pub line: usize,
     pub column: usize,
@@ -46,9 +30,5 @@ impl SourceMap {
         let column = line_content_up_to_offset.chars().count() + 1;
 
         Some(Position { line, column })
-    }
-
-    pub fn position_from_span(&self, span: &Span, source: &str) -> Option<Position> {
-        self.find_position(span.start, source)
     }
 }

@@ -1,12 +1,13 @@
 use crate::{
-    ast::{Expr, Type},
+    ast::{Expr, ExprKind, Type},
     error::ParseErrorKind,
-    parser::Parser,
+    old_parser::Parser,
 };
 use abyss_lexer::token::TokenKind;
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_struct_init(&mut self, path: Vec<String>) -> Option<Expr> {
+        let s = self.get_ast_span();
         let generics =
             if self.stream.is(TokenKind::ColonColon) && self.stream.is_peek(TokenKind::Lt) {
                 self.advance();
@@ -18,7 +19,11 @@ impl<'a> Parser<'a> {
         if self.stream.is(TokenKind::OBrace) {
             self.parse_struct_literal(path, generics)
         } else {
-            Some(Expr::StructInit(path, vec![], generics))
+            Some(Expr {
+                kind: ExprKind::StructInit(path, vec![], generics),
+                span: s,
+                ty: None,
+            })
         }
     }
 
@@ -27,6 +32,7 @@ impl<'a> Parser<'a> {
         path: Vec<String>,
         generics: Vec<Type>,
     ) -> Option<Expr> {
+        let s = self.get_ast_span();
         self.consume(TokenKind::OBrace)?;
         let mut fields = Vec::new();
 
@@ -58,7 +64,11 @@ impl<'a> Parser<'a> {
         }
 
         self.consume(TokenKind::CBrace)?;
-        Some(Expr::StructInit(path, fields, generics))
+        Some(Expr {
+            kind: ExprKind::StructInit(path, fields, generics),
+            span: s,
+            ty: None,
+        })
     }
 
     fn expect_ident(&mut self, context: &str) -> Option<String> {

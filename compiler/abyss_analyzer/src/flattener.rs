@@ -1,6 +1,7 @@
 use crate::hir::FlatProgram;
 use abyss_parser::ast::{
-    Expr, FunctionBody, FunctionDef, Lit, Pattern, Program, StaticDef, Stmt, StructDef, Type,
+    Expr, ExprKind, FunctionBody, FunctionDef, Lit, Pattern, Program, StaticDef, Stmt, StmtKind,
+    StructDef, Type,
 };
 use std::collections::HashMap;
 
@@ -45,7 +46,7 @@ impl Flattener {
 
     pub fn flatten(mut self, program: Program) -> FlatProgram {
         self.collect_definitions(&program, &vec![]);
-
+        self.output.type_aliases = program.type_aliases.clone();
         self.visit_program(program);
         self.output
     }
@@ -71,7 +72,6 @@ impl Flattener {
 
         for f in &program.functions {
             let is_extern = matches!(f.body, FunctionBody::Extern);
-
             let mangled = if is_extern {
                 f.name.clone()
             } else {
@@ -176,14 +176,12 @@ impl Flattener {
     fn process_top_level_imports(&mut self, uses: Vec<Vec<String>>) {
         for path in uses {
             let mangled_target = path.join("__");
-
             let local_alias = path.last().unwrap().clone();
-
             self.check_visibility(&mangled_target);
-
             self.add_import(local_alias, mangled_target);
         }
     }
+
     fn visit_program(&mut self, program: Program) {
         let prefix = if self.path.is_empty() {
             String::new()
@@ -203,13 +201,11 @@ impl Flattener {
 
         for f in &program.functions {
             let is_extern = matches!(f.body, FunctionBody::Extern);
-
             let mangled = if is_extern {
                 f.name.clone()
             } else {
                 format!("{}{}", prefix, f.name)
             };
-
             self.add_local_rename(f.name.clone(), mangled);
         }
         for s in &program.statics {
@@ -218,7 +214,6 @@ impl Flattener {
         }
 
         self.process_top_level_imports(program.uses);
-
         self.process_modules(program.modules);
         self.process_top_level_structs(program.structs);
         self.process_top_level_statics(program.statics);
@@ -238,7 +233,6 @@ impl Flattener {
     fn process_top_level_structs(&mut self, structs: Vec<StructDef>) {
         for mut s in structs {
             s.name = self.resolve_name(&s.name);
-
             for field in &mut s.fields {
                 self.rename_in_type(&mut field.1);
             }
@@ -249,7 +243,6 @@ impl Flattener {
     fn process_top_level_statics(&mut self, statics: Vec<StaticDef>) {
         for mut s in statics {
             s.name = self.resolve_name(&s.name);
-
             self.rename_in_type(&mut s.ty);
             self.rename_in_expr(&mut s.value);
             self.output.statics.push(s);
@@ -270,12 +263,12 @@ impl Flattener {
 
             if let FunctionBody::UserDefined(ref mut stmts) = func.body {
                 for stmt in stmts.iter() {
-                    match stmt {
-                        Stmt::FunctionDef(inner) => {
+                    match &stmt.kind {
+                        StmtKind::FunctionDef(inner) => {
                             let mangled = format!("{}__{}", func.name, inner.name);
                             self.add_local_rename(inner.name.clone(), mangled);
                         }
-                        Stmt::StructDef(inner) => {
+                        StmtKind::StructDef(inner) => {
                             let mangled = format!("{}__{}", func.name, inner.name);
                             self.add_local_rename(inner.name.clone(), mangled);
                         }
@@ -305,16 +298,14 @@ impl Flattener {
 
     fn process_stmts(&mut self, stmts: &mut [Stmt]) {
         for stmt in stmts {
-            match stmt {
-                Stmt::Use(path) => {
+            match &mut stmt.kind {
+                StmtKind::Use(path) => {
                     let mangled_target = path.join("__");
                     let local_alias = path.last().unwrap().clone();
-
                     self.check_visibility(&mangled_target);
-
                     self.add_import(local_alias, mangled_target);
                 }
-                Stmt::Let(_name, ty, expr) => {
+                StmtKind::Let(_name, ty, expr) => {
                     if let Some(t) = ty {
                         self.rename_in_type(t);
                     }
@@ -346,13 +337,13 @@ impl Flattener {
 
         if let FunctionBody::UserDefined(ref mut stmts) = func.body {
             for stmt in stmts.iter() {
-                match stmt {
-                    Stmt::FunctionDef(inner) => {
+                match &stmt.kind {
+                    StmtKind::FunctionDef(inner) => {
                         let inner_name = &inner.name;
                         let mangled = format!("{}__{}", func.name, inner_name);
                         self.add_local_rename(inner_name.clone(), mangled);
                     }
-                    Stmt::StructDef(inner) => {
+                    StmtKind::StructDef(inner) => {
                         let inner_name = &inner.name;
                         let mangled = format!("{}__{}", func.name, inner_name);
                         self.add_local_rename(inner_name.clone(), mangled);
@@ -375,7 +366,6 @@ impl Flattener {
         }
 
         self.exit_scope();
-
         self.output.functions.push(func);
 
         self.path.push(original_name);
@@ -395,23 +385,27 @@ impl Flattener {
         let mut inner_structs = Vec::new();
 
         for stmt in stmts.drain(..) {
-            match stmt {
-                Stmt::FunctionDef(inner_func_box) => {
+            let span = stmt.span;
+
+            match stmt.kind {
+                StmtKind::FunctionDef(inner_func_box) => {
                     let mut inner_func = *inner_func_box;
                     let old_name = inner_func.name.clone();
                     let new_name = format!("{}__{}", parent_mangled_name, old_name);
                     inner_func.name = new_name;
-
                     inner_funcs.push(inner_func);
                 }
-                Stmt::StructDef(inner_struct_box) => {
+                StmtKind::StructDef(inner_struct_box) => {
                     let mut inner_struct = *inner_struct_box;
                     let old_name = inner_struct.name.clone();
                     let new_name = format!("{}__{}", parent_mangled_name, old_name);
                     inner_struct.name = new_name;
                     inner_structs.push(inner_struct);
                 }
-                _ => cleaned_stmts.push(stmt),
+                other_kind => cleaned_stmts.push(Stmt {
+                    kind: other_kind,
+                    span,
+                }),
             }
         }
 
@@ -419,33 +413,33 @@ impl Flattener {
     }
 
     fn rename_in_stmt(&self, stmt: &mut Stmt) {
-        match stmt {
-            Stmt::Let(_, Some(ty), Some(expr)) | Stmt::Const(_, Some(ty), Some(expr)) => {
+        match &mut stmt.kind {
+            StmtKind::Let(_, Some(ty), Some(expr)) | StmtKind::Const(_, Some(ty), Some(expr)) => {
                 self.rename_in_type(ty);
                 self.rename_in_expr(expr);
             }
-            Stmt::Let(_, Some(ty), None) | Stmt::Const(_, Some(ty), None) => {
+            StmtKind::Let(_, Some(ty), None) | StmtKind::Const(_, Some(ty), None) => {
                 self.rename_in_type(ty);
             }
-            Stmt::Ret(expr) | Stmt::Expr(expr) => {
+            StmtKind::Ret(expr) | StmtKind::Expr(expr) => {
                 self.rename_in_expr(expr);
             }
-            Stmt::Assign(lhs, rhs) => {
+            StmtKind::Assign(lhs, rhs) => {
                 self.rename_in_expr(lhs);
                 self.rename_in_expr(rhs);
             }
-            Stmt::If(cond, then_stmt, else_stmt) => {
+            StmtKind::If(cond, then_stmt, else_stmt) => {
                 self.rename_in_expr(cond);
                 self.rename_in_stmt(then_stmt);
                 if let Some(else_s) = else_stmt {
                     self.rename_in_stmt(else_s);
                 }
             }
-            Stmt::While(cond, body) => {
+            StmtKind::While(cond, body) => {
                 self.rename_in_expr(cond);
                 self.rename_in_stmt(body);
             }
-            Stmt::Block(stmts) => {
+            StmtKind::Block(stmts) => {
                 for s in stmts {
                     self.rename_in_stmt(s);
                 }
@@ -455,8 +449,8 @@ impl Flattener {
     }
 
     fn rename_in_expr(&self, expr: &mut Expr) {
-        match expr {
-            Expr::Ident(path) => {
+        match &mut expr.kind {
+            ExprKind::Ident(path) => {
                 if path.len() == 1 {
                     let resolved = self.resolve_name(&path[0]);
                     if resolved.contains("__") {
@@ -469,7 +463,7 @@ impl Flattener {
                     *path = vec![full_mangled];
                 }
             }
-            Expr::Call(callee, args, generics) => {
+            ExprKind::Call(callee, args, generics) => {
                 self.rename_in_expr(callee);
                 for arg in args {
                     self.rename_in_expr(arg);
@@ -478,7 +472,7 @@ impl Flattener {
                     self.rename_in_type(g);
                 }
             }
-            Expr::StructInit(path, fields, generics) => {
+            ExprKind::StructInit(path, fields, generics) => {
                 if path.len() == 1 {
                     let resolved = self.resolve_name(&path[0]);
                     path[0] = resolved;
@@ -494,7 +488,7 @@ impl Flattener {
                     self.rename_in_type(g);
                 }
             }
-            Expr::UnionInit(path, variants) => {
+            ExprKind::UnionInit(path, variants) => {
                 if path.len() == 1 {
                     let resolved = self.resolve_name(&path[0]);
                     path[0] = resolved;
@@ -507,24 +501,24 @@ impl Flattener {
                     self.rename_in_expr(val_expr);
                 }
             }
-            Expr::Binary(left, _, right) => {
+            ExprKind::Binary(left, _, right) => {
                 self.rename_in_expr(left);
                 self.rename_in_expr(right);
             }
-            Expr::Unary(_, operand) => {
+            ExprKind::Unary(_, operand) => {
                 self.rename_in_expr(operand);
             }
-            Expr::Index(arr, idx) => {
+            ExprKind::Index(arr, idx) => {
                 self.rename_in_expr(arr);
                 self.rename_in_expr(idx);
             }
-            Expr::Deref(inner) | Expr::AddrOf(inner) => {
+            ExprKind::Deref(inner) | ExprKind::AddrOf(inner) => {
                 self.rename_in_expr(inner);
             }
-            Expr::Member(obj, _) => {
+            ExprKind::Member(obj, _) => {
                 self.rename_in_expr(obj);
             }
-            Expr::MethodCall(obj, _, args, generics) => {
+            ExprKind::MethodCall(obj, _, args, generics) => {
                 self.rename_in_expr(obj);
                 for arg in args {
                     self.rename_in_expr(arg);
@@ -533,18 +527,18 @@ impl Flattener {
                     self.rename_in_type(g);
                 }
             }
-            Expr::Cast(inner, ty) => {
+            ExprKind::Cast(inner, ty) => {
                 self.rename_in_expr(inner);
                 self.rename_in_type(ty);
             }
-            Expr::Is(inner, ty) => {
+            ExprKind::Is(inner, ty) => {
                 self.rename_in_expr(inner);
                 self.rename_in_type(ty);
             }
-            Expr::SizeOf(ty) => {
+            ExprKind::SizeOf(ty) => {
                 self.rename_in_type(ty);
             }
-            Expr::Match(expr, arms) => {
+            ExprKind::Match(expr, arms) => {
                 self.rename_in_expr(expr);
                 for (pattern, arm_expr) in arms {
                     if let Pattern::Variant(path, _) = pattern {
@@ -560,17 +554,15 @@ impl Flattener {
                             *path = vec![full_mangled];
                         }
                     }
-
                     self.rename_in_expr(arm_expr);
                 }
             }
-
-            Expr::Ternary(cond, t_expr, f_expr) => {
+            ExprKind::Ternary(cond, t_expr, f_expr) => {
                 self.rename_in_expr(cond);
                 self.rename_in_expr(t_expr);
                 self.rename_in_expr(f_expr);
             }
-            Expr::Lit(lit) => {
+            ExprKind::Lit(lit) => {
                 if let Lit::Array(exprs) = lit {
                     for e in exprs {
                         self.rename_in_expr(e);
@@ -603,7 +595,6 @@ impl Flattener {
                 }
                 self.rename_in_type(ret);
             }
-
             Type::Union(types) => {
                 for t in types {
                     self.rename_in_type(t);

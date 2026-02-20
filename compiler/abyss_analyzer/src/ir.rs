@@ -9,7 +9,8 @@ use crate::{
     symbols::Context,
 };
 use abyss_parser::ast::{
-    Expr, FunctionBody, FunctionDef, Lit, StaticDef, Stmt, StructDef, Type, UnionDef,
+    Expr, ExprKind, FunctionBody, FunctionDef, Lit, StaticDef, Stmt, StmtKind, StructDef, Type,
+    UnionDef,
 };
 
 pub struct Ir {
@@ -73,12 +74,12 @@ impl Ir {
     }
 
     fn resolve_expr_type(&self, expr: &Expr) -> LirType {
-        match expr {
-            Expr::Ident(path) => {
+        match &expr.kind {
+            ExprKind::Ident(path) => {
                 let name = path.last().expect("Empty path").clone();
                 self.lookup_type(&name).unwrap_or(LirType::Void)
             }
-            Expr::Member(lhs, field_name) => {
+            ExprKind::Member(lhs, field_name) => {
                 let lhs_type = self.resolve_expr_type(lhs);
                 if let LirType::Struct(struct_name) = lhs_type {
                     self.ctx
@@ -96,8 +97,8 @@ impl Ir {
                     LirType::Void
                 }
             }
-            Expr::StructInit(path, _, _) => LirType::Struct(path.join("__")),
-            Expr::MethodCall(lhs, method_name, _, _) => {
+            ExprKind::StructInit(path, _, _) => LirType::Struct(path.join("__")),
+            ExprKind::MethodCall(lhs, method_name, _, _) => {
                 let lhs_type = self.resolve_expr_type(lhs);
                 let struct_name = match &lhs_type {
                     LirType::Struct(n) => n,
@@ -118,12 +119,12 @@ impl Ir {
                     LirType::Void
                 }
             }
-            Expr::Lit(Lit::Int(_)) => LirType::I64,
-            Expr::Lit(Lit::Float(_)) => LirType::F64,
-            Expr::Lit(Lit::Bool(_)) => LirType::Bool,
-            Expr::Cast(_, ty) => self.transpile_type(ty),
-            Expr::Is(_, _) => LirType::Bool,
-            Expr::Ternary(_, true_expr, _) => self.resolve_expr_type(true_expr),
+            ExprKind::Lit(Lit::Int(_)) => LirType::I64,
+            ExprKind::Lit(Lit::Float(_)) => LirType::F64,
+            ExprKind::Lit(Lit::Bool(_)) => LirType::Bool,
+            ExprKind::Cast(_, ty) => self.transpile_type(ty),
+            ExprKind::Is(_, _) => LirType::Bool,
+            ExprKind::Ternary(_, true_expr, _) => self.resolve_expr_type(true_expr),
             _ => LirType::Void,
         }
     }
@@ -238,8 +239,8 @@ impl Ir {
     }
 
     fn transpile_stmt(&mut self, stmt: &Stmt) -> Vec<LirStmt> {
-        match stmt {
-            Stmt::Let(name, ty_opt, expr_opt) => {
+        match &stmt.kind {
+            StmtKind::Let(name, ty_opt, expr_opt) => {
                 let lir_ty = if let Some(t) = ty_opt {
                     self.transpile_type(t)
                 } else {
@@ -256,7 +257,7 @@ impl Ir {
                 vec![LirStmt::Let(name.clone(), lir_ty, lir_init)]
             }
 
-            Stmt::Const(name, ty_opt, expr_opt) => {
+            StmtKind::Const(name, ty_opt, expr_opt) => {
                 let lir_ty = ty_opt
                     .as_ref()
                     .map(|t| self.transpile_type(t))
@@ -266,11 +267,11 @@ impl Ir {
                 vec![LirStmt::Let(name.clone(), lir_ty, lir_init)]
             }
 
-            Stmt::Block(inner_stmts) => {
+            StmtKind::Block(inner_stmts) => {
                 vec![LirStmt::Block(self.transpile_block(inner_stmts))]
             }
 
-            Stmt::If(cond, then_box, else_box) => {
+            StmtKind::If(cond, then_box, else_box) => {
                 let lir_cond = self.transpile_expr(cond);
                 let then_branch = self.transpile_stmt(then_box);
                 let else_branch = if let Some(else_stmt) = else_box {
@@ -285,34 +286,34 @@ impl Ir {
                 }]
             }
 
-            Stmt::While(cond, body) => {
+            StmtKind::While(cond, body) => {
                 vec![LirStmt::While {
                     cond: self.transpile_expr(cond),
                     body: self.transpile_stmt(body),
                 }]
             }
 
-            Stmt::Assign(lhs, rhs) => vec![LirStmt::Assign(
+            StmtKind::Assign(lhs, rhs) => vec![LirStmt::Assign(
                 self.transpile_expr(lhs),
                 self.transpile_expr(rhs),
             )],
-            Stmt::Expr(e) => vec![LirStmt::ExprStmt(self.transpile_expr(e))],
-            Stmt::Ret(e) => vec![LirStmt::Return(Some(self.transpile_expr(e)))],
-            Stmt::Break => vec![LirStmt::Break],
-            Stmt::Continue => vec![LirStmt::Continue],
+            StmtKind::Expr(e) => vec![LirStmt::ExprStmt(self.transpile_expr(e))],
+            StmtKind::Ret(e) => vec![LirStmt::Return(Some(self.transpile_expr(e)))],
+            StmtKind::Break => vec![LirStmt::Break],
+            StmtKind::Continue => vec![LirStmt::Continue],
             _ => vec![],
         }
     }
 
     fn transpile_expr(&self, expr: &Expr) -> LirExpr {
-        match expr {
-            Expr::Lit(Lit::Array(elements)) => {
+        match &expr.kind {
+            ExprKind::Lit(Lit::Array(elements)) => {
                 let lir_elems = elements.iter().map(|e| self.transpile_expr(e)).collect();
 
                 LirExpr::ArrayInit(lir_elems)
             }
 
-            Expr::Lit(Lit::Str(v)) => {
+            ExprKind::Lit(Lit::Str(v)) => {
                 let mut lir_elems = Vec::new();
 
                 let content = if v.starts_with('"') && v.ends_with('"') && v.len() >= 2 {
@@ -350,18 +351,18 @@ impl Ir {
                 LirExpr::ArrayInit(lir_elems)
             }
 
-            Expr::Lit(l) => LirExpr::Lit(self.transpile_lit(l)),
-            Expr::Ident(path) => LirExpr::Ident(path.join("__")),
-            Expr::Binary(l, op, r) => LirExpr::Binary(
+            ExprKind::Lit(l) => LirExpr::Lit(self.transpile_lit(l)),
+            ExprKind::Ident(path) => LirExpr::Ident(path.join("__")),
+            ExprKind::Binary(l, op, r) => LirExpr::Binary(
                 Box::new(self.transpile_expr(l)),
                 *op,
                 Box::new(self.transpile_expr(r)),
             ),
-            Expr::Unary(op, inner) => LirExpr::Unary(*op, Box::new(self.transpile_expr(inner))),
-            Expr::Call(callee, args, _) => {
+            ExprKind::Unary(op, inner) => LirExpr::Unary(*op, Box::new(self.transpile_expr(inner))),
+            ExprKind::Call(callee, args, _) => {
                 let lir_args = args.iter().map(|a| self.transpile_expr(a)).collect();
-                match &**callee {
-                    Expr::Ident(path) => LirExpr::Call {
+                match &callee.kind {
+                    ExprKind::Ident(path) => LirExpr::Call {
                         func_name: path.join("__"),
                         args: lir_args,
                     },
@@ -369,7 +370,7 @@ impl Ir {
                 }
             }
 
-            Expr::Member(obj, field) => {
+            ExprKind::Member(obj, field) => {
                 let lhs_lir = self.transpile_expr(obj);
                 let lhs_type = self.resolve_expr_type(obj);
 
@@ -380,7 +381,7 @@ impl Ir {
                 }
             }
 
-            Expr::MethodCall(obj, method_name, args, _) => {
+            ExprKind::MethodCall(obj, method_name, args, _) => {
                 let obj_type = self.resolve_expr_type(obj);
 
                 let struct_name = match &obj_type {
@@ -416,7 +417,7 @@ impl Ir {
                 }
             }
 
-            Expr::StructInit(path, fields, _) => {
+            ExprKind::StructInit(path, fields, _) => {
                 let lir_fields = fields
                     .iter()
                     .map(|(n, e)| (n.clone(), self.transpile_expr(e)))
@@ -426,7 +427,7 @@ impl Ir {
                     fields: lir_fields,
                 }
             }
-            Expr::UnionInit(path, variants) => {
+            ExprKind::UnionInit(path, variants) => {
                 let lir_variants = variants
                     .iter()
                     .map(|(n, e)| (n.clone(), self.transpile_expr(e)))
@@ -436,21 +437,21 @@ impl Ir {
                     variants: lir_variants,
                 }
             }
-            Expr::Index(arr, idx) => LirExpr::Index(
+            ExprKind::Index(arr, idx) => LirExpr::Index(
                 Box::new(self.transpile_expr(arr)),
                 Box::new(self.transpile_expr(idx)),
             ),
-            Expr::Deref(i) => LirExpr::Deref(Box::new(self.transpile_expr(i))),
-            Expr::AddrOf(i) => LirExpr::AddrOf(Box::new(self.transpile_expr(i))),
-            Expr::Cast(i, t) => {
+            ExprKind::Deref(i) => LirExpr::Deref(Box::new(self.transpile_expr(i))),
+            ExprKind::AddrOf(i) => LirExpr::AddrOf(Box::new(self.transpile_expr(i))),
+            ExprKind::Cast(i, t) => {
                 LirExpr::Cast(Box::new(self.transpile_expr(i)), self.transpile_type(t))
             }
-            Expr::SizeOf(t) => LirExpr::SizeOf(self.transpile_type(t)),
-            Expr::Is(inner, ty) => LirExpr::Is(
+            ExprKind::SizeOf(t) => LirExpr::SizeOf(self.transpile_type(t)),
+            ExprKind::Is(inner, ty) => LirExpr::Is(
                 Box::new(self.transpile_expr(inner)),
                 self.transpile_type(ty),
             ),
-            Expr::Ternary(cond, t, f) => LirExpr::Ternary(
+            ExprKind::Ternary(cond, t, f) => LirExpr::Ternary(
                 Box::new(self.transpile_expr(cond)),
                 Box::new(self.transpile_expr(t)),
                 Box::new(self.transpile_expr(f)),
