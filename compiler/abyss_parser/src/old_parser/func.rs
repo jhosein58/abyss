@@ -3,9 +3,9 @@ use std::{fs, path::PathBuf};
 use abyss_lexer::token::TokenKind;
 
 use crate::{
-    ast::{FunctionBody, FunctionDef, Program, StaticDef, Stmt, StructDef, Type},
+    ast::{FunctionBody, FunctionDef, Program, StaticDef, Stmt, StmtKind, StructDef, Type},
     error::ParseErrorKind,
-    parser::Parser,
+    old_parser::Parser,
 };
 
 impl<'a> Parser<'a> {
@@ -105,8 +105,8 @@ impl<'a> Parser<'a> {
                 if let Type::Void = return_type {
                 } else {
                     if let Some(last) = stmts.last_mut() {
-                        if let Stmt::Expr(expr) = last {
-                            *last = Stmt::Ret(expr.clone());
+                        if let StmtKind::Expr(ref expr) = last.kind {
+                            last.kind = StmtKind::Ret(expr.clone());
                         }
                     }
                 }
@@ -360,6 +360,7 @@ impl<'a> Parser<'a> {
 
     pub fn parse_use(&mut self) -> Option<Stmt> {
         self.consume_safely(TokenKind::Use)?;
+        let s = self.get_ast_span();
 
         let mut path = Vec::new();
         path.push(self.read_ident()?);
@@ -370,7 +371,10 @@ impl<'a> Parser<'a> {
         }
 
         self.consume_safely(TokenKind::Semi)?;
-        Some(Stmt::Use(path))
+        Some(Stmt {
+            kind: StmtKind::Use(path),
+            span: s,
+        })
     }
 
     fn parse_mod_path(&mut self) -> Option<Vec<String>> {
@@ -482,6 +486,7 @@ impl<'a> Parser<'a> {
             structs: Vec::new(),
             unions: Vec::new(),
             uses: Vec::new(),
+            type_aliases: Vec::new(),
         };
         match fs::read_dir(dir_path) {
             Ok(entries) => {

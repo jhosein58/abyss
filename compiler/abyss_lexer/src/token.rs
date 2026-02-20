@@ -7,10 +7,13 @@ pub enum RawTokenKind {
     Newline,
 
     Ident,
-
-    Int,
-    Float,
-    String,
+    Integer,    // 123
+    HexInteger, // 0xFF
+    BinInteger, // 0b101
+    Float,      // 1.0, 1.
+    String,     // "hello"
+    CString,    // c"hello"
+    Char,       // 'A'
 
     Symbol,
 
@@ -37,15 +40,18 @@ pub enum TokenKind {
 
     Ident,
 
-    Literal(LiteralKind),
+    // Literals
+    IntLit,    // 123
+    HexIntLit, // 0xFF
+    BinIntLit, // 0b101
+    FloatLit,  // 1.0
+    StrLit,    // "..."
+    CStrLit,   // c"..."
+    CharLit,   // 'A'
 
     // --- Keywords ---
-    Let,     // let
     Const,   // const
-    Static,  // static
     Struct,  // struct
-    Impl,    // impl
-    Fn,      // fn
     Pub,     // pub
     Ret,     // ret
     If,      // if
@@ -62,27 +68,27 @@ pub enum TokenKind {
     And,     // and
     Or,      // or
     Not,     // not
-    True,    // true
-    False,   // false
-    I8,      // i8
-    I16,     // i16
-    I32,     // i32
-    I64,     // i64
-    Isize,   // isize
-    U8,      // u8
-    U16,     // u16
-    U32,     // u32
-    U64,     // u64
-    Usize,   // usize
-    F32,     // f32
-    F64,     // f64
-    Char,    // char
-    Bool,    // bool
-    Null,    // null
-    Pass,    // pass
     Size,    // size
     Mod,     // mod
     Use,     // use
+    Type,    // type
+
+    True,  // true
+    False, // false
+    I8,    // i8
+    I16,   // i16
+    I32,   // i32
+    I64,   // i64
+    Isize, // isize
+    U8,    // u8
+    U16,   // u16
+    U32,   // u32
+    U64,   // u64
+    Usize, // usize
+    F32,   // f32
+    F64,   // f64
+    Char,  // char
+    Bool,  // bool
 
     Plus,       // +
     Minus,      // -
@@ -124,12 +130,8 @@ pub enum TokenKind {
 impl TokenKind {
     pub fn lookup_ident(ident: &str) -> TokenKind {
         match ident {
-            "let" => TokenKind::Let,
             "const" => TokenKind::Const,
-            "static" => TokenKind::Static,
             "struct" => TokenKind::Struct,
-            "impl" => TokenKind::Impl,
-            "fn" => TokenKind::Fn,
             "pub" => TokenKind::Pub,
             "ret" => TokenKind::Ret,
             "if" => TokenKind::If,
@@ -166,11 +168,10 @@ impl TokenKind {
 
             "char" => TokenKind::Char,
             "bool" => TokenKind::Bool,
-            "null" => TokenKind::Null,
-            "pass" => TokenKind::Pass,
             "size" => TokenKind::Size,
             "mod" => TokenKind::Mod,
             "use" => TokenKind::Use,
+            "type" => TokenKind::Type,
 
             _ => TokenKind::Ident,
         }
@@ -223,13 +224,15 @@ impl Display for TokenKind {
             TokenKind::Whitespace => write!(f, "Whitespace"),
             TokenKind::Newline => write!(f, "Newline"),
             TokenKind::Ident => write!(f, "Ident"),
-            TokenKind::Literal(lit) => write!(f, "Literal({})", lit),
-            TokenKind::Let => write!(f, "'let'"),
+            TokenKind::StrLit => write!(f, "String"),
+            TokenKind::CStrLit => write!(f, "CString"),
+            TokenKind::CharLit => write!(f, "Char"),
+            TokenKind::HexIntLit => write!(f, "HexInteger"),
+            TokenKind::BinIntLit => write!(f, "BinInteger"),
+            TokenKind::FloatLit => write!(f, "Float"),
+            TokenKind::IntLit => write!(f, "Integer"),
             TokenKind::Const => write!(f, "'const'"),
-            TokenKind::Static => write!(f, "'static'"),
             TokenKind::Struct => write!(f, "'struct'"),
-            TokenKind::Impl => write!(f, "'impl'"),
-            TokenKind::Fn => write!(f, "'fn'"),
             TokenKind::Pub => write!(f, "'pub'"),
             TokenKind::Ret => write!(f, "'ret'"),
             TokenKind::If => write!(f, "'if'"),
@@ -262,11 +265,10 @@ impl Display for TokenKind {
             TokenKind::Usize => write!(f, "'usize'"),
             TokenKind::Char => write!(f, "'char'"),
             TokenKind::Bool => write!(f, "'bool'"),
-            TokenKind::Null => write!(f, "'null'"),
-            TokenKind::Pass => write!(f, "'pass'"),
             TokenKind::Size => write!(f, "'size'"),
             TokenKind::Mod => write!(f, "'mod'"),
             TokenKind::Use => write!(f, "'use'"),
+            TokenKind::Type => write!(f, "'type'"),
 
             TokenKind::Plus => write!(f, "'+'"),
             TokenKind::Minus => write!(f, "'-'"),
@@ -307,39 +309,37 @@ impl Display for TokenKind {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum LiteralKind {
-    Int,
-    Float,
-    Str,
-    Char,
-    Bool,
+#[derive(Debug, Clone, Copy)]
+pub struct Token<'a> {
+    pub kind: TokenKind,
+    pub text: &'a str,
+    pub start: usize,
+    pub len: usize,
+    pub preceded_by_newline: bool,
 }
 
-impl Display for LiteralKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            LiteralKind::Int => write!(f, "int"),
-            LiteralKind::Float => write!(f, "float"),
-            LiteralKind::Str => write!(f, "string"),
-            LiteralKind::Char => write!(f, "char"),
-            LiteralKind::Bool => writeln!(f, "bool"),
+impl<'a> Token<'a> {
+    pub fn new(
+        kind: TokenKind,
+        text: &'a str,
+        start: usize,
+        len: usize,
+        preceded_by_newline: bool,
+    ) -> Self {
+        Self {
+            kind,
+            text,
+            start,
+            len,
+            preceded_by_newline,
         }
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub len: usize,
-}
-
-impl Token {
-    pub fn new(kind: TokenKind, len: usize) -> Self {
-        Self { kind, len }
+    pub fn end(&self) -> usize {
+        self.start + self.len
     }
 
     pub fn dummy() -> Self {
-        Self::new(TokenKind::Unknown, 0)
+        Self::new(TokenKind::Unknown, "", 0, 0, false)
     }
 }

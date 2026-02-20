@@ -1,12 +1,14 @@
 use crate::{
     scanner::Scanner,
-    token::{self, RawTokenKind, Token, TokenKind},
+    token::{RawTokenKind, Token, TokenKind},
 };
 
 pub struct Lexer<'a> {
     source: &'a str,
     scanner: Scanner<'a>,
     offset: usize,
+    had_newline: bool,
+    finished: bool,
 }
 
 impl<'a> Lexer<'a> {
@@ -15,92 +17,79 @@ impl<'a> Lexer<'a> {
             source,
             scanner: Scanner::new(source),
             offset: 0,
+            had_newline: true,
+            finished: false,
         }
     }
 
-    pub fn next_token(&mut self) -> Token {
-        let raw_token = self.scanner.next_raw();
+    pub fn next_token(&mut self) -> Token<'a> {
+        if self.finished {
+            return Token::new(TokenKind::Eof, "", self.offset, 0, self.had_newline);
+        }
 
-        let literal = &self.source[self.offset..self.offset + raw_token.len];
+        loop {
+            let raw = self.scanner.next_raw();
+            let len = raw.len;
 
-        match raw_token.kind {
-            RawTokenKind::Eof => {
-                self.offset += raw_token.len;
-                Token::new(TokenKind::Eof, raw_token.len)
-            }
-            RawTokenKind::Comment => {
-                self.offset += raw_token.len;
-                Token::new(TokenKind::Comment, raw_token.len)
-            }
-            RawTokenKind::Newline => {
-                self.offset += raw_token.len;
-                Token::new(TokenKind::Newline, raw_token.len)
-            }
-            RawTokenKind::Whitespace => {
-                self.offset += raw_token.len;
-                Token::new(TokenKind::Whitespace, raw_token.len)
-            }
-            RawTokenKind::Ident => {
-                self.offset += raw_token.len;
-                Token::new(TokenKind::lookup_ident(literal), raw_token.len)
-            }
-            RawTokenKind::Float => {
-                self.offset += raw_token.len;
-                Token::new(TokenKind::Literal(token::LiteralKind::Float), raw_token.len)
-            }
-            RawTokenKind::Int => {
-                self.offset += raw_token.len;
-                Token::new(TokenKind::Literal(token::LiteralKind::Int), raw_token.len)
-            }
-            RawTokenKind::String => {
-                self.offset += raw_token.len;
-                Token::new(TokenKind::Literal(token::LiteralKind::Str), raw_token.len)
-            }
-            RawTokenKind::Symbol => {
-                let current_char = literal.chars().next().unwrap();
-                let next_char = self.scanner.cursor.first();
+            let start_offset = self.offset;
+            let end_offset = start_offset + len;
 
-                let mut buffer = [0u8; 8];
+            let text = if end_offset <= self.source.len() {
+                &self.source[start_offset..end_offset]
+            } else {
+                ""
+            };
 
-                let first_part = current_char.encode_utf8(&mut buffer);
-                let mut total_len = first_part.len();
-
-                if next_char != '\0' {
-                    let second_part = next_char.encode_utf8(&mut buffer[total_len..]);
-                    total_len += second_part.len();
-                }
-
-                let combined_slice =
-                    unsafe { core::str::from_utf8_unchecked(&buffer[..total_len]) };
-
-                let combined_kind = TokenKind::lookup_symbol(combined_slice);
-
-                if combined_kind != TokenKind::Unknown && combined_slice.len() > literal.len() {
-                    self.scanner.cursor.bump();
-                    let token_len = combined_slice.len();
-                    self.offset += token_len;
-                    Token::new(combined_kind, token_len)
-                } else {
-                    let single_kind = TokenKind::lookup_symbol(literal);
-                    let token_len = literal.len();
-                    self.offset += token_len;
-                    Token::new(single_kind, token_len)
-                }
+            if raw.kind == RawTokenKind::Newline {
+                self.offset += len;
+                self.had_newline = true;
+                continue;
             }
+
+            if raw.kind == RawTokenKind::Whitespace || raw.kind == RawTokenKind::Comment {
+                self.offset += len;
+                continue;
+            }
+
+            let kind = match raw.kind {
+                RawTokenKind::Eof => TokenKind::Eof,
+                RawTokenKind::Ident => TokenKind::lookup_ident(text),
+                RawTokenKind::Integer => TokenKind::IntLit,
+                RawTokenKind::HexInteger => TokenKind::HexIntLit,
+                RawTokenKind::BinInteger => TokenKind::BinIntLit,
+                RawTokenKind::Float => TokenKind::FloatLit,
+                RawTokenKind::String => TokenKind::StrLit,
+                RawTokenKind::CString => TokenKind::CStrLit,
+                RawTokenKind::Char => TokenKind::CharLit,
+                RawTokenKind::Symbol => TokenKind::lookup_symbol(text),
+                _ => TokenKind::Unknown,
+            };
+
+            let token = Token::new(kind, text, start_offset, len, self.had_newline);
+
+            self.offset += len;
+            self.had_newline = false;
+
+            return token;
         }
     }
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Token;
+    type Item = Token<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.finished {
+            return None;
+        }
+
         let token = self.next_token();
 
-        if let TokenKind::Eof = token.kind {
-            None
-        } else {
-            Some(token)
+        if token.kind == TokenKind::Eof {
+            self.finished = true;
+            return Some(token);
         }
+
+        Some(token)
     }
 }

@@ -3,109 +3,84 @@ use abyss_lexer::{
     token::{Token, TokenKind},
 };
 
-use crate::source_map::Span;
-
+#[derive(Debug, Clone)]
 pub struct TokenStream<'a> {
     source: &'a str,
-    lexer: Lexer<'a>,
-    current: Token,
-    offset: usize,
-    peek: Token,
-    peek_offset: usize,
+    tokens: Vec<Token<'a>>,
+    position: usize,
+    eof_token: Token<'a>,
 }
 
 impl<'a> TokenStream<'a> {
     pub fn new(source: &'a str) -> Self {
-        let mut stream = Self {
-            source,
-            lexer: Lexer::new(source),
-            current: Token::dummy(),
-            offset: 0,
-            peek: Token::dummy(),
-            peek_offset: 0,
-        };
+        let mut lexer = Lexer::new(source);
+        let mut tokens = Vec::new();
 
-        stream.advance();
-        stream.advance();
-
-        stream
-    }
-
-    pub fn advance(&mut self) {
-        if self.peek.kind == TokenKind::Eof {
-            self.current = self.peek.clone();
-            self.offset = self.peek_offset;
-            return;
-        }
-
-        self.current = self.peek.clone();
-        self.offset = self.peek_offset;
-
-        self.peek_offset = self.offset + self.current.len;
-        self.peek = self.lexer.next_token();
-
-        while Self::is_useless(&self.peek)
-            || (self.peek.kind == TokenKind::Newline && self.current.kind == TokenKind::Newline)
-        {
-            if self.peek.kind == TokenKind::Eof {
+        loop {
+            let token = lexer.next_token();
+            if token.kind == TokenKind::Eof {
                 break;
             }
 
-            self.peek_offset += self.peek.len;
-            self.peek = self.lexer.next_token();
+            if !Self::is_skippable(&token) {
+                tokens.push(token);
+            }
+        }
+
+        let eof_token = Token::new(TokenKind::Eof, "", 0, 0, false);
+
+        Self {
+            source,
+            tokens,
+            position: 0,
+            eof_token,
         }
     }
 
-    fn is_useless(token: &Token) -> bool {
+    fn is_skippable(token: &Token) -> bool {
         matches!(token.kind, TokenKind::Whitespace | TokenKind::Comment)
     }
 
-    pub fn current(&self) -> &Token {
-        &self.current
+    pub fn current(&self) -> Token<'a> {
+        self.peek(0).clone()
     }
 
-    pub fn peek(&self) -> &Token {
-        &self.peek
+    /// n=0 -> current
+    /// n=1 -> next
+    /// n=2 -> ...
+    pub fn peek(&self, offset: usize) -> Token<'a> {
+        if self.position + offset >= self.tokens.len() {
+            return self.eof_token;
+        }
+        self.tokens[self.position + offset]
     }
 
-    pub fn current_lit(&self) -> &str {
-        &self.source[self.offset..self.offset + self.current.len]
+    pub fn advance(&mut self) {
+        if !self.is_eof() {
+            self.position += 1;
+        }
     }
 
-    pub fn peek_lit(&self) -> &str {
-        &self.source[self.peek_offset..self.peek_offset + self.peek.len]
+    pub fn advance_n(&mut self, n: usize) {
+        for _ in 0..n {
+            self.advance();
+        }
     }
 
-    pub fn current_offset(&self) -> usize {
-        self.offset
-    }
-
-    pub fn peek_offset(&self) -> usize {
-        self.peek_offset
-    }
-
-    pub fn current_span(&self) -> Span {
-        Span::new(self.offset, self.offset + self.current.len)
-    }
-
-    pub fn peek_span(&self) -> Span {
-        Span::new(self.peek_offset, self.peek_offset + self.peek.len)
-    }
-
-    pub fn is_at_end(&self) -> bool {
-        self.current.kind == TokenKind::Eof
+    pub fn is_eof(&self) -> bool {
+        self.position >= self.tokens.len()
     }
 
     pub fn is(&self, kind: TokenKind) -> bool {
-        self.current.kind == kind
+        self.current().kind == kind
     }
 
     pub fn is_peek(&self, kind: TokenKind) -> bool {
-        self.peek.kind == kind
+        self.peek(1).kind == kind
     }
 
     pub fn consume(&mut self, kind: TokenKind) -> bool {
-        if self.current.kind == kind {
+        if self.is(kind) {
             self.advance();
             true
         } else {
@@ -113,7 +88,21 @@ impl<'a> TokenStream<'a> {
         }
     }
 
-    pub fn current_mut(&mut self) -> &mut Token {
-        &mut self.current
+    pub fn expect(&mut self, kind: TokenKind) -> Result<Token<'a>, String> {
+        if self.is(kind) {
+            let token = self.tokens[self.position];
+            self.advance();
+            Ok(token)
+        } else {
+            Err(format!(
+                "Expected {:?}, found {:?}",
+                kind,
+                self.current().kind
+            ))
+        }
+    }
+
+    pub fn slice(&self, start: usize, end: usize) -> &'a str {
+        &self.source[start..end]
     }
 }
