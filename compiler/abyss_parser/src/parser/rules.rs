@@ -143,7 +143,7 @@ pub fn get_rule(kind: Tk) -> ParseRule {
         Tk::If => ParseRule::new(Some(parse_if), None, Precedence::None),
 
         // while
-        Tk::While => ParseRule::new(Some(parse_if), None, Precedence::None),
+        Tk::While => ParseRule::new(Some(parse_while), None, Precedence::None),
 
         _ => ParseRule::new(None, None, Precedence::None),
     }

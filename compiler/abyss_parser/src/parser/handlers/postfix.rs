@@ -33,3 +33,18 @@ pub fn parse_if(engine: &mut PrattEngine) -> Result<Expr, ParseError> {
         id: engine.next_id(),
     })
 }
+
+pub fn parse_while(eng: &mut PrattEngine) -> Result<Expr, ParseError> {
+    let span = eng.current_span();
+    eng.advance();
+
+    let cond = Box::new(eng.parse_expression_bp(Precedence::None)?);
+
+    let body = Box::new(eng.parse_expression_bp(Precedence::None)?);
+
+    Ok(Expr {
+        kind: ExprKind::While(cond, body),
+        span,
+        id: eng.next_id(),
+    })
+}
