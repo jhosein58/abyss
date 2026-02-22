@@ -29,12 +29,12 @@ impl<'a> Lexer<'a> {
 
         loop {
             let raw = self.scanner.next_raw();
-            let len = raw.len;
+            let mut len = raw.len;
 
             let start_offset = self.offset;
             let end_offset = start_offset + len;
 
-            let text = if end_offset <= self.source.len() {
+            let mut text = if end_offset <= self.source.len() {
                 &self.source[start_offset..end_offset]
             } else {
                 ""
@@ -61,7 +61,33 @@ impl<'a> Lexer<'a> {
                 RawTokenKind::String => TokenKind::StrLit,
                 RawTokenKind::CString => TokenKind::CStrLit,
                 RawTokenKind::Char => TokenKind::CharLit,
-                RawTokenKind::Symbol => TokenKind::lookup_symbol(text),
+
+                RawTokenKind::Symbol => {
+                    let next_raw = self.scanner.peek_raw();
+
+                    if next_raw.kind == RawTokenKind::Symbol {
+                        let potential_end_offset = end_offset + next_raw.len;
+
+                        if potential_end_offset <= self.source.len() {
+                            let combined_text = &self.source[start_offset..potential_end_offset];
+                            let combined_kind = TokenKind::lookup_symbol(combined_text);
+
+                            if combined_kind != TokenKind::Unknown {
+                                self.scanner.next_raw();
+                                len += next_raw.len;
+                                text = combined_text;
+                                combined_kind
+                            } else {
+                                TokenKind::lookup_symbol(text)
+                            }
+                        } else {
+                            TokenKind::lookup_symbol(text)
+                        }
+                    } else {
+                        TokenKind::lookup_symbol(text)
+                    }
+                }
+
                 _ => TokenKind::Unknown,
             };
 

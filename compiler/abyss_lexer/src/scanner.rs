@@ -3,6 +3,7 @@ use crate::{
     token::{RawToken, RawTokenKind},
 };
 
+#[derive(Clone)]
 pub struct Scanner<'a> {
     pub cursor: Cursor<'a>,
 }
@@ -158,6 +159,11 @@ impl<'a> Scanner<'a> {
         }
 
         RawTokenKind::Integer
+    }
+
+    pub fn peek_raw(&self) -> RawToken {
+        let mut cloned_scanner = self.clone();
+        cloned_scanner.next_raw()
     }
 }
 

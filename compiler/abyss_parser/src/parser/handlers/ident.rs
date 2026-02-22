@@ -5,7 +5,7 @@ use crate::{
 };
 
 pub fn parse_ident(eng: &mut PrattEngine) -> Result<Expr, ParseError> {
-    let tk = eng.current();
+    let tk = eng.current_token();
     let res = Ok(eng.new_expr(ExprKind::Ident(vec![tk.text.to_string()])));
     eng.advance();
     res

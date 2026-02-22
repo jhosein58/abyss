@@ -1,8 +1,7 @@
 pub mod handlers;
 pub mod precedence;
 pub mod rules;
-
-use crate::ast::{Expr, ExprKind, Program, Span, Type};
+use crate::ast::{Expr, ExprKind, Program, Span};
 
 use crate::error::ParseError;
 use crate::parser::engine::PrattEngine;
@@ -29,7 +28,7 @@ impl<'a> Parser<'a> {
 
         Ok(Program {
             body: Expr {
-                kind: ExprKind::Block(program, Type::Unit),
+                kind: ExprKind::Block(program),
                 span: Span {
                     ..Default::default()
                 },

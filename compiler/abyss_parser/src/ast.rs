@@ -18,111 +18,48 @@ pub struct Expr {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExprKind {
-    Mod(String, Option<Box<Expr>>, bool), // Mod(Name, Body?, is_pub)
-    Use(Path, bool),                      // Use(Module, is_pub)
-    StructDef(Box<StructDef>),            // define struct
-    TraitDef(Box<TraitDef>),              // define trait
-    TypeDef(Box<TypeAlias>),              // define type
-    FunctionDef(Box<FunctionDef>),        // define function
-
-    VarDecl(Pattern, Type, Option<Box<Expr>>),
-    Const(Pattern, Type, Box<Expr>),
+    Mod(String, Box<Expr>),                             // Mod(attr, Name, Body?)
+    Use(Path),                                          // Use(attr, Module)
+    Sequence(Vec<Expr>, Option<Box<Expr>>), // [expr: expr, expr: expr] or [expr, epxr] or [expr; len]
+    Signature(Vec<Expr>, Option<Box<Expr>>, Box<Expr>), // Signature(args, return, body)
 
     Ret(Option<Box<Expr>>),
     Break,                                       // out
     Continue,                                    // next
-    Block(Vec<Expr>, Type),                      // Block(statements, return_type)
+    Block(Vec<Expr>),                            // Block(statements)
     If(Box<Expr>, Box<Expr>, Option<Box<Expr>>), // If(condition, then, else)
-    For(Pattern, Box<Expr>, Box<Expr>),          // For(pattern, range, body)
+    For(Box<Expr>, Box<Expr>, Box<Expr>),        // For(pattern, range, body)
     Range {
         start: Option<Box<Expr>>,
         end: Option<Box<Expr>>,
         step: Option<Box<Expr>>,
         inclusive: bool,
     },
-    ForEach(Pattern, Box<Expr>, Box<Expr>), // ForEach(pattern, collection, body)
-    While(Box<Expr>, Box<Expr>),            // While(condition, body)
-    Defer(Box<Expr>),                       // Defer(expression)
+    While(Box<Expr>, Box<Expr>), // While(condition, body)
+    Forever(Box<Expr>),
+
+    Defer(Box<Expr>), // Defer(expression)
 
     // ---------------------
     Lit(Lit),
-    ArrayInit(Vec<Expr>),
     Ident(Path),
     Binary(Box<Expr>, BinaryOp, Box<Expr>),
     Unary(UnaryOp, Box<Expr>),
-    Call(Box<Expr>, Vec<Expr>, Vec<Type>), // (callee)(args, generics)
+    Call(Box<Expr>, Vec<Expr>), // call(callee, args)
     Index(Box<Expr>, Box<Expr>),
-    Deref(Box<Expr>),
-    AddrOf(Box<Expr>),
-    Cast(Box<Expr>, Type),
-    Is(Box<Expr>, Type),
+    Cast(Box<Expr>, Option<Box<Expr>>),
+    Is(Box<Expr>, Option<Box<Expr>>),
     Member(Box<Expr>, String),
-    StructInit(Path, Vec<(String, Expr)>, Vec<Type>),
-    MethodCall(Box<Expr>, String, Vec<Expr>, Vec<Type>),
-    SizeOf(Type),
-    Match(Box<Expr>, Vec<(Pattern, Expr)>),
-    Lambda(Box<FunctionDef>),
-    Tuple(Vec<Expr>),
+    SizeOf(Option<Box<Expr>>),
+    Match {
+        subject: Box<Expr>,
+        arms: Vec<MatchArm>,
+    },
     Then(Box<Expr>, Box<Expr>), // Then(first, second)
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Type {
-    U8,
-    U16,
-    U32,
-    U64,
-    Usize,
-    I8,
-    I16,
-    I32,
-    I64,
-    Isize,
-    F32,
-    F64,
-    Char,
-    Bool,
-    Unit,
-    Pointer(Box<Type>),
-    Const(Box<Type>),
-    Array(Box<Type>, usize),
-    Struct(Path, Vec<Type>),
-    Trait(Path),
     TypeOf(Box<Expr>),
-    Generic(String),
-    Function(Vec<Type>, Box<Type>), // Function(args, return_type)
-    Union(Vec<Type>),
-    Infer,
-    Tuple(Vec<Type>),
-}
-
-impl Type {
-    pub fn get_name(&self) -> String {
-        match self {
-            Type::U8 => "u8".to_string(),
-            Type::U16 => "u16".to_string(),
-            Type::U32 => "u32".to_string(),
-            Type::U64 => "u64".to_string(),
-            Type::Usize => "usize".to_string(),
-            Type::I8 => "i8".to_string(),
-            Type::I16 => "i16".to_string(),
-            Type::I32 => "i32".to_string(),
-            Type::I64 => "i64".to_string(),
-            Type::Isize => "isize".to_string(),
-            Type::F32 => "f32".to_string(),
-            Type::F64 => "f64".to_string(),
-            Type::Char => "char".to_string(),
-            Type::Bool => "bool".to_string(),
-            Type::Unit => "unit".to_string(),
-            Type::Pointer(ty) => format!("ptr_{}", ty.get_name()),
-            Type::Const(ty) => format!("const_{}", ty.get_name()),
-            Type::Array(ty, size) => format!("Arr_{}_{}", ty.get_name(), size),
-            Type::Struct(path, _) => format!("struct_{}", path.join("_")),
-            Type::Generic(name) => name.clone(),
-
-            _ => panic!("Type has no Name"),
-        }
-    }
+    Refinement(Option<Box<Expr>>, Box<Expr>),
+    Attributed(Vec<Attribute>, Box<Expr>),
+    Wildcard, // _
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -148,8 +85,8 @@ pub enum Lit {
     Float(OrderedFloat),
     Bool(bool),
     Str(String),
+    Cstr(String),
     Char(char),
-    Null,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Hash)]
@@ -179,10 +116,12 @@ pub enum BinaryOp {
     And,          // and
     Or,           // or
     BitAnd,       // &
-    BitOr,        // |
+    Pipe,         // |    Union & BitOr
     BitXor,       // ^
     Shl,          // <<
     Shr,          // >>
+    KeyValue,     // :    TypeAnnot
+    ConstDef,     // ::
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -190,21 +129,14 @@ pub enum UnaryOp {
     Neg,    // -x
     Not,    // not x
     BitNot, // ~x
+    Deref,  // *x
+    AddrOf, // &x
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Pattern {
-    Ident(String),
-
-    Lit(Lit),
-
-    Tuple(Vec<Pattern>),
-
-    StructDestruct(Path, Vec<(String, Pattern)>),
-
-    VariantDestruct(Path, Vec<Pattern>),
-
-    Wildcard, // let _ =
+pub struct MatchArm {
+    pattern: Box<Expr>,
+    body: Box<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -214,57 +146,473 @@ pub struct Attribute {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FunctionDef {
-    pub attributes: Vec<Attribute>,
-    pub is_pub: bool,
-    pub name: String,
-    pub generics: Vec<String>,
-    pub params: Vec<(String, Type)>,
-    pub return_type: Type,
-    pub body: FunctionBody,
-    pub is_variadic: bool,
-    pub external_name: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum FunctionBody {
-    UserDefined(Expr),
-    Extern,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct StructDef {
-    pub attributes: Vec<Attribute>,
-    pub is_pub: bool,
-    pub name: String,
-    pub generics: Vec<String>,
-    pub fields: Vec<(String, Type)>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TypeAlias {
-    pub is_pub: bool,
-    pub name: String,
-    pub ty: Type,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TraitDef {
-    pub attributes: Vec<Attribute>,
-    pub is_pub: bool,
-    pub name: String,
-    pub generics: Vec<String>,
-    pub methods: Vec<TraitMethod>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TraitMethod {
-    pub signature: FunctionDef,
-    pub has_default: bool,
-}
-
 #[derive(Debug, Clone)]
 pub struct Program {
     pub body: Expr,
+}
+
+impl Program {
+    pub fn print_indented(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        indent: usize,
+    ) -> std::fmt::Result {
+        self.body.print_indented(f, indent)
+    }
+}
+
+impl Expr {
+    pub fn print_indented(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        indent: usize,
+    ) -> std::fmt::Result {
+        self.kind.print_indented(f, indent)
+    }
+}
+
+impl std::fmt::Display for Program {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.print_indented(f, 0)
+    }
+}
+
+impl std::fmt::Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.print_indented(f, 0)
+    }
+}
+
+impl std::fmt::Display for Lit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Lit::Int(v) => write!(f, "{}", v),
+            Lit::Float(v) => write!(f, "{}", v.0),
+            Lit::Bool(v) => write!(f, "{}", v),
+            Lit::Str(v) => write!(f, "\"{}\"", v),
+            Lit::Cstr(v) => write!(f, "c\"{}\"", v),
+            Lit::Char(v) => write!(f, "'{}'", v),
+        }
+    }
+}
+
+impl std::fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            BinaryOp::Assign => "=",
+            BinaryOp::AssignAdd => "+=",
+            BinaryOp::AssignSub => "-=",
+            BinaryOp::AssignMul => "*=",
+            BinaryOp::AssignDiv => "/=",
+            BinaryOp::AssignMod => "%=",
+            BinaryOp::AssignBitAnd => "&=",
+            BinaryOp::AssignBitOr => "|=",
+            BinaryOp::AssignBitXor => "^=",
+            BinaryOp::AssignShl => "<<=",
+            BinaryOp::AssignShr => ">>=",
+            BinaryOp::Add => "+",
+            BinaryOp::Sub => "-",
+            BinaryOp::Mul => "*",
+            BinaryOp::Div => "/",
+            BinaryOp::Mod => "%",
+            BinaryOp::Eq => "==",
+            BinaryOp::Neq => "!=",
+            BinaryOp::Lt => "<",
+            BinaryOp::Gt => ">",
+            BinaryOp::Lte => "<=",
+            BinaryOp::Gte => ">=",
+            BinaryOp::And => "and",
+            BinaryOp::Or => "or",
+            BinaryOp::BitAnd => "&",
+            BinaryOp::Pipe => "|",
+            BinaryOp::BitXor => "^",
+            BinaryOp::Shl => "<<",
+            BinaryOp::Shr => ">>",
+            BinaryOp::KeyValue => ":",
+            BinaryOp::ConstDef => "::",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl std::fmt::Display for UnaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            UnaryOp::Neg => "-",
+            UnaryOp::Not => "not",
+            UnaryOp::BitNot => "~",
+            UnaryOp::Deref => "*",
+            UnaryOp::AddrOf => "&",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl std::fmt::Display for Attribute {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "@{}", self.name)?;
+        if !self.args.is_empty() {
+            write!(f, "(")?;
+            for (i, arg) in self.args.iter().enumerate() {
+                if i > 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{}", arg)?;
+            }
+            write!(f, ")")?;
+        }
+        Ok(())
+    }
+}
+
+impl ExprKind {
+    pub fn print_indented(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        indent: usize,
+    ) -> std::fmt::Result {
+        let pad = "  ".repeat(indent);
+        let inner_pad = "  ".repeat(indent + 1);
+
+        match self {
+            ExprKind::Wildcard => write!(f, "_"),
+            ExprKind::Lit(lit) => write!(f, "{}", lit),
+            ExprKind::Ident(path) => write!(f, "{}", path.join("::")),
+            ExprKind::Break => write!(f, "Break"),
+            ExprKind::Continue => write!(f, "Continue"),
+            ExprKind::Use(path) => write!(f, "Use({})", path.join("::")),
+            ExprKind::SizeOf(ty) => {
+                if let Some(t) = ty {
+                    writeln!(f, "SizeOf {{")?;
+                    write!(f, "{}", inner_pad)?;
+                    t.print_indented(f, indent + 1)?;
+                    writeln!(f)?;
+                    write!(f, "{}}}", pad)
+                } else {
+                    write!(f, "SizeOf {{ _ }}")
+                }
+            }
+
+            ExprKind::Block(stmts) => {
+                if stmts.is_empty() {
+                    return write!(f, "Block {{}}");
+                }
+                writeln!(f, "Block {{")?;
+                for s in stmts {
+                    write!(f, "{}", inner_pad)?;
+                    s.print_indented(f, indent + 1)?;
+                    writeln!(f)?;
+                }
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Binary(left, op, right) => {
+                writeln!(f, "Binary({}) {{", op)?;
+                write!(f, "{}left: ", inner_pad)?;
+                left.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}right: ", inner_pad)?;
+                right.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Unary(op, right) => {
+                writeln!(f, "Unary({}) {{", op)?;
+                write!(f, "{}", inner_pad)?;
+                right.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Signature(args, ret, body) => {
+                writeln!(f, "Signature {{")?;
+                if args.is_empty() {
+                    writeln!(f, "{}args: []", inner_pad)?;
+                } else {
+                    writeln!(f, "{}args: [", inner_pad)?;
+                    for a in args {
+                        write!(f, "{}  ", inner_pad)?;
+                        a.print_indented(f, indent + 2)?;
+                        writeln!(f)?;
+                    }
+                    writeln!(f, "{}]", inner_pad)?;
+                }
+
+                write!(f, "{}ret: ", inner_pad)?;
+                if let Some(r) = ret {
+                    r.print_indented(f, indent + 1)?;
+                } else {
+                    write!(f, "()")?;
+                }
+                writeln!(f)?;
+
+                write!(f, "{}body: ", inner_pad)?;
+                body.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Call(callee, args) => {
+                writeln!(f, "Call {{")?;
+                write!(f, "{}callee: ", inner_pad)?;
+                callee.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+
+                if args.is_empty() {
+                    writeln!(f, "{}args: []", inner_pad)?;
+                } else {
+                    writeln!(f, "{}args: [", inner_pad)?;
+                    for a in args {
+                        write!(f, "{}  ", inner_pad)?;
+                        a.print_indented(f, indent + 2)?;
+                        writeln!(f)?;
+                    }
+                    writeln!(f, "{}]", inner_pad)?;
+                }
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Member(sub, name) => {
+                writeln!(f, "Member(.{}) {{", name)?;
+                write!(f, "{}", inner_pad)?;
+                sub.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Ret(val) => {
+                if let Some(v) = val {
+                    writeln!(f, "Ret {{")?;
+                    write!(f, "{}", inner_pad)?;
+                    v.print_indented(f, indent + 1)?;
+                    writeln!(f)?;
+                    write!(f, "{}}}", pad)
+                } else {
+                    write!(f, "Ret")
+                }
+            }
+
+            ExprKind::Mod(name, body) => {
+                writeln!(f, "Mod({}) {{", name)?;
+                write!(f, "{}", inner_pad)?;
+                body.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Sequence(exprs, opt) => {
+                writeln!(f, "Sequence {{")?;
+                if exprs.is_empty() {
+                    writeln!(f, "{}items: []", inner_pad)?;
+                } else {
+                    writeln!(f, "{}items: [", inner_pad)?;
+                    for e in exprs {
+                        write!(f, "{}  ", inner_pad)?;
+                        e.print_indented(f, indent + 2)?;
+                        writeln!(f)?;
+                    }
+                    writeln!(f, "{}]", inner_pad)?;
+                }
+                if let Some(o) = opt {
+                    write!(f, "{}len: ", inner_pad)?;
+                    o.print_indented(f, indent + 1)?;
+                    writeln!(f)?;
+                }
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::If(cond, then, els) => {
+                writeln!(f, "If {{")?;
+                write!(f, "{}cond: ", inner_pad)?;
+                cond.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+
+                write!(f, "{}then: ", inner_pad)?;
+                then.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+
+                if let Some(e) = els {
+                    write!(f, "{}else: ", inner_pad)?;
+                    e.print_indented(f, indent + 1)?;
+                    writeln!(f)?;
+                }
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::While(cond, body) => {
+                writeln!(f, "While {{")?;
+                write!(f, "{}cond: ", inner_pad)?;
+                cond.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}body: ", inner_pad)?;
+                body.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Index(sub, idx) => {
+                writeln!(f, "Index {{")?;
+                write!(f, "{}subject: ", inner_pad)?;
+                sub.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}index: ", inner_pad)?;
+                idx.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Cast(expr, ty) => {
+                writeln!(f, "Cast {{")?;
+                write!(f, "{}expr: ", inner_pad)?;
+                expr.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}type: ", inner_pad)?;
+                if let Some(t) = ty {
+                    t.print_indented(f, indent + 1)?;
+                } else {
+                    write!(f, "_")?;
+                }
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Is(expr, ty) => {
+                writeln!(f, "Is {{")?;
+                write!(f, "{}expr: ", inner_pad)?;
+                expr.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}type: ", inner_pad)?;
+                if let Some(t) = ty {
+                    t.print_indented(f, indent + 1)?;
+                } else {
+                    write!(f, "_")?;
+                }
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Match { subject, arms } => {
+                writeln!(f, "Match {{")?;
+                write!(f, "{}subject: ", inner_pad)?;
+                subject.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                writeln!(f, "{}arms: [", inner_pad)?;
+                for arm in arms {
+                    writeln!(f, "{}  Arm {{", inner_pad)?;
+                    write!(f, "{}    pattern: ", inner_pad)?;
+                    arm.pattern.print_indented(f, indent + 3)?;
+                    writeln!(f)?;
+                    write!(f, "{}    body: ", inner_pad)?;
+                    arm.body.print_indented(f, indent + 3)?;
+                    writeln!(f)?;
+                    writeln!(f, "{}  }}", inner_pad)?;
+                }
+                writeln!(f, "{}]", inner_pad)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::TypeOf(expr) => {
+                writeln!(f, "TypeOf {{")?;
+                write!(f, "{}", inner_pad)?;
+                expr.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Defer(expr) => {
+                writeln!(f, "Defer {{")?;
+                write!(f, "{}", inner_pad)?;
+                expr.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Then(first, second) => {
+                writeln!(f, "Then {{")?;
+                write!(f, "{}first: ", inner_pad)?;
+                first.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}second: ", inner_pad)?;
+                second.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Refinement(cond, expr) => {
+                writeln!(f, "Refinement {{")?;
+                write!(f, "{}cond: ", inner_pad)?;
+                if let Some(c) = cond {
+                    c.print_indented(f, indent + 1)?;
+                } else {
+                    write!(f, "_")?;
+                }
+                writeln!(f)?;
+                write!(f, "{}expr: ", inner_pad)?;
+                expr.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Attributed(attrs, expr) => {
+                writeln!(f, "Attributed {{")?;
+                writeln!(f, "{}attributes: [", inner_pad)?;
+                for a in attrs {
+                    writeln!(f, "{}  {}", inner_pad, a)?;
+                }
+                writeln!(f, "{}]", inner_pad)?;
+                write!(f, "{}expr: ", inner_pad)?;
+                expr.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::For(pat, range, body) => {
+                writeln!(f, "For {{")?;
+                write!(f, "{}pattern: ", inner_pad)?;
+                pat.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}range: ", inner_pad)?;
+                range.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}body: ", inner_pad)?;
+                body.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Range {
+                start,
+                end,
+                step,
+                inclusive,
+            } => {
+                writeln!(f, "Range {{")?;
+                write!(f, "{}start: ", inner_pad)?;
+                if let Some(s) = start {
+                    s.print_indented(f, indent + 1)?;
+                } else {
+                    write!(f, "_")?;
+                }
+                writeln!(f)?;
+                write!(f, "{}end: ", inner_pad)?;
+                if let Some(e) = end {
+                    e.print_indented(f, indent + 1)?;
+                } else {
+                    write!(f, "_")?;
+                }
+                writeln!(f)?;
+                write!(f, "{}step: ", inner_pad)?;
+                if let Some(st) = step {
+                    st.print_indented(f, indent + 1)?;
+                } else {
+                    write!(f, "_")?;
+                }
+                writeln!(f)?;
+                writeln!(f, "{}inclusive: {}", inner_pad, inclusive)?;
+                write!(f, "{}}}", pad)
+            }
+            _ => panic!(),
+        }
+    }
 }
