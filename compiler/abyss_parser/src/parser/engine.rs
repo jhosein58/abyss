@@ -13,6 +13,7 @@ pub struct PrattEngine<'a> {
     map: SourceMap,
     stream: TokenStream<'a>,
     _errors: Vec<ParseError>,
+    last_id: u32,
 }
 
 impl<'a> PrattEngine<'a> {
@@ -22,6 +23,7 @@ impl<'a> PrattEngine<'a> {
             map: SourceMap::new(source),
             stream: TokenStream::new(source),
             _errors: Vec::new(),
+            last_id: 0,
         }
     }
 
@@ -29,7 +31,7 @@ impl<'a> PrattEngine<'a> {
         self.parse_expression_bp(Precedence::None)
     }
 
-    fn parse_expression_bp(&mut self, min_bp: Precedence) -> Result<Expr, ParseError> {
+    pub fn parse_expression_bp(&mut self, min_bp: Precedence) -> Result<Expr, ParseError> {
         let token = self.stream.current();
         let rule = get_rule(token.kind);
 
@@ -78,7 +80,7 @@ impl<'a> PrattEngine<'a> {
     pub fn advance(&mut self) {
         self.stream.advance();
     }
-    pub fn current(&self) -> Token<'a> {
+    pub fn current_token(&self) -> Token<'a> {
         self.stream.current()
     }
 
@@ -89,6 +91,37 @@ impl<'a> PrattEngine<'a> {
             Ok(token)
         } else {
             Err(self.make_error(ParseErrorKind::NotAFunction))
+        }
+    }
+
+    pub fn expect(&mut self, expected_kind: TokenKind) -> Result<Token<'a>, ParseError> {
+        let current = self.stream.current().clone();
+
+        if current.kind == expected_kind {
+            self.advance();
+            Ok(current)
+        } else {
+            Err(self.make_error(ParseErrorKind::UnexpectedToken {
+                found: current.kind,
+                expected: expected_kind,
+            }))
+        }
+    }
+
+    pub fn peek(&self) -> Token<'a> {
+        self.stream.peek(1)
+    }
+
+    pub fn check(&self, kind: TokenKind) -> bool {
+        self.stream.current().kind == kind
+    }
+
+    pub fn match_token(&mut self, kind: TokenKind) -> bool {
+        if self.stream.current().kind == kind {
+            self.advance();
+            true
+        } else {
+            false
         }
     }
 
@@ -122,5 +155,10 @@ impl<'a> PrattEngine<'a> {
 
     pub fn is_eof(&self) -> bool {
         self.stream.is_eof()
+    }
+    pub fn next_id(&mut self) -> u32 {
+        let id = self.last_id;
+        self.last_id += 1;
+        id
     }
 }

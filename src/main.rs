@@ -19,5 +19,5 @@ fn main() {
     let mut p = Parser::new(&code);
 
     let program = p.parse_program().unwrap();
-    dbg!(program);
+    println!("{}", program.to_string())
 }

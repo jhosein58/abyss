@@ -8,6 +8,21 @@ pub struct ParseError {
     pub message: String,
 }
 
+impl ParseError {
+    pub fn throw() -> Self {
+        return ParseError {
+            kind: ParseErrorKind::Message("".to_string()),
+            message: "".to_string(),
+        };
+    }
+    pub fn msg(str: &str) -> Self {
+        return ParseError {
+            kind: ParseErrorKind::Message(str.to_string()),
+            message: str.to_string(),
+        };
+    }
+}
+
 #[derive(Debug)]
 pub enum ParseErrorKind {
     UnexpectedToken {

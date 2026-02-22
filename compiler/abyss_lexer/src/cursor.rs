@@ -2,6 +2,7 @@ use core::str::Chars;
 
 pub(crate) const EOF_CHAR: char = '\0';
 
+#[derive(Clone)]
 pub struct Cursor<'a> {
     initial_len: usize,
     chars: Chars<'a>,

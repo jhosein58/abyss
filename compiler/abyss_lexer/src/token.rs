@@ -7,6 +7,7 @@ pub enum RawTokenKind {
     Newline,
 
     Ident,
+
     Integer,    // 123
     HexInteger, // 0xFF
     BinInteger, // 0b101
@@ -50,78 +51,75 @@ pub enum TokenKind {
     CharLit,   // 'A'
 
     // --- Keywords ---
-    Const,   // const
-    Struct,  // struct
-    Pub,     // pub
-    Ret,     // ret
-    If,      // if
-    Then,    // then
-    Else,    // else
-    While,   // while
-    For,     // for
-    Forever, // forever
-    Out,     // out
-    Next,    // next
-    In,      // in
-    As,      // as
-    Is,      // is
-    And,     // and
-    Or,      // or
-    Not,     // not
-    Size,    // size
-    Mod,     // mod
-    Use,     // use
-    Type,    // type
-
-    True,  // true
-    False, // false
-    I8,    // i8
-    I16,   // i16
-    I32,   // i32
-    I64,   // i64
-    Isize, // isize
-    U8,    // u8
-    U16,   // u16
-    U32,   // u32
-    U64,   // u64
-    Usize, // usize
-    F32,   // f32
-    F64,   // f64
-    Char,  // char
-    Bool,  // bool
-
-    Plus,       // +
-    Minus,      // -
-    Star,       // *
-    Slash,      // /
-    Percent,    // %
-    Amp,        // &
-    Pipe,       // |
-    Caret,      // ^
-    LeftShift,  // <<
-    RightShift, // >>
-    Tilde,      // ~
-    Comma,      // ,
-    Colon,      // :
-    ColonColon, // ::
-    Semi,       // ;
-    Dot,        // .
-    DotDot,     // ..
-    OParen,     // (
-    CParen,     // )
-    OBrace,     // {
-    CBrace,     // }
-    OBracket,   // [
-    CBracket,   // ]
-    Assign,     // =
-    EqEq,       // ==
-    BangEq,     // !=
-    Lt,         // <
-    LtEq,       // <=
-    Gt,         // >
-    GtEq,       // >=
-    RArrow,     // ->
-    REqArrow,   // =>
+    Const,            // const
+    Struct,           // struct
+    Pub,              // pub
+    Ret,              // ret
+    If,               // if
+    Then,             // then
+    Else,             // else
+    While,            // while
+    For,              // for
+    Forever,          // forever
+    Out,              // out
+    Next,             // next
+    In,               // in
+    As,               // as
+    Is,               // is
+    And,              // and
+    Or,               // or
+    Not,              // not
+    Size,             // size
+    Mod,              // mod
+    Use,              // use
+    Type,             // type
+    True,             // true
+    False,            // false
+    Match,            // match
+    Plus,             // +
+    Minus,            // -
+    Star,             // *
+    Slash,            // /
+    Percent,          // %
+    Amp,              // &
+    Pipe,             // |
+    Caret,            // ^
+    LeftShift,        // <<
+    RightShift,       // >>
+    Tilde,            // ~
+    Comma,            // ,
+    Colon,            // :
+    ColonColon,       // ::
+    Semi,             // ;
+    Dot,              // .
+    DotDot,           // ..
+    OParen,           // (
+    CParen,           // )
+    OBrace,           // {
+    CBrace,           // }
+    OBracket,         // [
+    CBracket,         // ]
+    Assign,           // =
+    ColonEq,          // :=
+    PlusAssign,       // +=
+    MinusAssign,      // -=
+    StarAssign,       // *=
+    SlashAssign,      // /=
+    PercentAssign,    // %=
+    AmpAssign,        // &=
+    CaretAssign,      // ^=
+    PipeAssign,       // |=
+    RightShiftAssign, // >>=
+    LeftShiftAssign,  // <<=
+    EqEq,             // ==
+    BangEq,           // !=
+    Lt,               // <
+    LtEq,             // <=
+    Gt,               // >
+    GtEq,             // >=
+    RArrow,           // ->
+    REqArrow,         // =>
+    Underscore,       // _
 
     Unknown,
     Eof,
@@ -150,28 +148,11 @@ impl TokenKind {
             "is" => TokenKind::Is,
             "true" => TokenKind::True,
             "false" => TokenKind::False,
-
-            "i8" => TokenKind::I8,
-            "i16" => TokenKind::I16,
-            "i32" => TokenKind::I32,
-            "i64" => TokenKind::I64,
-            "isize" => TokenKind::Isize,
-
-            "u8" => TokenKind::U8,
-            "u16" => TokenKind::U16,
-            "u32" => TokenKind::U32,
-            "u64" => TokenKind::U64,
-            "usize" => TokenKind::Usize,
-
-            "f32" => TokenKind::F32,
-            "f64" => TokenKind::F64,
-
-            "char" => TokenKind::Char,
-            "bool" => TokenKind::Bool,
             "size" => TokenKind::Size,
             "mod" => TokenKind::Mod,
             "use" => TokenKind::Use,
             "type" => TokenKind::Type,
+            "match" => TokenKind::Match,
 
             _ => TokenKind::Ident,
         }
@@ -203,6 +184,17 @@ impl TokenKind {
             "[" => TokenKind::OBracket,
             "]" => TokenKind::CBracket,
             "=" => TokenKind::Assign,
+            ":=" => TokenKind::ColonEq,
+            "+=" => TokenKind::PlusAssign,
+            "-=" => TokenKind::MinusAssign,
+            "*=" => TokenKind::StarAssign,
+            "/=" => TokenKind::SlashAssign,
+            "%=" => TokenKind::PercentAssign,
+            "^=" => TokenKind::CaretAssign,
+            "&=" => TokenKind::AmpAssign,
+            "|=" => TokenKind::PipeAssign,
+            ">>=" => TokenKind::RightShiftAssign,
+            "<<=" => TokenKind::LeftShiftAssign,
             "==" => TokenKind::EqEq,
             "!=" => TokenKind::BangEq,
             "<" => TokenKind::Lt,
@@ -211,6 +203,7 @@ impl TokenKind {
             ">=" => TokenKind::GtEq,
             "->" => TokenKind::RArrow,
             "=>" => TokenKind::REqArrow,
+            "_" => TokenKind::Underscore,
 
             _ => TokenKind::Unknown,
         }
@@ -251,25 +244,11 @@ impl Display for TokenKind {
             TokenKind::Not => write!(f, "'not'"),
             TokenKind::True => write!(f, "'true'"),
             TokenKind::False => write!(f, "'false'"),
-            TokenKind::I64 => write!(f, "'i64'"),
-            TokenKind::I32 => write!(f, "'i32'"),
-            TokenKind::I16 => write!(f, "'i16'"),
-            TokenKind::I8 => write!(f, "'i8'"),
-            TokenKind::Isize => write!(f, "'isize'"),
-            TokenKind::F64 => write!(f, "'f64'"),
-            TokenKind::F32 => write!(f, "'f32'"),
-            TokenKind::U8 => write!(f, "'u8'"),
-            TokenKind::U16 => write!(f, "'u16'"),
-            TokenKind::U32 => write!(f, "'u32'"),
-            TokenKind::U64 => write!(f, "'u64'"),
-            TokenKind::Usize => write!(f, "'usize'"),
-            TokenKind::Char => write!(f, "'char'"),
-            TokenKind::Bool => write!(f, "'bool'"),
             TokenKind::Size => write!(f, "'size'"),
             TokenKind::Mod => write!(f, "'mod'"),
             TokenKind::Use => write!(f, "'use'"),
             TokenKind::Type => write!(f, "'type'"),
-
+            TokenKind::Match => write!(f, "'match'"),
             TokenKind::Plus => write!(f, "'+'"),
             TokenKind::Minus => write!(f, "'-'"),
             TokenKind::Star => write!(f, "'*'"),
@@ -294,6 +273,17 @@ impl Display for TokenKind {
             TokenKind::OBracket => write!(f, "'['"),
             TokenKind::CBracket => write!(f, "']'"),
             TokenKind::Assign => write!(f, "'='"),
+            TokenKind::ColonEq => write!(f, "':='"),
+            TokenKind::PlusAssign => write!(f, "'+='"),
+            TokenKind::MinusAssign => write!(f, "'-='"),
+            TokenKind::StarAssign => write!(f, "'*='"),
+            TokenKind::SlashAssign => write!(f, "'/='"),
+            TokenKind::PercentAssign => write!(f, "'%='"),
+            TokenKind::CaretAssign => write!(f, "'^='"),
+            TokenKind::AmpAssign => write!(f, "'&='"),
+            TokenKind::PipeAssign => write!(f, "'|='"),
+            TokenKind::RightShiftAssign => write!(f, "'>>='"),
+            TokenKind::LeftShiftAssign => write!(f, "'<<='"),
             TokenKind::EqEq => write!(f, "'=='"),
             TokenKind::BangEq => write!(f, "'!='"),
             TokenKind::Lt => write!(f, "'<'"),
@@ -302,7 +292,7 @@ impl Display for TokenKind {
             TokenKind::GtEq => write!(f, "'>='"),
             TokenKind::RArrow => write!(f, "'->'"),
             TokenKind::REqArrow => write!(f, "'=>'"),
-
+            TokenKind::Underscore => write!(f, "'_'"),
             TokenKind::Unknown => write!(f, "Unknown"),
             TokenKind::Eof => write!(f, "Eof"),
         }
