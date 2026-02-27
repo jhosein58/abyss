@@ -1,39 +1,48 @@
 pub mod handlers;
 pub mod precedence;
 pub mod rules;
-use crate::ast::{Expr, ExprKind, Program, Span};
+use abyss_diagnostics::DiagnosticEngine;
 
-use crate::error::ParseError;
+use crate::ast::{Expr, ExprKind, Program};
+
 use crate::parser::engine::PrattEngine;
 pub mod engine;
 
-pub struct Parser<'a> {
-    engine: PrattEngine<'a>,
+pub struct Parser<'a, 'e> {
+    engine: PrattEngine<'a, 'e>,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(source: &'a str) -> Self {
+impl<'a, 'e> Parser<'a, 'e> {
+    pub fn new(source: &'a str, err_handle: &'e mut DiagnosticEngine, file_id: u16) -> Self {
         Self {
-            engine: PrattEngine::new(source),
+            engine: PrattEngine::new(source, err_handle, file_id),
         }
     }
 
-    pub fn parse_program(&mut self) -> Result<Program, ParseError> {
+    pub fn parse_program(&mut self) -> Program {
         let mut program = Vec::new();
 
         while !self.engine.is_eof() {
-            let expr = self.engine.parse_expression()?;
-            program.push(expr);
+            match self.engine.parse_expression() {
+                Ok(expr) => {
+                    program.push(expr);
+                }
+                Err(_) => {
+                    self.engine.synchronize();
+                }
+            }
         }
 
-        Ok(Program {
+        Program {
             body: Expr {
                 kind: ExprKind::Block(program),
-                span: Span {
-                    ..Default::default()
+                span: abyss_diagnostics::Span {
+                    file_id: 0,
+                    start: 0,
+                    end: 0,
                 },
                 id: 0,
             },
-        })
+        }
     }
 }

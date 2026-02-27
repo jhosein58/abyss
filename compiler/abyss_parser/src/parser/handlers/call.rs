@@ -2,11 +2,10 @@ use abyss_lexer::token::TokenKind as Tk;
 
 use crate::{
     ast::{Expr, ExprKind},
-    error::ParseError,
     parser::{engine::PrattEngine, precedence::Precedence},
 };
 
-pub fn parse_call(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ParseError> {
+pub fn parse_call(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ()> {
     eng.advance();
 
     let mut args = Vec::new();
@@ -26,11 +25,16 @@ pub fn parse_call(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ParseError>
     Ok(eng.new_expr(ExprKind::Call(Box::new(left), args)))
 }
 
-pub fn parse_member(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ParseError> {
+pub fn parse_member(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ()> {
     eng.advance();
+
     let token = eng.current_token();
     if token.kind != Tk::Ident {
-        return Err(ParseError::msg("Identifier after '.'"));
+        eng.report_error(
+            token.span(eng.file_id),
+            format!("expected identifier after '.', found {:?}", token.kind),
+        );
+        return Err(());
     }
 
     let member_name = token.text.to_string();

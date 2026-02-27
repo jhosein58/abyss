@@ -1,13 +1,6 @@
 use std::hash::{Hash, Hasher};
 
-pub type Path = Vec<String>;
-
-#[derive(Debug, Clone, PartialEq, Default, Eq, Hash)]
-pub struct Span {
-    pub line: u32,
-    pub col: u32,
-    pub file_id: u16,
-}
+use abyss_diagnostics::Span;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Expr {
@@ -18,13 +11,13 @@ pub struct Expr {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExprKind {
-    Mod(String, Box<Expr>),                             // Mod(attr, Name, Body?)
-    Use(Path),                                          // Use(attr, Module)
+    Mod(Box<Expr>, Box<Expr>),                          // Mod(Name, Body?)
+    Use(Box<Expr>),                                     // Use(Module)
     Sequence(Vec<Expr>, Option<Box<Expr>>), // [expr: expr, expr: expr] or [expr, epxr] or [expr; len]
     Signature(Vec<Expr>, Option<Box<Expr>>, Box<Expr>), // Signature(args, return, body)
 
     Ret(Option<Box<Expr>>),
-    Break,                                       // out
+    Out(Option<Box<Expr>>),                      // out (break loop)
     Continue,                                    // next
     Block(Vec<Expr>),                            // Block(statements)
     If(Box<Expr>, Box<Expr>, Option<Box<Expr>>), // If(condition, then, else)
@@ -42,7 +35,7 @@ pub enum ExprKind {
 
     // ---------------------
     Lit(Lit),
-    Ident(Path),
+    Ident(String),
     Binary(Box<Expr>, BinaryOp, Box<Expr>),
     Unary(UnaryOp, Box<Expr>),
     Call(Box<Expr>, Vec<Expr>), // call(callee, args)
@@ -277,10 +270,21 @@ impl ExprKind {
         match self {
             ExprKind::Wildcard => write!(f, "_"),
             ExprKind::Lit(lit) => write!(f, "{}", lit),
-            ExprKind::Ident(path) => write!(f, "{}", path.join("::")),
-            ExprKind::Break => write!(f, "Break"),
+            ExprKind::Ident(path) => write!(f, "{}", path),
+            ExprKind::Out(val) => {
+                if let Some(v) = val {
+                    writeln!(f, "Out {{")?;
+                    write!(f, "{}", inner_pad)?;
+                    v.print_indented(f, indent + 1)?;
+                    writeln!(f)?;
+                    write!(f, "{}}}", pad)
+                } else {
+                    write!(f, "Out")
+                }
+            }
+
             ExprKind::Continue => write!(f, "Continue"),
-            ExprKind::Use(path) => write!(f, "Use({})", path.join("::")),
+            ExprKind::Use(path) => write!(f, "Use({})", path),
             ExprKind::SizeOf(ty) => {
                 if let Some(t) = ty {
                     writeln!(f, "SizeOf {{")?;
@@ -612,7 +616,14 @@ impl ExprKind {
                 writeln!(f, "{}inclusive: {}", inner_pad, inclusive)?;
                 write!(f, "{}}}", pad)
             }
-            _ => panic!(),
+
+            ExprKind::Forever(body) => {
+                writeln!(f, "Forever {{")?;
+                write!(f, "{}body: ", inner_pad)?;
+                body.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
         }
     }
 }

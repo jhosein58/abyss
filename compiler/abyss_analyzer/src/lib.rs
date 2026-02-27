@@ -3,5 +3,5 @@
 // pub mod hir;
 // pub mod ir;
 // pub mod lir;
-// pub mod new_type_checker;
+pub mod type_checker;
 // pub mod symbols;

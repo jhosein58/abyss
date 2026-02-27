@@ -1,5 +1,7 @@
 use core::fmt::{self, Display, Formatter};
 
+use abyss_diagnostics::Span;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RawTokenKind {
     Comment,
@@ -331,5 +333,13 @@ impl<'a> Token<'a> {
 
     pub fn dummy() -> Self {
         Self::new(TokenKind::Unknown, "", 0, 0, false)
+    }
+
+    pub fn span(&self, file_id: u16) -> Span {
+        Span {
+            file_id,
+            start: self.start as u32,
+            end: (self.start + self.len) as u32,
+        }
     }
 }

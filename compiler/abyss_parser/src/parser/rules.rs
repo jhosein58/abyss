@@ -5,8 +5,8 @@ use crate::ast::Expr;
 use crate::parser::PrattEngine;
 use crate::parser::handlers::*;
 
-pub type PrefixFn = fn(&mut PrattEngine) -> Result<Expr, super::ParseError>;
-pub type InfixFn = fn(&mut PrattEngine, Expr) -> Result<Expr, super::ParseError>;
+pub type PrefixFn = fn(&mut PrattEngine) -> Result<Expr, ()>;
+pub type InfixFn = fn(&mut PrattEngine, Expr) -> Result<Expr, ()>;
 
 pub struct ParseRule {
     pub prefix: Option<PrefixFn>,
@@ -134,7 +134,7 @@ pub fn get_rule(kind: Tk) -> ParseRule {
         Tk::Ret => ParseRule::new(Some(parse_ret), None, Precedence::None),
 
         // out
-        Tk::Out => ParseRule::new(Some(parse_break), None, Precedence::None),
+        Tk::Out => ParseRule::new(Some(parse_out), None, Precedence::None),
 
         // next
         Tk::Next => ParseRule::new(Some(parse_continue), None, Precedence::None),
@@ -144,6 +144,9 @@ pub fn get_rule(kind: Tk) -> ParseRule {
 
         // while
         Tk::While => ParseRule::new(Some(parse_while), None, Precedence::None),
+
+        // forever
+        Tk::Forever => ParseRule::new(Some(parse_forever), None, Precedence::None),
 
         _ => ParseRule::new(None, None, Precedence::None),
     }
