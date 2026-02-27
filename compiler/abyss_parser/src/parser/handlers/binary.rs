@@ -2,11 +2,10 @@ use abyss_lexer::token::TokenKind as Tk;
 
 use crate::{
     ast::{BinaryOp, Expr, ExprKind},
-    error::ParseError,
     parser::{engine::PrattEngine, precedence::Precedence, rules::get_rule},
 };
 
-pub fn parse_binary(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ParseError> {
+pub fn parse_binary(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ()> {
     let op_tk = eng.current_token();
     let rule = get_rule(op_tk.kind);
 
@@ -104,7 +103,13 @@ pub fn parse_binary(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ParseErro
         Tk::RightShiftAssign => BinaryOp::AssignShr,
 
         // fail
-        _ => unreachable!(),
+        _ => {
+            eng.report_error(
+                op_tk.span(eng.file_id),
+                format!("Unknown binary operator: {:?}", op_tk.kind),
+            );
+            return Err(());
+        }
     };
 
     eng.advance();

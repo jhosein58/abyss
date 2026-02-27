@@ -2,11 +2,10 @@ use abyss_lexer::token::TokenKind as Tk;
 
 use crate::{
     ast::{Expr, ExprKind},
-    error::ParseError,
     parser::{engine::PrattEngine, precedence::Precedence},
 };
 
-pub fn parse_group_or_signature(eng: &mut PrattEngine) -> Result<Expr, ParseError> {
+pub fn parse_group_or_signature(eng: &mut PrattEngine) -> Result<Expr, ()> {
     eng.advance();
 
     let mut args = Vec::new();

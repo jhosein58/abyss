@@ -2,11 +2,10 @@ use abyss_lexer::token::TokenKind as Tk;
 
 use crate::{
     ast::{Expr, ExprKind, UnaryOp},
-    error::ParseError,
     parser::{engine::PrattEngine, precedence::Precedence},
 };
 
-pub fn parse_unary(eng: &mut PrattEngine) -> Result<Expr, ParseError> {
+pub fn parse_unary(eng: &mut PrattEngine) -> Result<Expr, ()> {
     let span = eng.current_span();
     let tk = eng.current_token();
     eng.advance();

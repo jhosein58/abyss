@@ -2,73 +2,122 @@ use abyss_lexer::token::{Token, TokenKind as Tk};
 
 use crate::{
     ast::{Expr, ExprKind, Lit, OrderedFloat},
-    error::ParseError,
     parser::engine::PrattEngine,
 };
 
-pub fn parse_literal(eng: &mut PrattEngine) -> Result<Expr, ParseError> {
+pub fn parse_literal(eng: &mut PrattEngine) -> Result<Expr, ()> {
     let tk = eng.current_token();
 
     let expr = match tk.kind {
-        Tk::IntLit => parse_int(eng, &tk),
-        Tk::FloatLit => parse_float(eng, &tk),
-        Tk::StrLit => parse_str(eng, &tk),
-        Tk::CStrLit => parse_cstr(eng, &tk),
-        Tk::CharLit => parse_char(eng, &tk),
-        Tk::BinIntLit => parse_bin(eng, &tk),
-        Tk::HexIntLit => parse_hex(eng, &tk),
+        Tk::IntLit => parse_int(eng, &tk)?,
+        Tk::FloatLit => parse_float(eng, &tk)?,
+        Tk::StrLit => parse_str(eng, &tk)?,
+        Tk::CStrLit => parse_cstr(eng, &tk)?,
+        Tk::CharLit => parse_char(eng, &tk)?,
+        Tk::BinIntLit => parse_bin(eng, &tk)?,
+        Tk::HexIntLit => parse_hex(eng, &tk)?,
         Tk::True => eng.new_expr(ExprKind::Lit(Lit::Bool(true))),
         Tk::False => eng.new_expr(ExprKind::Lit(Lit::Bool(false))),
-        _ => panic!("Expected literal token, found: {:?}", tk.kind),
+        _ => {
+            eng.report_error(
+                tk.span(eng.file_id),
+                format!("Unexpected token in literal parsing: {:?}", tk.kind),
+            );
+            return Err(());
+        }
     };
 
     eng.advance();
     Ok(expr)
 }
 
-fn parse_int(eng: &mut PrattEngine, tk: &Token<'_>) -> Expr {
-    eng.new_expr(ExprKind::Lit(Lit::Int(tk.text.parse().unwrap())))
+fn parse_int(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
+    match tk.text.replace('_', "").parse() {
+        Ok(val) => Ok(eng.new_expr(ExprKind::Lit(Lit::Int(val)))),
+        Err(_) => {
+            eng.report_error(
+                tk.span(eng.file_id),
+                "Integer literal is too large or invalid".to_string(),
+            );
+            Err(())
+        }
+    }
 }
 
-fn parse_float(eng: &mut PrattEngine, tk: &Token<'_>) -> Expr {
-    eng.new_expr(ExprKind::Lit(Lit::Float(OrderedFloat(
-        tk.text.parse().unwrap(),
-    ))))
+fn parse_float(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
+    match tk.text.parse() {
+        Ok(val) => Ok(eng.new_expr(ExprKind::Lit(Lit::Float(OrderedFloat(val))))),
+        Err(_) => {
+            eng.report_error(tk.span(eng.file_id), "Invalid float literal".to_string());
+            Err(())
+        }
+    }
 }
 
-fn parse_bin(eng: &mut PrattEngine, tk: &Token<'_>) -> Expr {
+fn parse_bin(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
     let text_without_prefix = &tk.text[2..];
-    let val = i64::from_str_radix(text_without_prefix, 2).expect("Invalid binary literal");
-
-    eng.new_expr(ExprKind::Lit(Lit::Int(val)))
+    match i64::from_str_radix(text_without_prefix, 2) {
+        Ok(val) => Ok(eng.new_expr(ExprKind::Lit(Lit::Int(val)))),
+        Err(_) => {
+            eng.report_error(tk.span(eng.file_id), "Invalid binary literal".to_string());
+            Err(())
+        }
+    }
 }
 
-fn parse_hex(eng: &mut PrattEngine, tk: &Token<'_>) -> Expr {
+fn parse_hex(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
     let text_without_prefix = &tk.text[2..];
-    let val = i64::from_str_radix(text_without_prefix, 16).expect("Invalid hex literal");
-
-    eng.new_expr(ExprKind::Lit(Lit::Int(val)))
+    match i64::from_str_radix(text_without_prefix, 16) {
+        Ok(val) => Ok(eng.new_expr(ExprKind::Lit(Lit::Int(val)))),
+        Err(_) => {
+            eng.report_error(
+                tk.span(eng.file_id),
+                "Invalid hexadecimal literal".to_string(),
+            );
+            Err(())
+        }
+    }
 }
 
-fn parse_str(eng: &mut PrattEngine, tk: &Token<'_>) -> Expr {
+fn parse_str(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
+    if tk.text.len() < 2 {
+        eng.report_error(
+            tk.span(eng.file_id),
+            "Unterminated string literal".to_string(),
+        );
+        return Err(());
+    }
     let text = &tk.text;
     let val = text[1..text.len() - 1].to_string();
-
-    eng.new_expr(ExprKind::Lit(Lit::Str(val)))
+    Ok(eng.new_expr(ExprKind::Lit(Lit::Str(val))))
 }
 
-fn parse_cstr(eng: &mut PrattEngine, tk: &Token<'_>) -> Expr {
+fn parse_cstr(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
+    if tk.text.len() < 3 {
+        eng.report_error(
+            tk.span(eng.file_id),
+            "Unterminated C-string literal".to_string(),
+        );
+        return Err(());
+    }
     let text = &tk.text;
     let val = text[2..text.len() - 1].to_string();
-
-    eng.new_expr(ExprKind::Lit(Lit::Cstr(val)))
+    Ok(eng.new_expr(ExprKind::Lit(Lit::Cstr(val))))
 }
 
-fn parse_char(eng: &mut PrattEngine, tk: &Token<'_>) -> Expr {
+fn parse_char(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
     let text = &tk.text;
+    if text.len() < 3 {
+        eng.report_error(tk.span(eng.file_id), "Invalid char literal".to_string());
+        return Err(());
+    }
     let inner_text = &text[1..text.len() - 1];
 
-    let val = inner_text.chars().next().expect("Empty char literal");
-
-    eng.new_expr(ExprKind::Lit(Lit::Char(val)))
+    match inner_text.chars().next() {
+        Some(val) => Ok(eng.new_expr(ExprKind::Lit(Lit::Char(val)))),
+        None => {
+            eng.report_error(tk.span(eng.file_id), "Empty char literal".to_string());
+            Err(())
+        }
+    }
 }

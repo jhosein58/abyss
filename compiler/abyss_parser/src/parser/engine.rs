@@ -1,47 +1,57 @@
-use abyss_lexer::token::{Token, TokenKind};
+use abyss_diagnostics::{DiagnosticEngine, Span};
+use abyss_lexer::token::{Token, TokenKind as Tk};
 
 use crate::{
-    ast::{Expr, ExprKind, Span},
-    error::{ParseError, ParseErrorKind},
+    ast::{Expr, ExprKind},
     parser::{precedence::Precedence, rules::get_rule},
-    source_map::SourceMap,
     stream::TokenStream,
 };
 
-pub struct PrattEngine<'a> {
-    source: &'a str,
-    map: SourceMap,
+pub struct PrattEngine<'a, 'e> {
     stream: TokenStream<'a>,
-    _errors: Vec<ParseError>,
+    diagnostics: &'e mut DiagnosticEngine,
+    pub file_id: u16,
     last_id: u32,
 }
 
-impl<'a> PrattEngine<'a> {
-    pub fn new(source: &'a str) -> Self {
+impl<'a, 'e> PrattEngine<'a, 'e> {
+    pub fn new(source: &'a str, diagnostics: &'e mut DiagnosticEngine, file_id: u16) -> Self {
         Self {
-            source,
-            map: SourceMap::new(source),
             stream: TokenStream::new(source),
-            _errors: Vec::new(),
+            diagnostics,
+            file_id,
             last_id: 0,
         }
     }
 
-    pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
+    pub fn report_error(&mut self, span: Span, message: String) {
+        self.diagnostics.report_error(span, message);
+    }
+
+    pub fn report_error_with_hint(&mut self, span: Span, message: String, hint: String) {
+        self.diagnostics.report_error_with_hint(span, message, hint);
+    }
+
+    pub fn parse_expression(&mut self) -> Result<Expr, ()> {
         self.parse_expression_bp(Precedence::None)
     }
 
-    pub fn parse_expression_bp(&mut self, min_bp: Precedence) -> Result<Expr, ParseError> {
+    pub fn parse_expression_bp(&mut self, min_bp: Precedence) -> Result<Expr, ()> {
         let token = self.stream.current();
         let rule = get_rule(token.kind);
 
         let prefix_fn = match rule.prefix {
             Some(func) => func,
             None => {
-                return Err(self.make_error(ParseErrorKind::UnexpectedToken {
-                    found: token.kind,
-                    expected: abyss_lexer::token::TokenKind::Unknown,
-                }));
+                let span = self.current_span();
+                self.report_error(
+                    span,
+                    format!(
+                        "Unexpected token `{:?}`. Expected an expression.",
+                        token.kind
+                    ),
+                );
+                return Err(());
             }
         };
 
@@ -50,7 +60,7 @@ impl<'a> PrattEngine<'a> {
         loop {
             let next_token = self.stream.current();
 
-            if next_token.kind == TokenKind::Eof {
+            if next_token.kind == Tk::Eof {
                 break;
             }
 
@@ -84,27 +94,47 @@ impl<'a> PrattEngine<'a> {
         self.stream.current()
     }
 
-    pub fn consume(&mut self, kind: TokenKind) -> Result<Token<'a>, ParseError> {
+    pub fn consume(&mut self, kind: Tk) -> Result<Token<'a>, ()> {
         if self.stream.current().kind == kind {
             let token = self.stream.current().clone();
             self.advance();
             Ok(token)
         } else {
-            Err(self.make_error(ParseErrorKind::NotAFunction))
+            Err(())
         }
     }
 
-    pub fn expect(&mut self, expected_kind: TokenKind) -> Result<Token<'a>, ParseError> {
+    pub fn synchronize(&mut self) {
+        self.advance();
+
+        while !self.is_eof() {
+            if self.stream.current().preceded_by_newline {
+                return;
+            }
+            // until we find a statement boundary
+            match self.stream.current().kind {
+                Tk::While | Tk::Ret | Tk::If | Tk::For | Tk::CBrace => return,
+                _ => {}
+            }
+
+            self.advance();
+        }
+    }
+
+    pub fn expect(&mut self, expected_kind: Tk) -> Result<Token<'a>, ()> {
         let current = self.stream.current().clone();
 
         if current.kind == expected_kind {
             self.advance();
             Ok(current)
         } else {
-            Err(self.make_error(ParseErrorKind::UnexpectedToken {
-                found: current.kind,
-                expected: expected_kind,
-            }))
+            let span = self.current_span();
+            self.report_error(
+                span,
+                format!("Expected `{}`, but found `{}`", expected_kind, current.kind),
+            );
+
+            Err(())
         }
     }
 
@@ -112,11 +142,11 @@ impl<'a> PrattEngine<'a> {
         self.stream.peek(1)
     }
 
-    pub fn check(&self, kind: TokenKind) -> bool {
+    pub fn check(&self, kind: Tk) -> bool {
         self.stream.current().kind == kind
     }
 
-    pub fn match_token(&mut self, kind: TokenKind) -> bool {
+    pub fn match_token(&mut self, kind: Tk) -> bool {
         if self.stream.current().kind == kind {
             self.advance();
             true
@@ -125,31 +155,21 @@ impl<'a> PrattEngine<'a> {
         }
     }
 
-    fn make_error(&self, kind: ParseErrorKind) -> ParseError {
-        ParseError {
-            kind,
-            message: "Test".to_string(),
-        }
-    }
-
     pub fn current_span(&self) -> Span {
-        let pos = self
-            .map
-            .find_position(self.stream.current().start, self.source)
-            .unwrap();
+        let tk = self.stream.current();
 
         Span {
-            col: pos.column as u32,
-            line: pos.line as u32,
-            ..Default::default()
+            file_id: self.file_id,
+            start: tk.start as u32,
+            end: (tk.start + tk.len) as u32,
         }
     }
 
-    pub fn new_expr(&self, kind: ExprKind) -> Expr {
+    pub fn new_expr(&mut self, kind: ExprKind) -> Expr {
         Expr {
             kind,
             span: self.current_span(),
-            id: 0,
+            id: self.next_id(),
         }
     }
 

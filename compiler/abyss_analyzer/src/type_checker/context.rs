@@ -1,97 +1,119 @@
-use abyss_parser::ast::{FunctionDef, StructDef, Type, UnionDef};
-use std::collections::{HashMap, VecDeque};
+use abyss_diagnostics::Span;
+
+use super::types::Type;
+use std::collections::HashMap;
+use std::fmt::Write;
+
+#[derive(Debug, Clone)]
+pub struct SymbolInfo {
+    pub ty: Type,
+    pub is_mutable: bool,
+    pub is_initialized: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct TypeError {
+    pub message: String,
+    pub span: Span,
+}
+
 pub struct TypeContext {
-    pub concrete_funcs: Vec<FunctionDef>,
-    pub concrete_structs: Vec<StructDef>,
-    pub concrete_unions: Vec<UnionDef>,
-    pub union_struct_defs: Vec<StructDef>,
-
-    pub generic_func_templates: HashMap<String, FunctionDef>,
-    pub generic_struct_templates: HashMap<String, StructDef>,
-
-    pub monomorphization_cache: HashMap<(String, String), String>,
-    pub reverse_struct_map: HashMap<String, (String, Vec<Type>)>,
-    pub variant_cache: HashMap<String, Vec<Type>>,
-    pub used_type_tags: HashMap<String, i64>,
-
-    pub scopes: Vec<HashMap<String, Type>>,
-    pub local_func_scopes: Vec<HashMap<String, FunctionDef>>,
-
-    pub pending_funcs: VecDeque<FunctionDef>,
-
-    pub type_aliases: HashMap<String, Type>,
+    scopes: Vec<HashMap<String, SymbolInfo>>,
+    pub errors: Vec<TypeError>,
 }
 
 impl TypeContext {
     pub fn new() -> Self {
         Self {
-            concrete_funcs: Vec::new(),
-            concrete_structs: Vec::new(),
-            concrete_unions: Vec::new(),
-            union_struct_defs: Vec::new(),
-            generic_func_templates: HashMap::new(),
-            generic_struct_templates: HashMap::new(),
-            monomorphization_cache: HashMap::new(),
-            reverse_struct_map: HashMap::new(),
-            variant_cache: HashMap::new(),
-            used_type_tags: HashMap::new(),
             scopes: vec![HashMap::new()],
-            local_func_scopes: vec![HashMap::new()],
-            pending_funcs: VecDeque::new(),
-            type_aliases: HashMap::new(),
+            errors: Vec::new(),
         }
     }
+
+    // --- Scope Management ---
 
     pub fn enter_scope(&mut self) {
         self.scopes.push(HashMap::new());
-        self.local_func_scopes.push(HashMap::new());
     }
 
     pub fn exit_scope(&mut self) {
-        self.scopes.pop();
-        self.local_func_scopes.pop();
-    }
-
-    pub fn register_local_func(&mut self, name: String, func: FunctionDef) {
-        if let Some(scope) = self.local_func_scopes.last_mut() {
-            scope.insert(name, func);
+        if self.scopes.len() > 1 {
+            self.scopes.pop();
+        } else {
+            panic!("Compiler Bug: Cannot exit global scope!");
         }
     }
 
-    pub fn get_local_func(&self, name: &str) -> Option<FunctionDef> {
-        for scope in self.local_func_scopes.iter().rev() {
-            if let Some(func) = scope.get(name) {
-                return Some(func.clone());
-            }
+    pub fn define(&mut self, name: String, ty: Type, is_mutable: bool) -> Result<(), String> {
+        let current_scope = self.scopes.last_mut().expect("Scope stack is empty");
+
+        if current_scope.contains_key(&name) {
+            return Err(format!(
+                "Variable '{}' is already defined in this scope.",
+                name
+            ));
         }
-        None
+
+        current_scope.insert(
+            name,
+            SymbolInfo {
+                ty,
+                is_mutable,
+                is_initialized: true,
+            },
+        );
+
+        Ok(())
     }
 
-    pub fn register_var(&mut self, name: String, ty: Type) {
-        if let Some(scope) = self.scopes.last_mut() {
-            scope.insert(name, ty);
-        }
-    }
-    pub fn get_var_type(&self, name: &str) -> Option<Type> {
+    pub fn lookup(&self, name: &str) -> Option<&SymbolInfo> {
         for scope in self.scopes.iter().rev() {
-            if let Some(ty) = scope.get(name) {
-                return Some(ty.clone());
+            if let Some(info) = scope.get(name) {
+                return Some(info);
             }
         }
         None
     }
-    pub fn resolve_var(&self, name: &str) -> Option<Type> {
-        for scope in self.scopes.iter().rev() {
-            if let Some(ty) = scope.get(name) {
-                return Some(ty.clone());
-            }
+
+    pub fn is_defined_in_current_scope(&self, name: &str) -> bool {
+        self.scopes
+            .last()
+            .map(|s| s.contains_key(name))
+            .unwrap_or(false)
+    }
+
+    // --- Error Handling ---
+
+    pub fn add_error(&mut self, message: String, span: Span) {
+        self.errors.push(TypeError { message, span });
+    }
+
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
+    pub fn render_errors(&self) -> String {
+        let mut output = String::new();
+
+        if self.errors.is_empty() {
+            return output;
         }
-        None
-    }
-    pub fn register_type_alias(&mut self, name: String, ty: Type) {
-        self.type_aliases.insert(name, ty);
-    }
-    pub fn get_type_alias(&mut self, name: String) -> Option<&Type> {
-        self.type_aliases.get(&name)
+
+        writeln!(&mut output, "Found {} error(s):", self.errors.len()).unwrap();
+        writeln!(&mut output, "----------------------------------------").unwrap();
+
+        for (i, err) in self.errors.iter().enumerate() {
+            writeln!(
+                &mut output,
+                "{}. Error: {}\n   at {:?}",
+                i + 1,
+                err.message,
+                err.span
+            )
+            .unwrap();
+            writeln!(&mut output, "----------------------------------------").unwrap();
+        }
+
+        output
     }
 }
