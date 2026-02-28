@@ -2,7 +2,7 @@ use abyss_diagnostics::{DiagnosticEngine, Span};
 use abyss_lexer::token::{Token, TokenKind as Tk};
 
 use crate::{
-    ast::{Expr, ExprKind},
+    ast::Expr,
     parser::{precedence::Precedence, rules::get_rule},
     stream::TokenStream,
 };
@@ -94,6 +94,12 @@ impl<'a, 'e> PrattEngine<'a, 'e> {
         self.stream.current()
     }
 
+    pub fn get_and_bump(&mut self) -> Token<'a> {
+        let tk = self.current_token();
+        self.advance();
+        tk
+    }
+
     pub fn consume(&mut self, kind: Tk) -> Result<Token<'a>, ()> {
         if self.stream.current().kind == kind {
             let token = self.stream.current().clone();
@@ -162,14 +168,6 @@ impl<'a, 'e> PrattEngine<'a, 'e> {
             file_id: self.file_id,
             start: tk.start as u32,
             end: (tk.start + tk.len) as u32,
-        }
-    }
-
-    pub fn new_expr(&mut self, kind: ExprKind) -> Expr {
-        Expr {
-            kind,
-            span: self.current_span(),
-            id: self.next_id(),
         }
     }
 

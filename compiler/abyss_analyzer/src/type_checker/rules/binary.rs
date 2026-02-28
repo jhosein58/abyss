@@ -4,7 +4,7 @@ use crate::type_checker::{
     types::Type,
 };
 use abyss_diagnostics::Span;
-use abyss_parser::ast::{BinaryOp, Expr};
+use abyss_parser::ast::{BinaryOp, Expr, ExprKind};
 
 pub fn check_binary(
     tc: &mut TypeChecker,
@@ -14,11 +14,27 @@ pub fn check_binary(
     span: Span,
     id: u32,
 ) -> TypedExpr {
-    let typed_left = tc.check_expr(left_expr);
     let typed_right = tc.check_expr(right_expr);
-
-    let left_ty = typed_left.ty.clone();
     let right_ty = typed_right.ty.clone();
+
+    if op == BinaryOp::Assign {
+        match left_expr.kind {
+            ExprKind::Binary(ref var, ref o, ref ty) => {
+                if *o == BinaryOp::KeyValue {
+                    return check_var_dec(tc, var, ty, typed_right, span, id);
+                } else {
+                    let s = left_expr.span.clone().merge(ty.span.clone());
+                    tc.report_error(s, format!("Expected 'pattern := expr' or 'pattern: type = expr' syntax, found 'pattern {} epxr = expr'",  o));
+
+                    return error_expr(span, id);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let typed_left = tc.check_expr(left_expr);
+    let left_ty = typed_left.ty.clone();
 
     if left_ty == Type::Error || right_ty == Type::Error {
         return error_expr(span, id);
@@ -30,6 +46,9 @@ pub fn check_binary(
             if left_ty == right_ty && is_numeric(&left_ty) {
                 (left_ty, true)
             } else {
+                let s = left_expr.span.clone().merge(right_expr.span.clone());
+                tc.report_error(s, format!("Type mismatch: cannot perform arithmetic operation between '{}' and '{}'", left_ty.name(), right_ty.name())
+);
                 (Type::Error, false)
             }
         }
@@ -39,6 +58,10 @@ pub fn check_binary(
             if left_ty == right_ty && is_integer(&left_ty) {
                 (left_ty, true)
             } else {
+
+                let s = left_expr.span.clone().merge(right_expr.span.clone());
+
+                tc.report_error(s, format!("Type mismatch: cannot perform arithmetic operation between '{}' and '{}'", left_ty.name(), right_ty.name()));
                 (Type::Error, false)
             }
         }
@@ -48,6 +71,9 @@ pub fn check_binary(
             if left_ty == right_ty {
                 (Type::Bool, true)
             } else {
+                let s = left_expr.span.clone().merge(right_expr.span.clone());
+
+                tc.report_error(s,  format!("Type mismatch: cannot compare '{}' with '{}'", left_ty.name(), right_ty.name()));
                 (Type::Error, false)
             }
         }
@@ -66,6 +92,11 @@ pub fn check_binary(
             if left_ty == Type::Bool && right_ty == Type::Bool {
                 (Type::Bool, true)
             } else {
+
+                let s = left_expr.span.clone().merge(right_expr.span.clone());
+
+                tc.report_error(s,  format!("Type mismatch: logical operators require both operands to be 'bool', found '{}' and '{}'", left_ty.name(), right_ty.name()));
+
                 (Type::Error, false)
             }
         }
@@ -141,9 +172,31 @@ fn is_integer(t: &Type) -> bool {
 }
 
 fn is_assignable(target: &Type, source: &Type) -> bool {
+    println!("{} = {}", target.name(), source.name());
     if target == source {
         return true;
     }
 
     false
+}
+
+fn check_var_dec(
+    tc: &mut TypeChecker,
+    pattern: &Box<Expr>,
+    ty: &Box<Expr>,
+    right: TypedExpr,
+    span: Span,
+    id: u32,
+) -> TypedExpr {
+    match pattern.kind {
+        ExprKind::Ident(ref n) => error_expr(span, id),
+
+        _ => {
+            tc.report_error(
+                pattern.span_expr(),
+                format!("LHS must be an identifier. Found pattern.",),
+            );
+            error_expr(span, id)
+        }
+    }
 }

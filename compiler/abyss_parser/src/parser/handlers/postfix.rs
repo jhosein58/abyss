@@ -6,10 +6,17 @@ use crate::{
 };
 
 pub fn parse_index(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ()> {
-    eng.advance();
+    let tk = eng.get_and_bump();
 
     let index = eng.parse_expression_bp(Precedence::None)?;
 
+    let span = tk.span(eng.file_id).merge(eng.current_span());
+
     eng.expect(Tk::CBracket)?;
-    Ok(eng.new_expr(ExprKind::Index(Box::new(left), Box::new(index))))
+
+    Ok(Expr {
+        kind: ExprKind::Index(Box::new(left), Box::new(index)),
+        span,
+        id: eng.next_id(),
+    })
 }

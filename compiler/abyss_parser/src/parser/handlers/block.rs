@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub fn parse_block(eng: &mut PrattEngine) -> Result<Expr, ()> {
-    eng.advance();
+    let obrace_tk = eng.get_and_bump();
 
     let mut stmts = Vec::new();
 
@@ -19,7 +19,12 @@ pub fn parse_block(eng: &mut PrattEngine) -> Result<Expr, ()> {
         }
     }
 
+    let cbrace_span = eng.current_span();
     eng.expect(Tk::CBrace)?;
 
-    Ok(eng.new_expr(ExprKind::Block(stmts)))
+    Ok(Expr {
+        kind: ExprKind::Block(stmts),
+        span: obrace_tk.span(eng.file_id).merge(cbrace_span),
+        id: eng.next_id(),
+    })
 }

@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub fn parse_group_or_signature(eng: &mut PrattEngine) -> Result<Expr, ()> {
-    eng.advance();
+    let tk = eng.get_and_bump();
 
     let mut args = Vec::new();
     let mut has_trailing_comma = false;
@@ -43,9 +43,15 @@ pub fn parse_group_or_signature(eng: &mut PrattEngine) -> Result<Expr, ()> {
             ret_type = Some(Box::new(eng.parse_expression_bp(Precedence::None)?));
         }
 
+        let sig_eng_span = eng.current_span();
+
         let body = eng.parse_expression_bp(Precedence::None)?;
 
-        return Ok(eng.new_expr(ExprKind::Signature(args, ret_type, Box::new(body))));
+        return Ok(Expr {
+            kind: ExprKind::Signature(args, ret_type, Box::new(body)),
+            span: tk.span(eng.file_id).merge(sig_eng_span),
+            id: eng.next_id(),
+        });
     }
 
     Ok(args.into_iter().next().unwrap())

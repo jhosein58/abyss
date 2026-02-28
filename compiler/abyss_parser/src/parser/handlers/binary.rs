@@ -15,22 +15,28 @@ pub fn parse_binary(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ()> {
 
         let right = eng.parse_expression_bp(Precedence::AssignmentRhs)?;
 
+        let op_span = op_tk.span(eng.file_id);
+
         // _
-        let wildcard_expr = eng.new_expr(ExprKind::Wildcard);
+        let wildcard_expr = Expr {
+            kind: ExprKind::Wildcard,
+            span: op_span.clone(),
+            id: eng.next_id(),
+        };
 
         // left : _
-        let key_value_expr = eng.new_expr(ExprKind::Binary(
-            Box::new(left),
-            BinaryOp::KeyValue,
-            Box::new(wildcard_expr),
-        ));
+        let key_value_expr = Expr {
+            kind: ExprKind::Binary(Box::new(left), BinaryOp::KeyValue, Box::new(wildcard_expr)),
+            span: op_span.clone(),
+            id: eng.next_id(),
+        };
 
         // (left : _) = right
-        return Ok(eng.new_expr(ExprKind::Binary(
-            Box::new(key_value_expr),
-            BinaryOp::Assign,
-            Box::new(right),
-        )));
+        return Ok(Expr {
+            kind: ExprKind::Binary(Box::new(key_value_expr), BinaryOp::Assign, Box::new(right)),
+            span: op_span,
+            id: eng.next_id(),
+        });
     }
 
     let op = match op_tk.kind {
@@ -123,5 +129,9 @@ pub fn parse_binary(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ()> {
 
     let right = eng.parse_expression_bp(right_precedence)?;
 
-    Ok(eng.new_expr(ExprKind::Binary(Box::new(left), op, Box::new(right))))
+    Ok(Expr {
+        kind: ExprKind::Binary(Box::new(left), op, Box::new(right)),
+        span: op_tk.span(eng.file_id),
+        id: eng.next_id(),
+    })
 }
