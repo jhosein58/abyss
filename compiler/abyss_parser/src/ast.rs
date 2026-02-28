@@ -9,6 +9,15 @@ pub struct Expr {
     pub id: u32,
 }
 
+impl Expr {
+    pub fn span_expr(&self) -> Span {
+        match self.kind {
+            ExprKind::Binary(ref l, _, ref r) => l.span_expr().merge(r.span_expr()),
+            _ => self.span.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExprKind {
     Mod(Box<Expr>, Box<Expr>),                          // Mod(Name, Body?)

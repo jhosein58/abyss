@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub fn parse_call(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ()> {
-    eng.advance();
+    let oparen_tk = eng.get_and_bump();
 
     let mut args = Vec::new();
 
@@ -20,13 +20,18 @@ pub fn parse_call(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ()> {
         }
     }
 
+    let cparen_span = eng.current_span();
     eng.expect(Tk::CParen)?;
 
-    Ok(eng.new_expr(ExprKind::Call(Box::new(left), args)))
+    Ok(Expr {
+        kind: ExprKind::Call(Box::new(left), args),
+        span: oparen_tk.span(eng.file_id).merge(cparen_span),
+        id: eng.next_id(),
+    })
 }
 
 pub fn parse_member(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ()> {
-    eng.advance();
+    let dot_tk = eng.get_and_bump();
 
     let token = eng.current_token();
     if token.kind != Tk::Ident {
@@ -40,5 +45,9 @@ pub fn parse_member(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ()> {
     let member_name = token.text.to_string();
     eng.advance();
 
-    Ok(eng.new_expr(ExprKind::Member(Box::new(left), member_name)))
+    Ok(Expr {
+        kind: ExprKind::Member(Box::new(left), member_name),
+        span: dot_tk.span(eng.file_id).merge(token.span(eng.file_id)),
+        id: eng.next_id(),
+    })
 }

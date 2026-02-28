@@ -1,3 +1,4 @@
+use abyss_diagnostics::{DiagnosticEngine, Span};
 use abyss_parser::ast::{Expr, ExprKind};
 
 use crate::type_checker::rules::binary::check_binary;
@@ -9,15 +10,25 @@ use super::context::TypeContext;
 use super::tast::{TypedExpr, TypedExprKind};
 use super::types::Type;
 
-pub struct TypeChecker {
+pub struct TypeChecker<'a> {
     pub ctx: TypeContext,
+    pub diagnostics: &'a mut DiagnosticEngine,
 }
 
-impl TypeChecker {
-    pub fn new() -> Self {
+impl<'a> TypeChecker<'a> {
+    pub fn new(diagnostics: &'a mut DiagnosticEngine) -> Self {
         Self {
             ctx: TypeContext::new(),
+            diagnostics,
         }
+    }
+
+    pub fn report_error(&mut self, span: Span, message: String) {
+        self.diagnostics.report_error(span, message);
+    }
+
+    pub fn report_error_with_hint(&mut self, span: Span, message: String, hint: String) {
+        self.diagnostics.report_error_with_hint(span, message, hint);
     }
 
     pub fn check_expr(&mut self, expr: &Expr) -> TypedExpr {

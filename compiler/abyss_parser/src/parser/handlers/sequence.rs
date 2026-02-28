@@ -6,11 +6,17 @@ use crate::{
 };
 
 pub fn parse_sequence(eng: &mut PrattEngine) -> Result<Expr, ()> {
+    let start_span = eng.current_span();
     eng.advance();
 
     if eng.current_token().kind == Tk::CBracket {
+        let end_span = eng.current_span();
         eng.advance();
-        return Ok(eng.new_expr(ExprKind::Sequence(vec![], None)));
+        return Ok(Expr {
+            kind: ExprKind::Sequence(vec![], None),
+            span: start_span.merge(end_span),
+            id: eng.next_id(),
+        });
     }
 
     let first_expr = eng.parse_expression_bp(Precedence::None)?;
@@ -18,11 +24,13 @@ pub fn parse_sequence(eng: &mut PrattEngine) -> Result<Expr, ()> {
     if eng.current_token().kind == Tk::Semi {
         eng.advance();
         let len_expr = eng.parse_expression_bp(Precedence::None)?;
+        let end_span = eng.current_span();
         eng.expect(Tk::CBracket)?;
-        return Ok(eng.new_expr(ExprKind::Sequence(
-            vec![first_expr],
-            Some(Box::new(len_expr)),
-        )));
+        return Ok(Expr {
+            kind: ExprKind::Sequence(vec![first_expr], Some(Box::new(len_expr))),
+            span: start_span.merge(end_span),
+            id: eng.next_id(),
+        });
     }
 
     let mut items = vec![first_expr];
@@ -35,6 +43,11 @@ pub fn parse_sequence(eng: &mut PrattEngine) -> Result<Expr, ()> {
         items.push(eng.parse_expression_bp(Precedence::None)?);
     }
 
+    let end_span = eng.current_span();
     eng.expect(Tk::CBracket)?;
-    Ok(eng.new_expr(ExprKind::Sequence(items, None)))
+    Ok(Expr {
+        kind: ExprKind::Sequence(items, None),
+        span: start_span.merge(end_span),
+        id: eng.next_id(),
+    })
 }
