@@ -11,15 +11,25 @@ pub struct TypedExpr {
     pub id: u32,
 }
 
+impl TypedExpr {
+    pub fn span_expr(&self) -> Span {
+        match self.kind {
+            TypedExprKind::Binary(ref l, _, ref r) => l.span_expr().merge(r.span_expr()),
+            _ => self.span.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum TypedExprKind {
     // --- Module & Scope ---
     Mod(Box<TypedExpr>, Box<TypedExpr>),
     Use(Box<TypedExpr>),
 
-    // --- Sequences & Functions ---
+    // --- Sequences & Functions & dec ---
     Sequence(Vec<TypedExpr>, Option<Box<TypedExpr>>),
     Signature(Vec<TypedExpr>, Option<Box<TypedExpr>>, Box<TypedExpr>),
+    VarDec(String, Type, Option<Box<TypedExpr>>),
 
     // --- Control Flow ---
     Ret(Option<Box<TypedExpr>>),
@@ -99,6 +109,9 @@ impl TypedExpr {
             }
             TypedExprKind::Ident(name) => {
                 println!("[Ident '{}'] :: {:?}", name, self.ty);
+            }
+            TypedExprKind::VarDec(name, ty, _) => {
+                println!("[Vardec '{}'] :: {:?}", name, ty);
             }
             TypedExprKind::Binary(left, op, right) => {
                 println!("[Binary {:?}] :: {:?}", op, self.ty);

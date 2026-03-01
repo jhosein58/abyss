@@ -33,9 +33,10 @@ impl<'a> TypeChecker<'a> {
 
     pub fn check_expr(&mut self, expr: &Expr) -> TypedExpr {
         match &expr.kind {
-            ExprKind::Lit(lit) => check_literal(lit, expr.span.clone(), expr.id),
-            ExprKind::Block(stmts) => check_block(self, stmts, expr.span.clone(), expr.id),
-            ExprKind::Binary(l, op, r) => check_binary(self, l, *op, r, expr.span.clone(), expr.id),
+            ExprKind::Lit(lit) => check_literal(lit, expr.span_expr(), expr.id),
+            ExprKind::Block(stmts) => check_block(self, stmts, expr.span_expr(), expr.id),
+            ExprKind::Binary(l, op, r) => check_binary(self, l, *op, r, expr.span_expr(), expr.id),
+            ExprKind::Ident() => {}
 
             _ => TypedExpr {
                 kind: TypedExprKind::ErrorPlaceholder,
