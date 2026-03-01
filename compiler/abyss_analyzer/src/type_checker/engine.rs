@@ -3,6 +3,8 @@ use abyss_parser::ast::{Expr, ExprKind};
 
 use crate::type_checker::rules::binary::check_binary;
 use crate::type_checker::rules::block::check_block;
+use crate::type_checker::rules::call::check_call;
+use crate::type_checker::rules::ident::check_ident;
 use crate::type_checker::rules::literals::check_literal;
 
 use super::context::TypeContext;
@@ -36,7 +38,11 @@ impl<'a> TypeChecker<'a> {
             ExprKind::Lit(lit) => check_literal(lit, expr.span_expr(), expr.id),
             ExprKind::Block(stmts) => check_block(self, stmts, expr.span_expr(), expr.id),
             ExprKind::Binary(l, op, r) => check_binary(self, l, *op, r, expr.span_expr(), expr.id),
-            ExprKind::Ident() => {}
+            ExprKind::Ident(name) => check_ident(self, name.clone(), expr.span_expr(), expr.id),
+            ExprKind::Call(calle, args) => check_call(self, calle, args, expr.span_expr(), expr.id),
+            ExprKind::Signature(args, ret_ty, body) => {
+                check_signature(self, args, ret_ty, body, expr.span_expr(), expr.id)
+            }
 
             _ => TypedExpr {
                 kind: TypedExprKind::ErrorPlaceholder,
@@ -45,5 +51,14 @@ impl<'a> TypeChecker<'a> {
                 id: 0,
             },
         }
+    }
+}
+
+pub fn error_expr(span: Span, id: u32) -> TypedExpr {
+    TypedExpr {
+        kind: TypedExprKind::ErrorPlaceholder,
+        ty: Type::Error,
+        span,
+        id,
     }
 }

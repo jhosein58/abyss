@@ -1,5 +1,5 @@
 use crate::type_checker::{
-    engine::TypeChecker,
+    engine::{TypeChecker, error_expr},
     tast::{TypedExpr, TypedExprKind},
     types::Type,
 };
@@ -154,15 +154,6 @@ pub fn check_binary(
     }
 }
 
-fn error_expr(span: Span, id: u32) -> TypedExpr {
-    TypedExpr {
-        kind: TypedExprKind::ErrorPlaceholder,
-        ty: Type::Error,
-        span,
-        id,
-    }
-}
-
 fn is_numeric(t: &Type) -> bool {
     matches!(t, Type::I32 | Type::F32)
 }
@@ -209,6 +200,8 @@ fn check_var_dec(
                 }
                 ty.ty
             };
+
+            tc.ctx.define(name.clone(), init_type.clone());
 
             TypedExpr {
                 kind: TypedExprKind::VarDec(name, init_type.clone(), Some(Box::new(right))),
