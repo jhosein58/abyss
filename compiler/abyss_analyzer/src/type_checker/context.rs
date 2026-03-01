@@ -32,14 +32,14 @@ impl TypeContext {
         }
     }
 
-    pub fn define(&mut self, name: String, ty: Type, is_mutable: bool) {
+    pub fn define(&mut self, name: String, ty: Type) {
         let current_scope = self.scopes.last_mut().expect("Scope stack is empty");
 
         current_scope.insert(
             name,
             SymbolInfo {
                 ty,
-                is_mutable,
+                is_mutable: true,
                 is_initialized: true,
             },
         );
