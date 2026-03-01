@@ -189,7 +189,34 @@ fn check_var_dec(
     id: u32,
 ) -> TypedExpr {
     match pattern.kind {
-        ExprKind::Ident(ref n) => error_expr(span, id),
+        ExprKind::Ident(ref n) => {
+            let name = n.to_string();
+            let init_type = if ty.kind == ExprKind::Wildcard {
+                if right.ty == Type::Error {
+                    tc.report_error(right.span_expr(), format!("Type resolution failed."));
+                    return error_expr(span, id);
+                }
+                right.ty.clone()
+            } else {
+                let ty = tc.check_expr(ty);
+
+                if ty.ty == Type::Error {
+                    tc.report_error(
+                        ty.span_expr(),
+                        format!("Type resolution failed for variable '{}'.", name),
+                    );
+                    return error_expr(span, id);
+                }
+                ty.ty
+            };
+
+            TypedExpr {
+                kind: TypedExprKind::VarDec(name, init_type.clone(), Some(Box::new(right))),
+                id,
+                span,
+                ty: init_type,
+            }
+        }
 
         _ => {
             tc.report_error(
