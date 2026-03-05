@@ -11,6 +11,7 @@ dependencies = [
  "abyss_diagnostics",
  "abyss_lexer",
  "abyss_parser",
+ "abyss_vm",
  "cc",
  "include_dir",
  "libc",
@@ -39,6 +40,15 @@ name = "abyss_diagnostics"
 version = "0.1.0"
 
 [[package]]
+name = "abyss_ir"
+version = "0.1.0"
+dependencies = [
+ "abyss_analyzer",
+ "abyss_diagnostics",
+ "abyss_parser",
+]
+
+[[package]]
 name = "abyss_lexer"
 version = "0.1.0"
 dependencies = [
@@ -52,6 +62,13 @@ dependencies = [
  "abyss_diagnostics",
  "abyss_lexer",
  "colored",
+]
+
+[[package]]
+name = "abyss_vm"
+version = "0.1.0"
+dependencies = [
+ "abyss_ir",
 ]
 
 [[package]]

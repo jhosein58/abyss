@@ -3,7 +3,7 @@ use abyss_parser::ast::{BinaryOp, Lit, UnaryOp};
 
 use crate::type_checker::types::Type;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypedExpr {
     pub kind: TypedExprKind,
     pub ty: Type,
@@ -20,15 +20,15 @@ impl TypedExpr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypedExprKind {
     // --- Module & Scope ---
     Mod(Box<TypedExpr>, Box<TypedExpr>),
     Use(Box<TypedExpr>),
 
     // --- Sequences & Functions & dec ---
-    Sequence(Vec<TypedExpr>, Option<Box<TypedExpr>>),
-    Signature(Vec<TypedExpr>, Option<Box<TypedExpr>>, Box<TypedExpr>),
+    ArrayInit(Vec<TypedExpr>, Option<Box<TypedExpr>>),
+    Signature(Vec<TypedExpr>, Type, Box<TypedExpr>),
     VarDec(String, Type, Option<Box<TypedExpr>>),
 
     // --- Control Flow ---
@@ -74,13 +74,13 @@ pub enum TypedExprKind {
     ErrorPlaceholder,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypedMatchArm {
     pub pattern: Box<TypedExpr>,
     pub body: Box<TypedExpr>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypedAttribute {
     pub name: String,
     pub args: Vec<TypedExpr>,
@@ -105,31 +105,31 @@ impl TypedExpr {
 
         match &self.kind {
             TypedExprKind::Lit(l) => {
-                println!("[Lit {:?}] :: {:?}", l, self.ty);
+                println!("[Lit {:?}] :: {}", l, self.ty.name());
             }
             TypedExprKind::Ident(name) => {
-                println!("[Ident '{}'] :: {:?}", name, self.ty);
+                println!("[Ident '{}'] :: {}", name, self.ty.name());
             }
             TypedExprKind::VarDec(name, ty, _) => {
-                println!("[Vardec '{}'] :: {:?}", name, ty);
+                println!("[Vardec '{}'] :: {}", name, ty.name());
             }
             TypedExprKind::Binary(left, op, right) => {
-                println!("[Binary {:?}] :: {:?}", op, self.ty);
+                println!("[Binary {:?}] :: {}", op, self.ty.name());
                 left.print_recursive(indent + 1);
                 right.print_recursive(indent + 1);
             }
             TypedExprKind::Unary(op, expr) => {
-                println!("[Unary {:?}] :: {:?}", op, self.ty);
+                println!("[Unary {:?}] :: {}", op, self.ty.name());
                 expr.print_recursive(indent + 1);
             }
             TypedExprKind::Block(stmts) => {
-                println!("[Block] :: {:?}", self.ty);
+                println!("[Block] :: {}", self.ty.name());
                 for stmt in stmts {
                     stmt.print_recursive(indent + 1);
                 }
             }
             TypedExprKind::If(cond, then_branch, else_branch) => {
-                println!("[If] :: {:?}", self.ty);
+                println!("[If] :: {}", self.ty.name());
                 print!("{}  ├─ Cond: ", pad);
                 println!("");
                 cond.print_recursive(indent + 2);
@@ -143,12 +143,12 @@ impl TypedExpr {
                 }
             }
             TypedExprKind::While(cond, body) => {
-                println!("[While] :: {:?}", self.ty);
+                println!("[While] :: {}", self.ty.name());
                 cond.print_recursive(indent + 1);
                 body.print_recursive(indent + 1);
             }
             TypedExprKind::Call(func, args) => {
-                println!("[Call] :: {:?}", self.ty);
+                println!("[Call] :: {}", self.ty.name());
                 print!("{}  Fn: ", pad);
                 println!("");
                 func.print_recursive(indent + 2);
@@ -161,14 +161,14 @@ impl TypedExpr {
                 print!("[Return]");
                 match val {
                     Some(v) => {
-                        println!(" :: {:?}", self.ty);
+                        println!(" :: {}", self.ty.name());
                         v.print_recursive(indent + 1);
                     }
                     None => println!(" :: Void"),
                 }
             }
             _ => {
-                println!("[Unknown/Complex Kind] :: {:?}", self.ty);
+                println!("[Unknown/Complex Kind] :: {}", self.ty.name());
             }
         }
     }

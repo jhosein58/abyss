@@ -9,6 +9,14 @@ pub struct Span {
 }
 
 impl Span {
+    pub fn empty() -> Self {
+        Self {
+            file_id: 0,
+            start: 0,
+            end: 0,
+        }
+    }
+
     pub fn merge(self, other: Span) -> Span {
         debug_assert_eq!(
             self.file_id, other.file_id,

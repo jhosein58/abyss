@@ -4,7 +4,7 @@ members = [
     "compiler/abyss_lexer",
     "compiler/abyss_parser",
     "compiler/abyss_codegen",
-    "compiler/abyss_analyzer", "compiler/abyss_diagnostics",
+    "compiler/abyss_analyzer", "compiler/abyss_diagnostics", "compiler/abyss_vm", "compiler/abyss_ir",
 ]
 
 
@@ -19,6 +19,7 @@ abyss_parser = { path = "./compiler/abyss_parser" }
 abyss_codegen = { path = "./compiler/abyss_codegen" }
 abyss_analyzer = { path = "./compiler/abyss_analyzer" }
 abyss_diagnostics = { path = "./compiler/abyss_diagnostics" }
+abyss_vm = { path = "./compiler/abyss_vm" }
 
 libc = "0.2"
 cc = "1.0"

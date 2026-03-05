@@ -6,6 +6,8 @@ use crate::type_checker::rules::block::check_block;
 use crate::type_checker::rules::call::check_call;
 use crate::type_checker::rules::ident::check_ident;
 use crate::type_checker::rules::literals::check_literal;
+use crate::type_checker::rules::sequence::check_sequence;
+use crate::type_checker::rules::signature::check_signature;
 
 use super::context::TypeContext;
 
@@ -42,6 +44,10 @@ impl<'a> TypeChecker<'a> {
             ExprKind::Call(calle, args) => check_call(self, calle, args, expr.span_expr(), expr.id),
             ExprKind::Signature(args, ret_ty, body) => {
                 check_signature(self, args, ret_ty, body, expr.span_expr(), expr.id)
+            }
+
+            ExprKind::Sequence(items, count) => {
+                check_sequence(self, items, count, expr.span_expr(), expr.id)
             }
 
             _ => TypedExpr {

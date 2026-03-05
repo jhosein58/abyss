@@ -1,5 +1,5 @@
 use abyss_diagnostics::Span;
-use abyss_parser::ast::{Expr, ExprKind};
+use abyss_parser::ast::Expr;
 
 use crate::type_checker::{
     engine::{TypeChecker, error_expr},
@@ -14,7 +14,9 @@ pub fn check_call(
     span: Span,
     id: u32,
 ) -> TypedExpr {
-    if let ExprKind::Ident(ref n) = calle.kind {
+    let checked_calle = tc.check_expr(&calle);
+
+    if let Type::Signature(_, ret_ty) = checked_calle.ty.clone() {
         let mut new_args = Vec::with_capacity(args.len());
 
         for a in args.iter() {
@@ -22,16 +24,8 @@ pub fn check_call(
         }
 
         return TypedExpr {
-            kind: TypedExprKind::Call(
-                Box::new(TypedExpr {
-                    kind: TypedExprKind::Ident(n.clone()),
-                    ty: Type::Unit,
-                    span: calle.span_expr(),
-                    id: calle.id,
-                }),
-                new_args,
-            ),
-            ty: Type::Unit,
+            kind: TypedExprKind::Call(Box::new(checked_calle), new_args),
+            ty: *ret_ty,
             span,
             id,
         };
@@ -39,7 +33,10 @@ pub fn check_call(
 
     tc.report_error(
         calle.span_expr(),
-        format!("Only identifiers can be called."),
+        format!(
+            "Only Signatures can be called. found '{}'.",
+            checked_calle.ty.name()
+        ),
     );
     error_expr(span, id)
 }
