@@ -1,5 +1,6 @@
 use crate::type_checker::{
     engine::{TypeChecker, error_expr},
+    rules::signature::check_signature,
     tast::{TypedExpr, TypedExprKind},
     types::Type,
 };
@@ -14,24 +15,53 @@ pub fn check_binary(
     span: Span,
     id: u32,
 ) -> TypedExpr {
-    let typed_right = tc.check_expr(right_expr);
-    let right_ty = typed_right.ty.clone();
+    if op == BinaryOp::ConstDef {
+        if let ExprKind::Ident(ref name) = left_expr.kind {
+            if let ExprKind::Signature(ref args, ref ret, ref body) = right_expr.kind {
+                let func_ref = check_signature(
+                    tc,
+                    args,
+                    ret,
+                    body,
+                    Some(name.clone()),
+                    right_expr.span.clone(),
+                    right_expr.id,
+                );
+
+                tc.ctx.define(name.clone(), func_ref.ty.clone());
+
+                return TypedExpr {
+                    kind: TypedExprKind::FuncRef(name.clone()),
+                    ty: func_ref.ty,
+                    span,
+                    id,
+                };
+            }
+            // TODO: Const def    ->   Pi :: 3.14
+        }
+    }
 
     if op == BinaryOp::Assign {
         match left_expr.kind {
             ExprKind::Binary(ref var, ref o, ref ty) => {
                 if *o == BinaryOp::KeyValue {
+                    let typed_right = tc.check_expr(right_expr);
                     return check_var_dec(tc, var, ty, typed_right, span, id);
                 } else {
                     let s = left_expr.span.clone().merge(ty.span.clone());
-                    tc.report_error(s, format!("Expected 'pattern := expr' or 'pattern: type = expr' syntax, found 'pattern {} epxr = expr'",  o));
-
+                    tc.report_error(
+                        s,
+                        format!("Expected 'pattern := expr' or 'pattern: type = expr' syntax."),
+                    );
                     return error_expr(span, id);
                 }
             }
             _ => {}
         }
     }
+
+    let typed_right = tc.check_expr(right_expr);
+    let right_ty = typed_right.ty.clone();
 
     let typed_left = tc.check_expr(left_expr);
     let left_ty = typed_left.ty.clone();

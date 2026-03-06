@@ -26,6 +26,8 @@
 -- }
 
 
-res := 0
+add :: (a: i32, b: i32): i32 {
+    ret a + b
+}
 
-res = 2
+print(add(2, 3, 3, 5))

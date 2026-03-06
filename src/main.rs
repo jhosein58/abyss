@@ -5,9 +5,10 @@ use std::fs;
 use abyss_analyzer::type_checker::{engine::TypeChecker, tast::TypedProgram};
 //use abyss_analyzer::type_checker::engine::TypeChecker;
 use abyss_diagnostics::DiagnosticEngine;
+use abyss_ir::builder::IrBuilder;
 use abyss_parser::parser::Parser;
 
-use abyss_vm::{AbyssVm, Instruction, OpCode, codegen::Compiler};
+use abyss_vm::{AbyssVm, codegen::IrCompiler};
 
 fn main() {
     let code = fs::read_to_string("main.a").unwrap();
@@ -22,20 +23,21 @@ fn main() {
 
     let mut type_checker = TypeChecker::new(&mut err);
 
-    let tast = type_checker.check_expr(&program.body);
+    let tast = type_checker.check_program(program);
+    tast.body.print_tree();
 
-    let mut cmp = Compiler::new();
+    let mut cmp = IrBuilder::new();
 
-    cmp.compile_program(&TypedProgram { body: tast });
+    let ir_program = cmp.build_program(tast);
 
     println!();
     println!("{}", err.render());
 
-    let mut vm = AbyssVm::new(cmp.builder.instructions, cmp.builder.constants);
-    println!("--- Running VM ---");
-    vm.run();
-    println!("--- VM Finished ---");
+    let compiler = IrCompiler::new();
+    let (instructions, constants) = compiler.compile(&ir_program);
 
+    let mut vm = AbyssVm::new(instructions, constants);
+    vm.run();
     let return_val = vm.get_register_as_i64(1);
     println!("CTFE Result (Register 2): {}", return_val);
 }
