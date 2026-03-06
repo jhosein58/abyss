@@ -28,7 +28,13 @@ pub enum TypedExprKind {
 
     // --- Sequences & Functions & dec ---
     ArrayInit(Vec<TypedExpr>, Option<Box<TypedExpr>>),
-    Signature(Vec<TypedExpr>, Type, Box<TypedExpr>),
+    FunctionDef {
+        name: String,
+        args: Vec<TypedExpr>,
+        ret_ty: Type,
+        body: Box<TypedExpr>,
+    },
+    FuncRef(String),
     VarDec(String, Type, Option<Box<TypedExpr>>),
 
     // --- Control Flow ---
@@ -90,13 +96,13 @@ pub struct TypedAttribute {
 #[derive(Debug, Clone)]
 pub struct TypedProgram {
     pub body: TypedExpr,
+    pub hoisted_functions: Vec<TypedExpr>,
 }
 
 impl TypedExpr {
     pub fn print_tree(&self) {
         self.print_recursive(0);
     }
-
     fn print_recursive(&self, indent: usize) {
         let pad = "  ".repeat(indent);
         let arrow = if indent > 0 { "└─ " } else { "" };
@@ -104,14 +110,37 @@ impl TypedExpr {
         print!("{}{}", pad, arrow);
 
         match &self.kind {
+            TypedExprKind::FunctionDef {
+                name,
+                args,
+                ret_ty,
+                body,
+            } => {
+                println!(
+                    "[FunctionDef '{}' -> {}] :: {}",
+                    name,
+                    ret_ty.name(),
+                    self.ty.name()
+                );
+                for arg in args {
+                    arg.print_recursive(indent + 1);
+                }
+                body.print_recursive(indent + 1);
+            }
+            TypedExprKind::FuncRef(name) => {
+                println!("[FuncRef '{}'] :: {}", name, self.ty.name());
+            }
             TypedExprKind::Lit(l) => {
                 println!("[Lit {:?}] :: {}", l, self.ty.name());
             }
             TypedExprKind::Ident(name) => {
                 println!("[Ident '{}'] :: {}", name, self.ty.name());
             }
-            TypedExprKind::VarDec(name, ty, _) => {
-                println!("[Vardec '{}'] :: {}", name, ty.name());
+            TypedExprKind::VarDec(name, ty, init_opt) => {
+                println!("[VarDec '{}'] :: {}", name, ty.name());
+                if let Some(init_expr) = init_opt {
+                    init_expr.print_recursive(indent + 1);
+                }
             }
             TypedExprKind::Binary(left, op, right) => {
                 println!("[Binary {:?}] :: {}", op, self.ty.name());
@@ -130,16 +159,10 @@ impl TypedExpr {
             }
             TypedExprKind::If(cond, then_branch, else_branch) => {
                 println!("[If] :: {}", self.ty.name());
-                print!("{}  ├─ Cond: ", pad);
-                println!("");
-                cond.print_recursive(indent + 2);
-
-                println!("{}  ├─ Then: ", pad);
-                then_branch.print_recursive(indent + 2);
-
+                cond.print_recursive(indent + 1);
+                then_branch.print_recursive(indent + 1);
                 if let Some(else_b) = else_branch {
-                    println!("{}  └─ Else: ", pad);
-                    else_b.print_recursive(indent + 2);
+                    else_b.print_recursive(indent + 1);
                 }
             }
             TypedExprKind::While(cond, body) => {
@@ -149,26 +172,51 @@ impl TypedExpr {
             }
             TypedExprKind::Call(func, args) => {
                 println!("[Call] :: {}", self.ty.name());
-                print!("{}  Fn: ", pad);
-                println!("");
-                func.print_recursive(indent + 2);
-                for (i, arg) in args.iter().enumerate() {
-                    println!("{}  Arg {}: ", pad, i);
-                    arg.print_recursive(indent + 2);
+                func.print_recursive(indent + 1);
+                for arg in args {
+                    arg.print_recursive(indent + 1);
                 }
             }
             TypedExprKind::Ret(val) => {
-                print!("[Return]");
-                match val {
-                    Some(v) => {
-                        println!(" :: {}", self.ty.name());
-                        v.print_recursive(indent + 1);
-                    }
-                    None => println!(" :: Void"),
+                println!("[Return] :: {}", self.ty.name());
+                if let Some(v) = val {
+                    v.print_recursive(indent + 1);
                 }
             }
-            _ => {
-                println!("[Unknown/Complex Kind] :: {}", self.ty.name());
+            TypedExprKind::Break => println!("[Break]"),
+            TypedExprKind::Continue => println!("[Continue]"),
+            TypedExprKind::Mod(left, right) => {
+                println!("[Mod] :: {}", self.ty.name());
+                left.print_recursive(indent + 1);
+                right.print_recursive(indent + 1);
+            }
+            TypedExprKind::Member(expr, name) => {
+                println!("[Member '.{}'] :: {}", name, self.ty.name());
+                expr.print_recursive(indent + 1);
+            }
+            TypedExprKind::Index(expr, idx) => {
+                println!("[Index] :: {}", self.ty.name());
+                expr.print_recursive(indent + 1);
+                idx.print_recursive(indent + 1);
+            }
+            TypedExprKind::Cast(expr, _) => {
+                println!("[Cast] :: {}", self.ty.name());
+                expr.print_recursive(indent + 1);
+            }
+            TypedExprKind::ErrorPlaceholder => {
+                println!("[ErrorPlaceholder] :: {}", self.ty.name());
+            }
+
+            other => {
+                let debug_str = format!("{:?}", other);
+                let variant_name = debug_str
+                    .split('(')
+                    .next()
+                    .unwrap_or("Unknown")
+                    .split('{')
+                    .next()
+                    .unwrap_or("Unknown");
+                println!("[{}] :: {}", variant_name, self.ty.name());
             }
         }
     }

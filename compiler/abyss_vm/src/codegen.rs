@@ -1,149 +1,339 @@
 use std::collections::HashMap;
 
-use abyss_analyzer::type_checker::{
-    tast::{TypedExpr, TypedExprKind, TypedProgram},
-    types::Type,
-};
-use abyss_parser::ast::{BinaryOp, Lit};
+use abyss_ir::ir::{IrBinaryOp, IrExpr, IrExprKind, IrLit, IrProgram, IrStmt, IrType};
 
 use crate::{Instruction, OpCode};
 
-#[derive(Debug)]
-pub struct VmBuilder {
-    pub instructions: Vec<Instruction>,
-    pub constants: Vec<u64>,
+struct Env {
+    vars: HashMap<String, u8>,
+    next_reg: u8,
 }
 
-impl VmBuilder {
-    pub fn new() -> Self {
+impl Env {
+    fn new() -> Self {
         Self {
-            instructions: Vec::new(),
-            constants: Vec::new(),
-        }
-    }
-    pub fn add_const_i64(&mut self, val: i64) -> u8 {
-        self.constants.push(val as u64);
-        (self.constants.len() - 1) as u8
-    }
-    pub fn add_const_f64(&mut self, val: f64) -> u8 {
-        self.constants.push(val.to_bits());
-        (self.constants.len() - 1) as u8
-    }
-    pub fn emit(&mut self, op: OpCode, a: u8, b: u8, c: u8) {
-        self.instructions.push(Instruction { op, a, b, c });
-    }
-}
-
-pub struct Compiler {
-    pub builder: VmBuilder,
-    locals: HashMap<String, u8>,
-    next_free_reg: u8,
-}
-
-impl Compiler {
-    pub fn new() -> Self {
-        Self {
-            builder: VmBuilder::new(),
-            locals: HashMap::new(),
-            next_free_reg: 0,
+            vars: HashMap::new(),
+            next_reg: 0,
         }
     }
 
     fn alloc_reg(&mut self) -> u8 {
-        let reg = self.next_free_reg;
-        self.next_free_reg += 1;
-        reg
+        let r = self.next_reg;
+        if r == 255 {
+            panic!("Register overflow! A single function used more than 255 registers.");
+        }
+        self.next_reg += 1;
+        r
     }
 
-    pub fn compile_program(&mut self, program: &TypedProgram) {
-        self.compile_expr(&program.body);
-        self.builder.emit(OpCode::Halt, 0, 0, 0);
+    fn declare_var(&mut self, name: String) -> u8 {
+        let r = self.alloc_reg();
+        self.vars.insert(name, r);
+        r
     }
 
-    pub fn compile_expr(&mut self, expr: &TypedExpr) -> u8 {
-        match &expr.kind {
-            TypedExprKind::Lit(lit) => {
-                let res_reg = self.alloc_reg();
-                match lit {
-                    Lit::Int(val) => {
-                        let const_idx = self.builder.add_const_i64(*val);
-                        self.builder.emit(OpCode::LoadConst, res_reg, const_idx, 0);
-                    }
-                    Lit::Float(val) => {
-                        let const_idx = self.builder.add_const_f64(val.0);
-                        self.builder.emit(OpCode::LoadConst, res_reg, const_idx, 0);
-                    }
-                    _ => unimplemented!("Only Int and Float literals are supported for now."),
-                }
-                res_reg
+    fn get_var(&self, name: &str) -> u8 {
+        *self
+            .vars
+            .get(name)
+            .expect(&format!("Variable '{}' not found in scope", name))
+    }
+}
+
+pub struct IrCompiler {
+    instructions: Vec<Instruction>,
+    constants: Vec<u64>,
+    func_const_indices: HashMap<String, u8>,
+}
+
+impl IrCompiler {
+    pub fn new() -> Self {
+        Self {
+            instructions: Vec::new(),
+            constants: Vec::new(),
+            func_const_indices: HashMap::new(),
+        }
+    }
+
+    fn emit(&mut self, inst: Instruction) {
+        self.instructions.push(inst);
+    }
+
+    fn add_const(&mut self, val: u64) -> u8 {
+        if let Some(idx) = self.constants.iter().position(|&c| c == val) {
+            if idx < 256 {
+                return idx as u8;
+            }
+        }
+
+        let idx = self.constants.len();
+        if idx >= 256 {
+            panic!("Too many constants! Limit is 256.");
+        }
+        self.constants.push(val);
+        idx as u8
+    }
+
+    pub fn compile(mut self, program: &IrProgram) -> (Vec<Instruction>, Vec<u64>) {
+        for func in &program.functions {
+            let idx = self.constants.len() as u8;
+            self.constants.push(0);
+            self.func_const_indices.insert(func.name.clone(), idx);
+        }
+
+        if let Some(main_const_idx) = self.func_const_indices.get("main") {
+            let r_addr = 0;
+            let r_dest = 1;
+
+            self.emit(Instruction {
+                op: OpCode::LoadConst,
+                a: r_addr,
+                b: *main_const_idx,
+                c: 0,
+            });
+
+            self.emit(Instruction {
+                op: OpCode::Call,
+                a: r_dest,
+                b: r_addr,
+                c: 2,
+            });
+            self.emit(Instruction {
+                op: OpCode::Halt,
+                a: 0,
+                b: 0,
+                c: 0,
+            });
+        } else {
+            panic!("Program must have a 'main' function.");
+        }
+
+        for func in &program.functions {
+            let func_ip = self.instructions.len() as u64;
+            let const_idx = self.func_const_indices[&func.name];
+            self.constants[const_idx as usize] = func_ip;
+
+            let mut env = Env::new();
+
+            for (param_name, _) in &func.params {
+                let r = env.alloc_reg();
+                env.vars.insert(param_name.clone(), r);
             }
 
-            TypedExprKind::Ident(name) => {
-                if let Some(&reg) = self.locals.get(name) {
+            for stmt in &func.body {
+                self.compile_stmt(&mut env, stmt);
+            }
+
+            let r_dummy = env.alloc_reg();
+            let zero_idx = self.add_const(0);
+            self.emit(Instruction {
+                op: OpCode::LoadConst,
+                a: r_dummy,
+                b: zero_idx,
+                c: 0,
+            });
+            self.emit(Instruction {
+                op: OpCode::Ret,
+                a: r_dummy,
+                b: 0,
+                c: 0,
+            });
+        }
+
+        (self.instructions, self.constants)
+    }
+
+    fn compile_stmt(&mut self, env: &mut Env, stmt: &IrStmt) {
+        match stmt {
+            IrStmt::VarDec { name, ty: _, init } => {
+                let dest_reg = env.declare_var(name.clone());
+                if let Some(expr) = init {
+                    let val_reg = self.compile_expr(env, expr);
+                    self.emit(Instruction {
+                        op: OpCode::Move,
+                        a: dest_reg,
+                        b: val_reg,
+                        c: 0,
+                    });
+                }
+            }
+            IrStmt::Assign { target, val } => {
+                let dest_reg = env.get_var(target);
+                let val_reg = self.compile_expr(env, val);
+                self.emit(Instruction {
+                    op: OpCode::Move,
+                    a: dest_reg,
+                    b: val_reg,
+                    c: 0,
+                });
+            }
+            IrStmt::Expr(expr) => {
+                self.compile_expr(env, expr);
+            }
+            IrStmt::Return(opt_expr) => {
+                let ret_reg = match opt_expr {
+                    Some(expr) => self.compile_expr(env, expr),
+                    None => {
+                        let r = env.alloc_reg();
+                        let zero = self.add_const(0);
+                        self.emit(Instruction {
+                            op: OpCode::LoadConst,
+                            a: r,
+                            b: zero,
+                            c: 0,
+                        });
+                        r
+                    }
+                };
+                self.emit(Instruction {
+                    op: OpCode::Ret,
+                    a: ret_reg,
+                    b: 0,
+                    c: 0,
+                });
+            }
+        }
+    }
+
+    fn compile_expr(&mut self, env: &mut Env, expr: &IrExpr) -> u8 {
+        match &expr.kind {
+            IrExprKind::Lit(lit) => {
+                let val_u64 = match lit {
+                    IrLit::Int(i) => *i as u64,
+                    IrLit::Float(f) => f.to_bits(),
+                    IrLit::Bool(b) => {
+                        if *b {
+                            1
+                        } else {
+                            0
+                        }
+                    }
+                };
+                let const_idx = self.add_const(val_u64);
+                let dest_reg = env.alloc_reg();
+                self.emit(Instruction {
+                    op: OpCode::LoadConst,
+                    a: dest_reg,
+                    b: const_idx,
+                    c: 0,
+                });
+                dest_reg
+            }
+
+            IrExprKind::VarRef(name) => {
+                if let Some(&reg) = env.vars.get(name) {
+                    return reg;
+                }
+
+                if let Some(&func_const_idx) = self.func_const_indices.get(name) {
+                    let dest_reg = env.alloc_reg();
+                    self.emit(Instruction {
+                        op: OpCode::LoadConst,
+                        a: dest_reg,
+                        b: func_const_idx,
+                        c: 0,
+                    });
+                    return dest_reg;
+                }
+
+                panic!("Variable or function '{}' not found in scope", name);
+            }
+
+            IrExprKind::Binary(left, op, right) => {
+                let r_left = self.compile_expr(env, left);
+                let r_right = self.compile_expr(env, right);
+                let r_dest = env.alloc_reg();
+
+                let opcode = match (&expr.ty, op) {
+                    (IrType::I32, IrBinaryOp::Add) => OpCode::AddI,
+                    (IrType::I32, IrBinaryOp::Sub) => OpCode::SubI,
+                    (IrType::I32, IrBinaryOp::Mul) => OpCode::MulI,
+                    (IrType::I32, IrBinaryOp::Div) => OpCode::DivI,
+
+                    (IrType::F32, IrBinaryOp::Add) => OpCode::AddF,
+                    (IrType::F32, IrBinaryOp::Sub) => OpCode::SubF,
+                    (IrType::F32, IrBinaryOp::Mul) => OpCode::MulF,
+                    (IrType::F32, IrBinaryOp::Div) => OpCode::DivF,
+
+                    _ => panic!("Unsupported binary operation or type"),
+                };
+
+                self.emit(Instruction {
+                    op: opcode,
+                    a: r_dest,
+                    b: r_left,
+                    c: r_right,
+                });
+                r_dest
+            }
+
+            IrExprKind::Call { func_name, args } => {
+                if func_name == "print" && args.len() == 1 {
+                    let arg_reg = self.compile_expr(env, &args[0]);
+
+                    self.emit(Instruction {
+                        op: OpCode::PrintI,
+                        a: arg_reg,
+                        b: 0,
+                        c: 0,
+                    });
+
+                    let dummy_reg = env.alloc_reg();
+                    let zero_idx = self.add_const(0);
+                    self.emit(Instruction {
+                        op: OpCode::LoadConst,
+                        a: dummy_reg,
+                        b: zero_idx,
+                        c: 0,
+                    });
+                    return dummy_reg;
+                }
+
+                let mut arg_regs = Vec::new();
+                for arg in args {
+                    arg_regs.push(self.compile_expr(env, arg));
+                }
+
+                let frame_offset = env.next_reg;
+
+                for (i, r_arg) in arg_regs.into_iter().enumerate() {
+                    let target_arg_reg = frame_offset + (i as u8);
+                    if target_arg_reg >= env.next_reg {
+                        env.next_reg = target_arg_reg + 1;
+                    }
+                    self.emit(Instruction {
+                        op: OpCode::Move,
+                        a: target_arg_reg,
+                        b: r_arg,
+                        c: 0,
+                    });
+                }
+
+                let r_addr = if let Some(&reg) = env.vars.get(func_name) {
+                    reg
+                } else if let Some(&func_const_idx) = self.func_const_indices.get(func_name) {
+                    let reg = env.alloc_reg();
+                    self.emit(Instruction {
+                        op: OpCode::LoadConst,
+                        a: reg,
+                        b: func_const_idx,
+                        c: 0,
+                    });
                     reg
                 } else {
-                    panic!("Codegen Error: Variable '{}' not found!", name);
-                }
+                    panic!("Function '{}' not found", func_name);
+                };
+
+                let r_dest = env.alloc_reg();
+                self.emit(Instruction {
+                    op: OpCode::Call,
+                    a: r_dest,
+                    b: r_addr,
+                    c: frame_offset,
+                });
+
+                r_dest
             }
-
-            TypedExprKind::VarDec(name, _ty, Some(init_expr)) => {
-                let val_reg = self.compile_expr(init_expr);
-                self.locals.insert(name.clone(), val_reg);
-                val_reg
-            }
-
-            TypedExprKind::Binary(left, op, right) => {
-                let left_reg = self.compile_expr(left);
-                let right_reg = self.compile_expr(right);
-                let res_reg = self.alloc_reg();
-
-                let is_float = matches!(expr.ty, Type::F32);
-
-                match op {
-                    BinaryOp::Add => {
-                        let opc = if is_float { OpCode::AddF } else { OpCode::AddI };
-                        self.builder.emit(opc, res_reg, left_reg, right_reg);
-                    }
-                    BinaryOp::Sub => {
-                        let opc = if is_float { OpCode::SubF } else { OpCode::SubI };
-                        self.builder.emit(opc, res_reg, left_reg, right_reg);
-                    }
-                    BinaryOp::Mul => {
-                        let opc = if is_float { OpCode::MulF } else { OpCode::MulI };
-                        self.builder.emit(opc, res_reg, left_reg, right_reg);
-                    }
-                    BinaryOp::Div => {
-                        let opc = if is_float { OpCode::DivF } else { OpCode::DivI };
-                        self.builder.emit(opc, res_reg, left_reg, right_reg);
-                    }
-                    _ => unimplemented!("Binary op {:?} not supported yet.", op),
-                }
-                res_reg
-            }
-
-            // TypedExprKind::Unary(op, operand) => {
-            //     let op_reg = self.compile_expr(operand);
-            //     let res_reg = self.alloc_reg();
-            //     let is_float = matches!(expr.ty, Type::F32);
-
-            //     match op {
-            //         UnaryOp::Neg => {
-            //             let opc = if is_float { OpCode::NegF } else { OpCode::NegI };
-            //             self.builder.emit(opc, res_reg, op_reg, 0); // رجیستر سوم استفاده نمی‌شود
-            //         }
-            //         _ => unimplemented!("Unary op {:?} not supported yet.", op),
-            //     }
-            //     res_reg
-            // }
-            TypedExprKind::Block(stmts) => {
-                let mut last_reg = 0;
-                for stmt in stmts {
-                    last_reg = self.compile_expr(stmt);
-                }
-                last_reg
-            }
-
-            _ => unimplemented!("Expr kind {:?} not supported yet.", expr.kind),
         }
     }
 }

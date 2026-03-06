@@ -15,45 +15,69 @@ impl IrBuilder {
 
     pub fn build_program(&mut self, program: TypedProgram) -> IrProgram {
         let mut functions = Vec::new();
-
-        if let TypedExprKind::Block(exprs) = program.body.kind {
-            for expr in exprs {
-                if let Some(ir_func) = self.build_function(expr) {
-                    functions.push(ir_func);
-                }
+        for hoisted_func in program.hoisted_functions {
+            if let Some(ir_func) = self.build_function(hoisted_func) {
+                functions.push(ir_func);
             }
         }
+
+        let mut main_body = Vec::new();
+        if let TypedExprKind::Block(stmts) = program.body.kind {
+            for stmt in stmts {
+                main_body.push(self.lower_stmt(stmt));
+            }
+        } else {
+            main_body.push(self.lower_stmt(program.body));
+        }
+
+        functions.push(IrFunction {
+            name: "main".to_string(),
+            params: vec![],
+            return_ty: IrType::Unit,
+            body: main_body,
+        });
 
         IrProgram { functions }
     }
 
     fn build_function(&mut self, expr: TypedExpr) -> Option<IrFunction> {
-        if let TypedExprKind::Binary(left, BinaryOp::ConstDef, right) = expr.kind {
-            if let TypedExprKind::Ident(name) = left.kind {
-                if let TypedExprKind::Signature(params, ret_ty, body) = right.kind {
-                    let mut ir_params = Vec::new();
-                    for param_expr in params {
-                        if let TypedExprKind::VarDec(p_name, p_ty, _) = param_expr.kind {
-                            ir_params.push((p_name, self.lower_type(&p_ty)));
-                        }
-                    }
+        if let TypedExprKind::FunctionDef {
+            name,
+            args,
+            ret_ty,
+            body,
+        } = expr.kind
+        {
+            let mut ir_params = Vec::new();
 
-                    let mut ir_body = Vec::new();
-                    if let TypedExprKind::Block(stmts) = body.kind {
-                        for stmt in stmts {
-                            ir_body.push(self.lower_stmt(stmt));
-                        }
-                    }
-
-                    return Some(IrFunction {
-                        name,
-                        params: ir_params,
-                        return_ty: self.lower_type(&ret_ty),
-                        body: ir_body,
-                    });
+            for param_expr in args {
+                if let TypedExprKind::VarDec(p_name, p_ty, _) = param_expr.kind {
+                    ir_params.push((p_name, self.lower_type(&p_ty)));
+                } else {
+                    panic!("IR Builder: Function arguments must be VarDec.");
                 }
             }
+
+            let mut ir_body = Vec::new();
+            match body.kind {
+                TypedExprKind::Block(stmts) => {
+                    for stmt in stmts {
+                        ir_body.push(self.lower_stmt(stmt));
+                    }
+                }
+                _ => {
+                    ir_body.push(self.lower_stmt(*body));
+                }
+            }
+
+            return Some(IrFunction {
+                name,
+                params: ir_params,
+                return_ty: self.lower_type(&ret_ty),
+                body: ir_body,
+            });
         }
+
         None
     }
 
@@ -99,6 +123,8 @@ impl IrBuilder {
 
             TypedExprKind::Ident(name) => IrExprKind::VarRef(name),
 
+            TypedExprKind::FuncRef(name) => IrExprKind::VarRef(name),
+
             TypedExprKind::Binary(left, op, right) => {
                 let ir_op = match op {
                     BinaryOp::Add => IrBinaryOp::Add,
@@ -115,14 +141,17 @@ impl IrBuilder {
             }
 
             TypedExprKind::Call(func, args) => {
-                if let TypedExprKind::Ident(func_name) = func.kind {
-                    let ir_args = args.into_iter().map(|a| self.lower_expr(a)).collect();
-                    IrExprKind::Call {
-                        func_name,
-                        args: ir_args,
-                    }
-                } else {
-                    panic!("IR Builder: Dynamic dispatch / complex calls not supported yet.");
+                let func_name = match func.kind {
+                    TypedExprKind::Ident(name) => name,
+                    TypedExprKind::FuncRef(name) => name,
+                    _ => panic!("IR Builder: Dynamic dispatch / complex calls not supported yet."),
+                };
+
+                let ir_args = args.into_iter().map(|a| self.lower_expr(a)).collect();
+
+                IrExprKind::Call {
+                    func_name,
+                    args: ir_args,
                 }
             }
 
@@ -144,6 +173,8 @@ impl IrBuilder {
             Type::I32 => IrType::I32,
             Type::F32 => IrType::F32,
             Type::Unit => IrType::Unit,
+
+            Type::Signature(_, _) => IrType::I32,
 
             _ => panic!("IR Builder: Unsupported type {:?} for IR generation.", ty),
         }
