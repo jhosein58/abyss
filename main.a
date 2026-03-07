@@ -25,5 +25,8 @@
 --     next
 -- }
 
+cond := false
 
-print(2)
+res := if cond { 2 } else { }
+
+print(res)

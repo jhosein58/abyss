@@ -150,8 +150,9 @@ impl IrBuilder {
             }
 
             _ => {
-                let (expr_stmts, _val) = self.lower_expr(expr);
+                let (expr_stmts, val) = self.lower_expr(expr);
                 generated_stmts.extend(expr_stmts);
+                generated_stmts.push(IrStmt::Expr(val));
             }
         }
 

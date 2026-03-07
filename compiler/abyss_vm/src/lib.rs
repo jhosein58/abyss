@@ -25,6 +25,9 @@ pub enum OpCode {
     Ret,
     Jmp,
     JmpIf,
+
+    JmpImm,
+    JmpZImm,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -185,6 +188,20 @@ impl AbyssVm {
                     let condition = self.get_reg(inst.b);
                     if condition != 0 {
                         self.ip = self.get_reg(inst.a) as usize;
+                    }
+                }
+
+                OpCode::JmpImm => {
+                    let target_ip = ((inst.b as u16) << 8) | (inst.c as u16);
+                    self.ip = target_ip as usize;
+                }
+
+                OpCode::JmpZImm => {
+                    let condition = self.get_reg(inst.a);
+
+                    if condition == 0 {
+                        let target_ip = ((inst.b as u16) << 8) | (inst.c as u16);
+                        self.ip = target_ip as usize;
                     }
                 }
             }

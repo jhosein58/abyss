@@ -38,10 +38,9 @@ fn main() {
     let compiler = IrCompiler::new();
     let (instructions, constants) = compiler.compile(&ir_program);
 
+    //println!("{:#?}", instructions);
     let mut vm = AbyssVm::new(instructions, constants);
     vm.run();
-    let return_val = vm.get_register_as_i64(1);
-    println!("CTFE Result (Register 2): {}", return_val);
 
     println!("\ntime: {}ms", t.elapsed().as_millis());
 }
