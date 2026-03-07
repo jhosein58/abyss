@@ -15,6 +15,13 @@ impl TypedExpr {
     pub fn span_expr(&self) -> Span {
         match self.kind {
             TypedExprKind::Binary(ref l, _, ref r) => l.span_expr().merge(r.span_expr()),
+            TypedExprKind::If(_, ref then_b, ref else_b) => {
+                if let Some(eb) = else_b.clone() {
+                    self.span.clone().merge(eb.span_expr())
+                } else {
+                    self.span.clone().merge(then_b.span_expr())
+                }
+            }
             _ => self.span.clone(),
         }
     }
