@@ -32,7 +32,7 @@ impl IrBuilder {
         }
     }
 
-    // decl.rs
+    // --- decl.rs ---
 
     pub fn build_program(&mut self, program: TypedProgram) -> IrProgram {
         let mut functions = Vec::new();
@@ -104,7 +104,7 @@ impl IrBuilder {
         None
     }
 
-    // stmt.rs
+    // --- stmt.rs ---
 
     fn lower_stmt(&mut self, expr: TypedExpr) -> Vec<IrStmt> {
         let mut generated_stmts = Vec::new();
@@ -151,6 +151,12 @@ impl IrBuilder {
                 generated_stmts.push(IrStmt::Return(ir_val));
             }
 
+            TypedExprKind::Block(stmts) => {
+                for stmt in stmts {
+                    generated_stmts.extend(self.lower_stmt(stmt));
+                }
+            }
+
             _ => {
                 let (expr_stmts, val) = self.lower_expr(expr);
                 generated_stmts.extend(expr_stmts);
@@ -161,7 +167,7 @@ impl IrBuilder {
         generated_stmts
     }
 
-    // expr.rs
+    // --- expr.rs ---
 
     fn lower_expr(&mut self, expr: TypedExpr) -> (Vec<IrStmt>, IrExpr) {
         let span = expr.span.clone();
@@ -188,21 +194,33 @@ impl IrBuilder {
                 IrExprKind::Unary(ir_op, Box::new(inner_val))
             }
 
+            TypedExprKind::Binary(left, BinaryOp::Assign, right) => {
+                if let TypedExprKind::Ident(name) = left.kind {
+                    let (right_stmts, right_val) = self.lower_expr(*right);
+                    generated_stmts.extend(right_stmts);
+
+                    generated_stmts.push(IrStmt::Assign {
+                        target: name,
+                        val: right_val,
+                    });
+                    return (generated_stmts, self.unit_expr(span));
+                } else {
+                    panic!("Complex assignments not supported yet.");
+                }
+            }
+
             TypedExprKind::Binary(left, op, right) => {
                 let ir_op = match op {
-                    // Arithmetic
                     BinaryOp::Add => IrBinaryOp::Add,
                     BinaryOp::Sub => IrBinaryOp::Sub,
                     BinaryOp::Mul => IrBinaryOp::Mul,
                     BinaryOp::Div => IrBinaryOp::Div,
-                    // Comparison
                     BinaryOp::Eq => IrBinaryOp::Eq,
                     BinaryOp::Neq => IrBinaryOp::Neq,
                     BinaryOp::Lt => IrBinaryOp::Lt,
                     BinaryOp::Lte => IrBinaryOp::Le,
                     BinaryOp::Gt => IrBinaryOp::Gt,
                     BinaryOp::Gte => IrBinaryOp::Ge,
-                    // Logical
                     BinaryOp::And => IrBinaryOp::And,
                     BinaryOp::Or => IrBinaryOp::Or,
                     _ => panic!("Unsupported binary op in IR Builder: {:?}", op),
@@ -306,6 +324,36 @@ impl IrBuilder {
                 return (generated_stmts, last_val);
             }
 
+            TypedExprKind::Ret(val) => {
+                let ir_val = if let Some(ret_expr) = val {
+                    let (ret_stmts, ret_val) = self.lower_expr(*ret_expr);
+                    generated_stmts.extend(ret_stmts);
+                    Some(ret_val)
+                } else {
+                    None
+                };
+                generated_stmts.push(IrStmt::Return(ir_val));
+
+                return (generated_stmts, self.unit_expr(span));
+            }
+
+            TypedExprKind::VarDec(name, ty, init) => {
+                let ir_init = if let Some(init_expr) = init {
+                    let (init_stmts, init_val) = self.lower_expr(*init_expr);
+                    generated_stmts.extend(init_stmts);
+                    Some(init_val)
+                } else {
+                    None
+                };
+
+                generated_stmts.push(IrStmt::VarDec {
+                    name,
+                    ty: self.lower_type(&ty),
+                    init: ir_init,
+                });
+                return (generated_stmts, self.unit_expr(span));
+            }
+
             _ => panic!("Unexpected expression kind: {:?}", expr.kind),
         };
 
@@ -319,7 +367,7 @@ impl IrBuilder {
         )
     }
 
-    // utils.rs
+    // --- utils.rs ---
 
     fn lower_type(&self, ty: &Type) -> IrType {
         match ty {
