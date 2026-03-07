@@ -59,6 +59,15 @@ impl IrCompiler {
         self.instructions.push(inst);
     }
 
+    fn patch_jump(&mut self, inst_idx: usize, target_idx: usize) {
+        if target_idx > 0xFFFF {
+            panic!("Jump target address too large!");
+        }
+        let inst = &mut self.instructions[inst_idx];
+        inst.b = ((target_idx >> 8) & 0xFF) as u8;
+        inst.c = (target_idx & 0xFF) as u8;
+    }
+
     fn add_const(&mut self, val: u64) -> u8 {
         if let Some(idx) = self.constants.iter().position(|&c| c == val) {
             if idx < 256 {
@@ -191,6 +200,46 @@ impl IrCompiler {
                     b: 0,
                     c: 0,
                 });
+            }
+
+            IrStmt::If(cond, then_branch, else_branch) => {
+                let cond_reg = self.compile_expr(env, cond);
+
+                let jmpz_idx = self.instructions.len();
+                self.emit(Instruction {
+                    op: OpCode::JmpZImm, // Jump if Zero
+                    a: cond_reg,
+                    b: 0,
+                    c: 0,
+                });
+
+                let vars_backup = env.vars.clone();
+
+                for stmt in then_branch {
+                    self.compile_stmt(env, stmt);
+                }
+
+                let jmp_end_idx = self.instructions.len();
+                self.emit(Instruction {
+                    op: OpCode::JmpImm,
+                    a: 0,
+                    b: 0,
+                    c: 0,
+                });
+
+                let else_start_idx = self.instructions.len();
+                self.patch_jump(jmpz_idx, else_start_idx);
+
+                env.vars = vars_backup.clone();
+
+                for stmt in else_branch {
+                    self.compile_stmt(env, stmt);
+                }
+
+                let end_idx = self.instructions.len();
+                self.patch_jump(jmp_end_idx, end_idx);
+
+                env.vars = vars_backup;
             }
         }
     }
