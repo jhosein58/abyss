@@ -1,7 +1,7 @@
 use abyss_lexer::token::TokenKind as Tk;
 
 use crate::{
-    ast::{Expr, ExprKind},
+    ast::{BinaryOp, Expr, ExprKind},
     parser::{engine::PrattEngine, precedence::Precedence},
 };
 
@@ -29,11 +29,20 @@ pub fn parse_group_or_signature(eng: &mut PrattEngine) -> Result<Expr, ()> {
 
     let next_tk = eng.current_token().kind;
 
+    let mut is_single_typed_arg = false;
+    if args.len() == 1 {
+        if let ExprKind::Binary(_, op, _) = &args[0].kind {
+            if *op == BinaryOp::KeyValue {
+                is_single_typed_arg = true;
+            }
+        }
+    }
+
     let is_signature = args.is_empty()
         || args.len() > 1
         || has_trailing_comma
         || next_tk == Tk::Colon
-        || next_tk == Tk::OBrace;
+        || is_single_typed_arg;
 
     if is_signature {
         let mut ret_type = None;

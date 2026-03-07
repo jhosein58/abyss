@@ -21,5 +21,9 @@ pub fn parse_unary(eng: &mut PrattEngine) -> Result<Expr, ()> {
         _ => unreachable!("Invalid unary operator"),
     };
 
-    Ok(Expr { kind, span, id: 0 })
+    Ok(Expr {
+        kind,
+        span,
+        id: eng.next_id(),
+    })
 }

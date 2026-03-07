@@ -67,7 +67,13 @@ impl IrCompiler {
     }
 
     fn add_const(&mut self, val: u64) -> u8 {
-        if let Some(idx) = self.constants.iter().position(|&c| c == val) {
+        let reserved_slots = self.func_const_indices.len();
+
+        if let Some(offset) = self.constants[reserved_slots..]
+            .iter()
+            .position(|&c| c == val)
+        {
+            let idx = reserved_slots + offset;
             if idx < 256 {
                 return idx as u8;
             }
