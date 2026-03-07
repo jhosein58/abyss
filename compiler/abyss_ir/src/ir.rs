@@ -84,7 +84,7 @@ pub enum IrBinaryOp {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IrUnaryOp {
     Neg,   // -x
-    Not,   // !x
+    Not,   // not x
     Ref,   // &x
     Deref, // *x
 }
