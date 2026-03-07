@@ -43,6 +43,23 @@ pub fn check_binary(
 
     if op == BinaryOp::Assign {
         match left_expr.kind {
+            ExprKind::Wildcard => {
+                let typed_right = tc.check_expr(right_expr);
+
+                let typed_left = TypedExpr {
+                    kind: TypedExprKind::Wildcard,
+                    ty: Type::Unit,
+                    span: left_expr.span.clone(),
+                    id: left_expr.id,
+                };
+
+                return TypedExpr {
+                    kind: TypedExprKind::Binary(Box::new(typed_left), op, Box::new(typed_right)),
+                    ty: Type::Unit,
+                    span,
+                    id,
+                };
+            }
             ExprKind::Binary(ref var, ref o, ref ty) => {
                 if *o == BinaryOp::KeyValue {
                     let typed_right = tc.check_expr(right_expr);
@@ -210,6 +227,19 @@ fn check_var_dec(
     id: u32,
 ) -> TypedExpr {
     match pattern.kind {
+        ExprKind::Wildcard => {
+            if right.ty == Type::Error {
+                return error_expr(span, id);
+            }
+
+            TypedExpr {
+                kind: TypedExprKind::Wildcard,
+                id,
+                span,
+                ty: Type::Unit,
+            }
+        }
+
         ExprKind::Ident(ref n) => {
             let name = n.to_string();
             let init_type = if ty.kind == ExprKind::Wildcard {
@@ -244,7 +274,7 @@ fn check_var_dec(
         _ => {
             tc.report_error(
                 pattern.span_expr(),
-                format!("LHS must be an identifier. Found pattern.",),
+                format!("LHS must be an identifier. Found pattern."),
             );
             error_expr(span, id)
         }
