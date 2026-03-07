@@ -34,7 +34,7 @@ pub fn check_if(
 
             if checked_then.ty != checked_else.ty {
                 tc.report_error_with_hint(
-                    span.clone(),
+                    span.clone().merge(checked_else.span_expr()),
                     format!("'if' and 'else' have incompatible types"),
                     format!(
                         "The 'if' branch has type '{}', but the 'else' branch has type '{}'",

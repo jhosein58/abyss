@@ -10,6 +10,7 @@ use crate::type_checker::rules::literals::check_literal;
 use crate::type_checker::rules::prefix::check_ret;
 use crate::type_checker::rules::sequence::check_sequence;
 use crate::type_checker::rules::signature::check_signature;
+use crate::type_checker::rules::unary::check_unary;
 use crate::type_checker::tast::TypedProgram;
 
 use super::context::TypeContext;
@@ -46,6 +47,11 @@ impl<'a> TypeChecker<'a> {
             ExprKind::Lit(lit) => check_literal(lit, expr.span_expr(), expr.id),
             ExprKind::Block(stmts) => check_block(self, stmts, expr.span_expr(), expr.id),
             ExprKind::Binary(l, op, r) => check_binary(self, l, *op, r, expr.span_expr(), expr.id),
+
+            ExprKind::Unary(op, inner_expr) => {
+                check_unary(self, *op, inner_expr, expr.span_expr(), expr.id)
+            }
+
             ExprKind::Ident(name) => check_ident(self, name.clone(), expr.span_expr(), expr.id),
             ExprKind::Call(calle, args) => check_call(self, calle, args, expr.span_expr(), expr.id),
 

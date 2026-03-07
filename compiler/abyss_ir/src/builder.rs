@@ -2,9 +2,11 @@ use abyss_analyzer::type_checker::{
     tast::{TypedExpr, TypedExprKind, TypedProgram},
     types::Type,
 };
-use abyss_parser::ast::{BinaryOp, Lit};
+use abyss_parser::ast::{BinaryOp, Lit, UnaryOp};
 
-use crate::ir::{IrBinaryOp, IrExpr, IrExprKind, IrFunction, IrLit, IrProgram, IrStmt, IrType};
+use crate::ir::{
+    IrBinaryOp, IrExpr, IrExprKind, IrFunction, IrLit, IrProgram, IrStmt, IrType, IrUnaryOp,
+};
 use abyss_diagnostics::Span;
 
 pub struct IrBuilder {
@@ -171,13 +173,39 @@ impl IrBuilder {
 
             TypedExprKind::Ident(name) | TypedExprKind::FuncRef(name) => IrExprKind::VarRef(name),
 
+            TypedExprKind::Unary(op, inner_expr) => {
+                let ir_op = match op {
+                    UnaryOp::Neg => IrUnaryOp::Neg,
+                    UnaryOp::Not => IrUnaryOp::Not,
+                    UnaryOp::AddrOf => IrUnaryOp::Ref,
+                    UnaryOp::Deref => IrUnaryOp::Deref,
+                    _ => panic!("Unsupported unary op: {:?}", op),
+                };
+
+                let (inner_stmts, inner_val) = self.lower_expr(*inner_expr);
+                generated_stmts.extend(inner_stmts);
+
+                IrExprKind::Unary(ir_op, Box::new(inner_val))
+            }
+
             TypedExprKind::Binary(left, op, right) => {
                 let ir_op = match op {
+                    // Arithmetic
                     BinaryOp::Add => IrBinaryOp::Add,
                     BinaryOp::Sub => IrBinaryOp::Sub,
                     BinaryOp::Mul => IrBinaryOp::Mul,
                     BinaryOp::Div => IrBinaryOp::Div,
-                    _ => panic!("Unsupported binary op: {:?}", op),
+                    // Comparison
+                    BinaryOp::Eq => IrBinaryOp::Eq,
+                    BinaryOp::Neq => IrBinaryOp::Neq,
+                    BinaryOp::Lt => IrBinaryOp::Lt,
+                    BinaryOp::Lte => IrBinaryOp::Le,
+                    BinaryOp::Gt => IrBinaryOp::Gt,
+                    BinaryOp::Gte => IrBinaryOp::Ge,
+                    // Logical
+                    BinaryOp::And => IrBinaryOp::And,
+                    BinaryOp::Or => IrBinaryOp::Or,
+                    _ => panic!("Unsupported binary op in IR Builder: {:?}", op),
                 };
 
                 let (left_stmts, left_val) = self.lower_expr(*left);
@@ -299,6 +327,7 @@ impl IrBuilder {
             Type::F32 => IrType::F32,
             Type::Bool => IrType::Bool,
             Type::Unit => IrType::Unit,
+            Type::Ptr(inner) => IrType::Ptr(Box::new(self.lower_type(inner))),
             Type::Signature(_, _) => IrType::I32,
             _ => panic!("Unsupported type {:?} for IR generation.", ty),
         }

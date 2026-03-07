@@ -7,3 +7,4 @@ pub mod literals;
 pub mod prefix;
 pub mod sequence;
 pub mod signature;
+pub mod unary;

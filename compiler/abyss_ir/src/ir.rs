@@ -6,6 +6,7 @@ pub enum IrType {
     F32,
     Bool,
     Unit,
+    Ptr(Box<IrType>),
 }
 
 #[derive(Debug, Clone)]
@@ -53,6 +54,7 @@ pub enum IrExprKind {
     Lit(IrLit),
     VarRef(String),
 
+    Unary(IrUnaryOp, Box<IrExpr>),
     Binary(Box<IrExpr>, IrBinaryOp, Box<IrExpr>),
 
     Call {
@@ -67,6 +69,24 @@ pub enum IrBinaryOp {
     Sub,
     Mul,
     Div,
+
+    Eq,  // ==
+    Neq, // !=
+    Lt,  // <
+    Le,  // <=
+    Gt,  // >
+    Ge,  // >=
+
+    And, // and
+    Or,  // or
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum IrUnaryOp {
+    Neg,   // -x
+    Not,   // !x
+    Ref,   // &x
+    Deref, // *x
 }
 
 #[derive(Debug, Clone, PartialEq)]

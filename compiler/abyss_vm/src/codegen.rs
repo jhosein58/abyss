@@ -383,6 +383,8 @@ impl IrCompiler {
 
                 r_dest
             }
+
+            _ => panic!(),
         }
     }
 }

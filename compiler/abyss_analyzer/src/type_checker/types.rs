@@ -10,6 +10,7 @@ pub enum Type {
     Char,
     Unit,
     Infer,
+    Ptr(Box<Type>),
     Signature(Vec<Type>, Box<Type>),
     Array(Box<Type>, Box<TypedExpr>),
     Error,
@@ -27,6 +28,7 @@ impl Type {
             Type::Unit => "Unit".to_string(),
             Type::Error => "Err".to_string(),
             Type::Infer => "Infer".to_string(),
+            Type::Ptr(ref inner) => format!("&{}", inner.name()),
             Type::Signature(ref args, ref ret) => {
                 let arg_names: Vec<String> = args.iter().map(|arg_type| arg_type.name()).collect();
 

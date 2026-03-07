@@ -14,6 +14,14 @@ pub enum OpCode {
     DivI,
     PrintI,
 
+    // Integer Comparisons
+    CmpEqI,  // ==
+    CmpNeqI, // !=
+    CmpLtI,  // <
+    CmpLeI,  // <=
+    CmpGtI,  // >
+    CmpGeI,  // >=
+
     // Float Math
     AddF,
     SubF,
@@ -21,7 +29,24 @@ pub enum OpCode {
     DivF,
     PrintF,
 
+    // Float Comparisons
+    CmpEqF,  // ==
+    CmpNeqF, // !=
+    CmpLtF,  // <
+    CmpLeF,  // <=
+    CmpGtF,  // >
+    CmpGeF,  // >=
+
+    // Logical
+    Not,
+
+    // Memory & Pointers
+    Alloc,    // a = alloc(b)
+    LoadPtr,  // a = *b
+    StorePtr, // *a = b
+
     Call,
+    CallNative,
     Ret,
     Jmp,
     JmpIf,
@@ -44,13 +69,21 @@ pub struct CallFrame {
     pub bp: usize,
 }
 
+pub type NativeFunction = fn(args: &[u64]) -> u64;
+
 pub struct AbyssVm {
+    // Stack & Execution
     registers: Vec<u64>,
     bp: usize,
     call_stack: Vec<CallFrame>,
-    constants: Vec<u64>,
-    program: Vec<Instruction>,
     ip: usize,
+
+    // Data
+    program: Vec<Instruction>,
+    constants: Vec<u64>,
+
+    heap: Vec<u8>,
+    native_funcs: Vec<NativeFunction>,
 }
 
 impl AbyssVm {
@@ -58,11 +91,18 @@ impl AbyssVm {
         Self {
             registers: vec![0; 65536],
             bp: 0,
-            call_stack: Vec::new(),
-            constants,
+            call_stack: Vec::with_capacity(1024),
             program,
+            constants,
             ip: 0,
+            heap: Vec::new(),
+            native_funcs: Vec::new(),
         }
+    }
+
+    pub fn register_native(&mut self, func: NativeFunction) -> usize {
+        self.native_funcs.push(func);
+        self.native_funcs.len() - 1
     }
 
     #[inline(always)]
@@ -129,6 +169,38 @@ impl AbyssVm {
                     println!("--> [Int] {}", val);
                 }
 
+                // Integer Comparisons
+                OpCode::CmpEqI => {
+                    let left = self.get_register_as_i64(inst.b);
+                    let right = self.get_register_as_i64(inst.c);
+                    self.set_reg(inst.a, if left == right { 1 } else { 0 });
+                }
+                OpCode::CmpNeqI => {
+                    let left = self.get_register_as_i64(inst.b);
+                    let right = self.get_register_as_i64(inst.c);
+                    self.set_reg(inst.a, if left != right { 1 } else { 0 });
+                }
+                OpCode::CmpLtI => {
+                    let left = self.get_register_as_i64(inst.b);
+                    let right = self.get_register_as_i64(inst.c);
+                    self.set_reg(inst.a, if left < right { 1 } else { 0 });
+                }
+                OpCode::CmpLeI => {
+                    let left = self.get_register_as_i64(inst.b);
+                    let right = self.get_register_as_i64(inst.c);
+                    self.set_reg(inst.a, if left <= right { 1 } else { 0 });
+                }
+                OpCode::CmpGtI => {
+                    let left = self.get_register_as_i64(inst.b);
+                    let right = self.get_register_as_i64(inst.c);
+                    self.set_reg(inst.a, if left > right { 1 } else { 0 });
+                }
+                OpCode::CmpGeI => {
+                    let left = self.get_register_as_i64(inst.b);
+                    let right = self.get_register_as_i64(inst.c);
+                    self.set_reg(inst.a, if left >= right { 1 } else { 0 });
+                }
+
                 // Float Math
                 OpCode::AddF => {
                     let left = self.get_register_as_f64(inst.b);
@@ -153,6 +225,46 @@ impl AbyssVm {
                 OpCode::PrintF => {
                     let val = self.get_register_as_f64(inst.a);
                     println!("--> [Float] {}", val);
+                }
+
+                // Float Comparisons (Example)
+                OpCode::CmpEqF => {
+                    let left = self.get_register_as_f64(inst.b);
+                    let right = self.get_register_as_f64(inst.c);
+                    self.set_reg(inst.a, if left == right { 1 } else { 0 });
+                }
+                OpCode::CmpNeqF => {
+                    let left = self.get_register_as_f64(inst.b);
+                    let right = self.get_register_as_f64(inst.c);
+                    self.set_reg(inst.a, if left != right { 1 } else { 0 });
+                }
+
+                OpCode::CmpLtF => {
+                    let left = self.get_register_as_f64(inst.b);
+                    let right = self.get_register_as_f64(inst.c);
+                    self.set_reg(inst.a, if left < right { 1 } else { 0 });
+                }
+
+                OpCode::CmpLeF => {
+                    let left = self.get_register_as_f64(inst.b);
+                    let right = self.get_register_as_f64(inst.c);
+                    self.set_reg(inst.a, if left <= right { 1 } else { 0 });
+                }
+                OpCode::CmpGtF => {
+                    let left = self.get_register_as_f64(inst.b);
+                    let right = self.get_register_as_f64(inst.c);
+                    self.set_reg(inst.a, if left > right { 1 } else { 0 });
+                }
+                OpCode::CmpGeF => {
+                    let left = self.get_register_as_f64(inst.b);
+                    let right = self.get_register_as_f64(inst.c);
+                    self.set_reg(inst.a, if left >= right { 1 } else { 0 });
+                }
+
+                // Logical Operations
+                OpCode::Not => {
+                    let val = self.get_reg(inst.b);
+                    self.set_reg(inst.a, if val == 0 { 1 } else { 0 });
                 }
 
                 OpCode::Call => {
@@ -202,6 +314,56 @@ impl AbyssVm {
                     if condition == 0 {
                         let target_ip = ((inst.b as u16) << 8) | (inst.c as u16);
                         self.ip = target_ip as usize;
+                    }
+                }
+
+                OpCode::Alloc => {
+                    let size = self.get_reg(inst.b) as usize;
+                    let ptr = self.heap.len();
+
+                    self.heap.resize(ptr + size, 0);
+
+                    self.set_reg(inst.a, ptr as u64);
+                }
+
+                OpCode::LoadPtr => {
+                    let ptr = self.get_reg(inst.b) as usize;
+
+                    if ptr + 8 <= self.heap.len() {
+                        let bytes: [u8; 8] = self.heap[ptr..ptr + 8].try_into().unwrap();
+                        let val = u64::from_le_bytes(bytes);
+                        self.set_reg(inst.a, val);
+                    } else {
+                        panic!("Segmentation fault (core dumped): Invalid Read at {}", ptr);
+                    }
+                }
+
+                OpCode::StorePtr => {
+                    let ptr = self.get_reg(inst.a) as usize;
+                    let val = self.get_reg(inst.b);
+
+                    if ptr + 8 <= self.heap.len() {
+                        let bytes = val.to_le_bytes();
+                        self.heap[ptr..ptr + 8].copy_from_slice(&bytes);
+                    } else {
+                        panic!("Segmentation fault (core dumped): Invalid Write at {}", ptr);
+                    }
+                }
+
+                OpCode::CallNative => {
+                    let func_idx = self.get_reg(inst.b) as usize;
+                    let arg_count = inst.c as usize;
+
+                    let args_start = self.bp + inst.b as usize + 1;
+
+                    if let Some(func) = self.native_funcs.get(func_idx) {
+                        let args = &self.registers[args_start..args_start + arg_count];
+
+                        let result = func(args);
+
+                        self.set_reg(inst.a, result);
+                    } else {
+                        panic!("Native function index {} not found!", func_idx);
                     }
                 }
             }
