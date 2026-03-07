@@ -4,8 +4,10 @@ use abyss_parser::ast::{Expr, ExprKind, Program};
 use crate::type_checker::rules::binary::check_binary;
 use crate::type_checker::rules::block::check_block;
 use crate::type_checker::rules::call::check_call;
+use crate::type_checker::rules::control_flow::check_if;
 use crate::type_checker::rules::ident::check_ident;
 use crate::type_checker::rules::literals::check_literal;
+use crate::type_checker::rules::prefix::check_ret;
 use crate::type_checker::rules::sequence::check_sequence;
 use crate::type_checker::rules::signature::check_signature;
 use crate::type_checker::tast::TypedProgram;
@@ -55,23 +57,12 @@ impl<'a> TypeChecker<'a> {
                 check_sequence(self, items, count, expr.span_expr(), expr.id)
             }
 
-            ExprKind::Ret(val) => {
-                let (checked_val, ret_ty) = match val {
-                    Some(inner_expr) => {
-                        let checked = self.check_expr(inner_expr);
-                        let ty = checked.ty.clone();
-                        (Some(Box::new(checked)), ty)
-                    }
-                    None => (None, Type::Unit),
-                };
+            ExprKind::Ret(val) => check_ret(self, val, expr.span_expr(), expr.id),
 
-                TypedExpr {
-                    kind: TypedExprKind::Ret(checked_val),
-                    ty: ret_ty,
-                    span: expr.span_expr(),
-                    id: expr.id,
-                }
+            ExprKind::If(cond, then_b, else_b) => {
+                check_if(self, cond, then_b, else_b, expr.span_expr(), expr.id)
             }
+
             _ => error_expr(expr.span.clone(), expr.id),
         }
     }

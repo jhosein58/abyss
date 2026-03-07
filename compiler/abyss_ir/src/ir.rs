@@ -4,6 +4,7 @@ use abyss_diagnostics::Span;
 pub enum IrType {
     I32,
     F32,
+    Bool,
     Unit,
 }
 
@@ -36,6 +37,8 @@ pub enum IrStmt {
     Expr(IrExpr),
 
     Return(Option<IrExpr>),
+
+    If(IrExpr, Vec<IrStmt>, Vec<IrStmt>), // cond, then, else
 }
 
 #[derive(Debug, Clone)]
