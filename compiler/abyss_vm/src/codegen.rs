@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
-use abyss_ir::ir::{IrBinaryOp, IrExpr, IrExprKind, IrLit, IrProgram, IrStmt, IrType};
-
 use crate::{Instruction, OpCode};
+use abyss_ir::ir::{IrBinaryOp, IrExpr, IrExprKind, IrLit, IrProgram, IrStmt, IrType, IrUnaryOp};
+use std::collections::HashMap;
 
 struct Env {
     vars: HashMap<String, u8>,
@@ -36,7 +34,7 @@ impl Env {
         *self
             .vars
             .get(name)
-            .expect(&format!("Variable '{}' not found in scope", name))
+            .unwrap_or_else(|| panic!("Variable '{}' not found in scope", name))
     }
 }
 
@@ -100,7 +98,6 @@ impl IrCompiler {
                 b: *main_const_idx,
                 c: 0,
             });
-
             self.emit(Instruction {
                 op: OpCode::Call,
                 a: r_dest,
@@ -201,13 +198,12 @@ impl IrCompiler {
                     c: 0,
                 });
             }
-
             IrStmt::If(cond, then_branch, else_branch) => {
                 let cond_reg = self.compile_expr(env, cond);
 
                 let jmpz_idx = self.instructions.len();
                 self.emit(Instruction {
-                    op: OpCode::JmpZImm, // Jump if Zero
+                    op: OpCode::JmpZImm,
                     a: cond_reg,
                     b: 0,
                     c: 0,
@@ -288,23 +284,242 @@ impl IrCompiler {
                 panic!("Variable or function '{}' not found in scope", name);
             }
 
+            IrExprKind::Unary(op, inner_expr) => {
+                let r_inner = self.compile_expr(env, inner_expr);
+                let r_dest = env.alloc_reg();
+
+                match op {
+                    IrUnaryOp::Not => {
+                        self.emit(Instruction {
+                            op: OpCode::Not,
+                            a: r_dest,
+                            b: r_inner,
+                            c: 0,
+                        });
+                    }
+                    IrUnaryOp::Neg => {
+                        let zero_reg = env.alloc_reg();
+                        if matches!(inner_expr.ty, IrType::F32) {
+                            let zero_idx = self.add_const(0.0f64.to_bits());
+                            self.emit(Instruction {
+                                op: OpCode::LoadConst,
+                                a: zero_reg,
+                                b: zero_idx,
+                                c: 0,
+                            });
+                            self.emit(Instruction {
+                                op: OpCode::SubF,
+                                a: r_dest,
+                                b: zero_reg,
+                                c: r_inner,
+                            });
+                        } else {
+                            let zero_idx = self.add_const(0);
+                            self.emit(Instruction {
+                                op: OpCode::LoadConst,
+                                a: zero_reg,
+                                b: zero_idx,
+                                c: 0,
+                            });
+                            self.emit(Instruction {
+                                op: OpCode::SubI,
+                                a: r_dest,
+                                b: zero_reg,
+                                c: r_inner,
+                            });
+                        }
+                    }
+                    IrUnaryOp::Ref => {
+                        let size_reg = env.alloc_reg();
+                        let size_idx = self.add_const(8);
+                        self.emit(Instruction {
+                            op: OpCode::LoadConst,
+                            a: size_reg,
+                            b: size_idx,
+                            c: 0,
+                        });
+                        self.emit(Instruction {
+                            op: OpCode::Alloc,
+                            a: r_dest,
+                            b: size_reg,
+                            c: 0,
+                        });
+
+                        self.emit(Instruction {
+                            op: OpCode::StorePtr,
+                            a: r_dest,
+                            b: r_inner,
+                            c: 0,
+                        });
+                    }
+                    IrUnaryOp::Deref => {
+                        self.emit(Instruction {
+                            op: OpCode::LoadPtr,
+                            a: r_dest,
+                            b: r_inner,
+                            c: 0,
+                        });
+                    }
+                }
+                r_dest
+            }
+
             IrExprKind::Binary(left, op, right) => {
+                if *op == IrBinaryOp::And {
+                    let r_dest = env.alloc_reg();
+                    let r_left = self.compile_expr(env, left);
+                    self.emit(Instruction {
+                        op: OpCode::Move,
+                        a: r_dest,
+                        b: r_left,
+                        c: 0,
+                    });
+
+                    let jmpz_idx = self.instructions.len();
+                    self.emit(Instruction {
+                        op: OpCode::JmpZImm,
+                        a: r_left,
+                        b: 0,
+                        c: 0,
+                    });
+
+                    let r_right = self.compile_expr(env, right);
+                    self.emit(Instruction {
+                        op: OpCode::Move,
+                        a: r_dest,
+                        b: r_right,
+                        c: 0,
+                    });
+
+                    let end_idx = self.instructions.len();
+                    self.patch_jump(jmpz_idx, end_idx);
+
+                    return r_dest;
+                }
+
+                if *op == IrBinaryOp::Or {
+                    let r_dest = env.alloc_reg();
+                    let r_left = self.compile_expr(env, left);
+                    self.emit(Instruction {
+                        op: OpCode::Move,
+                        a: r_dest,
+                        b: r_left,
+                        c: 0,
+                    });
+
+                    let jmpz_idx = self.instructions.len();
+                    self.emit(Instruction {
+                        op: OpCode::JmpZImm,
+                        a: r_left,
+                        b: 0,
+                        c: 0,
+                    });
+
+                    let jmp_end_idx = self.instructions.len();
+                    self.emit(Instruction {
+                        op: OpCode::JmpImm,
+                        a: 0,
+                        b: 0,
+                        c: 0,
+                    });
+
+                    let right_eval_idx = self.instructions.len();
+                    self.patch_jump(jmpz_idx, right_eval_idx);
+
+                    let r_right = self.compile_expr(env, right);
+                    self.emit(Instruction {
+                        op: OpCode::Move,
+                        a: r_dest,
+                        b: r_right,
+                        c: 0,
+                    });
+
+                    let end_idx = self.instructions.len();
+                    self.patch_jump(jmp_end_idx, end_idx);
+
+                    return r_dest;
+                }
+
                 let r_left = self.compile_expr(env, left);
                 let r_right = self.compile_expr(env, right);
                 let r_dest = env.alloc_reg();
 
-                let opcode = match (&expr.ty, op) {
-                    (IrType::I32, IrBinaryOp::Add) => OpCode::AddI,
-                    (IrType::I32, IrBinaryOp::Sub) => OpCode::SubI,
-                    (IrType::I32, IrBinaryOp::Mul) => OpCode::MulI,
-                    (IrType::I32, IrBinaryOp::Div) => OpCode::DivI,
+                let is_float = matches!(left.ty, IrType::F32);
 
-                    (IrType::F32, IrBinaryOp::Add) => OpCode::AddF,
-                    (IrType::F32, IrBinaryOp::Sub) => OpCode::SubF,
-                    (IrType::F32, IrBinaryOp::Mul) => OpCode::MulF,
-                    (IrType::F32, IrBinaryOp::Div) => OpCode::DivF,
+                let opcode = match op {
+                    IrBinaryOp::Add => {
+                        if is_float {
+                            OpCode::AddF
+                        } else {
+                            OpCode::AddI
+                        }
+                    }
+                    IrBinaryOp::Sub => {
+                        if is_float {
+                            OpCode::SubF
+                        } else {
+                            OpCode::SubI
+                        }
+                    }
+                    IrBinaryOp::Mul => {
+                        if is_float {
+                            OpCode::MulF
+                        } else {
+                            OpCode::MulI
+                        }
+                    }
+                    IrBinaryOp::Div => {
+                        if is_float {
+                            OpCode::DivF
+                        } else {
+                            OpCode::DivI
+                        }
+                    }
 
-                    _ => panic!("Unsupported binary operation or type"),
+                    IrBinaryOp::Eq => {
+                        if is_float {
+                            OpCode::CmpEqF
+                        } else {
+                            OpCode::CmpEqI
+                        }
+                    }
+                    IrBinaryOp::Neq => {
+                        if is_float {
+                            OpCode::CmpNeqF
+                        } else {
+                            OpCode::CmpNeqI
+                        }
+                    }
+                    IrBinaryOp::Lt => {
+                        if is_float {
+                            OpCode::CmpLtF
+                        } else {
+                            OpCode::CmpLtI
+                        }
+                    }
+                    IrBinaryOp::Le => {
+                        if is_float {
+                            OpCode::CmpLeF
+                        } else {
+                            OpCode::CmpLeI
+                        }
+                    }
+                    IrBinaryOp::Gt => {
+                        if is_float {
+                            OpCode::CmpGtF
+                        } else {
+                            OpCode::CmpGtI
+                        }
+                    }
+                    IrBinaryOp::Ge => {
+                        if is_float {
+                            OpCode::CmpGeF
+                        } else {
+                            OpCode::CmpGeI
+                        }
+                    }
+
+                    _ => unreachable!("Logical ops already handled"),
                 };
 
                 self.emit(Instruction {
@@ -320,8 +535,14 @@ impl IrCompiler {
                 if func_name == "print" && args.len() == 1 {
                     let arg_reg = self.compile_expr(env, &args[0]);
 
+                    let print_op = if matches!(args[0].ty, IrType::F32) {
+                        OpCode::PrintF
+                    } else {
+                        OpCode::PrintI
+                    };
+
                     self.emit(Instruction {
-                        op: OpCode::PrintI,
+                        op: print_op,
                         a: arg_reg,
                         b: 0,
                         c: 0,
@@ -383,8 +604,6 @@ impl IrCompiler {
 
                 r_dest
             }
-
-            _ => panic!(),
         }
     }
 }
