@@ -148,6 +148,12 @@ pub fn get_rule(kind: Tk) -> ParseRule {
         // forever
         Tk::Forever => ParseRule::new(Some(parse_forever), None, Precedence::None),
 
+        // def
+        Tk::Def => ParseRule::new(Some(parse_def), None, Precedence::None),
+
+        // cmpt
+        Tk::Cmpt => ParseRule::new(Some(parse_comptime), None, Precedence::None),
+
         _ => ParseRule::new(None, None, Precedence::None),
     }
 }

@@ -24,6 +24,7 @@ pub enum ExprKind {
     Use(Box<Expr>),                                     // Use(Module)
     Sequence(Vec<Expr>, Option<Box<Expr>>), // [expr: expr, expr: expr] or [expr, epxr] or [expr; len]
     Signature(Vec<Expr>, Option<Box<Expr>>, Box<Expr>), // Signature(args, return, body)
+    Def(Box<Expr>, Box<Expr>),
 
     Ret(Option<Box<Expr>>),
     Out(Option<Box<Expr>>),                      // out (break loop)
@@ -61,6 +62,7 @@ pub enum ExprKind {
     TypeOf(Box<Expr>),
     Refinement(Option<Box<Expr>>, Box<Expr>),
     Attributed(Vec<Attribute>, Box<Expr>),
+    Comptime(Box<Expr>),
     Wildcard, // _
 }
 
@@ -630,6 +632,26 @@ impl ExprKind {
                 writeln!(f, "Forever {{")?;
                 write!(f, "{}body: ", inner_pad)?;
                 body.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Def(name, value) => {
+                writeln!(f, "Def {{")?;
+                write!(f, "{}name: ", inner_pad)?;
+                name.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+
+                write!(f, "{}value: ", inner_pad)?;
+                value.print_indented(f, indent + 1)?;
+                writeln!(f)?;
+                write!(f, "{}}}", pad)
+            }
+
+            ExprKind::Comptime(expr) => {
+                writeln!(f, "Comptime {{")?;
+                write!(f, "{}", inner_pad)?;
+                expr.print_indented(f, indent + 1)?;
                 writeln!(f)?;
                 write!(f, "{}}}", pad)
             }
