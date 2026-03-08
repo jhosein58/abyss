@@ -43,6 +43,8 @@ pub enum TypedExprKind {
     },
     FuncRef(String),
     VarDec(String, Type, Option<Box<TypedExpr>>),
+    Def(String, Box<TypedExpr>),
+    Comptime(Box<TypedExpr>),
 
     // --- Control Flow ---
     Ret(Option<Box<TypedExpr>>),

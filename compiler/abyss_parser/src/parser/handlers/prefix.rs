@@ -113,3 +113,28 @@ pub fn parse_forever(eng: &mut PrattEngine) -> Result<Expr, ()> {
         id: eng.next_id(),
     })
 }
+
+pub fn parse_def(eng: &mut PrattEngine) -> Result<Expr, ()> {
+    let tk = eng.get_and_bump();
+
+    let name_expr = eng.parse_expression_bp(Precedence::Call)?;
+    let value_expr = eng.parse_expression_bp(Precedence::None)?;
+
+    Ok(Expr {
+        kind: ExprKind::Def(Box::new(name_expr), Box::new(value_expr)),
+        span: tk.span(eng.file_id),
+        id: eng.next_id(),
+    })
+}
+
+pub fn parse_comptime(eng: &mut PrattEngine) -> Result<Expr, ()> {
+    let tk = eng.get_and_bump();
+
+    let target_expr = eng.parse_expression_bp(Precedence::None)?;
+
+    Ok(Expr {
+        kind: ExprKind::Comptime(Box::new(target_expr)),
+        span: tk.span(eng.file_id),
+        id: eng.next_id(),
+    })
+}

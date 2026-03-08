@@ -78,6 +78,8 @@ pub enum TokenKind {
     True,             // true
     False,            // false
     Match,            // match
+    Cmpt,             // cmpt
+    Def,              // def
     Plus,             // +
     Minus,            // -
     Star,             // *
@@ -155,6 +157,8 @@ impl TokenKind {
             "use" => TokenKind::Use,
             "type" => TokenKind::Type,
             "match" => TokenKind::Match,
+            "cmpt" => TokenKind::Cmpt,
+            "def" => TokenKind::Def,
 
             _ => TokenKind::Ident,
         }
@@ -251,6 +255,8 @@ impl Display for TokenKind {
             TokenKind::Use => write!(f, "'use'"),
             TokenKind::Type => write!(f, "'type'"),
             TokenKind::Match => write!(f, "'match'"),
+            TokenKind::Cmpt => write!(f, "'cmpt'"),
+            TokenKind::Def => write!(f, "'def'"),
             TokenKind::Plus => write!(f, "'+'"),
             TokenKind::Minus => write!(f, "'-'"),
             TokenKind::Star => write!(f, "'*'"),

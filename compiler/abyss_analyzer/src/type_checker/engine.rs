@@ -7,7 +7,7 @@ use crate::type_checker::rules::call::check_call;
 use crate::type_checker::rules::control_flow::check_if;
 use crate::type_checker::rules::ident::check_ident;
 use crate::type_checker::rules::literals::check_literal;
-use crate::type_checker::rules::prefix::check_ret;
+use crate::type_checker::rules::prefix::{check_def, check_ret};
 use crate::type_checker::rules::sequence::check_sequence;
 use crate::type_checker::rules::signature::check_signature;
 use crate::type_checker::rules::unary::check_unary;
@@ -68,6 +68,8 @@ impl<'a> TypeChecker<'a> {
             ExprKind::If(cond, then_b, else_b) => {
                 check_if(self, cond, then_b, else_b, expr.span_expr(), expr.id)
             }
+
+            ExprKind::Def(name, value) => check_def(self, name, value, expr.span_expr(), expr.id),
 
             _ => error_expr(expr.span.clone(), expr.id),
         }

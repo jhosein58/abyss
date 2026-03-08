@@ -1,8 +1,10 @@
+def outer() { 
+    def inner() {
+        print(0)
+    }
 
-
-
-def add (a: i32): i32 ret if not (a > 2) 1 else 2
-
-print(add(10)) {
-    cmpt 
+    inner()
+    inner()
 }
+
+outer()

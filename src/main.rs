@@ -21,7 +21,7 @@ fn main() {
     let mut parser = Parser::new(&code, &mut err, 0);
     let program = parser.parse_program();
 
-    //println!("{:#?}", program);
+    println!("{}", program);
 
     let mut type_checker = TypeChecker::new(&mut err);
 
