@@ -1,6 +1,6 @@
 use abyss_diagnostics::Span;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum IrType {
     I32,
     F32,

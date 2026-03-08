@@ -38,7 +38,7 @@ fn main() {
     let compiler = IrCompiler::new();
     let (instructions, constants) = compiler.compile(&ir_program);
 
-    //println!("{:#?}", instructions);
+    //dprintln!("{:#?}", instructions);
     let mut vm = AbyssVm::new(instructions, constants);
     vm.run();
 

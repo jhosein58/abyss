@@ -1,5 +1,7 @@
 use crate::{Instruction, OpCode};
-use abyss_ir::ir::{IrBinaryOp, IrExpr, IrExprKind, IrLit, IrProgram, IrStmt, IrType, IrUnaryOp};
+use abyss_ir::ir::{
+    IrBinaryOp, IrExpr, IrExprKind, IrFunction, IrLit, IrProgram, IrStmt, IrType, IrUnaryOp,
+};
 use std::collections::HashMap;
 
 struct Env {
@@ -85,6 +87,38 @@ impl IrCompiler {
         }
         self.constants.push(val);
         idx as u8
+    }
+
+    pub fn compile_comptime_func(mut self, func: &IrFunction) -> (Vec<Instruction>, Vec<u64>) {
+        let idx = self.constants.len() as u8;
+        self.constants.push(0);
+        self.func_const_indices.insert(func.name.clone(), idx);
+
+        let func_ip = self.instructions.len() as u64;
+        self.constants[idx as usize] = func_ip;
+
+        let mut env = Env::new();
+
+        for stmt in &func.body {
+            self.compile_stmt(&mut env, stmt);
+        }
+
+        let r_dummy = env.alloc_reg();
+        let zero_idx = self.add_const(0);
+        self.emit(Instruction {
+            op: OpCode::LoadConst,
+            a: r_dummy,
+            b: zero_idx,
+            c: 0,
+        });
+        self.emit(Instruction {
+            op: OpCode::Ret,
+            a: r_dummy,
+            b: 0,
+            c: 0,
+        });
+
+        (self.instructions, self.constants)
     }
 
     pub fn compile(mut self, program: &IrProgram) -> (Vec<Instruction>, Vec<u64>) {

@@ -32,6 +32,41 @@ impl IrBuilder {
         }
     }
 
+    pub fn build_comptime_func(&mut self, expr: TypedExpr) -> IrFunction {
+        let func_name = format!("__comptime_anon_{}", self.temp_counter);
+        self.temp_counter += 1;
+
+        let expected_return_ty = self.lower_type(&expr.ty);
+
+        let prev_counter = self.temp_counter;
+        self.temp_counter = 0;
+
+        let (mut stmts, final_expr) = self.lower_expr(expr);
+
+        if expected_return_ty != IrType::Unit {
+            stmts.push(IrStmt::Return(Some(final_expr)));
+        } else {
+            stmts.push(IrStmt::Return(None));
+        }
+
+        self.temp_counter = prev_counter;
+
+        IrFunction {
+            name: func_name,
+            params: vec![],
+            return_ty: expected_return_ty,
+            body: stmts,
+        }
+    }
+
+    pub fn build_standalone_expr(&mut self, expr: TypedExpr) -> (Vec<IrStmt>, IrExpr) {
+        let prev_counter = self.temp_counter;
+        let result = self.lower_expr(expr);
+        self.temp_counter = prev_counter;
+
+        result
+    }
+
     // --- decl.rs ---
 
     pub fn build_program(&mut self, program: TypedProgram) -> IrProgram {
