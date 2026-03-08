@@ -1,3 +1,7 @@
+use abyss_ir::ir::{IrFunction, IrLit, IrType};
+
+use crate::codegen::IrCompiler;
+
 pub mod codegen;
 
 #[repr(u8)]
@@ -123,7 +127,9 @@ impl AbyssVm {
         f64::from_bits(self.get_reg(r))
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Option<u64> {
+        let mut final_result = None;
+
         loop {
             let inst = self.program[self.ip];
             self.ip += 1;
@@ -288,6 +294,7 @@ impl AbyssVm {
                         self.bp = frame.bp;
                         self.set_reg(frame.ret_reg, ret_val);
                     } else {
+                        final_result = Some(ret_val);
                         break;
                     }
                 }
@@ -368,5 +375,25 @@ impl AbyssVm {
                 }
             }
         }
+        final_result
+    }
+}
+
+pub fn execute_comptime(ir_func: IrFunction) -> IrLit {
+    let expected_type = ir_func.return_ty.clone();
+
+    let compiler = IrCompiler::new();
+    let (instructions, constants) = compiler.compile_comptime_func(&ir_func);
+
+    let mut vm = AbyssVm::new(instructions, constants);
+
+    let raw_result = vm.run().unwrap_or(0);
+
+    match expected_type {
+        IrType::I32 => IrLit::Int(raw_result as i64),
+        IrType::F32 => IrLit::Float(f64::from_bits(raw_result)),
+        IrType::Bool => IrLit::Bool(raw_result != 0),
+        IrType::Unit => IrLit::Bool(false),
+        _ => panic!("Unsupported comptime return type: {:?}", expected_type),
     }
 }
