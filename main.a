@@ -1,10 +1,7 @@
-def outer() { 
-    def inner() {
-        print(0)
-    }
 
-    inner()
-    inner()
-}
+def add (a: i32, b: i32): i32 
+    if (a == 1) 100 else a + b 
 
-outer()
+
+
+print(add(3, -2))

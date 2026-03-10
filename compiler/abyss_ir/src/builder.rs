@@ -1,8 +1,10 @@
-use abyss_analyzer::type_checker::{
+use std::collections::HashMap;
+
+use abyss_parser::ast::{BinaryOp, Lit, UnaryOp};
+use abyss_types::{
     tast::{TypedExpr, TypedExprKind, TypedProgram},
     types::Type,
 };
-use abyss_parser::ast::{BinaryOp, Lit, UnaryOp};
 
 use crate::ir::{
     IrBinaryOp, IrExpr, IrExprKind, IrFunction, IrLit, IrProgram, IrStmt, IrType, IrUnaryOp,
@@ -11,11 +13,15 @@ use abyss_diagnostics::Span;
 
 pub struct IrBuilder {
     temp_counter: usize,
+    native_function_map: HashMap<String, usize>,
 }
 
 impl IrBuilder {
     pub fn new() -> Self {
-        Self { temp_counter: 0 }
+        Self {
+            temp_counter: 0,
+            native_function_map: HashMap::new(),
+        }
     }
 
     fn new_temp(&mut self) -> String {
@@ -32,9 +38,22 @@ impl IrBuilder {
         }
     }
 
-    pub fn build_comptime_func(&mut self, expr: TypedExpr) -> IrFunction {
-        let func_name = format!("__comptime_anon_{}", self.temp_counter);
-        self.temp_counter += 1;
+    pub fn register_native(&mut self, name: &str, index: usize) {
+        self.native_function_map.insert(name.to_string(), index);
+    }
+
+    pub fn build_comptime_program(
+        &mut self,
+        expr: TypedExpr,
+        globals: &HashMap<String, TypedExpr>,
+    ) -> IrProgram {
+        let mut functions = Vec::new();
+
+        for (_, global_expr) in globals {
+            if let Some(ir_func) = self.build_function(global_expr.clone()) {
+                functions.push(ir_func);
+            }
+        }
 
         let expected_return_ty = self.lower_type(&expr.ty);
 
@@ -51,12 +70,15 @@ impl IrBuilder {
 
         self.temp_counter = prev_counter;
 
-        IrFunction {
-            name: func_name,
+        functions.push(IrFunction {
+            name: "main".to_string(),
             params: vec![],
             return_ty: expected_return_ty,
             body: stmts,
-        }
+            is_native: false,
+        });
+
+        IrProgram { functions }
     }
 
     pub fn build_standalone_expr(&mut self, expr: TypedExpr) -> (Vec<IrStmt>, IrExpr) {
@@ -72,8 +94,8 @@ impl IrBuilder {
     pub fn build_program(&mut self, program: TypedProgram) -> IrProgram {
         let mut functions = Vec::new();
 
-        for hoisted_func in program.hoisted_functions {
-            if let Some(ir_func) = self.build_function(hoisted_func) {
+        for (_, global_expr) in program.globals {
+            if let Some(ir_func) = self.build_function(global_expr) {
                 functions.push(ir_func);
             }
         }
@@ -92,6 +114,7 @@ impl IrBuilder {
             params: vec![],
             return_ty: IrType::Unit,
             body: main_body,
+            is_native: false,
         });
 
         IrProgram { functions }
@@ -103,6 +126,7 @@ impl IrBuilder {
             args,
             ret_ty,
             body,
+            is_native,
         } = expr.kind
         {
             let mut ir_params = Vec::new();
@@ -118,14 +142,16 @@ impl IrBuilder {
             self.temp_counter = 0;
 
             let mut ir_body = Vec::new();
-            match body.kind {
-                TypedExprKind::Block(stmts) => {
-                    for stmt in stmts {
-                        ir_body.extend(self.lower_stmt(stmt));
+            if !is_native {
+                let (body_stmts, final_expr) = self.lower_expr(*body);
+                ir_body.extend(body_stmts);
+
+                if !matches!(ir_body.last(), Some(IrStmt::Return(_))) {
+                    if self.lower_type(&ret_ty) == IrType::Unit {
+                        ir_body.push(IrStmt::Return(None));
+                    } else {
+                        ir_body.push(IrStmt::Return(Some(final_expr)));
                     }
-                }
-                _ => {
-                    ir_body.extend(self.lower_stmt(*body));
                 }
             }
 
@@ -134,6 +160,7 @@ impl IrBuilder {
                 params: ir_params,
                 return_ty: self.lower_type(&ret_ty),
                 body: ir_body,
+                is_native,
             });
         }
         None
@@ -270,7 +297,7 @@ impl IrBuilder {
                 IrExprKind::Binary(Box::new(left_val), ir_op, Box::new(right_val))
             }
 
-            TypedExprKind::Call(func, args) => {
+            TypedExprKind::Call(func, args, is_native) => {
                 let func_name = match func.kind {
                     TypedExprKind::Ident(name) | TypedExprKind::FuncRef(name) => name,
                     _ => panic!("Dynamic dispatch not supported."),
@@ -282,10 +309,19 @@ impl IrBuilder {
                     generated_stmts.extend(arg_stmts);
                     ir_args.push(arg_val);
                 }
-
-                IrExprKind::Call {
-                    func_name,
-                    args: ir_args,
+                if is_native {
+                    let func_index = *self.native_function_map.get(&func_name).expect(
+                        "IR Builder: Native function not found in map. This is a compiler bug.",
+                    );
+                    IrExprKind::NativeCall {
+                        func_index,
+                        args: ir_args,
+                    }
+                } else {
+                    IrExprKind::Call {
+                        func_name,
+                        args: ir_args,
+                    }
                 }
             }
 
@@ -389,6 +425,11 @@ impl IrBuilder {
                 return (generated_stmts, self.unit_expr(span));
             }
 
+            TypedExprKind::Type(ty) => {
+                let type_id = ty.to_id();
+                IrExprKind::Lit(IrLit::Int(type_id))
+            }
+
             _ => panic!("Unexpected expression kind: {:?}", expr.kind),
         };
 
@@ -411,7 +452,8 @@ impl IrBuilder {
             Type::Bool => IrType::Bool,
             Type::Unit => IrType::Unit,
             Type::Ptr(inner) => IrType::Ptr(Box::new(self.lower_type(inner))),
-            Type::Signature(_, _) => IrType::I32,
+            Type::Signature(_, _, _) => IrType::I32,
+            Type::Metatype => IrType::I32,
             _ => panic!("Unsupported type {:?} for IR generation.", ty),
         }
     }

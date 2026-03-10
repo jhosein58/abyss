@@ -74,7 +74,6 @@ pub enum TokenKind {
     Size,             // size
     Mod,              // mod
     Use,              // use
-    Type,             // type
     True,             // true
     False,            // false
     Match,            // match
@@ -155,7 +154,6 @@ impl TokenKind {
             "size" => TokenKind::Size,
             "mod" => TokenKind::Mod,
             "use" => TokenKind::Use,
-            "type" => TokenKind::Type,
             "match" => TokenKind::Match,
             "cmpt" => TokenKind::Cmpt,
             "def" => TokenKind::Def,
@@ -253,7 +251,6 @@ impl Display for TokenKind {
             TokenKind::Size => write!(f, "'size'"),
             TokenKind::Mod => write!(f, "'mod'"),
             TokenKind::Use => write!(f, "'use'"),
-            TokenKind::Type => write!(f, "'type'"),
             TokenKind::Match => write!(f, "'match'"),
             TokenKind::Cmpt => write!(f, "'cmpt'"),
             TokenKind::Def => write!(f, "'def'"),

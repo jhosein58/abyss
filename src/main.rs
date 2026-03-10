@@ -21,7 +21,7 @@ fn main() {
     let mut parser = Parser::new(&code, &mut err, 0);
     let program = parser.parse_program();
 
-    println!("{}", program);
+    println!("\n{}\n\n", program);
 
     let mut type_checker = TypeChecker::new(&mut err);
 
@@ -38,8 +38,9 @@ fn main() {
     let compiler = IrCompiler::new();
     let (instructions, constants) = compiler.compile(&ir_program);
 
-    //dprintln!("{:#?}", instructions);
+    //println!("{:#?}", instructions);
     let mut vm = AbyssVm::new(instructions, constants);
+
     vm.run();
 
     println!("\ntime: {}ms", t.elapsed().as_millis());

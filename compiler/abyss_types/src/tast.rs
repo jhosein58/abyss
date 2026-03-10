@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use abyss_diagnostics::Span;
 use abyss_parser::ast::{BinaryOp, Lit, UnaryOp};
 
-use crate::type_checker::types::Type;
+use crate::types::Type;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypedExpr {
@@ -40,6 +42,7 @@ pub enum TypedExprKind {
         args: Vec<TypedExpr>,
         ret_ty: Type,
         body: Box<TypedExpr>,
+        is_native: bool,
     },
     FuncRef(String),
     VarDec(String, Type, Option<Box<TypedExpr>>),
@@ -69,7 +72,7 @@ pub enum TypedExprKind {
     Ident(String),
     Binary(Box<TypedExpr>, BinaryOp, Box<TypedExpr>),
     Unary(UnaryOp, Box<TypedExpr>),
-    Call(Box<TypedExpr>, Vec<TypedExpr>),
+    Call(Box<TypedExpr>, Vec<TypedExpr>, bool), // calle, args, is_native
     Index(Box<TypedExpr>, Box<TypedExpr>),
     Cast(Box<TypedExpr>, Option<Box<TypedExpr>>),
     Is(Box<TypedExpr>, Option<Box<TypedExpr>>),
@@ -85,7 +88,7 @@ pub enum TypedExprKind {
     Refinement(Option<Box<TypedExpr>>, Box<TypedExpr>),
     Attributed(Vec<TypedAttribute>, Box<TypedExpr>),
     Wildcard,
-
+    Type(Type),
     ErrorPlaceholder,
 }
 
@@ -105,7 +108,7 @@ pub struct TypedAttribute {
 #[derive(Debug, Clone)]
 pub struct TypedProgram {
     pub body: TypedExpr,
-    pub hoisted_functions: Vec<TypedExpr>,
+    pub globals: HashMap<String, TypedExpr>,
 }
 
 impl TypedExpr {
@@ -124,7 +127,9 @@ impl TypedExpr {
                 args,
                 ret_ty,
                 body,
+                is_native,
             } => {
+                let _ = is_native;
                 println!(
                     "[FunctionDef '{}' -> {}] :: {}",
                     name,
@@ -179,7 +184,7 @@ impl TypedExpr {
                 cond.print_recursive(indent + 1);
                 body.print_recursive(indent + 1);
             }
-            TypedExprKind::Call(func, args) => {
+            TypedExprKind::Call(func, args, _) => {
                 println!("[Call] :: {}", self.ty.name());
                 func.print_recursive(indent + 1);
                 for arg in args {

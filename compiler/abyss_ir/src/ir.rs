@@ -20,6 +20,7 @@ pub struct IrFunction {
     pub params: Vec<(String, IrType)>,
     pub return_ty: IrType,
     pub body: Vec<IrStmt>,
+    pub is_native: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -59,6 +60,11 @@ pub enum IrExprKind {
 
     Call {
         func_name: String,
+        args: Vec<IrExpr>,
+    },
+
+    NativeCall {
+        func_index: usize,
         args: Vec<IrExpr>,
     },
 }

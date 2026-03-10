@@ -1,8 +1,8 @@
 use abyss_diagnostics::Span;
 use abyss_parser::ast::Expr;
 
-use crate::type_checker::{
-    engine::TypeChecker,
+use crate::type_checker::engine::TypeChecker;
+use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
 };

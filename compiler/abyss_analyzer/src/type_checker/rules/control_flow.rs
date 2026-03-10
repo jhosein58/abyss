@@ -2,8 +2,10 @@ use abyss_diagnostics::Span;
 use abyss_parser::ast::Expr;
 
 use crate::type_checker::engine::{TypeChecker, error_expr};
-use crate::type_checker::tast::{TypedExpr, TypedExprKind};
-use crate::type_checker::types::Type;
+use abyss_types::{
+    tast::{TypedExpr, TypedExprKind},
+    types::Type,
+};
 
 pub fn check_if(
     tc: &mut TypeChecker,
