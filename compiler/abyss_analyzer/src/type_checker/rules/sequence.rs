@@ -1,11 +1,11 @@
 use abyss_diagnostics::Span;
 use abyss_parser::ast::{BinaryOp, Expr, ExprKind};
-
-use crate::type_checker::{
-    engine::{TypeChecker, error_expr},
+use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
 };
+
+use crate::type_checker::engine::{TypeChecker, error_expr};
 
 pub fn check_sequence(
     tc: &mut TypeChecker,

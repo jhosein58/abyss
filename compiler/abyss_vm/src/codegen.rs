@@ -123,6 +123,9 @@ impl IrCompiler {
 
     pub fn compile(mut self, program: &IrProgram) -> (Vec<Instruction>, Vec<u64>) {
         for func in &program.functions {
+            if func.is_native {
+                continue;
+            }
             let idx = self.constants.len() as u8;
             self.constants.push(0);
             self.func_const_indices.insert(func.name.clone(), idx);
@@ -145,8 +148,8 @@ impl IrCompiler {
                 c: 2,
             });
             self.emit(Instruction {
-                op: OpCode::Halt,
-                a: 0,
+                op: OpCode::Ret,
+                a: r_dest,
                 b: 0,
                 c: 0,
             });
@@ -155,6 +158,9 @@ impl IrCompiler {
         }
 
         for func in &program.functions {
+            if func.is_native {
+                continue;
+            }
             let func_ip = self.instructions.len() as u64;
             let const_idx = self.func_const_indices[&func.name];
             self.constants[const_idx as usize] = func_ip;
@@ -640,6 +646,37 @@ impl IrCompiler {
                     a: r_dest,
                     b: r_addr,
                     c: frame_offset,
+                });
+
+                r_dest
+            }
+            IrExprKind::NativeCall { func_index, args } => {
+                let arg_count = args.len() as u8;
+
+                let mut compiled_arg_regs = Vec::with_capacity(args.len());
+                for arg in args {
+                    compiled_arg_regs.push(self.compile_expr(env, arg));
+                }
+
+                let arg_start_reg = env.next_reg;
+                env.next_reg += arg_count;
+
+                for (i, &r_arg) in compiled_arg_regs.iter().enumerate() {
+                    self.emit(Instruction {
+                        op: OpCode::Move,
+                        a: arg_start_reg + i as u8,
+                        b: r_arg,
+                        c: 0,
+                    });
+                }
+
+                let r_dest = env.alloc_reg();
+
+                self.emit(Instruction {
+                    op: OpCode::CallNative,
+                    a: r_dest,
+                    b: *func_index as u8,
+                    c: arg_start_reg,
                 });
 
                 r_dest

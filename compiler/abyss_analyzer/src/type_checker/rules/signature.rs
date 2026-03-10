@@ -1,11 +1,11 @@
 use abyss_diagnostics::Span;
 use abyss_parser::ast::{BinaryOp, Expr, ExprKind};
-
-use crate::type_checker::{
-    engine::{TypeChecker, error_expr},
+use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
 };
+
+use crate::type_checker::engine::TypeChecker;
 
 pub fn check_signature(
     tc: &mut TypeChecker,
@@ -16,17 +16,12 @@ pub fn check_signature(
     span: Span,
     id: u32,
 ) -> TypedExpr {
-    let ty = if let Some(t) = ret_ty {
-        let checkd_ret_type = tc.check_expr(t);
-        (checkd_ret_type.ty.clone(), checkd_ret_type.span_expr())
+    let return_type = if let Some(t) = ret_ty {
+        let checked_ret_expr = tc.check_expr(t);
+        tc.evaluate_as_type(checked_ret_expr)
     } else {
-        (Type::Unit, Span::empty())
+        Type::Unit
     };
-
-    if ty.0 == Type::Error {
-        tc.report_error(ty.1, format!("Error finding return type."));
-        return error_expr(span.clone(), id);
-    }
 
     tc.ctx.enter_scope();
 
@@ -36,11 +31,10 @@ pub fn check_signature(
     for arg in args {
         if let ExprKind::Binary(ref left, BinaryOp::KeyValue, ref right) = arg.kind {
             if let ExprKind::Ident(ref arg_name) = left.kind {
-                let arg_ty_expr = tc.check_expr(right);
-                let arg_ty = arg_ty_expr.ty;
+                let typed_ty_expr = tc.check_expr(right);
+                let arg_ty = tc.evaluate_as_type(typed_ty_expr);
 
                 tc.ctx.define(arg_name.clone(), arg_ty.clone());
-
                 arg_types.push(arg_ty.clone());
 
                 checked_args.push(TypedExpr {
@@ -49,48 +43,70 @@ pub fn check_signature(
                     span: arg.span.clone(),
                     id: arg.id,
                 });
-            } else {
-                tc.report_error(
-                    left.span.clone(),
-                    "Argument name must be an identifier".into(),
-                );
             }
-        } else {
-            tc.report_error(
-                arg.span.clone(),
-                "Expected 'name: type' format for arguments".into(),
-            );
         }
     }
 
-    let checked_body = tc.check_expr(&body);
+    let (checked_body, is_native) = if ExprKind::Wildcard == body.kind {
+        (
+            TypedExpr {
+                kind: TypedExprKind::Wildcard,
+                ty: Type::Unit,
+                span: span.clone(),
+                id,
+            },
+            true,
+        )
+    } else {
+        (tc.check_expr(&body), false)
+    };
+
+    let func_type = Type::Signature(arg_types, Box::new(return_type.clone()), is_native);
+
+    if let Some(ref name) = name_opt {
+        tc.ctx.define(name.clone(), func_type.clone());
+    }
 
     tc.ctx.exit_scope();
 
-    let func_name = name_opt.unwrap_or_else(|| {
+    let func_name = name_opt.clone().unwrap_or_else(|| {
         tc.anon_func_counter += 1;
         format!("__anon_func_{}", tc.anon_func_counter)
     });
 
-    let func_type = Type::Signature(arg_types, Box::new(ty.0.clone()));
-
-    let func_def = TypedExpr {
+    let function_def_node = TypedExpr {
         kind: TypedExprKind::FunctionDef {
             name: func_name.clone(),
             args: checked_args,
-            ret_ty: ty.0,
+            ret_ty: return_type,
             body: Box::new(checked_body),
+            is_native,
         },
         ty: func_type.clone(),
         span: span.clone(),
         id,
     };
-    tc.hoisted_functions.push(func_def);
 
-    TypedExpr {
-        kind: TypedExprKind::FuncRef(func_name),
-        ty: func_type,
-        span,
-        id,
+    if let Some(name) = name_opt {
+        tc.ctx
+            .register_resolved_global(name.clone(), function_def_node.clone());
+
+        if is_native {
+            TypedExpr {
+                kind: TypedExprKind::Block(vec![]),
+                ty: Type::Unit,
+                span,
+                id,
+            }
+        } else {
+            TypedExpr {
+                kind: TypedExprKind::FuncRef(name),
+                ty: func_type,
+                span,
+                id,
+            }
+        }
+    } else {
+        function_def_node
     }
 }

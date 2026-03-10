@@ -1,10 +1,10 @@
-use crate::type_checker::{
-    engine::{TypeChecker, error_expr},
+use crate::type_checker::engine::{TypeChecker, error_expr};
+use abyss_diagnostics::Span;
+use abyss_parser::ast::{Expr, ExprKind, UnaryOp};
+use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
 };
-use abyss_diagnostics::Span;
-use abyss_parser::ast::{Expr, ExprKind, UnaryOp};
 
 pub fn check_unary(
     tc: &mut TypeChecker,

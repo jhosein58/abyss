@@ -12,6 +12,7 @@ dependencies = [
  "abyss_ir",
  "abyss_lexer",
  "abyss_parser",
+ "abyss_types",
  "abyss_vm",
  "cc",
  "include_dir",
@@ -24,7 +25,10 @@ name = "abyss_analyzer"
 version = "0.1.0"
 dependencies = [
  "abyss_diagnostics",
+ "abyss_ir",
  "abyss_parser",
+ "abyss_types",
+ "abyss_vm",
 ]
 
 [[package]]
@@ -44,9 +48,9 @@ version = "0.1.0"
 name = "abyss_ir"
 version = "0.1.0"
 dependencies = [
- "abyss_analyzer",
  "abyss_diagnostics",
  "abyss_parser",
+ "abyss_types",
 ]
 
 [[package]]
@@ -63,6 +67,14 @@ dependencies = [
  "abyss_diagnostics",
  "abyss_lexer",
  "colored",
+]
+
+[[package]]
+name = "abyss_types"
+version = "0.1.0"
+dependencies = [
+ "abyss_diagnostics",
+ "abyss_parser",
 ]
 
 [[package]]

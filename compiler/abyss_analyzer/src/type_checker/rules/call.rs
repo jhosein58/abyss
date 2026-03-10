@@ -1,11 +1,12 @@
 use abyss_diagnostics::Span;
 use abyss_parser::ast::Expr;
 
-use crate::type_checker::{
-    engine::{TypeChecker, error_expr},
+use crate::type_checker::engine::{TypeChecker, error_expr};
+use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
 };
+
 pub fn check_call(
     tc: &mut TypeChecker,
     calle: &Box<Expr>,
@@ -24,11 +25,12 @@ pub fn check_call(
                 kind: TypedExprKind::Call(
                     Box::new(TypedExpr {
                         kind: TypedExprKind::Ident(name.clone()),
-                        ty: Type::Signature(vec![Type::I32], Box::new(Type::Unit)),
+                        ty: Type::Signature(vec![Type::I32], Box::new(Type::Unit), false),
                         span: calle.span_expr(),
                         id: 0,
                     }),
                     new_args,
+                    false,
                 ),
                 ty: Type::Unit,
                 span,
@@ -39,7 +41,7 @@ pub fn check_call(
 
     let checked_calle = tc.check_expr(&calle);
 
-    if let Type::Signature(_, ret_ty) = checked_calle.ty.clone() {
+    if let Type::Signature(_, ret_ty, is_native) = checked_calle.ty.clone() {
         let mut new_args = Vec::with_capacity(args.len());
 
         for a in args.iter() {
@@ -47,7 +49,7 @@ pub fn check_call(
         }
 
         return TypedExpr {
-            kind: TypedExprKind::Call(Box::new(checked_calle), new_args),
+            kind: TypedExprKind::Call(Box::new(checked_calle), new_args, is_native),
             ty: *ret_ty,
             span,
             id,

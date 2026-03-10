@@ -1,9 +1,12 @@
 use crate::type_checker::{
     engine::{TypeChecker, error_expr},
     rules::signature::check_signature,
+};
+use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
 };
+
 use abyss_diagnostics::Span;
 use abyss_parser::ast::{BinaryOp, Expr, ExprKind};
 

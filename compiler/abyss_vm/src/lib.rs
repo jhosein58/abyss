@@ -1,4 +1,4 @@
-use abyss_ir::ir::{IrFunction, IrLit, IrType};
+use abyss_ir::ir::{IrLit, IrProgram, IrType};
 
 use crate::codegen::IrCompiler;
 
@@ -75,6 +75,10 @@ pub struct CallFrame {
 
 pub type NativeFunction = fn(args: &[u64]) -> u64;
 
+pub struct RegisteredNative {
+    pub function: NativeFunction,
+    pub arity: u8,
+}
 pub struct AbyssVm {
     // Stack & Execution
     registers: Vec<u64>,
@@ -87,7 +91,7 @@ pub struct AbyssVm {
     constants: Vec<u64>,
 
     heap: Vec<u8>,
-    native_funcs: Vec<NativeFunction>,
+    native_funcs: Vec<RegisteredNative>,
 }
 
 impl AbyssVm {
@@ -104,8 +108,11 @@ impl AbyssVm {
         }
     }
 
-    pub fn register_native(&mut self, func: NativeFunction) -> usize {
-        self.native_funcs.push(func);
+    pub fn register_native(&mut self, arity: u8, func: NativeFunction) -> usize {
+        self.native_funcs.push(RegisteredNative {
+            function: func,
+            arity,
+        });
         self.native_funcs.len() - 1
     }
 
@@ -358,15 +365,15 @@ impl AbyssVm {
                 }
 
                 OpCode::CallNative => {
-                    let func_idx = self.get_reg(inst.b) as usize;
-                    let arg_count = inst.c as usize;
+                    let func_idx = inst.b as usize;
+                    let arg_start_reg = inst.c;
 
-                    let args_start = self.bp + inst.b as usize + 1;
+                    if let Some(native) = self.native_funcs.get(func_idx) {
+                        let args_start_abs = self.bp + arg_start_reg as usize;
+                        let arg_count = native.arity as usize;
+                        let args = &self.registers[args_start_abs..args_start_abs + arg_count];
 
-                    if let Some(func) = self.native_funcs.get(func_idx) {
-                        let args = &self.registers[args_start..args_start + arg_count];
-
-                        let result = func(args);
+                        let result = (native.function)(args);
 
                         self.set_reg(inst.a, result);
                     } else {
@@ -379,11 +386,17 @@ impl AbyssVm {
     }
 }
 
-pub fn execute_comptime(ir_func: IrFunction) -> IrLit {
-    let expected_type = ir_func.return_ty.clone();
+pub fn execute_comptime(ir_prog: IrProgram) -> IrLit {
+    let expected_type = ir_prog
+        .functions
+        .iter()
+        .find(|f| f.name == "main")
+        .map(|f| f.return_ty.clone())
+        .expect("Comptime program must have a main function");
 
     let compiler = IrCompiler::new();
-    let (instructions, constants) = compiler.compile_comptime_func(&ir_func);
+
+    let (instructions, constants) = compiler.compile(&ir_prog);
 
     let mut vm = AbyssVm::new(instructions, constants);
 
