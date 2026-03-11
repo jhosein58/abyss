@@ -9,7 +9,7 @@ use abyss_vm::execute_comptime;
 use crate::type_checker::rules::binary::check_binary;
 use crate::type_checker::rules::block::check_block;
 use crate::type_checker::rules::call::check_call;
-use crate::type_checker::rules::control_flow::check_if;
+use crate::type_checker::rules::control_flow::{check_if, check_out, check_while};
 use crate::type_checker::rules::ident::check_ident;
 use crate::type_checker::rules::literals::check_literal;
 use crate::type_checker::rules::prefix::{check_cmpt, check_def, check_ret};
@@ -127,8 +127,14 @@ impl<'a> TypeChecker<'a> {
 
             ExprKind::Ret(val) => check_ret(self, val, expr.span_expr(), expr.id),
 
+            ExprKind::Out(val) => check_out(self, val, expr.span_expr(), expr.id),
+
             ExprKind::If(cond, then_b, else_b) => {
                 check_if(self, cond, then_b, else_b, expr.span_expr(), expr.id)
+            }
+
+            ExprKind::While(cond, body, else_branch) => {
+                check_while(self, cond, body, else_branch, expr.span_expr(), expr.id)
             }
 
             ExprKind::Def(name, value) => check_def(self, name, value, expr.span_expr(), expr.id),

@@ -66,6 +66,7 @@ pub fn check_binary(
             ExprKind::Binary(ref var, ref o, ref ty) => {
                 if *o == BinaryOp::KeyValue {
                     let typed_right = tc.check_expr(right_expr);
+
                     return check_var_dec(tc, var, ty, typed_right, span, id);
                 } else {
                     let s = left_expr.span.clone().merge(ty.span.clone());

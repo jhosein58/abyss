@@ -1,9 +1,6 @@
-#![warn(clippy::todo)]
-
 use std::{fs, time::Instant};
 
 use abyss_analyzer::type_checker::engine::TypeChecker;
-//use abyss_analyzer::type_checker::engine::TypeChecker;
 use abyss_diagnostics::DiagnosticEngine;
 use abyss_ir::builder::IrBuilder;
 use abyss_parser::parser::Parser;
@@ -40,8 +37,10 @@ fn main() {
 
     //println!("{:#?}", instructions);
     let mut vm = AbyssVm::new(instructions, constants);
+    println!("\nCompiled in: {}ms", t.elapsed().as_millis());
 
+    let t = Instant::now();
     vm.run();
 
-    println!("\ntime: {}ms", t.elapsed().as_millis());
+    println!("\nExecuted in: {}ms", t.elapsed().as_millis());
 }

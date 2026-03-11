@@ -41,6 +41,13 @@ pub enum IrStmt {
     Return(Option<IrExpr>),
 
     If(IrExpr, Vec<IrStmt>, Vec<IrStmt>), // cond, then, else
+
+    While {
+        cond: IrExpr,
+        body: Vec<IrStmt>,
+    },
+
+    Break,
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +82,7 @@ pub enum IrBinaryOp {
     Sub,
     Mul,
     Div,
+    Mod,
 
     Eq,  // ==
     Neq, // !=

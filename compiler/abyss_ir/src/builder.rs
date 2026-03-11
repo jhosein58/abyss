@@ -11,9 +11,17 @@ use crate::ir::{
 };
 use abyss_diagnostics::Span;
 
+#[derive(Debug, Clone)]
+struct LoopContext {
+    result_var: String,
+    break_flag_var: String,
+    is_void: bool,
+}
+
 pub struct IrBuilder {
     temp_counter: usize,
     native_function_map: HashMap<String, usize>,
+    loop_contexts: Vec<LoopContext>,
 }
 
 impl IrBuilder {
@@ -21,6 +29,7 @@ impl IrBuilder {
         Self {
             temp_counter: 0,
             native_function_map: HashMap::new(),
+            loop_contexts: Vec::new(),
         }
     }
 
@@ -148,6 +157,10 @@ impl IrBuilder {
 
                 if !matches!(ir_body.last(), Some(IrStmt::Return(_))) {
                     if self.lower_type(&ret_ty) == IrType::Unit {
+                        if !matches!(final_expr.kind, IrExprKind::Lit(IrLit::Bool(false))) {
+                            ir_body.push(IrStmt::Expr(final_expr));
+                        }
+
                         ir_body.push(IrStmt::Return(None));
                     } else {
                         ir_body.push(IrStmt::Return(Some(final_expr)));
@@ -277,6 +290,7 @@ impl IrBuilder {
                     BinaryOp::Sub => IrBinaryOp::Sub,
                     BinaryOp::Mul => IrBinaryOp::Mul,
                     BinaryOp::Div => IrBinaryOp::Div,
+                    BinaryOp::Mod => IrBinaryOp::Mod,
                     BinaryOp::Eq => IrBinaryOp::Eq,
                     BinaryOp::Neq => IrBinaryOp::Neq,
                     BinaryOp::Lt => IrBinaryOp::Lt,
@@ -285,6 +299,7 @@ impl IrBuilder {
                     BinaryOp::Gte => IrBinaryOp::Ge,
                     BinaryOp::And => IrBinaryOp::And,
                     BinaryOp::Or => IrBinaryOp::Or,
+
                     _ => panic!("Unsupported binary op in IR Builder: {:?}", op),
                 };
 
@@ -428,6 +443,127 @@ impl IrBuilder {
             TypedExprKind::Type(ty) => {
                 let type_id = ty.to_id();
                 IrExprKind::Lit(IrLit::Int(type_id))
+            }
+
+            TypedExprKind::While(cond, body, else_branch) => {
+                let is_void = expr.ty == abyss_types::types::Type::Unit;
+
+                let result_var = if is_void {
+                    String::new()
+                } else {
+                    self.new_temp()
+                };
+                let break_flag = self.new_temp();
+
+                if !is_void {
+                    generated_stmts.push(IrStmt::VarDec {
+                        name: result_var.clone(),
+                        ty: ir_ty.clone(),
+                        init: None,
+                    });
+                }
+
+                generated_stmts.push(IrStmt::VarDec {
+                    name: break_flag.clone(),
+                    ty: IrType::Bool,
+                    init: Some(IrExpr {
+                        kind: IrExprKind::Lit(IrLit::Bool(false)),
+                        ty: IrType::Bool,
+                        span: span.clone(),
+                    }),
+                });
+
+                self.loop_contexts.push(LoopContext {
+                    result_var: result_var.clone(),
+                    break_flag_var: break_flag.clone(),
+                    is_void,
+                });
+
+                let (cond_stmts, cond_val) = self.lower_expr(*cond);
+                generated_stmts.extend(cond_stmts);
+
+                let (body_stmts, _) = self.lower_expr(*body);
+
+                generated_stmts.push(IrStmt::While {
+                    cond: cond_val,
+                    body: body_stmts,
+                });
+
+                self.loop_contexts.pop();
+
+                if let Some(else_b) = else_branch {
+                    let mut else_stmts = Vec::new();
+                    let (e_stmts, e_val) = self.lower_expr(*else_b);
+                    else_stmts.extend(e_stmts);
+
+                    if !is_void {
+                        else_stmts.push(IrStmt::Assign {
+                            target: result_var.clone(),
+                            val: e_val,
+                        });
+                    }
+
+                    let not_break_cond = IrExpr {
+                        kind: IrExprKind::Unary(
+                            IrUnaryOp::Not,
+                            Box::new(IrExpr {
+                                kind: IrExprKind::VarRef(break_flag.clone()),
+                                ty: IrType::Bool,
+                                span: span.clone(),
+                            }),
+                        ),
+                        ty: IrType::Bool,
+                        span: span.clone(),
+                    };
+
+                    generated_stmts.push(IrStmt::If(not_break_cond, else_stmts, vec![]));
+                }
+
+                if is_void {
+                    return (generated_stmts, self.unit_expr(span));
+                } else {
+                    return (
+                        generated_stmts,
+                        IrExpr {
+                            kind: IrExprKind::VarRef(result_var),
+                            ty: ir_ty,
+                            span,
+                        },
+                    );
+                }
+            }
+
+            TypedExprKind::Out(val_opt) => {
+                let ctx = self
+                    .loop_contexts
+                    .last()
+                    .expect("Compiler Error: 'out' statement found outside of a loop!")
+                    .clone();
+
+                if let Some(val_expr) = val_opt {
+                    let (val_stmts, val_ir) = self.lower_expr(*val_expr);
+                    generated_stmts.extend(val_stmts);
+
+                    if !ctx.is_void {
+                        generated_stmts.push(IrStmt::Assign {
+                            target: ctx.result_var.clone(),
+                            val: val_ir,
+                        });
+                    }
+                }
+
+                generated_stmts.push(IrStmt::Assign {
+                    target: ctx.break_flag_var.clone(),
+                    val: IrExpr {
+                        kind: IrExprKind::Lit(IrLit::Bool(true)),
+                        ty: IrType::Bool,
+                        span: span.clone(),
+                    },
+                });
+
+                generated_stmts.push(IrStmt::Break);
+
+                return (generated_stmts, self.unit_expr(span));
             }
 
             _ => panic!("Unexpected expression kind: {:?}", expr.kind),
