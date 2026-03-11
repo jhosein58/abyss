@@ -38,7 +38,7 @@ pub enum ExprKind {
         step: Option<Box<Expr>>,
         inclusive: bool,
     },
-    While(Box<Expr>, Box<Expr>), // While(condition, body)
+    While(Box<Expr>, Box<Expr>, Option<Box<Expr>>), // While(condition, body, else)
     Forever(Box<Expr>),
 
     Defer(Box<Expr>), // Defer(expression)
@@ -455,7 +455,7 @@ impl ExprKind {
                 write!(f, "{}}}", pad)
             }
 
-            ExprKind::While(cond, body) => {
+            ExprKind::While(cond, body, else_b) => {
                 writeln!(f, "While {{")?;
                 write!(f, "{}cond: ", inner_pad)?;
                 cond.print_indented(f, indent + 1)?;
@@ -463,6 +463,13 @@ impl ExprKind {
                 write!(f, "{}body: ", inner_pad)?;
                 body.print_indented(f, indent + 1)?;
                 writeln!(f)?;
+
+                if let Some(eb) = else_b {
+                    write!(f, "{}else: ", inner_pad)?;
+                    eb.print_indented(f, indent + 1)?;
+                    writeln!(f)?;
+                }
+
                 write!(f, "{}}}", pad)
             }
 

@@ -44,6 +44,7 @@ pub struct IrCompiler {
     instructions: Vec<Instruction>,
     constants: Vec<u64>,
     func_const_indices: HashMap<String, u8>,
+    break_targets: Vec<Vec<usize>>,
 }
 
 impl IrCompiler {
@@ -52,6 +53,7 @@ impl IrCompiler {
             instructions: Vec::new(),
             constants: Vec::new(),
             func_const_indices: HashMap::new(),
+            break_targets: Vec::new(),
         }
     }
 
@@ -282,6 +284,65 @@ impl IrCompiler {
                 self.patch_jump(jmp_end_idx, end_idx);
 
                 env.vars = vars_backup;
+            }
+
+            IrStmt::While { cond, body } => {
+                let loop_start_idx = self.instructions.len();
+
+                let cond_reg = self.compile_expr(env, cond);
+
+                let jmpz_idx = self.instructions.len();
+                self.emit(Instruction {
+                    op: OpCode::JmpZImm,
+                    a: cond_reg,
+                    b: 0,
+                    c: 0,
+                });
+
+                self.break_targets.push(Vec::new());
+
+                let vars_backup = env.vars.clone();
+
+                for stmt in body {
+                    self.compile_stmt(env, stmt);
+                }
+
+                let jmp_back_idx = self.instructions.len();
+                self.emit(Instruction {
+                    op: OpCode::JmpImm,
+                    a: 0,
+                    b: 0,
+                    c: 0,
+                });
+                self.patch_jump(jmp_back_idx, loop_start_idx);
+
+                let loop_end_idx = self.instructions.len();
+
+                self.patch_jump(jmpz_idx, loop_end_idx);
+
+                let breaks = self.break_targets.pop().unwrap();
+                for break_idx in breaks {
+                    self.patch_jump(break_idx, loop_end_idx);
+                }
+
+                env.vars = vars_backup;
+            }
+
+            IrStmt::Break => {
+                let break_idx = self.instructions.len();
+
+                self.emit(Instruction {
+                    op: OpCode::JmpImm,
+                    a: 0,
+                    b: 0,
+                    c: 0,
+                });
+
+                if let Some(current_loop_breaks) = self.break_targets.last_mut() {
+                    current_loop_breaks.push(break_idx);
+                } else {
+                    panic!("Compiler Error: 'Break' statement encountered outside of a loop!");
+                }
             }
         }
     }
@@ -519,6 +580,14 @@ impl IrCompiler {
                             OpCode::DivF
                         } else {
                             OpCode::DivI
+                        }
+                    }
+
+                    IrBinaryOp::Mod => {
+                        if is_float {
+                            panic!("Modulo operator (%) is not supported for floats.");
+                        } else {
+                            OpCode::ModI
                         }
                     }
 

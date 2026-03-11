@@ -51,7 +51,7 @@ pub enum TypedExprKind {
 
     // --- Control Flow ---
     Ret(Option<Box<TypedExpr>>),
-    Break,
+    Out(Option<Box<TypedExpr>>),
     Continue,
     Block(Vec<TypedExpr>),
     If(Box<TypedExpr>, Box<TypedExpr>, Option<Box<TypedExpr>>),
@@ -64,7 +64,7 @@ pub enum TypedExprKind {
         step: Option<Box<TypedExpr>>,
         inclusive: bool,
     },
-    While(Box<TypedExpr>, Box<TypedExpr>),
+    While(Box<TypedExpr>, Box<TypedExpr>, Option<Box<TypedExpr>>),
     Forever(Box<TypedExpr>),
     Defer(Box<TypedExpr>),
 
@@ -179,10 +179,13 @@ impl TypedExpr {
                     else_b.print_recursive(indent + 1);
                 }
             }
-            TypedExprKind::While(cond, body) => {
+            TypedExprKind::While(cond, body, else_b) => {
                 println!("[While] :: {}", self.ty.name());
                 cond.print_recursive(indent + 1);
                 body.print_recursive(indent + 1);
+                if let Some(eb) = else_b {
+                    eb.print_recursive(indent + 1);
+                }
             }
             TypedExprKind::Call(func, args, _) => {
                 println!("[Call] :: {}", self.ty.name());
@@ -197,7 +200,12 @@ impl TypedExpr {
                     v.print_recursive(indent + 1);
                 }
             }
-            TypedExprKind::Break => println!("[Break]"),
+            TypedExprKind::Out(val) => {
+                println!("[out] :: {}", self.ty.name());
+                if let Some(v) = val {
+                    v.print_recursive(indent + 1);
+                }
+            }
             TypedExprKind::Continue => println!("[Continue]"),
             TypedExprKind::Mod(left, right) => {
                 println!("[Mod] :: {}", self.ty.name());

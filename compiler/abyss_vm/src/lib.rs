@@ -16,6 +16,7 @@ pub enum OpCode {
     SubI,
     MulI,
     DivI,
+    ModI,
     PrintI,
 
     // Integer Comparisons
@@ -122,7 +123,7 @@ impl AbyssVm {
     }
 
     #[inline(always)]
-    fn set_reg(&mut self, r: u8, val: u64) {
+    pub fn set_reg(&mut self, r: u8, val: u64) {
         self.registers[self.bp + r as usize] = val;
     }
 
@@ -137,9 +138,29 @@ impl AbyssVm {
     pub fn run(&mut self) -> Option<u64> {
         let mut final_result = None;
 
+        let mut ip = self.ip;
+        let mut bp = self.bp;
+
+        let program_ptr = self.program.as_ptr();
+        let registers_ptr = self.registers.as_mut_ptr();
+
+        macro_rules! get_reg {
+            ($r:expr) => {
+                unsafe { *registers_ptr.add(bp + $r as usize) }
+            };
+        }
+
+        macro_rules! set_reg {
+            ($r:expr, $val:expr) => {
+                unsafe {
+                    *registers_ptr.add(bp + $r as usize) = $val;
+                }
+            };
+        }
+
         loop {
-            let inst = self.program[self.ip];
-            self.ip += 1;
+            let inst = unsafe { *program_ptr.add(ip) };
+            ip += 1;
 
             match inst.op {
                 OpCode::Halt => {
@@ -147,159 +168,168 @@ impl AbyssVm {
                 }
 
                 OpCode::LoadConst => {
-                    let val = self.constants[inst.b as usize];
-                    self.set_reg(inst.a, val);
+                    let val = unsafe { *self.constants.get_unchecked(inst.b as usize) };
+                    set_reg!(inst.a, val);
                 }
 
                 OpCode::Move => {
-                    let val = self.get_reg(inst.b);
-                    self.set_reg(inst.a, val);
+                    let val = get_reg!(inst.b);
+                    set_reg!(inst.a, val);
                 }
 
                 // Integer Math
                 OpCode::AddI => {
-                    let left = self.get_register_as_i64(inst.b);
-                    let right = self.get_register_as_i64(inst.c);
-                    self.set_reg(inst.a, (left + right) as u64);
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_reg!(inst.c) as i64;
+                    set_reg!(inst.a, (left + right) as u64);
                 }
                 OpCode::SubI => {
-                    let left = self.get_register_as_i64(inst.b);
-                    let right = self.get_register_as_i64(inst.c);
-                    self.set_reg(inst.a, (left - right) as u64);
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_reg!(inst.c) as i64;
+                    set_reg!(inst.a, (left - right) as u64);
                 }
                 OpCode::MulI => {
-                    let left = self.get_register_as_i64(inst.b);
-                    let right = self.get_register_as_i64(inst.c);
-                    self.set_reg(inst.a, (left * right) as u64);
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_reg!(inst.c) as i64;
+                    set_reg!(inst.a, (left * right) as u64);
                 }
                 OpCode::DivI => {
-                    let left = self.get_register_as_i64(inst.b);
-                    let right = self.get_register_as_i64(inst.c);
-                    self.set_reg(inst.a, (left / right) as u64);
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_reg!(inst.c) as i64;
+                    set_reg!(inst.a, (left / right) as u64);
+                }
+                OpCode::ModI => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_reg!(inst.c) as i64;
+                    if right == 0 {
+                        self.ip = ip;
+                        self.bp = bp;
+                        panic!("Runtime error: Division by zero");
+                    }
+                    set_reg!(inst.a, (left % right) as u64);
                 }
                 OpCode::PrintI => {
-                    let val = self.get_register_as_i64(inst.a);
+                    let val = get_reg!(inst.a) as i64;
                     println!("--> [Int] {}", val);
                 }
 
                 // Integer Comparisons
                 OpCode::CmpEqI => {
-                    let left = self.get_register_as_i64(inst.b);
-                    let right = self.get_register_as_i64(inst.c);
-                    self.set_reg(inst.a, if left == right { 1 } else { 0 });
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_reg!(inst.c) as i64;
+                    set_reg!(inst.a, if left == right { 1 } else { 0 });
                 }
                 OpCode::CmpNeqI => {
-                    let left = self.get_register_as_i64(inst.b);
-                    let right = self.get_register_as_i64(inst.c);
-                    self.set_reg(inst.a, if left != right { 1 } else { 0 });
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_reg!(inst.c) as i64;
+                    set_reg!(inst.a, if left != right { 1 } else { 0 });
                 }
                 OpCode::CmpLtI => {
-                    let left = self.get_register_as_i64(inst.b);
-                    let right = self.get_register_as_i64(inst.c);
-                    self.set_reg(inst.a, if left < right { 1 } else { 0 });
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_reg!(inst.c) as i64;
+                    set_reg!(inst.a, if left < right { 1 } else { 0 });
                 }
                 OpCode::CmpLeI => {
-                    let left = self.get_register_as_i64(inst.b);
-                    let right = self.get_register_as_i64(inst.c);
-                    self.set_reg(inst.a, if left <= right { 1 } else { 0 });
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_reg!(inst.c) as i64;
+                    set_reg!(inst.a, if left <= right { 1 } else { 0 });
                 }
                 OpCode::CmpGtI => {
-                    let left = self.get_register_as_i64(inst.b);
-                    let right = self.get_register_as_i64(inst.c);
-                    self.set_reg(inst.a, if left > right { 1 } else { 0 });
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_reg!(inst.c) as i64;
+                    set_reg!(inst.a, if left > right { 1 } else { 0 });
                 }
                 OpCode::CmpGeI => {
-                    let left = self.get_register_as_i64(inst.b);
-                    let right = self.get_register_as_i64(inst.c);
-                    self.set_reg(inst.a, if left >= right { 1 } else { 0 });
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_reg!(inst.c) as i64;
+                    set_reg!(inst.a, if left >= right { 1 } else { 0 });
                 }
 
                 // Float Math
                 OpCode::AddF => {
-                    let left = self.get_register_as_f64(inst.b);
-                    let right = self.get_register_as_f64(inst.c);
-                    self.set_reg(inst.a, (left + right).to_bits());
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_reg!(inst.c));
+                    set_reg!(inst.a, (left + right).to_bits());
                 }
                 OpCode::SubF => {
-                    let left = self.get_register_as_f64(inst.b);
-                    let right = self.get_register_as_f64(inst.c);
-                    self.set_reg(inst.a, (left - right).to_bits());
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_reg!(inst.c));
+                    set_reg!(inst.a, (left - right).to_bits());
                 }
                 OpCode::MulF => {
-                    let left = self.get_register_as_f64(inst.b);
-                    let right = self.get_register_as_f64(inst.c);
-                    self.set_reg(inst.a, (left * right).to_bits());
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_reg!(inst.c));
+                    set_reg!(inst.a, (left * right).to_bits());
                 }
                 OpCode::DivF => {
-                    let left = self.get_register_as_f64(inst.b);
-                    let right = self.get_register_as_f64(inst.c);
-                    self.set_reg(inst.a, (left / right).to_bits());
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_reg!(inst.c));
+                    set_reg!(inst.a, (left / right).to_bits());
                 }
                 OpCode::PrintF => {
-                    let val = self.get_register_as_f64(inst.a);
+                    let val = f64::from_bits(get_reg!(inst.a));
                     println!("--> [Float] {}", val);
                 }
 
-                // Float Comparisons (Example)
+                // Float Comparisons
                 OpCode::CmpEqF => {
-                    let left = self.get_register_as_f64(inst.b);
-                    let right = self.get_register_as_f64(inst.c);
-                    self.set_reg(inst.a, if left == right { 1 } else { 0 });
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_reg!(inst.c));
+                    set_reg!(inst.a, if left == right { 1 } else { 0 });
                 }
                 OpCode::CmpNeqF => {
-                    let left = self.get_register_as_f64(inst.b);
-                    let right = self.get_register_as_f64(inst.c);
-                    self.set_reg(inst.a, if left != right { 1 } else { 0 });
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_reg!(inst.c));
+                    set_reg!(inst.a, if left != right { 1 } else { 0 });
                 }
-
                 OpCode::CmpLtF => {
-                    let left = self.get_register_as_f64(inst.b);
-                    let right = self.get_register_as_f64(inst.c);
-                    self.set_reg(inst.a, if left < right { 1 } else { 0 });
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_reg!(inst.c));
+                    set_reg!(inst.a, if left < right { 1 } else { 0 });
                 }
-
                 OpCode::CmpLeF => {
-                    let left = self.get_register_as_f64(inst.b);
-                    let right = self.get_register_as_f64(inst.c);
-                    self.set_reg(inst.a, if left <= right { 1 } else { 0 });
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_reg!(inst.c));
+                    set_reg!(inst.a, if left <= right { 1 } else { 0 });
                 }
                 OpCode::CmpGtF => {
-                    let left = self.get_register_as_f64(inst.b);
-                    let right = self.get_register_as_f64(inst.c);
-                    self.set_reg(inst.a, if left > right { 1 } else { 0 });
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_reg!(inst.c));
+                    set_reg!(inst.a, if left > right { 1 } else { 0 });
                 }
                 OpCode::CmpGeF => {
-                    let left = self.get_register_as_f64(inst.b);
-                    let right = self.get_register_as_f64(inst.c);
-                    self.set_reg(inst.a, if left >= right { 1 } else { 0 });
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_reg!(inst.c));
+                    set_reg!(inst.a, if left >= right { 1 } else { 0 });
                 }
 
                 // Logical Operations
                 OpCode::Not => {
-                    let val = self.get_reg(inst.b);
-                    self.set_reg(inst.a, if val == 0 { 1 } else { 0 });
+                    let val = get_reg!(inst.b);
+                    set_reg!(inst.a, if val == 0 { 1 } else { 0 });
                 }
 
+                // Control Flow
                 OpCode::Call => {
-                    let target_ip = self.get_reg(inst.b) as usize;
+                    let target_ip = get_reg!(inst.b) as usize;
 
                     self.call_stack.push(CallFrame {
-                        ret_ip: self.ip,
+                        ret_ip: ip,
                         ret_reg: inst.a,
-                        bp: self.bp,
+                        bp: bp,
                     });
 
-                    self.bp += inst.c as usize;
-                    self.ip = target_ip;
+                    bp += inst.c as usize;
+                    ip = target_ip;
                 }
 
                 OpCode::Ret => {
-                    let ret_val = self.get_reg(inst.a);
+                    let ret_val = get_reg!(inst.a);
 
                     if let Some(frame) = self.call_stack.pop() {
-                        self.ip = frame.ret_ip;
-                        self.bp = frame.bp;
-                        self.set_reg(frame.ret_reg, ret_val);
+                        ip = frame.ret_ip;
+                        bp = frame.bp;
+                        set_reg!(frame.ret_reg, ret_val);
                     } else {
                         final_result = Some(ret_val);
                         break;
@@ -307,60 +337,70 @@ impl AbyssVm {
                 }
 
                 OpCode::Jmp => {
-                    self.ip = self.get_reg(inst.a) as usize;
+                    ip = get_reg!(inst.a) as usize;
                 }
 
                 OpCode::JmpIf => {
-                    let condition = self.get_reg(inst.b);
+                    let condition = get_reg!(inst.b);
                     if condition != 0 {
-                        self.ip = self.get_reg(inst.a) as usize;
+                        ip = get_reg!(inst.a) as usize;
                     }
                 }
 
                 OpCode::JmpImm => {
                     let target_ip = ((inst.b as u16) << 8) | (inst.c as u16);
-                    self.ip = target_ip as usize;
+                    ip = target_ip as usize;
                 }
 
                 OpCode::JmpZImm => {
-                    let condition = self.get_reg(inst.a);
-
+                    let condition = get_reg!(inst.a);
                     if condition == 0 {
                         let target_ip = ((inst.b as u16) << 8) | (inst.c as u16);
-                        self.ip = target_ip as usize;
+                        ip = target_ip as usize;
                     }
                 }
 
                 OpCode::Alloc => {
-                    let size = self.get_reg(inst.b) as usize;
+                    let size = get_reg!(inst.b) as usize;
                     let ptr = self.heap.len();
-
                     self.heap.resize(ptr + size, 0);
-
-                    self.set_reg(inst.a, ptr as u64);
+                    set_reg!(inst.a, ptr as u64);
                 }
 
                 OpCode::LoadPtr => {
-                    let ptr = self.get_reg(inst.b) as usize;
-
+                    let ptr = get_reg!(inst.b) as usize;
                     if ptr + 8 <= self.heap.len() {
-                        let bytes: [u8; 8] = self.heap[ptr..ptr + 8].try_into().unwrap();
-                        let val = u64::from_le_bytes(bytes);
-                        self.set_reg(inst.a, val);
+                        let mut val: u64 = 0;
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                self.heap.as_ptr().add(ptr),
+                                &mut val as *mut u64 as *mut u8,
+                                8,
+                            );
+                        }
+                        set_reg!(inst.a, u64::from_le(val));
                     } else {
-                        panic!("Segmentation fault (core dumped): Invalid Read at {}", ptr);
+                        self.ip = ip;
+                        self.bp = bp;
+                        panic!("Segmentation fault");
                     }
                 }
 
                 OpCode::StorePtr => {
-                    let ptr = self.get_reg(inst.a) as usize;
-                    let val = self.get_reg(inst.b);
-
+                    let ptr = get_reg!(inst.a) as usize;
+                    let val = get_reg!(inst.b);
                     if ptr + 8 <= self.heap.len() {
-                        let bytes = val.to_le_bytes();
-                        self.heap[ptr..ptr + 8].copy_from_slice(&bytes);
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                &val as *const u64 as *const u8,
+                                self.heap.as_mut_ptr().add(ptr),
+                                8,
+                            );
+                        }
                     } else {
-                        panic!("Segmentation fault (core dumped): Invalid Write at {}", ptr);
+                        self.ip = ip;
+                        self.bp = bp;
+                        panic!("Segmentation fault");
                     }
                 }
 
@@ -368,20 +408,29 @@ impl AbyssVm {
                     let func_idx = inst.b as usize;
                     let arg_start_reg = inst.c;
 
+                    self.ip = ip;
+                    self.bp = bp;
+
                     if let Some(native) = self.native_funcs.get(func_idx) {
-                        let args_start_abs = self.bp + arg_start_reg as usize;
+                        let args_start_abs = bp + arg_start_reg as usize;
                         let arg_count = native.arity as usize;
-                        let args = &self.registers[args_start_abs..args_start_abs + arg_count];
+
+                        let args = unsafe {
+                            std::slice::from_raw_parts(registers_ptr.add(args_start_abs), arg_count)
+                        };
 
                         let result = (native.function)(args);
-
-                        self.set_reg(inst.a, result);
+                        set_reg!(inst.a, result);
                     } else {
-                        panic!("Native function index {} not found!", func_idx);
+                        panic!("Native function not found!");
                     }
                 }
             }
         }
+
+        self.ip = ip;
+        self.bp = bp;
+
         final_result
     }
 }

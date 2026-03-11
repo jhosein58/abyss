@@ -78,3 +78,67 @@ pub fn check_if(
         },
     }
 }
+
+pub fn check_while(
+    tc: &mut TypeChecker,
+    cond: &Box<Expr>,
+    body: &Box<Expr>,
+    else_b: &Option<Box<Expr>>,
+    span: Span,
+    id: u32,
+) -> TypedExpr {
+    let checked_cond = tc.check_expr(cond);
+    if checked_cond.ty != Type::Bool {
+        tc.report_error(
+            checked_cond.span.clone(),
+            format!(
+                "While condition must be a boolean, but got '{}'",
+                checked_cond.ty.name()
+            ),
+        );
+    }
+
+    let checked_body = tc.check_expr(body);
+
+    match else_b {
+        Some(else_expr) => {
+            let checked_else = tc.check_expr(else_expr);
+            let overall_type = checked_else.ty.clone();
+
+            TypedExpr {
+                kind: TypedExprKind::While(
+                    Box::new(checked_cond),
+                    Box::new(checked_body),
+                    Some(Box::new(checked_else)),
+                ),
+                ty: overall_type,
+                span,
+                id,
+            }
+        }
+        None => TypedExpr {
+            kind: TypedExprKind::While(Box::new(checked_cond), Box::new(checked_body), None),
+            ty: Type::Unit,
+            span,
+            id,
+        },
+    }
+}
+
+pub fn check_out(tc: &mut TypeChecker, val: &Option<Box<Expr>>, span: Span, id: u32) -> TypedExpr {
+    let (checked_val, out_ty) = match val {
+        Some(inner_expr) => {
+            let checked = tc.check_expr(inner_expr);
+            let ty = checked.ty.clone();
+            (Some(Box::new(checked)), ty)
+        }
+        None => (None, Type::Unit),
+    };
+
+    TypedExpr {
+        kind: TypedExprKind::Out(checked_val),
+        ty: out_ty,
+        span,
+        id,
+    }
+}

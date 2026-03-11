@@ -94,8 +94,13 @@ pub fn parse_while(eng: &mut PrattEngine) -> Result<Expr, ()> {
 
     let body = Box::new(eng.parse_expression_bp(Precedence::None)?);
 
+    let mut else_branch = None;
+    if eng.match_token(Tk::Else) {
+        else_branch = Some(Box::new(eng.parse_expression_bp(Precedence::None)?));
+    }
+
     Ok(Expr {
-        kind: ExprKind::While(cond, body),
+        kind: ExprKind::While(cond, body, else_branch),
         span,
         id: eng.next_id(),
     })

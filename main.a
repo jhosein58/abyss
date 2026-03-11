@@ -1,7 +1,12 @@
 
-def add (a: i32, b: i32): i32 
-    if (a == 1) 100 else a + b 
+res := {
+    i := 0
 
+    while i < 1_000_000_000 {
+        i = i + 1
+    }
 
+    i
+}
 
-print(add(3, -2))
+print(res)
