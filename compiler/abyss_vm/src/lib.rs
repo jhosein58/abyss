@@ -19,6 +19,13 @@ pub enum OpCode {
     ModI,
     PrintI,
 
+    // Integer Math with Constant
+    AddIC,
+    SubIC,
+    MulIC,
+    DivIC,
+    ModIC,
+
     // Integer Comparisons
     CmpEqI,  // ==
     CmpNeqI, // !=
@@ -27,12 +34,26 @@ pub enum OpCode {
     CmpGtI,  // >
     CmpGeI,  // >=
 
+    // Integer Comparisons with Constant
+    CmpEqIC,
+    CmpNeqIC,
+    CmpLtIC,
+    CmpLeIC,
+    CmpGtIC,
+    CmpGeIC,
+
     // Float Math
     AddF,
     SubF,
     MulF,
     DivF,
     PrintF,
+
+    // Float Math with Constant
+    AddFC,
+    SubFC,
+    MulFC,
+    DivFC,
 
     // Float Comparisons
     CmpEqF,  // ==
@@ -41,6 +62,14 @@ pub enum OpCode {
     CmpLeF,  // <=
     CmpGtF,  // >
     CmpGeF,  // >=
+
+    // Float Comparisons with Constant
+    CmpEqFC,
+    CmpNeqFC,
+    CmpLtFC,
+    CmpLeFC,
+    CmpGtFC,
+    CmpGeFC,
 
     // Logical
     Not,
@@ -143,6 +172,7 @@ impl AbyssVm {
 
         let program_ptr = self.program.as_ptr();
         let registers_ptr = self.registers.as_mut_ptr();
+        let constants_ptr = self.constants.as_ptr();
 
         macro_rules! get_reg {
             ($r:expr) => {
@@ -155,6 +185,12 @@ impl AbyssVm {
                 unsafe {
                     *registers_ptr.add(bp + $r as usize) = $val;
                 }
+            };
+        }
+
+        macro_rules! get_const {
+            ($c:expr) => {
+                unsafe { *constants_ptr.add($c as usize) }
             };
         }
 
@@ -208,6 +244,39 @@ impl AbyssVm {
                     }
                     set_reg!(inst.a, (left % right) as u64);
                 }
+
+                // Integer Math with Constant
+                OpCode::AddIC => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_const!(inst.c) as i64;
+                    set_reg!(inst.a, (left + right) as u64);
+                }
+                OpCode::SubIC => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_const!(inst.c) as i64;
+                    set_reg!(inst.a, (left - right) as u64);
+                }
+                OpCode::MulIC => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_const!(inst.c) as i64;
+                    set_reg!(inst.a, (left * right) as u64);
+                }
+                OpCode::DivIC => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_const!(inst.c) as i64;
+                    set_reg!(inst.a, (left / right) as u64);
+                }
+                OpCode::ModIC => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_const!(inst.c) as i64;
+                    if right == 0 {
+                        self.ip = ip;
+                        self.bp = bp;
+                        panic!("Runtime error: Division by zero");
+                    }
+                    set_reg!(inst.a, (left % right) as u64);
+                }
+
                 OpCode::PrintI => {
                     let val = get_reg!(inst.a) as i64;
                     println!("--> [Int] {}", val);
@@ -245,6 +314,38 @@ impl AbyssVm {
                     set_reg!(inst.a, if left >= right { 1 } else { 0 });
                 }
 
+                // Integer Comparisons with Constant
+                OpCode::CmpEqIC => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_const!(inst.c) as i64;
+                    set_reg!(inst.a, if left == right { 1 } else { 0 });
+                }
+                OpCode::CmpNeqIC => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_const!(inst.c) as i64;
+                    set_reg!(inst.a, if left != right { 1 } else { 0 });
+                }
+                OpCode::CmpLtIC => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_const!(inst.c) as i64;
+                    set_reg!(inst.a, if left < right { 1 } else { 0 });
+                }
+                OpCode::CmpLeIC => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_const!(inst.c) as i64;
+                    set_reg!(inst.a, if left <= right { 1 } else { 0 });
+                }
+                OpCode::CmpGtIC => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_const!(inst.c) as i64;
+                    set_reg!(inst.a, if left > right { 1 } else { 0 });
+                }
+                OpCode::CmpGeIC => {
+                    let left = get_reg!(inst.b) as i64;
+                    let right = get_const!(inst.c) as i64;
+                    set_reg!(inst.a, if left >= right { 1 } else { 0 });
+                }
+
                 // Float Math
                 OpCode::AddF => {
                     let left = f64::from_bits(get_reg!(inst.b));
@@ -269,6 +370,28 @@ impl AbyssVm {
                 OpCode::PrintF => {
                     let val = f64::from_bits(get_reg!(inst.a));
                     println!("--> [Float] {}", val);
+                }
+
+                // Float Math with Constant
+                OpCode::AddFC => {
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_const!(inst.c));
+                    set_reg!(inst.a, (left + right).to_bits());
+                }
+                OpCode::SubFC => {
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_const!(inst.c));
+                    set_reg!(inst.a, (left - right).to_bits());
+                }
+                OpCode::MulFC => {
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_const!(inst.c));
+                    set_reg!(inst.a, (left * right).to_bits());
+                }
+                OpCode::DivFC => {
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_const!(inst.c));
+                    set_reg!(inst.a, (left / right).to_bits());
                 }
 
                 // Float Comparisons
@@ -300,6 +423,38 @@ impl AbyssVm {
                 OpCode::CmpGeF => {
                     let left = f64::from_bits(get_reg!(inst.b));
                     let right = f64::from_bits(get_reg!(inst.c));
+                    set_reg!(inst.a, if left >= right { 1 } else { 0 });
+                }
+
+                // Float Comparisons with Constant
+                OpCode::CmpEqFC => {
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_const!(inst.c));
+                    set_reg!(inst.a, if left == right { 1 } else { 0 });
+                }
+                OpCode::CmpNeqFC => {
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_const!(inst.c));
+                    set_reg!(inst.a, if left != right { 1 } else { 0 });
+                }
+                OpCode::CmpLtFC => {
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_const!(inst.c));
+                    set_reg!(inst.a, if left < right { 1 } else { 0 });
+                }
+                OpCode::CmpLeFC => {
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_const!(inst.c));
+                    set_reg!(inst.a, if left <= right { 1 } else { 0 });
+                }
+                OpCode::CmpGtFC => {
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_const!(inst.c));
+                    set_reg!(inst.a, if left > right { 1 } else { 0 });
+                }
+                OpCode::CmpGeFC => {
+                    let left = f64::from_bits(get_reg!(inst.b));
+                    let right = f64::from_bits(get_const!(inst.c));
                     set_reg!(inst.a, if left >= right { 1 } else { 0 });
                 }
 
