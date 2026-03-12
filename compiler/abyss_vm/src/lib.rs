@@ -221,22 +221,27 @@ impl AbyssVm {
                 OpCode::AddI => {
                     let left = get_reg!(inst.b) as i64;
                     let right = get_reg!(inst.c) as i64;
-                    set_reg!(inst.a, (left + right) as u64);
+                    set_reg!(inst.a, left.wrapping_add(right) as u64);
                 }
                 OpCode::SubI => {
                     let left = get_reg!(inst.b) as i64;
                     let right = get_reg!(inst.c) as i64;
-                    set_reg!(inst.a, (left - right) as u64);
+                    set_reg!(inst.a, left.wrapping_sub(right) as u64);
                 }
                 OpCode::MulI => {
                     let left = get_reg!(inst.b) as i64;
                     let right = get_reg!(inst.c) as i64;
-                    set_reg!(inst.a, (left * right) as u64);
+                    set_reg!(inst.a, left.wrapping_mul(right) as u64);
                 }
                 OpCode::DivI => {
                     let left = get_reg!(inst.b) as i64;
                     let right = get_reg!(inst.c) as i64;
-                    set_reg!(inst.a, (left / right) as u64);
+                    if right == 0 {
+                        self.ip = ip;
+                        self.bp = bp;
+                        panic!("Runtime error: Division by zero");
+                    }
+                    set_reg!(inst.a, left.wrapping_div(right) as u64);
                 }
                 OpCode::ModI => {
                     let left = get_reg!(inst.b) as i64;
@@ -246,29 +251,34 @@ impl AbyssVm {
                         self.bp = bp;
                         panic!("Runtime error: Division by zero");
                     }
-                    set_reg!(inst.a, (left % right) as u64);
+                    set_reg!(inst.a, left.wrapping_rem(right) as u64);
                 }
 
                 // Integer Math with Constant
                 OpCode::AddIC => {
                     let left = get_reg!(inst.b) as i64;
                     let right = get_const!(inst.c) as i64;
-                    set_reg!(inst.a, (left + right) as u64);
+                    set_reg!(inst.a, left.wrapping_add(right) as u64);
                 }
                 OpCode::SubIC => {
                     let left = get_reg!(inst.b) as i64;
                     let right = get_const!(inst.c) as i64;
-                    set_reg!(inst.a, (left - right) as u64);
+                    set_reg!(inst.a, left.wrapping_sub(right) as u64);
                 }
                 OpCode::MulIC => {
                     let left = get_reg!(inst.b) as i64;
                     let right = get_const!(inst.c) as i64;
-                    set_reg!(inst.a, (left * right) as u64);
+                    set_reg!(inst.a, left.wrapping_mul(right) as u64);
                 }
                 OpCode::DivIC => {
                     let left = get_reg!(inst.b) as i64;
                     let right = get_const!(inst.c) as i64;
-                    set_reg!(inst.a, (left / right) as u64);
+                    if right == 0 {
+                        self.ip = ip;
+                        self.bp = bp;
+                        panic!("Runtime error: Division by zero");
+                    }
+                    set_reg!(inst.a, left.wrapping_div(right) as u64);
                 }
                 OpCode::ModIC => {
                     let left = get_reg!(inst.b) as i64;
@@ -278,7 +288,7 @@ impl AbyssVm {
                         self.bp = bp;
                         panic!("Runtime error: Division by zero");
                     }
-                    set_reg!(inst.a, (left % right) as u64);
+                    set_reg!(inst.a, left.wrapping_rem(right) as u64);
                 }
 
                 OpCode::PrintI => {

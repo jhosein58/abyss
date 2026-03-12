@@ -18,18 +18,7 @@ impl IrCompiler {
             IrStmt::Break => self.compile_break(),
 
             IrStmt::WriteIndex { base, index, val } => {
-                let base_reg = self.compile_expr(env, base, None);
-
-                let val_reg = self.compile_expr(env, val, None);
-
-                let index_reg = self.compile_expr(env, index, None);
-
-                self.emit(Instruction {
-                    op: OpCode::StorePtrOffset,
-                    a: base_reg,
-                    b: val_reg,
-                    c: index_reg,
-                });
+                self.compile_write_index(env, base, index, val)
             }
         }
     }
@@ -151,5 +140,20 @@ impl IrCompiler {
         } else {
             panic!("Compiler Error: 'Break' outside of a loop!");
         }
+    }
+
+    fn compile_write_index(&mut self, env: &mut Env, base: &IrExpr, index: &IrExpr, val: &IrExpr) {
+        let base_reg = self.compile_expr(env, base, None);
+
+        let val_reg = self.compile_expr(env, val, None);
+
+        let index_reg = self.compile_expr(env, index, None);
+
+        self.emit(Instruction {
+            op: OpCode::StorePtrOffset,
+            a: base_reg,
+            b: val_reg,
+            c: index_reg,
+        });
     }
 }

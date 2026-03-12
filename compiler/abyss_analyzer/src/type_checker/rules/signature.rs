@@ -46,26 +46,27 @@ pub fn check_signature<'a>(
         }
     }
 
-    let (checked_body, is_native) = if ExprKind::Wildcard == body.kind {
-        (
-            TypedExpr {
-                kind: TypedExprKind::Wildcard,
-                ty: Type::Unit,
-                span: span.clone(),
-                id,
-            },
-            true,
-        )
-    } else {
-        (tc.check_expr(body), false)
-    };
-
-    let func_type = Type::Signature(arg_types, Box::new(return_type.clone()), is_native);
-
+    let is_native = ExprKind::Wildcard == body.kind;
+    let func_type = Type::Signature(arg_types.clone(), Box::new(return_type.clone()), is_native);
     if let Some(ref name) = name_opt {
+        tc.ctx.update_type(name, func_type.clone());
         tc.ctx
             .define(name.clone(), SymbolInfo::constant(func_type.clone()));
+
+        tc.resolver
+            .set_forward_declaration(name.clone(), func_type.clone());
     }
+
+    let checked_body = if is_native {
+        TypedExpr {
+            kind: TypedExprKind::Wildcard,
+            ty: Type::Unit,
+            span: span.clone(),
+            id,
+        }
+    } else {
+        tc.check_expr(body)
+    };
 
     tc.ctx.exit_scope();
 
