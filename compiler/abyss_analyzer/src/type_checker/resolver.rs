@@ -11,6 +11,7 @@ pub enum InlinePolicy {
 pub enum GlobalDefState<'a> {
     Unresolved(&'a Expr),
     Resolving,
+    ForwardDeclared(Type),
     Resolved {
         ty: Type,
         typed_expr: TypedExpr,
@@ -88,7 +89,15 @@ impl<'a> GlobalResolver<'a> {
     pub fn get_resolved_type(&self, name: &str) -> Option<Type> {
         match self.definitions.get(name) {
             Some(GlobalDefState::Resolved { ty, .. }) => Some(ty.clone()),
+            Some(GlobalDefState::ForwardDeclared(ty)) => Some(ty.clone()),
             _ => None,
+        }
+    }
+
+    pub fn set_forward_declaration(&mut self, name: String, ty: Type) {
+        if matches!(self.definitions.get(&name), Some(GlobalDefState::Resolving)) {
+            self.definitions
+                .insert(name, GlobalDefState::ForwardDeclared(ty));
         }
     }
 

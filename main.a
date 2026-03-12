@@ -1,22 +1,73 @@
-
-arr := [0; 100]
-
-i := 0
-
-while i < 100 {
-
-    arr[i] = i * 2
-
-    i = i + 1
+def fib(n: i32): i32 {
+    if n < 2 {
+        n
+    } else {
+        fib(n - 1) + fib(n - 2)
+    }
 }
 
-i = 0
-
-while i < 100 {
-
-    print(arr[i])
-
-    i = i + 1
+def generate_array(arr: [i32; 10000], s: i32) {
+    seed := 12345
+    i := 0
+    
+    while i < s {
+        seed = (seed * 1103515245 + 12345)
+        
+        val := seed
+        if val < 0 {
+            val = 0 - val
+        }
+        
+        mod_val := val - (val / 10000) * 10000
+        
+        arr[i] = mod_val
+        i = i + 1
+    }
 }
 
+def partition(arr: [i32; 10000], low: i32, high: i32): i32 {
+    pivot := arr[high]
+    i := low - 1
+    j := low
 
+    while j < high {
+        if arr[j] < pivot {
+            i = i + 1
+            
+            temp := arr[i]
+            arr[i] = arr[j]
+            arr[j] = temp
+        }
+        j = j + 1
+    }
+    
+    temp2 := arr[i + 1]
+    arr[i + 1] = arr[high]
+    arr[high] = temp2
+
+    i + 1
+}
+
+def quicksort(arr: [i32; 10000], low: i32, high: i32) {
+    if low < high {
+        pi := partition(arr, low, high)
+        
+        quicksort(arr, low, pi - 1)
+        quicksort(arr, pi + 1, high)
+    }
+}
+
+fib_result := fib(35)
+print(fib_result)
+
+s := 10000
+arr := [0; 10000]
+iter := 0
+
+while iter < 100 {
+    generate_array(arr, s)
+    quicksort(arr, 0, s - 1)
+    iter = iter + 1
+}
+
+print(arr[5000])
