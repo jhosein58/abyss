@@ -119,7 +119,7 @@ impl<'a, 'e> PrattEngine<'a, 'e> {
             }
             // until we find a statement boundary
             match self.stream.current().kind {
-                Tk::While | Tk::Ret | Tk::If | Tk::For | Tk::CBrace => return,
+                Tk::While | Tk::Ret | Tk::If | Tk::For | Tk::CBrace | Tk::Def | Tk::Cmpt => return,
                 _ => {}
             }
 

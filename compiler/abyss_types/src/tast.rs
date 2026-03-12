@@ -36,7 +36,7 @@ pub enum TypedExprKind {
     Use(Box<TypedExpr>),
 
     // --- Sequences & Functions & dec ---
-    ArrayInit(Vec<TypedExpr>, Option<Box<TypedExpr>>),
+    SequenceInit(Vec<SequenceElement>),
     FunctionDef {
         name: String,
         args: Vec<TypedExpr>,
@@ -90,6 +90,12 @@ pub enum TypedExprKind {
     Wildcard,
     Type(Type),
     ErrorPlaceholder,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SequenceElement {
+    pub label: Option<String>,
+    pub expr: TypedExpr,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

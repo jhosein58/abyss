@@ -22,7 +22,7 @@ fn main() {
 
     let mut type_checker = TypeChecker::new(&mut err);
 
-    let tast = type_checker.check_program(program);
+    let tast = type_checker.check_program(&program);
     tast.body.print_tree();
 
     println!();
@@ -35,7 +35,7 @@ fn main() {
     let compiler = IrCompiler::new();
     let (instructions, constants) = compiler.compile(&ir_program);
 
-    println!("{:#?}", instructions);
+    //println!("{:#?}", instructions);
     let mut vm = AbyssVm::new(instructions, constants);
     println!("\nCompiled in: {}ms", t.elapsed().as_millis());
 

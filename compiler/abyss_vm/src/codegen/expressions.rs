@@ -14,6 +14,13 @@ impl IrCompiler {
             IrExprKind::NativeCall { func_index, args } => {
                 self.compile_native_call(env, *func_index, args, target)
             }
+
+            IrExprKind::ArrayInit(elements) => self.compile_array_init(env, elements, target),
+            IrExprKind::ArrayRepeat { val, count } => {
+                self.compile_array_repeat(env, val, *count, target)
+            }
+
+            IrExprKind::Index(base, index) => self.compile_index(env, base, index, target),
         }
     }
 
@@ -147,10 +154,179 @@ impl IrCompiler {
             return self.compile_logical_short_circuit(env, left, op, right, target);
         }
 
-        let r_left = self.compile_expr(env, left, None);
-        let r_right = self.compile_expr(env, right, None);
         let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
         let is_float = matches!(left.ty, IrType::F32);
+
+        if let IrExprKind::Lit(lit) = &right.kind {
+            let const_val = match lit {
+                IrLit::Int(i) => *i as u64,
+                IrLit::Float(f) => f.to_bits(),
+                IrLit::Bool(b) => {
+                    if *b {
+                        1
+                    } else {
+                        0
+                    }
+                }
+            };
+            let c_idx = self.add_const(const_val);
+            let r_left = self.compile_expr(env, left, None);
+
+            let opcode = match op {
+                IrBinaryOp::Add => {
+                    if is_float {
+                        OpCode::AddFC
+                    } else {
+                        OpCode::AddIC
+                    }
+                }
+                IrBinaryOp::Sub => {
+                    if is_float {
+                        OpCode::SubFC
+                    } else {
+                        OpCode::SubIC
+                    }
+                }
+                IrBinaryOp::Mul => {
+                    if is_float {
+                        OpCode::MulFC
+                    } else {
+                        OpCode::MulIC
+                    }
+                }
+                IrBinaryOp::Div => {
+                    if is_float {
+                        OpCode::DivFC
+                    } else {
+                        OpCode::DivIC
+                    }
+                }
+                IrBinaryOp::Mod => {
+                    if is_float {
+                        panic!("% not supported for floats")
+                    } else {
+                        OpCode::ModIC
+                    }
+                }
+                IrBinaryOp::Eq => {
+                    if is_float {
+                        OpCode::CmpEqFC
+                    } else {
+                        OpCode::CmpEqIC
+                    }
+                }
+                IrBinaryOp::Neq => {
+                    if is_float {
+                        OpCode::CmpNeqFC
+                    } else {
+                        OpCode::CmpNeqIC
+                    }
+                }
+                IrBinaryOp::Lt => {
+                    if is_float {
+                        OpCode::CmpLtFC
+                    } else {
+                        OpCode::CmpLtIC
+                    }
+                }
+                IrBinaryOp::Le => {
+                    if is_float {
+                        OpCode::CmpLeFC
+                    } else {
+                        OpCode::CmpLeIC
+                    }
+                }
+                IrBinaryOp::Gt => {
+                    if is_float {
+                        OpCode::CmpGtFC
+                    } else {
+                        OpCode::CmpGtIC
+                    }
+                }
+                IrBinaryOp::Ge => {
+                    if is_float {
+                        OpCode::CmpGeFC
+                    } else {
+                        OpCode::CmpGeIC
+                    }
+                }
+                _ => unreachable!(),
+            };
+
+            self.emit(Instruction {
+                op: opcode,
+                a: dest_reg,
+                b: r_left,
+                c: c_idx,
+            });
+            return dest_reg;
+        }
+
+        if let IrExprKind::Lit(lit) = &left.kind {
+            let is_commutative = matches!(
+                op,
+                IrBinaryOp::Add | IrBinaryOp::Mul | IrBinaryOp::Eq | IrBinaryOp::Neq
+            );
+
+            if is_commutative {
+                let const_val = match lit {
+                    IrLit::Int(i) => *i as u64,
+                    IrLit::Float(f) => f.to_bits(),
+                    IrLit::Bool(b) => {
+                        if *b {
+                            1
+                        } else {
+                            0
+                        }
+                    }
+                };
+                let c_idx = self.add_const(const_val);
+                let r_right = self.compile_expr(env, right, None);
+
+                let opcode = match op {
+                    IrBinaryOp::Add => {
+                        if is_float {
+                            OpCode::AddFC
+                        } else {
+                            OpCode::AddIC
+                        }
+                    }
+                    IrBinaryOp::Mul => {
+                        if is_float {
+                            OpCode::MulFC
+                        } else {
+                            OpCode::MulIC
+                        }
+                    }
+                    IrBinaryOp::Eq => {
+                        if is_float {
+                            OpCode::CmpEqFC
+                        } else {
+                            OpCode::CmpEqIC
+                        }
+                    }
+                    IrBinaryOp::Neq => {
+                        if is_float {
+                            OpCode::CmpNeqFC
+                        } else {
+                            OpCode::CmpNeqIC
+                        }
+                    }
+                    _ => unreachable!(),
+                };
+
+                self.emit(Instruction {
+                    op: opcode,
+                    a: dest_reg,
+                    b: r_right,
+                    c: c_idx,
+                });
+                return dest_reg;
+            }
+        }
+
+        let r_left = self.compile_expr(env, left, None);
+        let r_right = self.compile_expr(env, right, None);
 
         let opcode = match op {
             IrBinaryOp::Add => {
@@ -364,6 +540,170 @@ impl IrCompiler {
             b: func_index as u8,
             c: arg_start_reg,
         });
+        dest_reg
+    }
+
+    fn compile_array_init(&mut self, env: &mut Env, elements: &[IrExpr], target: Option<u8>) -> u8 {
+        let count = elements.len();
+        let size_bytes = (count * 8) as u64;
+        let size_idx = self.add_const(size_bytes);
+        let size_reg = env.alloc_reg();
+        self.emit(Instruction {
+            op: OpCode::LoadConst,
+            a: size_reg,
+            b: size_idx,
+            c: 0,
+        });
+
+        let arr_ptr = target.unwrap_or_else(|| env.alloc_reg());
+        self.emit(Instruction {
+            op: OpCode::Alloc,
+            a: arr_ptr,
+            b: size_reg,
+            c: 0,
+        });
+
+        for (i, expr) in elements.iter().enumerate() {
+            let val_reg = self.compile_expr(env, expr, None);
+
+            let idx_const = self.add_const(i as u64);
+            let idx_reg = env.alloc_reg();
+            self.emit(Instruction {
+                op: OpCode::LoadConst,
+                a: idx_reg,
+                b: idx_const,
+                c: 0,
+            });
+
+            self.emit(Instruction {
+                op: OpCode::StorePtrOffset,
+                a: arr_ptr,
+                b: val_reg,
+                c: idx_reg,
+            });
+        }
+
+        arr_ptr
+    }
+
+    fn compile_array_repeat(
+        &mut self,
+        env: &mut Env,
+        val_expr: &IrExpr,
+        count: usize,
+        target: Option<u8>,
+    ) -> u8 {
+        let size_bytes = (count * 8) as u64;
+
+        let size_idx = self.add_const(size_bytes);
+        let size_reg = env.alloc_reg();
+        self.emit(Instruction {
+            op: OpCode::LoadConst,
+            a: size_reg,
+            b: size_idx,
+            c: 0,
+        });
+
+        let arr_ptr = target.unwrap_or_else(|| env.alloc_reg());
+        self.emit(Instruction {
+            op: OpCode::Alloc,
+            a: arr_ptr,
+            b: size_reg,
+            c: 0,
+        });
+
+        if count == 0 {
+            return arr_ptr;
+        }
+
+        let val_reg = self.compile_expr(env, val_expr, None);
+
+        let i_reg = env.alloc_reg();
+        let zero_idx = self.add_const(0);
+        self.emit(Instruction {
+            op: OpCode::LoadConst,
+            a: i_reg,
+            b: zero_idx,
+            c: 0,
+        });
+
+        let count_reg = env.alloc_reg();
+        let count_idx = self.add_const(count as u64);
+        self.emit(Instruction {
+            op: OpCode::LoadConst,
+            a: count_reg,
+            b: count_idx,
+            c: 0,
+        });
+
+        let loop_start_idx = self.instructions.len();
+
+        let cmp_reg = env.alloc_reg();
+        self.emit(Instruction {
+            op: OpCode::CmpLtI,
+            a: cmp_reg,
+            b: i_reg,
+            c: count_reg,
+        });
+
+        let jmpz_idx = self.instructions.len();
+        self.emit(Instruction {
+            op: OpCode::JmpZImm,
+            a: cmp_reg,
+            b: 0,
+            c: 0,
+        });
+
+        self.emit(Instruction {
+            op: OpCode::StorePtrOffset,
+            a: arr_ptr,
+            b: val_reg,
+            c: i_reg,
+        });
+
+        let one_idx = self.add_const(1);
+        self.emit(Instruction {
+            op: OpCode::AddIC,
+            a: i_reg,
+            b: i_reg,
+            c: one_idx,
+        });
+
+        let jmp_back_idx = self.instructions.len();
+        self.emit(Instruction {
+            op: OpCode::JmpImm,
+            a: 0,
+            b: 0,
+            c: 0,
+        });
+        self.patch_jump(jmp_back_idx, loop_start_idx);
+
+        let end_idx = self.instructions.len();
+        self.patch_jump(jmpz_idx, end_idx);
+
+        arr_ptr
+    }
+
+    fn compile_index(
+        &mut self,
+        env: &mut Env,
+        base: &IrExpr,
+        index: &IrExpr,
+        target: Option<u8>,
+    ) -> u8 {
+        let base_reg = self.compile_expr(env, base, None);
+
+        let index_reg = self.compile_expr(env, index, None);
+
+        let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
+
+        self.emit(Instruction {
+            op: OpCode::LoadPtrOffset,
+            a: dest_reg,
+            b: base_reg,
+            c: index_reg,
+        });
+
         dest_reg
     }
 }

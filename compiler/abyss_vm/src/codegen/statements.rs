@@ -7,6 +7,7 @@ impl IrCompiler {
     pub(crate) fn compile_stmt(&mut self, env: &mut Env, stmt: &IrStmt) {
         match stmt {
             IrStmt::VarDec { name, init, .. } => self.compile_var_dec(env, name, init),
+            IrStmt::ConstDef { name, value, .. } => self.compile_const_def(env, name, value),
             IrStmt::Assign { target, val } => self.compile_assign(env, target, val),
             IrStmt::Expr(expr) => {
                 self.compile_expr(env, expr, None);
@@ -15,6 +16,21 @@ impl IrCompiler {
             IrStmt::If(cond, then_b, else_b) => self.compile_if(env, cond, then_b, else_b),
             IrStmt::While { cond, body } => self.compile_while(env, cond, body),
             IrStmt::Break => self.compile_break(),
+
+            IrStmt::WriteIndex { base, index, val } => {
+                let base_reg = self.compile_expr(env, base, None);
+
+                let val_reg = self.compile_expr(env, val, None);
+
+                let index_reg = self.compile_expr(env, index, None);
+
+                self.emit(Instruction {
+                    op: OpCode::StorePtrOffset,
+                    a: base_reg,
+                    b: val_reg,
+                    c: index_reg,
+                });
+            }
         }
     }
 
@@ -23,6 +39,10 @@ impl IrCompiler {
         if let Some(expr) = init {
             self.compile_expr(env, expr, Some(dest_reg));
         }
+    }
+    fn compile_const_def(&mut self, env: &mut Env, name: &String, value: &IrExpr) {
+        let dest_reg = env.declare_var(name.clone());
+        self.compile_expr(env, value, Some(dest_reg));
     }
 
     fn compile_assign(&mut self, env: &mut Env, target: &str, val: &IrExpr) {

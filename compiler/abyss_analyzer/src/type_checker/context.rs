@@ -1,6 +1,6 @@
+// type_checker/context.rs
+use abyss_types::types::Type;
 use std::collections::HashMap;
-
-use abyss_types::{tast::TypedExpr, types::Type};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SymbolKind {
@@ -14,19 +14,49 @@ pub struct SymbolInfo {
     pub kind: SymbolKind,
     pub is_mutable: bool,
     pub is_initialized: bool,
-    _is_native: bool,
+    pub is_native: bool,
+}
+
+impl SymbolInfo {
+    pub fn variable(ty: Type) -> Self {
+        Self {
+            ty,
+            kind: SymbolKind::Variable,
+            is_mutable: false,
+            is_initialized: true,
+            is_native: false,
+        }
+    }
+
+    pub fn constant(ty: Type) -> Self {
+        Self {
+            ty,
+            kind: SymbolKind::Constant,
+            is_mutable: false,
+            is_initialized: true,
+            is_native: false,
+        }
+    }
+
+    pub fn native_function(ty: Type) -> Self {
+        Self {
+            ty,
+            kind: SymbolKind::Constant,
+            is_mutable: false,
+            is_initialized: true,
+            is_native: true,
+        }
+    }
 }
 
 pub struct TypeContext {
     scopes: Vec<HashMap<String, SymbolInfo>>,
-    pub resolved_globals: HashMap<String, TypedExpr>,
 }
 
 impl TypeContext {
     pub fn new() -> Self {
         Self {
             scopes: vec![HashMap::new()],
-            resolved_globals: HashMap::new(),
         }
     }
 
@@ -42,57 +72,18 @@ impl TypeContext {
         }
     }
 
-    pub fn define(&mut self, name: String, ty: Type) {
+    pub fn define(&mut self, name: String, info: SymbolInfo) {
         let current_scope = self.scopes.last_mut().expect("Scope stack is empty");
-        current_scope.insert(
-            name,
-            SymbolInfo {
-                ty,
-                kind: SymbolKind::Variable,
-                is_mutable: false,
-                is_initialized: true,
-                _is_native: false,
-            },
-        );
+        current_scope.insert(name, info);
     }
 
-    pub fn define_symbol(&mut self, name: String, ty: Type) {
-        let current_scope = self.scopes.last_mut().expect("Scope stack is empty");
-        current_scope.insert(
-            name,
-            SymbolInfo {
-                ty,
-                kind: SymbolKind::Variable,
-                is_mutable: false,
-                is_initialized: true,
-                _is_native: false,
-            },
-        );
+    pub fn define_with_type(&mut self, name: String, ty: Type) {
+        self.define(name, SymbolInfo::variable(ty));
     }
 
-    pub fn define_global(&mut self, name: String, ty: Type) {
+    pub fn define_global(&mut self, name: String, info: SymbolInfo) {
         let global_scope = self.scopes.first_mut().expect("Global scope missing");
-
-        let _is_native = if let Type::Signature(_, _, n) = ty {
-            n
-        } else {
-            false
-        };
-
-        global_scope.insert(
-            name,
-            SymbolInfo {
-                ty,
-                kind: SymbolKind::Constant,
-                is_mutable: false,
-                is_initialized: true,
-                _is_native,
-            },
-        );
-    }
-
-    pub fn register_resolved_global(&mut self, name: String, expr: TypedExpr) {
-        self.resolved_globals.insert(name, expr);
+        global_scope.insert(name, info);
     }
 
     pub fn lookup(&self, name: &str) -> Option<&SymbolInfo> {
@@ -102,6 +93,20 @@ impl TypeContext {
             }
         }
         None
+    }
+
+    pub fn lookup_global(&self, name: &str) -> Option<&SymbolInfo> {
+        self.scopes.first()?.get(name)
+    }
+
+    pub fn update_type(&mut self, name: &str, new_ty: Type) -> bool {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(info) = scope.get_mut(name) {
+                info.ty = new_ty;
+                return true;
+            }
+        }
+        false
     }
 
     pub fn assign(&mut self, name: &str) -> Result<(), String> {
@@ -117,7 +122,6 @@ impl TypeContext {
                 return Ok(());
             }
         }
-
         Err(format!("Cannot find variable '{}' in this scope.", name))
     }
 
@@ -126,5 +130,19 @@ impl TypeContext {
             .last()
             .map(|s| s.contains_key(name))
             .unwrap_or(false)
+    }
+
+    pub fn is_global_scope(&self) -> bool {
+        self.scopes.len() == 1
+    }
+
+    pub fn scope_depth(&self) -> usize {
+        self.scopes.len()
+    }
+}
+
+impl Default for TypeContext {
+    fn default() -> Self {
+        Self::new()
     }
 }

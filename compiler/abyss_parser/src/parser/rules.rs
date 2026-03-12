@@ -154,6 +154,9 @@ pub fn get_rule(kind: Tk) -> ParseRule {
         // cmpt
         Tk::Cmpt => ParseRule::new(Some(parse_comptime), None, Precedence::None),
 
+        // #
+        Tk::Hash => ParseRule::new(Some(parse_attributed), None, Precedence::None),
+
         _ => ParseRule::new(None, None, Precedence::None),
     }
 }

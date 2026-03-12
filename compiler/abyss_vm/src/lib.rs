@@ -79,6 +79,10 @@ pub enum OpCode {
     LoadPtr,  // a = *b
     StorePtr, // *a = b
 
+    // array, struct, union
+    LoadPtrOffset,  // a = *(b + c * 8)
+    StorePtrOffset, // *(a + c * 8) = b
+
     Call,
     CallNative,
     Ret,
@@ -578,6 +582,49 @@ impl AbyssVm {
                         set_reg!(inst.a, result);
                     } else {
                         panic!("Native function not found!");
+                    }
+                }
+
+                OpCode::LoadPtrOffset => {
+                    let base_ptr = get_reg!(inst.b) as usize;
+                    let index = get_reg!(inst.c) as usize;
+                    let actual_ptr = base_ptr + (index * 8);
+
+                    if actual_ptr + 8 <= self.heap.len() {
+                        let mut val: u64 = 0;
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                self.heap.as_ptr().add(actual_ptr),
+                                &mut val as *mut u64 as *mut u8,
+                                8,
+                            );
+                        }
+                        set_reg!(inst.a, u64::from_le(val));
+                    } else {
+                        self.ip = ip;
+                        self.bp = bp;
+                        panic!("Runtime error: Memory access out of bounds");
+                    }
+                }
+
+                OpCode::StorePtrOffset => {
+                    let base_ptr = get_reg!(inst.a) as usize;
+                    let val = get_reg!(inst.b);
+                    let index = get_reg!(inst.c) as usize;
+                    let actual_ptr = base_ptr + (index * 8);
+
+                    if actual_ptr + 8 <= self.heap.len() {
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                &val as *const u64 as *const u8,
+                                self.heap.as_mut_ptr().add(actual_ptr),
+                                8,
+                            );
+                        }
+                    } else {
+                        self.ip = ip;
+                        self.bp = bp;
+                        panic!("Runtime error: Memory access out of bounds");
                     }
                 }
             }

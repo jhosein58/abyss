@@ -6,10 +6,10 @@ use abyss_types::{
     types::Type,
 };
 
-pub fn check_unary(
-    tc: &mut TypeChecker,
+pub fn check_unary<'a>(
+    tc: &mut TypeChecker<'a>,
     op: UnaryOp,
-    inner_expr: &Expr,
+    inner_expr: &'a Expr,
     span: Span,
     id: u32,
 ) -> TypedExpr {

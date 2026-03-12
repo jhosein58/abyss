@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>JS 1B Loop Benchmark</title>
+    </head>
+    <body>
+        <h2>JS Benchmark (1 Billion Loop)</h2>
+        <pre id="out">Running...</pre>
+
+        <script>
+            const ITER = 1_000_000_000;
+
+            let i = 0;
+
+            const start = performance.now();
+
+            for (let j = 0; j < ITER; j++) {
+                i += 1;
+            }
+
+            const end = performance.now();
+
+            document.getElementById("out").textContent = `Result: ${i}
+Time: ${(end - start).toFixed(3)} ms`;
+        </script>
+    </body>
+</html>

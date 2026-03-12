@@ -1,12 +1,22 @@
-res := {
-    i := 0
-    limit := 1_000_000_000
-    step := 1
 
-    while i < limit {
-        i = i + step
-    }
+arr := [0; 100]
 
-    i
+i := 0
+
+while i < 100 {
+
+    arr[i] = i * 2
+
+    i = i + 1
 }
-print(res)
+
+i = 0
+
+while i < 100 {
+
+    print(arr[i])
+
+    i = i + 1
+}
+
+
