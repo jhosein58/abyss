@@ -122,6 +122,7 @@ pub enum TokenKind {
     GtEq,             // >=
     RArrow,           // ->
     REqArrow,         // =>
+    Hash,             // #
     Underscore,       // _
 
     Unknown,
@@ -207,6 +208,7 @@ impl TokenKind {
             ">=" => TokenKind::GtEq,
             "->" => TokenKind::RArrow,
             "=>" => TokenKind::REqArrow,
+            "#" => TokenKind::Hash,
             "_" => TokenKind::Underscore,
 
             _ => TokenKind::Unknown,
@@ -297,6 +299,7 @@ impl Display for TokenKind {
             TokenKind::GtEq => write!(f, "'>='"),
             TokenKind::RArrow => write!(f, "'->'"),
             TokenKind::REqArrow => write!(f, "'=>'"),
+            TokenKind::Hash => write!(f, "'#'"),
             TokenKind::Underscore => write!(f, "'_'"),
             TokenKind::Unknown => write!(f, "Unknown"),
             TokenKind::Eof => write!(f, "Eof"),

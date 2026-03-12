@@ -7,11 +7,11 @@ use abyss_types::{
     types::Type,
 };
 
-pub fn check_if(
-    tc: &mut TypeChecker,
-    cond: &Box<Expr>,
-    then_b: &Box<Expr>,
-    else_b: &Option<Box<Expr>>,
+pub fn check_if<'a>(
+    tc: &mut TypeChecker<'a>,
+    cond: &'a Box<Expr>,
+    then_b: &'a Box<Expr>,
+    else_b: &'a Option<Box<Expr>>,
     span: Span,
     id: u32,
 ) -> TypedExpr {
@@ -79,11 +79,11 @@ pub fn check_if(
     }
 }
 
-pub fn check_while(
-    tc: &mut TypeChecker,
-    cond: &Box<Expr>,
-    body: &Box<Expr>,
-    else_b: &Option<Box<Expr>>,
+pub fn check_while<'a>(
+    tc: &mut TypeChecker<'a>,
+    cond: &'a Box<Expr>,
+    body: &'a Box<Expr>,
+    else_b: &'a Option<Box<Expr>>,
     span: Span,
     id: u32,
 ) -> TypedExpr {
@@ -125,7 +125,12 @@ pub fn check_while(
     }
 }
 
-pub fn check_out(tc: &mut TypeChecker, val: &Option<Box<Expr>>, span: Span, id: u32) -> TypedExpr {
+pub fn check_out<'a>(
+    tc: &mut TypeChecker<'a>,
+    val: &'a Option<Box<Expr>>,
+    span: Span,
+    id: u32,
+) -> TypedExpr {
     let (checked_val, out_ty) = match val {
         Some(inner_expr) => {
             let checked = tc.check_expr(inner_expr);

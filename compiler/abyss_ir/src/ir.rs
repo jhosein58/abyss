@@ -7,6 +7,7 @@ pub enum IrType {
     Bool,
     Unit,
     Ptr(Box<IrType>),
+    Array(Box<IrType>, usize),
 }
 
 #[derive(Debug, Clone)]
@@ -31,8 +32,20 @@ pub enum IrStmt {
         init: Option<IrExpr>,
     },
 
+    ConstDef {
+        name: String,
+        ty: IrType,
+        value: IrExpr,
+    },
+
     Assign {
         target: String,
+        val: IrExpr,
+    },
+
+    WriteIndex {
+        base: IrExpr,
+        index: IrExpr,
         val: IrExpr,
     },
 
@@ -74,6 +87,16 @@ pub enum IrExprKind {
         func_index: usize,
         args: Vec<IrExpr>,
     },
+
+    ArrayInit(Vec<IrExpr>), // [1, 2, 3]
+
+    // [0; 10]
+    ArrayRepeat {
+        val: Box<IrExpr>,
+        count: usize,
+    },
+
+    Index(Box<IrExpr>, Box<IrExpr>), // a[b]
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

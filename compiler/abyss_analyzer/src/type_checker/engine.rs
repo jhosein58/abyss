@@ -1,35 +1,48 @@
 use abyss_diagnostics::{DiagnosticEngine, Span};
 use abyss_ir::builder::IrBuilder;
 use abyss_ir::ir::IrLit;
-use abyss_parser::ast::{BinaryOp, Expr, ExprKind, Program};
+use abyss_parser::ast::{Attribute, Expr, ExprKind, Program};
 use abyss_types::tast::{TypedExpr, TypedExprKind, TypedProgram};
 use abyss_types::types::Type;
 use abyss_vm::execute_comptime;
+use std::collections::HashMap;
 
+use crate::type_checker::context::{SymbolInfo, TypeContext};
+use crate::type_checker::resolver::{GlobalResolver, InlinePolicy};
 use crate::type_checker::rules::binary::check_binary;
+use crate::type_checker::rules::ident::check_ident;
+use crate::type_checker::rules::index::check_index;
+use crate::type_checker::type_registry::TypeRegistry;
+
 use crate::type_checker::rules::block::check_block;
 use crate::type_checker::rules::call::check_call;
 use crate::type_checker::rules::control_flow::{check_if, check_out, check_while};
-use crate::type_checker::rules::ident::check_ident;
 use crate::type_checker::rules::literals::check_literal;
 use crate::type_checker::rules::prefix::{check_cmpt, check_def, check_ret};
 use crate::type_checker::rules::sequence::check_sequence;
 use crate::type_checker::rules::signature::check_signature;
 use crate::type_checker::rules::unary::check_unary;
 
-use super::context::TypeContext;
-
 pub struct TypeChecker<'a> {
     pub ctx: TypeContext,
+    pub type_registry: TypeRegistry,
+    pub resolver: GlobalResolver<'a>,
     pub diagnostics: &'a mut DiagnosticEngine,
     pub anon_func_counter: usize,
+    resolve_stack: Vec<String>,
+    active_attributes: Vec<&'a Attribute>,
 }
+
 impl<'a> TypeChecker<'a> {
     pub fn new(diagnostics: &'a mut DiagnosticEngine) -> Self {
         Self {
             ctx: TypeContext::new(),
+            type_registry: TypeRegistry::new(),
+            resolver: GlobalResolver::new(),
             diagnostics,
             anon_func_counter: 0,
+            resolve_stack: Vec::new(),
+            active_attributes: Vec::new(),
         }
     }
 
@@ -41,7 +54,7 @@ impl<'a> TypeChecker<'a> {
         self.diagnostics.report_error_with_hint(span, message, hint);
     }
 
-    fn gather_declarations(&mut self, expr: &Expr) {
+    fn gather_declarations(&mut self, expr: &'a Expr) {
         match &expr.kind {
             ExprKind::Block(items) => {
                 for item in items {
@@ -53,61 +66,145 @@ impl<'a> TypeChecker<'a> {
                     n.clone()
                 } else {
                     self.report_error(name.span_expr(), "Only ident can be used.".to_string());
-                    "".to_string()
+                    return;
                 };
 
                 if name_str.is_empty() {
                     return;
                 }
 
-                let ty = self.extract_type_for_pass1(value);
-                self.ctx.define_global(name_str, ty);
+                self.resolver.register(name_str.clone(), value);
+
+                self.ctx
+                    .define_global(name_str, SymbolInfo::constant(Type::Infer));
             }
             _ => {}
         }
     }
 
-    fn extract_type_for_pass1(&mut self, value: &Expr) -> Type {
-        match &value.kind {
-            ExprKind::Signature(args, ret_ty, body) => {
-                let mut arg_types = Vec::new();
-                for arg in args {
-                    if let ExprKind::Binary(_, BinaryOp::KeyValue, right) = &arg.kind {
-                        let typed_ty = self.check_expr(right);
-                        arg_types.push(self.evaluate_as_type(typed_ty));
-                    }
+    pub fn resolve_global(&mut self, name: &str, span: Span) -> Option<Type> {
+        if let Some(ty) = self.resolver.get_resolved_type(name) {
+            return Some(ty);
+        }
+
+        if self.resolver.is_resolving(name) {
+            let cycle: Vec<String> = self
+                .resolve_stack
+                .iter()
+                .skip_while(|n| *n != name)
+                .cloned()
+                .collect();
+            self.report_error(
+                span,
+                format!(
+                    "Circular dependency detected: {} -> {}",
+                    cycle.join(" -> "),
+                    name
+                ),
+            );
+            return None;
+        }
+
+        let expr = self.resolver.begin_resolve(name)?;
+        self.resolve_stack.push(name.to_string());
+
+        let (attributes, inner_expr) = if let ExprKind::Attributed(attrs, inner) = &expr.kind {
+            (attrs.as_slice(), &**inner)
+        } else {
+            (&[][..], expr)
+        };
+
+        let mut inline_policy = InlinePolicy::Never;
+        if attributes.iter().any(|a| a.name == "inline") {
+            inline_policy = InlinePolicy::Always;
+        }
+
+        let typed_expr = self.check_expr(inner_expr);
+        let ty = typed_expr.ty.clone();
+
+        let is_type_def =
+            matches!(ty, Type::Metatype) || matches!(&typed_expr.kind, TypedExprKind::Type(_));
+
+        if is_type_def {
+            let actual_type = self.extract_actual_type(&typed_expr);
+            self.type_registry
+                .register(name.to_string(), actual_type.clone());
+
+            self.ctx.update_type(name, Type::Metatype);
+        } else {
+            self.ctx.update_type(name, ty.clone());
+        }
+
+        self.resolver.complete_resolve(
+            name.to_string(),
+            ty.clone(),
+            typed_expr,
+            is_type_def,
+            inline_policy,
+        );
+
+        self.resolve_stack.pop();
+        Some(ty)
+    }
+
+    fn extract_actual_type(&mut self, expr: &TypedExpr) -> Type {
+        match &expr.kind {
+            TypedExprKind::Type(ty) => ty.clone(),
+            TypedExprKind::Ident(name) => {
+                if let Some(ty) = self.type_registry.get(name) {
+                    ty.clone()
+                } else {
+                    Type::Error
                 }
-
-                let return_type = if let Some(rt) = ret_ty {
-                    let typed_ret = self.check_expr(rt);
-                    self.evaluate_as_type(typed_ret)
-                } else {
-                    Type::Unit
-                };
-
-                let is_native = if ExprKind::Wildcard == body.kind {
-                    true
-                } else {
-                    false
-                };
-
-                Type::Signature(arg_types, Box::new(return_type), is_native)
             }
-            ExprKind::Lit(lit) => match lit {
-                abyss_parser::ast::Lit::Int(_) => Type::I32,
-                abyss_parser::ast::Lit::Float(_) => Type::F32,
-                abyss_parser::ast::Lit::Bool(_) => Type::Bool,
-                _ => Type::Infer,
-            },
-
-            _ => Type::Infer,
+            _ => self.evaluate_as_type(expr.clone()),
         }
     }
 
-    pub fn check_expr(&mut self, expr: &Expr) -> TypedExpr {
+    pub fn resolve_type_by_name(&mut self, name: &str, span: Span) -> Type {
+        if let Some(ty) = self.type_registry.get(name) {
+            return ty.clone();
+        }
+
+        match name {
+            "i32" => return Type::I32,
+            "f32" => return Type::F32,
+            "bool" => return Type::Bool,
+            "str" => return Type::Str,
+            "char" => return Type::Char,
+            "unit" | "()" => return Type::Unit,
+            _ => {}
+        }
+
+        if self.resolver.contains(name) {
+            if let Some(_) = self.resolve_global(name, span.clone()) {
+                if let Some(ty) = self.type_registry.get(name) {
+                    return ty.clone();
+                }
+            }
+        }
+
+        self.report_error(span, format!("Undefined type: '{}'", name));
+        Type::Error
+    }
+
+    pub fn check_expr(&mut self, expr: &'a Expr) -> TypedExpr {
         match &expr.kind {
+            ExprKind::Attributed(attributes, inner_expr) => {
+                let original_len = self.active_attributes.len();
+                self.active_attributes.extend(attributes.iter());
+
+                let typed_inner_expr = self.check_expr(inner_expr);
+
+                self.active_attributes.truncate(original_len);
+
+                return typed_inner_expr;
+            }
+
             ExprKind::Lit(lit) => check_literal(lit, expr.span_expr(), expr.id),
+
             ExprKind::Block(stmts) => check_block(self, stmts, expr.span_expr(), expr.id),
+
             ExprKind::Binary(l, op, r) => check_binary(self, l, *op, r, expr.span_expr(), expr.id),
 
             ExprKind::Unary(op, inner_expr) => {
@@ -115,6 +212,7 @@ impl<'a> TypeChecker<'a> {
             }
 
             ExprKind::Ident(name) => check_ident(self, name.clone(), expr.span_expr(), expr.id),
+
             ExprKind::Call(calle, args) => check_call(self, calle, args, expr.span_expr(), expr.id),
 
             ExprKind::Signature(args, ret_ty, body) => {
@@ -143,18 +241,45 @@ impl<'a> TypeChecker<'a> {
                 check_cmpt(self, inner_expr, expr.span_expr(), expr.id)
             }
 
+            ExprKind::Index(arr, idx) => check_index(self, arr, idx, expr.span_expr(), expr.id),
+
             _ => error_expr(expr.span.clone(), expr.id),
         }
     }
 
-    pub fn check_program(&mut self, prog: Program) -> TypedProgram {
+    pub fn create_ident_expr(&self, name: String, ty: Type, span: Span, id: u32) -> TypedExpr {
+        TypedExpr {
+            kind: TypedExprKind::Ident(name),
+            ty,
+            span,
+            id,
+        }
+    }
+
+    pub fn primitive_type_from_name(&self, name: &str) -> Option<Type> {
+        match name {
+            "i32" => Some(Type::I32),
+            "f32" => Some(Type::F32),
+            "bool" => Some(Type::Bool),
+            "str" => Some(Type::Str),
+            "char" => Some(Type::Char),
+            "unit" => Some(Type::Unit),
+            _ => None,
+        }
+    }
+
+    pub fn check_program(&mut self, prog: &'a Program) -> TypedProgram {
         self.gather_declarations(&prog.body);
+
         let body = self.check_expr(&prog.body);
 
-        TypedProgram {
-            body,
-            globals: self.ctx.resolved_globals.clone(),
-        }
+        let resolved = self.resolver.drain_resolved();
+        let globals: HashMap<String, TypedExpr> = resolved
+            .into_iter()
+            .map(|(name, (_, typed_expr))| (name, typed_expr))
+            .collect();
+
+        TypedProgram { body, globals }
     }
 
     pub fn evaluate_as_type(&mut self, expr: TypedExpr) -> Type {
@@ -163,9 +288,20 @@ impl<'a> TypeChecker<'a> {
         }
 
         if expr.ty == Type::Metatype {
-            let mut ir_builder = IrBuilder::new();
+            if let TypedExprKind::Ident(name) = &expr.kind {
+                if let Some(ty) = self.type_registry.get(name) {
+                    return ty.clone();
+                }
+            }
 
-            let ir_prog = ir_builder.build_comptime_program(expr, &self.ctx.resolved_globals);
+            let globals = self.resolver.drain_resolved();
+            let globals_map: HashMap<String, TypedExpr> = globals
+                .into_iter()
+                .map(|(name, (_, typed_expr))| (name, typed_expr))
+                .collect();
+
+            let mut ir_builder = IrBuilder::new();
+            let ir_prog = ir_builder.build_comptime_program(expr, &globals_map);
 
             if let IrLit::Int(result_value) = execute_comptime(ir_prog) {
                 return Type::from_id(result_value as i64);
@@ -178,6 +314,14 @@ impl<'a> TypeChecker<'a> {
         }
 
         Type::Unit
+    }
+
+    pub fn has_attribute(&self, name: &str) -> bool {
+        self.active_attributes.iter().any(|attr| attr.name == name)
+    }
+
+    pub fn find_attribute(&self, name: &str) -> Option<&&'a Attribute> {
+        self.active_attributes.iter().find(|attr| attr.name == name)
     }
 }
 

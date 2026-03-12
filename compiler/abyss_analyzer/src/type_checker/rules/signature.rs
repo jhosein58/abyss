@@ -5,20 +5,19 @@ use abyss_types::{
     types::Type,
 };
 
-use crate::type_checker::engine::TypeChecker;
+use crate::type_checker::{context::SymbolInfo, engine::TypeChecker, resolver::InlinePolicy};
 
-pub fn check_signature(
-    tc: &mut TypeChecker,
-    args: &Vec<Expr>,
-    ret_ty: &Option<Box<Expr>>,
-    body: &Box<Expr>,
+pub fn check_signature<'a>(
+    tc: &mut TypeChecker<'a>,
+    args: &'a Vec<Expr>,
+    ret_ty: &'a Option<Box<Expr>>,
+    body: &'a Box<Expr>,
     name_opt: Option<String>,
     span: Span,
     id: u32,
 ) -> TypedExpr {
     let return_type = if let Some(t) = ret_ty {
-        let checked_ret_expr = tc.check_expr(t);
-        tc.evaluate_as_type(checked_ret_expr)
+        resolve_type_expr(tc, t)
     } else {
         Type::Unit
     };
@@ -31,10 +30,10 @@ pub fn check_signature(
     for arg in args {
         if let ExprKind::Binary(ref left, BinaryOp::KeyValue, ref right) = arg.kind {
             if let ExprKind::Ident(ref arg_name) = left.kind {
-                let typed_ty_expr = tc.check_expr(right);
-                let arg_ty = tc.evaluate_as_type(typed_ty_expr);
+                let arg_ty = resolve_type_expr(tc, right);
 
-                tc.ctx.define(arg_name.clone(), arg_ty.clone());
+                tc.ctx
+                    .define(arg_name.clone(), SymbolInfo::variable(arg_ty.clone()));
                 arg_types.push(arg_ty.clone());
 
                 checked_args.push(TypedExpr {
@@ -58,13 +57,14 @@ pub fn check_signature(
             true,
         )
     } else {
-        (tc.check_expr(&body), false)
+        (tc.check_expr(body), false)
     };
 
     let func_type = Type::Signature(arg_types, Box::new(return_type.clone()), is_native);
 
     if let Some(ref name) = name_opt {
-        tc.ctx.define(name.clone(), func_type.clone());
+        tc.ctx
+            .define(name.clone(), SymbolInfo::constant(func_type.clone()));
     }
 
     tc.ctx.exit_scope();
@@ -88,8 +88,17 @@ pub fn check_signature(
     };
 
     if let Some(name) = name_opt {
-        tc.ctx
-            .register_resolved_global(name.clone(), function_def_node.clone());
+        tc.ctx.update_type(&name, func_type.clone());
+
+        if tc.resolver.contains(&name) {
+            tc.resolver.complete_resolve(
+                name.clone(),
+                func_type.clone(),
+                function_def_node.clone(),
+                false,
+                InlinePolicy::Never,
+            );
+        }
 
         if is_native {
             TypedExpr {
@@ -108,5 +117,44 @@ pub fn check_signature(
         }
     } else {
         function_def_node
+    }
+}
+
+fn resolve_type_expr<'a>(tc: &mut TypeChecker<'a>, expr: &'a Expr) -> Type {
+    match &expr.kind {
+        ExprKind::Ident(name) => {
+            if let Some(prim_ty) = tc.primitive_type_from_name(name) {
+                return prim_ty;
+            }
+            if let Some(ty) = tc.type_registry.get(name) {
+                return ty.clone();
+            }
+
+            tc.resolve_type_by_name(name, expr.span.clone())
+        }
+
+        ExprKind::Sequence(_items, _) => {
+            let checked = tc.check_expr(expr);
+            tc.evaluate_as_type(checked)
+        }
+
+        _ => {
+            let checked = tc.check_expr(expr);
+
+            if checked.ty == Type::Metatype {
+                tc.evaluate_as_type(checked)
+            } else if let TypedExprKind::Type(ty) = checked.kind {
+                ty
+            } else {
+                tc.report_error(
+                    expr.span.clone(),
+                    format!(
+                        "Expected a type, found expression of type '{}'",
+                        checked.ty.name()
+                    ),
+                );
+                Type::Error
+            }
+        }
     }
 }

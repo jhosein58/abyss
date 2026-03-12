@@ -2,19 +2,46 @@ use crate::tast::TypedExpr;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
+    // Primitive types
+    I1,
+    I8,
+    I16,
     I32,
+    I64,
+
+    U8,
+    U16,
+    U32,
+    U64,
+
     F32,
+    F64,
+
     Bool,
     Str,
     Cstr,
     Char,
     Unit,
+
+    // Special types
+    Never,
     Infer,
+    Unknown,
+
     Ptr(Box<Type>),
     Signature(Vec<Type>, Box<Type>, bool), // args, return, is_native
-    Array(Box<Type>, Box<TypedExpr>),
+    Array(Box<Type>, Box<TypedExpr>),      // [Type; Length]
+    Struct(Vec<StructField>),              // [a: i32, str, c: bool]
+    Union(Vec<Type>),                      // i32 | str
+    Alias(String, Box<Type>),
     Metatype,
     Error,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StructField {
+    pub name: String,
+    pub ty: Type,
 }
 
 impl Type {
@@ -41,8 +68,21 @@ impl Type {
             }
 
             Type::Metatype => format!("type"),
-
             Type::Array(ref ty, ref len) => format!("[{}; {:?}]", ty.name(), len.kind),
+            Type::Struct(ref fields) => {
+                let field_names: Vec<String> = fields
+                    .iter()
+                    .map(|f| format!("{}: {}", f.name, f.ty.name()))
+                    .collect();
+                format!("[{}]", field_names.join(", "))
+            }
+            Type::Union(ref types) => {
+                let type_names: Vec<String> = types.iter().map(|t| t.name()).collect();
+                type_names.join(" | ")
+            }
+            Type::Alias(ref name, _) => name.clone(),
+
+            _ => panic!(),
         }
     }
 
@@ -67,6 +107,28 @@ impl Type {
             5 => Type::Unit,
             6 => Type::Metatype,
             _ => Type::Error,
+        }
+    }
+
+    pub fn underlying_type(&self) -> Type {
+        match self {
+            Type::Alias(_, base_ty) => base_ty.underlying_type(),
+            other => other.clone(),
+        }
+    }
+    pub fn is_assignable_from(&self, target: &Type, source: &Type) -> bool {
+        if target == source {
+            return true;
+        }
+
+        match (target, source) {
+            (Type::Alias(name1, _), Type::Alias(name2, _)) => name1 == name2,
+
+            (Type::Alias(_, _), _) => false,
+
+            (t, Type::Alias(_, inner_src)) => self.is_assignable_from(t, inner_src),
+
+            _ => false,
         }
     }
 }

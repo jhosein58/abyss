@@ -7,7 +7,12 @@ use abyss_types::{
     types::Type,
 };
 
-pub fn check_block(checker: &mut TypeChecker, stmts: &[Expr], span: Span, id: u32) -> TypedExpr {
+pub fn check_block<'a>(
+    checker: &mut TypeChecker<'a>,
+    stmts: &'a [Expr],
+    span: Span,
+    id: u32,
+) -> TypedExpr {
     let mut typed_stmts = Vec::with_capacity(stmts.len());
 
     checker.ctx.enter_scope();

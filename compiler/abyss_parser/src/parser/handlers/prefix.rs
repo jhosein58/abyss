@@ -1,7 +1,7 @@
 use abyss_lexer::token::TokenKind as Tk;
 
 use crate::{
-    ast::{Expr, ExprKind},
+    ast::{Attribute, Expr, ExprKind},
     parser::{engine::PrattEngine, precedence::Precedence},
 };
 
@@ -140,6 +140,45 @@ pub fn parse_comptime(eng: &mut PrattEngine) -> Result<Expr, ()> {
     Ok(Expr {
         kind: ExprKind::Comptime(Box::new(target_expr)),
         span: tk.span(eng.file_id),
+        id: eng.next_id(),
+    })
+}
+
+pub fn parse_attributed(eng: &mut PrattEngine) -> Result<Expr, ()> {
+    let start_span = eng.current_span();
+    let mut attributes = Vec::new();
+
+    while eng.match_token(Tk::Hash) {
+        let attr_expr = eng.parse_expression_bp(Precedence::None)?;
+
+        let (name, args) = match attr_expr.kind {
+            ExprKind::Ident(name_str) => (name_str, Vec::new()),
+            ExprKind::Call(callee, call_args) => {
+                if let ExprKind::Ident(name_str) = callee.kind {
+                    (name_str, call_args)
+                } else {
+                    return Err(());
+                }
+            }
+            _ => {
+                return Err(());
+            }
+        };
+
+        attributes.push(Attribute {
+            name,
+            args,
+            span: attr_expr.span,
+        });
+    }
+
+    let target_expr = eng.parse_expression_bp(Precedence::None)?;
+
+    let final_span = start_span.merge(target_expr.span_expr());
+
+    Ok(Expr {
+        kind: ExprKind::Attributed(attributes, Box::new(target_expr)),
+        span: final_span,
         id: eng.next_id(),
     })
 }

@@ -3,6 +3,7 @@ pub mod block;
 pub mod call;
 pub mod control_flow;
 pub mod ident;
+pub mod index;
 pub mod literals;
 pub mod prefix;
 pub mod sequence;

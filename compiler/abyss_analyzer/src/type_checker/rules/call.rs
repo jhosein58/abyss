@@ -7,10 +7,10 @@ use abyss_types::{
     types::Type,
 };
 
-pub fn check_call(
-    tc: &mut TypeChecker,
-    calle: &Box<Expr>,
-    args: &Vec<Expr>,
+pub fn check_call<'a>(
+    tc: &mut TypeChecker<'a>,
+    calle: &'a Box<Expr>,
+    args: &'a Vec<Expr>,
     span: Span,
     id: u32,
 ) -> TypedExpr {

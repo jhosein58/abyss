@@ -57,10 +57,20 @@ impl IrBuilder {
         globals: &HashMap<String, TypedExpr>,
     ) -> IrProgram {
         let mut functions = Vec::new();
+        let mut init_stmts = Vec::new();
 
-        for (_, global_expr) in globals {
+        for (name, global_expr) in globals {
             if let Some(ir_func) = self.build_function(global_expr.clone()) {
                 functions.push(ir_func);
+            } else {
+                let (value_stmts, value_ir) = self.lower_expr(global_expr.clone());
+                init_stmts.extend(value_stmts);
+
+                init_stmts.push(IrStmt::ConstDef {
+                    name: name.clone(),
+                    ty: value_ir.ty.clone(),
+                    value: value_ir,
+                });
             }
         }
 
@@ -71,10 +81,13 @@ impl IrBuilder {
 
         let (mut stmts, final_expr) = self.lower_expr(expr);
 
+        let mut main_body = init_stmts;
+        main_body.append(&mut stmts);
+
         if expected_return_ty != IrType::Unit {
-            stmts.push(IrStmt::Return(Some(final_expr)));
+            main_body.push(IrStmt::Return(Some(final_expr)));
         } else {
-            stmts.push(IrStmt::Return(None));
+            main_body.push(IrStmt::Return(None));
         }
 
         self.temp_counter = prev_counter;
@@ -83,7 +96,7 @@ impl IrBuilder {
             name: "main".to_string(),
             params: vec![],
             return_ty: expected_return_ty,
-            body: stmts,
+            body: main_body,
             is_native: false,
         });
 
@@ -201,8 +214,8 @@ impl IrBuilder {
                 });
             }
 
-            TypedExprKind::Binary(left, BinaryOp::Assign, right) => {
-                if let TypedExprKind::Ident(name) = left.kind {
+            TypedExprKind::Binary(left, BinaryOp::Assign, right) => match left.kind {
+                TypedExprKind::Ident(name) => {
                     let (right_stmts, right_val) = self.lower_expr(*right);
                     generated_stmts.extend(right_stmts);
 
@@ -210,10 +223,25 @@ impl IrBuilder {
                         target: name,
                         val: right_val,
                     });
-                } else {
-                    panic!("Complex assignments not supported yet.");
                 }
-            }
+                TypedExprKind::Index(base_expr, index_expr) => {
+                    let (base_stmts, base_val) = self.lower_expr(*base_expr);
+                    generated_stmts.extend(base_stmts);
+
+                    let (index_stmts, index_val) = self.lower_expr(*index_expr);
+                    generated_stmts.extend(index_stmts);
+
+                    let (right_stmts, right_val) = self.lower_expr(*right);
+                    generated_stmts.extend(right_stmts);
+
+                    generated_stmts.push(IrStmt::WriteIndex {
+                        base: base_val,
+                        index: index_val,
+                        val: right_val,
+                    });
+                }
+                _ => panic!("Complex assignments not supported yet: {:?}", left.kind),
+            },
 
             TypedExprKind::Ret(val) => {
                 let ir_val = if let Some(ret_expr) = val {
@@ -230,6 +258,19 @@ impl IrBuilder {
                 for stmt in stmts {
                     generated_stmts.extend(self.lower_stmt(stmt));
                 }
+            }
+
+            TypedExprKind::Def(name, value_expr) => {
+                let (value_stmts, value_ir) = self.lower_expr(*value_expr);
+                generated_stmts.extend(value_stmts);
+
+                let value_ty = value_ir.ty.clone();
+
+                generated_stmts.push(IrStmt::ConstDef {
+                    name,
+                    ty: value_ty,
+                    value: value_ir,
+                });
             }
 
             _ => {
@@ -269,8 +310,8 @@ impl IrBuilder {
                 IrExprKind::Unary(ir_op, Box::new(inner_val))
             }
 
-            TypedExprKind::Binary(left, BinaryOp::Assign, right) => {
-                if let TypedExprKind::Ident(name) = left.kind {
+            TypedExprKind::Binary(left, BinaryOp::Assign, right) => match left.kind {
+                TypedExprKind::Ident(name) => {
                     let (right_stmts, right_val) = self.lower_expr(*right);
                     generated_stmts.extend(right_stmts);
 
@@ -279,10 +320,26 @@ impl IrBuilder {
                         val: right_val,
                     });
                     return (generated_stmts, self.unit_expr(span));
-                } else {
-                    panic!("Complex assignments not supported yet.");
                 }
-            }
+                TypedExprKind::Index(base_expr, index_expr) => {
+                    let (base_stmts, base_val) = self.lower_expr(*base_expr);
+                    generated_stmts.extend(base_stmts);
+
+                    let (index_stmts, index_val) = self.lower_expr(*index_expr);
+                    generated_stmts.extend(index_stmts);
+
+                    let (right_stmts, right_val) = self.lower_expr(*right);
+                    generated_stmts.extend(right_stmts);
+
+                    generated_stmts.push(IrStmt::WriteIndex {
+                        base: base_val,
+                        index: index_val,
+                        val: right_val,
+                    });
+                    return (generated_stmts, self.unit_expr(span));
+                }
+                _ => panic!("Complex assignments not supported yet: {:?}", left.kind),
+            },
 
             TypedExprKind::Binary(left, op, right) => {
                 let ir_op = match op {
@@ -566,6 +623,66 @@ impl IrBuilder {
                 return (generated_stmts, self.unit_expr(span));
             }
 
+            TypedExprKind::Def(name, value_expr) => {
+                let (value_stmts, value_ir) = self.lower_expr(*value_expr);
+                generated_stmts.extend(value_stmts);
+
+                let value_ty = value_ir.ty.clone();
+
+                generated_stmts.push(IrStmt::ConstDef {
+                    name,
+                    ty: value_ty,
+                    value: value_ir,
+                });
+
+                return (generated_stmts, self.unit_expr(span));
+            }
+
+            TypedExprKind::SequenceInit(elements) => {
+                if let Type::Array(_, count_expr) = &expr.ty {
+                    let array_len = if let TypedExprKind::Lit(abyss_parser::ast::Lit::Int(c)) =
+                        count_expr.kind
+                    {
+                        c as usize
+                    } else {
+                        panic!("IR Builder: Array size must be resolved to integer literal");
+                    };
+
+                    if elements.len() == 1 && array_len > 1 {
+                        let (elem_stmts, elem_val) = self.lower_expr(elements[0].expr.clone());
+                        generated_stmts.extend(elem_stmts);
+
+                        IrExprKind::ArrayRepeat {
+                            val: Box::new(elem_val),
+                            count: array_len,
+                        }
+                    } else {
+                        let mut ir_elements = Vec::new();
+                        for el in elements {
+                            let (el_stmts, el_val) = self.lower_expr(el.expr);
+                            generated_stmts.extend(el_stmts);
+                            ir_elements.push(el_val);
+                        }
+
+                        IrExprKind::ArrayInit(ir_elements)
+                    }
+                } else {
+                    panic!(
+                        "IR Builder: SequenceInit expects an Array type, structs not yet implemented."
+                    );
+                }
+            }
+
+            TypedExprKind::Index(target_expr, index_expr) => {
+                let (target_stmts, target_val) = self.lower_expr(*target_expr);
+                generated_stmts.extend(target_stmts);
+
+                let (index_stmts, index_val) = self.lower_expr(*index_expr);
+                generated_stmts.extend(index_stmts);
+
+                IrExprKind::Index(Box::new(target_val), Box::new(index_val))
+            }
+
             _ => panic!("Unexpected expression kind: {:?}", expr.kind),
         };
 
@@ -590,6 +707,19 @@ impl IrBuilder {
             Type::Ptr(inner) => IrType::Ptr(Box::new(self.lower_type(inner))),
             Type::Signature(_, _, _) => IrType::I32,
             Type::Metatype => IrType::I32,
+            Type::Array(inner_ty, count_expr) => {
+                let inner_ir_ty = self.lower_type(inner_ty);
+
+                let count = if let TypedExprKind::Lit(Lit::Int(c)) = count_expr.kind {
+                    c as usize
+                } else {
+                    panic!(
+                        "IR Builder: Array size must be a constant integer literal at this stage."
+                    );
+                };
+
+                IrType::Array(Box::new(inner_ir_ty), count)
+            }
             _ => panic!("Unsupported type {:?} for IR generation.", ty),
         }
     }
