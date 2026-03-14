@@ -1,5 +1,6 @@
 use abyss_diagnostics::{DiagnosticEngine, Span};
 use abyss_lexer::token::{Token, TokenKind as Tk};
+use abyss_utils::idgen::IdGenerator;
 
 use crate::{
     ast::Expr,
@@ -7,20 +8,25 @@ use crate::{
     stream::TokenStream,
 };
 
-pub struct PrattEngine<'a, 'e> {
+pub struct PrattEngine<'a, 'e, 'idg> {
     stream: TokenStream<'a>,
     diagnostics: &'e mut DiagnosticEngine,
     pub file_id: u16,
-    last_id: u32,
+    idgen: &'idg mut IdGenerator,
 }
 
-impl<'a, 'e> PrattEngine<'a, 'e> {
-    pub fn new(source: &'a str, diagnostics: &'e mut DiagnosticEngine, file_id: u16) -> Self {
+impl<'a, 'e, 'idg> PrattEngine<'a, 'e, 'idg> {
+    pub fn new(
+        source: &'a str,
+        diagnostics: &'e mut DiagnosticEngine,
+        idgen: &'idg mut IdGenerator,
+        file_id: u16,
+    ) -> Self {
         Self {
             stream: TokenStream::new(source),
             diagnostics,
             file_id,
-            last_id: 0,
+            idgen,
         }
     }
 
@@ -117,7 +123,7 @@ impl<'a, 'e> PrattEngine<'a, 'e> {
             if self.stream.current().preceded_by_newline {
                 return;
             }
-            // until we find a statement boundary
+
             match self.stream.current().kind {
                 Tk::While | Tk::Ret | Tk::If | Tk::For | Tk::CBrace | Tk::Def | Tk::Cmpt => return,
                 _ => {}
@@ -175,8 +181,6 @@ impl<'a, 'e> PrattEngine<'a, 'e> {
         self.stream.is_eof()
     }
     pub fn next_id(&mut self) -> u32 {
-        let id = self.last_id;
-        self.last_id += 1;
-        id
+        self.idgen.next()
     }
 }

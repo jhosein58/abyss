@@ -1,4 +1,3 @@
-// type_checker/context.rs
 use abyss_types::types::Type;
 use std::collections::HashMap;
 
@@ -15,6 +14,7 @@ pub struct SymbolInfo {
     pub is_mutable: bool,
     pub is_initialized: bool,
     pub is_native: bool,
+    pub is_inline: bool,
 }
 
 impl SymbolInfo {
@@ -25,16 +25,18 @@ impl SymbolInfo {
             is_mutable: false,
             is_initialized: true,
             is_native: false,
+            is_inline: false,
         }
     }
 
-    pub fn constant(ty: Type) -> Self {
+    pub fn constant(ty: Type, is_inline: bool) -> Self {
         Self {
             ty,
             kind: SymbolKind::Constant,
             is_mutable: false,
             is_initialized: true,
             is_native: false,
+            is_inline,
         }
     }
 
@@ -45,7 +47,12 @@ impl SymbolInfo {
             is_mutable: false,
             is_initialized: true,
             is_native: true,
+            is_inline: false,
         }
+    }
+
+    pub fn is_constant(&self) -> bool {
+        self.kind == SymbolKind::Constant
     }
 }
 
@@ -95,6 +102,15 @@ impl TypeContext {
         None
     }
 
+    pub fn lookup_mut(&mut self, name: &str) -> Option<&mut SymbolInfo> {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(info) = scope.get_mut(name) {
+                return Some(info);
+            }
+        }
+        None
+    }
+
     pub fn lookup_global(&self, name: &str) -> Option<&SymbolInfo> {
         self.scopes.first()?.get(name)
     }
@@ -138,6 +154,15 @@ impl TypeContext {
 
     pub fn scope_depth(&self) -> usize {
         self.scopes.len()
+    }
+
+    pub fn set_inline(&mut self, name: &str, inline: bool) -> bool {
+        if let Some(sym) = self.lookup_mut(name) {
+            sym.is_inline = inline;
+            true
+        } else {
+            false
+        }
     }
 }
 

@@ -3,9 +3,11 @@ use abyss_parser::ast::{Attribute, Expr, ExprKind, Program};
 use abyss_types::tast::{TypedExpr, TypedExprKind, TypedProgram};
 use abyss_types::type_registry::TypeRegistry;
 use abyss_types::types::Type;
+use abyss_utils::idgen::IdGenerator;
 use std::collections::HashMap;
 
 use crate::comptime::ComptimeEngine;
+use crate::side_table::SideTable;
 use crate::type_checker::context::{SymbolInfo, TypeContext};
 use crate::type_checker::resolver::{GlobalResolver, InlinePolicy};
 use crate::type_checker::rules::binary::check_binary;
@@ -31,10 +33,12 @@ pub struct TypeChecker<'a> {
     resolve_stack: Vec<String>,
     active_attributes: Vec<&'a Attribute>,
     pub comptime: ComptimeEngine,
+    pub side_table: SideTable,
+    idgen: &'a mut IdGenerator,
 }
 
 impl<'a> TypeChecker<'a> {
-    pub fn new(diagnostics: &'a mut DiagnosticEngine) -> Self {
+    pub fn new(diagnostics: &'a mut DiagnosticEngine, idgen: &'a mut IdGenerator) -> Self {
         Self {
             ctx: TypeContext::new(),
             type_registry: TypeRegistry::new(),
@@ -44,6 +48,8 @@ impl<'a> TypeChecker<'a> {
             resolve_stack: Vec::new(),
             active_attributes: Vec::new(),
             comptime: ComptimeEngine::new(),
+            side_table: SideTable::new(),
+            idgen,
         }
     }
 
@@ -76,9 +82,21 @@ impl<'a> TypeChecker<'a> {
 
                 self.resolver.register(name_str.clone(), expr);
 
-                self.ctx
-                    .define_global(name_str, SymbolInfo::constant(Type::Infer));
+                self.ctx.define_global(
+                    name_str,
+                    SymbolInfo::constant(Type::Infer, self.has_attribute("inline")),
+                );
             }
+
+            ExprKind::Attributed(attributes, inner_expr) => {
+                let original_len = self.active_attributes.len();
+                self.active_attributes.extend(attributes.iter());
+
+                self.gather_declarations(inner_expr);
+
+                self.active_attributes.truncate(original_len);
+            }
+
             _ => {}
         }
     }
@@ -218,7 +236,7 @@ impl<'a> TypeChecker<'a> {
                 return typed_inner_expr;
             }
 
-            ExprKind::Lit(lit) => check_literal(lit, expr.span_expr(), expr.id),
+            ExprKind::Lit(lit) => check_literal(self, lit, expr.span_expr(), expr.id),
 
             ExprKind::Block(stmts) => check_block(self, stmts, expr.span_expr(), expr.id),
 
@@ -337,6 +355,10 @@ impl<'a> TypeChecker<'a> {
 
     pub fn find_attribute(&self, name: &str) -> Option<&&'a Attribute> {
         self.active_attributes.iter().find(|attr| attr.name == name)
+    }
+
+    pub fn next_id(&mut self) -> u32 {
+        self.idgen.next()
     }
 }
 

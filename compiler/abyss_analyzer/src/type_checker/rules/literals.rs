@@ -6,19 +6,23 @@ use abyss_types::{
     types::Type,
 };
 
-pub fn check_literal(lit: &Lit, span: Span, id: u32) -> TypedExpr {
-    let l = match lit {
-        Lit::Int(v) => (Lit::Int(*v), Type::I32),
-        Lit::Float(v) => (Lit::Float(*v), Type::F32),
-        Lit::Bool(v) => (Lit::Bool(*v), Type::Bool),
-        Lit::Str(v) => (Lit::Str(v.clone()), Type::Str),
-        Lit::Cstr(v) => (Lit::Cstr(v.clone()), Type::Cstr),
-        Lit::Char(v) => (Lit::Char(*v), Type::Char),
+use crate::type_checker::engine::TypeChecker;
+
+pub fn check_literal(tc: &mut TypeChecker, lit: &Lit, span: Span, id: u32) -> TypedExpr {
+    tc.side_table.mark_const(id, true);
+
+    let ty = match lit {
+        Lit::Int(_) => Type::I32,
+        Lit::Float(_) => Type::F32,
+        Lit::Bool(_) => Type::Bool,
+        Lit::Str(_) => Type::Str,
+        Lit::Cstr(_) => Type::Cstr,
+        Lit::Char(_) => Type::Char,
     };
 
     TypedExpr {
-        kind: TypedExprKind::Lit(l.0),
-        ty: l.1,
+        kind: TypedExprKind::Lit(lit.clone()),
+        ty,
         span,
         id,
     }

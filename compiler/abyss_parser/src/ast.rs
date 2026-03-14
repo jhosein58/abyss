@@ -146,8 +146,41 @@ pub struct MatchArm {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Attribute {
     pub name: String,
-    pub args: Vec<Expr>,
+    pub args: Vec<String>,
     pub span: Span,
+}
+
+impl Attribute {
+    #[inline]
+    pub fn is_name(&self, name: &str) -> bool {
+        self.name == name
+    }
+
+    pub fn has_arg(&self, target_arg: &str) -> bool {
+        self.args.iter().any(|arg| arg == target_arg)
+    }
+
+    pub fn has_exact_single_arg(&self, target_arg: &str) -> bool {
+        self.args.len() == 1 && self.args[0] == target_arg
+    }
+
+    pub fn get_arg(&self, index: usize) -> Option<&str> {
+        self.args.get(index).map(|s| s.as_str())
+    }
+
+    #[inline]
+    pub fn is_empty_args(&self) -> bool {
+        self.args.is_empty()
+    }
+
+    #[inline]
+    pub fn arg_count(&self) -> usize {
+        self.args.len()
+    }
+
+    pub fn matches(&self, expected_name: &str, expected_arg: &str) -> bool {
+        self.is_name(expected_name) && self.has_arg(expected_arg)
+    }
 }
 
 #[derive(Debug, Clone)]
