@@ -1,7 +1,7 @@
-use abyss_types::types::Type;
 use std::collections::HashMap;
 
-#[derive(Debug, Default)]
+use crate::types::Type;
+
 pub struct TypeRegistry {
     resolved_types: HashMap<String, Type>,
 }
@@ -35,5 +35,13 @@ impl TypeRegistry {
 
     pub fn is_empty(&self) -> bool {
         self.resolved_types.is_empty()
+    }
+
+    pub fn register_name(&mut self, name: String, ty: Type) {
+        self.resolved_types.insert(name, ty);
+    }
+
+    pub fn get_by_name(&self, name: &str) -> Option<&Type> {
+        self.resolved_types.get(name)
     }
 }

@@ -92,7 +92,7 @@ pub fn check_signature<'a>(
         tc.ctx.update_type(&name, func_type.clone());
 
         if tc.resolver.contains(&name) {
-            tc.resolver.complete_resolve(
+            tc.complete_and_register_global(
                 name.clone(),
                 func_type.clone(),
                 function_def_node.clone(),

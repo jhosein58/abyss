@@ -73,7 +73,8 @@ pub enum TypedExprKind {
     Binary(Box<TypedExpr>, BinaryOp, Box<TypedExpr>),
     Unary(UnaryOp, Box<TypedExpr>),
     Call(Box<TypedExpr>, Vec<TypedExpr>, bool), // calle, args, is_native
-    Index(Box<TypedExpr>, Box<TypedExpr>),
+    Index(Box<TypedExpr>, Box<TypedExpr>),      // a[b]
+    FieldAccess(Box<TypedExpr>, String),        // a.b
     Cast(Box<TypedExpr>, Option<Box<TypedExpr>>),
     Is(Box<TypedExpr>, Option<Box<TypedExpr>>),
     Member(Box<TypedExpr>, String),

@@ -1,73 +1,120 @@
-def fib(n: i32): i32 {
-    if n < 2 {
-        n
-    } else {
-        fib(n - 1) + fib(n - 2)
-    }
-}
+-- def fib(n: i32): i32 {
+--     if n < 2 {
+--         n
+--     } else {
+--         fib(n - 1) + fib(n - 2)
+--     }
+-- }
 
-def generate_array(arr: [i32; 10000], s: i32) {
-    seed := 12345
-    i := 0
+-- def generate_array(arr: [i32; 10000], s: i32) {
+--     seed := 12345
+--     i := 0
     
-    while i < s {
-        seed = (seed * 1103515245 + 12345)
+--     while i < s {
+--         seed = (seed * 1103515245 + 12345)
         
-        val := seed
-        if val < 0 {
-            val = 0 - val
-        }
+--         val := seed
+--         if val < 0 {
+--             val = 0 - val
+--         }
         
-        mod_val := val - (val / 10000) * 10000
+--         mod_val := val - (val / 10000) * 10000
         
-        arr[i] = mod_val
-        i = i + 1
-    }
-}
+--         arr[i] = mod_val
+--         i = i + 1
+--     }
+-- }
 
-def partition(arr: [i32; 10000], low: i32, high: i32): i32 {
-    pivot := arr[high]
-    i := low - 1
-    j := low
+-- def partition(arr: [i32; 10000], low: i32, high: i32): i32 {
+--     pivot := arr[high]
+--     i := low - 1
+--     j := low
 
-    while j < high {
-        if arr[j] < pivot {
-            i = i + 1
+--     while j < high {
+--         if arr[j] < pivot {
+--             i = i + 1
             
-            temp := arr[i]
-            arr[i] = arr[j]
-            arr[j] = temp
-        }
-        j = j + 1
-    }
+--             temp := arr[i]
+--             arr[i] = arr[j]
+--             arr[j] = temp
+--         }
+--         j = j + 1
+--     }
     
-    temp2 := arr[i + 1]
-    arr[i + 1] = arr[high]
-    arr[high] = temp2
+--     temp2 := arr[i + 1]
+--     arr[i + 1] = arr[high]
+--     arr[high] = temp2
 
-    i + 1
-}
+--     i + 1
+-- }
 
-def quicksort(arr: [i32; 10000], low: i32, high: i32) {
-    if low < high {
-        pi := partition(arr, low, high)
+-- def quicksort(arr: [i32; 10000], low: i32, high: i32) {
+--     if low < high {
+--         pi := partition(arr, low, high)
         
-        quicksort(arr, low, pi - 1)
-        quicksort(arr, pi + 1, high)
-    }
+--         quicksort(arr, low, pi - 1)
+--         quicksort(arr, pi + 1, high)
+--     }
+-- }
+
+-- fib_result := fib(35)
+-- print(fib_result)
+
+-- s := 10000
+-- arr := [0; 10000]
+-- iter := 0
+
+-- while iter < 100 {
+--     generate_array(arr, s)
+--     quicksort(arr, 0, s - 1)
+--     iter = iter + 1
+-- }
+
+-- print(arr[5000])
+
+
+
+-- def b 2
+-- a := [10; { 
+--     i := 0
+--     while i < 100 i = i + 1 else i
+-- }]
+
+
+-- def ty(a: bool): type {
+--     if a i32 else [f32; 100]
+-- }
+
+-- def arr [true, false]
+
+-- def test (): ty(arr[0]) { 
+
+-- }
+
+-- arr[0] = false
+
+
+-- print(arr[0])
+
+-- def Pos [
+--     x: f32,
+--     y: f32
+-- ]
+
+-- def Int i32
+
+-- a: Int = 20
+
+-- -- p: Pos = [x: 0., y: 0.]
+
+-- -- print(p.x)
+
+
+a := [x: 10., y: 12.]
+
+def inc(pos: [x: f32, y: f32]) {
+    pos.x = pos.x + 1.
 }
 
-fib_result := fib(35)
-print(fib_result)
-
-s := 10000
-arr := [0; 10000]
-iter := 0
-
-while iter < 100 {
-    generate_array(arr, s)
-    quicksort(arr, 0, s - 1)
-    iter = iter + 1
-}
-
-print(arr[5000])
+inc(a)
+print(a.x)

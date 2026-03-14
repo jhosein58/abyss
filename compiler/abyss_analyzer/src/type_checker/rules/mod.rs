@@ -5,6 +5,7 @@ pub mod control_flow;
 pub mod ident;
 pub mod index;
 pub mod literals;
+pub mod member;
 pub mod prefix;
 pub mod sequence;
 pub mod signature;

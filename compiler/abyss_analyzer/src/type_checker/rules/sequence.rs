@@ -75,11 +75,40 @@ pub fn check_sequence<'a>(
         }
 
         let typed_count = tc.check_expr(count_expr);
+
+        if typed_count.ty == Type::Error {
+            return error_expr(span, id);
+        }
+
+        let evaluated_count = tc.comptime.evaluate_expr(typed_count);
+
+        let array_length: usize = match evaluated_count.kind {
+            TypedExprKind::Lit(Lit::Int(val)) => {
+                if val < 0 {
+                    tc.report_error(span.clone(), "Array length cannot be negative.".to_string());
+                    return error_expr(span, id);
+                }
+                val as usize
+            }
+
+            TypedExprKind::ErrorPlaceholder => {
+                return error_expr(span, id);
+            }
+
+            _ => {
+                tc.report_error(
+                    span.clone(),
+                    "Array length must be a compile-time constant integer.".to_string(),
+                );
+                return error_expr(span, id);
+            }
+        };
+
         let first_element = typed_elements.remove(0);
 
         if first_element.expr.ty == Type::Metatype {
             let inner_type = tc.evaluate_as_type(first_element.expr);
-            let array_type = Type::Array(Box::new(inner_type), Box::new(typed_count));
+            let array_type = Type::Array(Box::new(inner_type), array_length);
 
             return TypedExpr {
                 kind: TypedExprKind::Type(array_type),
@@ -93,7 +122,7 @@ pub fn check_sequence<'a>(
 
         return TypedExpr {
             kind: TypedExprKind::SequenceInit(vec![first_element]),
-            ty: Type::Array(Box::new(element_ty), Box::new(typed_count)),
+            ty: Type::Array(Box::new(element_ty), array_length),
             span,
             id,
         };
@@ -127,16 +156,11 @@ pub fn check_sequence<'a>(
     if is_array || is_empty {
         let element_ty = first_type.unwrap_or(Type::Unit);
 
-        let length_expr = TypedExpr {
-            kind: TypedExprKind::Lit(Lit::Int(typed_elements.len() as i64)),
-            ty: Type::I32,
-            span: span.clone(),
-            id: 0,
-        };
+        let array_length = typed_elements.len();
 
         return TypedExpr {
             kind: TypedExprKind::SequenceInit(typed_elements),
-            ty: Type::Array(Box::new(element_ty), Box::new(length_expr)),
+            ty: Type::Array(Box::new(element_ty), array_length),
             span,
             id,
         };

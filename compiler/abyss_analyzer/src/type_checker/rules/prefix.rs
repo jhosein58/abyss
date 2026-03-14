@@ -5,13 +5,11 @@ use crate::type_checker::{
     rules::signature::check_signature,
 };
 use abyss_diagnostics::Span;
-use abyss_ir::{builder::IrBuilder, ir::IrLit};
-use abyss_parser::ast::{Expr, ExprKind, Lit, OrderedFloat};
+use abyss_parser::ast::{Expr, ExprKind};
 use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
 };
-use abyss_vm::execute_comptime;
 
 pub fn check_ret<'a>(
     tc: &mut TypeChecker<'a>,
@@ -100,7 +98,7 @@ pub fn check_def<'a>(
     tc.ctx.update_type(&name, final_ty.clone());
 
     if tc.resolver.contains(&name) {
-        tc.resolver.complete_resolve(
+        tc.complete_and_register_global(
             name.clone(),
             final_ty.clone(),
             typed_value.clone(),
@@ -129,35 +127,15 @@ pub fn check_cmpt<'a>(
     id: u32,
 ) -> TypedExpr {
     let typed_inner = tc.check_expr(inner_expr);
-    let inner_ty = typed_inner.ty.clone();
 
-    if inner_ty == Type::Error {
+    if typed_inner.ty == Type::Error {
         return error_expr(span, id);
     }
 
-    let globals_map = tc.resolver.get_resolved_values();
-    println!(
-        "🔍 DEBUG check_cmpt - globals_map keys: {:?}",
-        globals_map.keys().collect::<Vec<_>>()
-    );
-    for (name, expr) in &globals_map {
-        println!("  - {} : {:?}", name, expr.ty);
-    }
-    let mut ir_builder = IrBuilder::new();
-    let ir_prog = ir_builder.build_comptime_program(typed_inner, &globals_map);
+    let mut evaluated_expr = tc.comptime.evaluate_expr(typed_inner);
 
-    let result_lit = execute_comptime(ir_prog);
+    evaluated_expr.span = span;
+    evaluated_expr.id = id;
 
-    let ast_lit = match result_lit {
-        IrLit::Int(val) => Lit::Int(val),
-        IrLit::Bool(val) => Lit::Bool(val),
-        IrLit::Float(val) => Lit::Float(OrderedFloat(val)),
-    };
-
-    TypedExpr {
-        kind: TypedExprKind::Lit(ast_lit),
-        ty: inner_ty,
-        span,
-        id,
-    }
+    evaluated_expr
 }

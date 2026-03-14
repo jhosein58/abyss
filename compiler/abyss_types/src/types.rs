@@ -1,5 +1,3 @@
-use crate::tast::TypedExpr;
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     // Primitive types
@@ -30,7 +28,7 @@ pub enum Type {
 
     Ptr(Box<Type>),
     Signature(Vec<Type>, Box<Type>, bool), // args, return, is_native
-    Array(Box<Type>, Box<TypedExpr>),      // [Type; Length]
+    Array(Box<Type>, usize),               // [Type; Length]
     Struct(Vec<StructField>),              // [a: i32, str, c: bool]
     Union(Vec<Type>),                      // i32 | str
     Alias(String, Box<Type>),
@@ -68,7 +66,7 @@ impl Type {
             }
 
             Type::Metatype => format!("type"),
-            Type::Array(ref ty, ref len) => format!("[{}; {:?}]", ty.name(), len.kind),
+            Type::Array(ref ty, ref len) => format!("[{}; {}]", ty.name(), len),
             Type::Struct(ref fields) => {
                 let field_names: Vec<String> = fields
                     .iter()
@@ -86,19 +84,19 @@ impl Type {
         }
     }
 
-    pub fn to_id(&self) -> i64 {
+    pub fn get_static_id(&self) -> Option<i64> {
         match self {
-            Type::I32 => 1,
-            Type::F32 => 2,
-            Type::Bool => 3,
-            Type::Str => 4,
-            Type::Unit => 5,
-            Type::Metatype => 6,
-            _ => 0,
+            Type::I32 => Some(1),
+            Type::F32 => Some(2),
+            Type::Bool => Some(3),
+            Type::Str => Some(4),
+            Type::Unit => Some(5),
+            Type::Metatype => Some(6),
+            _ => None,
         }
     }
 
-    pub fn from_id(id: i64) -> Type {
+    pub fn from_static_id(id: i64) -> Type {
         match id {
             1 => Type::I32,
             2 => Type::F32,
@@ -129,6 +127,44 @@ impl Type {
             (t, Type::Alias(_, inner_src)) => self.is_assignable_from(t, inner_src),
 
             _ => false,
+        }
+    }
+
+    pub fn are_structs_equal(fields1: &[StructField], fields2: &[StructField]) -> bool {
+        if fields1.len() != fields2.len() {
+            return false;
+        }
+
+        let mut f1 = fields1.to_vec();
+        let mut f2 = fields2.to_vec();
+
+        f1.sort_by(|a, b| a.name.cmp(&b.name));
+        f2.sort_by(|a, b| a.name.cmp(&b.name));
+
+        f1 == f2
+    }
+
+    pub fn normalize(&self) -> Type {
+        match self {
+            Type::Struct(fields) => {
+                let mut sorted_fields = fields.clone();
+                sorted_fields.sort_by(|a, b| a.name.cmp(&b.name));
+
+                for field in &mut sorted_fields {
+                    field.ty = field.ty.normalize();
+                }
+
+                Type::Struct(sorted_fields)
+            }
+            Type::Array(ty, len) => Type::Array(Box::new(ty.normalize()), *len),
+            Type::Ptr(ty) => Type::Ptr(Box::new(ty.normalize())),
+            Type::Union(types) => {
+                let mut sorted_types: Vec<Type> = types.iter().map(|t| t.normalize()).collect();
+                sorted_types.sort_by(|a, b| a.name().cmp(&b.name()));
+                Type::Union(sorted_types)
+            }
+            Type::Alias(name, ty) => Type::Alias(name.clone(), Box::new(ty.normalize())),
+            _ => self.clone(),
         }
     }
 }

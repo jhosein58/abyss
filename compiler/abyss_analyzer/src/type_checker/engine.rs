@@ -1,23 +1,22 @@
 use abyss_diagnostics::{DiagnosticEngine, Span};
-use abyss_ir::builder::IrBuilder;
-use abyss_ir::ir::IrLit;
 use abyss_parser::ast::{Attribute, Expr, ExprKind, Program};
 use abyss_types::tast::{TypedExpr, TypedExprKind, TypedProgram};
+use abyss_types::type_registry::TypeRegistry;
 use abyss_types::types::Type;
-use abyss_vm::execute_comptime;
 use std::collections::HashMap;
 
+use crate::comptime::ComptimeEngine;
 use crate::type_checker::context::{SymbolInfo, TypeContext};
 use crate::type_checker::resolver::{GlobalResolver, InlinePolicy};
 use crate::type_checker::rules::binary::check_binary;
 use crate::type_checker::rules::ident::check_ident;
 use crate::type_checker::rules::index::check_index;
-use crate::type_checker::type_registry::TypeRegistry;
 
 use crate::type_checker::rules::block::check_block;
 use crate::type_checker::rules::call::check_call;
 use crate::type_checker::rules::control_flow::{check_if, check_out, check_while};
 use crate::type_checker::rules::literals::check_literal;
+use crate::type_checker::rules::member::check_member;
 use crate::type_checker::rules::prefix::{check_cmpt, check_def, check_ret};
 use crate::type_checker::rules::sequence::check_sequence;
 use crate::type_checker::rules::signature::check_signature;
@@ -31,6 +30,7 @@ pub struct TypeChecker<'a> {
     pub anon_func_counter: usize,
     resolve_stack: Vec<String>,
     active_attributes: Vec<&'a Attribute>,
+    pub comptime: ComptimeEngine,
 }
 
 impl<'a> TypeChecker<'a> {
@@ -43,6 +43,7 @@ impl<'a> TypeChecker<'a> {
             anon_func_counter: 0,
             resolve_stack: Vec::new(),
             active_attributes: Vec::new(),
+            comptime: ComptimeEngine::new(),
         }
     }
 
@@ -61,7 +62,7 @@ impl<'a> TypeChecker<'a> {
                     self.gather_declarations(item);
                 }
             }
-            ExprKind::Def(name, value) => {
+            ExprKind::Def(name, _value) => {
                 let name_str = if let ExprKind::Ident(n) = &name.kind {
                     n.clone()
                 } else {
@@ -73,12 +74,28 @@ impl<'a> TypeChecker<'a> {
                     return;
                 }
 
-                self.resolver.register(name_str.clone(), value);
+                self.resolver.register(name_str.clone(), expr);
 
                 self.ctx
                     .define_global(name_str, SymbolInfo::constant(Type::Infer));
             }
             _ => {}
+        }
+    }
+
+    pub fn complete_and_register_global(
+        &mut self,
+        name: String,
+        ty: Type,
+        expr: TypedExpr,
+        is_type_def: bool,
+        inline_policy: InlinePolicy,
+    ) {
+        self.resolver
+            .complete_resolve(name.clone(), ty, expr.clone(), is_type_def, inline_policy);
+
+        if !is_type_def {
+            self.comptime.register_global(name, expr);
         }
     }
 
@@ -135,10 +152,10 @@ impl<'a> TypeChecker<'a> {
             self.ctx.update_type(name, ty.clone());
         }
 
-        self.resolver.complete_resolve(
+        self.complete_and_register_global(
             name.to_string(),
             ty.clone(),
-            typed_expr,
+            typed_expr.clone(),
             is_type_def,
             inline_policy,
         );
@@ -243,6 +260,10 @@ impl<'a> TypeChecker<'a> {
 
             ExprKind::Index(arr, idx) => check_index(self, arr, idx, expr.span_expr(), expr.id),
 
+            ExprKind::Member(base, field_name) => {
+                check_member(self, base, field_name, expr.span_expr(), expr.id)
+            }
+
             _ => error_expr(expr.span.clone(), expr.id),
         }
     }
@@ -261,8 +282,7 @@ impl<'a> TypeChecker<'a> {
             "i32" => Some(Type::I32),
             "f32" => Some(Type::F32),
             "bool" => Some(Type::Bool),
-            "str" => Some(Type::Str),
-            "char" => Some(Type::Char),
+            "type" => Some(Type::Metatype),
             "unit" => Some(Type::Unit),
             _ => None,
         }
@@ -294,17 +314,12 @@ impl<'a> TypeChecker<'a> {
                 }
             }
 
-            let globals = self.resolver.drain_resolved();
-            let globals_map: HashMap<String, TypedExpr> = globals
-                .into_iter()
-                .map(|(name, (_, typed_expr))| (name, typed_expr))
-                .collect();
+            let evaluated_expr = self.comptime.evaluate_expr(expr);
 
-            let mut ir_builder = IrBuilder::new();
-            let ir_prog = ir_builder.build_comptime_program(expr, &globals_map);
-
-            if let IrLit::Int(result_value) = execute_comptime(ir_prog) {
-                return Type::from_id(result_value as i64);
+            if let TypedExprKind::Lit(abyss_parser::ast::Lit::Int(result_value)) =
+                evaluated_expr.kind
+            {
+                return self.comptime.builder.encoder.from_id(result_value);
             } else {
                 self.report_error(
                     Span::default(),

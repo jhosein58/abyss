@@ -130,4 +130,75 @@ impl IrCompiler {
 
         (self.instructions, self.constants)
     }
+
+    pub fn compile_chunk(&mut self, program: &IrProgram, is_thunk: bool) -> usize {
+        for func in &program.functions {
+            if !func.is_native {
+                let idx = self.constants.len() as u8;
+                self.constants.push(0);
+                self.func_const_indices.insert(func.name.clone(), idx);
+            }
+        }
+
+        let mut thunk_start_ip = 0;
+
+        if is_thunk {
+            if let Some(main_const_idx) = self.func_const_indices.get("thunk_main") {
+                thunk_start_ip = self.instructions.len();
+                self.emit(Instruction {
+                    op: OpCode::LoadConst,
+                    a: 0,
+                    b: *main_const_idx,
+                    c: 0,
+                });
+                self.emit(Instruction {
+                    op: OpCode::Call,
+                    a: 1,
+                    b: 0,
+                    c: 2,
+                });
+                self.emit(Instruction {
+                    op: OpCode::Ret,
+                    a: 1,
+                    b: 0,
+                    c: 0,
+                });
+            }
+        }
+
+        for func in &program.functions {
+            if func.is_native {
+                continue;
+            }
+
+            let func_ip = self.instructions.len() as u64;
+            let const_idx = self.func_const_indices[&func.name];
+            self.constants[const_idx as usize] = func_ip;
+
+            let mut env = Env::new();
+            for (param_name, _) in &func.params {
+                env.declare_var(param_name.clone());
+            }
+
+            for stmt in &func.body {
+                self.compile_stmt(&mut env, stmt);
+            }
+
+            let r_dummy = self.emit_load_zero(&mut env);
+            self.emit(Instruction {
+                op: OpCode::Ret,
+                a: r_dummy,
+                b: 0,
+                c: 0,
+            });
+        }
+
+        thunk_start_ip
+    }
+
+    pub fn rewind(&mut self, inst_len: usize, const_len: usize) {
+        self.instructions.truncate(inst_len);
+        self.constants.truncate(const_len);
+        self.func_const_indices.remove("thunk_main");
+    }
 }
