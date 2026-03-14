@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use abyss_parser::ast::{BinaryOp, Lit, UnaryOp};
 use abyss_types::{
     tast::{TypedExpr, TypedExprKind, TypedProgram},
+    type_encoder::TypeEncoder,
     types::Type,
 };
 
@@ -22,6 +23,7 @@ pub struct IrBuilder {
     temp_counter: usize,
     native_function_map: HashMap<String, usize>,
     loop_contexts: Vec<LoopContext>,
+    pub encoder: TypeEncoder,
 }
 
 impl IrBuilder {
@@ -30,6 +32,7 @@ impl IrBuilder {
             temp_counter: 0,
             native_function_map: HashMap::new(),
             loop_contexts: Vec::new(),
+            encoder: TypeEncoder::new(),
         }
     }
 
@@ -49,6 +52,63 @@ impl IrBuilder {
 
     pub fn register_native(&mut self, name: &str, index: usize) {
         self.native_function_map.insert(name.to_string(), index);
+    }
+
+    pub fn build_single_function(&mut self, expr: TypedExpr) -> Option<IrProgram> {
+        if let Some(ir_func) = self.build_function(expr) {
+            Some(IrProgram {
+                functions: vec![ir_func],
+            })
+        } else {
+            None
+        }
+    }
+    pub fn build_thunk_program(
+        &mut self,
+        expr: TypedExpr,
+        globals: &HashMap<String, TypedExpr>,
+    ) -> IrProgram {
+        let mut init_stmts = Vec::new();
+
+        for (name, global_expr) in globals {
+            if !matches!(global_expr.kind, TypedExprKind::FunctionDef { .. }) {
+                let (value_stmts, value_ir) = self.lower_expr(global_expr.clone());
+                init_stmts.extend(value_stmts);
+
+                init_stmts.push(IrStmt::ConstDef {
+                    name: name.clone(),
+                    ty: value_ir.ty.clone(),
+                    value: value_ir,
+                });
+            }
+        }
+
+        let expected_return_ty = self.lower_type(&expr.ty);
+        let prev_counter = self.temp_counter;
+        self.temp_counter = 0;
+
+        let (mut stmts, final_expr) = self.lower_expr(expr);
+
+        let mut main_body = init_stmts;
+        main_body.append(&mut stmts);
+
+        if expected_return_ty != IrType::Unit {
+            main_body.push(IrStmt::Return(Some(final_expr)));
+        } else {
+            main_body.push(IrStmt::Return(None));
+        }
+
+        self.temp_counter = prev_counter;
+
+        IrProgram {
+            functions: vec![IrFunction {
+                name: "thunk_main".to_string(),
+                params: vec![],
+                return_ty: expected_return_ty,
+                body: main_body,
+                is_native: false,
+            }],
+        }
     }
 
     pub fn build_comptime_program(
@@ -240,6 +300,30 @@ impl IrBuilder {
                         val: right_val,
                     });
                 }
+
+                TypedExprKind::FieldAccess(base_expr, field_name) => {
+                    let base_ty = base_expr.ty.clone();
+
+                    let field_index = match &base_ty {
+                        Type::Struct(fields) => fields
+                            .iter()
+                            .position(|f| f.name == field_name)
+                            .expect("IR Builder: Struct field not found during assignment"),
+                        _ => panic!("IR Builder: Field assignment on non-struct type"),
+                    };
+
+                    let (base_stmts, base_val) = self.lower_expr(*base_expr);
+                    generated_stmts.extend(base_stmts);
+
+                    let (right_stmts, right_val) = self.lower_expr(*right);
+                    generated_stmts.extend(right_stmts);
+
+                    generated_stmts.push(IrStmt::WriteField {
+                        base: base_val,
+                        index: field_index,
+                        val: right_val,
+                    });
+                }
                 _ => panic!("Complex assignments not supported yet: {:?}", left.kind),
             },
 
@@ -334,6 +418,32 @@ impl IrBuilder {
                     generated_stmts.push(IrStmt::WriteIndex {
                         base: base_val,
                         index: index_val,
+                        val: right_val,
+                    });
+
+                    return (generated_stmts, self.unit_expr(span));
+                }
+
+                TypedExprKind::FieldAccess(base_expr, field_name) => {
+                    let base_ty = base_expr.ty.clone();
+
+                    let field_index = match &base_ty {
+                        Type::Struct(fields) => fields
+                            .iter()
+                            .position(|f| f.name == field_name)
+                            .expect("IR Builder: Struct field not found during assignment"),
+                        _ => panic!("IR Builder: Field assignment on non-struct type"),
+                    };
+
+                    let (base_stmts, base_val) = self.lower_expr(*base_expr);
+                    generated_stmts.extend(base_stmts);
+
+                    let (right_stmts, right_val) = self.lower_expr(*right);
+                    generated_stmts.extend(right_stmts);
+
+                    generated_stmts.push(IrStmt::WriteField {
+                        base: base_val,
+                        index: field_index,
                         val: right_val,
                     });
                     return (generated_stmts, self.unit_expr(span));
@@ -498,7 +608,7 @@ impl IrBuilder {
             }
 
             TypedExprKind::Type(ty) => {
-                let type_id = ty.to_id();
+                let type_id = self.encoder.get_or_create_id(&ty);
                 IrExprKind::Lit(IrLit::Int(type_id))
             }
 
@@ -638,23 +748,15 @@ impl IrBuilder {
                 return (generated_stmts, self.unit_expr(span));
             }
 
-            TypedExprKind::SequenceInit(elements) => {
-                if let Type::Array(_, count_expr) = &expr.ty {
-                    let array_len = if let TypedExprKind::Lit(abyss_parser::ast::Lit::Int(c)) =
-                        count_expr.kind
-                    {
-                        c as usize
-                    } else {
-                        panic!("IR Builder: Array size must be resolved to integer literal");
-                    };
-
-                    if elements.len() == 1 && array_len > 1 {
+            TypedExprKind::SequenceInit(elements) => match &expr.ty {
+                Type::Array(_, array_len) => {
+                    if elements.len() == 1 && *array_len > 1 {
                         let (elem_stmts, elem_val) = self.lower_expr(elements[0].expr.clone());
                         generated_stmts.extend(elem_stmts);
 
                         IrExprKind::ArrayRepeat {
                             val: Box::new(elem_val),
-                            count: array_len,
+                            count: *array_len,
                         }
                     } else {
                         let mut ir_elements = Vec::new();
@@ -666,12 +768,18 @@ impl IrBuilder {
 
                         IrExprKind::ArrayInit(ir_elements)
                     }
-                } else {
-                    panic!(
-                        "IR Builder: SequenceInit expects an Array type, structs not yet implemented."
-                    );
                 }
-            }
+                Type::Struct(_) => {
+                    let mut ir_elements = Vec::new();
+                    for el in elements {
+                        let (el_stmts, el_val) = self.lower_expr(el.expr);
+                        generated_stmts.extend(el_stmts);
+                        ir_elements.push(el_val);
+                    }
+                    IrExprKind::StructInit(ir_elements)
+                }
+                _ => panic!("IR Builder: SequenceInit expects an Array or Struct type."),
+            },
 
             TypedExprKind::Index(target_expr, index_expr) => {
                 let (target_stmts, target_val) = self.lower_expr(*target_expr);
@@ -681,6 +789,26 @@ impl IrBuilder {
                 generated_stmts.extend(index_stmts);
 
                 IrExprKind::Index(Box::new(target_val), Box::new(index_val))
+            }
+
+            TypedExprKind::FieldAccess(base_expr, field_name) => {
+                let base_ty = base_expr.ty.clone();
+
+                let field_index = match &base_ty {
+                    Type::Struct(fields) => fields
+                        .iter()
+                        .position(|f| f.name == field_name)
+                        .expect("IR Builder: Struct field not found"),
+                    _ => panic!("IR Builder: Field access on non-struct type"),
+                };
+
+                let (base_stmts, base_val) = self.lower_expr(*base_expr);
+                generated_stmts.extend(base_stmts);
+
+                IrExprKind::FieldAccess {
+                    base: Box::new(base_val),
+                    index: field_index,
+                }
             }
 
             _ => panic!("Unexpected expression kind: {:?}", expr.kind),
@@ -698,7 +826,9 @@ impl IrBuilder {
 
     // --- utils.rs ---
 
-    fn lower_type(&self, ty: &Type) -> IrType {
+    fn lower_type(&mut self, ty: &Type) -> IrType {
+        let _type_id = self.encoder.get_or_create_id(ty);
+
         match ty {
             Type::I32 => IrType::I32,
             Type::F32 => IrType::F32,
@@ -707,18 +837,16 @@ impl IrBuilder {
             Type::Ptr(inner) => IrType::Ptr(Box::new(self.lower_type(inner))),
             Type::Signature(_, _, _) => IrType::I32,
             Type::Metatype => IrType::I32,
-            Type::Array(inner_ty, count_expr) => {
+            Type::Array(inner_ty, count) => {
                 let inner_ir_ty = self.lower_type(inner_ty);
-
-                let count = if let TypedExprKind::Lit(Lit::Int(c)) = count_expr.kind {
-                    c as usize
-                } else {
-                    panic!(
-                        "IR Builder: Array size must be a constant integer literal at this stage."
-                    );
-                };
-
-                IrType::Array(Box::new(inner_ir_ty), count)
+                IrType::Array(Box::new(inner_ir_ty), *count)
+            }
+            Type::Struct(fields) => {
+                let mut ir_fields = Vec::new();
+                for field in fields {
+                    ir_fields.push(self.lower_type(&field.ty));
+                }
+                IrType::Struct(ir_fields)
             }
             _ => panic!("Unsupported type {:?} for IR generation.", ty),
         }

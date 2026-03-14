@@ -1,11 +1,11 @@
-use std::{fs, time::Instant};
+pub use std::{fs, time::Instant};
 
-use abyss_analyzer::type_checker::engine::TypeChecker;
-use abyss_diagnostics::DiagnosticEngine;
-use abyss_ir::builder::IrBuilder;
-use abyss_parser::parser::Parser;
+pub use abyss_analyzer::type_checker::engine::TypeChecker;
+pub use abyss_diagnostics::DiagnosticEngine;
+pub use abyss_ir::builder::IrBuilder;
+pub use abyss_parser::parser::Parser;
 
-use abyss_vm::{AbyssVm, codegen::IrCompiler};
+pub use abyss_vm::{AbyssVm, codegen::IrCompiler};
 
 fn main() {
     let code = fs::read_to_string("main.a").unwrap();

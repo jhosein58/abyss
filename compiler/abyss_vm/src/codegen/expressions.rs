@@ -21,6 +21,12 @@ impl IrCompiler {
             }
 
             IrExprKind::Index(base, index) => self.compile_index(env, base, index, target),
+
+            IrExprKind::StructInit(fields) => self.compile_struct_init(env, fields, target),
+
+            IrExprKind::FieldAccess { base, index } => {
+                self.compile_field_access(env, base, *index, target)
+            }
         }
     }
 
@@ -694,6 +700,80 @@ impl IrCompiler {
         let base_reg = self.compile_expr(env, base, None);
 
         let index_reg = self.compile_expr(env, index, None);
+
+        let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
+
+        self.emit(Instruction {
+            op: OpCode::LoadPtrOffset,
+            a: dest_reg,
+            b: base_reg,
+            c: index_reg,
+        });
+
+        dest_reg
+    }
+
+    fn compile_struct_init(&mut self, env: &mut Env, fields: &[IrExpr], target: Option<u8>) -> u8 {
+        let count = fields.len();
+        let size_bytes = (count * 8) as u64;
+
+        let size_idx = self.add_const(size_bytes);
+        let size_reg = env.alloc_reg();
+        self.emit(Instruction {
+            op: OpCode::LoadConst,
+            a: size_reg,
+            b: size_idx,
+            c: 0,
+        });
+
+        let struct_ptr = target.unwrap_or_else(|| env.alloc_reg());
+        self.emit(Instruction {
+            op: OpCode::Alloc,
+            a: struct_ptr,
+            b: size_reg,
+            c: 0,
+        });
+
+        for (i, expr) in fields.iter().enumerate() {
+            let val_reg = self.compile_expr(env, expr, None);
+
+            let idx_const = self.add_const(i as u64);
+            let idx_reg = env.alloc_reg();
+            self.emit(Instruction {
+                op: OpCode::LoadConst,
+                a: idx_reg,
+                b: idx_const,
+                c: 0,
+            });
+
+            self.emit(Instruction {
+                op: OpCode::StorePtrOffset,
+                a: struct_ptr,
+                b: val_reg,
+                c: idx_reg,
+            });
+        }
+
+        struct_ptr
+    }
+
+    fn compile_field_access(
+        &mut self,
+        env: &mut Env,
+        base: &IrExpr,
+        index: usize,
+        target: Option<u8>,
+    ) -> u8 {
+        let base_reg = self.compile_expr(env, base, None);
+
+        let idx_const = self.add_const(index as u64);
+        let index_reg = env.alloc_reg();
+        self.emit(Instruction {
+            op: OpCode::LoadConst,
+            a: index_reg,
+            b: idx_const,
+            c: 0,
+        });
 
         let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
 

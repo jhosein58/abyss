@@ -1,4 +1,5 @@
 use abyss_ir::ir::{IrLit, IrProgram, IrType};
+//use std::fmt::Write;
 
 use crate::codegen::IrCompiler;
 
@@ -126,6 +127,7 @@ pub struct AbyssVm {
 
     heap: Vec<u8>,
     native_funcs: Vec<RegisteredNative>,
+    //pub output_buffer: String,
 }
 
 impl AbyssVm {
@@ -139,7 +141,46 @@ impl AbyssVm {
             ip: 0,
             heap: Vec::new(),
             native_funcs: Vec::new(),
+            //output_buffer: String::new(),
         }
+    }
+
+    pub fn new_empty() -> Self {
+        Self {
+            registers: vec![0; 65536],
+            bp: 0,
+            call_stack: Vec::with_capacity(1024),
+            program: Vec::new(),
+            constants: Vec::new(),
+            ip: 0,
+            heap: Vec::new(),
+            native_funcs: Vec::new(),
+            //output_buffer: String::new(),
+        }
+    }
+
+    pub fn inject_constants(&mut self, new_constants: &[u64]) -> usize {
+        let offset = self.constants.len();
+        self.constants.extend_from_slice(new_constants);
+        offset
+    }
+
+    pub fn inject_instructions(&mut self, new_instructions: &[Instruction]) -> usize {
+        let start_ip = self.program.len();
+        self.program.extend_from_slice(new_instructions);
+        start_ip
+    }
+
+    pub fn rewind_state(&mut self, saved_ip: usize, saved_const_len: usize) {
+        self.program.truncate(saved_ip);
+        self.constants.truncate(saved_const_len);
+    }
+
+    pub fn run_thunk(&mut self, start_ip: usize) -> Option<u64> {
+        self.ip = start_ip;
+        self.bp = 0;
+
+        self.run()
     }
 
     pub fn register_native(&mut self, arity: u8, func: NativeFunction) -> usize {
@@ -294,6 +335,9 @@ impl AbyssVm {
                 OpCode::PrintI => {
                     let val = get_reg!(inst.a) as i64;
                     println!("--> [Int] {}", val);
+
+                    // let _ = writeln!(&mut self.output_buffer, "{}", val)
+                    //     .map_err(|_| "Failed to write to output buffer".to_string());
                 }
 
                 // Integer Comparisons
@@ -384,6 +428,9 @@ impl AbyssVm {
                 OpCode::PrintF => {
                     let val = f64::from_bits(get_reg!(inst.a));
                     println!("--> [Float] {}", val);
+
+                    // let _ = writeln!(&mut self.output_buffer, "{}", val)
+                    //     .map_err(|_| "Failed to write to output buffer".to_string());
                 }
 
                 // Float Math with Constant

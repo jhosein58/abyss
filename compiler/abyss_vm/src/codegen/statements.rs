@@ -20,6 +20,10 @@ impl IrCompiler {
             IrStmt::WriteIndex { base, index, val } => {
                 self.compile_write_index(env, base, index, val)
             }
+
+            IrStmt::WriteField { base, index, val } => {
+                self.compile_write_field(env, base, *index, val)
+            }
         }
     }
 
@@ -154,6 +158,28 @@ impl IrCompiler {
             a: base_reg,
             b: val_reg,
             c: index_reg,
+        });
+    }
+
+    fn compile_write_field(&mut self, env: &mut Env, base: &IrExpr, index: usize, val: &IrExpr) {
+        let base_reg = self.compile_expr(env, base, None);
+
+        let val_reg = self.compile_expr(env, val, None);
+
+        let idx_const = self.add_const(index as u64);
+        let idx_reg = env.alloc_reg();
+        self.emit(Instruction {
+            op: OpCode::LoadConst,
+            a: idx_reg,
+            b: idx_const,
+            c: 0,
+        });
+
+        self.emit(Instruction {
+            op: OpCode::StorePtrOffset,
+            a: base_reg,
+            b: val_reg,
+            c: idx_reg,
         });
     }
 }

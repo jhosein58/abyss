@@ -8,6 +8,7 @@ pub enum IrType {
     Unit,
     Ptr(Box<IrType>),
     Array(Box<IrType>, usize),
+    Struct(Vec<IrType>),
 }
 
 #[derive(Debug, Clone)]
@@ -61,6 +62,12 @@ pub enum IrStmt {
     },
 
     Break,
+
+    WriteField {
+        base: IrExpr,
+        index: usize,
+        val: IrExpr,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -97,6 +104,13 @@ pub enum IrExprKind {
     },
 
     Index(Box<IrExpr>, Box<IrExpr>), // a[b]
+
+    StructInit(Vec<IrExpr>),
+
+    FieldAccess {
+        base: Box<IrExpr>,
+        index: usize,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
