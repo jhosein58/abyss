@@ -21,6 +21,8 @@ pub fn check_sequence<'a>(
 
     let mut all_are_metatypes = true;
 
+    let mut all_elements_const = true;
+
     for item in items.iter() {
         let (label, expr_to_check) = match &item.kind {
             ExprKind::Binary(left, BinaryOp::KeyValue, right) => {
@@ -40,6 +42,10 @@ pub fn check_sequence<'a>(
         };
 
         let typed_expr = tc.check_expr(expr_to_check);
+
+        if !tc.side_table.is_const(typed_expr.id) {
+            all_elements_const = false;
+        }
 
         if typed_expr.ty != Type::Metatype {
             all_are_metatypes = false;
@@ -106,6 +112,10 @@ pub fn check_sequence<'a>(
 
         let first_element = typed_elements.remove(0);
 
+        if all_elements_const {
+            tc.side_table.mark_const(id, false);
+        }
+
         if first_element.expr.ty == Type::Metatype {
             let inner_type = tc.evaluate_as_type(first_element.expr);
             let array_type = Type::Array(Box::new(inner_type), array_length);
@@ -143,12 +153,18 @@ pub fn check_sequence<'a>(
             });
         }
 
+        tc.side_table.mark_const(id, false);
+
         return TypedExpr {
             kind: TypedExprKind::Type(Type::Struct(struct_fields)),
             ty: Type::Metatype,
             span,
             id,
         };
+    }
+
+    if all_elements_const {
+        tc.side_table.mark_const(id, false);
     }
 
     let is_array = !has_labels && all_same_type;

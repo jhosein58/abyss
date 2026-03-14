@@ -51,7 +51,7 @@ pub fn check_signature<'a>(
     if let Some(ref name) = name_opt {
         tc.ctx.update_type(name, func_type.clone());
         tc.ctx
-            .define(name.clone(), SymbolInfo::constant(func_type.clone()));
+            .define(name.clone(), SymbolInfo::constant(func_type.clone(), false));
 
         tc.resolver
             .set_forward_declaration(name.clone(), func_type.clone());
@@ -62,7 +62,7 @@ pub fn check_signature<'a>(
             kind: TypedExprKind::Wildcard,
             ty: Type::Unit,
             span: span.clone(),
-            id,
+            id: tc.next_id(),
         }
     } else {
         tc.check_expr(body)
@@ -85,7 +85,11 @@ pub fn check_signature<'a>(
         },
         ty: func_type.clone(),
         span: span.clone(),
-        id,
+        id: if is_native && name_opt.is_some() {
+            tc.next_id()
+        } else {
+            id
+        },
     };
 
     if let Some(name) = name_opt {

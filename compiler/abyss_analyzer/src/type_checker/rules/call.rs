@@ -27,7 +27,7 @@ pub fn check_call<'a>(
                         kind: TypedExprKind::Ident(name.clone()),
                         ty: Type::Signature(vec![Type::I32], Box::new(Type::Unit), false),
                         span: calle.span_expr(),
-                        id: 0,
+                        id: tc.next_id(),
                     }),
                     new_args,
                     false,
@@ -44,16 +44,39 @@ pub fn check_call<'a>(
     if let Type::Signature(_, ret_ty, is_native) = checked_calle.ty.clone() {
         let mut new_args = Vec::with_capacity(args.len());
 
+        let mut all_args_const = true;
+
         for a in args.iter() {
-            new_args.push(tc.check_expr(a));
+            let checked_arg = tc.check_expr(a);
+
+            let is_const = tc.side_table.is_const(checked_arg.id);
+
+            if !is_const {
+                all_args_const = false;
+            }
+
+            new_args.push(checked_arg);
         }
 
-        return TypedExpr {
-            kind: TypedExprKind::Call(Box::new(checked_calle), new_args, is_native),
-            ty: *ret_ty,
-            span,
+        let call_expr = TypedExpr {
+            kind: TypedExprKind::Call(Box::new(checked_calle.clone()), new_args, is_native),
+            ty: *ret_ty.clone(),
+            span: span.clone(),
             id,
         };
+
+        if all_args_const && !is_native {
+            let mut folded_expr = tc.comptime.evaluate_expr(call_expr.clone());
+
+            folded_expr.id = id;
+            folded_expr.span = span;
+
+            tc.side_table.mark_const(id, true);
+
+            return folded_expr;
+        }
+
+        return call_expr;
     }
 
     tc.report_error(
@@ -63,5 +86,6 @@ pub fn check_call<'a>(
             checked_calle.ty.name()
         ),
     );
+
     error_expr(span, id)
 }

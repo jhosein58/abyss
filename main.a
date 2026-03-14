@@ -110,11 +110,17 @@
 -- -- print(p.x)
 
 
-a := [x: 10., y: 12.]
+-- a := [x: 10., y: 12.]
 
-def inc(pos: [x: f32, y: f32]) {
-    pos.x = pos.x + 1.
-}
+-- def inc(pos: [x: f32, y: f32]) {
+--     pos.x = pos.x + 1.
+-- }
 
-inc(a)
-print(a.x)
+-- inc(a)
+-- print(a.x)
+
+
+#inline
+def pi 3
+
+test :=  1 + pi

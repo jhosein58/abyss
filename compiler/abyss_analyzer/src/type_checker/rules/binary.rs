@@ -247,13 +247,54 @@ pub fn check_binary<'a>(
     if !valid {
         return error_expr(span, id);
     }
-
-    TypedExpr {
-        kind: TypedExprKind::Binary(Box::new(typed_left), op, Box::new(typed_right)),
+    let binary_expr = TypedExpr {
+        kind: TypedExprKind::Binary(
+            Box::new(typed_left.clone()),
+            op,
+            Box::new(typed_right.clone()),
+        ),
         ty: result_ty,
-        span,
+        span: span.clone(),
         id,
+    };
+
+    let is_foldable_op = match op {
+        BinaryOp::Assign
+        | BinaryOp::KeyValue
+        | BinaryOp::ConstDef
+        | BinaryOp::AssignAdd
+        | BinaryOp::AssignSub
+        | BinaryOp::AssignMul
+        | BinaryOp::AssignDiv
+        | BinaryOp::AssignMod
+        | BinaryOp::AssignBitAnd
+        | BinaryOp::AssignBitOr
+        | BinaryOp::AssignBitXor
+        | BinaryOp::AssignShl
+        | BinaryOp::AssignShr => false,
+        _ => true,
+    };
+
+    if is_foldable_op {
+        let left_is_const =
+            tc.side_table.is_const(typed_left.id) && tc.side_table.should_fold(typed_left.id);
+
+        let right_is_const =
+            tc.side_table.is_const(typed_right.id) && tc.side_table.should_fold(typed_right.id);
+
+        if left_is_const && right_is_const {
+            let mut folded_expr = tc.comptime.evaluate_expr(binary_expr);
+
+            folded_expr.id = id;
+            folded_expr.span = span;
+
+            tc.side_table.mark_const(id, true);
+
+            return folded_expr;
+        }
     }
+
+    binary_expr
 }
 
 fn extract_type_from_expr(tc: &mut TypeChecker, expr: &TypedExpr) -> Type {
@@ -379,6 +420,7 @@ fn check_var_dec<'a>(
                     is_mutable: true,
                     kind: crate::type_checker::context::SymbolKind::Variable,
                     ty: init_type.clone(),
+                    is_inline: false,
                 },
             );
 

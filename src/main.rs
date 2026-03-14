@@ -5,6 +5,7 @@ pub use abyss_diagnostics::DiagnosticEngine;
 pub use abyss_ir::builder::IrBuilder;
 pub use abyss_parser::parser::Parser;
 
+use abyss_utils::idgen::IdGenerator;
 pub use abyss_vm::{AbyssVm, codegen::IrCompiler};
 
 fn main() {
@@ -15,12 +16,14 @@ fn main() {
     let mut err = DiagnosticEngine::new();
     err.add_source(0, "main.a".to_string(), code.clone());
 
-    let mut parser = Parser::new(&code, &mut err, 0);
+    let mut idgen = IdGenerator::new();
+
+    let mut parser = Parser::new(&code, &mut err, &mut idgen, 0);
     let program = parser.parse_program();
 
-    println!("\n{}\n\n", program);
+    //println!("\n{}\n\n", program);
 
-    let mut type_checker = TypeChecker::new(&mut err);
+    let mut type_checker = TypeChecker::new(&mut err, &mut idgen);
 
     let tast = type_checker.check_program(&program);
     tast.body.print_tree();

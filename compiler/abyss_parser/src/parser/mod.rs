@@ -2,20 +2,26 @@ pub mod handlers;
 pub mod precedence;
 pub mod rules;
 use abyss_diagnostics::DiagnosticEngine;
+use abyss_utils::idgen::IdGenerator;
 
 use crate::ast::{Expr, ExprKind, Program};
 
 use crate::parser::engine::PrattEngine;
 pub mod engine;
 
-pub struct Parser<'a, 'e> {
-    engine: PrattEngine<'a, 'e>,
+pub struct Parser<'a, 'e, 'i> {
+    engine: PrattEngine<'a, 'e, 'i>,
 }
 
-impl<'a, 'e> Parser<'a, 'e> {
-    pub fn new(source: &'a str, err_handle: &'e mut DiagnosticEngine, file_id: u16) -> Self {
+impl<'a, 'e, 'i> Parser<'a, 'e, 'i> {
+    pub fn new(
+        source: &'a str,
+        err_handle: &'e mut DiagnosticEngine,
+        idgen: &'i mut IdGenerator,
+        file_id: u16,
+    ) -> Self {
         Self {
-            engine: PrattEngine::new(source, err_handle, file_id),
+            engine: PrattEngine::new(source, err_handle, idgen, file_id),
         }
     }
 

@@ -165,9 +165,17 @@ pub fn parse_attributed(eng: &mut PrattEngine) -> Result<Expr, ()> {
             }
         };
 
+        let mut res_args = Vec::new();
+
+        for carg in args.iter() {
+            if let ExprKind::Ident(inner_str) = carg.kind.clone() {
+                res_args.push(inner_str.to_string());
+            }
+        }
+
         attributes.push(Attribute {
             name,
-            args,
+            args: res_args,
             span: attr_expr.span,
         });
     }

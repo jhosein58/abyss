@@ -120,15 +120,68 @@ pub struct TypedProgram {
 
 impl TypedExpr {
     pub fn print_tree(&self) {
-        self.print_recursive(0);
+        println!("\x1b[1;36mTAST Tree Root:\x1b[0m");
+        self.print_recursive("", true, true, None);
     }
-    fn print_recursive(&self, indent: usize) {
-        let pad = "  ".repeat(indent);
-        let arrow = if indent > 0 { "└─ " } else { "" };
 
-        print!("{}{}", pad, arrow);
+    fn print_recursive(
+        &self,
+        prefix: &str,
+        is_last: bool,
+        is_root: bool,
+        edge_label: Option<&str>,
+    ) {
+        let connector = if is_root {
+            ""
+        } else if is_last {
+            "└── "
+        } else {
+            "├── "
+        };
+
+        let label_str = if let Some(l) = edge_label {
+            format!("\x1b[38;5;243m{}:\x1b[0m ", l)
+        } else {
+            String::new()
+        };
+
+        let mut node_info = String::new();
+        let mut children: Vec<(Option<String>, &TypedExpr)> = Vec::new();
+
+        macro_rules! add_child {
+            ($label:expr, $expr:expr) => {
+                children.push((Some($label.to_string()), $expr))
+            };
+            ($expr:expr) => {
+                children.push((None, $expr))
+            };
+        }
+
+        macro_rules! add_opt_child {
+            ($label:expr, $opt_expr:expr) => {
+                if let Some(e) = $opt_expr {
+                    children.push((Some($label.to_string()), e))
+                }
+            };
+        }
 
         match &self.kind {
+            TypedExprKind::Mod(l, r) => {
+                node_info = "\x1b[1;35mMod\x1b[0m".to_string();
+                add_child!("left", l);
+                add_child!("right", r);
+            }
+            TypedExprKind::Use(e) => {
+                node_info = "\x1b[1;35mUse\x1b[0m".to_string();
+                add_child!(e);
+            }
+            TypedExprKind::SequenceInit(elems) => {
+                node_info = format!("\x1b[1;35mSequenceInit\x1b[0m ({} items)", elems.len());
+                for (i, elem) in elems.iter().enumerate() {
+                    let lbl = elem.label.clone().unwrap_or_else(|| format!("[{}]", i));
+                    children.push((Some(lbl), &elem.expr));
+                }
+            }
             TypedExprKind::FunctionDef {
                 name,
                 args,
@@ -136,117 +189,218 @@ impl TypedExpr {
                 body,
                 is_native,
             } => {
-                let _ = is_native;
-                println!(
-                    "[FunctionDef '{}' -> {}] :: {}",
+                let native_tag = if *is_native {
+                    " \x1b[33m[native]\x1b[0m"
+                } else {
+                    ""
+                };
+                node_info = format!(
+                    "\x1b[1;32mƒ {}\x1b[0m{} → \x1b[36m{}\x1b[0m",
                     name,
-                    ret_ty.name(),
-                    self.ty.name()
+                    native_tag,
+                    ret_ty.name()
                 );
-                for arg in args {
-                    arg.print_recursive(indent + 1);
+                for (i, arg) in args.iter().enumerate() {
+                    children.push((Some(format!("arg{}", i)), arg));
                 }
-                body.print_recursive(indent + 1);
+                add_child!("body", body);
             }
             TypedExprKind::FuncRef(name) => {
-                println!("[FuncRef '{}'] :: {}", name, self.ty.name());
+                node_info = format!("\x1b[1;33m&{}\x1b[0m", name);
             }
-            TypedExprKind::Lit(l) => {
-                println!("[Lit {:?}] :: {}", l, self.ty.name());
+            TypedExprKind::VarDec(name, ty, init) => {
+                node_info = format!(
+                    "\x1b[1;34mvar {}\x1b[0m: \x1b[36m{}\x1b[0m",
+                    name,
+                    ty.name()
+                );
+                add_opt_child!("=", init);
             }
-            TypedExprKind::Ident(name) => {
-                println!("[Ident '{}'] :: {}", name, self.ty.name());
+            TypedExprKind::Def(name, expr) => {
+                node_info = format!("\x1b[1;34mdef {}\x1b[0m", name);
+                add_child!(":=", expr);
             }
-            TypedExprKind::VarDec(name, ty, init_opt) => {
-                println!("[VarDec '{}'] :: {}", name, ty.name());
-                if let Some(init_expr) = init_opt {
-                    init_expr.print_recursive(indent + 1);
-                }
+            TypedExprKind::Comptime(expr) => {
+                node_info = "\x1b[1;95mcomptime\x1b[0m".to_string();
+                add_child!(expr);
             }
-            TypedExprKind::Binary(left, op, right) => {
-                println!("[Binary {:?}] :: {}", op, self.ty.name());
-                left.print_recursive(indent + 1);
-                right.print_recursive(indent + 1);
+            TypedExprKind::Ret(expr) => {
+                node_info = "\x1b[1;31mreturn\x1b[0m".to_string();
+                add_opt_child!("", expr);
             }
-            TypedExprKind::Unary(op, expr) => {
-                println!("[Unary {:?}] :: {}", op, self.ty.name());
-                expr.print_recursive(indent + 1);
+            TypedExprKind::Out(expr) => {
+                node_info = "\x1b[1;31mout\x1b[0m".to_string();
+                add_opt_child!("", expr);
+            }
+            TypedExprKind::Continue => {
+                node_info = "\x1b[1;31mcontinue\x1b[0m".to_string();
             }
             TypedExprKind::Block(stmts) => {
-                println!("[Block] :: {}", self.ty.name());
+                node_info = format!("\x1b[1;90m{{}}\x1b[0m ({} stmts)", stmts.len());
                 for stmt in stmts {
-                    stmt.print_recursive(indent + 1);
+                    add_child!(stmt);
                 }
             }
-            TypedExprKind::If(cond, then_branch, else_branch) => {
-                println!("[If] :: {}", self.ty.name());
-                cond.print_recursive(indent + 1);
-                then_branch.print_recursive(indent + 1);
-                if let Some(else_b) = else_branch {
-                    else_b.print_recursive(indent + 1);
-                }
+            TypedExprKind::If(cond, then_b, else_b) => {
+                node_info = "\x1b[1;33mif\x1b[0m".to_string();
+                add_child!("cond", cond);
+                add_child!("then", then_b);
+                add_opt_child!("else", else_b);
+            }
+            TypedExprKind::For(init, cond, step) => {
+                node_info = "\x1b[1;33mfor\x1b[0m".to_string();
+                add_child!("init", init);
+                add_child!("cond", cond);
+                add_child!("step", step);
+            }
+            TypedExprKind::Range {
+                start,
+                end,
+                step,
+                inclusive,
+            } => {
+                let inc_char = if *inclusive { "..=" } else { ".." };
+                node_info = format!("\x1b[1;90mrange {}\x1b[0m", inc_char);
+                add_opt_child!("start", start);
+                add_opt_child!("end", end);
+                add_opt_child!("step", step);
             }
             TypedExprKind::While(cond, body, else_b) => {
-                println!("[While] :: {}", self.ty.name());
-                cond.print_recursive(indent + 1);
-                body.print_recursive(indent + 1);
-                if let Some(eb) = else_b {
-                    eb.print_recursive(indent + 1);
+                node_info = "\x1b[1;33mwhile\x1b[0m".to_string();
+                add_child!("cond", cond);
+                add_child!("body", body);
+                add_opt_child!("else", else_b);
+            }
+            TypedExprKind::Forever(body) => {
+                node_info = "\x1b[1;33mforever\x1b[0m".to_string();
+                add_child!("body", body);
+            }
+            TypedExprKind::Defer(expr) => {
+                node_info = "\x1b[1;90mdefer\x1b[0m".to_string();
+                add_child!(expr);
+            }
+            TypedExprKind::Lit(lit) => {
+                node_info = match lit {
+                    Lit::Int(n) => format!("\x1b[38;5;208m{}\x1b[0m", n),
+                    Lit::Float(f) => format!("\x1b[38;5;213m{}\x1b[0m", f.0),
+                    Lit::Bool(b) => format!("\x1b[38;5;85m{}\x1b[0m", b),
+                    Lit::Str(s) => format!("\x1b[38;5;118m\"{}\"\x1b[0m", s),
+                    Lit::Cstr(s) => format!("\x1b[38;5;196mc\"{}\"\x1b[0m", s),
+                    Lit::Char(c) => format!("\x1b[38;5;159m'{}'\x1b[0m", c),
+                };
+            }
+            TypedExprKind::Ident(name) => {
+                node_info = format!("\x1b[1;37m{}\x1b[0m", name);
+            }
+            TypedExprKind::Binary(l, op, r) => {
+                let op_str = format!("{:?}", op);
+                node_info = format!("\x1b[1;90m{}\x1b[0m", op_str);
+                add_child!("lhs", l);
+                add_child!("rhs", r);
+            }
+            TypedExprKind::Unary(op, expr) => {
+                let op_str = format!("{:?}", op);
+                node_info = format!("\x1b[1;90m{}\x1b[0m", op_str);
+                add_child!(expr);
+            }
+            TypedExprKind::Call(callee, args, is_native) => {
+                let native_tag = if *is_native {
+                    " \x1b[33m[native]\x1b[0m"
+                } else {
+                    ""
+                };
+                node_info = format!("\x1b[1;35mcall\x1b[0m{}", native_tag);
+                add_child!("fn", callee);
+                for (i, arg) in args.iter().enumerate() {
+                    children.push((Some(format!("{}", i)), arg));
                 }
-            }
-            TypedExprKind::Call(func, args, _) => {
-                println!("[Call] :: {}", self.ty.name());
-                func.print_recursive(indent + 1);
-                for arg in args {
-                    arg.print_recursive(indent + 1);
-                }
-            }
-            TypedExprKind::Ret(val) => {
-                println!("[Return] :: {}", self.ty.name());
-                if let Some(v) = val {
-                    v.print_recursive(indent + 1);
-                }
-            }
-            TypedExprKind::Out(val) => {
-                println!("[out] :: {}", self.ty.name());
-                if let Some(v) = val {
-                    v.print_recursive(indent + 1);
-                }
-            }
-            TypedExprKind::Continue => println!("[Continue]"),
-            TypedExprKind::Mod(left, right) => {
-                println!("[Mod] :: {}", self.ty.name());
-                left.print_recursive(indent + 1);
-                right.print_recursive(indent + 1);
-            }
-            TypedExprKind::Member(expr, name) => {
-                println!("[Member '.{}'] :: {}", name, self.ty.name());
-                expr.print_recursive(indent + 1);
             }
             TypedExprKind::Index(expr, idx) => {
-                println!("[Index] :: {}", self.ty.name());
-                expr.print_recursive(indent + 1);
-                idx.print_recursive(indent + 1);
+                node_info = "\x1b[1;90m[]\x1b[0m".to_string();
+                add_child!("array", expr);
+                add_child!("index", idx);
             }
-            TypedExprKind::Cast(expr, _) => {
-                println!("[Cast] :: {}", self.ty.name());
-                expr.print_recursive(indent + 1);
+            TypedExprKind::FieldAccess(expr, field) => {
+                node_info = format!("\x1b[1;90m.{}\x1b[0m", field);
+                add_child!("object", expr);
+            }
+            TypedExprKind::Cast(expr, target) => {
+                node_info = "\x1b[1;90mas\x1b[0m".to_string();
+                add_child!("expr", expr);
+                add_opt_child!("→", target);
+            }
+            TypedExprKind::Is(expr, target) => {
+                node_info = "\x1b[1;90mis\x1b[0m".to_string();
+                add_child!("expr", expr);
+                add_opt_child!("?", target);
+            }
+            TypedExprKind::Member(expr, name) => {
+                node_info = format!("\x1b[1;90m.{}()\x1b[0m", name);
+                add_child!("object", expr);
+            }
+            TypedExprKind::SizeOf(expr) => {
+                node_info = "\x1b[1;90msizeof\x1b[0m".to_string();
+                add_opt_child!("type", expr);
+            }
+            TypedExprKind::Match { subject, arms } => {
+                node_info = format!("\x1b[1;33mmatch\x1b[0m ({} arms)", arms.len());
+                add_child!("subject", subject);
+                for (i, arm) in arms.iter().enumerate() {
+                    children.push((Some(format!("arm{}·pat", i)), &arm.pattern));
+                    children.push((Some(format!("arm{}·body", i)), &arm.body));
+                }
+            }
+            TypedExprKind::Then(e1, e2) => {
+                node_info = "\x1b[1;90mthen\x1b[0m".to_string();
+                add_child!("first", e1);
+                add_child!("second", e2);
+            }
+            TypedExprKind::TypeOf(expr) => {
+                node_info = "\x1b[1;90mtypeof\x1b[0m".to_string();
+                add_child!(expr);
+            }
+            TypedExprKind::Refinement(cond, expr) => {
+                node_info = "\x1b[1;90mrefine\x1b[0m".to_string();
+                add_opt_child!("when", cond);
+                add_child!("expr", expr);
+            }
+            TypedExprKind::Attributed(attrs, expr) => {
+                let attr_names: Vec<String> = attrs.iter().map(|a| a.name.clone()).collect();
+                node_info = format!("\x1b[1;90m#[{}]\x1b[0m", attr_names.join(", "));
+                add_child!("target", expr);
+            }
+            TypedExprKind::Wildcard => {
+                node_info = "\x1b[2;90m_\x1b[0m".to_string();
+            }
+            TypedExprKind::Type(ty) => {
+                node_info = format!("\x1b[1;36mtype {}\x1b[0m", ty.name());
             }
             TypedExprKind::ErrorPlaceholder => {
-                println!("[ErrorPlaceholder] :: {}", self.ty.name());
+                node_info = "\x1b[1;41;97m ERROR \x1b[0m".to_string();
             }
+        }
 
-            other => {
-                let debug_str = format!("{:?}", other);
-                let variant_name = debug_str
-                    .split('(')
-                    .next()
-                    .unwrap_or("Unknown")
-                    .split('{')
-                    .next()
-                    .unwrap_or("Unknown");
-                println!("[{}] :: {}", variant_name, self.ty.name());
-            }
+        let type_str = format!("\x1b[38;5;245m: {}\x1b[0m", self.ty.name());
+
+        let id_str = format!("\x1b[2;38;5;238m[id:{}]\x1b[0m", self.id);
+
+        println!(
+            "{}{}{}{} {} {}",
+            prefix, connector, label_str, node_info, type_str, id_str
+        );
+
+        let child_prefix = if is_root {
+            "".to_string()
+        } else if is_last {
+            format!("{}    ", prefix)
+        } else {
+            format!("{}│   ", prefix)
+        };
+
+        let num_children = children.len();
+        for (i, (child_label, child_expr)) in children.into_iter().enumerate() {
+            let is_last_child = i == num_children - 1;
+            child_expr.print_recursive(&child_prefix, is_last_child, false, child_label.as_deref());
         }
     }
 }

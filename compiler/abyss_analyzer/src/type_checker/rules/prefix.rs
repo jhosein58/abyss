@@ -52,6 +52,9 @@ pub fn check_def<'a>(
         }
     };
 
+    let c = tc.ctx.lookup(&name).unwrap();
+    println!("{:?}", c);
+
     if let ExprKind::Signature(ref args, ref ret, ref body) = value_expr.kind {
         return check_signature(
             tc,
@@ -108,9 +111,11 @@ pub fn check_def<'a>(
     } else {
         if !tc.ctx.is_global_scope() {
             tc.ctx
-                .define(name.clone(), SymbolInfo::constant(final_ty.clone()));
+                .define(name.clone(), SymbolInfo::constant(final_ty.clone(), true));
         }
     }
+
+    tc.side_table.mark_const(id, true);
 
     TypedExpr {
         kind: TypedExprKind::Def(name, Box::new(typed_value)),
@@ -136,6 +141,8 @@ pub fn check_cmpt<'a>(
 
     evaluated_expr.span = span;
     evaluated_expr.id = id;
+
+    tc.side_table.mark_const(id, true);
 
     evaluated_expr
 }

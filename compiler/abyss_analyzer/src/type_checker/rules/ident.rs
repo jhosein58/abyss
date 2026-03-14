@@ -8,6 +8,14 @@ use abyss_types::{
 
 pub fn check_ident(tc: &mut TypeChecker, name: String, span: Span, id: u32) -> TypedExpr {
     if let Some(info) = tc.ctx.lookup(&name) {
+        if info.is_constant() {
+            tc.side_table.mark_const(id, false);
+
+            if info.is_inline {
+                tc.side_table.mark_const(id, true);
+            }
+        }
+
         let ty = info.ty.clone();
 
         if ty == Type::Infer && tc.resolver.contains(&name) {
