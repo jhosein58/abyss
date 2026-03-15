@@ -5,7 +5,11 @@ use abyss_types::{
     types::Type,
 };
 
-use crate::type_checker::{context::SymbolInfo, engine::TypeChecker, resolver::InlinePolicy};
+use crate::type_checker::{
+    context::SymbolInfo,
+    engine::TypeChecker,
+    resolver::{GlobalMetadata, InlinePolicy},
+};
 
 pub fn check_signature<'a>(
     tc: &mut TypeChecker<'a>,
@@ -101,7 +105,10 @@ pub fn check_signature<'a>(
                 func_type.clone(),
                 function_def_node.clone(),
                 false,
-                InlinePolicy::Never,
+                GlobalMetadata {
+                    inline_policy: InlinePolicy::Never,
+                    is_foldable: false,
+                },
             );
         }
 

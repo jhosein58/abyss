@@ -420,7 +420,7 @@ fn check_var_dec<'a>(
                     is_mutable: true,
                     kind: crate::type_checker::context::SymbolKind::Variable,
                     ty: init_type.clone(),
-                    is_inline: false,
+                    is_foldable: false,
                 },
             );
 

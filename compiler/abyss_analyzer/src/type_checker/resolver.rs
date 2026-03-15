@@ -2,10 +2,17 @@ use abyss_parser::ast::Expr;
 use abyss_types::{tast::TypedExpr, types::Type};
 use std::collections::HashMap;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InlinePolicy {
     Never,
     Always,
     Prefer,
+}
+
+#[derive(Debug, Clone)]
+pub struct GlobalMetadata {
+    pub inline_policy: InlinePolicy,
+    pub is_foldable: bool,
 }
 
 pub enum GlobalDefState<'a> {
@@ -16,10 +23,9 @@ pub enum GlobalDefState<'a> {
         ty: Type,
         typed_expr: TypedExpr,
         is_type_def: bool,
-        inline_policy: InlinePolicy,
+        metadata: GlobalMetadata,
     },
 }
-
 pub struct GlobalResolver<'a> {
     definitions: HashMap<String, GlobalDefState<'a>>,
 }
@@ -30,7 +36,6 @@ impl<'a> GlobalResolver<'a> {
             definitions: HashMap::new(),
         }
     }
-
     pub fn register(&mut self, name: String, expr: &'a Expr) {
         self.definitions
             .insert(name, GlobalDefState::Unresolved(expr));
@@ -58,7 +63,7 @@ impl<'a> GlobalResolver<'a> {
         ty: Type,
         typed_expr: TypedExpr,
         is_type_def: bool,
-        policy: InlinePolicy,
+        metadata: GlobalMetadata,
     ) {
         self.definitions.insert(
             name,
@@ -66,7 +71,7 @@ impl<'a> GlobalResolver<'a> {
                 ty,
                 typed_expr,
                 is_type_def,
-                inline_policy: policy,
+                metadata,
             },
         );
     }
@@ -90,6 +95,13 @@ impl<'a> GlobalResolver<'a> {
         match self.definitions.get(name) {
             Some(GlobalDefState::Resolved { ty, .. }) => Some(ty.clone()),
             Some(GlobalDefState::ForwardDeclared(ty)) => Some(ty.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn get_metadata(&self, name: &str) -> Option<GlobalMetadata> {
+        match self.definitions.get(name) {
+            Some(GlobalDefState::Resolved { metadata, .. }) => Some(metadata.clone()),
             _ => None,
         }
     }
@@ -131,47 +143,6 @@ impl<'a> GlobalResolver<'a> {
                 self.definitions.remove(&name)
             {
                 result.insert(name, (ty, typed_expr));
-            }
-        }
-
-        result
-    }
-
-    pub fn get_all_resolved(&self) -> HashMap<String, TypedExpr> {
-        let mut result = HashMap::new();
-
-        for (name, state) in &self.definitions {
-            if let GlobalDefState::Resolved { typed_expr, .. } = state {
-                result.insert(name.clone(), typed_expr.clone());
-            }
-        }
-
-        result
-    }
-
-    pub fn get_all_resolved_with_types(&self) -> HashMap<String, (Type, TypedExpr)> {
-        let mut result = HashMap::new();
-
-        for (name, state) in &self.definitions {
-            if let GlobalDefState::Resolved { ty, typed_expr, .. } = state {
-                result.insert(name.clone(), (ty.clone(), typed_expr.clone()));
-            }
-        }
-
-        result
-    }
-
-    pub fn get_resolved_values(&self) -> HashMap<String, TypedExpr> {
-        let mut result = HashMap::new();
-
-        for (name, state) in &self.definitions {
-            if let GlobalDefState::Resolved {
-                typed_expr,
-                is_type_def: false,
-                ..
-            } = state
-            {
-                result.insert(name.clone(), typed_expr.clone());
             }
         }
 
