@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use crate::comptime::ComptimeEngine;
 use crate::side_table::SideTable;
 use crate::type_checker::context::{SymbolInfo, TypeContext};
-use crate::type_checker::resolver::{GlobalResolver, InlinePolicy};
+use crate::type_checker::resolver::{GlobalMetadata, GlobalResolver};
 use crate::type_checker::rules::binary::check_binary;
 use crate::type_checker::rules::ident::check_ident;
 use crate::type_checker::rules::index::check_index;
@@ -30,11 +30,11 @@ pub struct TypeChecker<'a> {
     pub resolver: GlobalResolver<'a>,
     pub diagnostics: &'a mut DiagnosticEngine,
     pub anon_func_counter: usize,
-    resolve_stack: Vec<String>,
-    active_attributes: Vec<&'a Attribute>,
+    pub resolve_stack: Vec<String>,
     pub comptime: ComptimeEngine,
     pub side_table: SideTable,
-    idgen: &'a mut IdGenerator,
+    pub idgen: &'a mut IdGenerator,
+    pub active_attributes: Vec<&'a Attribute>,
 }
 
 impl<'a> TypeChecker<'a> {
@@ -46,10 +46,10 @@ impl<'a> TypeChecker<'a> {
             diagnostics,
             anon_func_counter: 0,
             resolve_stack: Vec::new(),
-            active_attributes: Vec::new(),
             comptime: ComptimeEngine::new(),
             side_table: SideTable::new(),
             idgen,
+            active_attributes: Vec::new(),
         }
     }
 
@@ -61,44 +61,42 @@ impl<'a> TypeChecker<'a> {
         self.diagnostics.report_error_with_hint(span, message, hint);
     }
 
-    fn gather_declarations(&mut self, expr: &'a Expr) {
+    fn extract_def_name(expr: &Expr) -> Option<String> {
+        match &expr.kind {
+            ExprKind::Def(name, _) => {
+                if let ExprKind::Ident(n) = &name.kind {
+                    Some(n.clone())
+                } else {
+                    None
+                }
+            }
+            ExprKind::Attributed(_, inner) => Self::extract_def_name(inner),
+            _ => None,
+        }
+    }
+
+    fn gather_declarations_internal(&mut self, expr: &'a Expr) {
         match &expr.kind {
             ExprKind::Block(items) => {
                 for item in items {
-                    self.gather_declarations(item);
+                    self.gather_declarations_internal(item);
                 }
             }
-            ExprKind::Def(name, _value) => {
-                let name_str = if let ExprKind::Ident(n) = &name.kind {
-                    n.clone()
-                } else {
-                    self.report_error(name.span_expr(), "Only ident can be used.".to_string());
-                    return;
-                };
+            _ => {
+                if let Some(name_str) = Self::extract_def_name(expr) {
+                    if !name_str.is_empty() {
+                        self.resolver.register(name_str.clone(), expr);
 
-                if name_str.is_empty() {
-                    return;
+                        self.ctx
+                            .define_global(name_str, SymbolInfo::constant(Type::Infer, true));
+                    }
                 }
-
-                self.resolver.register(name_str.clone(), expr);
-
-                self.ctx.define_global(
-                    name_str,
-                    SymbolInfo::constant(Type::Infer, self.has_attribute("inline")),
-                );
             }
-
-            ExprKind::Attributed(attributes, inner_expr) => {
-                let original_len = self.active_attributes.len();
-                self.active_attributes.extend(attributes.iter());
-
-                self.gather_declarations(inner_expr);
-
-                self.active_attributes.truncate(original_len);
-            }
-
-            _ => {}
         }
+    }
+
+    pub fn gather_declarations(&mut self, expr: &'a Expr) {
+        self.gather_declarations_internal(expr);
     }
 
     pub fn complete_and_register_global(
@@ -107,10 +105,10 @@ impl<'a> TypeChecker<'a> {
         ty: Type,
         expr: TypedExpr,
         is_type_def: bool,
-        inline_policy: InlinePolicy,
+        metadata: GlobalMetadata,
     ) {
         self.resolver
-            .complete_resolve(name.clone(), ty, expr.clone(), is_type_def, inline_policy);
+            .complete_resolve(name.clone(), ty, expr.clone(), is_type_def, metadata);
 
         if !is_type_def {
             self.comptime.register_global(name, expr);
@@ -140,60 +138,11 @@ impl<'a> TypeChecker<'a> {
             return None;
         }
 
-        let expr = self.resolver.begin_resolve(name)?;
-        self.resolve_stack.push(name.to_string());
+        let expr = self.resolver.begin_resolve(&name)?;
 
-        let (attributes, inner_expr) = if let ExprKind::Attributed(attrs, inner) = &expr.kind {
-            (attrs.as_slice(), &**inner)
-        } else {
-            (&[][..], expr)
-        };
+        let typed_expr = self.check_expr(expr);
 
-        let mut inline_policy = InlinePolicy::Never;
-        if attributes.iter().any(|a| a.name == "inline") {
-            inline_policy = InlinePolicy::Always;
-        }
-
-        let typed_expr = self.check_expr(inner_expr);
-        let ty = typed_expr.ty.clone();
-
-        let is_type_def =
-            matches!(ty, Type::Metatype) || matches!(&typed_expr.kind, TypedExprKind::Type(_));
-
-        if is_type_def {
-            let actual_type = self.extract_actual_type(&typed_expr);
-            self.type_registry
-                .register(name.to_string(), actual_type.clone());
-
-            self.ctx.update_type(name, Type::Metatype);
-        } else {
-            self.ctx.update_type(name, ty.clone());
-        }
-
-        self.complete_and_register_global(
-            name.to_string(),
-            ty.clone(),
-            typed_expr.clone(),
-            is_type_def,
-            inline_policy,
-        );
-
-        self.resolve_stack.pop();
-        Some(ty)
-    }
-
-    fn extract_actual_type(&mut self, expr: &TypedExpr) -> Type {
-        match &expr.kind {
-            TypedExprKind::Type(ty) => ty.clone(),
-            TypedExprKind::Ident(name) => {
-                if let Some(ty) = self.type_registry.get(name) {
-                    ty.clone()
-                } else {
-                    Type::Error
-                }
-            }
-            _ => self.evaluate_as_type(expr.clone()),
-        }
+        Some(typed_expr.ty)
     }
 
     pub fn resolve_type_by_name(&mut self, name: &str, span: Span) -> Type {
@@ -226,16 +175,14 @@ impl<'a> TypeChecker<'a> {
     pub fn check_expr(&mut self, expr: &'a Expr) -> TypedExpr {
         match &expr.kind {
             ExprKind::Attributed(attributes, inner_expr) => {
-                let original_len = self.active_attributes.len();
-                self.active_attributes.extend(attributes.iter());
+                let old_attrs =
+                    std::mem::replace(&mut self.active_attributes, attributes.iter().collect());
 
                 let typed_inner_expr = self.check_expr(inner_expr);
 
-                self.active_attributes.truncate(original_len);
-
+                self.active_attributes = old_attrs;
                 return typed_inner_expr;
             }
-
             ExprKind::Lit(lit) => check_literal(self, lit, expr.span_expr(), expr.id),
 
             ExprKind::Block(stmts) => check_block(self, stmts, expr.span_expr(), expr.id),
@@ -349,16 +296,19 @@ impl<'a> TypeChecker<'a> {
         Type::Unit
     }
 
-    pub fn has_attribute(&self, name: &str) -> bool {
-        self.active_attributes.iter().any(|attr| attr.name == name)
-    }
-
-    pub fn find_attribute(&self, name: &str) -> Option<&&'a Attribute> {
-        self.active_attributes.iter().find(|attr| attr.name == name)
-    }
-
     pub fn next_id(&mut self) -> u32 {
         self.idgen.next()
+    }
+
+    pub fn has_attribute(&self, name: &str) -> bool {
+        self.active_attributes.iter().any(|&attr| attr.name == name)
+    }
+
+    pub fn get_attribute(&self, name: &str) -> Option<&'a Attribute> {
+        self.active_attributes
+            .iter()
+            .find(|&&attr| attr.name == name)
+            .copied()
     }
 }
 

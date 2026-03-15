@@ -1,7 +1,7 @@
 use crate::type_checker::{
     context::SymbolInfo,
     engine::{TypeChecker, error_expr},
-    resolver::InlinePolicy,
+    resolver::{GlobalMetadata, InlinePolicy},
     rules::signature::check_signature,
 };
 use abyss_diagnostics::Span;
@@ -45,15 +45,12 @@ pub fn check_def<'a>(
         ExprKind::Ident(n) => n.clone(),
         _ => {
             tc.report_error(
-                name_expr.span_expr(),
+                name_expr.span.clone(),
                 "Definition name must be an identifier.".to_string(),
             );
             return error_expr(span, id);
         }
     };
-
-    let c = tc.ctx.lookup(&name).unwrap();
-    println!("{:?}", c);
 
     if let ExprKind::Signature(ref args, ref ret, ref body) = value_expr.kind {
         return check_signature(
@@ -82,18 +79,39 @@ pub fn check_def<'a>(
     let mut final_ty = typed_value.ty.clone();
     let mut is_type_def = false;
 
+    let base_is_foldable = tc.side_table.should_fold(typed_value.id);
+
+    let mut final_is_foldable = base_is_foldable;
+    let mut final_inline_policy = InlinePolicy::Never;
+
+    if let Some(inline_attr) = tc.get_attribute("inline") {
+        if inline_attr.is_empty_args() || inline_attr.has_exact_single_arg("Always") {
+            final_is_foldable = true;
+            final_inline_policy = InlinePolicy::Always;
+        } else if inline_attr.has_exact_single_arg("Prefer") {
+            final_is_foldable = base_is_foldable;
+            final_inline_policy = InlinePolicy::Prefer;
+        } else if inline_attr.has_exact_single_arg("Never") {
+            final_is_foldable = false;
+            final_inline_policy = InlinePolicy::Never;
+        } else {
+            tc.report_error(
+                inline_attr.span.clone(),
+                "Invalid arguments for #inline attribute. Expected 'Always', 'Prefer', or 'Never'."
+                    .to_string(),
+            );
+        }
+    }
+
     if typed_value.ty == Type::Metatype {
         let base_type = tc.evaluate_as_type(typed_value.clone());
-
         if !matches!(base_type, Type::Alias(_, _)) {
             let alias_type = Type::Alias(name.clone(), Box::new(base_type.clone()));
             typed_value.kind = TypedExprKind::Type(alias_type.clone());
-
             tc.type_registry.register(name.clone(), alias_type);
         } else {
             tc.type_registry.register(name.clone(), base_type);
         }
-
         is_type_def = true;
         final_ty = Type::Metatype;
     }
@@ -101,21 +119,30 @@ pub fn check_def<'a>(
     tc.ctx.update_type(&name, final_ty.clone());
 
     if tc.resolver.contains(&name) {
+        let metadata = GlobalMetadata {
+            inline_policy: final_inline_policy,
+            is_foldable: final_is_foldable,
+        };
         tc.complete_and_register_global(
             name.clone(),
             final_ty.clone(),
             typed_value.clone(),
             is_type_def,
-            InlinePolicy::Never,
+            metadata,
         );
-    } else {
-        if !tc.ctx.is_global_scope() {
-            tc.ctx
-                .define(name.clone(), SymbolInfo::constant(final_ty.clone(), true));
-        }
+
+        tc.ctx.define_global(
+            name.clone(),
+            SymbolInfo::constant(final_ty.clone(), final_is_foldable),
+        );
+    } else if !tc.ctx.is_global_scope() {
+        tc.ctx.define(
+            name.clone(),
+            SymbolInfo::constant(final_ty.clone(), final_is_foldable),
+        );
     }
 
-    tc.side_table.mark_const(id, true);
+    tc.side_table.mark_const(id, final_is_foldable);
 
     TypedExpr {
         kind: TypedExprKind::Def(name, Box::new(typed_value)),

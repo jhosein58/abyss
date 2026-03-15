@@ -14,7 +14,7 @@ pub struct SymbolInfo {
     pub is_mutable: bool,
     pub is_initialized: bool,
     pub is_native: bool,
-    pub is_inline: bool,
+    pub is_foldable: bool,
 }
 
 impl SymbolInfo {
@@ -25,18 +25,18 @@ impl SymbolInfo {
             is_mutable: false,
             is_initialized: true,
             is_native: false,
-            is_inline: false,
+            is_foldable: false,
         }
     }
 
-    pub fn constant(ty: Type, is_inline: bool) -> Self {
+    pub fn constant(ty: Type, is_foldable: bool) -> Self {
         Self {
             ty,
             kind: SymbolKind::Constant,
             is_mutable: false,
             is_initialized: true,
             is_native: false,
-            is_inline,
+            is_foldable,
         }
     }
 
@@ -47,7 +47,7 @@ impl SymbolInfo {
             is_mutable: false,
             is_initialized: true,
             is_native: true,
-            is_inline: false,
+            is_foldable: false,
         }
     }
 
@@ -154,15 +154,6 @@ impl TypeContext {
 
     pub fn scope_depth(&self) -> usize {
         self.scopes.len()
-    }
-
-    pub fn set_inline(&mut self, name: &str, inline: bool) -> bool {
-        if let Some(sym) = self.lookup_mut(name) {
-            sym.is_inline = inline;
-            true
-        } else {
-            false
-        }
     }
 }
 
