@@ -792,7 +792,7 @@ impl IrBuilder {
             }
 
             TypedExprKind::FieldAccess(base_expr, field_name) => {
-                let base_ty = base_expr.ty.clone();
+                let base_ty = base_expr.ty.underlying_type();
 
                 let field_index = match &base_ty {
                     Type::Struct(fields) => fields
@@ -809,6 +809,12 @@ impl IrBuilder {
                     base: Box::new(base_val),
                     index: field_index,
                 }
+            }
+
+            TypedExprKind::Cast(source, _target) => {
+                let (source_stmts, source_val) = self.lower_expr(*source);
+                generated_stmts.extend(source_stmts);
+                IrExprKind::Cast(Box::new(source_val), ir_ty.clone())
             }
 
             _ => panic!("Unexpected expression kind: {:?}", expr.kind),
@@ -848,6 +854,9 @@ impl IrBuilder {
                 }
                 IrType::Struct(ir_fields)
             }
+
+            Type::Alias(_, inner_ty) => self.lower_type(inner_ty),
+
             _ => panic!("Unsupported type {:?} for IR generation.", ty),
         }
     }

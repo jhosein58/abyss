@@ -27,6 +27,10 @@ impl IrCompiler {
             IrExprKind::FieldAccess { base, index } => {
                 self.compile_field_access(env, base, *index, target)
             }
+
+            IrExprKind::Cast(source_expr, target_ty) => {
+                self.compile_cast(env, source_expr, target_ty, target)
+            }
         }
     }
 
@@ -782,6 +786,71 @@ impl IrCompiler {
             a: dest_reg,
             b: base_reg,
             c: index_reg,
+        });
+
+        dest_reg
+    }
+
+    fn compile_cast(
+        &mut self,
+        env: &mut Env,
+        source_expr: &IrExpr,
+        target_type: &IrType,
+        target: Option<u8>,
+    ) -> u8 {
+        let source_reg = self.compile_expr(env, source_expr, None);
+        let source_type = &source_expr.ty;
+
+        if source_type == target_type {
+            if let Some(t) = target {
+                if t != source_reg {
+                    self.emit(Instruction {
+                        op: OpCode::Move,
+                        a: t,
+                        b: source_reg,
+                        c: 0,
+                    });
+                }
+                return t;
+            }
+            return source_reg;
+        }
+
+        let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
+
+        let opcode = match (source_type, target_type) {
+            (IrType::I32, IrType::F32) => OpCode::CastI2F,
+            (IrType::F32, IrType::I32) => OpCode::CastF2I,
+            (IrType::I32, IrType::Bool) => OpCode::CastI2B,
+            (IrType::F32, IrType::Bool) => OpCode::CastF2B,
+
+            (IrType::Bool, IrType::I32) => {
+                if dest_reg != source_reg {
+                    self.emit(Instruction {
+                        op: OpCode::Move,
+                        a: dest_reg,
+                        b: source_reg,
+                        c: 0,
+                    });
+                }
+                return dest_reg;
+            }
+
+            (IrType::Bool, IrType::F32) => OpCode::CastI2F,
+
+            (src, dst) => {
+                panic!(
+                    "Compiler Bug: Unhandled or invalid cast from {:?} to {:?} reached CodeGen.",
+                    src, dst
+                );
+            }
+        };
+
+        self.emit(Instruction {
+            op: opcode,
+            a: dest_reg,
+            b: source_reg,
+            c: 0,
         });
 
         dest_reg

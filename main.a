@@ -52,8 +52,8 @@
 --     if low < high {
 --         pi := partition(arr, low, high)
         
---         quicksort(arr, low, pi - 1)
---         quicksort(arr, pi + 1, high)
+--         -- quicksort(arr, low, pi - 1)
+--         -- quicksort(arr, pi + 1, high)
 --     }
 -- }
 
@@ -101,13 +101,7 @@
 --     y: f32
 -- ]
 
--- def Int i32
 
--- a: Int = 20
-
--- -- p: Pos = [x: 0., y: 0.]
-
--- -- print(p.x)
 
 
 -- a := [x: 10., y: 12.]
@@ -120,7 +114,66 @@
 -- print(a.x)
 
 
-#inline(Always)
-def mul (a: i32): i32 { a * 2 }
+-- #inline(Always)
+-- def mul (a: i32): i32 { a * 2 }
 
-test :=  1 + mul(2)
+-- test :=  1 + mul(2)
+
+
+
+-- a := 3
+
+-- {
+--     a := 2
+-- }
+
+-- print(a)
+
+-----------------------------------------
+
+-- def ty(): type { i32 }
+
+-- a := 1. as ty()
+----------------------------------------
+
+def Pos [
+    x: f32,
+    y: f32
+]
+
+def test1(pos: [x: f32, y: f32]) {
+    print(pos.x)
+}
+
+def test2(pos: Pos) {
+    print(pos.x)
+}
+
+pos := [x: 10., y: 12.] as Pos
+fake_pos := [x: 10., y: 12.] 
+
+test1(pos)       -- works
+test1(fake_pos)  -- works
+
+test2(pos)       -- works
+test2(fake_pos)  -- Error!
+
+def Meter i32
+
+def number(any: i32) {
+    print(any)
+}
+
+def meter(meter: Meter) {
+    print(meter)
+}
+
+m := 100 as Meter
+n := 100
+
+number(m)  -- works
+number(n)  -- works
+
+meter(m)  -- works
+meter(n)  -- Error!
+

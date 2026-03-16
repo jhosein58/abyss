@@ -77,7 +77,9 @@ impl ComptimeEngine {
         self.compiler
             .rewind(compiler_inst_count, compiler_const_count);
 
-        let ast_lit = match expected_ty {
+        let base_ty = expected_ty.underlying_type();
+
+        let ast_lit = match base_ty {
             Type::I32 | Type::Metatype => Lit::Int(raw_result as i64),
             Type::F32 => Lit::Float(OrderedFloat(f64::from_bits(raw_result))),
             Type::Bool => Lit::Bool(raw_result != 0),

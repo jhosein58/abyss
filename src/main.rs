@@ -21,7 +21,7 @@ fn main() {
     let mut parser = Parser::new(&code, &mut err, &mut idgen, 0);
     let program = parser.parse_program();
 
-    //println!("\n{}\n\n", program);
+    // println!("\n{}\n\n", program);
 
     let mut type_checker = TypeChecker::new(&mut err, &mut idgen);
 

@@ -41,19 +41,42 @@ pub fn check_call<'a>(
 
     let checked_calle = tc.check_expr(&calle);
 
-    if let Type::Signature(_, ret_ty, is_native) = checked_calle.ty.clone() {
+    if let Type::Signature(param_tys, ret_ty, is_native) = checked_calle.ty.clone() {
+        if args.len() != param_tys.len() {
+            tc.report_error(
+                span.clone(),
+                format!(
+                    "Function expects {} arguments, but {} were provided.",
+                    param_tys.len(),
+                    args.len()
+                ),
+            );
+            return error_expr(span, id);
+        }
+
         let mut new_args = Vec::with_capacity(args.len());
+        // let mut all_args_const = true;
 
-        let mut all_args_const = true;
-
-        for a in args.iter() {
+        for (i, a) in args.iter().enumerate() {
             let checked_arg = tc.check_expr(a);
+            let expected_ty = &param_tys[i];
 
-            let is_const = tc.side_table.is_const(checked_arg.id);
-
-            if !is_const {
-                all_args_const = false;
+            if !expected_ty.accepts(&checked_arg.ty) {
+                tc.report_error(
+                    a.span.clone(),
+                    format!(
+                        "Type mismatch for argument {}: expected '{}', found '{}'.",
+                        i + 1,
+                        expected_ty.name(),
+                        checked_arg.ty.name()
+                    ),
+                );
             }
+
+            // let is_const = tc.side_table.is_const(checked_arg.id);
+            // if !is_const {
+            //     all_args_const = false;
+            // }
 
             new_args.push(checked_arg);
         }
@@ -65,16 +88,16 @@ pub fn check_call<'a>(
             id,
         };
 
+        // CTFE
+        /*
         if all_args_const && !is_native {
             let mut folded_expr = tc.comptime.evaluate_expr(call_expr.clone());
-
             folded_expr.id = id;
             folded_expr.span = span;
-
             tc.side_table.mark_const(id, true);
-
             return folded_expr;
         }
+        */
 
         return call_expr;
     }

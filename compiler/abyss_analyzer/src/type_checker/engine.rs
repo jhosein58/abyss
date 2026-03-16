@@ -11,6 +11,7 @@ use crate::side_table::SideTable;
 use crate::type_checker::context::{SymbolInfo, TypeContext};
 use crate::type_checker::resolver::{GlobalMetadata, GlobalResolver};
 use crate::type_checker::rules::binary::check_binary;
+use crate::type_checker::rules::cast::check_cast;
 use crate::type_checker::rules::ident::check_ident;
 use crate::type_checker::rules::index::check_index;
 
@@ -228,6 +229,8 @@ impl<'a> TypeChecker<'a> {
             ExprKind::Member(base, field_name) => {
                 check_member(self, base, field_name, expr.span_expr(), expr.id)
             }
+
+            ExprKind::Cast(l, r) => check_cast(self, l, r, expr.span_expr(), expr.id),
 
             _ => error_expr(expr.span.clone(), expr.id),
         }

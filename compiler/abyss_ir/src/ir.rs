@@ -85,6 +85,8 @@ pub enum IrExprKind {
     Unary(IrUnaryOp, Box<IrExpr>),
     Binary(Box<IrExpr>, IrBinaryOp, Box<IrExpr>),
 
+    Cast(Box<IrExpr>, IrType),
+
     Call {
         func_name: String,
         args: Vec<IrExpr>,

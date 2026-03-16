@@ -12,6 +12,12 @@ pub enum OpCode {
     LoadConst,
     Move, // r[a] = r[b]
 
+    // Casting
+    CastI2F, // Integer to Float
+    CastF2I, // Float to Integer
+    CastI2B, // Integer to Boolean
+    CastF2B, // Float to Boolean
+
     // Integer Math
     AddI,
     SubI,
@@ -256,6 +262,26 @@ impl AbyssVm {
                 OpCode::Move => {
                     let val = get_reg!(inst.b);
                     set_reg!(inst.a, val);
+                }
+
+                // Casting Operations
+                OpCode::CastI2F => {
+                    let val_int = get_reg!(inst.b) as i64;
+                    let val_float = val_int as f64;
+                    set_reg!(inst.a, val_float.to_bits());
+                }
+                OpCode::CastF2I => {
+                    let val_float = f64::from_bits(get_reg!(inst.b));
+                    let val_int = val_float as i64;
+                    set_reg!(inst.a, val_int as u64);
+                }
+                OpCode::CastI2B => {
+                    let val_int = get_reg!(inst.b) as i64;
+                    set_reg!(inst.a, if val_int != 0 { 1 } else { 0 });
+                }
+                OpCode::CastF2B => {
+                    let val_float = f64::from_bits(get_reg!(inst.b));
+                    set_reg!(inst.a, if val_float != 0.0 { 1 } else { 0 });
                 }
 
                 // Integer Math
