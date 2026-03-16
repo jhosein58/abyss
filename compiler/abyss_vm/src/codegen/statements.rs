@@ -24,6 +24,8 @@ impl IrCompiler {
             IrStmt::WriteField { base, index, val } => {
                 self.compile_write_field(env, base, *index, val)
             }
+
+            IrStmt::WritePointer { ptr, val } => self.compile_write_pointer(env, ptr, val),
         }
     }
 
@@ -180,6 +182,21 @@ impl IrCompiler {
             a: base_reg,
             b: val_reg,
             c: idx_reg,
+        });
+    }
+
+    fn compile_write_pointer(&mut self, env: &mut Env, ptr: &IrExpr, val: &IrExpr) {
+        let ptr_reg = self.compile_expr(env, ptr, None);
+
+        let val_reg = self.compile_expr(env, val, None);
+
+        let zero_reg = self.emit_load_zero(env);
+
+        self.emit(Instruction {
+            op: OpCode::StorePtrOffset,
+            a: ptr_reg,
+            b: val_reg,
+            c: zero_reg,
         });
     }
 }

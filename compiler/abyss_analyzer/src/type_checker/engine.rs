@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use crate::comptime::ComptimeEngine;
 use crate::side_table::SideTable;
 use crate::type_checker::context::{SymbolInfo, TypeContext};
+use crate::type_checker::method_registry::MethodRegistry;
 use crate::type_checker::resolver::{GlobalMetadata, GlobalResolver};
 use crate::type_checker::rules::binary::check_binary;
 use crate::type_checker::rules::cast::check_cast;
@@ -25,9 +26,18 @@ use crate::type_checker::rules::sequence::check_sequence;
 use crate::type_checker::rules::signature::check_signature;
 use crate::type_checker::rules::unary::check_unary;
 
+pub enum DefTarget {
+    Global(String),
+    Method {
+        type_name: String,
+        method_name: String,
+    },
+}
+
 pub struct TypeChecker<'a> {
     pub ctx: TypeContext,
     pub type_registry: TypeRegistry,
+    pub method_registry: MethodRegistry,
     pub resolver: GlobalResolver<'a>,
     pub diagnostics: &'a mut DiagnosticEngine,
     pub anon_func_counter: usize,
@@ -43,6 +53,7 @@ impl<'a> TypeChecker<'a> {
         Self {
             ctx: TypeContext::new(),
             type_registry: TypeRegistry::new(),
+            method_registry: MethodRegistry::new(),
             resolver: GlobalResolver::new(),
             diagnostics,
             anon_func_counter: 0,
@@ -61,17 +72,35 @@ impl<'a> TypeChecker<'a> {
     pub fn report_error_with_hint(&mut self, span: Span, message: String, hint: String) {
         self.diagnostics.report_error_with_hint(span, message, hint);
     }
-
-    fn extract_def_name(expr: &Expr) -> Option<String> {
+    fn resolve_def_target(&mut self, expr: &'a Expr) -> Option<DefTarget> {
         match &expr.kind {
-            ExprKind::Def(name, _) => {
-                if let ExprKind::Ident(n) = &name.kind {
-                    Some(n.clone())
-                } else {
-                    None
+            ExprKind::Def(target_expr, _) => match &target_expr.kind {
+                ExprKind::Ident(name) => Some(DefTarget::Global(name.clone())),
+
+                ExprKind::Member(base, field_name) => {
+                    let type_name = if let ExprKind::Ident(name) = &base.kind {
+                        let base_ty = self.resolve_type_by_name(name, base.span_expr());
+                        if base_ty == Type::Error {
+                            return None;
+                        }
+                        name.clone()
+                    } else {
+                        let typed_base = self.check_expr(base);
+                        let base_ty = self.evaluate_as_type(typed_base);
+                        if base_ty == Type::Error {
+                            return None;
+                        }
+                        base_ty.mangled_name()
+                    };
+
+                    Some(DefTarget::Method {
+                        type_name,
+                        method_name: field_name.clone(),
+                    })
                 }
-            }
-            ExprKind::Attributed(_, inner) => Self::extract_def_name(inner),
+                _ => None,
+            },
+            ExprKind::Attributed(_, inner) => self.resolve_def_target(inner),
             _ => None,
         }
     }
@@ -84,12 +113,37 @@ impl<'a> TypeChecker<'a> {
                 }
             }
             _ => {
-                if let Some(name_str) = Self::extract_def_name(expr) {
-                    if !name_str.is_empty() {
-                        self.resolver.register(name_str.clone(), expr);
+                if let Some(target) = self.resolve_def_target(expr) {
+                    match target {
+                        DefTarget::Global(name_str) => {
+                            if !name_str.is_empty() {
+                                self.resolver.register(name_str.clone(), expr);
+                                self.ctx.define_global(
+                                    name_str,
+                                    SymbolInfo::constant(Type::Infer, true),
+                                );
+                            }
+                        }
+                        DefTarget::Method {
+                            type_name,
+                            method_name,
+                        } => {
+                            let mangled_name =
+                                MethodRegistry::mangle_method_name(&type_name, &method_name);
 
-                        self.ctx
-                            .define_global(name_str, SymbolInfo::constant(Type::Infer, true));
+                            self.method_registry.register_method(
+                                type_name,
+                                method_name,
+                                mangled_name.clone(),
+                            );
+
+                            self.resolver.register(mangled_name.clone(), expr);
+
+                            self.ctx.define_global(
+                                mangled_name,
+                                SymbolInfo::constant(Type::Infer, true),
+                            );
+                        }
                     }
                 }
             }

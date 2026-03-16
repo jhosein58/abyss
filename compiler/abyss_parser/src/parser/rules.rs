@@ -48,11 +48,9 @@ pub fn get_rule(kind: Tk) -> ParseRule {
         // -
         Tk::Minus => ParseRule::new(Some(parse_unary), Some(parse_binary), Precedence::Term),
         // &
-        Tk::Amp => ParseRule::new(Some(parse_unary), Some(parse_binary), Precedence::BitAnd).soft(),
+        Tk::Amp => ParseRule::new(Some(parse_unary), Some(parse_binary), Precedence::BitAnd),
         // *
-        Tk::Star => {
-            ParseRule::new(Some(parse_unary), Some(parse_binary), Precedence::Factor).soft()
-        }
+        Tk::Star => ParseRule::new(Some(parse_unary), Some(parse_binary), Precedence::Factor),
         // not ~
         Tk::Not | Tk::Tilde => ParseRule::new(Some(parse_unary), None, Precedence::None),
         // :

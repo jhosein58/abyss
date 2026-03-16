@@ -1,5 +1,5 @@
 use abyss_diagnostics::Span;
-use abyss_parser::ast::Expr;
+use abyss_parser::ast::{Expr, ExprKind, UnaryOp};
 
 use crate::type_checker::engine::{TypeChecker, error_expr};
 use abyss_types::{
@@ -14,7 +14,7 @@ pub fn check_call<'a>(
     span: Span,
     id: u32,
 ) -> TypedExpr {
-    if let abyss_parser::ast::ExprKind::Ident(ref name) = calle.kind {
+    if let ExprKind::Ident(ref name) = calle.kind {
         if name == "print" {
             let mut new_args = Vec::with_capacity(args.len());
             for a in args.iter() {
@@ -38,28 +38,62 @@ pub fn check_call<'a>(
             };
         }
     }
+    let mut checked_calle = tc.check_expr(&calle);
+    let mut actual_args = Vec::new();
+    if let TypedExprKind::BoundMethod {
+        receiver,
+        method_name,
+    } = checked_calle.kind
+    {
+        checked_calle = TypedExpr {
+            kind: TypedExprKind::Ident(method_name.clone()),
+            ty: checked_calle.ty.clone(),
+            span: checked_calle.span.clone(),
+            id: checked_calle.id,
+        };
 
-    let checked_calle = tc.check_expr(&calle);
+        if let Type::Signature(ref param_tys, _, _) = checked_calle.ty {
+            if let Some(expected_self_ty) = param_tys.get(0) {
+                let mut current_receiver = *receiver;
+
+                while current_receiver.ty.is_ptr() && current_receiver.ty != *expected_self_ty {
+                    let inner_ty = current_receiver.ty.get_inner_ptr_type();
+                    current_receiver = TypedExpr {
+                        kind: TypedExprKind::Unary(
+                            UnaryOp::Deref,
+                            Box::new(current_receiver.clone()),
+                        ),
+                        ty: inner_ty,
+                        span: current_receiver.span.clone(),
+                        id: tc.next_id(),
+                    };
+                }
+
+                actual_args.push(current_receiver);
+            }
+        }
+    }
 
     if let Type::Signature(param_tys, ret_ty, is_native) = checked_calle.ty.clone() {
-        if args.len() != param_tys.len() {
+        let provided_arg_count = actual_args.len() + args.len();
+        let expected_arg_count = param_tys.len();
+
+        if provided_arg_count != expected_arg_count {
             tc.report_error(
                 span.clone(),
                 format!(
                     "Function expects {} arguments, but {} were provided.",
-                    param_tys.len(),
-                    args.len()
+                    expected_arg_count, provided_arg_count
                 ),
             );
             return error_expr(span, id);
         }
 
-        let mut new_args = Vec::with_capacity(args.len());
-        // let mut all_args_const = true;
-
         for (i, a) in args.iter().enumerate() {
             let checked_arg = tc.check_expr(a);
-            let expected_ty = &param_tys[i];
+
+            let param_index = actual_args.len();
+            let expected_ty = &param_tys[param_index];
 
             if !expected_ty.accepts(&checked_arg.ty) {
                 tc.report_error(
@@ -73,31 +107,15 @@ pub fn check_call<'a>(
                 );
             }
 
-            // let is_const = tc.side_table.is_const(checked_arg.id);
-            // if !is_const {
-            //     all_args_const = false;
-            // }
-
-            new_args.push(checked_arg);
+            actual_args.push(checked_arg);
         }
 
         let call_expr = TypedExpr {
-            kind: TypedExprKind::Call(Box::new(checked_calle.clone()), new_args, is_native),
+            kind: TypedExprKind::Call(Box::new(checked_calle.clone()), actual_args, is_native),
             ty: *ret_ty.clone(),
             span: span.clone(),
             id,
         };
-
-        // CTFE
-        /*
-        if all_args_const && !is_native {
-            let mut folded_expr = tc.comptime.evaluate_expr(call_expr.clone());
-            folded_expr.id = id;
-            folded_expr.span = span;
-            tc.side_table.mark_const(id, true);
-            return folded_expr;
-        }
-        */
 
         return call_expr;
     }
