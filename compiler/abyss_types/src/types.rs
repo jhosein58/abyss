@@ -167,4 +167,29 @@ impl Type {
             _ => self.clone(),
         }
     }
+
+    pub fn is_equal(&self, other: &Type) -> bool {
+        if self == other {
+            return true;
+        }
+
+        let left_base = self.underlying_type();
+        let right_base = other.underlying_type();
+
+        left_base.normalize() == right_base.normalize()
+    }
+
+    pub fn accepts(&self, provided: &Type) -> bool {
+        if self == provided {
+            return true;
+        }
+
+        match (self, provided) {
+            (Type::Alias(_, _), _) => false,
+
+            (_, Type::Alias(_, inner_provided)) => self.accepts(inner_provided),
+
+            (target, source) => target.normalize() == source.normalize(),
+        }
+    }
 }

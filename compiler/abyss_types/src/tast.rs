@@ -75,7 +75,7 @@ pub enum TypedExprKind {
     Call(Box<TypedExpr>, Vec<TypedExpr>, bool), // calle, args, is_native
     Index(Box<TypedExpr>, Box<TypedExpr>),      // a[b]
     FieldAccess(Box<TypedExpr>, String),        // a.b
-    Cast(Box<TypedExpr>, Option<Box<TypedExpr>>),
+    Cast(Box<TypedExpr>, Box<TypedExpr>),
     Is(Box<TypedExpr>, Option<Box<TypedExpr>>),
     Member(Box<TypedExpr>, String),
     SizeOf(Option<Box<TypedExpr>>),
@@ -327,7 +327,7 @@ impl TypedExpr {
             TypedExprKind::Cast(expr, target) => {
                 node_info = "\x1b[1;90mas\x1b[0m".to_string();
                 add_child!("expr", expr);
-                add_opt_child!("→", target);
+                add_child!("→", target);
             }
             TypedExprKind::Is(expr, target) => {
                 node_info = "\x1b[1;90mis\x1b[0m".to_string();

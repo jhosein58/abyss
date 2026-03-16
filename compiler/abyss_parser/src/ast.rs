@@ -50,7 +50,7 @@ pub enum ExprKind {
     Unary(UnaryOp, Box<Expr>),
     Call(Box<Expr>, Vec<Expr>), // call(callee, args)
     Index(Box<Expr>, Box<Expr>),
-    Cast(Box<Expr>, Option<Box<Expr>>),
+    Cast(Box<Expr>, Box<Expr>),
     Is(Box<Expr>, Option<Box<Expr>>),
     Member(Box<Expr>, String),
     SizeOf(Option<Box<Expr>>),
@@ -523,11 +523,9 @@ impl ExprKind {
                 expr.print_indented(f, indent + 1)?;
                 writeln!(f)?;
                 write!(f, "{}type: ", inner_pad)?;
-                if let Some(t) = ty {
-                    t.print_indented(f, indent + 1)?;
-                } else {
-                    write!(f, "_")?;
-                }
+
+                ty.print_indented(f, indent + 1)?;
+
                 writeln!(f)?;
                 write!(f, "{}}}", pad)
             }

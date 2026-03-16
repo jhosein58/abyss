@@ -1,6 +1,7 @@
 pub mod binary;
 pub mod block;
 pub mod call;
+pub mod cast;
 pub mod control_flow;
 pub mod ident;
 pub mod index;
