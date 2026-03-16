@@ -118,28 +118,40 @@ impl IrCompiler {
                 });
             }
             IrUnaryOp::Ref => {
-                let size_reg = env.alloc_reg();
-                let size_idx = self.add_const(8);
-                self.emit(Instruction {
-                    op: OpCode::LoadConst,
-                    a: size_reg,
-                    b: size_idx,
-                    c: 0,
-                });
-                self.emit(Instruction {
-                    op: OpCode::Alloc,
-                    a: dest_reg,
-                    b: size_reg,
-                    c: 0,
-                });
-                self.emit(Instruction {
-                    op: OpCode::StorePtr,
-                    a: dest_reg,
-                    b: r_inner,
-                    c: 0,
-                });
+                if let IrExprKind::VarRef(name) = &inner.kind {
+                    let var_reg = env.get_var(name);
+                    self.emit(Instruction {
+                        op: OpCode::RefReg,
+                        a: dest_reg,
+                        b: var_reg,
+                        c: 0,
+                    });
+                } else {
+                    let r_inner = self.compile_expr(env, inner, None);
+                    let size_reg = env.alloc_reg();
+                    let size_idx = self.add_const(8);
+                    self.emit(Instruction {
+                        op: OpCode::LoadConst,
+                        a: size_reg,
+                        b: size_idx,
+                        c: 0,
+                    });
+                    self.emit(Instruction {
+                        op: OpCode::Alloc,
+                        a: dest_reg,
+                        b: size_reg,
+                        c: 0,
+                    });
+                    self.emit(Instruction {
+                        op: OpCode::StorePtr,
+                        a: dest_reg,
+                        b: r_inner,
+                        c: 0,
+                    });
+                }
             }
             IrUnaryOp::Deref => {
+                let r_inner = self.compile_expr(env, inner, None);
                 self.emit(Instruction {
                     op: OpCode::LoadPtr,
                     a: dest_reg,

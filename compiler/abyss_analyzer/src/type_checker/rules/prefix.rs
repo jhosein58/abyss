@@ -1,6 +1,7 @@
 use crate::type_checker::{
     context::SymbolInfo,
     engine::{TypeChecker, error_expr},
+    method_registry::MethodRegistry,
     resolver::{GlobalMetadata, InlinePolicy},
     rules::signature::check_signature,
 };
@@ -43,10 +44,31 @@ pub fn check_def<'a>(
 ) -> TypedExpr {
     let name = match &name_expr.kind {
         ExprKind::Ident(n) => n.clone(),
+
+        ExprKind::Member(base, field_name) => {
+            let type_name = if let ExprKind::Ident(n) = &base.kind {
+                let base_ty = tc.resolve_type_by_name(n, base.span_expr());
+                if base_ty == Type::Error {
+                    return error_expr(span, id);
+                }
+                n.clone()
+            } else {
+                let typed_base = tc.check_expr(base);
+                let base_ty = tc.evaluate_as_type(typed_base);
+                if base_ty == Type::Error {
+                    return error_expr(span, id);
+                }
+                base_ty.mangled_name()
+            };
+
+            MethodRegistry::mangle_method_name(&type_name, field_name)
+        }
+
         _ => {
             tc.report_error(
                 name_expr.span.clone(),
-                "Definition name must be an identifier.".to_string(),
+                "Definition target must be an identifier or a `Type.method` expression."
+                    .to_string(),
             );
             return error_expr(span, id);
         }
@@ -66,12 +88,14 @@ pub fn check_def<'a>(
 
     if tc.resolver.is_resolved(&name) {
         if let Some(ty) = tc.resolver.get_resolved_type(&name) {
-            return TypedExpr {
-                kind: TypedExprKind::Ident(name),
-                ty,
-                span,
-                id,
-            };
+            if let Some(resolved_expr) = tc.resolver.get_resolved_expr(&name) {
+                return TypedExpr {
+                    kind: TypedExprKind::Def(name, Box::new(resolved_expr.clone())),
+                    ty,
+                    span,
+                    id,
+                };
+            }
         }
     }
 

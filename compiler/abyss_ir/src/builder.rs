@@ -302,7 +302,7 @@ impl IrBuilder {
                 }
 
                 TypedExprKind::FieldAccess(base_expr, field_name) => {
-                    let base_ty = base_expr.ty.clone();
+                    let base_ty = base_expr.ty.underlying_type();
 
                     let field_index = match &base_ty {
                         Type::Struct(fields) => fields
@@ -321,6 +321,19 @@ impl IrBuilder {
                     generated_stmts.push(IrStmt::WriteField {
                         base: base_val,
                         index: field_index,
+                        val: right_val,
+                    });
+                }
+
+                TypedExprKind::Unary(UnaryOp::Deref, ptr_expr) => {
+                    let (ptr_stmts, ptr_val) = self.lower_expr(*ptr_expr);
+                    generated_stmts.extend(ptr_stmts);
+
+                    let (right_stmts, right_val) = self.lower_expr(*right);
+                    generated_stmts.extend(right_stmts);
+
+                    generated_stmts.push(IrStmt::WritePointer {
+                        ptr: ptr_val,
                         val: right_val,
                     });
                 }
@@ -448,6 +461,22 @@ impl IrBuilder {
                     });
                     return (generated_stmts, self.unit_expr(span));
                 }
+
+                TypedExprKind::Unary(UnaryOp::Deref, ptr_expr) => {
+                    let (ptr_stmts, ptr_val) = self.lower_expr(*ptr_expr);
+                    generated_stmts.extend(ptr_stmts);
+
+                    let (right_stmts, right_val) = self.lower_expr(*right);
+                    generated_stmts.extend(right_stmts);
+
+                    generated_stmts.push(IrStmt::WritePointer {
+                        ptr: ptr_val,
+                        val: right_val,
+                    });
+
+                    return (generated_stmts, self.unit_expr(span));
+                }
+
                 _ => panic!("Complex assignments not supported yet: {:?}", left.kind),
             },
 

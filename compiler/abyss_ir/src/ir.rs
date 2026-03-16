@@ -50,6 +50,11 @@ pub enum IrStmt {
         val: IrExpr,
     },
 
+    WritePointer {
+        ptr: IrExpr,
+        val: IrExpr,
+    },
+
     Expr(IrExpr),
 
     Return(Option<IrExpr>),

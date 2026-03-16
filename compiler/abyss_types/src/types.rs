@@ -84,6 +84,77 @@ impl Type {
         }
     }
 
+    pub fn mangled_name(&self) -> String {
+        match self {
+            Type::I1 => "i1".to_string(),
+            Type::I8 => "i8".to_string(),
+            Type::I16 => "i16".to_string(),
+            Type::I32 => "i32".to_string(),
+            Type::I64 => "i64".to_string(),
+            Type::U8 => "u8".to_string(),
+            Type::U16 => "u16".to_string(),
+            Type::U32 => "u32".to_string(),
+            Type::U64 => "u64".to_string(),
+            Type::F32 => "f32".to_string(),
+            Type::F64 => "f64".to_string(),
+            Type::Bool => "bool".to_string(),
+            Type::Str => "str".to_string(),
+            Type::Cstr => "cstr".to_string(),
+            Type::Char => "char".to_string(),
+            Type::Unit => "unit".to_string(),
+            Type::Never => "never".to_string(),
+            Type::Infer => "infer".to_string(),
+            Type::Unknown => "unknown".to_string(),
+            Type::Metatype => "type".to_string(),
+            Type::Error => "error".to_string(),
+
+            Type::Ptr(inner) => format!("ptr_{}", inner.mangled_name()),
+            Type::Array(inner, len) => format!("arr_{}_{}", len, inner.mangled_name()),
+
+            Type::Signature(args, ret, is_native) => {
+                let args_str = args
+                    .iter()
+                    .map(|a| a.mangled_name())
+                    .collect::<Vec<_>>()
+                    .join("_");
+                let prefix = if *is_native { "native_fn" } else { "fn" };
+
+                if args_str.is_empty() {
+                    format!("{}_ret_{}", prefix, ret.mangled_name())
+                } else {
+                    format!("{}_{}_ret_{}", prefix, args_str, ret.mangled_name())
+                }
+            }
+
+            Type::Struct(fields) => {
+                let mut sorted_fields = fields.clone();
+                sorted_fields.sort_by(|a, b| a.name.cmp(&b.name));
+
+                let fields_str = sorted_fields
+                    .iter()
+                    .map(|f| format!("{}_{}", f.name, f.ty.mangled_name()))
+                    .collect::<Vec<_>>()
+                    .join("_");
+
+                format!("struct_{}", fields_str)
+            }
+
+            Type::Union(types) => {
+                let mut sorted_types = types.clone();
+                sorted_types.sort_by(|a, b| a.mangled_name().cmp(&b.mangled_name()));
+                let types_str = sorted_types
+                    .iter()
+                    .map(|t| t.mangled_name())
+                    .collect::<Vec<_>>()
+                    .join("_");
+
+                format!("union_{}", types_str)
+            }
+
+            Type::Alias(name, _inner) => name.to_string(),
+        }
+    }
+
     pub fn get_static_id(&self) -> Option<i64> {
         match self {
             Type::I32 => Some(1),
@@ -108,6 +179,25 @@ impl Type {
         }
     }
 
+    pub fn peel_pointers(&self) -> Type {
+        let mut current = self.clone();
+        while let Self::Ptr(inner) = current {
+            current = *inner;
+        }
+        current
+    }
+
+    pub fn is_ptr(&self) -> bool {
+        matches!(self, Self::Ptr(_))
+    }
+
+    pub fn get_inner_ptr_type(&self) -> Self {
+        if let Self::Ptr(inner) = self {
+            *inner.clone()
+        } else {
+            self.clone()
+        }
+    }
     pub fn underlying_type(&self) -> Type {
         match self {
             Type::Alias(_, base_ty) => base_ty.underlying_type(),

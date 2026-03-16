@@ -78,6 +78,10 @@ pub enum TypedExprKind {
     Cast(Box<TypedExpr>, Box<TypedExpr>),
     Is(Box<TypedExpr>, Option<Box<TypedExpr>>),
     Member(Box<TypedExpr>, String),
+    BoundMethod {
+        receiver: Box<TypedExpr>,
+        method_name: String,
+    },
     SizeOf(Option<Box<TypedExpr>>),
 
     Match {
@@ -378,6 +382,7 @@ impl TypedExpr {
             TypedExprKind::ErrorPlaceholder => {
                 node_info = "\x1b[1;41;97m ERROR \x1b[0m".to_string();
             }
+            _ => panic!(),
         }
 
         let type_str = format!("\x1b[38;5;245m: {}\x1b[0m", self.ty.name());

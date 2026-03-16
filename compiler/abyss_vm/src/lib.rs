@@ -1,5 +1,4 @@
 use abyss_ir::ir::{IrLit, IrProgram, IrType};
-//use std::fmt::Write;
 
 use crate::codegen::IrCompiler;
 
@@ -86,9 +85,9 @@ pub enum OpCode {
     LoadPtr,  // a = *b
     StorePtr, // *a = b
 
-    // array, struct, union
     LoadPtrOffset,  // a = *(b + c * 8)
     StorePtrOffset, // *(a + c * 8) = b
+    RefReg,
 
     Call,
     CallNative,
@@ -120,6 +119,9 @@ pub struct RegisteredNative {
     pub function: NativeFunction,
     pub arity: u8,
 }
+
+const REG_PTR_TAG: u64 = 1 << 63;
+
 pub struct AbyssVm {
     // Stack & Execution
     registers: Vec<u64>,
@@ -133,7 +135,6 @@ pub struct AbyssVm {
 
     heap: Vec<u8>,
     native_funcs: Vec<RegisteredNative>,
-    //pub output_buffer: String,
 }
 
 impl AbyssVm {
@@ -147,7 +148,6 @@ impl AbyssVm {
             ip: 0,
             heap: Vec::new(),
             native_funcs: Vec::new(),
-            //output_buffer: String::new(),
         }
     }
 
@@ -161,7 +161,6 @@ impl AbyssVm {
             ip: 0,
             heap: Vec::new(),
             native_funcs: Vec::new(),
-            //output_buffer: String::new(),
         }
     }
 
@@ -361,9 +360,6 @@ impl AbyssVm {
                 OpCode::PrintI => {
                     let val = get_reg!(inst.a) as i64;
                     println!("--> [Int] {}", val);
-
-                    // let _ = writeln!(&mut self.output_buffer, "{}", val)
-                    //     .map_err(|_| "Failed to write to output buffer".to_string());
                 }
 
                 // Integer Comparisons
@@ -454,9 +450,6 @@ impl AbyssVm {
                 OpCode::PrintF => {
                     let val = f64::from_bits(get_reg!(inst.a));
                     println!("--> [Float] {}", val);
-
-                    // let _ = writeln!(&mut self.output_buffer, "{}", val)
-                    //     .map_err(|_| "Failed to write to output buffer".to_string());
                 }
 
                 // Float Math with Constant
@@ -602,6 +595,7 @@ impl AbyssVm {
                     }
                 }
 
+                // Memory & Pointers
                 OpCode::Alloc => {
                     let size = get_reg!(inst.b) as usize;
                     let ptr = self.heap.len();
@@ -609,40 +603,141 @@ impl AbyssVm {
                     set_reg!(inst.a, ptr as u64);
                 }
 
+                OpCode::RefReg => {
+                    let reg_idx = inst.b;
+                    let abs_addr = bp + reg_idx as usize;
+
+                    let tagged_ptr = (abs_addr as u64) | REG_PTR_TAG;
+                    set_reg!(inst.a, tagged_ptr);
+                }
+
                 OpCode::LoadPtr => {
-                    let ptr = get_reg!(inst.b) as usize;
-                    if ptr + 8 <= self.heap.len() {
-                        let mut val: u64 = 0;
-                        unsafe {
-                            std::ptr::copy_nonoverlapping(
-                                self.heap.as_ptr().add(ptr),
-                                &mut val as *mut u64 as *mut u8,
-                                8,
-                            );
-                        }
-                        set_reg!(inst.a, u64::from_le(val));
+                    let ptr_val = get_reg!(inst.b);
+
+                    if (ptr_val & REG_PTR_TAG) != 0 {
+                        let abs_reg_idx = (ptr_val & !REG_PTR_TAG) as usize;
+                        let val = unsafe { *registers_ptr.add(abs_reg_idx) };
+                        set_reg!(inst.a, val);
                     } else {
-                        self.ip = ip;
-                        self.bp = bp;
-                        panic!("Segmentation fault");
+                        let ptr = ptr_val as usize;
+                        if ptr + 8 <= self.heap.len() {
+                            let mut val: u64 = 0;
+                            unsafe {
+                                std::ptr::copy_nonoverlapping(
+                                    self.heap.as_ptr().add(ptr),
+                                    &mut val as *mut u64 as *mut u8,
+                                    8,
+                                );
+                            }
+                            set_reg!(inst.a, u64::from_le(val));
+                        } else {
+                            self.ip = ip;
+                            self.bp = bp;
+                            panic!("Segmentation fault");
+                        }
                     }
                 }
 
                 OpCode::StorePtr => {
-                    let ptr = get_reg!(inst.a) as usize;
+                    let ptr_val = get_reg!(inst.a);
                     let val = get_reg!(inst.b);
-                    if ptr + 8 <= self.heap.len() {
+
+                    if (ptr_val & REG_PTR_TAG) != 0 {
+                        let abs_reg_idx = (ptr_val & !REG_PTR_TAG) as usize;
                         unsafe {
-                            std::ptr::copy_nonoverlapping(
-                                &val as *const u64 as *const u8,
-                                self.heap.as_mut_ptr().add(ptr),
-                                8,
+                            *registers_ptr.add(abs_reg_idx) = val;
+                        }
+                    } else {
+                        let ptr = ptr_val as usize;
+                        if ptr + 8 <= self.heap.len() {
+                            unsafe {
+                                std::ptr::copy_nonoverlapping(
+                                    &val as *const u64 as *const u8,
+                                    self.heap.as_mut_ptr().add(ptr),
+                                    8,
+                                );
+                            }
+                        } else {
+                            self.ip = ip;
+                            self.bp = bp;
+                            panic!("Segmentation fault");
+                        }
+                    }
+                }
+
+                OpCode::LoadPtrOffset => {
+                    let base_ptr_val = get_reg!(inst.b);
+                    let index = get_reg!(inst.c) as usize;
+
+                    if (base_ptr_val & REG_PTR_TAG) != 0 {
+                        if index == 0 {
+                            let abs_reg_idx = (base_ptr_val & !REG_PTR_TAG) as usize;
+                            let val = unsafe { *registers_ptr.add(abs_reg_idx) };
+                            set_reg!(inst.a, val);
+                        } else {
+                            self.ip = ip;
+                            self.bp = bp;
+                            panic!(
+                                "Runtime error: Cannot use non-zero offset on a direct register reference"
                             );
                         }
                     } else {
-                        self.ip = ip;
-                        self.bp = bp;
-                        panic!("Segmentation fault");
+                        let base_ptr = base_ptr_val as usize;
+                        let actual_ptr = base_ptr + (index * 8);
+
+                        if actual_ptr + 8 <= self.heap.len() {
+                            let mut val: u64 = 0;
+                            unsafe {
+                                std::ptr::copy_nonoverlapping(
+                                    self.heap.as_ptr().add(actual_ptr),
+                                    &mut val as *mut u64 as *mut u8,
+                                    8,
+                                );
+                            }
+                            set_reg!(inst.a, u64::from_le(val));
+                        } else {
+                            self.ip = ip;
+                            self.bp = bp;
+                            panic!("Runtime error: Memory access out of bounds");
+                        }
+                    }
+                }
+
+                OpCode::StorePtrOffset => {
+                    let base_ptr_val = get_reg!(inst.a);
+                    let val = get_reg!(inst.b);
+                    let index = get_reg!(inst.c) as usize;
+
+                    if (base_ptr_val & REG_PTR_TAG) != 0 {
+                        if index == 0 {
+                            let abs_reg_idx = (base_ptr_val & !REG_PTR_TAG) as usize;
+                            unsafe {
+                                *registers_ptr.add(abs_reg_idx) = val;
+                            }
+                        } else {
+                            self.ip = ip;
+                            self.bp = bp;
+                            panic!(
+                                "Runtime error: Cannot use non-zero offset on a direct register reference"
+                            );
+                        }
+                    } else {
+                        let base_ptr = base_ptr_val as usize;
+                        let actual_ptr = base_ptr + (index * 8);
+
+                        if actual_ptr + 8 <= self.heap.len() {
+                            unsafe {
+                                std::ptr::copy_nonoverlapping(
+                                    &val as *const u64 as *const u8,
+                                    self.heap.as_mut_ptr().add(actual_ptr),
+                                    8,
+                                );
+                            }
+                        } else {
+                            self.ip = ip;
+                            self.bp = bp;
+                            panic!("Runtime error: Memory access out of bounds");
+                        }
                     }
                 }
 
@@ -665,49 +760,6 @@ impl AbyssVm {
                         set_reg!(inst.a, result);
                     } else {
                         panic!("Native function not found!");
-                    }
-                }
-
-                OpCode::LoadPtrOffset => {
-                    let base_ptr = get_reg!(inst.b) as usize;
-                    let index = get_reg!(inst.c) as usize;
-                    let actual_ptr = base_ptr + (index * 8);
-
-                    if actual_ptr + 8 <= self.heap.len() {
-                        let mut val: u64 = 0;
-                        unsafe {
-                            std::ptr::copy_nonoverlapping(
-                                self.heap.as_ptr().add(actual_ptr),
-                                &mut val as *mut u64 as *mut u8,
-                                8,
-                            );
-                        }
-                        set_reg!(inst.a, u64::from_le(val));
-                    } else {
-                        self.ip = ip;
-                        self.bp = bp;
-                        panic!("Runtime error: Memory access out of bounds");
-                    }
-                }
-
-                OpCode::StorePtrOffset => {
-                    let base_ptr = get_reg!(inst.a) as usize;
-                    let val = get_reg!(inst.b);
-                    let index = get_reg!(inst.c) as usize;
-                    let actual_ptr = base_ptr + (index * 8);
-
-                    if actual_ptr + 8 <= self.heap.len() {
-                        unsafe {
-                            std::ptr::copy_nonoverlapping(
-                                &val as *const u64 as *const u8,
-                                self.heap.as_mut_ptr().add(actual_ptr),
-                                8,
-                            );
-                        }
-                    } else {
-                        self.ip = ip;
-                        self.bp = bp;
-                        panic!("Runtime error: Memory access out of bounds");
                     }
                 }
             }
