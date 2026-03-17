@@ -3,7 +3,7 @@ pub mod expressions;
 pub mod statements;
 
 use crate::{Instruction, OpCode};
-use abyss_ir::ir::IrProgram;
+use abyss_ir::ir::{IrProgram, IrType};
 use env::Env;
 use std::collections::HashMap;
 
@@ -200,5 +200,65 @@ impl IrCompiler {
         self.instructions.truncate(inst_len);
         self.constants.truncate(const_len);
         self.func_const_indices.remove("thunk_main");
+    }
+
+    pub(crate) fn copy_if_complex(&mut self, env: &mut Env, src_reg: u8, ty: &IrType) -> u8 {
+        match ty {
+            IrType::Struct(_) | IrType::Array(_, _) => {
+                let size_in_words = self.get_type_size_in_words(ty);
+
+                let dest_ptr_reg = env.alloc_reg();
+                let size_bytes_reg = env.alloc_reg();
+                let count_reg = env.alloc_reg();
+
+                let size_bytes = (size_in_words * 8) as u64;
+                let size_bytes_idx = self.add_const(size_bytes);
+                self.emit(Instruction {
+                    op: OpCode::LoadConst,
+                    a: size_bytes_reg,
+                    b: size_bytes_idx,
+                    c: 0,
+                });
+
+                self.emit(Instruction {
+                    op: OpCode::Alloc,
+                    a: dest_ptr_reg,
+                    b: size_bytes_reg,
+                    c: 0,
+                });
+
+                let count_idx = self.add_const(size_in_words as u64);
+                self.emit(Instruction {
+                    op: OpCode::LoadConst,
+                    a: count_reg,
+                    b: count_idx,
+                    c: 0,
+                });
+
+                self.emit(Instruction {
+                    op: OpCode::MemCopy,
+                    a: dest_ptr_reg,
+                    b: src_reg,
+                    c: count_reg,
+                });
+
+                dest_ptr_reg
+            }
+            _ => src_reg,
+        }
+    }
+    pub(crate) fn get_type_size_in_words(&self, ty: &IrType) -> usize {
+        match ty {
+            IrType::I32 | IrType::F32 | IrType::Bool | IrType::Ptr(_) => 1,
+
+            IrType::Unit => 0,
+
+            IrType::Array(inner_type, count) => self.get_type_size_in_words(inner_type) * count,
+
+            IrType::Struct(fields) => fields
+                .iter()
+                .map(|field_ty| self.get_type_size_in_words(field_ty))
+                .sum(),
+        }
     }
 }

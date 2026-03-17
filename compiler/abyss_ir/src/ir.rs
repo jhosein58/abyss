@@ -118,6 +118,16 @@ pub enum IrExprKind {
         base: Box<IrExpr>,
         index: usize,
     },
+
+    GetIndexPtr {
+        base: Box<IrExpr>,
+        index: Box<IrExpr>,
+    },
+
+    GetFieldPtr {
+        base: Box<IrExpr>,
+        index: usize,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

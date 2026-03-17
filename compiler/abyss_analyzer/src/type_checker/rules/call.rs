@@ -38,8 +38,10 @@ pub fn check_call<'a>(
             };
         }
     }
+
     let mut checked_calle = tc.check_expr(&calle);
     let mut actual_args = Vec::new();
+
     if let TypedExprKind::BoundMethod {
         receiver,
         method_name,
@@ -56,6 +58,20 @@ pub fn check_call<'a>(
             if let Some(expected_self_ty) = param_tys.get(0) {
                 let mut current_receiver = *receiver;
 
+                if let Type::Ptr(expected_inner) = expected_self_ty {
+                    if current_receiver.ty == **expected_inner {
+                        current_receiver = TypedExpr {
+                            kind: TypedExprKind::Unary(
+                                UnaryOp::AddrOf,
+                                Box::new(current_receiver.clone()),
+                            ),
+                            ty: expected_self_ty.clone(),
+                            span: current_receiver.span.clone(),
+                            id: tc.next_id(),
+                        };
+                    }
+                }
+
                 while current_receiver.ty.is_ptr() && current_receiver.ty != *expected_self_ty {
                     let inner_ty = current_receiver.ty.get_inner_ptr_type();
                     current_receiver = TypedExpr {
@@ -68,7 +84,6 @@ pub fn check_call<'a>(
                         id: tc.next_id(),
                     };
                 }
-
                 actual_args.push(current_receiver);
             }
         }

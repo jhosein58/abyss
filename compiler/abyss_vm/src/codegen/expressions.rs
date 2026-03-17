@@ -31,6 +31,13 @@ impl IrCompiler {
             IrExprKind::Cast(source_expr, target_ty) => {
                 self.compile_cast(env, source_expr, target_ty, target)
             }
+
+            IrExprKind::GetIndexPtr { base, index } => {
+                self.compile_get_index_ptr(env, base, index, target)
+            }
+            IrExprKind::GetFieldPtr { base, index } => {
+                self.compile_get_field_ptr(env, base, *index, target)
+            }
         }
     }
 
@@ -525,7 +532,17 @@ impl IrCompiler {
 
         for (i, arg) in args.iter().enumerate() {
             let target_reg = frame_offset + (i as u8);
-            self.compile_expr(env, arg, Some(target_reg));
+
+            let arg_val_reg = self.compile_expr(env, arg, None);
+
+            let final_arg_reg = self.copy_if_complex(env, arg_val_reg, &arg.ty);
+
+            self.emit(Instruction {
+                op: OpCode::Move,
+                a: target_reg,
+                b: final_arg_reg,
+                c: 0,
+            });
         }
 
         let r_addr = self.compile_var_ref(env, func_name, None);
@@ -863,6 +880,77 @@ impl IrCompiler {
             a: dest_reg,
             b: source_reg,
             c: 0,
+        });
+
+        dest_reg
+    }
+
+    fn compile_get_index_ptr(
+        &mut self,
+        env: &mut Env,
+        base: &IrExpr,
+        index: &IrExpr,
+        target: Option<u8>,
+    ) -> u8 {
+        let base_reg = self.compile_expr(env, base, None);
+
+        let index_reg = self.compile_expr(env, index, None);
+
+        let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
+        let offset_reg = env.alloc_reg();
+
+        let eight_idx = self.add_const(8);
+        self.emit(Instruction {
+            op: OpCode::MulIC,
+            a: offset_reg,
+            b: index_reg,
+            c: eight_idx,
+        });
+
+        self.emit(Instruction {
+            op: OpCode::AddI,
+            a: dest_reg,
+            b: base_reg,
+            c: offset_reg,
+        });
+
+        dest_reg
+    }
+
+    fn compile_get_field_ptr(
+        &mut self,
+        env: &mut Env,
+        base: &IrExpr,
+        index: usize,
+        target: Option<u8>,
+    ) -> u8 {
+        let base_reg = self.compile_expr(env, base, None);
+
+        let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
+
+        let offset_bytes = (index * 8) as u64;
+
+        if offset_bytes == 0 {
+            if let Some(t) = target {
+                if t != base_reg {
+                    self.emit(Instruction {
+                        op: OpCode::Move,
+                        a: t,
+                        b: base_reg,
+                        c: 0,
+                    });
+                }
+                return t;
+            }
+            return base_reg;
+        }
+
+        let offset_idx = self.add_const(offset_bytes);
+        self.emit(Instruction {
+            op: OpCode::AddIC,
+            a: dest_reg,
+            b: base_reg,
+            c: offset_idx,
         });
 
         dest_reg

@@ -32,22 +32,50 @@ impl IrCompiler {
     fn compile_var_dec(&mut self, env: &mut Env, name: &String, init: &Option<IrExpr>) {
         let dest_reg = env.declare_var(name.clone());
         if let Some(expr) = init {
-            self.compile_expr(env, expr, Some(dest_reg));
+            let val_reg = self.compile_expr(env, expr, None);
+            let final_val_reg = self.copy_if_complex(env, val_reg, &expr.ty);
+
+            self.emit(Instruction {
+                op: OpCode::Move,
+                a: dest_reg,
+                b: final_val_reg,
+                c: 0,
+            });
         }
     }
     fn compile_const_def(&mut self, env: &mut Env, name: &String, value: &IrExpr) {
         let dest_reg = env.declare_var(name.clone());
-        self.compile_expr(env, value, Some(dest_reg));
+        let val_reg = self.compile_expr(env, value, None);
+        let final_val_reg = self.copy_if_complex(env, val_reg, &value.ty);
+
+        self.emit(Instruction {
+            op: OpCode::Move,
+            a: dest_reg,
+            b: final_val_reg,
+            c: 0,
+        });
     }
 
     fn compile_assign(&mut self, env: &mut Env, target: &str, val: &IrExpr) {
         let dest_reg = env.get_var(target);
-        self.compile_expr(env, val, Some(dest_reg));
+        let val_reg = self.compile_expr(env, val, None);
+
+        let final_val_reg = self.copy_if_complex(env, val_reg, &val.ty);
+
+        self.emit(Instruction {
+            op: OpCode::Move,
+            a: dest_reg,
+            b: final_val_reg,
+            c: 0,
+        });
     }
 
     fn compile_return(&mut self, env: &mut Env, opt_expr: &Option<IrExpr>) {
         let ret_reg = match opt_expr {
-            Some(expr) => self.compile_expr(env, expr, None),
+            Some(expr) => {
+                let val_reg = self.compile_expr(env, expr, None);
+                self.copy_if_complex(env, val_reg, &expr.ty)
+            }
             None => self.emit_load_zero(env),
         };
         self.emit(Instruction {
@@ -150,23 +178,24 @@ impl IrCompiler {
 
     fn compile_write_index(&mut self, env: &mut Env, base: &IrExpr, index: &IrExpr, val: &IrExpr) {
         let base_reg = self.compile_expr(env, base, None);
-
         let val_reg = self.compile_expr(env, val, None);
 
+        let final_val_reg = self.copy_if_complex(env, val_reg, &val.ty);
         let index_reg = self.compile_expr(env, index, None);
 
         self.emit(Instruction {
             op: OpCode::StorePtrOffset,
             a: base_reg,
-            b: val_reg,
+            b: final_val_reg,
             c: index_reg,
         });
     }
 
     fn compile_write_field(&mut self, env: &mut Env, base: &IrExpr, index: usize, val: &IrExpr) {
         let base_reg = self.compile_expr(env, base, None);
-
         let val_reg = self.compile_expr(env, val, None);
+
+        let final_val_reg = self.copy_if_complex(env, val_reg, &val.ty);
 
         let idx_const = self.add_const(index as u64);
         let idx_reg = env.alloc_reg();
@@ -180,22 +209,22 @@ impl IrCompiler {
         self.emit(Instruction {
             op: OpCode::StorePtrOffset,
             a: base_reg,
-            b: val_reg,
+            b: final_val_reg,
             c: idx_reg,
         });
     }
 
     fn compile_write_pointer(&mut self, env: &mut Env, ptr: &IrExpr, val: &IrExpr) {
         let ptr_reg = self.compile_expr(env, ptr, None);
-
         let val_reg = self.compile_expr(env, val, None);
 
+        let final_val_reg = self.copy_if_complex(env, val_reg, &val.ty);
         let zero_reg = self.emit_load_zero(env);
 
         self.emit(Instruction {
             op: OpCode::StorePtrOffset,
             a: ptr_reg,
-            b: val_reg,
+            b: final_val_reg,
             c: zero_reg,
         });
     }

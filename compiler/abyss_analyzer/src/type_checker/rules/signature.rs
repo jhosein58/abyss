@@ -1,5 +1,5 @@
 use abyss_diagnostics::Span;
-use abyss_parser::ast::{BinaryOp, Expr, ExprKind};
+use abyss_parser::ast::{BinaryOp, Expr, ExprKind, UnaryOp};
 use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
@@ -145,6 +145,14 @@ fn resolve_type_expr<'a>(tc: &mut TypeChecker<'a>, expr: &'a Expr) -> Type {
             tc.resolve_type_by_name(name, expr.span.clone())
         }
 
+        ExprKind::Unary(UnaryOp::AddrOf, inner_expr) => {
+            let inner_type = resolve_type_expr(tc, inner_expr);
+            if inner_type == Type::Error {
+                Type::Error
+            } else {
+                Type::Ptr(Box::new(inner_type))
+            }
+        }
         ExprKind::Sequence(_items, _) => {
             let checked = tc.check_expr(expr);
             tc.evaluate_as_type(checked)
