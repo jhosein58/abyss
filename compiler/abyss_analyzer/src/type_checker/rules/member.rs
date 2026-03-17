@@ -1,5 +1,5 @@
 use abyss_diagnostics::Span;
-use abyss_parser::ast::Expr;
+use abyss_parser::ast::{Expr, UnaryOp};
 use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
@@ -82,11 +82,19 @@ pub fn check_member<'a>(
     if let Type::Struct(ref fields) = current_lookup_type {
         for field in fields {
             if field.name == *field_name {
+                let mut derefed_base = typed_base.clone();
+
+                while let Type::Ptr(inner_ty) = derefed_base.ty.clone() {
+                    derefed_base = TypedExpr {
+                        kind: TypedExprKind::Unary(UnaryOp::Deref, Box::new(derefed_base)),
+                        ty: *inner_ty,
+                        span: span.clone(),
+                        id,
+                    };
+                }
+
                 return TypedExpr {
-                    kind: TypedExprKind::FieldAccess(
-                        Box::new(typed_base.clone()),
-                        field_name.clone(),
-                    ),
+                    kind: TypedExprKind::FieldAccess(Box::new(derefed_base), field_name.clone()),
                     ty: field.ty.clone(),
                     span: span.clone(),
                     id,

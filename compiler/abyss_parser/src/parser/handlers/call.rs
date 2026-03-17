@@ -34,7 +34,7 @@ pub fn parse_member(eng: &mut PrattEngine, left: Expr) -> Result<Expr, ()> {
     let dot_tk = eng.get_and_bump();
 
     let token = eng.current_token();
-    if token.kind != Tk::Ident {
+    if !matches!(token.kind, Tk::Ident | Tk::IntLit) {
         eng.report_error(
             token.span(eng.file_id),
             format!("expected identifier after '.', found {:?}", token.kind),

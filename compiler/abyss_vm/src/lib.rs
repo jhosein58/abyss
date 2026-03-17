@@ -81,13 +81,13 @@ pub enum OpCode {
     Not,
 
     // Memory & Pointers
-    Alloc,    // a = alloc(b)
-    LoadPtr,  // a = *b
-    StorePtr, // *a = b
-
+    Alloc,          // a = alloc(b)
+    LoadPtr,        // a = *b
+    StorePtr,       // *a = b
     LoadPtrOffset,  // a = *(b + c * 8)
     StorePtrOffset, // *(a + c * 8) = b
     RefReg,
+    MemCopy,
 
     Call,
     CallNative,
@@ -113,7 +113,7 @@ pub struct CallFrame {
     pub bp: usize,
 }
 
-pub type NativeFunction = fn(args: &[u64]) -> u64;
+pub type NativeFunction = fn(vm: &mut AbyssVm, args: &[u64]) -> u64;
 
 pub struct RegisteredNative {
     pub function: NativeFunction,
@@ -135,6 +135,8 @@ pub struct AbyssVm {
 
     heap: Vec<u8>,
     native_funcs: Vec<RegisteredNative>,
+
+    pub out: String,
 }
 
 impl AbyssVm {
@@ -148,6 +150,7 @@ impl AbyssVm {
             ip: 0,
             heap: Vec::new(),
             native_funcs: Vec::new(),
+            out: String::new(),
         }
     }
 
@@ -161,6 +164,7 @@ impl AbyssVm {
             ip: 0,
             heap: Vec::new(),
             native_funcs: Vec::new(),
+            out: String::new(),
         }
     }
 
@@ -360,6 +364,8 @@ impl AbyssVm {
                 OpCode::PrintI => {
                     let val = get_reg!(inst.a) as i64;
                     println!("--> [Int] {}", val);
+
+                    self.out.push_str(format!("int:    {}\n", val).as_str());
                 }
 
                 // Integer Comparisons
@@ -450,6 +456,8 @@ impl AbyssVm {
                 OpCode::PrintF => {
                     let val = f64::from_bits(get_reg!(inst.a));
                     println!("--> [Float] {}", val);
+
+                    self.out.push_str(format!("float:  {}\n", val).as_str());
                 }
 
                 // Float Math with Constant
@@ -748,18 +756,45 @@ impl AbyssVm {
                     self.ip = ip;
                     self.bp = bp;
 
-                    if let Some(native) = self.native_funcs.get(func_idx) {
-                        let args_start_abs = bp + arg_start_reg as usize;
-                        let arg_count = native.arity as usize;
+                    let (func, arity) = {
+                        let native = &self.native_funcs[func_idx];
+                        (native.function, native.arity as usize)
+                    };
 
-                        let args = unsafe {
-                            std::slice::from_raw_parts(registers_ptr.add(args_start_abs), arg_count)
-                        };
+                    let args_start_abs = bp + arg_start_reg as usize;
+                    let mut args = Vec::with_capacity(arity);
+                    for i in 0..arity {
+                        args.push(unsafe { *registers_ptr.add(args_start_abs + i) });
+                    }
 
-                        let result = (native.function)(args);
-                        set_reg!(inst.a, result);
+                    let result = func(self, &args);
+
+                    set_reg!(inst.a, result);
+                }
+
+                OpCode::MemCopy => {
+                    let dest_ptr_val = get_reg!(inst.a);
+                    let src_ptr_val = get_reg!(inst.b);
+                    let count = get_reg!(inst.c) as usize;
+                    let bytes_to_copy = count * 8;
+
+                    let dest_ptr = (dest_ptr_val & !REG_PTR_TAG) as usize;
+                    let src_ptr = (src_ptr_val & !REG_PTR_TAG) as usize;
+
+                    if dest_ptr + bytes_to_copy <= self.heap.len()
+                        && src_ptr + bytes_to_copy <= self.heap.len()
+                    {
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                self.heap.as_ptr().add(src_ptr),
+                                self.heap.as_mut_ptr().add(dest_ptr),
+                                bytes_to_copy,
+                            );
+                        }
                     } else {
-                        panic!("Native function not found!");
+                        self.ip = ip;
+                        self.bp = bp;
+                        panic!("Runtime error: MemCopy out of bounds");
                     }
                 }
             }
@@ -769,6 +804,64 @@ impl AbyssVm {
         self.bp = bp;
 
         final_result
+    }
+
+    pub fn read_ptr_value(&self, ptr_val: u64) -> u64 {
+        if (ptr_val & REG_PTR_TAG) != 0 {
+            let abs_reg_idx = (ptr_val & !REG_PTR_TAG) as usize;
+            self.registers[abs_reg_idx]
+        } else {
+            let ptr = ptr_val as usize;
+            if ptr + 8 <= self.heap.len() {
+                let mut val: u64 = 0;
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        self.heap.as_ptr().add(ptr),
+                        &mut val as *mut u64 as *mut u8,
+                        8,
+                    );
+                }
+                u64::from_le(val)
+            } else {
+                panic!(
+                    "Native Helper Error: Memory access out of bounds at {}",
+                    ptr
+                );
+            }
+        }
+    }
+
+    pub fn read_c_string(&self, base_ptr: u64) -> String {
+        let mut s = String::new();
+        let mut offset = 0;
+
+        loop {
+            let current_ptr = if (base_ptr & REG_PTR_TAG) != 0 {
+                if offset == 0 {
+                    base_ptr
+                } else {
+                    panic!("Native Helper Error: Cannot use offset on register pointer");
+                }
+            } else {
+                base_ptr + (offset * 8)
+            };
+
+            let val = self.read_ptr_value(current_ptr);
+
+            if val == 0 {
+                break;
+            }
+
+            if let Some(c) = std::char::from_u32(val as u32) {
+                s.push(c);
+            } else {
+                s.push('0');
+            }
+
+            offset += 1;
+        }
+
+        s
     }
 }
 

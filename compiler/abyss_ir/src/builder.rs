@@ -175,14 +175,25 @@ impl IrBuilder {
 
     pub fn build_program(&mut self, program: TypedProgram) -> IrProgram {
         let mut functions = Vec::new();
+        let mut init_stmts = Vec::new();
 
-        for (_, global_expr) in program.globals {
-            if let Some(ir_func) = self.build_function(global_expr) {
+        for (name, global_expr) in program.globals.clone() {
+            if let Some(ir_func) = self.build_function(global_expr.clone()) {
                 functions.push(ir_func);
+            } else {
+                let (value_stmts, value_ir) = self.lower_expr(global_expr);
+                init_stmts.extend(value_stmts);
+
+                init_stmts.push(IrStmt::ConstDef {
+                    name: name.clone(),
+                    ty: value_ir.ty.clone(),
+                    value: value_ir,
+                });
             }
         }
 
-        let mut main_body = Vec::new();
+        let mut main_body = init_stmts;
+
         if let TypedExprKind::Block(stmts) = program.body.kind {
             for stmt in stmts {
                 main_body.extend(self.lower_stmt(stmt));
@@ -357,17 +368,20 @@ impl IrBuilder {
                 }
             }
 
-            TypedExprKind::Def(name, value_expr) => {
-                let (value_stmts, value_ir) = self.lower_expr(*value_expr);
+            TypedExprKind::Def(_name, value_expr) => {
+                // let (value_stmts, value_ir) = self.lower_expr(*value_expr);
+                // generated_stmts.extend(value_stmts);
+
+                // let value_ty = value_ir.ty.clone();
+
+                // generated_stmts.push(IrStmt::ConstDef {
+                //     name,
+                //     ty: value_ty,
+                //     value: value_ir,
+                // });
+                //
+                let (value_stmts, _value_ir) = self.lower_expr(*value_expr);
                 generated_stmts.extend(value_stmts);
-
-                let value_ty = value_ir.ty.clone();
-
-                generated_stmts.push(IrStmt::ConstDef {
-                    name,
-                    ty: value_ty,
-                    value: value_ir,
-                });
             }
 
             _ => {
@@ -393,6 +407,58 @@ impl IrBuilder {
             TypedExprKind::Ident(name) | TypedExprKind::FuncRef(name) => IrExprKind::VarRef(name),
 
             TypedExprKind::Unary(op, inner_expr) => {
+                if op == UnaryOp::AddrOf {
+                    match inner_expr.kind.clone() {
+                        TypedExprKind::Index(base_expr, index_expr) => {
+                            let (mut stmts, base_val) = self.lower_expr(*base_expr);
+                            generated_stmts.append(&mut stmts);
+
+                            let (mut idx_stmts, idx_val) = self.lower_expr(*index_expr);
+                            generated_stmts.append(&mut idx_stmts);
+
+                            return (
+                                generated_stmts,
+                                IrExpr {
+                                    kind: IrExprKind::GetIndexPtr {
+                                        base: Box::new(base_val),
+                                        index: Box::new(idx_val),
+                                    },
+                                    ty: ir_ty,
+                                    span,
+                                },
+                            );
+                        }
+
+                        TypedExprKind::FieldAccess(base_expr, field_name) => {
+                            let base_ty = base_expr.ty.underlying_type();
+                            let field_index = match &base_ty {
+                                Type::Struct(fields) => fields
+                                    .iter()
+                                    .position(|f| f.name == field_name)
+                                    .expect("IR Builder: Struct field not found"),
+                                _ => panic!("IR Builder: Field access on non-struct type"),
+                            };
+
+                            let (mut stmts, base_val) = self.lower_expr(*base_expr);
+                            generated_stmts.append(&mut stmts);
+
+                            return (
+                                generated_stmts,
+                                IrExpr {
+                                    kind: IrExprKind::GetFieldPtr {
+                                        base: Box::new(base_val),
+                                        index: field_index,
+                                    },
+                                    ty: ir_ty,
+                                    span,
+                                },
+                            );
+                        }
+
+                        _ => {}
+                    }
+                }
+
                 let ir_op = match op {
                     UnaryOp::Neg => IrUnaryOp::Neg,
                     UnaryOp::Not => IrUnaryOp::Not,
@@ -438,7 +504,7 @@ impl IrBuilder {
                 }
 
                 TypedExprKind::FieldAccess(base_expr, field_name) => {
-                    let base_ty = base_expr.ty.clone();
+                    let base_ty = base_expr.ty.underlying_type();
 
                     let field_index = match &base_ty {
                         Type::Struct(fields) => fields

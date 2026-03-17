@@ -20,6 +20,19 @@ pub fn check_unary<'a>(
         return error_expr(span, id);
     }
 
+    if op == UnaryOp::AddrOf && inner_ty == Type::Metatype {
+        let pointed_type = tc.evaluate_as_type(typed_inner);
+
+        let ptr_type = Type::Ptr(Box::new(pointed_type));
+
+        return TypedExpr {
+            kind: TypedExprKind::Type(ptr_type),
+            ty: Type::Metatype,
+            span,
+            id,
+        };
+    }
+
     let (result_ty, valid) = match op {
         // -x
         UnaryOp::Neg => {
