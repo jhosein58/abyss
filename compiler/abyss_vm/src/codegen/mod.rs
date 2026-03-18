@@ -2,10 +2,11 @@ pub mod env;
 pub mod expressions;
 pub mod statements;
 
-use crate::{Instruction, OpCode};
 use abyss_ir::ir::{IrProgram, IrType};
 use env::Env;
 use std::collections::HashMap;
+
+use crate::vm::opcode::{Instruction, OpCode};
 
 pub struct IrCompiler {
     pub instructions: Vec<Instruction>,

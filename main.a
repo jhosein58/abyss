@@ -273,17 +273,50 @@
 -- print(new_v.v)
 
 ------------------------------------------------------------
-def print_str (s: &i32) _
+-- def print (s: &i32) _
 
 
-i := 0
-while i < 20 {
-    j := 0
-    while j < i {
-        print_str("*")
-        j = j + 1
-    }
-    print_str("\n")
-    i = i + 1
-}
+
+-- i := 0
+-- while i < 10 {
+--     j := 0
+--     while j < i {
+--         print("*")
+--         j = j + 1
+--     }
+--     print("\n")
+--     i = i + 1
+-- }
+
+
 ------------------------------------------------------------
+-- def print (s: &i32) _
+-- def printi (s: i32) _
+-- def printf (s: f32) _
+
+-- def i32.print(self: i32) {
+--     printi(self)
+-- }
+
+-- def f32.print(self: f32) {
+--     printf(self)
+-- }
+
+
+-- a := 3
+-- 10.print()
+----------------------------------------------------------
+
+-- def print (str: &i32) _
+-- def printi (i: i32) _
+-- def printf (f: f32) _
+-- def alloc(s: i32): &i32 _
+-- def free(ptr: &i32) _
+
+-- ptr := alloc(100)
+
+-- ptr[0] = 3
+
+-- free(ptr)
+
+-------------------------------------------------------

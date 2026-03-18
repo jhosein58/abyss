@@ -1,6 +1,7 @@
+use crate::vm::opcode::{Instruction, OpCode};
+
 use super::IrCompiler;
 use super::env::Env;
-use crate::{Instruction, OpCode};
 use abyss_ir::ir::{IrBinaryOp, IrExpr, IrExprKind, IrLit, IrType, IrUnaryOp};
 
 impl IrCompiler {
@@ -498,35 +499,6 @@ impl IrCompiler {
         args: &[IrExpr],
         target: Option<u8>,
     ) -> u8 {
-        if func_name == "print" && args.len() == 1 {
-            let arg_reg = self.compile_expr(env, &args[0], None);
-            let op = if matches!(args[0].ty, IrType::F32) {
-                OpCode::PrintF
-            } else {
-                OpCode::PrintI
-            };
-            self.emit(Instruction {
-                op,
-                a: arg_reg,
-                b: 0,
-                c: 0,
-            });
-
-            let zero_reg = self.emit_load_zero(env);
-            if let Some(t) = target {
-                if t != zero_reg {
-                    self.emit(Instruction {
-                        op: OpCode::Move,
-                        a: t,
-                        b: zero_reg,
-                        c: 0,
-                    });
-                }
-                return t;
-            }
-            return zero_reg;
-        }
-
         let frame_offset = env.next_reg;
         env.next_reg += args.len() as u8;
 

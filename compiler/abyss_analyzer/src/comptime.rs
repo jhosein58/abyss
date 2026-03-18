@@ -6,7 +6,10 @@ use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
 };
-use abyss_vm::{AbyssVm, NativeFunction, codegen::IrCompiler};
+use abyss_vm::{
+    codegen::IrCompiler,
+    vm::{core::AbyssVm, types::NativeFunction},
+};
 
 pub struct ComptimeEngine {
     vm: AbyssVm,
@@ -25,11 +28,17 @@ impl ComptimeEngine {
         }
     }
 
-    pub fn register_native(&mut self, name: &str, arity: u8, func: NativeFunction) {
-        let index = self.vm.register_native(arity, func);
+    pub fn register_native_with_index(
+        &mut self,
+        name: &str,
+        index: usize,
+        arity: u8,
+        func: NativeFunction,
+    ) {
+        self.vm.register_native(arity, func);
+
         self.builder.register_native(name, index);
     }
-
     pub fn register_global(&mut self, name: String, expr: TypedExpr) {
         self.globals_cache.insert(name.clone(), expr.clone());
 

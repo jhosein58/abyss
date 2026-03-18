@@ -26,11 +26,17 @@ pub enum Type {
     Infer,
     Unknown,
 
+    // Pointers & References
+    //RawPtr(Box<Type>),
     Ptr(Box<Type>),
+    // MutPtr(Box<Type>),
+    // MultiPtr(Box<Type>, bool), // type, is_mut
+    Array(Box<Type>, usize), // [Type; Length]
+
     Signature(Vec<Type>, Box<Type>, bool), // args, return, is_native
-    Array(Box<Type>, usize),               // [Type; Length]
-    Struct(Vec<StructField>),              // [a: i32, str, c: bool]
-    Union(Vec<Type>),                      // i32 | str
+
+    Struct(Vec<StructField>), // [a: i32, str, c: bool]
+    Union(Vec<Type>),         // i32 | str
     Alias(String, Box<Type>),
     Metatype,
     Error,

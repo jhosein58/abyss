@@ -57,6 +57,7 @@ impl<'a> Lexer<'a> {
                 RawTokenKind::Integer => TokenKind::IntLit,
                 RawTokenKind::HexInteger => TokenKind::HexIntLit,
                 RawTokenKind::BinInteger => TokenKind::BinIntLit,
+                RawTokenKind::OctInteger => TokenKind::OctIntLit,
                 RawTokenKind::Float => TokenKind::FloatLit,
                 RawTokenKind::String => TokenKind::StrLit,
                 RawTokenKind::CString => TokenKind::CStrLit,

@@ -8,7 +8,7 @@ pub use abyss_ir::builder::IrBuilder;
 pub use abyss_parser::parser::Parser;
 
 pub use abyss_utils::idgen::IdGenerator;
-pub use abyss_vm::{AbyssVm, codegen::IrCompiler};
+pub use abyss_vm::codegen::IrCompiler;
 
 // #![warn(clippy::todo)]
 

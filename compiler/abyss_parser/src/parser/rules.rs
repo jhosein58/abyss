@@ -41,6 +41,7 @@ pub fn get_rule(kind: Tk) -> ParseRule {
         | Tk::FloatLit
         | Tk::BinIntLit
         | Tk::HexIntLit
+        | Tk::OctIntLit
         | Tk::True
         | Tk::False => ParseRule::new(Some(parse_literal), None, Precedence::None),
         // ident
