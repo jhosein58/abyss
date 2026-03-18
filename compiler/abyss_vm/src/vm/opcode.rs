@@ -69,6 +69,15 @@ pub enum OpCode {
     CmpGtFC,
     CmpGeFC,
 
+    // Bitwise
+    BitAnd,
+    BitOr,
+    BitXor,
+    Shl,
+    ShrI,
+    ShrU,
+    BitNot,
+
     // Logical
     Not,
 

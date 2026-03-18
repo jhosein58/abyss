@@ -1,4 +1,5 @@
 pub mod basic;
+pub mod bitwise;
 pub mod cast;
 pub mod control;
 pub mod math_float;

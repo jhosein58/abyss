@@ -2,6 +2,7 @@ use crate::vm::{
     opcode::{Instruction, OpCode::*},
     ops::{
         basic::{load_const, move_reg, not},
+        bitwise::{bit_and, bit_not, bit_or, bit_xor, shl, shr_i, shr_u},
         cast::{cast_f2b, cast_f2i, cast_i2b, cast_i2f},
         control::{call, call_native, jmp, jmp_if, jmp_imm, jmp_z_imm},
         math_float::{
@@ -211,6 +212,15 @@ impl AbyssVm {
                 CmpLeFC => cmp_le_fc(&inst, bp, registers_ptr, constants_ptr),
                 CmpGtFC => cmp_gt_fc(&inst, bp, registers_ptr, constants_ptr),
                 CmpGeFC => cmp_ge_fc(&inst, bp, registers_ptr, constants_ptr),
+
+                // Bitwise Operations
+                BitAnd => bit_and(&inst, bp, registers_ptr),
+                BitOr => bit_or(&inst, bp, registers_ptr),
+                BitXor => bit_xor(&inst, bp, registers_ptr),
+                Shl => shl(&inst, bp, registers_ptr),
+                ShrU => shr_u(&inst, bp, registers_ptr),
+                ShrI => shr_i(&inst, bp, registers_ptr),
+                BitNot => bit_not(&inst, bp, registers_ptr),
 
                 // Control Flow
                 Call => call(&inst, &mut ip, &mut bp, registers_ptr, &mut self.call_stack),

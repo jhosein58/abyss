@@ -147,14 +147,21 @@ pub enum IrBinaryOp {
 
     And, // and
     Or,  // or
+
+    BitAnd, // &
+    BitOr,  // |
+    BitXor, // ^
+    Shl,    // <<
+    Shr,    // >>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IrUnaryOp {
-    Neg,   // -x
-    Not,   // not x
-    Ref,   // &x
-    Deref, // *x
+    Neg,    // -x
+    Not,    // not x
+    Ref,    // &x
+    Deref,  // *x
+    BitNot, // ~x
 }
 
 #[derive(Debug, Clone, PartialEq)]
