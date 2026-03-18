@@ -1,0 +1,48 @@
+def print    (s: &i32)  _
+def printiln (i: i32)   _
+def printfln (f: f32)   _
+def printbln (b: bool)  _
+
+-- 1. String Literals 
+print("Hello, from Abyss!\n")
+print("\\\"\n")
+print("\t\r\n\'\"\\\0")    -- Escape Characters
+print("")                
+print("   ")              
+print("سلام دنیا! 🌍\n")      -- UTF-8 
+
+-- Boolean Literals
+printbln(true)
+printbln(false)
+
+-- 3. Integer Literals 
+printiln(0)
+printiln(-0)
+printiln(9_)
+printiln(-5)
+printiln(0001385)
+printiln(2147483647)        -- Max i32
+printiln(-2147483648)       -- Min i32
+printiln(1_000_000)
+printiln(1_2__3___)
+printiln(0xaBcDeF)
+printiln(0xabcdef)
+printiln(0X1A2B)
+printiln(0b011)
+printiln(0B1010_0101)
+printiln(0o777)
+
+-- 4. Float Literals 
+printfln(0.)
+printfln(-0.)
+printfln(-0.0)
+printfln(.4)
+printfln(-10.23)
+printfln(3.14159265359)
+printfln(1_000.000_1)
+printfln(1e10)
+printfln(1.5e-5)
+printfln(-2.5E+10)
+printfln(0.e0)
+
+-- EOF Test

@@ -12,6 +12,7 @@ dependencies = [
  "abyss_ir",
  "abyss_lexer",
  "abyss_parser",
+ "abyss_std",
  "abyss_types",
  "abyss_utils",
  "abyss_vm",
@@ -65,6 +66,13 @@ dependencies = [
  "abyss_diagnostics",
  "abyss_lexer",
  "abyss_utils",
+]
+
+[[package]]
+name = "abyss_std"
+version = "0.1.0"
+dependencies = [
+ "abyss_vm",
 ]
 
 [[package]]

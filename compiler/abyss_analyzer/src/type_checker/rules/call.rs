@@ -1,5 +1,5 @@
 use abyss_diagnostics::Span;
-use abyss_parser::ast::{Expr, ExprKind, UnaryOp};
+use abyss_parser::ast::{Expr, UnaryOp};
 
 use crate::type_checker::engine::{TypeChecker, error_expr};
 use abyss_types::{
@@ -14,31 +14,6 @@ pub fn check_call<'a>(
     span: Span,
     id: u32,
 ) -> TypedExpr {
-    if let ExprKind::Ident(ref name) = calle.kind {
-        if name == "print" {
-            let mut new_args = Vec::with_capacity(args.len());
-            for a in args.iter() {
-                new_args.push(tc.check_expr(a));
-            }
-
-            return TypedExpr {
-                kind: TypedExprKind::Call(
-                    Box::new(TypedExpr {
-                        kind: TypedExprKind::Ident(name.clone()),
-                        ty: Type::Signature(vec![Type::I32], Box::new(Type::Unit), false),
-                        span: calle.span_expr(),
-                        id: tc.next_id(),
-                    }),
-                    new_args,
-                    false,
-                ),
-                ty: Type::Unit,
-                span,
-                id,
-            };
-        }
-    }
-
     let mut checked_calle = tc.check_expr(&calle);
     let mut actual_args = Vec::new();
 

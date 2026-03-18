@@ -51,7 +51,7 @@ impl<'a> Scanner<'a> {
             RawTokenKind::Whitespace
         } else if c == 'c' && self.cursor.second() == '"' {
             self.scan_c_string()
-        } else if Self::is_digit(c) {
+        } else if Self::is_digit(c) || (c == '.' && Self::is_digit(self.cursor.second())) {
             self.scan_number()
         } else if c == '"' {
             self.scan_string()
@@ -89,6 +89,7 @@ impl<'a> Scanner<'a> {
         self.cursor.bump();
         self.cursor.eat_while(|c| c != '\n' && c != '\r');
     }
+
     fn scan_c_string(&mut self) -> RawTokenKind {
         self.cursor.bump();
         self.cursor.bump();
@@ -133,32 +134,66 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_number(&mut self) -> RawTokenKind {
+        let mut is_float = false;
         let first = self.cursor.first();
 
         if first == '0' {
             let second = self.cursor.second();
-            if second == 'x' {
+
+            if second == 'x' || second == 'X' {
                 self.cursor.bump();
                 self.cursor.bump();
                 self.cursor.eat_while(|c| c.is_ascii_hexdigit() || c == '_');
                 return RawTokenKind::HexInteger;
-            } else if second == 'b' {
+            } else if second == 'b' || second == 'B' {
                 self.cursor.bump();
                 self.cursor.bump();
-                self.cursor.eat_while(|c| c == '0' || c == '1' || c == '_');
+                self.cursor.eat_while(|c| matches!(c, '0'..='1' | '_'));
                 return RawTokenKind::BinInteger;
+            } else if second == 'o' || second == 'O' {
+                self.cursor.bump();
+                self.cursor.bump();
+                self.cursor.eat_while(|c| matches!(c, '0'..='7' | '_'));
+                return RawTokenKind::OctInteger;
             }
         }
 
-        self.cursor.eat_while(|c| c.is_ascii_digit() || c == '_');
-
-        if self.cursor.first() == '.' && self.cursor.second() != '.' {
-            self.cursor.bump();
+        if first != '.' {
             self.cursor.eat_while(|c| c.is_ascii_digit() || c == '_');
-            return RawTokenKind::Float;
+        } else {
+            is_float = true;
         }
 
-        RawTokenKind::Integer
+        if self.cursor.first() == '.' && self.cursor.second() != '.' {
+            let second = self.cursor.second();
+
+            if Self::is_ident_start(second) && second != 'e' && second != 'E' {
+                return RawTokenKind::Integer;
+            }
+
+            is_float = true;
+            self.cursor.bump();
+            self.cursor.eat_while(|c| c.is_ascii_digit() || c == '_');
+        }
+
+        let current = self.cursor.first();
+        if current == 'e' || current == 'E' {
+            is_float = true;
+            self.cursor.bump();
+
+            let next = self.cursor.first();
+            if next == '+' || next == '-' {
+                self.cursor.bump();
+            }
+
+            self.cursor.eat_while(|c| c.is_ascii_digit() || c == '_');
+        }
+
+        if is_float {
+            RawTokenKind::Float
+        } else {
+            RawTokenKind::Integer
+        }
     }
 
     pub fn peek_raw(&self) -> RawToken {

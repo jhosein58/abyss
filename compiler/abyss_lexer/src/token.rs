@@ -11,8 +11,9 @@ pub enum RawTokenKind {
     Ident,
 
     Integer,    // 123
-    HexInteger, // 0xFF
-    BinInteger, // 0b101
+    HexInteger, // 0xFF,  0XFF
+    BinInteger, // 0b101, 0B101
+    OctInteger, // 0o777, 0O777
     Float,      // 1.0, 1.
     String,     // "hello"
     CString,    // c"hello"
@@ -47,6 +48,7 @@ pub enum TokenKind {
     IntLit,    // 123
     HexIntLit, // 0xFF
     BinIntLit, // 0b101
+    OctIntLit, // 0o777
     FloatLit,  // 1.0
     StrLit,    // "..."
     CStrLit,   // c"..."
@@ -228,6 +230,7 @@ impl Display for TokenKind {
             TokenKind::CharLit => write!(f, "Char"),
             TokenKind::HexIntLit => write!(f, "HexInteger"),
             TokenKind::BinIntLit => write!(f, "BinInteger"),
+            TokenKind::OctIntLit => write!(f, "OctInteger"),
             TokenKind::FloatLit => write!(f, "Float"),
             TokenKind::IntLit => write!(f, "Integer"),
             TokenKind::Const => write!(f, "'const'"),

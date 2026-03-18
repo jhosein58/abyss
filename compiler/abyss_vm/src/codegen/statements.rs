@@ -1,6 +1,7 @@
+use crate::vm::opcode::{Instruction, OpCode};
+
 use super::IrCompiler;
 use super::env::Env;
-use crate::{Instruction, OpCode};
 use abyss_ir::ir::{IrExpr, IrStmt};
 
 impl IrCompiler {

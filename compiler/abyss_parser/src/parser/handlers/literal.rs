@@ -16,6 +16,7 @@ pub fn parse_literal(eng: &mut PrattEngine) -> Result<Expr, ()> {
         Tk::CharLit => parse_char(eng, &tk)?,
         Tk::BinIntLit => parse_bin(eng, &tk)?,
         Tk::HexIntLit => parse_hex(eng, &tk)?,
+        Tk::OctIntLit => parse_oct(eng, &tk)?,
         Tk::True => Expr {
             kind: ExprKind::Lit(Lit::Bool(true)),
             span: tk.span(eng.file_id),
@@ -57,7 +58,7 @@ fn parse_int(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
 }
 
 fn parse_float(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
-    match tk.text.parse() {
+    match tk.text.replace('_', "").parse() {
         Ok(val) => Ok(Expr {
             kind: ExprKind::Lit(Lit::Float(OrderedFloat(val))),
             span: tk.span(eng.file_id),
@@ -71,8 +72,8 @@ fn parse_float(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
 }
 
 fn parse_bin(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
-    let text_without_prefix = &tk.text[2..];
-    match i64::from_str_radix(text_without_prefix, 2) {
+    let clean_text = tk.text[2..].replace('_', "");
+    match i64::from_str_radix(&clean_text, 2) {
         Ok(val) => Ok(Expr {
             kind: ExprKind::Lit(Lit::Int(val)),
             span: tk.span(eng.file_id),
@@ -86,8 +87,8 @@ fn parse_bin(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
 }
 
 fn parse_hex(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
-    let text_without_prefix = &tk.text[2..];
-    match i64::from_str_radix(text_without_prefix, 16) {
+    let clean_text = tk.text[2..].replace('_', "");
+    match i64::from_str_radix(&clean_text, 16) {
         Ok(val) => Ok(Expr {
             kind: ExprKind::Lit(Lit::Int(val)),
             span: tk.span(eng.file_id),
@@ -98,6 +99,21 @@ fn parse_hex(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
                 tk.span(eng.file_id),
                 "Invalid hexadecimal literal".to_string(),
             );
+            Err(())
+        }
+    }
+}
+
+fn parse_oct(eng: &mut PrattEngine, tk: &Token<'_>) -> Result<Expr, ()> {
+    let clean_text = tk.text[2..].replace('_', "");
+    match i64::from_str_radix(&clean_text, 8) {
+        Ok(val) => Ok(Expr {
+            kind: ExprKind::Lit(Lit::Int(val)),
+            span: tk.span(eng.file_id),
+            id: eng.next_id(),
+        }),
+        Err(_) => {
+            eng.report_error(tk.span(eng.file_id), "Invalid octal literal".to_string());
             Err(())
         }
     }
