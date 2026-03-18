@@ -10,6 +10,10 @@ pub fn parse_unary(eng: &mut PrattEngine) -> Result<Expr, ()> {
     let tk = eng.current_token();
     eng.advance();
 
+    if tk.kind == Tk::Plus {
+        return eng.parse_expression();
+    }
+
     let right = Box::new(eng.parse_expression_bp(Precedence::Unary)?);
 
     let kind = match tk.kind {

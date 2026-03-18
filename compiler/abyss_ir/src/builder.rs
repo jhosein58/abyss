@@ -464,7 +464,7 @@ impl IrBuilder {
                     UnaryOp::Not => IrUnaryOp::Not,
                     UnaryOp::AddrOf => IrUnaryOp::Ref,
                     UnaryOp::Deref => IrUnaryOp::Deref,
-                    _ => panic!("Unsupported unary op: {:?}", op),
+                    UnaryOp::BitNot => IrUnaryOp::BitNot,
                 };
 
                 let (inner_stmts, inner_val) = self.lower_expr(*inner_expr);
@@ -561,6 +561,12 @@ impl IrBuilder {
                     BinaryOp::Gte => IrBinaryOp::Ge,
                     BinaryOp::And => IrBinaryOp::And,
                     BinaryOp::Or => IrBinaryOp::Or,
+
+                    BinaryOp::BitAnd => IrBinaryOp::BitAnd,
+                    BinaryOp::Pipe => IrBinaryOp::BitOr,
+                    BinaryOp::BitXor => IrBinaryOp::BitXor,
+                    BinaryOp::Shl => IrBinaryOp::Shl,
+                    BinaryOp::Shr => IrBinaryOp::Shr,
 
                     _ => panic!("Unsupported binary op in IR Builder: {:?}", op),
                 };

@@ -125,6 +125,14 @@ impl IrCompiler {
                     c: r_inner,
                 });
             }
+            IrUnaryOp::BitNot => {
+                self.emit(Instruction {
+                    op: OpCode::BitNot,
+                    a: dest_reg,
+                    b: r_inner,
+                    c: 0,
+                });
+            }
             IrUnaryOp::Ref => {
                 if let IrExprKind::VarRef(name) = &inner.kind {
                     let var_reg = env.get_var(name);
@@ -187,118 +195,23 @@ impl IrCompiler {
         let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
         let is_float = matches!(left.ty, IrType::F32);
 
-        if let IrExprKind::Lit(lit) = &right.kind {
-            let const_val = match lit {
-                IrLit::Int(i) => *i as u64,
-                IrLit::Float(f) => f.to_bits(),
-                IrLit::Bool(b) => {
-                    if *b {
-                        1
-                    } else {
-                        0
-                    }
-                }
-            };
-            let c_idx = self.add_const(const_val);
-            let r_left = self.compile_expr(env, left, None);
+        let has_const_op = matches!(
+            op,
+            IrBinaryOp::Add
+                | IrBinaryOp::Sub
+                | IrBinaryOp::Mul
+                | IrBinaryOp::Div
+                | IrBinaryOp::Mod
+                | IrBinaryOp::Eq
+                | IrBinaryOp::Neq
+                | IrBinaryOp::Lt
+                | IrBinaryOp::Le
+                | IrBinaryOp::Gt
+                | IrBinaryOp::Ge
+        );
 
-            let opcode = match op {
-                IrBinaryOp::Add => {
-                    if is_float {
-                        OpCode::AddFC
-                    } else {
-                        OpCode::AddIC
-                    }
-                }
-                IrBinaryOp::Sub => {
-                    if is_float {
-                        OpCode::SubFC
-                    } else {
-                        OpCode::SubIC
-                    }
-                }
-                IrBinaryOp::Mul => {
-                    if is_float {
-                        OpCode::MulFC
-                    } else {
-                        OpCode::MulIC
-                    }
-                }
-                IrBinaryOp::Div => {
-                    if is_float {
-                        OpCode::DivFC
-                    } else {
-                        OpCode::DivIC
-                    }
-                }
-                IrBinaryOp::Mod => {
-                    if is_float {
-                        panic!("% not supported for floats")
-                    } else {
-                        OpCode::ModIC
-                    }
-                }
-                IrBinaryOp::Eq => {
-                    if is_float {
-                        OpCode::CmpEqFC
-                    } else {
-                        OpCode::CmpEqIC
-                    }
-                }
-                IrBinaryOp::Neq => {
-                    if is_float {
-                        OpCode::CmpNeqFC
-                    } else {
-                        OpCode::CmpNeqIC
-                    }
-                }
-                IrBinaryOp::Lt => {
-                    if is_float {
-                        OpCode::CmpLtFC
-                    } else {
-                        OpCode::CmpLtIC
-                    }
-                }
-                IrBinaryOp::Le => {
-                    if is_float {
-                        OpCode::CmpLeFC
-                    } else {
-                        OpCode::CmpLeIC
-                    }
-                }
-                IrBinaryOp::Gt => {
-                    if is_float {
-                        OpCode::CmpGtFC
-                    } else {
-                        OpCode::CmpGtIC
-                    }
-                }
-                IrBinaryOp::Ge => {
-                    if is_float {
-                        OpCode::CmpGeFC
-                    } else {
-                        OpCode::CmpGeIC
-                    }
-                }
-                _ => unreachable!(),
-            };
-
-            self.emit(Instruction {
-                op: opcode,
-                a: dest_reg,
-                b: r_left,
-                c: c_idx,
-            });
-            return dest_reg;
-        }
-
-        if let IrExprKind::Lit(lit) = &left.kind {
-            let is_commutative = matches!(
-                op,
-                IrBinaryOp::Add | IrBinaryOp::Mul | IrBinaryOp::Eq | IrBinaryOp::Neq
-            );
-
-            if is_commutative {
+        if has_const_op {
+            if let IrExprKind::Lit(lit) = &right.kind {
                 let const_val = match lit {
                     IrLit::Int(i) => *i as u64,
                     IrLit::Float(f) => f.to_bits(),
@@ -311,7 +224,7 @@ impl IrCompiler {
                     }
                 };
                 let c_idx = self.add_const(const_val);
-                let r_right = self.compile_expr(env, right, None);
+                let r_left = self.compile_expr(env, left, None);
 
                 let opcode = match op {
                     IrBinaryOp::Add => {
@@ -321,11 +234,32 @@ impl IrCompiler {
                             OpCode::AddIC
                         }
                     }
+                    IrBinaryOp::Sub => {
+                        if is_float {
+                            OpCode::SubFC
+                        } else {
+                            OpCode::SubIC
+                        }
+                    }
                     IrBinaryOp::Mul => {
                         if is_float {
                             OpCode::MulFC
                         } else {
                             OpCode::MulIC
+                        }
+                    }
+                    IrBinaryOp::Div => {
+                        if is_float {
+                            OpCode::DivFC
+                        } else {
+                            OpCode::DivIC
+                        }
+                    }
+                    IrBinaryOp::Mod => {
+                        if is_float {
+                            panic!("% not supported for floats")
+                        } else {
+                            OpCode::ModIC
                         }
                     }
                     IrBinaryOp::Eq => {
@@ -342,16 +276,106 @@ impl IrCompiler {
                             OpCode::CmpNeqIC
                         }
                     }
+                    IrBinaryOp::Lt => {
+                        if is_float {
+                            OpCode::CmpLtFC
+                        } else {
+                            OpCode::CmpLtIC
+                        }
+                    }
+                    IrBinaryOp::Le => {
+                        if is_float {
+                            OpCode::CmpLeFC
+                        } else {
+                            OpCode::CmpLeIC
+                        }
+                    }
+                    IrBinaryOp::Gt => {
+                        if is_float {
+                            OpCode::CmpGtFC
+                        } else {
+                            OpCode::CmpGtIC
+                        }
+                    }
+                    IrBinaryOp::Ge => {
+                        if is_float {
+                            OpCode::CmpGeFC
+                        } else {
+                            OpCode::CmpGeIC
+                        }
+                    }
                     _ => unreachable!(),
                 };
 
                 self.emit(Instruction {
                     op: opcode,
                     a: dest_reg,
-                    b: r_right,
+                    b: r_left,
                     c: c_idx,
                 });
                 return dest_reg;
+            }
+
+            if let IrExprKind::Lit(lit) = &left.kind {
+                let is_commutative = matches!(
+                    op,
+                    IrBinaryOp::Add | IrBinaryOp::Mul | IrBinaryOp::Eq | IrBinaryOp::Neq
+                );
+                if is_commutative {
+                    let const_val = match lit {
+                        IrLit::Int(i) => *i as u64,
+                        IrLit::Float(f) => f.to_bits(),
+                        IrLit::Bool(b) => {
+                            if *b {
+                                1
+                            } else {
+                                0
+                            }
+                        }
+                    };
+                    let c_idx = self.add_const(const_val);
+                    let r_right = self.compile_expr(env, right, None);
+
+                    let opcode = match op {
+                        IrBinaryOp::Add => {
+                            if is_float {
+                                OpCode::AddFC
+                            } else {
+                                OpCode::AddIC
+                            }
+                        }
+                        IrBinaryOp::Mul => {
+                            if is_float {
+                                OpCode::MulFC
+                            } else {
+                                OpCode::MulIC
+                            }
+                        }
+                        IrBinaryOp::Eq => {
+                            if is_float {
+                                OpCode::CmpEqFC
+                            } else {
+                                OpCode::CmpEqIC
+                            }
+                        }
+                        IrBinaryOp::Neq => {
+                            if is_float {
+                                OpCode::CmpNeqFC
+                            } else {
+                                OpCode::CmpNeqIC
+                            }
+                        }
+                        _ => unreachable!(),
+                    };
+
+                    self.emit(Instruction {
+                        op: opcode,
+                        a: dest_reg,
+                        b: r_right,
+                        c: c_idx,
+                    });
+                    return dest_reg;
+                }
             }
         }
 
@@ -436,7 +460,44 @@ impl IrCompiler {
                     OpCode::CmpGeI
                 }
             }
-            _ => unreachable!(),
+
+            IrBinaryOp::BitAnd => {
+                if is_float {
+                    panic!("Bitwise AND not supported for floats")
+                } else {
+                    OpCode::BitAnd
+                }
+            }
+            IrBinaryOp::BitOr => {
+                if is_float {
+                    panic!("Bitwise OR not supported for floats")
+                } else {
+                    OpCode::BitOr
+                }
+            }
+            IrBinaryOp::BitXor => {
+                if is_float {
+                    panic!("Bitwise XOR not supported for floats")
+                } else {
+                    OpCode::BitXor
+                }
+            }
+            IrBinaryOp::Shl => {
+                if is_float {
+                    panic!("Shift Left not supported for floats")
+                } else {
+                    OpCode::Shl
+                }
+            }
+            IrBinaryOp::Shr => {
+                if is_float {
+                    panic!("Shift Right not supported for floats")
+                } else {
+                    OpCode::ShrI
+                }
+            }
+
+            _ => unreachable!("Unhandled opcode in reg-to-reg fallback: {:?}", op),
         };
 
         self.emit(Instruction {

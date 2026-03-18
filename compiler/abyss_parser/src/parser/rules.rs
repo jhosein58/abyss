@@ -59,7 +59,7 @@ pub fn get_rule(kind: Tk) -> ParseRule {
         // ::
         Tk::ColonColon => ParseRule::new(None, Some(parse_binary), Precedence::ConstDef).soft(),
         // +
-        Tk::Plus => ParseRule::new(None, Some(parse_binary), Precedence::Term).soft(),
+        Tk::Plus => ParseRule::new(Some(parse_unary), Some(parse_binary), Precedence::Term).soft(),
         // / %
         Tk::Slash | Tk::Percent => {
             ParseRule::new(None, Some(parse_binary), Precedence::Factor).soft()

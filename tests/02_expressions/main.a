@@ -1,0 +1,63 @@
+def printiln (i: i32)   _
+def printbln (b: bool)  _
+
+-- Short-Circuit Helper
+def sc (): bool {
+    printiln(9_999_999)
+    true
+}
+
+-- 1. Basic Precedence & Modulo
+printiln(1 + 2 * 3)                -- Expected: 7
+printiln((1 + 2) * 3)              -- Expected: 9
+printiln(10 + 6 / 2)               -- Expected: 13
+printiln(10 % 3)                   -- Expected: 1
+printiln(10 + 5 % 2 * 3)           -- Expected: 13 
+
+
+-- 2. Left Associativity
+printiln(10 - 5 - 2)               -- Expected: 3
+printiln(100 / 10 / 2)             -- Expected: 5
+printiln(20 % 7 % 3)               -- Expected: 0
+
+-- 3. Brutal Unary Operators
+printiln(- -5)                     -- Expected: 5
+printiln(-(10 + 5))                -- Expected: -15
+printiln(-5 * -2)                  -- Expected: 10
+printiln(-(-(-10)))                -- Expected: -10
+printiln(+-5)                      -- Expected: -5
+
+-- 4. Deep Nesting & Register Pressure
+printiln( ( (10 + 2) / (4 - 1) ) + ( (5 * 2) - (40 / 5) ) / 2 )  -- Expected: 5
+printiln( 1 + (2 * (3 + (4 / (5 - 3)))) )                        -- Expected: 11
+
+-- 5. Relational & Equality
+printbln(10 > 5)                   -- Expected: true
+printbln(10 <= 5)                  -- Expected: false
+printbln(5 == 5)                   -- Expected: true
+printbln(10 != 9)                  -- Expected: true
+printbln(10 >= 10)                 -- Expected: true
+
+-- 6. Bitwise Operators
+printiln(5 & 3)                    -- Expected: 1  (0101 & 0011 = 0001)
+printiln(5 | 3)                    -- Expected: 7  (0101 | 0011 = 0111)
+printiln(5 ^ 3)                    -- Expected: 6  (0101 ^ 0011 = 0110)
+printiln(~5)                       -- Expected: -6
+printiln(1 << 3)                   -- Expected: 8 
+printiln(16 >> 2)                  -- Expected: 4
+
+-- 7. Logical Operators & Precedence
+printbln(true and false)           -- Expected: false
+printbln(false or true)            -- Expected: true
+printbln(not false and true)       -- Expected: true 
+printbln(true or false and false)  -- Expected: true
+printbln(false and sc())           -- Expected: false
+printbln(true or sc())             -- Expected: true
+
+-- 8. Integer Edge Cases
+printiln(2147483647 + 1)           -- Overflow
+printiln(1 << 35)                  -- Shift out of range
+-- printiln(10 / 0)                -- Panic!
+
+-- 9. The Final Boss
+printbln( not ( ((1 << 2) + 3 * 2 == 10) and ((5 & 1) != 0) ) ) -- Expected: false
