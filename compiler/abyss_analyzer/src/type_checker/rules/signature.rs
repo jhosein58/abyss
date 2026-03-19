@@ -36,12 +36,11 @@ pub fn check_signature<'a>(
             if let ExprKind::Ident(ref arg_name) = left.kind {
                 let arg_ty = resolve_type_expr(tc, right);
 
-                tc.ctx
-                    .define(arg_name.clone(), SymbolInfo::variable(arg_ty.clone()));
+                let ir_name = tc.ctx.define_with_type(arg_name.clone(), arg_ty.clone());
                 arg_types.push(arg_ty.clone());
 
                 checked_args.push(TypedExpr {
-                    kind: TypedExprKind::VarDec(arg_name.clone(), arg_ty.clone(), None),
+                    kind: TypedExprKind::VarDec(ir_name, arg_ty.clone(), None),
                     ty: arg_ty,
                     span: arg.span.clone(),
                     id: arg.id,
@@ -52,10 +51,25 @@ pub fn check_signature<'a>(
 
     let is_native = ExprKind::Wildcard == body.kind;
     let func_type = Type::Signature(arg_types.clone(), Box::new(return_type.clone()), is_native);
+
+    let mut func_ir_name_opt = None;
     if let Some(ref name) = name_opt {
         tc.ctx.update_type(name, func_type.clone());
-        tc.ctx
-            .define(name.clone(), SymbolInfo::constant(func_type.clone(), false));
+
+        let symbol_info = if is_native {
+            SymbolInfo::native_function(name.clone(), func_type.clone())
+        } else {
+            let initial_ir_name = if tc.resolver.contains(name) {
+                name.clone()
+            } else {
+                String::new()
+            };
+            SymbolInfo::constant(initial_ir_name, func_type.clone(), false)
+        };
+
+        let ir_name = tc.ctx.define(name.clone(), symbol_info);
+
+        func_ir_name_opt = Some(ir_name);
 
         tc.resolver
             .set_forward_declaration(name.clone(), func_type.clone());
@@ -74,7 +88,15 @@ pub fn check_signature<'a>(
 
     tc.ctx.exit_scope();
 
-    let func_name = name_opt.clone().unwrap_or_else(|| {
+    if let Some(ref name) = name_opt {
+        if let Some(global_info) = tc.ctx.lookup_mut(name) {
+            global_info.ir_name = name.clone();
+            if is_native {
+                global_info.is_native = true;
+            }
+        }
+    }
+    let func_name = func_ir_name_opt.clone().unwrap_or_else(|| {
         tc.anon_func_counter += 1;
         format!("__anon_func_{}", tc.anon_func_counter)
     });
@@ -121,7 +143,7 @@ pub fn check_signature<'a>(
             }
         } else {
             TypedExpr {
-                kind: TypedExprKind::FuncRef(name),
+                kind: TypedExprKind::FuncRef(func_ir_name_opt.unwrap()),
                 ty: func_type,
                 span,
                 id,

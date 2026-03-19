@@ -100,13 +100,13 @@ pub fn check_literal(tc: &mut TypeChecker, lit: &Lit, span: Span, id: u32) -> Ty
                 metadata,
             );
 
-            tc.ctx.define_global(
+            let ir_name = tc.ctx.define_global(
                 global_name.clone(),
-                SymbolInfo::constant(array_type.clone(), true),
+                SymbolInfo::constant(global_name.clone(), array_type.clone(), true),
             );
 
             let ident_expr = TypedExpr {
-                kind: TypedExprKind::Ident(global_name),
+                kind: TypedExprKind::Ident(ir_name),
                 ty: array_type.clone(),
                 span: span.clone(),
                 id: tc.next_id(),
