@@ -77,7 +77,6 @@ impl Abyss {
         let tast = type_checker.check_program(&program);
 
         if self.print_tast {
-            println!("TAST Tree Root:");
             tast.body.print_tree();
             println!();
         }
