@@ -9,6 +9,7 @@ pub enum SymbolKind {
 
 #[derive(Debug, Clone)]
 pub struct SymbolInfo {
+    pub ir_name: String,
     pub ty: Type,
     pub kind: SymbolKind,
     pub is_mutable: bool,
@@ -18,8 +19,9 @@ pub struct SymbolInfo {
 }
 
 impl SymbolInfo {
-    pub fn variable(ty: Type) -> Self {
+    pub fn variable(ir_name: String, ty: Type) -> Self {
         Self {
+            ir_name,
             ty,
             kind: SymbolKind::Variable,
             is_mutable: false,
@@ -29,8 +31,9 @@ impl SymbolInfo {
         }
     }
 
-    pub fn constant(ty: Type, is_foldable: bool) -> Self {
+    pub fn constant(ir_name: String, ty: Type, is_foldable: bool) -> Self {
         Self {
+            ir_name,
             ty,
             kind: SymbolKind::Constant,
             is_mutable: false,
@@ -40,8 +43,9 @@ impl SymbolInfo {
         }
     }
 
-    pub fn native_function(ty: Type) -> Self {
+    pub fn native_function(ir_name: String, ty: Type) -> Self {
         Self {
+            ir_name,
             ty,
             kind: SymbolKind::Constant,
             is_mutable: false,
@@ -58,12 +62,14 @@ impl SymbolInfo {
 
 pub struct TypeContext {
     scopes: Vec<HashMap<String, SymbolInfo>>,
+    name_counters: HashMap<String, usize>,
 }
 
 impl TypeContext {
     pub fn new() -> Self {
         Self {
             scopes: vec![HashMap::new()],
+            name_counters: HashMap::new(),
         }
     }
 
@@ -79,18 +85,44 @@ impl TypeContext {
         }
     }
 
-    pub fn define(&mut self, name: String, info: SymbolInfo) {
+    fn generate_ir_name(&mut self, original_name: &str) -> String {
+        let count = self
+            .name_counters
+            .entry(original_name.to_string())
+            .or_insert(0);
+        *count += 1;
+
+        format!("{}_{}", original_name, count)
+    }
+
+    pub fn define(&mut self, name: String, mut info: SymbolInfo) -> String {
+        if info.ir_name.is_empty() {
+            info.ir_name = self.generate_ir_name(&name);
+        }
+
+        let assigned_ir_name = info.ir_name.clone();
+
         let current_scope = self.scopes.last_mut().expect("Scope stack is empty");
         current_scope.insert(name, info);
+
+        assigned_ir_name
     }
 
-    pub fn define_with_type(&mut self, name: String, ty: Type) {
-        self.define(name, SymbolInfo::variable(ty));
+    pub fn define_with_type(&mut self, name: String, ty: Type) -> String {
+        let ir_name = self.generate_ir_name(&name);
+        self.define(name, SymbolInfo::variable(ir_name, ty))
     }
 
-    pub fn define_global(&mut self, name: String, info: SymbolInfo) {
+    pub fn define_global(&mut self, name: String, mut info: SymbolInfo) -> String {
+        if info.ir_name.is_empty() {
+            info.ir_name = self.generate_ir_name(&name);
+        }
+        let assigned_ir_name = info.ir_name.clone();
+
         let global_scope = self.scopes.first_mut().expect("Global scope missing");
         global_scope.insert(name, info);
+
+        assigned_ir_name
     }
 
     pub fn lookup(&self, name: &str) -> Option<&SymbolInfo> {

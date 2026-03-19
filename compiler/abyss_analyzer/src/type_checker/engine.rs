@@ -120,7 +120,7 @@ impl<'a> TypeChecker<'a> {
                                 self.resolver.register(name_str.clone(), expr);
                                 self.ctx.define_global(
                                     name_str,
-                                    SymbolInfo::constant(Type::Infer, true),
+                                    SymbolInfo::constant(String::new(), Type::Infer, true),
                                 );
                             }
                         }
@@ -141,7 +141,7 @@ impl<'a> TypeChecker<'a> {
 
                             self.ctx.define_global(
                                 mangled_name,
-                                SymbolInfo::constant(Type::Infer, true),
+                                SymbolInfo::constant(String::new(), Type::Infer, true),
                             );
                         }
                     }

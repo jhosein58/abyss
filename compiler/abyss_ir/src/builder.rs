@@ -478,11 +478,14 @@ impl IrBuilder {
                     let (right_stmts, right_val) = self.lower_expr(*right);
                     generated_stmts.extend(right_stmts);
 
+                    let ret_val = right_val.clone();
+
                     generated_stmts.push(IrStmt::Assign {
                         target: name,
                         val: right_val,
                     });
-                    return (generated_stmts, self.unit_expr(span));
+
+                    return (generated_stmts, ret_val);
                 }
                 TypedExprKind::Index(base_expr, index_expr) => {
                     let (base_stmts, base_val) = self.lower_expr(*base_expr);
@@ -494,13 +497,15 @@ impl IrBuilder {
                     let (right_stmts, right_val) = self.lower_expr(*right);
                     generated_stmts.extend(right_stmts);
 
+                    let ret_val = right_val.clone();
+
                     generated_stmts.push(IrStmt::WriteIndex {
                         base: base_val,
                         index: index_val,
                         val: right_val,
                     });
 
-                    return (generated_stmts, self.unit_expr(span));
+                    return (generated_stmts, ret_val);
                 }
 
                 TypedExprKind::FieldAccess(base_expr, field_name) => {
@@ -520,12 +525,15 @@ impl IrBuilder {
                     let (right_stmts, right_val) = self.lower_expr(*right);
                     generated_stmts.extend(right_stmts);
 
+                    let ret_val = right_val.clone();
+
                     generated_stmts.push(IrStmt::WriteField {
                         base: base_val,
                         index: field_index,
                         val: right_val,
                     });
-                    return (generated_stmts, self.unit_expr(span));
+
+                    return (generated_stmts, ret_val);
                 }
 
                 TypedExprKind::Unary(UnaryOp::Deref, ptr_expr) => {
@@ -535,12 +543,14 @@ impl IrBuilder {
                     let (right_stmts, right_val) = self.lower_expr(*right);
                     generated_stmts.extend(right_stmts);
 
+                    let ret_val = right_val.clone();
+
                     generated_stmts.push(IrStmt::WritePointer {
                         ptr: ptr_val,
                         val: right_val,
                     });
 
-                    return (generated_stmts, self.unit_expr(span));
+                    return (generated_stmts, ret_val);
                 }
 
                 _ => panic!("Complex assignments not supported yet: {:?}", left.kind),
@@ -594,7 +604,7 @@ impl IrBuilder {
                 }
                 if is_native {
                     let func_index = *self.native_function_map.get(&func_name).expect(
-                        "IR Builder: Native function not found in map. This is a compiler bug.",
+                        &format!("IR Builder: Native function '{}' not found in map. This is a compiler bug.", func_name)
                     );
                     IrExprKind::NativeCall {
                         func_index,
@@ -692,9 +702,14 @@ impl IrBuilder {
             }
 
             TypedExprKind::VarDec(name, ty, init) => {
+                let mut ret_val = self.unit_expr(span.clone());
+
                 let ir_init = if let Some(init_expr) = init {
                     let (init_stmts, init_val) = self.lower_expr(*init_expr);
                     generated_stmts.extend(init_stmts);
+
+                    ret_val = init_val.clone();
+
                     Some(init_val)
                 } else {
                     None
@@ -705,7 +720,8 @@ impl IrBuilder {
                     ty: self.lower_type(&ty),
                     init: ir_init,
                 });
-                return (generated_stmts, self.unit_expr(span));
+
+                return (generated_stmts, ret_val);
             }
 
             TypedExprKind::Type(ty) => {

@@ -19,7 +19,7 @@ pub fn check_ident(tc: &mut TypeChecker, name: String, span: Span, id: u32) -> T
                     .unwrap_or(false);
 
                 tc.side_table.mark_const(id, is_foldable);
-                return tc.create_ident_expr(name, resolved_ty, span, id);
+                return tc.create_ident_expr(info.ir_name.clone(), resolved_ty, span, id);
             }
         }
 
@@ -36,7 +36,7 @@ pub fn check_ident(tc: &mut TypeChecker, name: String, span: Span, id: u32) -> T
         }
 
         tc.side_table.mark_const(id, info.is_foldable);
-        return tc.create_ident_expr(name, ty, span, id);
+        return tc.create_ident_expr(info.ir_name.clone(), ty, span, id);
     }
 
     if tc.resolver.contains(&name) {

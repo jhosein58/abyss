@@ -17,6 +17,25 @@ pub fn parse_block(eng: &mut PrattEngine) -> Result<Expr, ()> {
                 eng.synchronize();
             }
         }
+
+        let current = eng.current_token();
+
+        if current.kind == Tk::CBrace {
+            break;
+        }
+
+        if current.kind == Tk::Comma {
+            eng.advance();
+        } else if current.preceded_by_newline {
+            continue;
+        } else {
+            let span = eng.current_span();
+            eng.report_error(
+                span,
+                "Expected `,` or newline to separate statements.".to_string(),
+            );
+            eng.synchronize();
+        }
     }
 
     let cbrace_span = eng.current_span();

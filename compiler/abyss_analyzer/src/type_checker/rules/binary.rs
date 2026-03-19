@@ -1,5 +1,5 @@
 use crate::type_checker::{
-    context::SymbolInfo,
+    context::{SymbolInfo, SymbolKind},
     engine::{TypeChecker, error_expr},
 };
 use abyss_types::{
@@ -193,7 +193,7 @@ pub fn check_binary<'a>(
                         return error_expr(span, id);
                     }
                 }
-                (Type::Unit, true)
+                (right_ty, true)
             } else {
                 let s = left_expr.span.clone().merge(right_expr.span.clone());
                 tc.report_error(
@@ -226,7 +226,7 @@ pub fn check_binary<'a>(
                         return error_expr(span, id);
                     }
                 }
-                (Type::Unit, true)
+                (right_ty, true)
             } else {
                 let s = left_expr.span.clone().merge(right_expr.span.clone());
                 tc.report_error(
@@ -412,20 +412,21 @@ fn check_var_dec<'a>(
                 return error_expr(span, id);
             }
 
-            tc.ctx.define(
+            let ir_name = tc.ctx.define(
                 name.clone(),
                 SymbolInfo {
+                    ir_name: String::new(),
                     is_initialized: true,
                     is_native: false,
                     is_mutable: true,
-                    kind: crate::type_checker::context::SymbolKind::Variable,
+                    kind: SymbolKind::Variable,
                     ty: init_type.clone(),
                     is_foldable: false,
                 },
             );
 
             TypedExpr {
-                kind: TypedExprKind::VarDec(name, init_type.clone(), Some(Box::new(right))),
+                kind: TypedExprKind::VarDec(ir_name, init_type.clone(), Some(Box::new(right))),
                 id,
                 span,
                 ty: init_type,

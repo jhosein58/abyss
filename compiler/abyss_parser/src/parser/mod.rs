@@ -27,15 +27,40 @@ impl<'a, 'e, 'i> Parser<'a, 'e, 'i> {
 
     pub fn parse_program(&mut self) -> Program {
         let mut program = Vec::new();
+        let mut root_start = 0;
+        let mut root_end = 0;
 
         while !self.engine.is_eof() {
             match self.engine.parse_expression() {
                 Ok(expr) => {
+                    if program.is_empty() {
+                        root_start = expr.span.start;
+                    }
+                    root_end = expr.span.end;
                     program.push(expr);
                 }
                 Err(_) => {
                     self.engine.synchronize();
                 }
+            }
+
+            if self.engine.is_eof() {
+                break;
+            }
+
+            let current = self.engine.current_token();
+
+            if current.kind == abyss_lexer::token::TokenKind::Comma {
+                self.engine.advance();
+            } else if current.preceded_by_newline {
+                continue;
+            } else {
+                let span = self.engine.current_span();
+                self.engine.report_error(
+                    span,
+                    "Expected `,` or newline to separate statements.".to_string(),
+                );
+                self.engine.synchronize();
             }
         }
 
@@ -43,11 +68,11 @@ impl<'a, 'e, 'i> Parser<'a, 'e, 'i> {
             body: Expr {
                 kind: ExprKind::Block(program),
                 span: abyss_diagnostics::Span {
-                    file_id: 0,
-                    start: 0,
-                    end: 0,
+                    file_id: self.engine.file_id,
+                    start: root_start,
+                    end: root_end,
                 },
-                id: 0,
+                id: self.engine.next_id(),
             },
         }
     }

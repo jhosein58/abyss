@@ -142,6 +142,8 @@ pub fn check_def<'a>(
 
     tc.ctx.update_type(&name, final_ty.clone());
 
+    let mut assigned_ir_name = name.clone();
+
     if tc.resolver.contains(&name) {
         let metadata = GlobalMetadata {
             inline_policy: final_inline_policy,
@@ -155,21 +157,21 @@ pub fn check_def<'a>(
             metadata,
         );
 
-        tc.ctx.define_global(
+        assigned_ir_name = tc.ctx.define_global(
             name.clone(),
-            SymbolInfo::constant(final_ty.clone(), final_is_foldable),
+            SymbolInfo::constant(name.clone(), final_ty.clone(), final_is_foldable),
         );
     } else if !tc.ctx.is_global_scope() {
-        tc.ctx.define(
+        assigned_ir_name = tc.ctx.define(
             name.clone(),
-            SymbolInfo::constant(final_ty.clone(), final_is_foldable),
+            SymbolInfo::constant(String::new(), final_ty.clone(), final_is_foldable),
         );
     }
 
     tc.side_table.mark_const(id, final_is_foldable);
 
     TypedExpr {
-        kind: TypedExprKind::Def(name, Box::new(typed_value)),
+        kind: TypedExprKind::Def(assigned_ir_name, Box::new(typed_value)),
         ty: final_ty,
         span,
         id,

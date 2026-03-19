@@ -1,0 +1,83 @@
+def printiln (i: i32)   _
+def printbln (b: bool)  _
+
+
+-- 1. Type-Bending Shadowing
+v := 10
+type_bender := {
+    v := true                 -- Shadow i32 with bool
+    inner_val := {
+        v := 500              -- Shadow bool back to i32
+        v + 50                -- Returns 550
+    }
+    printbln(v)               -- Expected: true
+    inner_val                 -- Block returns 550
+}
+printiln(type_bender)         -- Expected: 550
+printiln(v)                   -- Expected: 10
+
+
+
+-- 2. The "Inception" Blocks
+inception := {
+    x := 1
+    x + {
+        x := 2
+        x + {
+            x := 3
+            x + {
+                x := 4
+                x * 2         -- 8
+            }                 -- 3 + 8 = 11
+        }                     -- 2 + 11 = 13
+    }                         -- 1 + 13 = 14
+}
+printiln(inception)           -- Expected: 14
+
+
+-- 3. The Shadow Chain Mutator
+sm := 1
+sm := sm + 1                  -- sm is 2
+sm := sm * 2                  -- sm is 4
+sm := sm - { sm := 10, sm }   -- sm is 4 - 10 = -6
+sm := sm + 2                  -- sm is w -4
+printiln(sm)                  -- Expected: -4
+
+
+-- 4. Brutal Register Pressure
+pressure := {a:=2, a} * {b:=3, b} + {c:=8, c} / {d:=2, d} - {e:=1, e} 
+-- Math: (2 * 3) + (8 / 2) - 1 => 6 + 4 - 1 => 9
+printiln(pressure)            -- Expected: 9
+
+
+-- 5. Scope Leakage in Binary Operations 
+leak := 100
+secure_op := { leak := 5, leak } + leak  
+-- Math: 5 + 100 = 105
+printiln(secure_op)           -- Expected: 105
+
+
+-- 6. Short-Circuit vs Block Execution
+sc_side_effect := 0
+sc_test := true or {
+    sc_side_effect := 999
+    false
+}
+printiln(sc_side_effect)      -- Expected: 0 (The block should NEVER execute)
+
+
+-- 7. The Final Boss: The Abyss Variable Nightmare
+nightmare := {
+    boss := 10
+    boss := boss + {
+        boss := 20
+        boss := boss + {
+            boss := 30
+            boss := boss + { boss := 40, boss } -- Returns 70
+        } -- Returns 20 + 70 = 90
+    } -- Returns 10 + 90 = 100
+    
+    boss := boss + 1          -- boss is now 101
+    boss
+}
+printiln(nightmare)           -- Expected: 101
