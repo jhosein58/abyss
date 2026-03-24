@@ -12,6 +12,7 @@ pub struct IrCompiler {
     pub instructions: Vec<Instruction>,
     pub constants: Vec<u64>,
     pub func_const_indices: HashMap<String, u8>,
+    pub global_indices: HashMap<String, u16>,
     pub break_targets: Vec<Vec<usize>>,
 }
 
@@ -21,6 +22,7 @@ impl IrCompiler {
             instructions: Vec::new(),
             constants: Vec::new(),
             func_const_indices: HashMap::new(),
+            global_indices: HashMap::new(),
             break_targets: Vec::new(),
         }
     }
@@ -71,6 +73,10 @@ impl IrCompiler {
     }
 
     pub fn compile(mut self, program: &IrProgram) -> (Vec<Instruction>, Vec<u64>) {
+        for (i, (name, _, _)) in program.globals.iter().enumerate() {
+            self.global_indices.insert(name.clone(), i as u16);
+        }
+
         for func in &program.functions {
             if !func.is_native {
                 let idx = self.constants.len() as u8;
@@ -112,6 +118,21 @@ impl IrCompiler {
             self.constants[const_idx as usize] = func_ip;
 
             let mut env = Env::new();
+
+            if func.name == "main" {
+                for (name, _, expr) in &program.globals {
+                    let global_idx = self.global_indices[name];
+                    let val_reg = self.compile_expr(&mut env, expr, None);
+
+                    self.emit(Instruction {
+                        op: OpCode::StoreGlobal,
+                        a: val_reg,
+                        b: ((global_idx >> 8) & 0xFF) as u8,
+                        c: (global_idx & 0xFF) as u8,
+                    });
+                }
+            }
+
             for (param_name, _) in &func.params {
                 env.declare_var(param_name.clone());
             }
@@ -133,6 +154,13 @@ impl IrCompiler {
     }
 
     pub fn compile_chunk(&mut self, program: &IrProgram, is_thunk: bool) -> usize {
+        for (name, _, _) in &program.globals {
+            if !self.global_indices.contains_key(name) {
+                let idx = self.global_indices.len() as u16;
+                self.global_indices.insert(name.clone(), idx);
+            }
+        }
+
         for func in &program.functions {
             if !func.is_native {
                 let idx = self.constants.len() as u8;
@@ -177,6 +205,21 @@ impl IrCompiler {
             self.constants[const_idx as usize] = func_ip;
 
             let mut env = Env::new();
+
+            if func.name == "thunk_main" {
+                for (name, _, expr) in &program.globals {
+                    let global_idx = self.global_indices[name];
+                    let val_reg = self.compile_expr(&mut env, expr, None);
+
+                    self.emit(Instruction {
+                        op: OpCode::StoreGlobal,
+                        a: val_reg,
+                        b: ((global_idx >> 8) & 0xFF) as u8,
+                        c: (global_idx & 0xFF) as u8,
+                    });
+                }
+            }
+
             for (param_name, _) in &func.params {
                 env.declare_var(param_name.clone());
             }

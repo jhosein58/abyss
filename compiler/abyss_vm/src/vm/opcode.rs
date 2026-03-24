@@ -87,6 +87,8 @@ pub enum OpCode {
     StorePtr,       // *a = b
     LoadPtrOffset,  // a = *(b + c * 8)
     StorePtrOffset, // *(a + c * 8) = b
+    LoadGlobal,     // r[a] = globals[b << 8 | c]
+    StoreGlobal,    // globals[b << 8 | c] = r[a]
     RefReg,
     MemCopy,
 

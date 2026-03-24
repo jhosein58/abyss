@@ -4,7 +4,6 @@ use abyss_types::tast::{TypedExpr, TypedExprKind, TypedProgram};
 use abyss_types::type_registry::TypeRegistry;
 use abyss_types::types::Type;
 use abyss_utils::idgen::IdGenerator;
-use std::collections::HashMap;
 
 use crate::comptime::ComptimeEngine;
 use crate::side_table::SideTable;
@@ -72,86 +71,66 @@ impl<'a> TypeChecker<'a> {
     pub fn report_error_with_hint(&mut self, span: Span, message: String, hint: String) {
         self.diagnostics.report_error_with_hint(span, message, hint);
     }
-    fn resolve_def_target(&mut self, expr: &'a Expr) -> Option<DefTarget> {
-        match &expr.kind {
-            ExprKind::Def(target_expr, _) => match &target_expr.kind {
-                ExprKind::Ident(name) => Some(DefTarget::Global(name.clone())),
 
-                ExprKind::Member(base, field_name) => {
-                    let type_name = if let ExprKind::Ident(name) = &base.kind {
-                        let base_ty = self.resolve_type_by_name(name, base.span_expr());
-                        if base_ty == Type::Error {
-                            return None;
-                        }
-                        name.clone()
-                    } else {
-                        let typed_base = self.check_expr(base);
-                        let base_ty = self.evaluate_as_type(typed_base);
-                        if base_ty == Type::Error {
-                            return None;
-                        }
-                        base_ty.mangled_name()
-                    };
-
-                    Some(DefTarget::Method {
-                        type_name,
-                        method_name: field_name.clone(),
-                    })
-                }
-                _ => None,
-            },
-            ExprKind::Attributed(_, inner) => self.resolve_def_target(inner),
-            _ => None,
-        }
-    }
-
-    fn gather_declarations_internal(&mut self, expr: &'a Expr) {
+    fn gather_globals_pass(&mut self, expr: &'a Expr) {
         match &expr.kind {
             ExprKind::Block(items) => {
                 for item in items {
-                    self.gather_declarations_internal(item);
+                    self.gather_globals_pass(item);
                 }
             }
-            _ => {
-                if let Some(target) = self.resolve_def_target(expr) {
-                    match target {
-                        DefTarget::Global(name_str) => {
-                            if !name_str.is_empty() {
-                                self.resolver.register(name_str.clone(), expr);
-                                self.ctx.define_global(
-                                    name_str,
-                                    SymbolInfo::constant(String::new(), Type::Infer, true),
-                                );
-                            }
-                        }
-                        DefTarget::Method {
-                            type_name,
-                            method_name,
-                        } => {
-                            let mangled_name =
-                                MethodRegistry::mangle_method_name(&type_name, &method_name);
-
-                            self.method_registry.register_method(
-                                type_name,
-                                method_name,
-                                mangled_name.clone(),
-                            );
-
-                            self.resolver.register(mangled_name.clone(), expr);
-
-                            self.ctx.define_global(
-                                mangled_name,
-                                SymbolInfo::constant(String::new(), Type::Infer, true),
-                            );
-                        }
+            ExprKind::Def(target_expr, _) => {
+                if let ExprKind::Ident(name_str) = &target_expr.kind {
+                    if !name_str.is_empty() {
+                        self.resolver.register(name_str.clone(), expr);
+                        self.ctx.define_global(
+                            name_str.clone(),
+                            SymbolInfo::constant(name_str.clone(), Type::Infer, true),
+                        );
                     }
                 }
             }
+            ExprKind::Attributed(_, inner) => self.gather_globals_pass(inner),
+            _ => {}
+        }
+    }
+
+    fn gather_methods_pass(&mut self, expr: &'a Expr) {
+        match &expr.kind {
+            ExprKind::Block(items) => {
+                for item in items {
+                    self.gather_methods_pass(item);
+                }
+            }
+            ExprKind::Def(target_expr, _) => {
+                if let ExprKind::Member(base, field_name) = &target_expr.kind {
+                    let checked_base = self.check_expr(base);
+                    let type_name = self.evaluate_as_type(checked_base).mangled_name();
+
+                    let mangled_name = MethodRegistry::mangle_method_name(&type_name, field_name);
+
+                    self.method_registry.register_method(
+                        type_name,
+                        field_name.clone(),
+                        mangled_name.clone(),
+                    );
+
+                    self.resolver.register(mangled_name.clone(), expr);
+
+                    self.ctx.define_global(
+                        mangled_name.clone(),
+                        SymbolInfo::constant(mangled_name.clone(), Type::Infer, true),
+                    );
+                }
+            }
+            ExprKind::Attributed(_, inner) => self.gather_methods_pass(inner),
+            _ => {}
         }
     }
 
     pub fn gather_declarations(&mut self, expr: &'a Expr) {
-        self.gather_declarations_internal(expr);
+        self.gather_globals_pass(expr);
+        self.gather_methods_pass(expr);
     }
 
     pub fn complete_and_register_global(
@@ -316,7 +295,8 @@ impl<'a> TypeChecker<'a> {
         let body = self.check_expr(&prog.body);
 
         let resolved = self.resolver.drain_resolved();
-        let globals: HashMap<String, TypedExpr> = resolved
+
+        let globals: Vec<(String, TypedExpr)> = resolved
             .into_iter()
             .map(|(name, (_, typed_expr))| (name, typed_expr))
             .collect();

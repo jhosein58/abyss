@@ -28,8 +28,17 @@ pub fn check_member<'a>(
         let mangled_method_name =
             MethodRegistry::mangle_method_name(&type_mangled_name, field_name);
 
-        if tc.resolver.is_resolved(&mangled_method_name) {
-            if let Some(func_ty) = tc.resolver.get_resolved_type(&mangled_method_name) {
+        if let Some(func_ty) = tc.resolver.get_resolved_type(&mangled_method_name) {
+            return TypedExpr {
+                kind: TypedExprKind::Ident(mangled_method_name),
+                ty: func_ty,
+                span,
+                id,
+            };
+        }
+
+        if tc.resolver.contains(&mangled_method_name) {
+            if let Some(func_ty) = tc.resolve_global(&mangled_method_name, span.clone()) {
                 return TypedExpr {
                     kind: TypedExprKind::Ident(mangled_method_name),
                     ty: func_ty,
@@ -58,8 +67,20 @@ pub fn check_member<'a>(
         let mangled_method_name =
             MethodRegistry::mangle_method_name(&type_mangled_name, field_name);
 
-        if tc.resolver.is_resolved(&mangled_method_name) {
-            if let Some(func_ty) = tc.resolver.get_resolved_type(&mangled_method_name) {
+        if let Some(func_ty) = tc.resolver.get_resolved_type(&mangled_method_name) {
+            return TypedExpr {
+                kind: TypedExprKind::BoundMethod {
+                    receiver: Box::new(typed_base),
+                    method_name: mangled_method_name,
+                },
+                ty: func_ty,
+                span,
+                id,
+            };
+        }
+
+        if tc.resolver.contains(&mangled_method_name) {
+            if let Some(func_ty) = tc.resolve_global(&mangled_method_name, span.clone()) {
                 return TypedExpr {
                     kind: TypedExprKind::BoundMethod {
                         receiver: Box::new(typed_base),
@@ -103,7 +124,6 @@ pub fn check_member<'a>(
         }
     }
 
-    // UFCS
     if tc.resolver.is_resolved(field_name) {
         if let Some(func_ty) = tc.resolver.get_resolved_type(field_name) {
             return TypedExpr {
@@ -117,6 +137,21 @@ pub fn check_member<'a>(
             };
         }
     }
+
+    if tc.resolver.contains(field_name) {
+        if let Some(func_ty) = tc.resolve_global(field_name, span.clone()) {
+            return TypedExpr {
+                kind: TypedExprKind::BoundMethod {
+                    receiver: Box::new(typed_base),
+                    method_name: field_name.clone(),
+                },
+                ty: func_ty,
+                span,
+                id,
+            };
+        }
+    }
+
     let error_msg = if matches!(current_lookup_type, Type::Struct(_)) {
         format!(
             "Type '{}' has no field, method, or matching global function named '{}'.",

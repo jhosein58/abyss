@@ -28,12 +28,14 @@ pub enum GlobalDefState<'a> {
 }
 pub struct GlobalResolver<'a> {
     definitions: HashMap<String, GlobalDefState<'a>>,
+    resolved_order: Vec<String>,
 }
 
 impl<'a> GlobalResolver<'a> {
     pub fn new() -> Self {
         Self {
             definitions: HashMap::new(),
+            resolved_order: Vec::new(),
         }
     }
     pub fn register(&mut self, name: String, expr: &'a Expr) {
@@ -66,7 +68,7 @@ impl<'a> GlobalResolver<'a> {
         metadata: GlobalMetadata,
     ) {
         self.definitions.insert(
-            name,
+            name.clone(),
             GlobalDefState::Resolved {
                 ty,
                 typed_expr,
@@ -74,6 +76,24 @@ impl<'a> GlobalResolver<'a> {
                 metadata,
             },
         );
+        if !self.resolved_order.contains(&name) {
+            self.resolved_order.push(name);
+        }
+    }
+
+    pub fn drain_resolved(&mut self) -> Vec<(String, (Type, TypedExpr))> {
+        let mut result = Vec::new();
+
+        for name in std::mem::take(&mut self.resolved_order) {
+            if let Some(GlobalDefState::Resolved { ty, typed_expr, .. }) =
+                self.definitions.remove(&name)
+            {
+                result.push((name, (ty, typed_expr)));
+            }
+        }
+
+        self.definitions.clear();
+        result
     }
 
     pub fn get_state(&self, name: &str) -> Option<&GlobalDefState<'a>> {
@@ -132,21 +152,6 @@ impl<'a> GlobalResolver<'a> {
 
     pub fn contains(&self, name: &str) -> bool {
         self.definitions.contains_key(name)
-    }
-
-    pub fn drain_resolved(&mut self) -> HashMap<String, (Type, TypedExpr)> {
-        let mut result = HashMap::new();
-
-        let keys: Vec<_> = self.definitions.keys().cloned().collect();
-        for name in keys {
-            if let Some(GlobalDefState::Resolved { ty, typed_expr, .. }) =
-                self.definitions.remove(&name)
-            {
-                result.insert(name, (ty, typed_expr));
-            }
-        }
-
-        result
     }
 }
 

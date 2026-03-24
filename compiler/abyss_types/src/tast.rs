@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use abyss_diagnostics::Span;
 use abyss_parser::ast::{BinaryOp, Lit, UnaryOp};
 
@@ -119,7 +117,7 @@ pub struct TypedAttribute {
 #[derive(Debug, Clone)]
 pub struct TypedProgram {
     pub body: TypedExpr,
-    pub globals: HashMap<String, TypedExpr>,
+    pub globals: Vec<(String, TypedExpr)>,
 }
 
 impl TypedExpr {
