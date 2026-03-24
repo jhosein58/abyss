@@ -82,6 +82,17 @@ impl IrCompiler {
             return reg;
         }
 
+        if let Some(&global_idx) = self.global_indices.get(name) {
+            let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
+            self.emit(Instruction {
+                op: OpCode::LoadGlobal,
+                a: dest_reg,
+                b: ((global_idx >> 8) & 0xFF) as u8,
+                c: (global_idx & 0xFF) as u8,
+            });
+            return dest_reg;
+        }
+
         if let Some(&func_const_idx) = self.func_const_indices.get(name) {
             let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
             self.emit(Instruction {
@@ -92,6 +103,7 @@ impl IrCompiler {
             });
             return dest_reg;
         }
+
         panic!("Variable or function '{}' not found", name);
     }
 

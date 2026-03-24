@@ -34,6 +34,7 @@ pub struct AbyssVm {
     pub constants: Vec<u64>,
 
     pub heap: Vec<u8>,
+    pub globals: Vec<u64>,
     pub free_blocks: Vec<(usize, usize)>,
     pub native_funcs: Vec<RegisteredNative>,
 
@@ -57,6 +58,7 @@ impl AbyssVm {
             constants: Vec::new(),
             ip: 0,
             heap: Vec::new(),
+            globals: Vec::new(),
             free_blocks: Vec::new(),
             native_funcs: Vec::new(),
             out: String::new(),
@@ -113,6 +115,10 @@ impl AbyssVm {
         f64::from_bits(self.get_reg(r))
     }
 
+    pub fn init_globals(&mut self, count: usize) {
+        self.globals = vec![0; count];
+    }
+
     pub fn run(&mut self) -> Option<u64> {
         let mut final_result = None;
 
@@ -122,6 +128,7 @@ impl AbyssVm {
         let program_ptr = self.program.as_ptr();
         let registers_ptr = self.registers.as_mut_ptr();
         let constants_ptr = self.constants.as_ptr();
+        let globals_ptr = self.globals.as_mut_ptr();
 
         macro_rules! get_reg {
             ($r:expr) => {
@@ -250,6 +257,17 @@ impl AbyssVm {
                 StorePtr => store_ptr(&inst, bp, registers_ptr, &mut self.heap),
                 LoadPtrOffset => load_ptr_offset(&inst, bp, registers_ptr, &self.heap),
                 StorePtrOffset => store_ptr_offset(&inst, bp, registers_ptr, &mut self.heap),
+
+                LoadGlobal => {
+                    let global_idx = ((inst.b as usize) << 8) | (inst.c as usize);
+                    let val = unsafe { *globals_ptr.add(global_idx) };
+                    set_reg!(inst.a, val);
+                }
+                StoreGlobal => {
+                    let global_idx = ((inst.b as usize) << 8) | (inst.c as usize);
+                    let val = get_reg!(inst.a);
+                    unsafe { *globals_ptr.add(global_idx) = val };
+                }
 
                 MemCopy => mem_copy(&inst, bp, registers_ptr, &mut self.heap),
             }

@@ -58,17 +58,26 @@ impl IrCompiler {
     }
 
     fn compile_assign(&mut self, env: &mut Env, target: &str, val: &IrExpr) {
-        let dest_reg = env.get_var(target);
         let val_reg = self.compile_expr(env, val, None);
-
         let final_val_reg = self.copy_if_complex(env, val_reg, &val.ty);
 
-        self.emit(Instruction {
-            op: OpCode::Move,
-            a: dest_reg,
-            b: final_val_reg,
-            c: 0,
-        });
+        if let Some(&local_reg) = env.vars.get(target) {
+            self.emit(Instruction {
+                op: OpCode::Move,
+                a: local_reg,
+                b: final_val_reg,
+                c: 0,
+            });
+        } else if let Some(&global_idx) = self.global_indices.get(target) {
+            self.emit(Instruction {
+                op: OpCode::StoreGlobal,
+                a: final_val_reg,
+                b: ((global_idx >> 8) & 0xFF) as u8,
+                c: (global_idx & 0xFF) as u8,
+            });
+        } else {
+            panic!("Cannot assign to undeclared variable '{}'", target);
+        }
     }
 
     fn compile_return(&mut self, env: &mut Env, opt_expr: &Option<IrExpr>) {

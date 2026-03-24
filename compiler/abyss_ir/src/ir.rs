@@ -14,6 +14,7 @@ pub enum IrType {
 #[derive(Debug, Clone)]
 pub struct IrProgram {
     pub functions: Vec<IrFunction>,
+    pub globals: Vec<(String, IrType, IrExpr)>,
 }
 
 #[derive(Debug, Clone)]

@@ -31,6 +31,16 @@ impl AbyssVm {
         }
     }
 
+    pub fn read_heap_u64(&self, ptr: usize, index: usize) -> u64 {
+        let offset = ptr + (index * 8);
+        if offset + 8 <= self.heap.len() {
+            let bytes: [u8; 8] = self.heap[offset..offset + 8].try_into().unwrap();
+            u64::from_le_bytes(bytes)
+        } else {
+            0
+        }
+    }
+
     pub fn read_c_string(&self, base_ptr: u64) -> String {
         let mut s = String::new();
         let mut offset = 0;

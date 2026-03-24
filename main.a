@@ -204,7 +204,7 @@
 
 -------------------------------------------------------------------
 
-
+-- def printiln(i: i32) _
 
 -- def Pos [
 --     x: f32,
@@ -238,7 +238,7 @@
 
 
 -- def print_age(self: [id: i32, age: i32]) {
---     print(self.age)
+--     printiln(self.age)
 -- }
 
 
@@ -249,15 +249,15 @@
 -- dog.print_age()
 
 -----------------------------------------------------------
-
+-- def printi (s: i32) _
 -- a := 10
 
 -- b := &a
 
 -- *b = 2
 
--- print(a)
--- print(*b)
+-- printi(a)
+-- printi(*b)
 -----------------------------------------------------------
 
 -- def Val [v: i32]
@@ -321,8 +321,62 @@
 
 -------------------------------------------------------
 
-def printi (i: i32) _
-def add (a: i32): i32 { a + 2 }
+-- def printiln (i: i32) _
 
-a := 2 
-printi(a)
+-- MyI32.test()
+
+-- def MyI32.test () {
+--     printiln(100)
+-- }
+
+
+-- def MyI32 i32
+
+-- printiln(const_arr[0])
+
+-- def const_arr [1, 2, 3] 
+
+
+def printiln(i: i32) _
+
+-- bootstrap_system()
+
+-- def bootstrap_system() {
+--     manager := Manager.new()
+--     manager.execute_task(CONFIG_CODES[2]) 
+-- }
+
+-- def execute_task(self: [worker: Worker, id: i32], code: i32) {
+--     self.worker.do_work(code + MAGIC_NUMBER)
+-- }
+
+-- def Manager [
+--     worker: Worker,
+--     id: i32
+-- ]
+
+-- def Manager.new(): Manager {
+--     [worker: Worker.new(), id: MAGIC_NUMBER] as Manager
+-- }
+
+-- def Worker [
+--     status: i32
+-- ]
+
+-- def Worker.new(): Worker {
+--     [status: 10] as Worker
+-- }
+
+-- def Worker.do_work(self: [status: i32], code: i32) {
+--     printiln(code + self.status)
+-- }
+
+-- def CONFIG_CODES [100, 200, 300]
+-- def MAGIC_NUMBER 42
+
+-- def test() {
+--     printiln(MAGIC_NUMBER)
+-- }
+-- test()
+
+printiln(3)

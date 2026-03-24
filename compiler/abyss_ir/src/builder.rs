@@ -57,29 +57,25 @@ impl IrBuilder {
     pub fn build_single_function(&mut self, expr: TypedExpr) -> Option<IrProgram> {
         if let Some(ir_func) = self.build_function(expr) {
             Some(IrProgram {
+                globals: Vec::new(),
                 functions: vec![ir_func],
             })
         } else {
             None
         }
     }
+
     pub fn build_thunk_program(
         &mut self,
         expr: TypedExpr,
-        globals: &HashMap<String, TypedExpr>,
+        globals: &[(String, TypedExpr)],
     ) -> IrProgram {
-        let mut init_stmts = Vec::new();
+        let mut globals_ir = Vec::new();
 
         for (name, global_expr) in globals {
             if !matches!(global_expr.kind, TypedExprKind::FunctionDef { .. }) {
-                let (value_stmts, value_ir) = self.lower_expr(global_expr.clone());
-                init_stmts.extend(value_stmts);
-
-                init_stmts.push(IrStmt::ConstDef {
-                    name: name.clone(),
-                    ty: value_ir.ty.clone(),
-                    value: value_ir,
-                });
+                let (_, value_ir) = self.lower_expr(global_expr.clone());
+                globals_ir.push((name.clone(), value_ir.ty.clone(), value_ir));
             }
         }
 
@@ -87,10 +83,9 @@ impl IrBuilder {
         let prev_counter = self.temp_counter;
         self.temp_counter = 0;
 
-        let (mut stmts, final_expr) = self.lower_expr(expr);
+        let (stmts, final_expr) = self.lower_expr(expr);
 
-        let mut main_body = init_stmts;
-        main_body.append(&mut stmts);
+        let mut main_body = stmts;
 
         if expected_return_ty != IrType::Unit {
             main_body.push(IrStmt::Return(Some(final_expr)));
@@ -101,6 +96,7 @@ impl IrBuilder {
         self.temp_counter = prev_counter;
 
         IrProgram {
+            globals: globals_ir,
             functions: vec![IrFunction {
                 name: "thunk_main".to_string(),
                 params: vec![],
@@ -109,58 +105,6 @@ impl IrBuilder {
                 is_native: false,
             }],
         }
-    }
-
-    pub fn build_comptime_program(
-        &mut self,
-        expr: TypedExpr,
-        globals: &HashMap<String, TypedExpr>,
-    ) -> IrProgram {
-        let mut functions = Vec::new();
-        let mut init_stmts = Vec::new();
-
-        for (name, global_expr) in globals {
-            if let Some(ir_func) = self.build_function(global_expr.clone()) {
-                functions.push(ir_func);
-            } else {
-                let (value_stmts, value_ir) = self.lower_expr(global_expr.clone());
-                init_stmts.extend(value_stmts);
-
-                init_stmts.push(IrStmt::ConstDef {
-                    name: name.clone(),
-                    ty: value_ir.ty.clone(),
-                    value: value_ir,
-                });
-            }
-        }
-
-        let expected_return_ty = self.lower_type(&expr.ty);
-
-        let prev_counter = self.temp_counter;
-        self.temp_counter = 0;
-
-        let (mut stmts, final_expr) = self.lower_expr(expr);
-
-        let mut main_body = init_stmts;
-        main_body.append(&mut stmts);
-
-        if expected_return_ty != IrType::Unit {
-            main_body.push(IrStmt::Return(Some(final_expr)));
-        } else {
-            main_body.push(IrStmt::Return(None));
-        }
-
-        self.temp_counter = prev_counter;
-
-        functions.push(IrFunction {
-            name: "main".to_string(),
-            params: vec![],
-            return_ty: expected_return_ty,
-            body: main_body,
-            is_native: false,
-        });
-
-        IrProgram { functions }
     }
 
     pub fn build_standalone_expr(&mut self, expr: TypedExpr) -> (Vec<IrStmt>, IrExpr) {
@@ -175,24 +119,18 @@ impl IrBuilder {
 
     pub fn build_program(&mut self, program: TypedProgram) -> IrProgram {
         let mut functions = Vec::new();
-        let mut init_stmts = Vec::new();
+        let mut globals_ir = Vec::new();
 
         for (name, global_expr) in program.globals.clone() {
             if let Some(ir_func) = self.build_function(global_expr.clone()) {
                 functions.push(ir_func);
             } else {
-                let (value_stmts, value_ir) = self.lower_expr(global_expr);
-                init_stmts.extend(value_stmts);
-
-                init_stmts.push(IrStmt::ConstDef {
-                    name: name.clone(),
-                    ty: value_ir.ty.clone(),
-                    value: value_ir,
-                });
+                let (_, value_ir) = self.lower_expr(global_expr);
+                globals_ir.push((name.clone(), value_ir.ty.clone(), value_ir));
             }
         }
 
-        let mut main_body = init_stmts;
+        let mut main_body = Vec::new();
 
         if let TypedExprKind::Block(stmts) = program.body.kind {
             for stmt in stmts {
@@ -210,7 +148,10 @@ impl IrBuilder {
             is_native: false,
         });
 
-        IrProgram { functions }
+        IrProgram {
+            globals: globals_ir,
+            functions,
+        }
     }
 
     fn build_function(&mut self, expr: TypedExpr) -> Option<IrFunction> {
