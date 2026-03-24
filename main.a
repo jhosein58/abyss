@@ -339,44 +339,43 @@
 
 def printiln(i: i32) _
 
--- bootstrap_system()
+bootstrap_system()
 
--- def bootstrap_system() {
---     manager := Manager.new()
---     manager.execute_task(CONFIG_CODES[2]) 
--- }
+def bootstrap_system() {
+    manager := Manager.new()
+    manager.execute_task(CONFIG_CODES[2]) 
+}
 
--- def execute_task(self: [worker: Worker, id: i32], code: i32) {
---     self.worker.do_work(code + MAGIC_NUMBER)
--- }
+def execute_task(self: [worker: Worker, id: i32], code: i32) {
+    self.worker.do_work(code + MAGIC_NUMBER)
+}
 
--- def Manager [
---     worker: Worker,
---     id: i32
--- ]
+def Manager [
+    worker: Worker,
+    id: i32
+]
 
--- def Manager.new(): Manager {
---     [worker: Worker.new(), id: MAGIC_NUMBER] as Manager
--- }
+def Manager.new(): Manager {
+    [worker: Worker.new(), id: MAGIC_NUMBER] as Manager
+}
 
--- def Worker [
---     status: i32
--- ]
+def Worker [
+    status: i32
+]
 
--- def Worker.new(): Worker {
---     [status: 10] as Worker
--- }
+def Worker.new(): Worker {
+    [status: 10] as Worker
+}
 
--- def Worker.do_work(self: [status: i32], code: i32) {
---     printiln(code + self.status)
--- }
+def Worker.do_work(self: [status: i32], code: i32) {
+    printiln(code + self.status)
+}
 
--- def CONFIG_CODES [100, 200, 300]
--- def MAGIC_NUMBER 42
-
+def CONFIG_CODES [100, 200, 300]
+def MAGIC_NUMBER 42
 -- def test() {
---     printiln(MAGIC_NUMBER)
--- }
--- test()
 
-printiln(3)
+--     printiln(CONFIG_CODES[0])
+-- }
+
+-- test()

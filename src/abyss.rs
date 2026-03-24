@@ -99,6 +99,7 @@ impl Abyss {
         for (_name, arity, func) in self.natives.iter() {
             vm.register_native(*arity as u8, *func);
         }
+        vm.init_globals(ir_program.globals.len());
 
         println!("Compiled in: {}ms\n", t_compile.elapsed().as_millis());
 
@@ -146,6 +147,7 @@ impl Abyss {
         for (_name, arity, func) in self.natives.iter() {
             vm.register_native(*arity as u8, *func);
         }
+        vm.init_globals(ir_program.globals.len());
 
         vm.run();
 
