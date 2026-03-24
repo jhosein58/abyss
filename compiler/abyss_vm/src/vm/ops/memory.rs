@@ -71,30 +71,6 @@ pub fn store_ptr(inst: &Instruction, bp: usize, registers_ptr: *mut u64, heap: &
 }
 
 #[inline(always)]
-pub fn store_لم(inst: &Instruction, bp: usize, registers_ptr: *mut u64, heap: &mut [u8]) {
-    unsafe {
-        let ptr_val = *registers_ptr.add(bp + inst.a as usize);
-        let val = *registers_ptr.add(bp + inst.b as usize);
-
-        if (ptr_val & REG_PTR_TAG) != 0 {
-            let abs_reg_idx = (ptr_val & !REG_PTR_TAG) as usize;
-            *registers_ptr.add(abs_reg_idx) = val;
-        } else {
-            let ptr = ptr_val as usize;
-            if ptr + 8 <= heap.len() {
-                std::ptr::copy_nonoverlapping(
-                    &val as *const u64 as *const u8,
-                    heap.as_mut_ptr().add(ptr),
-                    8,
-                );
-            } else {
-                panic!("Runtime error: Segmentation fault in StorePtr");
-            }
-        }
-    }
-}
-
-#[inline(always)]
 pub fn load_ptr_offset(inst: &Instruction, bp: usize, registers_ptr: *mut u64, heap: &[u8]) {
     unsafe {
         let base_ptr_val = *registers_ptr.add(bp + inst.b as usize);

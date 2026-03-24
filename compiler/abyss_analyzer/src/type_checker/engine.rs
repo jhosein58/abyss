@@ -104,6 +104,11 @@ impl<'a> TypeChecker<'a> {
             }
             ExprKind::Def(target_expr, _) => {
                 if let ExprKind::Member(base, field_name) = &target_expr.kind {
+                    println!(
+                        "[GATHER] Trying to check_expr for base of member: {}",
+                        field_name
+                    );
+
                     let checked_base = self.check_expr(base);
                     let type_name = self.evaluate_as_type(checked_base).mangled_name();
 
@@ -150,6 +155,10 @@ impl<'a> TypeChecker<'a> {
     }
 
     pub fn resolve_global(&mut self, name: &str, span: Span) -> Option<Type> {
+        // =====================================
+        println!("-> [RESOLVE_GLOBAL] Start: {}", name);
+        // =====================================
+
         if let Some(ty) = self.resolver.get_resolved_type(name) {
             return Some(ty);
         }
@@ -173,9 +182,13 @@ impl<'a> TypeChecker<'a> {
         }
 
         let expr = self.resolver.begin_resolve(&name)?;
-
+        // =====================================
+        println!("   [RESOLVE_GLOBAL] Checking expr for: {}", name);
+        // =====================================
         let typed_expr = self.check_expr(expr);
-
+        // =====================================
+        println!("   [RESOLVE_GLOBAL] Checking expr for: {}", name);
+        // =====================================
         Some(typed_expr.ty)
     }
 
@@ -207,6 +220,10 @@ impl<'a> TypeChecker<'a> {
     }
 
     pub fn check_expr(&mut self, expr: &'a Expr) -> TypedExpr {
+        // =====================================
+        println!("==> [CHECK_EXPR] Visiting node ID: {}", expr.id);
+        // =====================================
+
         match &expr.kind {
             ExprKind::Attributed(attributes, inner_expr) => {
                 let old_attrs =

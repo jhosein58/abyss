@@ -7,6 +7,9 @@ use abyss_types::{
 };
 
 pub fn check_ident(tc: &mut TypeChecker, name: String, span: Span, id: u32) -> TypedExpr {
+    // =====================================
+    println!(">> [CHECK_IDENT] Looking for: {}", name);
+    // =====================================
     if let Some(info) = tc.ctx.lookup(&name).cloned() {
         let ty = info.ty.clone();
 
