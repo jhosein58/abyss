@@ -42,6 +42,17 @@ pub fn check_cast<'a>(
         return error_expr(span, id);
     }
 
+    if is_alias_cast(&typed_left.ty, &target_ty) {
+        let is_const = tc.side_table.is_const(typed_left.id);
+        tc.side_table.mark_const(id, is_const);
+        return TypedExpr {
+            kind: typed_left.kind,
+            ty: target_ty,
+            span,
+            id,
+        };
+    }
+
     if let TypedExprKind::Lit(ref lit) = typed_left.kind {
         if let Some(new_lit) = cast_literal_value(lit, &target_ty) {
             tc.side_table.mark_const(id, true);
@@ -76,6 +87,13 @@ pub fn check_cast<'a>(
     }
 
     cast_expr
+}
+
+fn is_alias_cast(from: &Type, to: &Type) -> bool {
+    if let Type::Alias(_, inner) = to {
+        return from.is_equal(inner);
+    }
+    false
 }
 
 fn extract_type_for_cast(tc: &mut TypeChecker, expr: &TypedExpr) -> Type {

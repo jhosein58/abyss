@@ -6,7 +6,7 @@ use crate::{
     stdlib::{
         io::{
             abyss_print, abyss_printb, abyss_printbln, abyss_printf, abyss_printfln, abyss_printi,
-            abyss_printiln,
+            abyss_printiln, abyss_println,
         },
         mem::{abyss_alloc, abyss_free},
     },
@@ -22,6 +22,11 @@ impl AbyssLibrary for StandardLib {
                 name: "print",
                 arity: 1,
                 func: abyss_print,
+            },
+            NativeFunctionDef {
+                name: "println",
+                arity: 1,
+                func: abyss_println,
             },
             NativeFunctionDef {
                 name: "printi",

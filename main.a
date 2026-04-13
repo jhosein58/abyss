@@ -259,6 +259,7 @@
 -- printi(a)
 -- printi(*b)
 -----------------------------------------------------------
+--  def printi (s: i32) _
 
 -- def Val [v: i32]
 
@@ -270,7 +271,7 @@
 
 -- new_v.test()
 
--- print(new_v.v)
+-- printi(new_v.v)
 
 ------------------------------------------------------------
 -- def print (s: &i32) _
@@ -335,47 +336,248 @@
 -- printiln(const_arr[0])
 
 -- def const_arr [1, 2, 3] 
+------------------------------------------------------
 
+-- def printiln(i: i32) _
 
-def printiln(i: i32) _
+-- bootstrap_system()
 
-bootstrap_system()
-
-def bootstrap_system() {
-    manager := Manager.new()
-    manager.execute_task(CONFIG_CODES[2]) 
-}
-
-def execute_task(self: [worker: Worker, id: i32], code: i32) {
-    self.worker.do_work(code + MAGIC_NUMBER)
-}
-
-def Manager [
-    worker: Worker,
-    id: i32
-]
-
-def Manager.new(): Manager {
-    [worker: Worker.new(), id: MAGIC_NUMBER] as Manager
-}
-
-def Worker [
-    status: i32
-]
-
-def Worker.new(): Worker {
-    [status: 10] as Worker
-}
-
-def Worker.do_work(self: [status: i32], code: i32) {
-    printiln(code + self.status)
-}
-
-def CONFIG_CODES [100, 200, 300]
-def MAGIC_NUMBER 42
--- def test() {
-
---     printiln(CONFIG_CODES[0])
+-- def bootstrap_system() {
+--     manager := Manager.new()
+--     manager.execute_task(CONFIG_CODES[2]) 
 -- }
 
--- test()
+-- def execute_task(self: [worker: Worker, id: i32], code: i32) {
+--     self.worker.do_work(code + MAGIC_NUMBER)
+-- }
+
+-- def Manager [
+--     worker: Worker,
+--     id: i32
+-- ]
+
+-- def Manager.new(): Manager {
+--     [worker: Worker.new(), id: MAGIC_NUMBER] as Manager
+-- }
+
+-- def Worker [
+--     status: i32
+-- ]
+
+-- def Worker.new(): Worker {
+--     [status: 10] as Worker
+-- }
+
+-- def Worker.do_work(self: [status: i32], code: i32) {
+--     printiln(code + self.status)
+-- }
+
+-- def CONFIG_CODES [100, 200, 300]
+-- def MAGIC_NUMBER 42
+------------------------------------------------------------
+
+-- def printiln(i: i32) _
+
+-- start_test()
+
+-- def start_test() {
+--     step_one(10)
+--     printiln(VAL_B) 
+-- }
+
+
+-- def VAL_B VAL_A.a + 15
+
+-- def step_one(x: i32) {
+--     step_two(x + VAL_A.b) 
+-- }
+
+-- def step_two(y: i32) {
+--     step_three(y)
+-- }
+
+-- def step_three(z: i32) {
+--     printiln(z) 
+-- }
+
+-- def VAL_A [a: 10, b: 30]
+-------------------------------------------------------------
+-- def VAL_X VAL_Y + 1
+-- def VAL_Y VAL_X + 1
+
+-- def start() {
+--     printiln(VAL_X)
+-- }
+------------------------------------------------------------
+
+-- def println (s: &i32) _
+
+-- def i32.b() {
+--     println("outer b")
+-- }
+
+-- def a () {
+--     def i32.b () {
+--         println("inner b")
+--     }
+--     i32.b()
+ 
+--     println("a")
+-- }
+-- i32.b() 
+-- a()
+
+----------------------------------------------------------
+
+-- -- 04_def_resolution_torture.abyss
+
+-- def printiln (i: i32) _
+-- def printbln (b: bool) _
+
+-- -- =====================================================================
+-- -- 1. THE ULTIMATE OUT-OF-ORDER EXECUTION
+-- -- Call the main logic before ANY of the types, constants, or methods 
+-- -- are textually defined in the file!
+-- -- =====================================================================
+-- run_abyss_simulation()
+
+
+-- -- =====================================================================
+-- -- 2. THE MAIN TEST FUNCTION (Nested Hell)
+-- -- =====================================================================
+-- def run_abyss_simulation() {
+--     printiln(999_999) -- Expected: 999999 (Start Marker)
+
+--     -- A. Test Arrays and Out-of-Order Constant Resolution
+--     printiln(MAGIC_CONFIG[1]) -- Expected: 42 (Resolves CALC_MAGIC out of order)
+
+--     -- B. Test Hard Alias and Global Method Resolution
+--     code := 100 as StatusCode
+--     code.print_status()       -- Expected: 404 (Calls Global StatusCode.print_status)
+
+--     -- C. Test Nested Scope Shadowing for Methods (The exact bug you just fixed!)
+--     def StatusCode.print_status() {
+--         printiln(777)         -- Local shadow of the method!
+--     } 
+--     code.print_status()       -- Expected: 777 (Must call the local version)
+
+  
+
+--     def calculate_dmg(power: i32, armor: i32): i32 {
+--         -- Uses local constant `hidden_multiplier` and global `GLOBAL_BUFF`
+--         ((power * 3) + GLOBAL_BUFF) - armor
+--     }
+
+--     -- E. Struct Instantiation with Hard Aliases & Out-of-Order Configs
+--     player := Player.new()
+--     boss := Boss.new()
+
+--     -- F. Structural Methods (Duck Typing) & Pointer Mutation
+--     -- `player` and `boss` both use the generic `buff_hp` and `take_damage` methods!
+--     player.buff_hp(50)
+--     boss.buff_hp(100)
+    
+--     -- -- G. Execute Combat!
+--     -- dmg := calculate_dmg(player.power, boss.armor) -- (15 * 3) + 10 - 5 = 50
+--     -- boss.take_damage(dmg)                          -- 600 - 50 = 550
+
+--     -- -- Verify final states
+--     -- printiln(player.hp as i32) -- Expected: 1050 (1000 + 50)
+--     -- printiln(boss.hp)          -- Expected: 550  (500 + 100 - 50)
+-- }
+
+
+-- -- =====================================================================
+-- -- 3. HARD TYPE ALIASES
+-- -- =====================================================================
+-- def StatusCode i32
+-- def HealthPoint i32
+
+-- -- Global Method for Hard Alias
+-- def StatusCode.print_status() {
+--     printiln(404)
+-- }
+
+
+-- -- =====================================================================
+-- -- 4. STRUCTS & DUCK TYPING (Trait-like behavior)
+-- -- =====================================================================
+-- def Player [
+--     id: StatusCode,     -- Field using Hard Alias
+--     hp: HealthPoint,    -- Field using Hard Alias
+--     power: i32
+-- ]
+
+-- def Boss [
+--     hp: i32,            -- Normal i32 (testing duck typing compatibility)
+--     armor: i32,
+--     is_active: bool
+-- ]
+
+
+-- -- =====================================================================
+-- -- 5. METHODS & MUTATION 
+-- -- =====================================================================
+-- def Player.new(): Player {
+--     [
+--         id: INITIAL_ID as StatusCode, 
+--         hp: STARTING_HP as HealthPoint, 
+--         power: BASE_POWER
+--     ] as Player
+-- } 
+
+-- def Boss.new(): Boss {
+--     [
+--         hp: ENEMY_STATS[0], 
+--         armor: ENEMY_STATS[1], 
+--         is_active: true
+--     ] as Boss
+-- }
+
+-- -- "Duck typed" method: Accepts ANY struct with an `hp` field via pointer
+-- def buff_hp(self: &[hp: i32], amount: i32) {
+--     self.hp = self.hp + amount
+-- }
+
+-- -- "Duck typed" method: Accepts ANY struct with an `hp` field via pointer
+-- def take_damage(self: &[hp: i32], dmg: i32) {
+--     self.hp = self.hp - dmg
+-- }
+
+
+-- -- =====================================================================
+-- -- 6. TANGLED GLOBAL CONSTANTS AND ARRAYS (Circular Dependency Checks)
+-- -- =====================================================================
+-- def STARTING_HP 1000
+-- def BASE_POWER MAGIC_CONFIG[0] + 5  -- 10 + 5 = 15
+-- def INITIAL_ID 200
+
+-- def GLOBAL_BUFF 10
+
+-- def ENEMY_STATS [
+--     500, -- Base HP
+--     5    -- Base Armor
+-- ]
+
+-- -- -- Array depending on a function evaluated at compile-time/runtime
+-- def MAGIC_CONFIG [
+--     10,
+--     CALC_MAGIC()
+-- ]
+
+-- def CALC_MAGIC(): i32 {
+--     42
+-- }
+----------------------------------------------------
+
+def print (i: i32)      _
+def abs   (n: i32): i32 _
+
+-- i := 0
+
+-- while i < 100_000_000_000 {
+   
+--     i = i + 1
+-- }
+ print(abs(-3))
+-- print(PI)

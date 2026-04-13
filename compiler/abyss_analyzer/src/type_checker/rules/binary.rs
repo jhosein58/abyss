@@ -187,8 +187,8 @@ pub fn check_binary<'a>(
         // --- Assignment (=) ---
         BinaryOp::Assign => {
             if is_assignable(tc, &left_ty, &right_ty) {
-                if let TypedExprKind::Ident(ref name) = typed_left.kind {
-                    if let Err(e) = tc.ctx.assign(name) {
+                if let ExprKind::Ident(ref original_name) = left_expr.kind {
+                    if let Err(e) = tc.ctx.assign(original_name) {
                         tc.report_error(left_expr.span.clone(), e);
                         return error_expr(span, id);
                     }
@@ -220,8 +220,8 @@ pub fn check_binary<'a>(
         | BinaryOp::AssignShl
         | BinaryOp::AssignShr => {
             if left_ty == right_ty && is_numeric(&left_ty) {
-                if let TypedExprKind::Ident(ref name) = typed_left.kind {
-                    if let Err(e) = tc.ctx.assign(name) {
+                if let ExprKind::Ident(ref original_name) = left_expr.kind {
+                    if let Err(e) = tc.ctx.assign(original_name) {
                         tc.report_error(left_expr.span.clone(), e);
                         return error_expr(span, id);
                     }

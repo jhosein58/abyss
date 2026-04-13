@@ -9,6 +9,7 @@ use crate::type_checker::{
     engine::{TypeChecker, error_expr},
     method_registry::MethodRegistry,
 };
+
 pub fn check_member<'a>(
     tc: &mut TypeChecker<'a>,
     base_expr: &'a Expr,
@@ -27,6 +28,23 @@ pub fn check_member<'a>(
         let type_mangled_name = target_type.mangled_name();
         let mangled_method_name =
             MethodRegistry::mangle_method_name(&type_mangled_name, field_name);
+
+        if let Some(info) = tc.ctx.lookup(&mangled_method_name).cloned() {
+            let mut final_ty = info.ty.clone();
+
+            if final_ty == Type::Infer && tc.resolver.contains(&mangled_method_name) {
+                if let Some(resolved_ty) = tc.resolve_global(&mangled_method_name, span.clone()) {
+                    final_ty = resolved_ty;
+                }
+            }
+
+            return TypedExpr {
+                kind: TypedExprKind::Ident(info.ir_name.clone()),
+                ty: final_ty,
+                span,
+                id,
+            };
+        }
 
         if let Some(func_ty) = tc.resolver.get_resolved_type(&mangled_method_name) {
             return TypedExpr {
@@ -67,30 +85,32 @@ pub fn check_member<'a>(
         let mangled_method_name =
             MethodRegistry::mangle_method_name(&type_mangled_name, field_name);
 
-        if let Some(func_ty) = tc.resolver.get_resolved_type(&mangled_method_name) {
+        if let Some(info) = tc.ctx.lookup(&mangled_method_name).cloned() {
             return TypedExpr {
                 kind: TypedExprKind::BoundMethod {
-                    receiver: Box::new(typed_base),
-                    method_name: mangled_method_name,
+                    receiver: Box::new(typed_base.clone()),
+                    method_name: info.ir_name.clone(),
                 },
-                ty: func_ty,
+                ty: info.ty.clone(),
                 span,
                 id,
             };
         }
 
-        if tc.resolver.contains(&mangled_method_name) {
-            if let Some(func_ty) = tc.resolve_global(&mangled_method_name, span.clone()) {
-                return TypedExpr {
-                    kind: TypedExprKind::BoundMethod {
-                        receiver: Box::new(typed_base),
-                        method_name: mangled_method_name,
-                    },
-                    ty: func_ty,
-                    span,
-                    id,
-                };
-            }
+        let new_id = tc.next_id();
+        if let Some((template, _param_index, _match_info)) = tc
+            .template_registry
+            .find_compatible_method(field_name, &current_lookup_type)
+        {
+            return TypedExpr {
+                id: new_id,
+                ty: template.func_type.clone(),
+                kind: TypedExprKind::BoundMethod {
+                    receiver: Box::new(typed_base.clone()),
+                    method_name: template.ir_name.clone(),
+                },
+                span,
+            };
         }
 
         if let Type::Alias(_, inner) = current_lookup_type {
@@ -121,6 +141,30 @@ pub fn check_member<'a>(
                     id,
                 };
             }
+        }
+    }
+
+    if let Some(info) = tc.ctx.lookup(field_name).cloned() {
+        let mut final_ty = info.ty.clone();
+
+        if final_ty == Type::Infer && tc.resolver.contains(field_name) {
+            if let Some(resolved_ty) = tc.resolve_global(field_name, span.clone()) {
+                final_ty = resolved_ty;
+            }
+        }
+
+        let is_callable = matches!(final_ty.peel_pointers(), Type::Signature(_, _, _));
+
+        if is_callable {
+            return TypedExpr {
+                kind: TypedExprKind::BoundMethod {
+                    receiver: Box::new(typed_base),
+                    method_name: info.ir_name.clone(),
+                },
+                ty: final_ty,
+                span,
+                id,
+            };
         }
     }
 
