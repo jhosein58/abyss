@@ -1,6 +1,6 @@
 use abyss_parser::ast::Expr;
 use abyss_types::{tast::TypedExpr, types::Type};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InlinePolicy {
@@ -29,6 +29,7 @@ pub enum GlobalDefState<'a> {
 pub struct GlobalResolver<'a> {
     definitions: HashMap<String, GlobalDefState<'a>>,
     resolved_order: Vec<String>,
+    global_node_ids: HashSet<u32>,
 }
 
 impl<'a> GlobalResolver<'a> {
@@ -36,11 +37,17 @@ impl<'a> GlobalResolver<'a> {
         Self {
             definitions: HashMap::new(),
             resolved_order: Vec::new(),
+            global_node_ids: HashSet::new(),
         }
     }
     pub fn register(&mut self, name: String, expr: &'a Expr) {
         self.definitions
             .insert(name, GlobalDefState::Unresolved(expr));
+        self.global_node_ids.insert(expr.id);
+    }
+
+    pub fn is_global_id(&self, id: u32) -> bool {
+        self.global_node_ids.contains(&id)
     }
 
     pub fn begin_resolve(&mut self, name: &str) -> Option<&'a Expr> {

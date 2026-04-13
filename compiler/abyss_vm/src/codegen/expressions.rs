@@ -12,9 +12,6 @@ impl IrCompiler {
             IrExprKind::Unary(op, inner) => self.compile_unary(env, op, inner, target),
             IrExprKind::Binary(l, op, r) => self.compile_binary(env, l, op, r, &expr.ty, target),
             IrExprKind::Call { func_name, args } => self.compile_call(env, func_name, args, target),
-            IrExprKind::NativeCall { func_index, args } => {
-                self.compile_native_call(env, *func_index, args, target)
-            }
 
             IrExprKind::ArrayInit(elements) => self.compile_array_init(env, elements, target),
             IrExprKind::ArrayRepeat { val, count } => {
@@ -572,14 +569,31 @@ impl IrCompiler {
         args: &[IrExpr],
         target: Option<u8>,
     ) -> u8 {
+        if let Some(&ext_idx) = self.extern_indices.get(func_name) {
+            let arg_start_reg = env.next_reg;
+            env.next_reg += args.len() as u8;
+
+            for (i, arg) in args.iter().enumerate() {
+                let target_reg = arg_start_reg + (i as u8);
+                self.compile_expr(env, arg, Some(target_reg));
+            }
+
+            let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
+            self.emit(Instruction {
+                op: OpCode::CallNative,
+                a: dest_reg,
+                b: ext_idx,
+                c: arg_start_reg,
+            });
+            return dest_reg;
+        }
+
         let frame_offset = env.next_reg;
         env.next_reg += args.len() as u8;
 
         for (i, arg) in args.iter().enumerate() {
             let target_reg = frame_offset + (i as u8);
-
             let arg_val_reg = self.compile_expr(env, arg, None);
-
             let final_arg_reg = self.copy_if_complex(env, arg_val_reg, &arg.ty);
 
             self.emit(Instruction {
@@ -598,31 +612,6 @@ impl IrCompiler {
             a: dest_reg,
             b: r_addr,
             c: frame_offset,
-        });
-        dest_reg
-    }
-
-    fn compile_native_call(
-        &mut self,
-        env: &mut Env,
-        func_index: usize,
-        args: &[IrExpr],
-        target: Option<u8>,
-    ) -> u8 {
-        let arg_start_reg = env.next_reg;
-        env.next_reg += args.len() as u8;
-
-        for (i, arg) in args.iter().enumerate() {
-            let target_reg = arg_start_reg + (i as u8);
-            self.compile_expr(env, arg, Some(target_reg));
-        }
-
-        let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
-        self.emit(Instruction {
-            op: OpCode::CallNative,
-            a: dest_reg,
-            b: func_index as u8,
-            c: arg_start_reg,
         });
         dest_reg
     }

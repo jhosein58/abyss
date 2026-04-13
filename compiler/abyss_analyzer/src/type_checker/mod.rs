@@ -3,3 +3,4 @@ pub mod engine;
 pub mod method_registry;
 pub mod resolver;
 pub mod rules;
+pub mod template;

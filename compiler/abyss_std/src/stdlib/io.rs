@@ -14,6 +14,19 @@ pub fn abyss_print(vm: &mut AbyssVm, args: &[u64]) -> u64 {
     0
 }
 
+pub fn abyss_println(vm: &mut AbyssVm, args: &[u64]) -> u64 {
+    let ptr = args[0];
+
+    let mut string_value = vm.read_c_string(ptr);
+    string_value.push_str("\n");
+
+    print!("{}", string_value);
+    let _ = io::stdout().flush();
+    vm.out.push_str(&string_value);
+
+    0
+}
+
 pub fn abyss_printi(vm: &mut AbyssVm, args: &[u64]) -> u64 {
     let v = format!("{}", args[0] as i64);
 

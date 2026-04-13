@@ -14,6 +14,8 @@ pub struct IrCompiler {
     pub func_const_indices: HashMap<String, u8>,
     pub global_indices: HashMap<String, u16>,
     pub break_targets: Vec<Vec<usize>>,
+    pub extern_functions: Vec<String>,
+    pub extern_indices: HashMap<String, u8>,
 }
 
 impl IrCompiler {
@@ -24,6 +26,8 @@ impl IrCompiler {
             func_const_indices: HashMap::new(),
             global_indices: HashMap::new(),
             break_targets: Vec::new(),
+            extern_functions: Vec::new(),
+            extern_indices: HashMap::new(),
         }
     }
 
@@ -72,13 +76,17 @@ impl IrCompiler {
         r
     }
 
-    pub fn compile(mut self, program: &IrProgram) -> (Vec<Instruction>, Vec<u64>) {
+    pub fn compile(mut self, program: &IrProgram) -> (Vec<Instruction>, Vec<u64>, Vec<String>) {
         for (i, (name, _, _)) in program.globals.iter().enumerate() {
             self.global_indices.insert(name.clone(), i as u16);
         }
 
         for func in &program.functions {
-            if !func.is_native {
+            if func.body.is_none() {
+                let idx = self.extern_functions.len() as u8;
+                self.extern_functions.push(func.name.clone());
+                self.extern_indices.insert(func.name.clone(), idx);
+            } else {
                 let idx = self.constants.len() as u8;
                 self.constants.push(0);
                 self.func_const_indices.insert(func.name.clone(), idx);
@@ -109,9 +117,10 @@ impl IrCompiler {
         }
 
         for func in &program.functions {
-            if func.is_native {
-                continue;
-            }
+            let body = match &func.body {
+                Some(b) => b,
+                None => continue,
+            };
 
             let func_ip = self.instructions.len() as u64;
             let const_idx = self.func_const_indices[&func.name];
@@ -137,7 +146,7 @@ impl IrCompiler {
                 env.declare_var(param_name.clone());
             }
 
-            for stmt in &func.body {
+            for stmt in body {
                 self.compile_stmt(&mut env, stmt);
             }
 
@@ -150,7 +159,7 @@ impl IrCompiler {
             });
         }
 
-        (self.instructions, self.constants)
+        (self.instructions, self.constants, self.extern_functions)
     }
 
     pub fn compile_chunk(&mut self, program: &IrProgram, is_thunk: bool) -> usize {
@@ -162,13 +171,18 @@ impl IrCompiler {
         }
 
         for func in &program.functions {
-            if !func.is_native {
+            if func.body.is_none() {
+                if !self.extern_indices.contains_key(&func.name) {
+                    let idx = self.extern_functions.len() as u8;
+                    self.extern_functions.push(func.name.clone());
+                    self.extern_indices.insert(func.name.clone(), idx);
+                }
+            } else if !self.func_const_indices.contains_key(&func.name) {
                 let idx = self.constants.len() as u8;
                 self.constants.push(0);
                 self.func_const_indices.insert(func.name.clone(), idx);
             }
         }
-
         let mut thunk_start_ip = 0;
 
         if is_thunk {
@@ -196,9 +210,10 @@ impl IrCompiler {
         }
 
         for func in &program.functions {
-            if func.is_native {
-                continue;
-            }
+            let body = match &func.body {
+                Some(b) => b,
+                None => continue,
+            };
 
             let func_ip = self.instructions.len() as u64;
             let const_idx = self.func_const_indices[&func.name];
@@ -224,7 +239,7 @@ impl IrCompiler {
                 env.declare_var(param_name.clone());
             }
 
-            for stmt in &func.body {
+            for stmt in body {
                 self.compile_stmt(&mut env, stmt);
             }
 

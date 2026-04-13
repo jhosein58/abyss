@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use abyss_parser::ast::{BinaryOp, Lit, UnaryOp};
 use abyss_types::{
     tast::{TypedExpr, TypedExprKind, TypedProgram},
@@ -21,18 +19,18 @@ struct LoopContext {
 
 pub struct IrBuilder {
     temp_counter: usize,
-    native_function_map: HashMap<String, usize>,
     loop_contexts: Vec<LoopContext>,
     pub encoder: TypeEncoder,
+    pub collected_functions: Vec<IrFunction>,
 }
 
 impl IrBuilder {
     pub fn new() -> Self {
         Self {
             temp_counter: 0,
-            native_function_map: HashMap::new(),
             loop_contexts: Vec::new(),
             encoder: TypeEncoder::new(),
+            collected_functions: Vec::new(),
         }
     }
 
@@ -50,15 +48,13 @@ impl IrBuilder {
         }
     }
 
-    pub fn register_native(&mut self, name: &str, index: usize) {
-        self.native_function_map.insert(name.to_string(), index);
-    }
-
     pub fn build_single_function(&mut self, expr: TypedExpr) -> Option<IrProgram> {
         if let Some(ir_func) = self.build_function(expr) {
+            let mut functions = vec![ir_func];
+            functions.extend(self.collected_functions.drain(..));
             Some(IrProgram {
                 globals: Vec::new(),
-                functions: vec![ir_func],
+                functions,
             })
         } else {
             None
@@ -73,7 +69,10 @@ impl IrBuilder {
         let mut globals_ir = Vec::new();
 
         for (name, global_expr) in globals {
-            if !matches!(global_expr.kind, TypedExprKind::FunctionDef { .. }) {
+            if !matches!(
+                global_expr.kind,
+                TypedExprKind::FunctionDef { .. } | TypedExprKind::Type(_)
+            ) {
                 let (_, value_ir) = self.lower_expr(global_expr.clone());
                 globals_ir.push((name.clone(), value_ir.ty.clone(), value_ir));
             }
@@ -95,15 +94,18 @@ impl IrBuilder {
 
         self.temp_counter = prev_counter;
 
+        let mut functions = vec![IrFunction {
+            name: "thunk_main".to_string(),
+            params: vec![],
+            return_ty: expected_return_ty,
+            body: Some(main_body),
+        }];
+
+        functions.extend(self.collected_functions.drain(..));
+
         IrProgram {
             globals: globals_ir,
-            functions: vec![IrFunction {
-                name: "thunk_main".to_string(),
-                params: vec![],
-                return_ty: expected_return_ty,
-                body: main_body,
-                is_native: false,
-            }],
+            functions,
         }
     }
 
@@ -124,7 +126,7 @@ impl IrBuilder {
         for (name, global_expr) in program.globals.clone() {
             if let Some(ir_func) = self.build_function(global_expr.clone()) {
                 functions.push(ir_func);
-            } else {
+            } else if !matches!(global_expr.kind, TypedExprKind::Type(_)) {
                 let (_, value_ir) = self.lower_expr(global_expr);
                 globals_ir.push((name.clone(), value_ir.ty.clone(), value_ir));
             }
@@ -134,19 +136,25 @@ impl IrBuilder {
 
         if let TypedExprKind::Block(stmts) = program.body.kind {
             for stmt in stmts {
+                if matches!(stmt.kind, TypedExprKind::Def(_, _)) {
+                    continue;
+                }
                 main_body.extend(self.lower_stmt(stmt));
             }
         } else {
-            main_body.extend(self.lower_stmt(program.body));
+            if !matches!(program.body.kind, TypedExprKind::Def(_, _)) {
+                main_body.extend(self.lower_stmt(program.body));
+            }
         }
 
         functions.push(IrFunction {
             name: "main".to_string(),
             params: vec![],
             return_ty: IrType::Unit,
-            body: main_body,
-            is_native: false,
+            body: Some(main_body),
         });
+
+        functions.extend(self.collected_functions.drain(..));
 
         IrProgram {
             globals: globals_ir,
@@ -175,8 +183,10 @@ impl IrBuilder {
 
             self.temp_counter = 0;
 
-            let mut ir_body = Vec::new();
-            if !is_native {
+            let final_body = if is_native {
+                None
+            } else {
+                let mut ir_body = Vec::new();
                 let (body_stmts, final_expr) = self.lower_expr(*body);
                 ir_body.extend(body_stmts);
 
@@ -191,14 +201,14 @@ impl IrBuilder {
                         ir_body.push(IrStmt::Return(Some(final_expr)));
                     }
                 }
-            }
+                Some(ir_body)
+            };
 
             return Some(IrFunction {
                 name,
                 params: ir_params,
                 return_ty: self.lower_type(&ret_ty),
-                body: ir_body,
-                is_native,
+                body: final_body,
             });
         }
         None
@@ -310,17 +320,6 @@ impl IrBuilder {
             }
 
             TypedExprKind::Def(_name, value_expr) => {
-                // let (value_stmts, value_ir) = self.lower_expr(*value_expr);
-                // generated_stmts.extend(value_stmts);
-
-                // let value_ty = value_ir.ty.clone();
-
-                // generated_stmts.push(IrStmt::ConstDef {
-                //     name,
-                //     ty: value_ty,
-                //     value: value_ir,
-                // });
-                //
                 let (value_stmts, _value_ir) = self.lower_expr(*value_expr);
                 generated_stmts.extend(value_stmts);
             }
@@ -343,6 +342,17 @@ impl IrBuilder {
         let mut generated_stmts = Vec::new();
 
         let kind = match expr.kind {
+            TypedExprKind::FunctionDef { .. } => {
+                let saved_temp = self.temp_counter;
+
+                if let Some(ir_func) = self.build_function(expr.clone()) {
+                    self.collected_functions.push(ir_func);
+                }
+
+                self.temp_counter = saved_temp;
+                return (generated_stmts, self.unit_expr(span));
+            }
+
             TypedExprKind::Lit(lit) => IrExprKind::Lit(self.lower_lit(lit)),
 
             TypedExprKind::Ident(name) | TypedExprKind::FuncRef(name) => IrExprKind::VarRef(name),
@@ -531,7 +541,7 @@ impl IrBuilder {
                 IrExprKind::Binary(Box::new(left_val), ir_op, Box::new(right_val))
             }
 
-            TypedExprKind::Call(func, args, is_native) => {
+            TypedExprKind::Call(func, args, _) => {
                 let func_name = match func.kind {
                     TypedExprKind::Ident(name) | TypedExprKind::FuncRef(name) => name,
                     _ => panic!("Dynamic dispatch not supported."),
@@ -543,19 +553,10 @@ impl IrBuilder {
                     generated_stmts.extend(arg_stmts);
                     ir_args.push(arg_val);
                 }
-                if is_native {
-                    let func_index = *self.native_function_map.get(&func_name).expect(
-                        &format!("IR Builder: Native function '{}' not found in map. This is a compiler bug.", func_name)
-                    );
-                    IrExprKind::NativeCall {
-                        func_index,
-                        args: ir_args,
-                    }
-                } else {
-                    IrExprKind::Call {
-                        func_name,
-                        args: ir_args,
-                    }
+
+                IrExprKind::Call {
+                    func_name,
+                    args: ir_args,
                 }
             }
 
@@ -768,7 +769,6 @@ impl IrBuilder {
                 if let Some(val_expr) = val_opt {
                     let (val_stmts, val_ir) = self.lower_expr(*val_expr);
                     generated_stmts.extend(val_stmts);
-
                     if !ctx.is_void {
                         generated_stmts.push(IrStmt::Assign {
                             target: ctx.result_var.clone(),
@@ -776,7 +776,6 @@ impl IrBuilder {
                         });
                     }
                 }
-
                 generated_stmts.push(IrStmt::Assign {
                     target: ctx.break_flag_var.clone(),
                     val: IrExpr {
@@ -785,33 +784,25 @@ impl IrBuilder {
                         span: span.clone(),
                     },
                 });
-
                 generated_stmts.push(IrStmt::Break);
-
                 return (generated_stmts, self.unit_expr(span));
             }
-
             TypedExprKind::Def(name, value_expr) => {
                 let (value_stmts, value_ir) = self.lower_expr(*value_expr);
                 generated_stmts.extend(value_stmts);
-
                 let value_ty = value_ir.ty.clone();
-
                 generated_stmts.push(IrStmt::ConstDef {
                     name,
                     ty: value_ty,
                     value: value_ir,
                 });
-
                 return (generated_stmts, self.unit_expr(span));
             }
-
-            TypedExprKind::SequenceInit(elements) => match &expr.ty {
+            TypedExprKind::SequenceInit(elements) => match &expr.ty.underlying_type() {
                 Type::Array(_, array_len) => {
                     if elements.len() == 1 && *array_len > 1 {
                         let (elem_stmts, elem_val) = self.lower_expr(elements[0].expr.clone());
                         generated_stmts.extend(elem_stmts);
-
                         IrExprKind::ArrayRepeat {
                             val: Box::new(elem_val),
                             count: *array_len,
@@ -823,7 +814,6 @@ impl IrBuilder {
                             generated_stmts.extend(el_stmts);
                             ir_elements.push(el_val);
                         }
-
                         IrExprKind::ArrayInit(ir_elements)
                     }
                 }
@@ -838,20 +828,15 @@ impl IrBuilder {
                 }
                 _ => panic!("IR Builder: SequenceInit expects an Array or Struct type."),
             },
-
             TypedExprKind::Index(target_expr, index_expr) => {
                 let (target_stmts, target_val) = self.lower_expr(*target_expr);
                 generated_stmts.extend(target_stmts);
-
                 let (index_stmts, index_val) = self.lower_expr(*index_expr);
                 generated_stmts.extend(index_stmts);
-
                 IrExprKind::Index(Box::new(target_val), Box::new(index_val))
             }
-
             TypedExprKind::FieldAccess(base_expr, field_name) => {
                 let base_ty = base_expr.ty.underlying_type();
-
                 let field_index = match &base_ty {
                     Type::Struct(fields) => fields
                         .iter()
@@ -859,22 +844,18 @@ impl IrBuilder {
                         .expect("IR Builder: Struct field not found"),
                     _ => panic!("IR Builder: Field access on non-struct type"),
                 };
-
                 let (base_stmts, base_val) = self.lower_expr(*base_expr);
                 generated_stmts.extend(base_stmts);
-
                 IrExprKind::FieldAccess {
                     base: Box::new(base_val),
                     index: field_index,
                 }
             }
-
             TypedExprKind::Cast(source, _target) => {
                 let (source_stmts, source_val) = self.lower_expr(*source);
                 generated_stmts.extend(source_stmts);
                 IrExprKind::Cast(Box::new(source_val), ir_ty.clone())
             }
-
             _ => panic!("Unexpected expression kind: {:?}", expr.kind),
         };
 

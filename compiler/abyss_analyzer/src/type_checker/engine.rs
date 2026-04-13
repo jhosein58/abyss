@@ -24,6 +24,7 @@ use crate::type_checker::rules::prefix::{check_cmpt, check_def, check_ret};
 use crate::type_checker::rules::sequence::check_sequence;
 use crate::type_checker::rules::signature::check_signature;
 use crate::type_checker::rules::unary::check_unary;
+use crate::type_checker::template::registry::TemplateRegistry;
 
 pub enum DefTarget {
     Global(String),
@@ -37,6 +38,7 @@ pub struct TypeChecker<'a> {
     pub ctx: TypeContext,
     pub type_registry: TypeRegistry,
     pub method_registry: MethodRegistry,
+    pub template_registry: TemplateRegistry,
     pub resolver: GlobalResolver<'a>,
     pub diagnostics: &'a mut DiagnosticEngine,
     pub anon_func_counter: usize,
@@ -53,6 +55,7 @@ impl<'a> TypeChecker<'a> {
             ctx: TypeContext::new(),
             type_registry: TypeRegistry::new(),
             method_registry: MethodRegistry::new(),
+            template_registry: TemplateRegistry::new(),
             resolver: GlobalResolver::new(),
             diagnostics,
             anon_func_counter: 0,
@@ -104,11 +107,6 @@ impl<'a> TypeChecker<'a> {
             }
             ExprKind::Def(target_expr, _) => {
                 if let ExprKind::Member(base, field_name) = &target_expr.kind {
-                    println!(
-                        "[GATHER] Trying to check_expr for base of member: {}",
-                        field_name
-                    );
-
                     let checked_base = self.check_expr(base);
                     let type_name = self.evaluate_as_type(checked_base).mangled_name();
 
@@ -155,40 +153,33 @@ impl<'a> TypeChecker<'a> {
     }
 
     pub fn resolve_global(&mut self, name: &str, span: Span) -> Option<Type> {
-        // =====================================
-        println!("-> [RESOLVE_GLOBAL] Start: {}", name);
-        // =====================================
-
         if let Some(ty) = self.resolver.get_resolved_type(name) {
             return Some(ty);
         }
 
         if self.resolver.is_resolving(name) {
-            let cycle: Vec<String> = self
+            let mut cycle: Vec<String> = self
                 .resolve_stack
                 .iter()
                 .skip_while(|n| *n != name)
                 .cloned()
                 .collect();
+
+            cycle.push(name.to_string());
+
             self.report_error(
                 span,
-                format!(
-                    "Circular dependency detected: {} -> {}",
-                    cycle.join(" -> "),
-                    name
-                ),
+                format!("Circular dependency detected: {}", cycle.join(" -> ")),
             );
             return None;
         }
 
         let expr = self.resolver.begin_resolve(&name)?;
-        // =====================================
-        println!("   [RESOLVE_GLOBAL] Checking expr for: {}", name);
-        // =====================================
+        self.resolve_stack.push(name.to_string());
+
         let typed_expr = self.check_expr(expr);
-        // =====================================
-        println!("   [RESOLVE_GLOBAL] Checking expr for: {}", name);
-        // =====================================
+        self.resolve_stack.pop();
+
         Some(typed_expr.ty)
     }
 
@@ -220,10 +211,6 @@ impl<'a> TypeChecker<'a> {
     }
 
     pub fn check_expr(&mut self, expr: &'a Expr) -> TypedExpr {
-        // =====================================
-        println!("==> [CHECK_EXPR] Visiting node ID: {}", expr.id);
-        // =====================================
-
         match &expr.kind {
             ExprKind::Attributed(attributes, inner_expr) => {
                 let old_attrs =
@@ -308,15 +295,17 @@ impl<'a> TypeChecker<'a> {
 
     pub fn check_program(&mut self, prog: &'a Program) -> TypedProgram {
         self.gather_declarations(&prog.body);
-
         let body = self.check_expr(&prog.body);
 
         let resolved = self.resolver.drain_resolved();
-
-        let globals: Vec<(String, TypedExpr)> = resolved
+        let mut globals: Vec<(String, TypedExpr)> = resolved
             .into_iter()
             .map(|(name, (_, typed_expr))| (name, typed_expr))
             .collect();
+
+        for instance in self.template_registry.drain_instances() {
+            globals.push((instance.ir_name.clone(), instance.typed_def));
+        }
 
         TypedProgram { body, globals }
     }

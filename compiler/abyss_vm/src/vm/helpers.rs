@@ -85,7 +85,7 @@ pub fn execute_comptime(ir_prog: IrProgram) -> IrLit {
 
     let compiler = IrCompiler::new();
 
-    let (instructions, constants) = compiler.compile(&ir_prog);
+    let (instructions, constants, _extern_funcs) = compiler.compile(&ir_prog);
 
     let mut vm = AbyssVm::new(instructions, constants);
 

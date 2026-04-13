@@ -28,14 +28,14 @@ impl ComptimeEngine {
 
     pub fn register_native_with_index(
         &mut self,
-        name: &str,
-        index: usize,
+        _name: &str,
+        _index: usize,
         arity: u8,
         func: NativeFunction,
     ) {
         self.vm.register_native(arity, func);
 
-        self.builder.register_native(name, index);
+        // self.builder.register_native(name, index);
     }
 
     pub fn register_global(&mut self, name: String, mut expr: TypedExpr) {
@@ -74,13 +74,6 @@ impl ComptimeEngine {
         span: abyss_diagnostics::Span,
         id: u32,
     ) -> TypedExpr {
-        // =====================================
-        println!(
-            ">>> [RECONSTRUCT] Type: {:?}, Raw Val (Ptr/Value): {}",
-            expected_ty, raw_val
-        );
-        // =====================================
-
         match expected_ty {
             Type::I32 | Type::Metatype => TypedExpr {
                 kind: TypedExprKind::Lit(Lit::Int(raw_val as i64)),
@@ -109,21 +102,10 @@ impl ComptimeEngine {
 
             Type::Array(inner_ty, len) => {
                 let ptr = raw_val as usize;
-                // =====================================
-                println!(
-                    ">>> [RECONSTRUCT] Array detected! Expected Len: {}, Pointer: {}",
-                    len, ptr
-                );
-                // =====================================
+
                 let mut elements = Vec::new();
 
                 for i in 0..*len {
-                    // =====================================
-                    println!(
-                        ">>> [RECONSTRUCT] Array - Reading heap at ptr: {}, offset: {}",
-                        ptr, i
-                    );
-                    // =====================================
                     let elem_raw = self.vm.read_heap_u64(ptr, i);
                     let elem_expr = self.reconstruct_value(elem_raw, inner_ty, span.clone(), id);
 
@@ -176,26 +158,13 @@ impl ComptimeEngine {
         let span = expr.span.clone();
         let id = expr.id;
 
-        // =====================================
-        println!(">>> [COMPTIME] Starting evaluate_expr for node ID: {}", id);
-        // =====================================
-
         let compiler_inst_count = self.compiler.instructions.len();
         let compiler_const_count = self.compiler.constants.len();
 
-        // =====================================
-        println!(">>> [COMPTIME] Building thunk program...");
-        // =====================================
         let ir_prog = self.builder.build_thunk_program(expr, &self.globals_cache);
 
-        // =====================================
-        println!(">>> [COMPTIME] Thunk built. Compiling chunk...");
-        // =====================================
         let thunk_start_ip = self.compiler.compile_chunk(&ir_prog, true);
 
-        // =====================================
-        println!(">>> [COMPTIME] Chunk compiled. Injecting to VM...");
-        // =====================================
         let vm_saved_ip = self
             .vm
             .inject_instructions(&self.compiler.instructions[compiler_inst_count..]);
@@ -208,24 +177,14 @@ impl ComptimeEngine {
             self.vm.globals.resize(required_globals, 0);
         }
 
-        // =====================================
-        println!(">>> [COMPTIME] Running VM thunk at IP: {}", thunk_start_ip);
-        // =====================================
         let raw_result = self.vm.run_thunk(thunk_start_ip).unwrap_or(0);
 
-        // =====================================
-        println!(">>> [COMPTIME] VM finished. Raw result: {}", raw_result);
-        println!(">>> [COMPTIME] Rewinding state...");
-        // =====================================
         self.vm.rewind_state(vm_saved_ip, vm_saved_const);
         self.compiler
             .rewind(compiler_inst_count, compiler_const_count);
 
         let base_ty = expected_ty.underlying_type();
 
-        // =====================================
-        println!(">>> [COMPTIME] Reconstructing output value...");
-        // =====================================
         self.reconstruct_value(raw_result, &base_ty, span, id)
     }
 }

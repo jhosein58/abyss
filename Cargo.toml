@@ -35,6 +35,7 @@ abyss_std = { path = "./compiler/abyss_std" }
 # include_dir = "0.7"
 # tempfile = "3"
 
+inkwell = { path = "third_party/inkwell", features = ["llvm21-1"] }
 
 # [build-dependencies]
 # cc = "1.0"

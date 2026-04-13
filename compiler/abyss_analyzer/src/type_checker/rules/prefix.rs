@@ -1,7 +1,6 @@
 use crate::type_checker::{
     context::SymbolInfo,
     engine::{TypeChecker, error_expr},
-    method_registry::MethodRegistry,
     resolver::{GlobalMetadata, InlinePolicy},
     rules::signature::check_signature,
 };
@@ -11,29 +10,6 @@ use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
 };
-
-pub fn check_ret<'a>(
-    tc: &mut TypeChecker<'a>,
-    val: &'a Option<Box<Expr>>,
-    span: Span,
-    id: u32,
-) -> TypedExpr {
-    let (checked_val, ret_ty) = match val {
-        Some(inner_expr) => {
-            let checked = tc.check_expr(inner_expr);
-            let ty = checked.ty.clone();
-            (Some(Box::new(checked)), ty)
-        }
-        None => (None, Type::Unit),
-    };
-
-    TypedExpr {
-        kind: TypedExprKind::Ret(checked_val),
-        ty: ret_ty,
-        span,
-        id,
-    }
-}
 
 pub fn check_def<'a>(
     tc: &mut TypeChecker<'a>,
@@ -49,19 +25,21 @@ pub fn check_def<'a>(
             let type_name = if let ExprKind::Ident(n) = &base.kind {
                 let base_ty = tc.resolve_type_by_name(n, base.span_expr());
                 if base_ty == Type::Error {
-                    return error_expr(span, id);
+                    return crate::type_checker::engine::error_expr(span, id);
                 }
                 n.clone()
             } else {
                 let typed_base = tc.check_expr(base);
                 let base_ty = tc.evaluate_as_type(typed_base);
                 if base_ty == Type::Error {
-                    return error_expr(span, id);
+                    return crate::type_checker::engine::error_expr(span, id);
                 }
                 base_ty.mangled_name()
             };
 
-            MethodRegistry::mangle_method_name(&type_name, field_name)
+            crate::type_checker::method_registry::MethodRegistry::mangle_method_name(
+                &type_name, field_name,
+            )
         }
 
         _ => {
@@ -70,23 +48,14 @@ pub fn check_def<'a>(
                 "Definition target must be an identifier or a `Type.method` expression."
                     .to_string(),
             );
-            return error_expr(span, id);
+            return crate::type_checker::engine::error_expr(span, id);
         }
     };
 
-    if let ExprKind::Signature(ref args, ref ret, ref body) = value_expr.kind {
-        return check_signature(
-            tc,
-            args,
-            ret,
-            body,
-            Some(name),
-            value_expr.span.clone(),
-            value_expr.id,
-        );
-    }
+    let is_global =
+        tc.ctx.is_global_scope() || tc.resolver.is_resolving(&name) || tc.resolver.is_global_id(id);
 
-    if tc.resolver.is_resolved(&name) {
+    if is_global && tc.resolver.is_resolved(&name) {
         if let Some(ty) = tc.resolver.get_resolved_type(&name) {
             if let Some(resolved_expr) = tc.resolver.get_resolved_expr(&name) {
                 return TypedExpr {
@@ -97,6 +66,10 @@ pub fn check_def<'a>(
                 };
             }
         }
+    }
+
+    if let ExprKind::Signature(ref args, ref ret, ref body) = value_expr.kind {
+        return check_signature(tc, args, ret, body, Some(name), value_expr.span.clone(), id);
     }
 
     let mut typed_value = tc.check_expr(value_expr);
@@ -144,7 +117,7 @@ pub fn check_def<'a>(
 
     let mut assigned_ir_name = name.clone();
 
-    if tc.resolver.contains(&name) {
+    if is_global && tc.resolver.contains(&name) {
         let metadata = GlobalMetadata {
             inline_policy: final_inline_policy,
             is_foldable: final_is_foldable,
@@ -157,11 +130,11 @@ pub fn check_def<'a>(
             metadata,
         );
 
-        assigned_ir_name = tc.ctx.define_global(
-            name.clone(),
-            SymbolInfo::constant(name.clone(), final_ty.clone(), final_is_foldable),
-        );
-    } else if !tc.ctx.is_global_scope() {
+        if let Some(info) = tc.ctx.lookup_mut(&name) {
+            assigned_ir_name = info.ir_name.clone();
+            info.is_foldable = final_is_foldable;
+        }
+    } else {
         assigned_ir_name = tc.ctx.define(
             name.clone(),
             SymbolInfo::constant(String::new(), final_ty.clone(), final_is_foldable),
@@ -173,6 +146,29 @@ pub fn check_def<'a>(
     TypedExpr {
         kind: TypedExprKind::Def(assigned_ir_name, Box::new(typed_value)),
         ty: final_ty,
+        span,
+        id,
+    }
+}
+
+pub fn check_ret<'a>(
+    tc: &mut TypeChecker<'a>,
+    val: &'a Option<Box<Expr>>,
+    span: Span,
+    id: u32,
+) -> TypedExpr {
+    let (checked_val, ret_ty) = match val {
+        Some(inner_expr) => {
+            let checked = tc.check_expr(inner_expr);
+            let ty = checked.ty.clone();
+            (Some(Box::new(checked)), ty)
+        }
+        None => (None, Type::Unit),
+    };
+
+    TypedExpr {
+        kind: TypedExprKind::Ret(checked_val),
+        ty: ret_ty,
         span,
         id,
     }
