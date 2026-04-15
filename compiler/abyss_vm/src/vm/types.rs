@@ -1,4 +1,6 @@
-use crate::vm::core::AbyssVm;
+use abyss_ir::ir::IrType;
+use libffi::middle::Cif;
+use std::ffi::c_void;
 
 pub struct CallFrame {
     pub ret_ip: usize,
@@ -6,11 +8,18 @@ pub struct CallFrame {
     pub bp: usize,
 }
 
-pub type NativeFunction = fn(vm: &mut AbyssVm, args: &[u64]) -> u64;
+pub struct ExternFunction {
+    pub name: String,
+    pub ptr: *mut c_void,
+    pub arity: usize,
+    pub cif: Cif,
+}
 
-pub struct RegisteredNative {
-    pub function: NativeFunction,
-    pub arity: u8,
+#[derive(Debug, Clone)]
+pub struct ExternDef {
+    pub name: String,
+    pub arg_types: Vec<IrType>,
+    pub ret_type: IrType,
 }
 
 pub const REG_PTR_TAG: u64 = 1 << 63;

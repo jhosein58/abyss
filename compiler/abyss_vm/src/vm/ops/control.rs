@@ -1,4 +1,10 @@
-use crate::vm::{core::AbyssVm, opcode::Instruction, types::CallFrame};
+use libffi::{low::CodePtr, middle::Arg};
+
+use crate::vm::{
+    core::AbyssVm,
+    opcode::Instruction,
+    types::{CallFrame, REG_PTR_TAG},
+};
 
 #[inline(always)]
 pub fn call(
@@ -21,36 +27,38 @@ pub fn call(
 }
 
 #[inline(always)]
-pub fn call_native(
-    inst: &Instruction,
-    vm: &mut AbyssVm,
-    ip: &mut usize,
-    bp: usize,
-    registers_ptr: *mut u64,
-) {
+pub fn call_extern(inst: &Instruction, vm: &mut AbyssVm, bp: usize, registers_ptr: *mut u64) {
     unsafe {
-        let func_idx = inst.b as usize;
+        let func_idx = (*registers_ptr.add(bp + inst.b as usize)) as usize;
         let arg_start_reg = inst.c;
 
-        vm.ip = *ip;
-        vm.bp = bp;
-
-        let (func, arity) = {
-            let native = &vm.native_funcs[func_idx];
-            (native.function, native.arity as usize)
-        };
+        let extern_func = &vm.extern_funcs[func_idx];
+        let arity = extern_func.arity;
 
         let args_start_abs = bp + arg_start_reg as usize;
-        let mut args = Vec::with_capacity(arity);
+
+        let mut arg_values = [0u64; 16];
+
         for i in 0..arity {
-            args.push(*registers_ptr.add(args_start_abs + i));
+            let raw_val = *registers_ptr.add(args_start_abs + i);
+
+            if (raw_val & REG_PTR_TAG) == 0 && raw_val > 0 && (raw_val as usize) < vm.heap.len() {
+                arg_values[i] = vm.heap.as_mut_ptr().add(raw_val as usize) as u64;
+            } else {
+                arg_values[i] = raw_val;
+            }
         }
 
-        let result = func(vm, &args);
+        let mut ffi_args_buffer = [(); 16].map(|_| Arg::new(&0u64));
+        for i in 0..arity {
+            ffi_args_buffer[i] = Arg::new(&arg_values[i]);
+        }
+
+        let code_ptr = CodePtr::from_ptr(extern_func.ptr as *const _);
+
+        let result: u64 = extern_func.cif.call(code_ptr, &ffi_args_buffer[..arity]);
 
         *registers_ptr.add(bp + inst.a as usize) = result;
-
-        *ip = vm.ip;
     }
 }
 

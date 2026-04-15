@@ -120,6 +120,28 @@ pub struct TypedProgram {
     pub globals: Vec<(String, TypedExpr)>,
 }
 
+impl TypedProgram {
+    pub fn print_tree(&self) {
+        println!("\x1b[1;36mTAST Program Root:\x1b[0m");
+
+        let has_globals = !self.globals.is_empty();
+
+        if has_globals {
+            println!(
+                "├── \x1b[1;34mGlobals\x1b[0m ({} items)",
+                self.globals.len()
+            );
+            for (i, (name, expr)) in self.globals.iter().enumerate() {
+                let is_last_global = i == self.globals.len() - 1;
+                expr.print_recursive("│   ", is_last_global, false, Some(name));
+            }
+        }
+
+        println!("└── \x1b[1;35mBody\x1b[0m");
+        self.body.print_recursive("    ", true, false, None);
+    }
+}
+
 impl TypedExpr {
     pub fn print_tree(&self) {
         println!("\x1b[1;36mTAST Tree Root:\x1b[0m");

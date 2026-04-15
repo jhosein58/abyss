@@ -578,11 +578,22 @@ impl IrCompiler {
                 self.compile_expr(env, arg, Some(target_reg));
             }
 
+            let func_idx_reg = env.alloc_reg();
+
+            let const_idx = self.add_const(ext_idx as u64);
+
+            self.emit(Instruction {
+                op: OpCode::LoadConst,
+                a: func_idx_reg,
+                b: const_idx,
+                c: 0,
+            });
+
             let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
             self.emit(Instruction {
-                op: OpCode::CallNative,
+                op: OpCode::CallExtern,
                 a: dest_reg,
-                b: ext_idx,
+                b: func_idx_reg,
                 c: arg_start_reg,
             });
             return dest_reg;

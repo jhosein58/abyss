@@ -6,7 +6,10 @@ use abyss_ir::ir::{IrProgram, IrType};
 use env::Env;
 use std::collections::HashMap;
 
-use crate::vm::opcode::{Instruction, OpCode};
+use crate::vm::{
+    opcode::{Instruction, OpCode},
+    types::ExternDef,
+};
 
 pub struct IrCompiler {
     pub instructions: Vec<Instruction>,
@@ -14,8 +17,8 @@ pub struct IrCompiler {
     pub func_const_indices: HashMap<String, u8>,
     pub global_indices: HashMap<String, u16>,
     pub break_targets: Vec<Vec<usize>>,
-    pub extern_functions: Vec<String>,
-    pub extern_indices: HashMap<String, u8>,
+    pub extern_functions: Vec<ExternDef>,
+    pub extern_indices: HashMap<String, usize>,
 }
 
 impl IrCompiler {
@@ -76,15 +79,21 @@ impl IrCompiler {
         r
     }
 
-    pub fn compile(mut self, program: &IrProgram) -> (Vec<Instruction>, Vec<u64>, Vec<String>) {
+    pub fn compile(mut self, program: &IrProgram) -> (Vec<Instruction>, Vec<u64>, Vec<ExternDef>) {
         for (i, (name, _, _)) in program.globals.iter().enumerate() {
             self.global_indices.insert(name.clone(), i as u16);
         }
 
         for func in &program.functions {
             if func.body.is_none() {
-                let idx = self.extern_functions.len() as u8;
-                self.extern_functions.push(func.name.clone());
+                let idx = self.extern_functions.len();
+                let arg_types: Vec<IrType> = func.params.iter().map(|(_, ty)| ty.clone()).collect();
+
+                self.extern_functions.push(ExternDef {
+                    name: func.name.clone(),
+                    arg_types,
+                    ret_type: func.return_ty.clone(),
+                });
                 self.extern_indices.insert(func.name.clone(), idx);
             } else {
                 let idx = self.constants.len() as u8;
@@ -173,8 +182,15 @@ impl IrCompiler {
         for func in &program.functions {
             if func.body.is_none() {
                 if !self.extern_indices.contains_key(&func.name) {
-                    let idx = self.extern_functions.len() as u8;
-                    self.extern_functions.push(func.name.clone());
+                    let idx = self.extern_functions.len();
+                    let arg_types: Vec<IrType> =
+                        func.params.iter().map(|(_, ty)| ty.clone()).collect();
+
+                    self.extern_functions.push(ExternDef {
+                        name: func.name.clone(),
+                        arg_types,
+                        ret_type: func.return_ty.clone(),
+                    });
                     self.extern_indices.insert(func.name.clone(), idx);
                 }
             } else if !self.func_const_indices.contains_key(&func.name) {

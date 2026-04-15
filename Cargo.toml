@@ -10,7 +10,6 @@ members = [
     "compiler/abyss_ir",
     "compiler/abyss_types",
     "compiler/abyss_utils",
-    "compiler/abyss_std"
 ]
 
 
@@ -29,7 +28,6 @@ abyss_vm = { path = "./compiler/abyss_vm" }
 abyss_ir = { path = "./compiler/abyss_ir" }
 abyss_types = { path = "./compiler/abyss_types" }
 abyss_utils = { path = "./compiler/abyss_utils" }
-abyss_std = { path = "./compiler/abyss_std" }
 # libc = "0.2"
 # cc = "1.0"
 # include_dir = "0.7"

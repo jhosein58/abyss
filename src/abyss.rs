@@ -5,12 +5,8 @@ use abyss_codegen::llvm_codegen::{AbyssCompiler, OptLevel};
 use abyss_diagnostics::DiagnosticEngine;
 use abyss_ir::builder::IrBuilder;
 use abyss_parser::parser::Parser;
-use abyss_std::{interface::AbyssLibrary, stdlib::StandardLib};
 use abyss_utils::idgen::IdGenerator;
-use abyss_vm::{
-    codegen::IrCompiler,
-    vm::{core::AbyssVm, types::NativeFunction},
-};
+use abyss_vm::{codegen::IrCompiler, vm::core::AbyssVm};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn abyss_jit_print(ptr: i32) {
@@ -25,20 +21,17 @@ pub struct ExecutionResult {
 pub struct Abyss {
     source_code: String,
     filename: String,
-    natives: Vec<(String, usize, NativeFunction)>,
     print_tast: bool,
 }
 
 impl Abyss {
     pub fn new(source_code: impl Into<String>) -> Self {
-        let mut abyss = Self {
+        Self {
             source_code: source_code.into(),
             filename: "main.a".to_string(),
-            natives: Vec::new(),
+
             print_tast: true,
-        };
-        abyss = abyss.register_library::<StandardLib>();
-        abyss
+        }
     }
 
     pub fn with_filename(mut self, filename: &str) -> Self {
@@ -48,18 +41,6 @@ impl Abyss {
 
     pub fn disable_tast_print(mut self) -> Self {
         self.print_tast = false;
-        self
-    }
-
-    pub fn register_native(mut self, name: &str, arity: usize, func: NativeFunction) -> Self {
-        self.natives.push((name.to_string(), arity, func));
-        self
-    }
-
-    pub fn register_library<L: AbyssLibrary>(mut self) -> Self {
-        for def in L::get_functions() {
-            self = self.register_native(def.name, def.arity, def.func);
-        }
         self
     }
 
@@ -74,16 +55,11 @@ impl Abyss {
         let program = parser.parse_program();
 
         let mut type_checker = TypeChecker::new(&mut err, &mut idgen);
-        for (index, (name, arity, func)) in self.natives.iter().enumerate() {
-            type_checker
-                .comptime
-                .register_native_with_index(name, index, *arity as u8, *func);
-        }
 
         let tast = type_checker.check_program(&program);
 
         if self.print_tast {
-            tast.body.print_tree();
+            tast.print_tree();
             println!();
         }
 
@@ -103,25 +79,12 @@ impl Abyss {
         let ir_program = cmp.build_program(tast);
 
         let compiler = IrCompiler::new();
-        let (instructions, constants, extern_funcs) = compiler.compile(&ir_program);
+
+        let (instructions, constants, imports) = compiler.compile(&ir_program);
 
         let mut vm = AbyssVm::new(instructions, constants);
 
-        for ext_name in extern_funcs {
-            let matched_native = self.natives.iter().find(|(n, _, _)| n == &ext_name);
-
-            match matched_native {
-                Some((_name, arity, func)) => {
-                    vm.register_native(*arity as u8, *func);
-                }
-                None => {
-                    panic!(
-                        "Linker Error: External function '{}' not found in environment",
-                        ext_name
-                    );
-                }
-            }
-        }
+        vm.load_imports(&imports);
 
         vm.init_globals(ir_program.globals.len());
 
@@ -168,16 +131,11 @@ impl Abyss {
         let program = parser.parse_program();
 
         let mut type_checker = TypeChecker::new(&mut err, &mut idgen);
-        for (index, (name, arity, func)) in self.natives.iter().enumerate() {
-            type_checker
-                .comptime
-                .register_native_with_index(name, index, *arity as u8, *func);
-        }
 
         let tast = type_checker.check_program(&program);
 
         if self.print_tast {
-            tast.body.print_tree();
+            tast.print_tree();
             println!();
         }
 

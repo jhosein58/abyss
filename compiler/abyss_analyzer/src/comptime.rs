@@ -4,10 +4,7 @@ use abyss_types::{
     tast::{SequenceElement, TypedExpr, TypedExprKind},
     types::Type,
 };
-use abyss_vm::{
-    codegen::IrCompiler,
-    vm::{core::AbyssVm, types::NativeFunction},
-};
+use abyss_vm::{codegen::IrCompiler, vm::core::AbyssVm};
 
 pub struct ComptimeEngine {
     vm: AbyssVm,
@@ -24,18 +21,6 @@ impl ComptimeEngine {
             compiler: IrCompiler::new(),
             globals_cache: Vec::new(),
         }
-    }
-
-    pub fn register_native_with_index(
-        &mut self,
-        _name: &str,
-        _index: usize,
-        arity: u8,
-        func: NativeFunction,
-    ) {
-        self.vm.register_native(arity, func);
-
-        // self.builder.register_native(name, index);
     }
 
     pub fn register_global(&mut self, name: String, mut expr: TypedExpr) {
@@ -171,6 +156,8 @@ impl ComptimeEngine {
         let vm_saved_const = self
             .vm
             .inject_constants(&self.compiler.constants[compiler_const_count..]);
+
+        self.vm.load_imports(&self.compiler.extern_functions);
 
         let required_globals = self.compiler.global_indices.len();
         if self.vm.globals.len() < required_globals {

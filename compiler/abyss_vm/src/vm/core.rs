@@ -1,10 +1,16 @@
+use std::os::raw::c_void;
+
+use libffi::middle::{Cif, Type};
+use libloading::Library;
+
 use crate::vm::{
+    helpers::ir_type_to_ffi,
     opcode::{Instruction, OpCode::*},
     ops::{
         basic::{load_const, move_reg, not},
         bitwise::{bit_and, bit_not, bit_or, bit_xor, shl, shr_i, shr_u},
         cast::{cast_f2b, cast_f2i, cast_i2b, cast_i2f},
-        control::{call, call_native, jmp, jmp_if, jmp_imm, jmp_z_imm},
+        control::{call, call_extern, jmp, jmp_if, jmp_imm, jmp_z_imm},
         math_float::{
             add_f, add_fc, cmp_eq_f, cmp_eq_fc, cmp_ge_f, cmp_ge_fc, cmp_gt_f, cmp_gt_fc, cmp_le_f,
             cmp_le_fc, cmp_lt_f, cmp_lt_fc, cmp_neq_f, cmp_neq_fc, div_f, div_fc, mul_f, mul_fc,
@@ -19,7 +25,7 @@ use crate::vm::{
             alloc, load_ptr, load_ptr_offset, mem_copy, ref_reg, store_ptr, store_ptr_offset,
         },
     },
-    types::{CallFrame, NativeFunction, RegisteredNative},
+    types::{CallFrame, ExternDef, ExternFunction},
 };
 
 pub struct AbyssVm {
@@ -36,7 +42,9 @@ pub struct AbyssVm {
     pub heap: Vec<u8>,
     pub globals: Vec<u64>,
     pub free_blocks: Vec<(usize, usize)>,
-    pub native_funcs: Vec<RegisteredNative>,
+
+    pub extern_funcs: Vec<ExternFunction>,
+    libc_lib: Library,
 
     pub out: String,
 }
@@ -50,6 +58,21 @@ impl AbyssVm {
     }
 
     pub fn new_empty() -> Self {
+        let libc_lib = unsafe {
+            #[cfg(target_os = "windows")]
+            {
+                Library::new("msvcrt.dll").unwrap()
+            }
+            #[cfg(target_os = "linux")]
+            {
+                Library::new("libc.so.6").unwrap()
+            }
+            #[cfg(target_os = "macos")]
+            {
+                Library::new("libc.dylib").unwrap()
+            }
+        };
+
         Self {
             registers: vec![0; 65536],
             bp: 0,
@@ -60,7 +83,8 @@ impl AbyssVm {
             heap: Vec::new(),
             globals: Vec::new(),
             free_blocks: Vec::new(),
-            native_funcs: Vec::new(),
+            extern_funcs: Vec::new(),
+            libc_lib,
             out: String::new(),
         }
     }
@@ -89,12 +113,29 @@ impl AbyssVm {
         self.run()
     }
 
-    pub fn register_native(&mut self, arity: u8, func: NativeFunction) -> usize {
-        self.native_funcs.push(RegisteredNative {
-            function: func,
-            arity,
-        });
-        self.native_funcs.len() - 1
+    pub fn load_imports(&mut self, imports: &[ExternDef]) {
+        for def in imports {
+            let arity = def.arg_types.len();
+            let ffi_args: Vec<Type> = def.arg_types.iter().map(ir_type_to_ffi).collect();
+            let ffi_ret = ir_type_to_ffi(&def.ret_type);
+
+            let ptr = unsafe {
+                let sym: libloading::Symbol<*mut c_void> = self
+                    .libc_lib
+                    .get(def.name.as_bytes())
+                    .unwrap_or_else(|_| panic!("Extern function '{}' not found!", def.name));
+                *sym
+            };
+
+            let cif = Cif::new(ffi_args.into_iter(), ffi_ret);
+
+            self.extern_funcs.push(ExternFunction {
+                name: def.name.clone(),
+                ptr,
+                arity,
+                cif,
+            });
+        }
     }
 
     #[inline(always)]
@@ -231,7 +272,7 @@ impl AbyssVm {
 
                 // Control Flow
                 Call => call(&inst, &mut ip, &mut bp, registers_ptr, &mut self.call_stack),
-                CallNative => call_native(&inst, self, &mut ip, bp, registers_ptr),
+                CallExtern => call_extern(&inst, self, bp, registers_ptr),
                 Jmp => jmp(&inst, bp, &mut ip, registers_ptr),
                 JmpIf => jmp_if(&inst, bp, &mut ip, registers_ptr),
                 JmpImm => jmp_imm(&inst, &mut ip),
