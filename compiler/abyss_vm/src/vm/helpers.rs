@@ -1,4 +1,5 @@
 use abyss_ir::ir::{IrLit, IrProgram, IrType};
+use libffi::middle::Type;
 
 use crate::{
     codegen::IrCompiler,
@@ -72,6 +73,17 @@ impl AbyssVm {
         }
 
         s
+    }
+}
+
+pub fn ir_type_to_ffi(ty: &IrType) -> Type {
+    match ty {
+        IrType::I32 => Type::i32(),
+        IrType::F32 => Type::f32(),
+        IrType::Bool => Type::u8(),
+        IrType::Unit => Type::void(),
+        IrType::Ptr(_) => Type::pointer(),
+        IrType::Array(_, _) | IrType::Struct(_) => Type::pointer(),
     }
 }
 

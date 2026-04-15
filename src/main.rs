@@ -15,5 +15,5 @@ fn main() {
     Abyss::new(code)
         .with_filename("main.a")
         //.disable_tast_print()
-        .run_llvm_jit();
+        .run();
 }

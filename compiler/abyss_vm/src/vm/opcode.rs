@@ -93,7 +93,7 @@ pub enum OpCode {
     MemCopy,
 
     Call,
-    CallNative,
+    CallExtern,
     Ret,
     Jmp,
     JmpIf,

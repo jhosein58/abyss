@@ -353,6 +353,10 @@ impl IrBuilder {
                 return (generated_stmts, self.unit_expr(span));
             }
 
+            TypedExprKind::Wildcard => {
+                return (generated_stmts, self.unit_expr(span));
+            }
+
             TypedExprKind::Lit(lit) => IrExprKind::Lit(self.lower_lit(lit)),
 
             TypedExprKind::Ident(name) | TypedExprKind::FuncRef(name) => IrExprKind::VarRef(name),

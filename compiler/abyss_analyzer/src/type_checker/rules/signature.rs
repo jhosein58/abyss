@@ -159,11 +159,20 @@ pub fn check_signature<'a>(
                 },
             );
 
-            TypedExpr {
-                kind: TypedExprKind::FuncRef(func_ir_name_opt.unwrap()),
-                ty: func_type,
-                span,
-                id,
+            if is_native {
+                TypedExpr {
+                    kind: TypedExprKind::Wildcard,
+                    ty: Type::Unit,
+                    span,
+                    id,
+                }
+            } else {
+                TypedExpr {
+                    kind: TypedExprKind::FuncRef(func_ir_name_opt.unwrap()),
+                    ty: func_type,
+                    span,
+                    id,
+                }
             }
         } else {
             function_def_node

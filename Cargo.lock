@@ -12,7 +12,6 @@ dependencies = [
  "abyss_ir",
  "abyss_lexer",
  "abyss_parser",
- "abyss_std",
  "abyss_types",
  "abyss_utils",
  "abyss_vm",
@@ -72,13 +71,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "abyss_std"
-version = "0.1.0"
-dependencies = [
- "abyss_vm",
-]
-
-[[package]]
 name = "abyss_types"
 version = "0.1.0"
 dependencies = [
@@ -95,6 +87,8 @@ name = "abyss_vm"
 version = "0.1.0"
 dependencies = [
  "abyss_ir",
+ "libffi",
+ "libloading",
 ]
 
 [[package]]
@@ -133,6 +127,12 @@ dependencies = [
  "find-msvc-tools",
  "shlex",
 ]
+
+[[package]]
+name = "cfg-if"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "find-msvc-tools"
@@ -207,6 +207,35 @@ name = "libc"
 version = "0.2.182"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
+
+[[package]]
+name = "libffi"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce826c243048e3d5cec441799724de52e2d42f820468431fc3fceee2341871e2"
+dependencies = [
+ "libc",
+ "libffi-sys",
+]
+
+[[package]]
+name = "libffi-sys"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f36115160c57e8529781b4183c2bb51fdc1f6d6d1ed345591d84be7703befb3c"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "libloading"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7c4b02199fee7c5d21a5ae7d8cfa79a6ef5bb2fc834d6e9058e89c825efdc55"
+dependencies = [
+ "cfg-if",
+ "windows-link",
+]
 
 [[package]]
 name = "llvm-sys"
