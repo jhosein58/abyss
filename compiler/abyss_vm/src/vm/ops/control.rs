@@ -1,3 +1,4 @@
+#[cfg(feature = "ffi")]
 use libffi::{low::CodePtr, middle::Arg};
 
 use crate::vm::{
@@ -36,27 +37,84 @@ pub fn call_extern(inst: &Instruction, vm: &mut AbyssVm, bp: usize, registers_pt
         let arity = extern_func.arity;
 
         let args_start_abs = bp + arg_start_reg as usize;
-
         let mut arg_values = [0u64; 16];
 
         for i in 0..arity {
             let raw_val = *registers_ptr.add(args_start_abs + i);
 
-            if (raw_val & REG_PTR_TAG) == 0 && raw_val > 0 && (raw_val as usize) < vm.heap.len() {
-                arg_values[i] = vm.heap.as_mut_ptr().add(raw_val as usize) as u64;
+            if extern_func.is_pointer_args[i] {
+                if (raw_val & REG_PTR_TAG) != 0 {
+                    arg_values[i] = raw_val;
+                } else if (raw_val as usize) < vm.heap.len() {
+                    let ptr = vm.heap.as_mut_ptr().add(raw_val as usize);
+                    arg_values[i] = ptr as u64;
+                } else if (raw_val as usize) < (vm.globals.len() * 8) {
+                    let ptr = (vm.globals.as_mut_ptr() as *mut u8).add(raw_val as usize);
+                    arg_values[i] = ptr as u64;
+                } else {
+                    panic!("FFI Error: Invalid pointer {}", raw_val);
+                }
             } else {
                 arg_values[i] = raw_val;
             }
         }
 
-        let mut ffi_args_buffer = [(); 16].map(|_| Arg::new(&0u64));
-        for i in 0..arity {
-            ffi_args_buffer[i] = Arg::new(&arg_values[i]);
+        let result: u64;
+
+        if let Some(ref host_fn) = extern_func.host_fn {
+            let heap_slice = std::slice::from_raw_parts_mut(vm.heap.as_mut_ptr(), vm.heap.len());
+
+            result = host_fn(&arg_values[..arity], heap_slice);
+        } else {
+            #[cfg(feature = "ffi")]
+            {
+                let mut ffi_args_buffer = [(); 16].map(|_| Arg::new(&0u64));
+                for i in 0..arity {
+                    ffi_args_buffer[i] = Arg::new(&arg_values[i]);
+                }
+
+                let code_ptr = CodePtr::from_ptr(extern_func.ptr as *const _);
+                let ret_size = extern_func.ret_size;
+
+                result = match ret_size {
+                    0 => {
+                        extern_func
+                            .cif
+                            .call::<()>(code_ptr, &ffi_args_buffer[..arity]);
+                        0
+                    }
+                    1 => extern_func
+                        .cif
+                        .call::<u8>(code_ptr, &ffi_args_buffer[..arity])
+                        as u64,
+                    2 => extern_func
+                        .cif
+                        .call::<u16>(code_ptr, &ffi_args_buffer[..arity])
+                        as u64,
+                    4 => extern_func
+                        .cif
+                        .call::<u32>(code_ptr, &ffi_args_buffer[..arity])
+                        as u64,
+                    8 => extern_func
+                        .cif
+                        .call::<u64>(code_ptr, &ffi_args_buffer[..arity]),
+                    _ => {
+                        extern_func
+                            .cif
+                            .call::<()>(code_ptr, &ffi_args_buffer[..arity]);
+                        0
+                    }
+                };
+            }
+
+            #[cfg(not(feature = "ffi"))]
+            {
+                panic!(
+                    "Execution Error: FFI is disabled, but function '{}' was not registered manually via host functions.",
+                    extern_func.name
+                );
+            }
         }
-
-        let code_ptr = CodePtr::from_ptr(extern_func.ptr as *const _);
-
-        let result: u64 = extern_func.cif.call(code_ptr, &ffi_args_buffer[..arity]);
 
         *registers_ptr.add(bp + inst.a as usize) = result;
     }

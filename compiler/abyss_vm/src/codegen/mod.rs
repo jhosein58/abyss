@@ -79,6 +79,18 @@ impl IrCompiler {
         r
     }
 
+    pub fn register_extern(&mut self, name: &str, arg_types: Vec<IrType>, ret_type: IrType) {
+        if !self.extern_indices.contains_key(name) {
+            let idx = self.extern_functions.len();
+            self.extern_functions.push(ExternDef {
+                name: name.to_string(),
+                arg_types,
+                ret_type,
+            });
+            self.extern_indices.insert(name.to_string(), idx);
+        }
+    }
+
     pub fn compile(mut self, program: &IrProgram) -> (Vec<Instruction>, Vec<u64>, Vec<ExternDef>) {
         for (i, (name, _, _)) in program.globals.iter().enumerate() {
             self.global_indices.insert(name.clone(), i as u16);
@@ -86,19 +98,24 @@ impl IrCompiler {
 
         for func in &program.functions {
             if func.body.is_none() {
-                let idx = self.extern_functions.len();
-                let arg_types: Vec<IrType> = func.params.iter().map(|(_, ty)| ty.clone()).collect();
+                if !self.extern_indices.contains_key(&func.name) {
+                    let idx = self.extern_functions.len();
+                    let arg_types: Vec<IrType> =
+                        func.params.iter().map(|(_, ty)| ty.clone()).collect();
 
-                self.extern_functions.push(ExternDef {
-                    name: func.name.clone(),
-                    arg_types,
-                    ret_type: func.return_ty.clone(),
-                });
-                self.extern_indices.insert(func.name.clone(), idx);
+                    self.extern_functions.push(ExternDef {
+                        name: func.name.clone(),
+                        arg_types,
+                        ret_type: func.return_ty.clone(),
+                    });
+                    self.extern_indices.insert(func.name.clone(), idx);
+                }
             } else {
-                let idx = self.constants.len() as u8;
-                self.constants.push(0);
-                self.func_const_indices.insert(func.name.clone(), idx);
+                if !self.func_const_indices.contains_key(&func.name) {
+                    let idx = self.constants.len() as u8;
+                    self.constants.push(0);
+                    self.func_const_indices.insert(func.name.clone(), idx);
+                }
             }
         }
 
@@ -286,7 +303,7 @@ impl IrCompiler {
                 let size_bytes_reg = env.alloc_reg();
                 let count_reg = env.alloc_reg();
 
-                let size_bytes = (size_in_words * 8) as u64;
+                let size_bytes = size_in_words * 8;
                 let size_bytes_idx = self.add_const(size_bytes);
                 self.emit(Instruction {
                     op: OpCode::LoadConst,
@@ -302,7 +319,7 @@ impl IrCompiler {
                     c: 0,
                 });
 
-                let count_idx = self.add_const(size_in_words as u64);
+                let count_idx = self.add_const(size_in_words);
                 self.emit(Instruction {
                     op: OpCode::LoadConst,
                     a: count_reg,
@@ -322,13 +339,28 @@ impl IrCompiler {
             _ => src_reg,
         }
     }
-    pub(crate) fn get_type_size_in_words(&self, ty: &IrType) -> usize {
+
+    pub(crate) fn get_type_size_in_words(&self, ty: &IrType) -> u64 {
         match ty {
-            IrType::I32 | IrType::F32 | IrType::Bool | IrType::Ptr(_) => 1,
+            IrType::I1
+            | IrType::I8
+            | IrType::I16
+            | IrType::I32
+            | IrType::I64
+            | IrType::U8
+            | IrType::U16
+            | IrType::U32
+            | IrType::U64
+            | IrType::F32
+            | IrType::F64
+            | IrType::Bool
+            | IrType::Ptr(_) => 1,
 
             IrType::Unit => 0,
 
-            IrType::Array(inner_type, count) => self.get_type_size_in_words(inner_type) * count,
+            IrType::Array(inner_type, count) => {
+                self.get_type_size_in_words(inner_type) * (*count as u64)
+            }
 
             IrType::Struct(fields) => fields
                 .iter()

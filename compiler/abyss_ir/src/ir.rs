@@ -2,8 +2,20 @@ use abyss_diagnostics::Span;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum IrType {
+    I1,
+    I8,
+    I16,
     I32,
+    I64,
+
+    U8,
+    U16,
+    U32,
+    U64,
+
     F32,
+    F64,
+
     Bool,
     Unit,
     Ptr(Box<IrType>),
@@ -80,6 +92,16 @@ pub struct IrExpr {
     pub kind: IrExprKind,
     pub ty: IrType,
     pub span: Span,
+}
+
+impl IrExpr {
+    pub fn int_val(&self) -> i64 {
+        if let IrExprKind::Lit(IrLit::Int(v)) = self.kind {
+            v
+        } else {
+            0
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

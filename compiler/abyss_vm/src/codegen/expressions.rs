@@ -9,16 +9,20 @@ impl IrCompiler {
         match &expr.kind {
             IrExprKind::Lit(lit) => self.compile_literal(env, lit, target),
             IrExprKind::VarRef(name) => self.compile_var_ref(env, name, target),
-            IrExprKind::Unary(op, inner) => self.compile_unary(env, op, inner, target),
+            IrExprKind::Unary(op, inner) => self.compile_unary(env, op, inner, &expr.ty, target),
             IrExprKind::Binary(l, op, r) => self.compile_binary(env, l, op, r, &expr.ty, target),
             IrExprKind::Call { func_name, args } => self.compile_call(env, func_name, args, target),
 
-            IrExprKind::ArrayInit(elements) => self.compile_array_init(env, elements, target),
+            IrExprKind::ArrayInit(elements) => {
+                self.compile_array_init(env, elements, &expr.ty, target)
+            }
             IrExprKind::ArrayRepeat { val, count } => {
                 self.compile_array_repeat(env, val, *count, target)
             }
 
-            IrExprKind::Index(base, index) => self.compile_index(env, base, index, target),
+            IrExprKind::Index(base, index) => {
+                self.compile_index(env, base, index, &expr.ty, target)
+            }
 
             IrExprKind::StructInit(fields) => self.compile_struct_init(env, fields, target),
 
@@ -109,6 +113,7 @@ impl IrCompiler {
         env: &mut Env,
         op: &IrUnaryOp,
         inner: &IrExpr,
+        expr_ty: &IrType,
         target: Option<u8>,
     ) -> u8 {
         let r_inner = self.compile_expr(env, inner, None);
@@ -153,22 +158,27 @@ impl IrCompiler {
                     });
                 } else {
                     let r_inner = self.compile_expr(env, inner, None);
+
+                    let (elem_size, _, store_op, _, _) = self.get_type_info(&inner.ty);
+
                     let size_reg = env.alloc_reg();
-                    let size_idx = self.add_const(8);
+                    let size_idx = self.add_const(elem_size as u64);
                     self.emit(Instruction {
                         op: OpCode::LoadConst,
                         a: size_reg,
                         b: size_idx,
                         c: 0,
                     });
+
                     self.emit(Instruction {
                         op: OpCode::Alloc,
                         a: dest_reg,
                         b: size_reg,
                         c: 0,
                     });
+
                     self.emit(Instruction {
-                        op: OpCode::StorePtr,
+                        op: store_op,
                         a: dest_reg,
                         b: r_inner,
                         c: 0,
@@ -177,8 +187,11 @@ impl IrCompiler {
             }
             IrUnaryOp::Deref => {
                 let r_inner = self.compile_expr(env, inner, None);
+
+                let (_, load_op, _, _, _) = self.get_type_info(expr_ty);
+
                 self.emit(Instruction {
-                    op: OpCode::LoadPtr,
+                    op: load_op,
                     a: dest_reg,
                     b: r_inner,
                     c: 0,
@@ -202,7 +215,7 @@ impl IrCompiler {
         }
 
         let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
-        let is_float = matches!(left.ty, IrType::F32);
+        let is_float = matches!(left.ty, IrType::F32 | IrType::F64);
 
         let has_const_op = matches!(
             op,
@@ -627,9 +640,29 @@ impl IrCompiler {
         dest_reg
     }
 
-    fn compile_array_init(&mut self, env: &mut Env, elements: &[IrExpr], target: Option<u8>) -> u8 {
-        let count = elements.len();
-        let size_bytes = (count * 8) as u64;
+    fn compile_array_init(
+        &mut self,
+        env: &mut Env,
+        elements: &[IrExpr],
+        expr_ty: &IrType,
+        target: Option<u8>,
+    ) -> u8 {
+        let count = elements.len() as u64;
+
+        let elem_ty = match expr_ty {
+            IrType::Array(inner, _) => &**inner,
+            _ => {
+                if count > 0 {
+                    &elements[0].ty
+                } else {
+                    &IrType::I64
+                }
+            }
+        };
+
+        let (elem_size, _, _, _, store_offset_op) = self.get_type_info(elem_ty);
+        let size_bytes = count * elem_size;
+
         let size_idx = self.add_const(size_bytes);
         let size_reg = env.alloc_reg();
         self.emit(Instruction {
@@ -650,20 +683,21 @@ impl IrCompiler {
         for (i, expr) in elements.iter().enumerate() {
             let val_reg = self.compile_expr(env, expr, None);
 
-            let idx_const = self.add_const(i as u64);
-            let idx_reg = env.alloc_reg();
+            let offset_index = i as u64;
+            let offset_const = self.add_const(offset_index);
+            let offset_reg = env.alloc_reg();
             self.emit(Instruction {
                 op: OpCode::LoadConst,
-                a: idx_reg,
-                b: idx_const,
+                a: offset_reg,
+                b: offset_const,
                 c: 0,
             });
 
             self.emit(Instruction {
-                op: OpCode::StorePtrOffset,
+                op: store_offset_op,
                 a: arr_ptr,
                 b: val_reg,
-                c: idx_reg,
+                c: offset_reg,
             });
         }
 
@@ -677,7 +711,8 @@ impl IrCompiler {
         count: usize,
         target: Option<u8>,
     ) -> u8 {
-        let size_bytes = (count * 8) as u64;
+        let (elem_size, _, _, _, store_offset_op) = self.get_type_info(&val_expr.ty);
+        let size_bytes = (count as u64) * elem_size;
 
         let size_idx = self.add_const(size_bytes);
         let size_reg = env.alloc_reg();
@@ -739,7 +774,7 @@ impl IrCompiler {
         });
 
         self.emit(Instruction {
-            op: OpCode::StorePtrOffset,
+            op: store_offset_op,
             a: arr_ptr,
             b: val_reg,
             c: i_reg,
@@ -773,16 +808,18 @@ impl IrCompiler {
         env: &mut Env,
         base: &IrExpr,
         index: &IrExpr,
+        expr_ty: &IrType,
         target: Option<u8>,
     ) -> u8 {
         let base_reg = self.compile_expr(env, base, None);
-
         let index_reg = self.compile_expr(env, index, None);
 
         let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
 
+        let (_, _, _, load_offset_op, _) = self.get_type_info(expr_ty);
+
         self.emit(Instruction {
-            op: OpCode::LoadPtrOffset,
+            op: load_offset_op,
             a: dest_reg,
             b: base_reg,
             c: index_reg,
@@ -792,8 +829,8 @@ impl IrCompiler {
     }
 
     fn compile_struct_init(&mut self, env: &mut Env, fields: &[IrExpr], target: Option<u8>) -> u8 {
-        let count = fields.len();
-        let size_bytes = (count * 8) as u64;
+        let count = fields.len() as u64;
+        let size_bytes = count * 8;
 
         let size_idx = self.add_const(size_bytes);
         let size_reg = env.alloc_reg();
@@ -815,12 +852,13 @@ impl IrCompiler {
         for (i, expr) in fields.iter().enumerate() {
             let val_reg = self.compile_expr(env, expr, None);
 
-            let idx_const = self.add_const(i as u64);
-            let idx_reg = env.alloc_reg();
+            let offset_index = i as u64;
+            let offset_const = self.add_const(offset_index);
+            let offset_reg = env.alloc_reg();
             self.emit(Instruction {
                 op: OpCode::LoadConst,
-                a: idx_reg,
-                b: idx_const,
+                a: offset_reg,
+                b: offset_const,
                 c: 0,
             });
 
@@ -828,7 +866,7 @@ impl IrCompiler {
                 op: OpCode::StorePtrOffset,
                 a: struct_ptr,
                 b: val_reg,
-                c: idx_reg,
+                c: offset_reg,
             });
         }
 
@@ -854,14 +892,12 @@ impl IrCompiler {
         });
 
         let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
-
         self.emit(Instruction {
             op: OpCode::LoadPtrOffset,
             a: dest_reg,
             b: base_reg,
             c: index_reg,
         });
-
         dest_reg
     }
 
@@ -912,11 +948,16 @@ impl IrCompiler {
 
             (IrType::Bool, IrType::F32) => OpCode::CastI2F,
 
-            (src, dst) => {
-                panic!(
-                    "Compiler Bug: Unhandled or invalid cast from {:?} to {:?} reached CodeGen.",
-                    src, dst
-                );
+            (_src, _dst) => {
+                if dest_reg != source_reg {
+                    self.emit(Instruction {
+                        op: OpCode::Move,
+                        a: dest_reg,
+                        b: source_reg,
+                        c: 0,
+                    });
+                }
+                return dest_reg;
             }
         };
 
@@ -938,27 +979,30 @@ impl IrCompiler {
         target: Option<u8>,
     ) -> u8 {
         let base_reg = self.compile_expr(env, base, None);
-
         let index_reg = self.compile_expr(env, index, None);
 
         let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
         let offset_reg = env.alloc_reg();
 
-        let eight_idx = self.add_const(8);
+        let elem_ty = match &base.ty {
+            IrType::Array(inner, _) | IrType::Ptr(inner) => &**inner,
+            _ => &base.ty,
+        };
+        let (elem_size, _, _, _, _) = self.get_type_info(elem_ty);
+
+        let size_idx = self.add_const(elem_size as u64);
         self.emit(Instruction {
             op: OpCode::MulIC,
             a: offset_reg,
             b: index_reg,
-            c: eight_idx,
+            c: size_idx,
         });
-
         self.emit(Instruction {
             op: OpCode::AddI,
             a: dest_reg,
             b: base_reg,
             c: offset_reg,
         });
-
         dest_reg
     }
 
@@ -970,9 +1014,7 @@ impl IrCompiler {
         target: Option<u8>,
     ) -> u8 {
         let base_reg = self.compile_expr(env, base, None);
-
         let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
-
         let offset_bytes = (index * 8) as u64;
 
         if offset_bytes == 0 {
@@ -997,7 +1039,39 @@ impl IrCompiler {
             b: base_reg,
             c: offset_idx,
         });
-
         dest_reg
+    }
+
+    pub(crate) fn get_type_info(&self, ty: &IrType) -> (u64, OpCode, OpCode, OpCode, OpCode) {
+        match ty {
+            IrType::I8 | IrType::U8 | IrType::Bool => (
+                1,
+                OpCode::LoadPtr8,
+                OpCode::StorePtr8,
+                OpCode::LoadPtrOffset8,
+                OpCode::StorePtrOffset8,
+            ),
+            IrType::I16 | IrType::U16 => (
+                2,
+                OpCode::LoadPtr16,
+                OpCode::StorePtr16,
+                OpCode::LoadPtrOffset16,
+                OpCode::StorePtrOffset16,
+            ),
+            IrType::I32 | IrType::U32 | IrType::F32 => (
+                4,
+                OpCode::LoadPtr32,
+                OpCode::StorePtr32,
+                OpCode::LoadPtrOffset32,
+                OpCode::StorePtrOffset32,
+            ),
+            _ => (
+                8,
+                OpCode::LoadPtr,
+                OpCode::StorePtr,
+                OpCode::LoadPtrOffset,
+                OpCode::StorePtrOffset,
+            ),
+        }
     }
 }

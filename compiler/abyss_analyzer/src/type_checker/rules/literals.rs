@@ -11,6 +11,7 @@ use crate::type_checker::{
     engine::TypeChecker,
     resolver::{GlobalMetadata, InlinePolicy},
 };
+
 fn unescape_string(raw: &str) -> String {
     let mut result = String::with_capacity(raw.len());
     let mut chars = raw.chars();
@@ -46,6 +47,7 @@ pub fn check_literal(tc: &mut TypeChecker, lit: &Lit, span: Span, id: u32) -> Ty
 
     match lit {
         Lit::Str(s) | Lit::Cstr(s) => {
+            let is_cstr = matches!(lit, Lit::Cstr(_));
             let unescaped_s = unescape_string(s);
 
             let str_id = tc.next_id();
@@ -53,22 +55,39 @@ pub fn check_literal(tc: &mut TypeChecker, lit: &Lit, span: Span, id: u32) -> Ty
 
             let mut elements = Vec::new();
 
-            for c in unescaped_s.chars() {
-                let char_expr = TypedExpr {
-                    kind: TypedExprKind::Lit(Lit::Int(c as i64)),
-                    ty: Type::I32,
-                    span: span.clone(),
-                    id: tc.next_id(),
-                };
-                elements.push(SequenceElement {
-                    label: None,
-                    expr: char_expr,
-                });
+            let element_ty = if is_cstr { Type::U8 } else { Type::I32 };
+
+            if is_cstr {
+                for b in unescaped_s.bytes() {
+                    let char_expr = TypedExpr {
+                        kind: TypedExprKind::Lit(Lit::Int(b as i64)),
+                        ty: element_ty.clone(),
+                        span: span.clone(),
+                        id: tc.next_id(),
+                    };
+                    elements.push(SequenceElement {
+                        label: None,
+                        expr: char_expr,
+                    });
+                }
+            } else {
+                for c in unescaped_s.chars() {
+                    let char_expr = TypedExpr {
+                        kind: TypedExprKind::Lit(Lit::Int(c as i64)),
+                        ty: element_ty.clone(),
+                        span: span.clone(),
+                        id: tc.next_id(),
+                    };
+                    elements.push(SequenceElement {
+                        label: None,
+                        expr: char_expr,
+                    });
+                }
             }
 
             let null_expr = TypedExpr {
-                kind: TypedExprKind::Lit(Lit::Int('\0' as i64)),
-                ty: Type::I32,
+                kind: TypedExprKind::Lit(Lit::Int(0)), // '\0'
+                ty: element_ty.clone(),
                 span: span.clone(),
                 id: tc.next_id(),
             };
@@ -78,7 +97,7 @@ pub fn check_literal(tc: &mut TypeChecker, lit: &Lit, span: Span, id: u32) -> Ty
             });
 
             let array_len = elements.len();
-            let array_type = Type::Array(Box::new(Type::I32), array_len);
+            let array_type = Type::Array(Box::new(element_ty.clone()), array_len);
 
             let array_expr = TypedExpr {
                 kind: TypedExprKind::SequenceInit(elements),
@@ -121,14 +140,16 @@ pub fn check_literal(tc: &mut TypeChecker, lit: &Lit, span: Span, id: u32) -> Ty
 
             let array_access = TypedExpr {
                 kind: TypedExprKind::Index(Box::new(ident_expr), Box::new(index_zero)),
-                ty: Type::I32,
+                ty: element_ty.clone(),
                 span: span.clone(),
                 id: tc.next_id(),
             };
 
+            let ptr_type = Type::Ptr(Box::new(element_ty));
+
             TypedExpr {
                 kind: TypedExprKind::Unary(UnaryOp::AddrOf, Box::new(array_access)),
-                ty: Type::Ptr(Box::new(Type::I32)),
+                ty: ptr_type,
                 span,
                 id,
             }

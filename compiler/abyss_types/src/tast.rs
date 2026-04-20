@@ -122,34 +122,49 @@ pub struct TypedProgram {
 
 impl TypedProgram {
     pub fn print_tree(&self) {
-        println!("\x1b[1;36mTAST Program Root:\x1b[0m");
+        print!("{}", self.format_tree());
+    }
+
+    pub fn format_tree(&self) -> String {
+        let mut out = String::new();
+        out.push_str("\x1b[1;36mTAST Program Root:\x1b[0m\n");
 
         let has_globals = !self.globals.is_empty();
 
         if has_globals {
-            println!(
-                "├── \x1b[1;34mGlobals\x1b[0m ({} items)",
+            out.push_str(&format!(
+                "├── \x1b[1;34mGlobals\x1b[0m ({} items)\n",
                 self.globals.len()
-            );
+            ));
             for (i, (name, expr)) in self.globals.iter().enumerate() {
                 let is_last_global = i == self.globals.len() - 1;
-                expr.print_recursive("│   ", is_last_global, false, Some(name));
+                expr.format_recursive(&mut out, "│   ", is_last_global, false, Some(name));
             }
         }
 
-        println!("└── \x1b[1;35mBody\x1b[0m");
-        self.body.print_recursive("    ", true, false, None);
+        out.push_str("└── \x1b[1;35mBody\x1b[0m\n");
+        self.body
+            .format_recursive(&mut out, "    ", true, false, None);
+
+        out
     }
 }
 
 impl TypedExpr {
     pub fn print_tree(&self) {
-        println!("\x1b[1;36mTAST Tree Root:\x1b[0m");
-        self.print_recursive("", true, true, None);
+        print!("{}", self.format_tree());
     }
 
-    fn print_recursive(
+    pub fn format_tree(&self) -> String {
+        let mut out = String::new();
+        out.push_str("\x1b[1;36mTAST Tree Root:\x1b[0m\n");
+        self.format_recursive(&mut out, "", true, true, None);
+        out
+    }
+
+    fn format_recursive(
         &self,
+        out: &mut String,
         prefix: &str,
         is_last: bool,
         is_root: bool,
@@ -406,13 +421,12 @@ impl TypedExpr {
         }
 
         let type_str = format!("\x1b[38;5;245m: {}\x1b[0m", self.ty.name());
-
         let id_str = format!("\x1b[2;38;5;238m[id:{}]\x1b[0m", self.id);
 
-        println!(
-            "{}{}{}{} {} {}",
+        out.push_str(&format!(
+            "{}{}{}{} {} {}\n",
             prefix, connector, label_str, node_info, type_str, id_str
-        );
+        ));
 
         let child_prefix = if is_root {
             "".to_string()
@@ -425,7 +439,13 @@ impl TypedExpr {
         let num_children = children.len();
         for (i, (child_label, child_expr)) in children.into_iter().enumerate() {
             let is_last_child = i == num_children - 1;
-            child_expr.print_recursive(&child_prefix, is_last_child, false, child_label.as_deref());
+            child_expr.format_recursive(
+                out,
+                &child_prefix,
+                is_last_child,
+                false,
+                child_label.as_deref(),
+            );
         }
     }
 }

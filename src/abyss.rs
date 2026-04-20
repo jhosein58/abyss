@@ -1,27 +1,36 @@
-use std::time::Instant;
+use std::rc::Rc;
 
 use abyss_analyzer::type_checker::engine::TypeChecker;
-use abyss_codegen::llvm_codegen::{AbyssCompiler, OptLevel};
 use abyss_diagnostics::DiagnosticEngine;
 use abyss_ir::builder::IrBuilder;
 use abyss_parser::parser::Parser;
 use abyss_utils::idgen::IdGenerator;
 use abyss_vm::{codegen::IrCompiler, vm::core::AbyssVm};
 
-#[unsafe(no_mangle)]
-pub extern "C" fn abyss_jit_print(ptr: i32) {
-    println!("{}", ptr);
-}
+#[cfg(feature = "llvm")]
+use abyss_codegen::llvm_codegen::{AbyssCompiler, OptLevel};
 
 pub struct ExecutionResult {
     pub diagnostics: String,
     pub stdout: String,
+    pub tast_output: String,
+    pub asm_output: String,
+}
+
+pub type HostFn = Rc<dyn Fn(&[u64], &mut [u8]) -> u64>;
+
+struct RegisteredHostFunction {
+    name: String,
+    arity: usize,
+    is_pointer: Vec<bool>,
+    func: HostFn,
 }
 
 pub struct Abyss {
     source_code: String,
     filename: String,
     print_tast: bool,
+    host_functions: Vec<RegisteredHostFunction>,
 }
 
 impl Abyss {
@@ -31,6 +40,7 @@ impl Abyss {
             filename: "main.a".to_string(),
 
             print_tast: true,
+            host_functions: Vec::new(),
         }
     }
 
@@ -44,9 +54,23 @@ impl Abyss {
         self
     }
 
-    fn run_core(&self) -> (ExecutionResult, u128, u128) {
-        let t_compile = Instant::now();
+    pub fn with_host_function(
+        mut self,
+        name: &str,
+        arity: usize,
+        is_pointer: Vec<bool>,
+        func: impl Fn(&[u64], &mut [u8]) -> u64 + 'static,
+    ) -> Self {
+        self.host_functions.push(RegisteredHostFunction {
+            name: name.to_string(),
+            arity,
+            is_pointer,
+            func: std::rc::Rc::new(func),
+        });
+        self
+    }
 
+    fn run_core(&mut self) -> ExecutionResult {
         let mut err = DiagnosticEngine::new();
         err.add_source(0, self.filename.clone(), self.source_code.clone());
         let mut idgen = IdGenerator::new();
@@ -56,71 +80,77 @@ impl Abyss {
 
         let mut type_checker = TypeChecker::new(&mut err, &mut idgen);
 
+        for hf in &self.host_functions {
+            type_checker.comptime.vm.register_host_function(
+                &hf.name,
+                hf.arity,
+                hf.is_pointer.clone(),
+                hf.func.clone(),
+            );
+        }
+
         let tast = type_checker.check_program(&program);
 
+        let tast_output_str = tast.format_tree();
         if self.print_tast {
-            tast.print_tree();
-            println!();
+            println!("{}", tast_output_str)
         }
 
         let error_output = err.render();
         if !error_output.is_empty() {
-            return (
-                ExecutionResult {
-                    diagnostics: error_output,
-                    stdout: String::new(),
-                },
-                t_compile.elapsed().as_millis(),
-                0,
-            );
+            return ExecutionResult {
+                diagnostics: error_output,
+                stdout: String::new(),
+                tast_output: tast_output_str,
+                asm_output: String::new(),
+            };
         }
 
         let mut cmp = IrBuilder::new();
         let ir_program = cmp.build_program(tast);
 
         let compiler = IrCompiler::new();
-
         let (instructions, constants, imports) = compiler.compile(&ir_program);
 
         let mut vm = AbyssVm::new(instructions, constants);
 
-        vm.load_imports(&imports);
+        while let Some(hf) = self.host_functions.pop() {
+            vm.register_host_function(&hf.name, hf.arity, hf.is_pointer, hf.func);
+        }
 
+        vm.load_imports(&imports);
         vm.init_globals(ir_program.globals.len());
 
-        let compile_time = t_compile.elapsed().as_millis();
-
-        let t_execute = Instant::now();
         vm.run();
-        let execute_time = t_execute.elapsed().as_millis();
 
-        (
-            ExecutionResult {
-                diagnostics: String::new(),
-                stdout: vm.out.clone(),
-            },
-            compile_time,
-            execute_time,
-        )
+        let asm_output_str = vm.disassemble();
+
+        ExecutionResult {
+            diagnostics: String::new(),
+            stdout: vm.out.clone(),
+            tast_output: tast_output_str,
+            asm_output: asm_output_str,
+        }
     }
 
-    pub fn run(&self) {
-        let (result, _, execute_time) = self.run_core();
+    pub fn run(&mut self) {
+        let result = self.run_core();
 
         if !result.diagnostics.is_empty() {
             println!("{}", result.diagnostics);
             return;
         }
-
-        println!("\nExecuted in: {}ms", execute_time);
     }
 
-    pub fn run_for_test(&self) -> ExecutionResult {
-        let (result, _, _) = self.run_core();
+    pub fn run_for_test(&mut self) -> ExecutionResult {
+        let result = self.run_core();
         result
     }
 
+    #[cfg(feature = "llvm")]
     pub fn run_llvm_jit(&self) {
+        use std::time::Instant;
+
         let t_compile = Instant::now();
 
         let mut err = DiagnosticEngine::new();
@@ -172,7 +202,7 @@ impl Abyss {
 
         let t_execute = Instant::now();
 
-        let native_bindings: &[(&str, usize)] = &[("print", abyss_jit_print as usize)];
+        let native_bindings: &[(&str, usize)] = &[];
 
         match llvm_compiler.execute_jit("main", native_bindings) {
             Ok(_result) => {}

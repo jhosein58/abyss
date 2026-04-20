@@ -1,5 +1,5 @@
 use abyss_diagnostics::Span;
-use abyss_parser::ast::Expr;
+use abyss_parser::ast::{Expr, UnaryOp};
 use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
@@ -23,7 +23,7 @@ pub fn check_index<'a>(
     }
 
     match typed_target.ty.clone() {
-        Type::Array(inner_ty, _) => {
+        Type::Array(inner_ty, len) => {
             if typed_index.ty != Type::I32 {
                 tc.report_error(
                     index.span_expr(),
@@ -34,6 +34,40 @@ pub fn check_index<'a>(
                 );
                 return error_expr(span, id);
             }
+            // -----------------------------------------------------------------------------------------
+            let is_static_index = match &typed_index.kind {
+                TypedExprKind::Lit(_) => true,
+                TypedExprKind::Unary(UnaryOp::Neg, inner) => {
+                    matches!(inner.kind, TypedExprKind::Lit(_))
+                }
+                _ => false,
+            };
+
+            if is_static_index {
+                let evaluated_index = tc.comptime.evaluate_expr(typed_index.clone());
+
+                if let TypedExprKind::Lit(abyss_parser::ast::Lit::Int(val)) = evaluated_index.kind {
+                    if val < 0 {
+                        tc.report_error(
+                            index.span_expr(),
+                            format!("Array index cannot be negative, found {}.", val),
+                        );
+                        return error_expr(span, id);
+                    }
+
+                    if (val as usize) >= len {
+                        tc.report_error(
+                            index.span_expr(),
+                            format!(
+                                "Array index out of bounds. Length is {}, but index is {}.",
+                                len, val
+                            ),
+                        );
+                        return error_expr(span, id);
+                    }
+                }
+            }
+            // -----------------------------------------------------------------------------------------
 
             TypedExpr {
                 kind: TypedExprKind::Index(Box::new(typed_target), Box::new(typed_index)),
