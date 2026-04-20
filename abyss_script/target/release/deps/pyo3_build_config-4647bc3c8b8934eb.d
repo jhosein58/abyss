@@ -1,0 +1,14 @@
+/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/deps/pyo3_build_config-4647bc3c8b8934eb.d: /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/lib.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/errors.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/impl_.rs /home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/build/pyo3-build-config-b7a611f76e0d4a7f/out/pyo3-build-config-file.txt /home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/build/pyo3-build-config-b7a611f76e0d4a7f/out/pyo3-build-config.txt
+
+/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/deps/libpyo3_build_config-4647bc3c8b8934eb.rlib: /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/lib.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/errors.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/impl_.rs /home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/build/pyo3-build-config-b7a611f76e0d4a7f/out/pyo3-build-config-file.txt /home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/build/pyo3-build-config-b7a611f76e0d4a7f/out/pyo3-build-config.txt
+
+/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/deps/libpyo3_build_config-4647bc3c8b8934eb.rmeta: /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/lib.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/errors.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/impl_.rs /home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/build/pyo3-build-config-b7a611f76e0d4a7f/out/pyo3-build-config-file.txt /home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/build/pyo3-build-config-b7a611f76e0d4a7f/out/pyo3-build-config.txt
+
+/home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/lib.rs:
+/home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/errors.rs:
+/home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/pyo3-build-config-0.20.3/src/impl_.rs:
+/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/build/pyo3-build-config-b7a611f76e0d4a7f/out/pyo3-build-config-file.txt:
+/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/build/pyo3-build-config-b7a611f76e0d4a7f/out/pyo3-build-config.txt:
+
+# env-dep:CARGO_PKG_VERSION=0.20.3
+# env-dep:OUT_DIR=/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/release/build/pyo3-build-config-b7a611f76e0d4a7f/out

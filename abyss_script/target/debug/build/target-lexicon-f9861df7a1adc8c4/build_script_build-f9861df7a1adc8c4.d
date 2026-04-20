@@ -1,0 +1,8 @@
+/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/debug/build/target-lexicon-f9861df7a1adc8c4/build_script_build-f9861df7a1adc8c4.d: /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/build.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/src/data_model.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/src/triple.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/src/targets.rs
+
+/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/debug/build/target-lexicon-f9861df7a1adc8c4/build_script_build-f9861df7a1adc8c4: /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/build.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/src/data_model.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/src/triple.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/src/targets.rs
+
+/home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/build.rs:
+/home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/src/data_model.rs:
+/home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/src/triple.rs:
+/home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/target-lexicon-0.12.16/src/targets.rs:

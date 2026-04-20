@@ -37,7 +37,7 @@ fn run_all_e2e_tests() {
 
         let source_code = fs::read_to_string(&main_file).expect("Failed to read main.a");
 
-        let abyss = Abyss::new(source_code)
+        let mut abyss = Abyss::new(source_code)
             .with_filename(main_file.to_str().unwrap())
             .disable_tast_print();
 

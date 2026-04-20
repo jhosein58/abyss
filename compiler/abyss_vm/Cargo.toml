@@ -3,7 +3,14 @@ name = "abyss_vm"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+ffi = ["dep:libloading", "dep:libffi"]
+
+
 [dependencies]
 abyss_ir = { path = "../abyss_ir" }
-libloading = "0.8"
-libffi = "3.2"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+libloading = { version = "0.8", optional = true }
+libffi = { version = "3.2", optional = true }

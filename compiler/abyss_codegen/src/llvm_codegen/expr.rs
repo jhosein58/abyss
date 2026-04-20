@@ -7,7 +7,8 @@ use std::convert::TryFrom;
 impl<'ctx> AbyssCompiler<'ctx> {
     pub(crate) fn compile_expr(&mut self, expr: &IrExpr) -> Option<BasicValueEnum<'ctx>> {
         match &expr.kind {
-            IrExprKind::Lit(lit) => self.compile_lit(lit),
+            IrExprKind::Lit(lit) => self.compile_lit(lit, &expr.ty),
+
             IrExprKind::VarRef(name) => self.compile_var_ref(name, &expr.ty),
             IrExprKind::Unary(op, rhs) => self.compile_unary(op, rhs, &expr.ty),
             IrExprKind::Binary(lhs, op, rhs) => self.compile_binary(lhs, op, rhs),
@@ -28,16 +29,41 @@ impl<'ctx> AbyssCompiler<'ctx> {
         }
     }
 
-    fn compile_lit(&self, lit: &IrLit) -> Option<BasicValueEnum<'ctx>> {
+    fn compile_lit(&self, lit: &IrLit, expr_ty: &IrType) -> Option<BasicValueEnum<'ctx>> {
+        let ll_ty = self.compile_type(expr_ty);
+
         match lit {
-            IrLit::Int(n) => Some(self.context.i32_type().const_int(*n as u64, true).into()),
-            IrLit::Float(f) => Some(self.context.f64_type().const_float(*f).into()),
-            IrLit::Bool(b) => Some(
-                self.context
-                    .bool_type()
-                    .const_int(if *b { 1 } else { 0 }, false)
-                    .into(),
-            ),
+            IrLit::Int(n) => {
+                if ll_ty.is_int_type() {
+                    Some(ll_ty.into_int_type().const_int(*n as u64, true).into())
+                } else {
+                    Some(self.context.i32_type().const_int(*n as u64, true).into())
+                }
+            }
+            IrLit::Float(f) => {
+                if ll_ty.is_float_type() {
+                    Some(ll_ty.into_float_type().const_float(*f).into())
+                } else {
+                    Some(self.context.f64_type().const_float(*f).into())
+                }
+            }
+            IrLit::Bool(b) => {
+                if ll_ty.is_int_type() {
+                    Some(
+                        ll_ty
+                            .into_int_type()
+                            .const_int(if *b { 1 } else { 0 }, false)
+                            .into(),
+                    )
+                } else {
+                    Some(
+                        self.context
+                            .bool_type()
+                            .const_int(if *b { 1 } else { 0 }, false)
+                            .into(),
+                    )
+                }
+            }
         }
     }
 

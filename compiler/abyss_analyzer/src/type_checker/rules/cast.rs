@@ -117,6 +117,25 @@ fn extract_type_for_cast(tc: &mut TypeChecker, expr: &TypedExpr) -> Type {
     }
 }
 
+fn is_integer_type(ty: &Type) -> bool {
+    matches!(
+        ty,
+        Type::I1
+            | Type::I8
+            | Type::I16
+            | Type::I32
+            | Type::I64
+            | Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+    )
+}
+
+fn is_float_type(ty: &Type) -> bool {
+    matches!(ty, Type::F32 | Type::F64)
+}
+
 fn is_cast_valid(from: &Type, to: &Type) -> bool {
     if from == to {
         return true;
@@ -128,42 +147,97 @@ fn is_cast_valid(from: &Type, to: &Type) -> bool {
         }
     }
 
-    match (from, to) {
-        (Type::I32, Type::F32) | (Type::F32, Type::I32) => true,
-        (Type::I32, Type::Bool) | (Type::Bool, Type::I32) => true,
-        (Type::Char, Type::I32) | (Type::I32, Type::Char) => true,
+    let from_base = from.underlying_type();
+    let to_base = to.underlying_type();
 
-        _ => false,
+    let from_is_int = is_integer_type(&from_base);
+    let to_is_int = is_integer_type(&to_base);
+    let from_is_float = is_float_type(&from_base);
+    let to_is_float = is_float_type(&to_base);
+
+    // Int <-> Int
+    if from_is_int && to_is_int {
+        return true;
     }
+    // Float <-> Float
+    if from_is_float && to_is_float {
+        return true;
+    }
+    // Int <-> Float
+    if (from_is_int && to_is_float) || (from_is_float && to_is_int) {
+        return true;
+    }
+
+    // Int/Float <-> Bool
+    if (from_is_int || from_is_float) && to_base == Type::Bool {
+        return true;
+    }
+    if from_base == Type::Bool && (to_is_int || to_is_float) {
+        return true;
+    }
+
+    // Char <-> Int
+    if from_base == Type::Char && to_is_int {
+        return true;
+    }
+    if from_is_int && to_base == Type::Char {
+        return true;
+    }
+
+    false
 }
 
 fn cast_literal_value(lit: &Lit, target_ty: &Type) -> Option<Lit> {
     let base_ty = target_ty.underlying_type();
 
-    match (lit, base_ty) {
-        (Lit::Int(_), Type::I32) | (Lit::Float(_), Type::F32) | (Lit::Bool(_), Type::Bool) => {
-            Some(lit.clone())
-        }
+    let is_target_int = is_integer_type(&base_ty);
+    let is_target_float = is_float_type(&base_ty);
 
-        // Int Casts
-        (Lit::Int(val), Type::F32) => Some(Lit::Float(OrderedFloat(*val as f64))),
-        (Lit::Int(val), Type::Bool) => Some(Lit::Bool(*val != 0)),
-
-        // Float Casts
-        (Lit::Float(val), Type::I32) => Some(Lit::Int(val.0 as i64)),
-
-        // Bool Casts
-        (Lit::Bool(val), Type::I32) => Some(Lit::Int(if *val { 1 } else { 0 })),
-
-        (Lit::Char(val), Type::I32) => Some(Lit::Int(*val as i64)),
-        (Lit::Int(val), Type::Char) => {
-            if let Some(c) = char::from_u32(*val as u32) {
-                Some(Lit::Char(c))
+    match lit {
+        Lit::Int(val) => {
+            if is_target_int {
+                Some(Lit::Int(*val))
+            } else if is_target_float {
+                Some(Lit::Float(OrderedFloat(*val as f64)))
+            } else if base_ty == Type::Bool {
+                Some(Lit::Bool(*val != 0))
+            } else if base_ty == Type::Char {
+                char::from_u32(*val as u32).map(Lit::Char)
             } else {
                 None
             }
         }
-
+        Lit::Float(val) => {
+            if is_target_float {
+                Some(Lit::Float(*val))
+            } else if is_target_int {
+                Some(Lit::Int(val.0 as i64))
+            } else if base_ty == Type::Bool {
+                Some(Lit::Bool(val.0 != 0.0))
+            } else {
+                None
+            }
+        }
+        Lit::Bool(val) => {
+            if base_ty == Type::Bool {
+                Some(Lit::Bool(*val))
+            } else if is_target_int {
+                Some(Lit::Int(if *val { 1 } else { 0 }))
+            } else if is_target_float {
+                Some(Lit::Float(OrderedFloat(if *val { 1.0 } else { 0.0 })))
+            } else {
+                None
+            }
+        }
+        Lit::Char(val) => {
+            if base_ty == Type::Char {
+                Some(Lit::Char(*val))
+            } else if is_target_int {
+                Some(Lit::Int(*val as i64))
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

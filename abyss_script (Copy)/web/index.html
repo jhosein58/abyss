@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Abyss Engine Wasm</title>
+    </head>
+    <body>
+        <h1>بخش Console مرورگر (F12) را باز کنید</h1>
+
+        <script type="module">
+            import init, { AbyssEngine } from "./pkg/abyss_script.js";
+
+            async function run() {
+                await init();
+
+                const engine = new AbyssEngine();
+
+                engine.registerFunction("print_num", (n) => {
+                    console.log("🔥 Abyss Engine says:", n);
+                    return n * 2;
+                });
+
+                const sourceCode = `
+                let x = 10;
+                print_num(x);
+            `;
+
+                try {
+                    engine.run(sourceCode);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            run();
+        </script>
+    </body>
+</html>

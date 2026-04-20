@@ -1,10 +1,4 @@
-use std::os::raw::c_void;
-
-use libffi::middle::{Cif, Type};
-use libloading::Library;
-
 use crate::vm::{
-    helpers::ir_type_to_ffi,
     opcode::{Instruction, OpCode::*},
     ops::{
         basic::{load_const, move_reg, not},
@@ -22,10 +16,13 @@ use crate::vm::{
             mul_i, mul_ic, sub_i, sub_ic,
         },
         memory::{
-            alloc, load_ptr, load_ptr_offset, mem_copy, ref_reg, store_ptr, store_ptr_offset,
+            alloc, load_ptr, load_ptr_8, load_ptr_16, load_ptr_32, load_ptr_offset,
+            load_ptr_offset_8, load_ptr_offset_16, load_ptr_offset_32, mem_copy, ref_reg,
+            store_ptr, store_ptr_8, store_ptr_16, store_ptr_32, store_ptr_offset,
+            store_ptr_offset_8, store_ptr_offset_16, store_ptr_offset_32,
         },
     },
-    types::{CallFrame, ExternDef, ExternFunction},
+    types::{CallFrame, ExternDef, ExternFunction, HostFn},
 };
 
 pub struct AbyssVm {
@@ -44,7 +41,7 @@ pub struct AbyssVm {
     pub free_blocks: Vec<(usize, usize)>,
 
     pub extern_funcs: Vec<ExternFunction>,
-    libc_lib: Library,
+    pub registered_host_fns: Vec<ExternFunction>,
 
     pub out: String,
 }
@@ -56,23 +53,7 @@ impl AbyssVm {
         s.constants = constants;
         s
     }
-
     pub fn new_empty() -> Self {
-        let libc_lib = unsafe {
-            #[cfg(target_os = "windows")]
-            {
-                Library::new("msvcrt.dll").unwrap()
-            }
-            #[cfg(target_os = "linux")]
-            {
-                Library::new("libc.so.6").unwrap()
-            }
-            #[cfg(target_os = "macos")]
-            {
-                Library::new("libc.dylib").unwrap()
-            }
-        };
-
         Self {
             registers: vec![0; 65536],
             bp: 0,
@@ -84,7 +65,8 @@ impl AbyssVm {
             globals: Vec::new(),
             free_blocks: Vec::new(),
             extern_funcs: Vec::new(),
-            libc_lib,
+            registered_host_fns: Vec::new(),
+
             out: String::new(),
         }
     }
@@ -113,28 +95,69 @@ impl AbyssVm {
         self.run()
     }
 
+    pub fn register_host_function(
+        &mut self,
+        name: &str,
+        arity: usize,
+        is_pointer_args: Vec<bool>,
+        func: HostFn,
+    ) {
+        assert_eq!(
+            arity,
+            is_pointer_args.len(),
+            "arity and is_pointer_args length mismatch for host function '{}'",
+            name
+        );
+
+        self.registered_host_fns.push(ExternFunction {
+            name: name.to_string(),
+            arity,
+            is_pointer_args,
+            ret_size: 8,
+
+            #[cfg(feature = "ffi")]
+            ptr: std::ptr::null_mut(),
+            #[cfg(feature = "ffi")]
+            cif: libffi::middle::Cif::new(std::iter::empty(), libffi::middle::Type::void()),
+
+            host_fn: Some(func),
+        });
+    }
+
     pub fn load_imports(&mut self, imports: &[ExternDef]) {
+        self.extern_funcs.clear();
+
         for def in imports {
-            let arity = def.arg_types.len();
-            let ffi_args: Vec<Type> = def.arg_types.iter().map(ir_type_to_ffi).collect();
-            let ffi_ret = ir_type_to_ffi(&def.ret_type);
+            if let Some(idx) = self
+                .registered_host_fns
+                .iter()
+                .position(|f| f.name == def.name)
+            {
+                let registered = &self.registered_host_fns[idx];
 
-            let ptr = unsafe {
-                let sym: libloading::Symbol<*mut c_void> = self
-                    .libc_lib
-                    .get(def.name.as_bytes())
-                    .unwrap_or_else(|_| panic!("Extern function '{}' not found!", def.name));
-                *sym
-            };
+                let func = ExternFunction {
+                    name: registered.name.clone(),
+                    arity: registered.arity,
+                    is_pointer_args: registered.is_pointer_args.clone(),
+                    ret_size: registered.ret_size,
 
-            let cif = Cif::new(ffi_args.into_iter(), ffi_ret);
+                    #[cfg(feature = "ffi")]
+                    ptr: registered.ptr,
+                    #[cfg(feature = "ffi")]
+                    cif: libffi::middle::Cif::new(std::iter::empty(), libffi::middle::Type::void()),
 
-            self.extern_funcs.push(ExternFunction {
-                name: def.name.clone(),
-                ptr,
-                arity,
-                cif,
-            });
+                    host_fn: registered.host_fn.clone(),
+                };
+
+                self.extern_funcs.push(func);
+                continue;
+            }
+
+            #[cfg(not(feature = "ffi"))]
+            panic!(
+                "Function '{}' not found and FFI is disabled. You must register it using register_host_function().",
+                def.name
+            );
         }
     }
 
@@ -294,10 +317,30 @@ impl AbyssVm {
                 // Memory & Pointers
                 Alloc => alloc(&inst, bp, registers_ptr, &mut self.heap),
                 RefReg => ref_reg(&inst, bp, registers_ptr),
+
+                // 64-bit
                 LoadPtr => load_ptr(&inst, bp, registers_ptr, &self.heap),
                 StorePtr => store_ptr(&inst, bp, registers_ptr, &mut self.heap),
                 LoadPtrOffset => load_ptr_offset(&inst, bp, registers_ptr, &self.heap),
                 StorePtrOffset => store_ptr_offset(&inst, bp, registers_ptr, &mut self.heap),
+
+                // 8-bit
+                LoadPtr8 => load_ptr_8(&inst, bp, registers_ptr, &self.heap),
+                StorePtr8 => store_ptr_8(&inst, bp, registers_ptr, &mut self.heap),
+                LoadPtrOffset8 => load_ptr_offset_8(&inst, bp, registers_ptr, &self.heap),
+                StorePtrOffset8 => store_ptr_offset_8(&inst, bp, registers_ptr, &mut self.heap),
+
+                // 16-bit
+                LoadPtr16 => load_ptr_16(&inst, bp, registers_ptr, &self.heap),
+                StorePtr16 => store_ptr_16(&inst, bp, registers_ptr, &mut self.heap),
+                LoadPtrOffset16 => load_ptr_offset_16(&inst, bp, registers_ptr, &self.heap),
+                StorePtrOffset16 => store_ptr_offset_16(&inst, bp, registers_ptr, &mut self.heap),
+
+                // 32-bit
+                LoadPtr32 => load_ptr_32(&inst, bp, registers_ptr, &self.heap),
+                StorePtr32 => store_ptr_32(&inst, bp, registers_ptr, &mut self.heap),
+                LoadPtrOffset32 => load_ptr_offset_32(&inst, bp, registers_ptr, &self.heap),
+                StorePtrOffset32 => store_ptr_offset_32(&inst, bp, registers_ptr, &mut self.heap),
 
                 LoadGlobal => {
                     let global_idx = ((inst.b as usize) << 8) | (inst.c as usize);

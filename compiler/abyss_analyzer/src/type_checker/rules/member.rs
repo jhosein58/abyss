@@ -1,5 +1,5 @@
 use abyss_diagnostics::Span;
-use abyss_parser::ast::{Expr, UnaryOp};
+use abyss_parser::ast::{Expr, Lit, UnaryOp};
 use abyss_types::{
     tast::{TypedExpr, TypedExprKind},
     types::Type,
@@ -78,6 +78,38 @@ pub fn check_member<'a>(
     }
 
     let core_type = typed_base.ty.peel_pointers();
+    // -----------------------------------------------------------------------------------------------
+    if let Type::Array(inner_ty, len) = &core_type {
+        if field_name == "len" {
+            return TypedExpr {
+                kind: TypedExprKind::Lit(Lit::Int(*len as i64)),
+                ty: Type::I32,
+                span: span.clone(),
+                id,
+            };
+        }
+
+        if let Ok(index) = field_name.parse::<usize>() {
+            if index >= *len {
+                tc.report_error(
+                    span.clone(),
+                    format!(
+                        "Index out of bounds: array length is {}, got {}",
+                        len, index
+                    ),
+                );
+                return error_expr(span, id);
+            }
+
+            return TypedExpr {
+                kind: TypedExprKind::FieldAccess(Box::new(typed_base.clone()), field_name.clone()),
+                ty: *inner_ty.clone(),
+                span: span.clone(),
+                id,
+            };
+        }
+    }
+    // -----------------------------------------------------------------------------------------------
     let mut current_lookup_type = core_type.clone();
 
     loop {

@@ -2,7 +2,7 @@ use crate::vm::opcode::{Instruction, OpCode};
 
 use super::IrCompiler;
 use super::env::Env;
-use abyss_ir::ir::{IrExpr, IrStmt};
+use abyss_ir::ir::{IrExpr, IrStmt, IrType};
 
 impl IrCompiler {
     pub(crate) fn compile_stmt(&mut self, env: &mut Env, stmt: &IrStmt) {
@@ -193,8 +193,14 @@ impl IrCompiler {
         let final_val_reg = self.copy_if_complex(env, val_reg, &val.ty);
         let index_reg = self.compile_expr(env, index, None);
 
+        let elem_ty = match &base.ty {
+            IrType::Array(inner, _) => &**inner,
+            _ => &val.ty,
+        };
+        let (_, _, _, _, store_offset_op) = self.get_type_info(elem_ty);
+
         self.emit(Instruction {
-            op: OpCode::StorePtrOffset,
+            op: store_offset_op,
             a: base_reg,
             b: final_val_reg,
             c: index_reg,

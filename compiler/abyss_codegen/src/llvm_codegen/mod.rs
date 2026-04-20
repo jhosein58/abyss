@@ -9,6 +9,7 @@ use inkwell::targets::{
 };
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::BasicType;
+use inkwell::values::BasicValueEnum;
 use inkwell::values::PointerValue;
 use std::collections::HashMap;
 use std::path::Path;
@@ -171,28 +172,81 @@ impl<'ctx> AbyssCompiler<'ctx> {
             let ll_ty = self.compile_type(ty);
             let global_var = self.module.add_global(ll_ty, None, name);
 
+            let mut initializer: BasicValueEnum = ll_ty.const_zero();
+
             match &expr.kind {
                 abyss_ir::ir::IrExprKind::Lit(lit) => match lit {
                     abyss_ir::ir::IrLit::Int(n) => {
-                        global_var
-                            .set_initializer(&self.context.i32_type().const_int(*n as u64, true));
+                        if ll_ty.is_int_type() {
+                            initializer = ll_ty.into_int_type().const_int(*n as u64, true).into();
+                        }
                     }
                     abyss_ir::ir::IrLit::Float(f) => {
-                        global_var.set_initializer(&self.context.f32_type().const_float(*f));
+                        if ll_ty.is_float_type() {
+                            initializer = ll_ty.into_float_type().const_float(*f).into();
+                        }
                     }
                     abyss_ir::ir::IrLit::Bool(b) => {
-                        global_var.set_initializer(
-                            &self
-                                .context
-                                .bool_type()
-                                .const_int(if *b { 1 } else { 0 }, false),
-                        );
+                        if ll_ty.is_int_type() {
+                            initializer = ll_ty
+                                .into_int_type()
+                                .const_int(if *b { 1 } else { 0 }, false)
+                                .into();
+                        }
                     }
                 },
-                _ => {
-                    global_var.set_initializer(&ll_ty.const_zero());
+
+                abyss_ir::ir::IrExprKind::ArrayInit(items) => {
+                    if ll_ty.is_array_type() {
+                        let array_ty = ll_ty.into_array_type();
+                        let element_ty = array_ty.get_element_type();
+
+                        if element_ty.is_int_type() {
+                            let int_ty = element_ty.into_int_type();
+                            let mut const_vals = Vec::new();
+
+                            for item in items {
+                                if let abyss_ir::ir::IrExprKind::Lit(lit) = &item.kind {
+                                    match lit {
+                                        abyss_ir::ir::IrLit::Int(n) => {
+                                            const_vals.push(int_ty.const_int(*n as u64, false));
+                                        }
+                                        abyss_ir::ir::IrLit::Bool(b) => {
+                                            const_vals.push(
+                                                int_ty.const_int(if *b { 1 } else { 0 }, false),
+                                            );
+                                        }
+                                        _ => const_vals.push(int_ty.const_zero()),
+                                    }
+                                } else {
+                                    const_vals.push(int_ty.const_zero());
+                                }
+                            }
+                            initializer = int_ty.const_array(&const_vals).into();
+                        } else if element_ty.is_float_type() {
+                            let float_ty = element_ty.into_float_type();
+                            let mut const_vals = Vec::new();
+
+                            for item in items {
+                                if let abyss_ir::ir::IrExprKind::Lit(abyss_ir::ir::IrLit::Float(
+                                    f,
+                                )) = &item.kind
+                                {
+                                    const_vals.push(float_ty.const_float(*f));
+                                } else {
+                                    const_vals.push(float_ty.const_zero());
+                                }
+                            }
+                            initializer = float_ty.const_array(&const_vals).into();
+                        } else {
+                            initializer = array_ty.const_zero().into();
+                        }
+                    }
                 }
+                _ => {}
             }
+
+            global_var.set_initializer(&initializer);
         }
     }
 

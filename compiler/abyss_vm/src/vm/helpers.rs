@@ -1,4 +1,5 @@
 use abyss_ir::ir::{IrLit, IrProgram, IrType};
+#[cfg(feature = "ffi")]
 use libffi::middle::Type;
 
 use crate::{
@@ -76,10 +77,22 @@ impl AbyssVm {
     }
 }
 
+#[cfg(feature = "ffi")]
 pub fn ir_type_to_ffi(ty: &IrType) -> Type {
     match ty {
+        IrType::I1 | IrType::I8 => Type::i8(),
+        IrType::I16 => Type::i16(),
         IrType::I32 => Type::i32(),
+        IrType::I64 => Type::i64(),
+
+        IrType::U8 => Type::u8(),
+        IrType::U16 => Type::u16(),
+        IrType::U32 => Type::u32(),
+        IrType::U64 => Type::u64(),
+
         IrType::F32 => Type::f32(),
+        IrType::F64 => Type::f64(),
+
         IrType::Bool => Type::u8(),
         IrType::Unit => Type::void(),
         IrType::Ptr(_) => Type::pointer(),
@@ -104,9 +117,17 @@ pub fn execute_comptime(ir_prog: IrProgram) -> IrLit {
     let raw_result = vm.run().unwrap_or(0);
 
     match expected_type {
-        IrType::I32 => IrLit::Int(raw_result as i64),
-        IrType::F32 => IrLit::Float(f64::from_bits(raw_result)),
+        IrType::I1 | IrType::I8 | IrType::I16 | IrType::I32 | IrType::I64 => {
+            IrLit::Int(raw_result as i64)
+        }
+
+        IrType::U8 | IrType::U16 | IrType::U32 | IrType::U64 => IrLit::Int(raw_result as i64),
+
+        IrType::F32 => IrLit::Float(f32::from_bits(raw_result as u32) as f64),
+        IrType::F64 => IrLit::Float(f64::from_bits(raw_result)),
+
         IrType::Bool => IrLit::Bool(raw_result != 0),
+
         IrType::Unit => IrLit::Bool(false),
         _ => panic!("Unsupported comptime return type: {:?}", expected_type),
     }

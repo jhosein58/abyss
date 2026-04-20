@@ -10,6 +10,7 @@ members = [
     "compiler/abyss_ir",
     "compiler/abyss_types",
     "compiler/abyss_utils",
+    "abyss_script",
 ]
 
 
@@ -18,26 +19,28 @@ name = "abyss"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["llvm"]
+llvm = ["dep:inkwell",
+    "dep:abyss_codegen",
+#    "abyss_vm/ffi"
+]
+
 [dependencies]
 abyss_lexer = { path = "./compiler/abyss_lexer" }
 abyss_parser = { path = "./compiler/abyss_parser" }
-abyss_codegen = { path = "./compiler/abyss_codegen" }
+abyss_codegen = { path = "./compiler/abyss_codegen", optional = true }
 abyss_analyzer = { path = "./compiler/abyss_analyzer" }
 abyss_diagnostics = { path = "./compiler/abyss_diagnostics" }
-abyss_vm = { path = "./compiler/abyss_vm" }
+abyss_vm = { path = "./compiler/abyss_vm", default-features = false }
 abyss_ir = { path = "./compiler/abyss_ir" }
 abyss_types = { path = "./compiler/abyss_types" }
 abyss_utils = { path = "./compiler/abyss_utils" }
-# libc = "0.2"
-# cc = "1.0"
-# include_dir = "0.7"
-# tempfile = "3"
 
-inkwell = { path = "third_party/inkwell", features = ["llvm21-1"] }
-
-# [build-dependencies]
-# cc = "1.0"
-
+inkwell = { path = "third_party/inkwell", features = ["llvm21-1"], optional = true }
 
 [profile.release]
 opt-level = 3

@@ -319,11 +319,26 @@ fn extract_type_from_expr(tc: &mut TypeChecker, expr: &TypedExpr) -> Type {
 }
 
 fn is_numeric(t: &Type) -> bool {
-    matches!(t, Type::I32 | Type::F32)
+    matches!(
+        t,
+        Type::U8
+            | Type::I8
+            | Type::U16
+            | Type::I16
+            | Type::U32
+            | Type::I32
+            | Type::U64
+            | Type::I64
+            | Type::F32
+            | Type::F64
+    )
 }
 
 fn is_integer(t: &Type) -> bool {
-    matches!(t, Type::I32)
+    matches!(
+        t,
+        Type::U8 | Type::I8 | Type::U16 | Type::I16 | Type::U32 | Type::I32 | Type::U64 | Type::I64
+    )
 }
 
 fn is_assignable(tc: &TypeChecker, target: &Type, source: &Type) -> bool {

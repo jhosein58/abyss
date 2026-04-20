@@ -14,6 +14,15 @@ fn main() {
 
     Abyss::new(code)
         .with_filename("main.a")
-        //.disable_tast_print()
+        .with_host_function("print_f32", 1, vec![false], |args, _heap| {
+            let val = f64::from_bits(args[0] as u64);
+            println!("{}", val);
+            0
+        })
+        .with_host_function("print_i32", 1, vec![false], |args, _heap| {
+            let val = args[0] as i32;
+            println!("{}", val);
+            0
+        })
         .run();
 }

@@ -189,8 +189,19 @@ impl<'a> TypeChecker<'a> {
         }
 
         match name {
+            "i1" => return Type::I1,
+            "i8" => return Type::I8,
+            "i16" => return Type::I16,
             "i32" => return Type::I32,
+
+            "u8" => return Type::U8,
+            "u16" => return Type::U16,
+            "u32" => return Type::U32,
+            "u64" => return Type::U64,
+
             "f32" => return Type::F32,
+            "f64" => return Type::F64,
+
             "bool" => return Type::Bool,
             "str" => return Type::Str,
             "char" => return Type::Char,
@@ -284,8 +295,20 @@ impl<'a> TypeChecker<'a> {
 
     pub fn primitive_type_from_name(&self, name: &str) -> Option<Type> {
         match name {
+            "i1" => Some(Type::I1),
+            "i8" => Some(Type::I8),
+            "i16" => Some(Type::I16),
             "i32" => Some(Type::I32),
+            "i64" => Some(Type::I64),
+
+            "u8" => Some(Type::U8),
+            "u16" => Some(Type::U16),
+            "u32" => Some(Type::U32),
+            "u64" => Some(Type::U64),
+
             "f32" => Some(Type::F32),
+            "f64" => Some(Type::F64),
+
             "bool" => Some(Type::Bool),
             "type" => Some(Type::Metatype),
             "unit" => Some(Type::Unit),

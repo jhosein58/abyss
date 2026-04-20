@@ -1,6 +1,10 @@
 use abyss_ir::ir::IrType;
+
+#[cfg(feature = "ffi")]
 use libffi::middle::Cif;
-use std::ffi::c_void;
+#[cfg(feature = "ffi")]
+use std::os::raw::c_void;
+use std::rc::Rc;
 
 pub struct CallFrame {
     pub ret_ip: usize,
@@ -8,13 +12,20 @@ pub struct CallFrame {
     pub bp: usize,
 }
 
+pub type HostFn = Rc<dyn Fn(&[u64], &mut [u8]) -> u64>;
 pub struct ExternFunction {
     pub name: String,
-    pub ptr: *mut c_void,
     pub arity: usize,
-    pub cif: Cif,
-}
+    pub is_pointer_args: Vec<bool>,
+    pub ret_size: usize,
 
+    #[cfg(feature = "ffi")]
+    pub ptr: *mut c_void,
+    #[cfg(feature = "ffi")]
+    pub cif: Cif,
+
+    pub host_fn: Option<HostFn>,
+}
 #[derive(Debug, Clone)]
 pub struct ExternDef {
     pub name: String,

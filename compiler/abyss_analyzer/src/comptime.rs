@@ -7,7 +7,7 @@ use abyss_types::{
 use abyss_vm::{codegen::IrCompiler, vm::core::AbyssVm};
 
 pub struct ComptimeEngine {
-    vm: AbyssVm,
+    pub vm: AbyssVm,
     pub builder: IrBuilder,
     compiler: IrCompiler,
     globals_cache: Vec<(String, TypedExpr)>,
@@ -60,18 +60,38 @@ impl ComptimeEngine {
         id: u32,
     ) -> TypedExpr {
         match expected_ty {
-            Type::I32 | Type::Metatype => TypedExpr {
+            Type::I1
+            | Type::I8
+            | Type::I16
+            | Type::I32
+            | Type::I64
+            | Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+            | Type::Metatype => TypedExpr {
                 kind: TypedExprKind::Lit(Lit::Int(raw_val as i64)),
                 ty: expected_ty.clone(),
                 span,
                 id,
             },
+
             Type::F32 => TypedExpr {
+                kind: TypedExprKind::Lit(Lit::Float(OrderedFloat(
+                    f64::from_bits(raw_val) as f32 as f64
+                ))),
+                ty: expected_ty.clone(),
+                span,
+                id,
+            },
+
+            Type::F64 => TypedExpr {
                 kind: TypedExprKind::Lit(Lit::Float(OrderedFloat(f64::from_bits(raw_val)))),
                 ty: expected_ty.clone(),
                 span,
                 id,
             },
+
             Type::Bool => TypedExpr {
                 kind: TypedExprKind::Lit(Lit::Bool(raw_val != 0)),
                 ty: expected_ty.clone(),
@@ -153,6 +173,7 @@ impl ComptimeEngine {
         let vm_saved_ip = self
             .vm
             .inject_instructions(&self.compiler.instructions[compiler_inst_count..]);
+
         let vm_saved_const = self
             .vm
             .inject_constants(&self.compiler.constants[compiler_const_count..]);
@@ -167,6 +188,7 @@ impl ComptimeEngine {
         let raw_result = self.vm.run_thunk(thunk_start_ip).unwrap_or(0);
 
         self.vm.rewind_state(vm_saved_ip, vm_saved_const);
+
         self.compiler
             .rewind(compiler_inst_count, compiler_const_count);
 

@@ -511,6 +511,47 @@ impl IrBuilder {
                 _ => panic!("Complex assignments not supported yet: {:?}", left.kind),
             },
 
+            TypedExprKind::Binary(left, op @ (BinaryOp::And | BinaryOp::Or), right) => {
+                let (left_stmts, left_val) = self.lower_expr(*left);
+                generated_stmts.extend(left_stmts);
+
+                let temp_var = self.new_temp();
+
+                generated_stmts.push(IrStmt::VarDec {
+                    name: temp_var.clone(),
+                    ty: IrType::Bool,
+                    init: Some(left_val.clone()),
+                });
+
+                let (mut right_stmts, right_val) = self.lower_expr(*right);
+
+                right_stmts.push(IrStmt::Assign {
+                    target: temp_var.clone(),
+                    val: right_val,
+                });
+
+                if op == BinaryOp::And {
+                    generated_stmts.push(IrStmt::If(left_val, right_stmts, vec![]));
+                } else {
+                    let not_left = IrExpr {
+                        kind: IrExprKind::Unary(IrUnaryOp::Not, Box::new(left_val)),
+                        ty: IrType::Bool,
+                        span: span.clone(),
+                    };
+
+                    generated_stmts.push(IrStmt::If(not_left, right_stmts, vec![]));
+                }
+
+                return (
+                    generated_stmts,
+                    IrExpr {
+                        kind: IrExprKind::VarRef(temp_var),
+                        ty: IrType::Bool,
+                        span,
+                    },
+                );
+            }
+
             TypedExprKind::Binary(left, op, right) => {
                 let ir_op = match op {
                     BinaryOp::Add => IrBinaryOp::Add,
@@ -524,8 +565,6 @@ impl IrBuilder {
                     BinaryOp::Lte => IrBinaryOp::Le,
                     BinaryOp::Gt => IrBinaryOp::Gt,
                     BinaryOp::Gte => IrBinaryOp::Ge,
-                    BinaryOp::And => IrBinaryOp::And,
-                    BinaryOp::Or => IrBinaryOp::Or,
 
                     BinaryOp::BitAnd => IrBinaryOp::BitAnd,
                     BinaryOp::Pipe => IrBinaryOp::BitOr,
@@ -879,8 +918,20 @@ impl IrBuilder {
         let _type_id = self.encoder.get_or_create_id(ty);
 
         match ty {
+            Type::I1 => IrType::I1,
+            Type::I8 => IrType::I8,
+            Type::I16 => IrType::I16,
             Type::I32 => IrType::I32,
+            Type::I64 => IrType::I64,
+
+            Type::U8 => IrType::U8,
+            Type::U16 => IrType::U16,
+            Type::U32 => IrType::U32,
+            Type::U64 => IrType::U64,
+
             Type::F32 => IrType::F32,
+            Type::F64 => IrType::F64,
+
             Type::Bool => IrType::Bool,
             Type::Unit => IrType::Unit,
             Type::Ptr(inner) => IrType::Ptr(Box::new(self.lower_type(inner))),

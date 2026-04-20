@@ -1,0 +1,10 @@
+/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/x86_64-pc-windows-gnu/release/deps/lock_api-080563f1954e9daa.d: /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/lib.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/mutex.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/remutex.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/rwlock.rs
+
+/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/x86_64-pc-windows-gnu/release/deps/liblock_api-080563f1954e9daa.rlib: /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/lib.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/mutex.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/remutex.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/rwlock.rs
+
+/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/x86_64-pc-windows-gnu/release/deps/liblock_api-080563f1954e9daa.rmeta: /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/lib.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/mutex.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/remutex.rs /home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/rwlock.rs
+
+/home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/lib.rs:
+/home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/mutex.rs:
+/home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/remutex.rs:
+/home/jhosein58/.cargo/registry/src/index.rust-meetup.ir-43bd58517fc567f5/lock_api-0.4.14/src/rwlock.rs:
