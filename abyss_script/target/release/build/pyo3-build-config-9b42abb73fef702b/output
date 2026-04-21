@@ -1,2 +1,4 @@
 cargo:rerun-if-env-changed=PYO3_CONFIG_FILE
-cargo:rerun-if-changed=/home/jhosein58/Desktop/workspace/abyss/abyss_script/target/maturin/pyo3-config-x86_64-pc-windows-gnu-3.10.txt
+cargo:rerun-if-env-changed=PYO3_NO_PYTHON
+cargo:rerun-if-env-changed=PYO3_ENVIRONMENT_SIGNATURE
+cargo:rerun-if-env-changed=PYO3_PYTHON

@@ -51,15 +51,14 @@ fn main() {
 
     let mut lexer_rules = DynamicLexerRules::new();
     lexer_rules.add_token("Number", r"\d+");
-    
-    // Keywords must come before Ident
+
     lexer_rules.add_token("Let", r"let");
     lexer_rules.add_token("If", r"if");
     lexer_rules.add_token("Else", r"else");
     lexer_rules.add_token("While", r"while");
     lexer_rules.add_token("True", r"true");
     lexer_rules.add_token("False", r"false");
-    
+
     lexer_rules.add_token("Ident", r"\a\w*");
     lexer_rules.add_token("LParen", r"\(");
     lexer_rules.add_token("RParen", r"\)");

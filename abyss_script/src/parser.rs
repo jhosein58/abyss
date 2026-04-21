@@ -1,6 +1,7 @@
 use crate::lexer::{Scanner, Token};
 use abyss_diagnostics::Span;
 use std::{collections::HashMap, rc::Rc};
+use std::fmt;
 
 pub type PrefixFn<'a, T> =
     Rc<dyn Fn(&mut DynamicPrattParser<'a, T>, Token<'a>) -> Result<T, String>>;
@@ -13,6 +14,24 @@ pub struct DynamicParseRule<'a, T> {
     pub prefix: Option<PrefixFn<'a, T>>,
     pub infix: Option<InfixFn<'a, T>>,
 }
+
+#[derive(Debug, Clone)]
+pub struct ParseError {
+    pub message: String,
+    pub span: Option<Span>,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(span) = &self.span {
+            write!(f, "Parse error at {}:{}: {}", span.file_id, span.start, self.message)
+        } else {
+            write!(f, "Parse error: {}", self.message)
+        }
+    }
+}
+
+impl std::error::Error for ParseError {}
 
 pub struct DynamicPrattParser<'a, T> {
     pub scanner: Scanner<'a>,
@@ -36,6 +55,18 @@ impl<'a, T: Clone> DynamicPrattParser<'a, T> {
     pub fn ignore_token(&mut self, kind_name: &str) {
         let id = self.scanner.rules.id(kind_name);
         self.ignore_tokens.push(id);
+    }
+    
+    pub fn add_rule<F>(
+        &mut self,
+        kind_name: &str,
+        precedence: u8,
+        callback: F,
+    ) where
+        F: Fn(&mut Self, Token<'a>) -> Result<T, String> + 'static,
+    {
+        let prefix_fn = Rc::new(callback);
+        self.register_rule(kind_name, precedence, Some(prefix_fn), None);
     }
 
     pub fn register_rule(
@@ -81,22 +112,24 @@ impl<'a, T: Clone> DynamicPrattParser<'a, T> {
         self.advance();
         Ok(token)
     }
+    
+    fn error_at_current(&self, message: String) -> String {
+        if let Some(ref tk) = self.current_token {
+            format!("{} at position {} ('{}')", message, tk.start, tk.text)
+        } else {
+            format!("{} at end of file", message)
+        }
+    }
 
     pub fn parse_expression(&mut self, min_bp: u8) -> Result<T, String> {
         let token = self.get_and_bump()?;
 
         let rule = self.rules.get(&token.kind).cloned().ok_or_else(|| {
-            format!(
-                "No parse rule defined for token ID: {} ('{}')",
-                token.kind, token.text
-            )
+            self.error_at_current(format!("No parse rule for token '{}'", token.text))
         })?;
 
         let prefix_fn = rule.prefix.ok_or_else(|| {
-            format!(
-                "Invalid syntax: '{}' cannot start an expression",
-                token.text
-            )
+            self.error_at_current(format!("'{}' cannot start an expression", token.text))
         })?;
 
         let mut left = prefix_fn(self, token)?;

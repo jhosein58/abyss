@@ -2,6 +2,7 @@ use crate::{
     lexer::{Scanner, Token},
     parser::DynamicPrattParser,
 };
+use abyss_diagnostics::Span;
 use std::{collections::HashMap, rc::Rc};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -32,6 +33,7 @@ pub struct SyntaxCtx<T> {
     pub vars: HashMap<String, SyntaxVar<T>>,
     pub start_span: u32,
     pub end_span: u32,
+    pub file_id: u16,
 }
 
 impl<T: Clone> SyntaxCtx<T> {
@@ -59,6 +61,14 @@ impl<T: Clone> SyntaxCtx<T> {
                 })
                 .collect(),
             _ => panic!("Expected List for '{}'", name),
+        }
+    }
+    
+    pub fn span(&self) -> Span {
+        Span {
+            file_id: self.file_id,
+            start: self.start_span,
+            end: self.end_span,
         }
     }
 }
@@ -109,6 +119,7 @@ impl<'a, T: Clone + 'static> DynamicSyntaxMagic<'a, T> for DynamicPrattParser<'a
                             vars: ctx_vars,
                             start_span: start_token.start as u32,
                             end_span,
+                            file_id: parser.file_id,
                         }))
                     },
                 );
@@ -138,6 +149,7 @@ impl<'a, T: Clone + 'static> DynamicSyntaxMagic<'a, T> for DynamicPrattParser<'a
                             vars: ctx_vars,
                             start_span: op_token.start as u32,
                             end_span,
+                            file_id: parser.file_id,
                         }))
                     },
                 );
@@ -191,7 +203,12 @@ fn eval_pattern_nodes<'a, T: Clone>(
             PatternNode::Literal(text) => {
                 let next = parser.get_and_bump()?;
                 if next.text != text {
-                    return Err(format!("Expected '{}', found '{}'", text, next.text));
+                    return Err(format!(
+                        "Expected '{}' but found '{}' at position {}",
+                        text,
+                        next.text,
+                        next.start
+                    ));
                 }
                 *end_span = (next.start + next.len) as u32;
             }
@@ -200,7 +217,11 @@ fn eval_pattern_nodes<'a, T: Clone>(
                     Some(PatternNode::Literal(t)) => Some(t.as_str()),
                     None => stop_token_text,
                     _ => {
-                        return Err("A $(...) block MUST be followed by a Literal stop token".into())
+                        return Err(format!(
+                            "Syntax error: A $(...) repeat block must be followed by a literal token (like '}}' or ';'), \
+                             but found something else at position {}",
+                            parser.current_token.as_ref().map(|t| t.start).unwrap_or(0)
+                        ))
                     }
                 };
 
@@ -241,7 +262,12 @@ fn eval_pattern_nodes<'a, T: Clone>(
                             } else if Some(tk.text) == local_stop {
                                 break;
                             } else {
-                                return Err(format!("Expected separator '{}' or stop token", sep));
+                                return Err(format!(
+                                    "Expected separator '{}' or stop token, but found '{}' at position {}",
+                                    sep,
+                                    tk.text,
+                                    tk.start
+                                ));
                             }
                         }
                     }
