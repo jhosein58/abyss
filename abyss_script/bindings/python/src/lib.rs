@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 use std::rc::Rc;
 
-// Unified node type that can be either expression or statement
 #[pyclass]
 #[derive(Clone)]
 pub struct Node {
@@ -47,21 +46,18 @@ use abyss_ir::{
 };
 use abyss_vm::{codegen::IrCompiler, vm::core::AbyssVm};
 
-// Wrapper for IR expressions
 #[pyclass]
 #[derive(Clone)]
 pub struct PyExpr {
     pub inner: IrExpr,
 }
 
-// Wrapper for IR statements
 #[pyclass]
 #[derive(Clone)]
 pub struct PyStmt {
     pub inner: IrStmt,
 }
 
-// Helper to build IR nodes from Python
 #[pyclass]
 pub struct IR;
 
@@ -169,7 +165,6 @@ impl IR {
     }
 }
 
-// Context passed to pattern callbacks
 #[pyclass(unsendable)]
 pub struct Ctx {
     ctx: SyntaxCtx<PyObject>,
@@ -195,7 +190,6 @@ impl Ctx {
     }
 }
 
-// Main engine for building dynamic languages
 #[pyclass(unsendable)]
 pub struct Abyss {
     source: String,
@@ -359,7 +353,6 @@ impl Abyss {
         let ir_program = Ir::program(stmts);
         let mut compiler = IrCompiler::new();
 
-        // Register external functions
         if let Some(ref funcs) = host_functions {
             if let Ok(dict) = funcs.downcast::<pyo3::types::PyDict>(py) {
                 for (name, _) in dict.iter() {
@@ -372,7 +365,6 @@ impl Abyss {
         let (instructions, constants, extern_defs) = compiler.compile(&ir_program);
         let mut vm = AbyssVm::new(instructions, constants);
 
-        // Register host functions
         if let Some(funcs) = host_functions {
             if let Ok(dict) = funcs.downcast::<pyo3::types::PyDict>(py) {
                 for (name, func) in dict.iter() {

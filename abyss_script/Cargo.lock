@@ -72,6 +72,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "abyss_wasm"
+version = "0.1.0"
+dependencies = [
+ "abyss_ir",
+ "abyss_script",
+ "abyss_vm",
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -125,10 +136,6 @@ checksum = "79cf5c93f93228cf8efb3ba362535fb11199ac548a09ce117c9b1adc3030d706"
 dependencies = [
  "rustversion",
 ]
-
-[[package]]
-name = "js"
-version = "0.1.0"
 
 [[package]]
 name = "js-sys"

@@ -1,0 +1,233 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Abyss Script</title>
+        <style>
+            body {
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+                background: #f5f5f5;
+            }
+            h1 {
+                color: #333;
+                border-bottom: 3px solid #4caf50;
+                padding-bottom: 10px;
+            }
+            .container {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                margin-top: 20px;
+            }
+            .panel {
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            h2 {
+                margin-top: 0;
+                color: #4caf50;
+            }
+            textarea {
+                width: 100%;
+                height: 300px;
+                font-family: "Courier New", monospace;
+                font-size: 14px;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                resize: vertical;
+            }
+            button {
+                background: #4caf50;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                font-size: 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-top: 10px;
+            }
+            button:hover {
+                background: #45a049;
+            }
+            #output {
+                background: #1e1e1e;
+                color: #d4d4d4;
+                padding: 15px;
+                border-radius: 4px;
+                font-family: "Courier New", monospace;
+                min-height: 200px;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+            }
+            .success {
+                color: #4caf50;
+            }
+            .error {
+                color: #f44336;
+            }
+            .info {
+                color: #2196f3;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Abyss Script</h1>
+
+        <div class="container">
+            <div class="panel">
+                <h2>Custom Language Code</h2>
+                <textarea id="sourceCode">
+let x = 10;
+let y = 20;
+
+print(x + y);
+
+let counter = 0;
+while (counter < 5) {
+    print(counter);
+    counter = counter + 1;
+}
+
+if (x > y) {
+    print(999);
+} else {
+    print(888);
+}</textarea
+                >
+                <button onclick="runCode()">Run Code</button>
+            </div>
+
+            <div class="panel">
+                <h2>Output</h2>
+                <div id="output"></div>
+            </div>
+        </div>
+
+        <script type="module">
+            import init, { Abyss, IR } from "./pkg/abyss_wasm.js";
+
+            let wasmReady = false;
+
+            async function initWasm() {
+                try {
+                    await init();
+                    wasmReady = true;
+                    log("✅ Abyss Script WASM loaded successfully!", "success");
+                    log("Ready to run your custom language!", "info");
+                } catch (e) {
+                    log("❌ Failed to load WASM: " + e, "error");
+                }
+            }
+
+            function log(message, type = "") {
+                const output = document.getElementById("output");
+                const span = document.createElement("span");
+                span.className = type;
+                span.textContent = message + "\n";
+                output.appendChild(span);
+            }
+
+            function clearOutput() {
+                document.getElementById("output").innerHTML = "";
+            }
+
+            window.runCode = function () {
+                if (!wasmReady) {
+                    alert("WASM not loaded yet. Please wait...");
+                    return;
+                }
+
+                clearOutput();
+                log("🚀 Running your custom language...", "info");
+                log("");
+
+                try {
+                    const source = document.getElementById("sourceCode").value;
+                    const lang = new Abyss(source);
+
+                    lang.token("Number", "\\d+");
+                    lang.token("Ident", "\\a\\w*");
+                    lang.token("Space", "\\s+");
+                    lang.ignore("Space");
+
+                    lang.number("Number", (text) => IR.int(parseInt(text)));
+                    lang.ident("Ident", (text) => IR.var(text));
+
+                    lang.expr(":l + :r", 10, (ctx) =>
+                        IR.add(ctx.node("l"), ctx.node("r")),
+                    );
+                    lang.expr(":l - :r", 10, (ctx) =>
+                        IR.sub(ctx.node("l"), ctx.node("r")),
+                    );
+                    lang.expr(":l * :r", 20, (ctx) =>
+                        IR.mul(ctx.node("l"), ctx.node("r")),
+                    );
+                    lang.expr(":l / :r", 20, (ctx) =>
+                        IR.div(ctx.node("l"), ctx.node("r")),
+                    );
+                    lang.expr(":l < :r", 5, (ctx) =>
+                        IR.lt(ctx.node("l"), ctx.node("r")),
+                    );
+                    lang.expr(":l > :r", 5, (ctx) =>
+                        IR.gt(ctx.node("l"), ctx.node("r")),
+                    );
+                    lang.expr(":l == :r", 5, (ctx) =>
+                        IR.eq(ctx.node("l"), ctx.node("r")),
+                    );
+                    lang.expr(":l != :r", 5, (ctx) =>
+                        IR.neq(ctx.node("l"), ctx.node("r")),
+                    );
+
+                    lang.expr(":target = :val", 2, (ctx) =>
+                        IR.assign(ctx.node("target"), ctx.node("val")),
+                    );
+
+                    lang.expr(":func ( $(:args),* )", 30, (ctx) =>
+                        IR.call(ctx.node("func"), ctx.nodes("args")),
+                    );
+
+                    lang.stmt("let @name = :val", (ctx) =>
+                        IR.varDecl(ctx.ident("name"), ctx.node("val")),
+                    );
+
+                    lang.stmt(
+                        "if ( :cond ) { $(:then_body);* } else { $(:else_body);* }",
+                        (ctx) =>
+                            IR.ifStmt(
+                                ctx.node("cond"),
+                                ctx.nodes("then_body"),
+                                ctx.nodes("else_body"),
+                            ),
+                    );
+
+                    lang.stmt("while ( :cond ) { $(:body);* }", (ctx) =>
+                        IR.whileStmt(ctx.node("cond"), ctx.nodes("body")),
+                    );
+
+                    const hostFunctions = {
+                        print: (args) => {
+                            log(`🖨️  Output: ${args[0]}`, "success");
+                        },
+                    };
+
+                    lang.run(hostFunctions);
+
+                    log("");
+                    log("✅ Execution completed successfully!", "success");
+                } catch (e) {
+                    log("");
+                    log("❌ Error: " + e, "error");
+                    console.error(e);
+                }
+            };
+
+            initWasm();
+        </script>
+    </body>
+</html>
