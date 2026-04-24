@@ -11,6 +11,8 @@ members = [
     "compiler/abyss_types",
     "compiler/abyss_utils",
     "abyss_script",
+    "abyss_script/bindings/python",
+    "abyss_script/bindings/js",
 ]
 
 
@@ -40,7 +42,7 @@ abyss_ir = { path = "./compiler/abyss_ir" }
 abyss_types = { path = "./compiler/abyss_types" }
 abyss_utils = { path = "./compiler/abyss_utils" }
 
-inkwell = { path = "third_party/inkwell", features = ["llvm21-1"], optional = true }
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm21-1"], optional = true }
 
 [profile.release]
 opt-level = 3
