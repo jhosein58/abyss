@@ -240,7 +240,7 @@ impl Abyss {
         self.stmt_rules.push((pattern, callback));
     }
 
-    fn parse(&self, py: Python) -> PyResult<Vec<PyObject>> {
+    fn parse(&self, _py: Python) -> PyResult<Vec<PyObject>> {
         let mut lexer_rules = DynamicLexerRules::new();
         for (name, regex) in &self.tokens {
             lexer_rules.add_token(name, regex);
