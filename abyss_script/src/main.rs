@@ -5,15 +5,15 @@ use std::rc::Rc;
 
 fn main() {
     let source_code = r#"
-        let i = 0;
-        while i < 5 {
-            let j = 0;
+        let i = 1
+        while i < 10 {
+            let j = 0
             while j < i {
-                star();
-                j = j + 1;
-            };
-            ln();
-            i = i + i;
+                star()
+                j = j + 1
+            }
+            ln()
+            i = i + 1
         }
     "#;
 

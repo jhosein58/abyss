@@ -4,7 +4,7 @@ use crate::vm::{
         basic::{load_const, move_reg, not},
         bitwise::{bit_and, bit_not, bit_or, bit_xor, shl, shr_i, shr_u},
         cast::{cast_f2b, cast_f2i, cast_i2b, cast_i2f},
-        control::{call, call_extern, jmp, jmp_if, jmp_imm, jmp_z_imm},
+        control::{call_dynamic, call_extern, jmp, jmp_if, jmp_imm, jmp_z_imm},
         math_float::{
             add_f, add_fc, cmp_eq_f, cmp_eq_fc, cmp_ge_f, cmp_ge_fc, cmp_gt_f, cmp_gt_fc, cmp_le_f,
             cmp_le_fc, cmp_lt_f, cmp_lt_fc, cmp_neq_f, cmp_neq_fc, div_f, div_fc, mul_f, mul_fc,
@@ -294,7 +294,7 @@ impl AbyssVm {
                 BitNot => bit_not(&inst, bp, registers_ptr),
 
                 // Control Flow
-                Call => call(&inst, &mut ip, &mut bp, registers_ptr, &mut self.call_stack),
+                Call => call_dynamic(&inst, &mut ip, &mut bp, registers_ptr, self),
                 CallExtern => call_extern(&inst, self, bp, registers_ptr),
                 Jmp => jmp(&inst, bp, &mut ip, registers_ptr),
                 JmpIf => jmp_if(&inst, bp, &mut ip, registers_ptr),

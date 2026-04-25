@@ -184,11 +184,6 @@ impl<'a, T: Clone> DynamicPrattParser<'a, T> {
         let mut stmts = Vec::new();
         while self.current_token.is_some() {
             stmts.push(self.parse_expression(0)?);
-            if let Some(tk) = &self.current_token {
-                if tk.text == ";" {
-                    self.advance();
-                }
-            }
         }
         Ok(stmts)
     }

@@ -122,7 +122,7 @@ pub fn build_parser<'a>(source_code: &'a str) -> DynamicPrattParser<'a, AstNode>
         AstNode::Expr(Ir::call(name, args))
     });
 
-    parser.define_stmt("let @name = :val ;", |ctx: SyntaxCtx<AstNode>| {
+    parser.define_stmt("let @name = :val", |ctx: SyntaxCtx<AstNode>| {
         AstNode::Stmt(Ir::var_dec(
             ctx.get_ident("name"),
             ctx.get_node("val").unwrap_expr(),
@@ -130,7 +130,7 @@ pub fn build_parser<'a>(source_code: &'a str) -> DynamicPrattParser<'a, AstNode>
     });
 
     parser.define_stmt(
-        "if :cond { $(:then_body);* } $( else $< { $(:else_body);* } | :elif > )?",
+        "if :cond { $(:then_body)* } $( else $< { $(:else_body)* } | :elif > )?",
         |ctx: SyntaxCtx<AstNode>| {
             let cond = ctx.get_node("cond").unwrap_expr();
             let then_body = ctx
@@ -153,7 +153,7 @@ pub fn build_parser<'a>(source_code: &'a str) -> DynamicPrattParser<'a, AstNode>
         },
     );
 
-    parser.define_stmt("while :cond { $(:body);* }", |ctx: SyntaxCtx<AstNode>| {
+    parser.define_stmt("while :cond { $(:body)* }", |ctx: SyntaxCtx<AstNode>| {
         AstNode::Stmt(IrStmt::While {
             cond: ctx.get_node("cond").unwrap_expr(),
             body: ctx

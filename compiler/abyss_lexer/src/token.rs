@@ -2,6 +2,7 @@ use core::fmt::{self, Display, Formatter};
 
 use abyss_diagnostics::Span;
 
+#[repr(u8)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TokenKind {
     Comment,

@@ -21,6 +21,11 @@ pub enum IrType {
     Ptr(Box<IrType>),
     Array(Box<IrType>, usize),
     Struct(Vec<IrType>),
+    Union(Vec<IrType>),
+    FuncPtr {
+        params: Vec<IrType>,
+        ret: Box<IrType>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -85,6 +90,12 @@ pub enum IrStmt {
         index: usize,
         val: IrExpr,
     },
+
+    WriteUnion {
+        base: IrExpr,
+        index: usize,
+        val: IrExpr,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -116,6 +127,13 @@ pub enum IrExprKind {
 
     Call {
         func_name: String,
+        args: Vec<IrExpr>,
+    },
+
+    FuncAddr(String),
+
+    CallIndirect {
+        ptr: Box<IrExpr>,
         args: Vec<IrExpr>,
     },
 

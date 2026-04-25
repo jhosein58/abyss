@@ -354,7 +354,8 @@ impl IrCompiler {
             | IrType::F32
             | IrType::F64
             | IrType::Bool
-            | IrType::Ptr(_) => 1,
+            | IrType::Ptr(_)
+            | IrType::FuncPtr { .. } => 1,
 
             IrType::Unit => 0,
 
@@ -366,6 +367,12 @@ impl IrCompiler {
                 .iter()
                 .map(|field_ty| self.get_type_size_in_words(field_ty))
                 .sum(),
+
+            IrType::Union(fields) => fields
+                .iter()
+                .map(|field_ty| self.get_type_size_in_words(field_ty))
+                .max()
+                .unwrap_or(1),
         }
     }
 }
