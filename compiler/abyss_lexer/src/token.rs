@@ -2,40 +2,6 @@ use core::fmt::{self, Display, Formatter};
 
 use abyss_diagnostics::Span;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RawTokenKind {
-    Comment,
-    Whitespace,
-    Newline,
-
-    Ident,
-
-    Integer,    // 123
-    HexInteger, // 0xFF,  0XFF
-    BinInteger, // 0b101, 0B101
-    OctInteger, // 0o777, 0O777
-    Float,      // 1.0, 1.
-    String,     // "hello"
-    CString,    // c"hello"
-    Char,       // 'A'
-
-    Symbol,
-
-    Eof,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct RawToken {
-    pub kind: RawTokenKind,
-    pub len: usize,
-}
-
-impl RawToken {
-    pub fn new(kind: RawTokenKind, len: usize) -> Self {
-        Self { kind, len }
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TokenKind {
     Comment,
@@ -129,6 +95,49 @@ pub enum TokenKind {
 
     Unknown,
     Eof,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Token<'a> {
+    pub kind: TokenKind,
+    pub text: &'a str,
+    pub start: usize,
+    pub len: usize,
+    pub preceded_by_newline: bool,
+}
+
+impl<'a> Token<'a> {
+    pub fn new(
+        kind: TokenKind,
+        text: &'a str,
+        start: usize,
+        len: usize,
+        preceded_by_newline: bool,
+    ) -> Self {
+        Self {
+            kind,
+            text,
+            start,
+            len,
+            preceded_by_newline,
+        }
+    }
+
+    pub fn end(&self) -> usize {
+        self.start + self.len
+    }
+
+    pub fn dummy() -> Self {
+        Self::new(TokenKind::Unknown, "", 0, 0, false)
+    }
+
+    pub fn span(&self, file_id: u16) -> Span {
+        Span {
+            file_id,
+            start: self.start as u32,
+            end: (self.start + self.len) as u32,
+        }
+    }
 }
 
 impl TokenKind {
@@ -306,49 +315,6 @@ impl Display for TokenKind {
             TokenKind::Underscore => write!(f, "'_'"),
             TokenKind::Unknown => write!(f, "Unknown"),
             TokenKind::Eof => write!(f, "Eof"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Token<'a> {
-    pub kind: TokenKind,
-    pub text: &'a str,
-    pub start: usize,
-    pub len: usize,
-    pub preceded_by_newline: bool,
-}
-
-impl<'a> Token<'a> {
-    pub fn new(
-        kind: TokenKind,
-        text: &'a str,
-        start: usize,
-        len: usize,
-        preceded_by_newline: bool,
-    ) -> Self {
-        Self {
-            kind,
-            text,
-            start,
-            len,
-            preceded_by_newline,
-        }
-    }
-
-    pub fn end(&self) -> usize {
-        self.start + self.len
-    }
-
-    pub fn dummy() -> Self {
-        Self::new(TokenKind::Unknown, "", 0, 0, false)
-    }
-
-    pub fn span(&self, file_id: u16) -> Span {
-        Span {
-            file_id,
-            start: self.start as u32,
-            end: (self.start + self.len) as u32,
         }
     }
 }
