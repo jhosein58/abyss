@@ -40,6 +40,11 @@ impl IrCompiler {
             IrExprKind::GetFieldPtr { base, index } => {
                 self.compile_get_field_ptr(env, base, *index, target)
             }
+
+            IrExprKind::FuncAddr(name) => self.compile_func_addr(env, name, target),
+            IrExprKind::CallIndirect { ptr, args } => {
+                self.compile_call_indirect(env, ptr, args, target)
+            }
         }
     }
 
@@ -1042,6 +1047,72 @@ impl IrCompiler {
         dest_reg
     }
 
+    fn compile_func_addr(&mut self, env: &mut Env, name: &str, target: Option<u8>) -> u8 {
+        let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
+
+        if let Some(&func_idx) = self.func_const_indices.get(name) {
+            let const_idx = self.add_const(func_idx as u64);
+            self.emit(Instruction {
+                op: OpCode::LoadConst,
+                a: dest_reg,
+                b: const_idx,
+                c: 0,
+            });
+            return dest_reg;
+        }
+
+        if let Some(&ext_idx) = self.extern_indices.get(name) {
+            let tagged_idx = (ext_idx as u64) | (1 << 63);
+            let const_idx = self.add_const(tagged_idx);
+            self.emit(Instruction {
+                op: OpCode::LoadConst,
+                a: dest_reg,
+                b: const_idx,
+                c: 0,
+            });
+            return dest_reg;
+        }
+
+        panic!("Function '{}' not found for taking address", name);
+    }
+
+    fn compile_call_indirect(
+        &mut self,
+        env: &mut Env,
+        ptr: &IrExpr,
+        args: &[IrExpr],
+        target: Option<u8>,
+    ) -> u8 {
+        let frame_offset = env.next_reg;
+        env.next_reg += args.len() as u8;
+
+        for (i, arg) in args.iter().enumerate() {
+            let target_reg = frame_offset + (i as u8);
+            let arg_val_reg = self.compile_expr(env, arg, None);
+
+            let final_arg_reg = self.copy_if_complex(env, arg_val_reg, &arg.ty);
+
+            self.emit(Instruction {
+                op: OpCode::Move,
+                a: target_reg,
+                b: final_arg_reg,
+                c: 0,
+            });
+        }
+
+        let ptr_reg = self.compile_expr(env, ptr, None);
+        let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
+
+        self.emit(Instruction {
+            op: OpCode::Call,
+            a: dest_reg,
+            b: ptr_reg,
+            c: frame_offset,
+        });
+
+        dest_reg
+    }
+
     pub(crate) fn get_type_info(&self, ty: &IrType) -> (u64, OpCode, OpCode, OpCode, OpCode) {
         match ty {
             IrType::I8 | IrType::U8 | IrType::Bool => (
@@ -1064,6 +1135,19 @@ impl IrCompiler {
                 OpCode::StorePtr32,
                 OpCode::LoadPtrOffset32,
                 OpCode::StorePtrOffset32,
+            ),
+            IrType::I64
+            | IrType::U64
+            | IrType::F64
+            | IrType::Ptr(_)
+            | IrType::FuncPtr { .. }
+            | IrType::Struct(_)
+            | IrType::Union(_) => (
+                8,
+                OpCode::LoadPtr,
+                OpCode::StorePtr,
+                OpCode::LoadPtrOffset,
+                OpCode::StorePtrOffset,
             ),
             _ => (
                 8,

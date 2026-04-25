@@ -18,6 +18,7 @@ impl<'ctx> AbyssCompiler<'ctx> {
             IrStmt::While { cond, body } => self.compile_while(cond, body, current_func),
             IrStmt::Break => self.compile_break(),
             IrStmt::WriteField { base, index, val } => self.compile_write_field(base, index, val),
+            IrStmt::WriteUnion { base, index, val } => self.compile_write_union(base, index, val),
         }
     }
 
@@ -219,6 +220,13 @@ impl<'ctx> AbyssCompiler<'ctx> {
                     .build_struct_gep(base_ll_ty, base_ptr, *index as u32, "")
                     .unwrap();
                 self.builder.build_store(gep, value).unwrap();
+            }
+        }
+    }
+    fn compile_write_union(&mut self, base: &IrExpr, _index: &usize, val: &IrExpr) {
+        if let Some(base_ptr) = self.get_lvalue_ptr(base) {
+            if let Some(value) = self.compile_expr(val) {
+                self.builder.build_store(base_ptr, value).unwrap();
             }
         }
     }

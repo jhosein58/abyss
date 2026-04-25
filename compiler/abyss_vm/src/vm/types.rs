@@ -34,3 +34,4 @@ pub struct ExternDef {
 }
 
 pub const REG_PTR_TAG: u64 = 1 << 63;
+pub const EXTERN_FUNC_TAG: u64 = 0x4000_0000_0000_0000;

@@ -1,5 +1,6 @@
 use super::AbyssCompiler;
 use abyss_ir::ir::{IrBinaryOp, IrExpr, IrExprKind, IrLit, IrType, IrUnaryOp};
+use inkwell::types::BasicTypeEnum;
 use inkwell::values::{AnyValue, BasicValueEnum, FloatValue, IntValue, PointerValue};
 use inkwell::{FloatPredicate, IntPredicate};
 use std::convert::TryFrom;
@@ -26,6 +27,11 @@ impl<'ctx> AbyssCompiler<'ctx> {
             }
             IrExprKind::GetIndexPtr { base, index } => self.compile_get_index_ptr(base, index),
             IrExprKind::GetFieldPtr { base, index } => self.compile_get_field_ptr(base, index),
+
+            IrExprKind::FuncAddr(name) => self.compile_func_addr(name),
+            IrExprKind::CallIndirect { ptr, args } => {
+                self.compile_call_indirect(ptr, args, &expr.ty)
+            }
         }
     }
 
@@ -404,14 +410,12 @@ impl<'ctx> AbyssCompiler<'ctx> {
         index: &usize,
         expr_ty: &IrType,
     ) -> Option<BasicValueEnum<'ctx>> {
-        let base_ptr = self.get_lvalue_ptr(base)?;
-        let base_ll_ty = self.compile_type(&base.ty);
-        let gep = self
-            .builder
-            .build_struct_gep(base_ll_ty, base_ptr, *index as u32, "")
-            .unwrap();
+        let ptr = self
+            .compile_get_field_ptr(base, index)?
+            .into_pointer_value();
         let res_ty = self.compile_type(expr_ty);
-        Some(self.builder.build_load(res_ty, gep, "").unwrap())
+
+        Some(self.builder.build_load(res_ty, ptr, "").unwrap())
     }
 
     fn compile_get_index_ptr(
@@ -431,12 +435,18 @@ impl<'ctx> AbyssCompiler<'ctx> {
         };
         Some(gep.into())
     }
+
     fn compile_get_field_ptr(
         &mut self,
         base: &IrExpr,
         index: &usize,
     ) -> Option<BasicValueEnum<'ctx>> {
         let base_ptr = self.get_lvalue_ptr(base)?;
+
+        if let IrType::Union(_) = base.ty {
+            return Some(base_ptr.into());
+        }
+
         let base_ll_ty = self.compile_type(&base.ty);
         let gep = self
             .builder
@@ -474,5 +484,56 @@ impl<'ctx> AbyssCompiler<'ctx> {
                 }
             }
         }
+    }
+
+    fn compile_func_addr(&self, name: &String) -> Option<BasicValueEnum<'ctx>> {
+        let function = self
+            .module
+            .get_function(name)
+            .unwrap_or_else(|| panic!("LLVM Codegen Error: Function '{}' not found", name));
+
+        Some(function.as_global_value().as_pointer_value().into())
+    }
+
+    fn compile_call_indirect(
+        &mut self,
+        ptr_expr: &IrExpr,
+        args: &[IrExpr],
+        _ret_ty: &IrType,
+    ) -> Option<BasicValueEnum<'ctx>> {
+        let ptr_val = self.compile_expr(ptr_expr)?.into_pointer_value();
+
+        let mut compiled_args = Vec::new();
+        for arg in args {
+            compiled_args.push(self.compile_expr(arg)?.into());
+        }
+
+        let fn_type = if let IrType::FuncPtr { params, ret } = &ptr_expr.ty {
+            let param_ll_tys: Vec<_> = params.iter().map(|p| self.compile_type(p).into()).collect();
+
+            if **ret == IrType::Unit {
+                self.context.void_type().fn_type(&param_ll_tys, false)
+            } else {
+                let ret_ll_ty = self.compile_type(ret);
+                match ret_ll_ty {
+                    BasicTypeEnum::IntType(t) => t.fn_type(&param_ll_tys, false),
+                    BasicTypeEnum::FloatType(t) => t.fn_type(&param_ll_tys, false),
+                    BasicTypeEnum::PointerType(t) => t.fn_type(&param_ll_tys, false),
+                    BasicTypeEnum::StructType(t) => t.fn_type(&param_ll_tys, false),
+                    BasicTypeEnum::ArrayType(t) => t.fn_type(&param_ll_tys, false),
+                    BasicTypeEnum::VectorType(t) => t.fn_type(&param_ll_tys, false),
+                    BasicTypeEnum::ScalableVectorType(t) => t.fn_type(&param_ll_tys, false),
+                }
+            }
+        } else {
+            panic!("LLVM Codegen Error: CallIndirect pointer expression is not of type FuncPtr");
+        };
+
+        let call_site = self
+            .builder
+            .build_indirect_call(fn_type, ptr_val, &compiled_args, "")
+            .unwrap();
+
+        BasicValueEnum::try_from(call_site.as_any_value_enum()).ok()
     }
 }

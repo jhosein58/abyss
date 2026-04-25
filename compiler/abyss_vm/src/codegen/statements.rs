@@ -26,6 +26,10 @@ impl IrCompiler {
                 self.compile_write_field(env, base, *index, val)
             }
 
+            IrStmt::WriteUnion { base, index, val } => {
+                self.compile_write_union(env, base, *index, val)
+            }
+
             IrStmt::WritePointer { ptr, val } => self.compile_write_pointer(env, ptr, val),
         }
     }
@@ -227,6 +231,22 @@ impl IrCompiler {
             a: base_reg,
             b: final_val_reg,
             c: idx_reg,
+        });
+    }
+
+    fn compile_write_union(&mut self, env: &mut Env, base: &IrExpr, _index: usize, val: &IrExpr) {
+        let base_reg = self.compile_expr(env, base, None);
+        let val_reg = self.compile_expr(env, val, None);
+
+        let final_val_reg = self.copy_if_complex(env, val_reg, &val.ty);
+
+        let zero_reg = self.emit_load_zero(env);
+
+        self.emit(Instruction {
+            op: OpCode::StorePtrOffset,
+            a: base_reg,
+            b: final_val_reg,
+            c: zero_reg,
         });
     }
 
