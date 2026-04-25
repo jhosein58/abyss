@@ -1,7 +1,8 @@
-use crate::lexer::{Scanner, Token};
 use abyss_diagnostics::Span;
-use std::{collections::HashMap, rc::Rc};
 use std::fmt;
+use std::{collections::HashMap, rc::Rc};
+
+use crate::core::lexer::{Scanner, Token};
 
 pub type PrefixFn<'a, T> =
     Rc<dyn Fn(&mut DynamicPrattParser<'a, T>, Token<'a>) -> Result<T, String>>;
@@ -24,7 +25,11 @@ pub struct ParseError {
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(span) = &self.span {
-            write!(f, "Parse error at {}:{}: {}", span.file_id, span.start, self.message)
+            write!(
+                f,
+                "Parse error at {}:{}: {}",
+                span.file_id, span.start, self.message
+            )
         } else {
             write!(f, "Parse error: {}", self.message)
         }
@@ -32,6 +37,12 @@ impl fmt::Display for ParseError {
 }
 
 impl std::error::Error for ParseError {}
+
+#[derive(Clone)]
+pub struct ParserState<'a> {
+    pub scanner_off: usize,
+    pub current_token: Option<Token<'a>>,
+}
 
 pub struct DynamicPrattParser<'a, T> {
     pub scanner: Scanner<'a>,
@@ -52,17 +63,25 @@ impl<'a, T: Clone> DynamicPrattParser<'a, T> {
         }
     }
 
+    pub fn save_state(&self) -> ParserState<'a> {
+        ParserState {
+            scanner_off: self.scanner.get_offset(),
+            current_token: self.current_token.clone(),
+        }
+    }
+
+    pub fn restore_state(&mut self, state: ParserState<'a>) {
+        self.scanner.set_offset(state.scanner_off);
+        self.current_token = state.current_token;
+    }
+
     pub fn ignore_token(&mut self, kind_name: &str) {
         let id = self.scanner.rules.id(kind_name);
         self.ignore_tokens.push(id);
     }
-    
-    pub fn add_rule<F>(
-        &mut self,
-        kind_name: &str,
-        precedence: u8,
-        callback: F,
-    ) where
+
+    pub fn add_rule<F>(&mut self, kind_name: &str, precedence: u8, callback: F)
+    where
         F: Fn(&mut Self, Token<'a>) -> Result<T, String> + 'static,
     {
         let prefix_fn = Rc::new(callback);
@@ -112,7 +131,7 @@ impl<'a, T: Clone> DynamicPrattParser<'a, T> {
         self.advance();
         Ok(token)
     }
-    
+
     fn error_at_current(&self, message: String) -> String {
         if let Some(ref tk) = self.current_token {
             format!("{} at position {} ('{}')", message, tk.start, tk.text)

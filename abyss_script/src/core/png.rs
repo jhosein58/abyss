@@ -1,9 +1,10 @@
-use crate::{
+use abyss_diagnostics::Span;
+use std::{collections::HashMap, rc::Rc};
+
+use crate::core::{
     lexer::{Scanner, Token},
     parser::DynamicPrattParser,
 };
-use abyss_diagnostics::Span;
-use std::{collections::HashMap, rc::Rc};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum HoleKind {
@@ -12,14 +13,23 @@ pub enum HoleKind {
     Ident,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Quantifier {
+    ZeroOrMore, // *
+    OneOrMore,  // +
+    ZeroOrOne,  // ?
+}
+
 #[derive(Debug, Clone)]
 pub enum PatternNode {
     Literal(String),
     Hole(String, HoleKind),
-    Repeat {
+    Group {
         inner: Vec<PatternNode>,
         separator: Option<String>,
+        quantifier: Quantifier,
     },
+    Choice(Vec<Vec<PatternNode>>), // $< A | B >
 }
 
 #[derive(Debug, Clone)]
@@ -37,33 +47,51 @@ pub struct SyntaxCtx<T> {
 }
 
 impl<T: Clone> SyntaxCtx<T> {
+    pub fn try_get_node(&self, name: &str) -> Option<T> {
+        match self.vars.get(name) {
+            Some(SyntaxVar::Expr(n)) => Some(n.clone()),
+            _ => None,
+        }
+    }
+
     pub fn get_node(&self, name: &str) -> T {
+        self.try_get_node(name)
+            .unwrap_or_else(|| panic!("Expected Expr for '{}'", name))
+    }
+
+    pub fn try_get_ident(&self, name: &str) -> Option<String> {
         match self.vars.get(name) {
-            Some(SyntaxVar::Expr(n)) => n.clone(),
-            _ => panic!("Expected Expr for '{}'", name),
+            Some(SyntaxVar::Ident(s)) => Some(s.clone()),
+            _ => None,
         }
     }
-    
+
     pub fn get_ident(&self, name: &str) -> String {
+        self.try_get_ident(name)
+            .unwrap_or_else(|| panic!("Expected Ident for '{}'", name))
+    }
+
+    pub fn try_get_node_list(&self, name: &str) -> Option<Vec<T>> {
         match self.vars.get(name) {
-            Some(SyntaxVar::Ident(s)) => s.clone(),
-            _ => panic!("Expected Ident for '{}'", name),
+            Some(SyntaxVar::List(l)) => Some(
+                l.iter()
+                    .map(|v| match v {
+                        SyntaxVar::Expr(e) => e.clone(),
+                        _ => panic!(
+                            "List '{}' does not contain Exprs (It might be nested unexpectedly)",
+                            name
+                        ),
+                    })
+                    .collect(),
+            ),
+            _ => None,
         }
     }
-    
+
     pub fn get_node_list(&self, name: &str) -> Vec<T> {
-        match self.vars.get(name) {
-            Some(SyntaxVar::List(l)) => l
-                .iter()
-                .map(|v| match v {
-                    SyntaxVar::Expr(e) => e.clone(),
-                    _ => panic!("List '{}' does not contain Exprs", name),
-                })
-                .collect(),
-            _ => panic!("Expected List for '{}'", name),
-        }
+        self.try_get_node_list(name).unwrap_or_else(|| Vec::new())
     }
-    
+
     pub fn span(&self) -> Span {
         Span {
             file_id: self.file_id,
@@ -77,11 +105,11 @@ pub trait DynamicSyntaxMagic<'a, T: Clone + 'static> {
     fn define<F>(&mut self, pattern: &str, precedence: u8, callback: F)
     where
         F: Fn(SyntaxCtx<T>) -> T + 'static;
-    
+
     fn define_expr<F>(&mut self, pattern: &str, precedence: u8, callback: F)
     where
         F: Fn(SyntaxCtx<T>) -> T + 'static;
-    
+
     fn define_stmt<F>(&mut self, pattern: &str, callback: F)
     where
         F: Fn(SyntaxCtx<T>) -> T + 'static;
@@ -129,7 +157,9 @@ impl<'a, T: Clone + 'static> DynamicSyntaxMagic<'a, T> for DynamicPrattParser<'a
                 let left_name_owned = left_name.clone();
                 let trigger_text = match &nodes[1] {
                     PatternNode::Literal(t) => t,
-                    _ => panic!("Infix rules MUST have a literal operator as the second item (e.g. ':left + :right')"),
+                    _ => panic!(
+                        "Infix rules MUST have a literal operator as the second item (e.g. ':left + :right')"
+                    ),
                 };
                 let trigger_id = format!("Token_Auto_{}", trigger_text);
 
@@ -158,14 +188,14 @@ impl<'a, T: Clone + 'static> DynamicSyntaxMagic<'a, T> for DynamicPrattParser<'a
             _ => panic!("Pattern must start with a Literal (prefix) or an :Expr hole (infix)"),
         }
     }
-    
+
     fn define_expr<F>(&mut self, pattern: &str, precedence: u8, callback: F)
     where
         F: Fn(SyntaxCtx<T>) -> T + 'static,
     {
         self.define(pattern, precedence, callback);
     }
-    
+
     fn define_stmt<F>(&mut self, pattern: &str, callback: F)
     where
         F: Fn(SyntaxCtx<T>) -> T + 'static,
@@ -205,72 +235,116 @@ fn eval_pattern_nodes<'a, T: Clone>(
                 if next.text != text {
                     return Err(format!(
                         "Expected '{}' but found '{}' at position {}",
-                        text,
-                        next.text,
-                        next.start
+                        text, next.text, next.start
                     ));
                 }
                 *end_span = (next.start + next.len) as u32;
             }
-            PatternNode::Repeat { inner, separator } => {
-                let local_stop = match nodes.get(idx + 1) {
-                    Some(PatternNode::Literal(t)) => Some(t.as_str()),
-                    None => stop_token_text,
-                    _ => {
-                        return Err(format!(
-                            "Syntax error: A $(...) repeat block must be followed by a literal token (like '}}' or ';'), \
-                             but found something else at position {}",
-                            parser.current_token.as_ref().map(|t| t.start).unwrap_or(0)
-                        ))
-                    }
-                };
+            PatternNode::Choice(branches) => {
+                let mut matched = false;
 
-                let mut list_vars: HashMap<String, Vec<SyntaxVar<T>>> = HashMap::new();
-                for (n, _) in extract_holes(inner) {
-                    list_vars.insert(n, Vec::new());
+                for branch in branches {
+                    let state = parser.save_state();
+                    let mut local_ctx = HashMap::new();
+                    let mut local_end_span = *end_span;
+
+                    if eval_pattern_nodes(
+                        parser,
+                        branch,
+                        &mut local_ctx,
+                        stop_token_text,
+                        &mut local_end_span,
+                    )
+                    .is_ok()
+                    {
+                        *end_span = local_end_span;
+                        ctx_vars.extend(local_ctx);
+                        matched = true;
+                        break;
+                    } else {
+                        parser.restore_state(state);
+                    }
                 }
 
+                if !matched {
+                    return Err(format!(
+                        "No branches matched in choice <...|...> at position {}",
+                        parser.current_token.as_ref().map(|t| t.start).unwrap_or(0)
+                    ));
+                }
+            }
+            PatternNode::Group {
+                inner,
+                separator,
+                quantifier,
+            } => {
+                let mut list_vars: HashMap<String, Vec<SyntaxVar<T>>> = HashMap::new();
+                for (n, _) in extract_holes(inner) {
+                    list_vars.insert(n.clone(), Vec::new());
+                }
+
+                let mut match_count = 0;
+
                 loop {
-                    if let Some(ref tk) = parser.current_token {
-                        if Some(tk.text) == local_stop {
-                            break;
-                        }
-                    } else {
-                        break;
-                    }
-
+                    let state = parser.save_state();
                     let mut local_ctx = HashMap::new();
-                    eval_pattern_nodes(parser, inner, &mut local_ctx, local_stop, end_span)?;
+                    let mut local_end_span = *end_span;
 
-                    for (k, v) in local_ctx {
-                        if let Some(l) = list_vars.get_mut(&k) {
-                            l.push(v);
-                        }
-                    }
+                    if eval_pattern_nodes(
+                        parser,
+                        inner,
+                        &mut local_ctx,
+                        stop_token_text,
+                        &mut local_end_span,
+                    )
+                    .is_ok()
+                    {
+                        *end_span = local_end_span;
 
-                    if let Some(sep) = separator {
-                        if let Some(ref tk) = parser.current_token {
-                            if tk.text == sep {
-                                let t = parser.get_and_bump()?;
-                                *end_span = (t.start + t.len) as u32;
-
-                                if let Some(ref next_tk) = parser.current_token {
-                                    if Some(next_tk.text) == local_stop {
-                                        break;
+                        for (k, v) in local_ctx {
+                            if let Some(l) = list_vars.get_mut(&k) {
+                                match v {
+                                    SyntaxVar::List(mut items) => {
+                                        l.append(&mut items);
+                                    }
+                                    _ => {
+                                        l.push(v);
                                     }
                                 }
-                            } else if Some(tk.text) == local_stop {
-                                break;
-                            } else {
-                                return Err(format!(
-                                    "Expected separator '{}' or stop token, but found '{}' at position {}",
-                                    sep,
-                                    tk.text,
-                                    tk.start
-                                ));
                             }
                         }
+
+                        match_count += 1;
+
+                        if *quantifier == Quantifier::ZeroOrOne {
+                            break;
+                        }
+
+                        if let Some(sep) = separator {
+                            let sep_state = parser.save_state();
+                            if let Some(ref tk) = parser.current_token {
+                                if tk.text == sep {
+                                    let t = parser.get_and_bump()?;
+                                    *end_span = (t.start + t.len) as u32;
+                                } else {
+                                    parser.restore_state(sep_state);
+                                    break;
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+                    } else {
+                        parser.restore_state(state);
+                        break;
                     }
+                }
+
+                if *quantifier == Quantifier::OneOrMore && match_count == 0 {
+                    return Err(format!(
+                        "Expected at least one match for + block at position {}",
+                        parser.current_token.as_ref().map(|t| t.start).unwrap_or(0)
+                    ));
                 }
 
                 for (k, v) in list_vars {
@@ -288,7 +362,12 @@ fn extract_holes(nodes: &[PatternNode]) -> Vec<(String, HoleKind)> {
     for n in nodes {
         match n {
             PatternNode::Hole(name, kind) => holes.push((name.clone(), kind.clone())),
-            PatternNode::Repeat { inner, .. } => holes.extend(extract_holes(inner)),
+            PatternNode::Group { inner, .. } => holes.extend(extract_holes(inner)),
+            PatternNode::Choice(branches) => {
+                for b in branches {
+                    holes.extend(extract_holes(b));
+                }
+            }
             _ => {}
         }
     }
@@ -301,10 +380,17 @@ fn register_literals(scanner: &mut Scanner, nodes: &[PatternNode]) {
             PatternNode::Literal(text) => {
                 scanner.add_token(&format!("Token_Auto_{}", text), &escape_for_regex(text));
             }
-            PatternNode::Repeat { inner, separator } => {
+            PatternNode::Group {
+                inner, separator, ..
+            } => {
                 register_literals(scanner, inner);
                 if let Some(sep) = separator {
                     scanner.add_token(&format!("Token_Auto_{}", sep), &escape_for_regex(sep));
+                }
+            }
+            PatternNode::Choice(branches) => {
+                for b in branches {
+                    register_literals(scanner, b);
                 }
             }
             _ => {}
@@ -346,7 +432,48 @@ fn parse_magic_pattern(pat: &str) -> Vec<PatternNode> {
             nodes.push(PatternNode::Hole(name, HoleKind::Ident));
         } else if c == '$' {
             chars.next();
-            if let Some(&(_, '(')) = chars.peek() {
+            if let Some(&(_, '<')) = chars.peek() {
+                chars.next();
+                let mut inner_str = String::new();
+                let mut depth = 1;
+                while let Some(&(_, inner_c)) = chars.peek() {
+                    chars.next();
+                    if inner_c == '<' {
+                        depth += 1;
+                    } else if inner_c == '>' {
+                        depth -= 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                    inner_str.push(inner_c);
+                }
+
+                let mut branches = Vec::new();
+                let mut current_branch = String::new();
+                let mut nest = 0;
+                for bc in inner_str.chars() {
+                    if bc == '<' || bc == '(' {
+                        nest += 1;
+                    } else if bc == '>' || bc == ')' {
+                        nest -= 1;
+                    }
+
+                    if bc == '|' && nest == 0 {
+                        branches.push(current_branch.clone());
+                        current_branch.clear();
+                    } else {
+                        current_branch.push(bc);
+                    }
+                }
+                branches.push(current_branch);
+
+                let branch_nodes = branches
+                    .into_iter()
+                    .map(|s| parse_magic_pattern(&s))
+                    .collect();
+                nodes.push(PatternNode::Choice(branch_nodes));
+            } else if let Some(&(_, '(')) = chars.peek() {
                 chars.next();
                 let mut inner_str = String::new();
                 let mut depth = 1;
@@ -365,12 +492,23 @@ fn parse_magic_pattern(pat: &str) -> Vec<PatternNode> {
                 let inner_nodes = parse_magic_pattern(&inner_str);
 
                 let mut sep_str = String::new();
+                let mut quant = Quantifier::ZeroOrMore;
+
                 while let Some(&(_, sc)) = chars.peek() {
                     if sc.is_whitespace() {
                         chars.next();
                         continue;
                     }
                     if sc == '*' {
+                        quant = Quantifier::ZeroOrMore;
+                        chars.next();
+                        break;
+                    } else if sc == '+' {
+                        quant = Quantifier::OneOrMore;
+                        chars.next();
+                        break;
+                    } else if sc == '?' {
+                        quant = Quantifier::ZeroOrOne;
                         chars.next();
                         break;
                     }
@@ -383,9 +521,10 @@ fn parse_magic_pattern(pat: &str) -> Vec<PatternNode> {
                 } else {
                     Some(sep_str)
                 };
-                nodes.push(PatternNode::Repeat {
+                nodes.push(PatternNode::Group {
                     inner: inner_nodes,
                     separator: sep,
+                    quantifier: quant,
                 });
             } else {
                 nodes.push(PatternNode::Literal("$".into()));

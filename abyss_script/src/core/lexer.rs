@@ -237,6 +237,16 @@ impl<'a> Scanner<'a> {
         Self { src, off: 0, rules }
     }
 
+    #[inline]
+    pub fn get_offset(&self) -> usize {
+        self.off
+    }
+
+    #[inline]
+    pub fn set_offset(&mut self, offset: usize) {
+        self.off = offset;
+    }
+
     pub fn next_token(&mut self) -> Option<Token<'a>> {
         if self.off >= self.src.len() {
             return None;
