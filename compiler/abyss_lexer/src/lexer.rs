@@ -11,6 +11,7 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
+    #[inline]
     pub fn new(source: &'a str) -> Self {
         Self {
             source,
@@ -20,6 +21,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    #[inline]
     pub fn next_token(&mut self) -> Token<'a> {
         if self.finished {
             return Token::new(
@@ -74,33 +76,9 @@ impl<'a> Lexer<'a> {
                 self.scan_identifier();
                 let end_offset = self.cursor.len_consumed();
                 let text = &self.source[start_offset..end_offset];
-                TokenKind::lookup_ident(text)
+                Self::lookup_ident_fast(text)
             } else {
-                let max_len = 3.min(self.source.len() - start_offset);
-                let mut matched_len = 0;
-                let mut matched_kind = TokenKind::Unknown;
-
-                for i in (1..=max_len).rev() {
-                    if self.source.is_char_boundary(start_offset + i) {
-                        let text = &self.source[start_offset..start_offset + i];
-                        let kind = TokenKind::lookup_symbol(text);
-                        if kind != TokenKind::Unknown {
-                            matched_len = i;
-                            matched_kind = kind;
-                            break;
-                        }
-                    }
-                }
-
-                if matched_len > 0 {
-                    for _ in 0..matched_len {
-                        self.cursor.bump();
-                    }
-                    matched_kind
-                } else {
-                    self.cursor.bump();
-                    TokenKind::Unknown
-                }
+                self.scan_symbol_fast()
             };
 
             let end_offset = self.cursor.len_consumed();
@@ -114,44 +92,54 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    #[inline]
     fn is_simple_whitespace(c: char) -> bool {
         matches!(c, ' ' | '\t')
     }
 
+    #[inline]
     fn is_newline(c: char) -> bool {
         matches!(c, '\n' | '\r')
     }
 
+    #[inline]
     fn is_ident_start(c: char) -> bool {
         c.is_ascii_alphabetic() || c == '_'
     }
 
+    #[inline]
     fn is_ident_continue(c: char) -> bool {
         c.is_ascii_alphanumeric() || c == '_'
     }
 
+    #[inline]
     fn is_digit(c: char) -> bool {
         c.is_ascii_digit()
     }
 
+    #[inline]
     fn consume_newlines(&mut self) {
         self.cursor.eat_while(Self::is_newline);
     }
 
+    #[inline]
     fn consume_simple_whitespace(&mut self) {
         self.cursor.eat_while(Self::is_simple_whitespace);
     }
 
+    #[inline]
     fn scan_identifier(&mut self) {
         self.cursor.eat_while(Self::is_ident_continue);
     }
 
+    #[inline]
     fn scan_comment(&mut self) {
         self.cursor.bump();
         self.cursor.bump();
         self.cursor.eat_while(|c| c != '\n' && c != '\r');
     }
 
+    #[inline]
     fn scan_c_string(&mut self) -> TokenKind {
         self.cursor.bump();
         self.cursor.bump();
@@ -159,12 +147,14 @@ impl<'a> Lexer<'a> {
         TokenKind::CStrLit
     }
 
+    #[inline]
     fn scan_string(&mut self) -> TokenKind {
         self.cursor.bump();
         self.consume_string_content();
         TokenKind::StrLit
     }
 
+    #[inline]
     fn consume_string_content(&mut self) {
         while !self.cursor.is_eof() {
             let c = self.cursor.first();
@@ -181,6 +171,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    #[inline]
     fn scan_char(&mut self) -> TokenKind {
         self.cursor.bump();
         if self.cursor.first() == '\\' {
@@ -195,6 +186,7 @@ impl<'a> Lexer<'a> {
         TokenKind::CharLit
     }
 
+    #[inline]
     fn scan_number(&mut self) -> TokenKind {
         let mut is_float = false;
         let first = self.cursor.first();
@@ -257,11 +249,305 @@ impl<'a> Lexer<'a> {
             TokenKind::IntLit
         }
     }
+
+    #[inline]
+    fn scan_symbol_fast(&mut self) -> TokenKind {
+        let c0 = self.cursor.first();
+        let c1 = self.cursor.second();
+
+        match c0 {
+            '+' => {
+                self.cursor.bump();
+                if self.cursor.first() == '=' {
+                    self.cursor.bump();
+                    TokenKind::PlusAssign
+                } else {
+                    TokenKind::Plus
+                }
+            }
+
+            '-' => {
+                self.cursor.bump();
+                if self.cursor.first() == '=' {
+                    self.cursor.bump();
+                    TokenKind::MinusAssign
+                } else if self.cursor.first() == '>' {
+                    self.cursor.bump();
+                    TokenKind::RArrow
+                } else {
+                    TokenKind::Minus
+                }
+            }
+
+            '*' => {
+                self.cursor.bump();
+                if self.cursor.first() == '=' {
+                    self.cursor.bump();
+                    TokenKind::StarAssign
+                } else {
+                    TokenKind::Star
+                }
+            }
+
+            '/' => {
+                self.cursor.bump();
+                if self.cursor.first() == '=' {
+                    self.cursor.bump();
+                    TokenKind::SlashAssign
+                } else {
+                    TokenKind::Slash
+                }
+            }
+
+            '%' => {
+                self.cursor.bump();
+                if self.cursor.first() == '=' {
+                    self.cursor.bump();
+                    TokenKind::PercentAssign
+                } else {
+                    TokenKind::Percent
+                }
+            }
+
+            '&' => {
+                self.cursor.bump();
+                if self.cursor.first() == '=' {
+                    self.cursor.bump();
+                    TokenKind::AmpAssign
+                } else {
+                    TokenKind::Amp
+                }
+            }
+
+            '|' => {
+                self.cursor.bump();
+                if self.cursor.first() == '=' {
+                    self.cursor.bump();
+                    TokenKind::PipeAssign
+                } else {
+                    TokenKind::Pipe
+                }
+            }
+
+            '^' => {
+                self.cursor.bump();
+                if self.cursor.first() == '=' {
+                    self.cursor.bump();
+                    TokenKind::CaretAssign
+                } else {
+                    TokenKind::Caret
+                }
+            }
+
+            '~' => {
+                self.cursor.bump();
+                TokenKind::Tilde
+            }
+
+            ',' => {
+                self.cursor.bump();
+                TokenKind::Comma
+            }
+
+            ':' => {
+                self.cursor.bump();
+                if self.cursor.first() == ':' {
+                    self.cursor.bump();
+                    TokenKind::ColonColon
+                } else if self.cursor.first() == '=' {
+                    self.cursor.bump();
+                    TokenKind::ColonEq
+                } else {
+                    TokenKind::Colon
+                }
+            }
+
+            ';' => {
+                self.cursor.bump();
+                TokenKind::Semi
+            }
+
+            '.' => {
+                self.cursor.bump();
+                if self.cursor.first() == '.' {
+                    self.cursor.bump();
+                    TokenKind::DotDot
+                } else {
+                    TokenKind::Dot
+                }
+            }
+
+            '(' => {
+                self.cursor.bump();
+                TokenKind::OParen
+            }
+
+            ')' => {
+                self.cursor.bump();
+                TokenKind::CParen
+            }
+
+            '{' => {
+                self.cursor.bump();
+                TokenKind::OBrace
+            }
+
+            '}' => {
+                self.cursor.bump();
+                TokenKind::CBrace
+            }
+
+            '[' => {
+                self.cursor.bump();
+                TokenKind::OBracket
+            }
+
+            ']' => {
+                self.cursor.bump();
+                TokenKind::CBracket
+            }
+
+            '=' => {
+                self.cursor.bump();
+                if self.cursor.first() == '=' {
+                    self.cursor.bump();
+                    TokenKind::EqEq
+                } else if self.cursor.first() == '>' {
+                    self.cursor.bump();
+                    TokenKind::REqArrow
+                } else {
+                    TokenKind::Assign
+                }
+            }
+
+            '!' => {
+                self.cursor.bump();
+                if self.cursor.first() == '=' {
+                    self.cursor.bump();
+                    TokenKind::BangEq
+                } else {
+                    TokenKind::Unknown
+                }
+            }
+
+            '<' => {
+                if c1 == '<' {
+                    self.cursor.bump();
+                    self.cursor.bump();
+                    if self.cursor.first() == '=' {
+                        self.cursor.bump();
+                        TokenKind::LeftShiftAssign
+                    } else {
+                        TokenKind::LeftShift
+                    }
+                } else {
+                    self.cursor.bump();
+                    if self.cursor.first() == '=' {
+                        self.cursor.bump();
+                        TokenKind::LtEq
+                    } else {
+                        TokenKind::Lt
+                    }
+                }
+            }
+
+            '>' => {
+                if c1 == '>' {
+                    self.cursor.bump();
+                    self.cursor.bump();
+                    if self.cursor.first() == '=' {
+                        self.cursor.bump();
+                        TokenKind::RightShiftAssign
+                    } else {
+                        TokenKind::RightShift
+                    }
+                } else {
+                    self.cursor.bump();
+                    if self.cursor.first() == '=' {
+                        self.cursor.bump();
+                        TokenKind::GtEq
+                    } else {
+                        TokenKind::Gt
+                    }
+                }
+            }
+
+            '#' => {
+                self.cursor.bump();
+                TokenKind::Hash
+            }
+
+            _ => {
+                self.cursor.bump();
+                TokenKind::Unknown
+            }
+        }
+    }
+
+    #[inline]
+    fn lookup_ident_fast(ident: &str) -> TokenKind {
+        let b = ident.as_bytes();
+
+        match b.len() {
+            2 => match b {
+                b"if" => TokenKind::If,
+                b"in" => TokenKind::In,
+                b"is" => TokenKind::Is,
+                b"as" => TokenKind::As,
+                b"or" => TokenKind::Or,
+                _ => TokenKind::Ident,
+            },
+
+            3 => match b {
+                b"ret" => TokenKind::Ret,
+                b"out" => TokenKind::Out,
+                b"and" => TokenKind::And,
+                b"not" => TokenKind::Not,
+                b"mod" => TokenKind::Mod,
+                b"use" => TokenKind::Use,
+                b"def" => TokenKind::Def,
+                b"for" => TokenKind::For,
+                b"pub" => TokenKind::Pub,
+                _ => TokenKind::Ident,
+            },
+
+            4 => match b {
+                b"then" => TokenKind::Then,
+                b"else" => TokenKind::Else,
+                b"next" => TokenKind::Next,
+                b"true" => TokenKind::True,
+                b"size" => TokenKind::Size,
+                b"cmpt" => TokenKind::Cmpt,
+                _ => TokenKind::Ident,
+            },
+
+            5 => match b {
+                b"const" => TokenKind::Const,
+                b"false" => TokenKind::False,
+                b"match" => TokenKind::Match,
+                b"while" => TokenKind::While,
+                _ => TokenKind::Ident,
+            },
+
+            6 => match b {
+                b"struct" => TokenKind::Struct,
+                _ => TokenKind::Ident,
+            },
+
+            7 => match b {
+                b"forever" => TokenKind::Forever,
+                _ => TokenKind::Ident,
+            },
+
+            _ => TokenKind::Ident,
+        }
+    }
 }
 
 impl<'a> Iterator for Lexer<'a> {
     type Item = Token<'a>;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.finished {
             return None;
