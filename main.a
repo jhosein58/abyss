@@ -604,6 +604,14 @@
 
 -- print_i32(a[3])
 --------------------------------------------------
-def print (i: &i32)   _
+def printiln (i: i32)   _
+def printbln (b: bool)  _
 
-print("Hello, Abyss!\n"),
+-- Short-Circuit Helper
+def sc (): bool {
+    printiln(9_999_999)
+    true
+}
+
+-- 1. Basic Precedence & Modulo
+printiln(1 + 2 * 3)                -- Expected: 7
