@@ -28,7 +28,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["llvm"]
 llvm = ["dep:inkwell",
     "dep:abyss_codegen",
-#    "abyss_vm/ffi"
+    "abyss_vm/ffi",
 ]
 
 [dependencies]

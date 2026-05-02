@@ -96,7 +96,9 @@ pub fn ir_type_to_ffi(ty: &IrType) -> Type {
         IrType::Bool => Type::u8(),
         IrType::Unit => Type::void(),
         IrType::Ptr(_) => Type::pointer(),
-        IrType::Array(_, _) | IrType::Struct(_) => Type::pointer(),
+        IrType::Array(_, _) | IrType::Struct(_) | IrType::Union(_) | IrType::FuncPtr { .. } => {
+            Type::pointer()
+        }
     }
 }
 
