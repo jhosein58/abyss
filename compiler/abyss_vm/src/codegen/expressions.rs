@@ -887,7 +887,15 @@ impl IrCompiler {
     ) -> u8 {
         let base_reg = self.compile_expr(env, base, None);
 
-        let idx_const = self.add_const(index as u64);
+        let is_union = match &base.ty {
+            IrType::Union(_) => true,
+            IrType::Ptr(inner) => matches!(**inner, IrType::Union(_)),
+            _ => false,
+        };
+
+        let effective_index = if is_union { 0 } else { index as u64 };
+
+        let idx_const = self.add_const(effective_index);
         let index_reg = env.alloc_reg();
         self.emit(Instruction {
             op: OpCode::LoadConst,
@@ -1020,7 +1028,14 @@ impl IrCompiler {
     ) -> u8 {
         let base_reg = self.compile_expr(env, base, None);
         let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
-        let offset_bytes = (index * 8) as u64;
+
+        let is_union = match &base.ty {
+            IrType::Union(_) => true,
+            IrType::Ptr(inner) => matches!(**inner, IrType::Union(_)),
+            _ => false,
+        };
+
+        let offset_bytes = if is_union { 0 } else { (index * 8) as u64 };
 
         if offset_bytes == 0 {
             if let Some(t) = target {
@@ -1051,11 +1066,10 @@ impl IrCompiler {
         let dest_reg = target.unwrap_or_else(|| env.alloc_reg());
 
         if let Some(&func_idx) = self.func_const_indices.get(name) {
-            let const_idx = self.add_const(func_idx as u64);
             self.emit(Instruction {
                 op: OpCode::LoadConst,
                 a: dest_reg,
-                b: const_idx,
+                b: func_idx,
                 c: 0,
             });
             return dest_reg;

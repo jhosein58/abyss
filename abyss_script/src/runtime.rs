@@ -1,5 +1,4 @@
-use abyss_ir::facade::Ir;
-use abyss_ir::ir::{IrStmt, IrType};
+use abyss_ir::ir::{IrProgram, IrType};
 use abyss_vm::codegen::IrCompiler;
 use abyss_vm::vm::core::AbyssVm;
 use std::rc::Rc;
@@ -35,9 +34,7 @@ impl Runtime {
         }));
     }
 
-    pub fn execute(self, stmts: Vec<IrStmt>) {
-        let ir_program = Ir::program(stmts);
-
+    pub fn execute(self, ir_program: IrProgram) {
         let (instructions, constants, extern_defs) = self.compiler.compile(&ir_program);
         let mut vm = AbyssVm::new(instructions, constants);
 

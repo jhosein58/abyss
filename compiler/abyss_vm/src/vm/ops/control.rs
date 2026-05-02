@@ -177,33 +177,35 @@ pub fn call_dynamic(
                 let code_ptr = CodePtr::from_ptr(extern_func.ptr as *const _);
                 let ret_size = extern_func.ret_size;
 
-                result = match ret_size {
-                    0 => {
-                        extern_func
+                result = unsafe {
+                    match ret_size {
+                        0 => {
+                            extern_func
+                                .cif
+                                .call::<()>(code_ptr, &ffi_args_buffer[..arity]);
+                            0
+                        }
+                        1 => extern_func
                             .cif
-                            .call::<()>(code_ptr, &ffi_args_buffer[..arity]);
-                        0
-                    }
-                    1 => extern_func
-                        .cif
-                        .call::<u8>(code_ptr, &ffi_args_buffer[..arity])
-                        as u64,
-                    2 => extern_func
-                        .cif
-                        .call::<u16>(code_ptr, &ffi_args_buffer[..arity])
-                        as u64,
-                    4 => extern_func
-                        .cif
-                        .call::<u32>(code_ptr, &ffi_args_buffer[..arity])
-                        as u64,
-                    8 => extern_func
-                        .cif
-                        .call::<u64>(code_ptr, &ffi_args_buffer[..arity]),
-                    _ => {
-                        extern_func
+                            .call::<u8>(code_ptr, &ffi_args_buffer[..arity])
+                            as u64,
+                        2 => extern_func
                             .cif
-                            .call::<()>(code_ptr, &ffi_args_buffer[..arity]);
-                        0
+                            .call::<u16>(code_ptr, &ffi_args_buffer[..arity])
+                            as u64,
+                        4 => extern_func
+                            .cif
+                            .call::<u32>(code_ptr, &ffi_args_buffer[..arity])
+                            as u64,
+                        8 => extern_func
+                            .cif
+                            .call::<u64>(code_ptr, &ffi_args_buffer[..arity]),
+                        _ => {
+                            extern_func
+                                .cif
+                                .call::<()>(code_ptr, &ffi_args_buffer[..arity]);
+                            0
+                        }
                     }
                 };
             }

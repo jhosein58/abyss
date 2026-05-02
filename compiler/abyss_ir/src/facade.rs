@@ -7,7 +7,7 @@ pub struct Ir;
 
 impl Ir {
     #[inline]
-    fn expr(kind: IrExprKind, ty: IrType) -> IrExpr {
+    pub fn expr(kind: IrExprKind, ty: IrType) -> IrExpr {
         IrExpr {
             kind,
             ty,
@@ -125,6 +125,207 @@ impl Ir {
     }
     pub fn not(e: IrExpr) -> IrExpr {
         Self::unary(IrUnaryOp::Not, e, IrType::Bool)
+    }
+
+    pub fn value_ty() -> IrType {
+        IrType::Struct(vec![
+            IrType::I8,
+            IrType::Union(vec![
+                IrType::Unit,
+                IrType::F64,
+                IrType::Ptr(Box::new(IrType::Unit)),
+            ]),
+        ])
+    }
+
+    pub fn get_type(val: IrExpr) -> IrExpr {
+        Self::expr(
+            IrExprKind::FieldAccess {
+                base: Box::new(val),
+                index: 0,
+            },
+            IrType::I8,
+        )
+    }
+
+    pub fn generate_dynamic_prelude() -> Vec<IrFunction> {
+        let val_ty = Self::value_ty();
+        let union_ty = match &val_ty {
+            IrType::Struct(fields) => fields[1].clone(),
+            _ => unreachable!(),
+        };
+
+        // rt_make_number(f64)
+        let rt_make_num = IrFunction {
+            name: "rt_make_number".into(),
+            params: vec![("v".into(), IrType::F64)],
+            return_ty: val_ty.clone(),
+            body: Some(vec![
+                Self::var_dec(
+                    "res",
+                    Self::expr(
+                        IrExprKind::StructInit(vec![
+                            Self::expr(IrExprKind::Lit(IrLit::Int(1)), IrType::I8),
+                            Self::expr(IrExprKind::Lit(IrLit::Int(0)), IrType::Unit),
+                        ]),
+                        val_ty.clone(),
+                    ),
+                ),
+                IrStmt::WriteUnion {
+                    base: Self::expr(
+                        IrExprKind::GetFieldPtr {
+                            base: Box::new(Self::var("res")),
+                            index: 1,
+                        },
+                        IrType::Ptr(Box::new(IrType::Unit)),
+                    ),
+                    index: 1, // F64 field
+                    val: Self::var("v"),
+                },
+                IrStmt::Return(Some(Self::var("res"))),
+            ]),
+        };
+
+        // rt_make_nil()
+        let rt_make_nil = IrFunction {
+            name: "rt_make_nil".into(),
+            params: vec![],
+            return_ty: val_ty.clone(),
+            body: Some(vec![
+                Self::var_dec(
+                    "res",
+                    Self::expr(
+                        IrExprKind::StructInit(vec![
+                            Self::expr(IrExprKind::Lit(IrLit::Int(0)), IrType::I8),
+                            Self::expr(IrExprKind::Lit(IrLit::Int(0)), IrType::Unit),
+                        ]),
+                        val_ty.clone(),
+                    ),
+                ),
+                IrStmt::Return(Some(Self::var("res"))),
+            ]),
+        };
+
+        // rt_make_func(Ptr)
+        let rt_make_func = IrFunction {
+            name: "rt_make_func".into(),
+            params: vec![("ptr".into(), IrType::Ptr(Box::new(IrType::Unit)))],
+            return_ty: val_ty.clone(),
+            body: Some(vec![
+                Self::var_dec(
+                    "res",
+                    Self::expr(
+                        IrExprKind::StructInit(vec![
+                            Self::expr(IrExprKind::Lit(IrLit::Int(2)), IrType::I8),
+                            Self::expr(IrExprKind::Lit(IrLit::Int(0)), IrType::Unit),
+                        ]),
+                        val_ty.clone(),
+                    ),
+                ),
+                IrStmt::WriteUnion {
+                    base: Self::expr(
+                        IrExprKind::GetFieldPtr {
+                            base: Box::new(Self::var("res")),
+                            index: 1,
+                        },
+                        IrType::Ptr(Box::new(IrType::Unit)),
+                    ),
+                    index: 2, // FuncPtr field
+                    val: Self::var("ptr"),
+                },
+                IrStmt::Return(Some(Self::var("res"))),
+            ]),
+        };
+
+        let make_math_op = |name: &str, op: IrBinaryOp| -> IrFunction {
+            IrFunction {
+                name: name.into(),
+                params: vec![("a".into(), val_ty.clone()), ("b".into(), val_ty.clone())],
+                return_ty: val_ty.clone(),
+                body: Some(vec![
+                    Self::var_dec(
+                        "a_val",
+                        Self::expr(
+                            IrExprKind::FieldAccess {
+                                base: Box::new(Self::expr(
+                                    IrExprKind::GetFieldPtr {
+                                        base: Box::new(Self::var("a")),
+                                        index: 1,
+                                    },
+                                    IrType::Ptr(Box::new(union_ty.clone())),
+                                )),
+                                index: 1,
+                            },
+                            IrType::F64,
+                        ),
+                    ),
+                    Self::var_dec(
+                        "b_val",
+                        Self::expr(
+                            IrExprKind::FieldAccess {
+                                base: Box::new(Self::expr(
+                                    IrExprKind::GetFieldPtr {
+                                        base: Box::new(Self::var("b")),
+                                        index: 1,
+                                    },
+                                    IrType::Ptr(Box::new(union_ty.clone())),
+                                )),
+                                index: 1,
+                            },
+                            IrType::F64,
+                        ),
+                    ),
+                    IrStmt::Return(Some(Self::call(
+                        "rt_make_number",
+                        vec![Self::expr(
+                            IrExprKind::Binary(
+                                Box::new(Self::var("a_val")),
+                                op,
+                                Box::new(Self::var("b_val")),
+                            ),
+                            IrType::F64,
+                        )],
+                    ))),
+                ]),
+            }
+        };
+
+        let rt_print = IrFunction {
+            name: "print".into(),
+            params: vec![("v".into(), val_ty.clone())],
+            return_ty: val_ty.clone(),
+            body: Some(vec![
+                Self::var_dec(
+                    "num_val",
+                    Self::expr(
+                        IrExprKind::FieldAccess {
+                            base: Box::new(Self::expr(
+                                IrExprKind::GetFieldPtr {
+                                    base: Box::new(Self::var("v")),
+                                    index: 1,
+                                },
+                                IrType::Ptr(Box::new(union_ty.clone())),
+                            )),
+                            index: 1,
+                        },
+                        IrType::F64,
+                    ),
+                ),
+                IrStmt::Expr(Self::call("sys_print_num", vec![Self::var("num_val")])),
+                IrStmt::Return(Some(Self::call("rt_make_nil", vec![]))),
+            ]),
+        };
+
+        vec![
+            rt_make_num,
+            rt_make_nil,
+            rt_make_func,
+            rt_print,
+            make_math_op("rt_add", IrBinaryOp::Add),
+            make_math_op("rt_sub", IrBinaryOp::Sub),
+            make_math_op("rt_mul", IrBinaryOp::Mul),
+            make_math_op("rt_div", IrBinaryOp::Div),
+        ]
     }
 }
 
