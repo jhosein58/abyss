@@ -13,7 +13,7 @@ members = [
     "abyss_script",
     "abyss_script/bindings/python",
     "abyss_script/bindings/js",
-    "compiler/nexus",
+    "compiler/abyss_nexus",
     "compiler/abyss_hir",
 ]
 
@@ -43,6 +43,8 @@ abyss_vm = { path = "./compiler/abyss_vm", default-features = false }
 abyss_ir = { path = "./compiler/abyss_ir" }
 abyss_types = { path = "./compiler/abyss_types" }
 abyss_utils = { path = "./compiler/abyss_utils" }
+abyss_hir = { path = "./compiler/abyss_hir" }
+abyss_nexus = { path = "./compiler/abyss_nexus" }
 
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm21-1"], optional = true }
 

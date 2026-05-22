@@ -2,7 +2,9 @@ use std::rc::Rc;
 
 use abyss_analyzer::type_checker::engine::TypeChecker;
 use abyss_diagnostics::DiagnosticEngine;
+use abyss_hir::lowerer::HirLowerer;
 use abyss_ir::builder::IrBuilder;
+use abyss_nexus::nexus::{FileId, Nexus};
 use abyss_parser::parser::Parser;
 use abyss_utils::idgen::IdGenerator;
 use abyss_vm::{codegen::IrCompiler, vm::core::AbyssVm};
@@ -77,6 +79,13 @@ impl Abyss {
 
         let mut parser = Parser::new(&self.source_code, &mut err, &mut idgen, 0);
         let program = parser.parse_program();
+        println!("{:?}", program);
+
+        let mut nexus = Nexus::new();
+        let mut lowerer = HirLowerer::new(&mut nexus, FileId(0));
+        let _ = lowerer.lower_expr(&program.body);
+        let hir = lowerer.finish();
+        hir.print_dump(&mut nexus);
 
         let mut type_checker = TypeChecker::new(&mut err, &mut idgen);
 
