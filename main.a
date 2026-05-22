@@ -604,14 +604,3 @@
 
 -- print_i32(a[3])
 --------------------------------------------------
-def printiln (i: i32)   _
-def printbln (b: bool)  _
-
--- Short-Circuit Helper
-def sc (): bool {
-    printiln(9_999_999)
-    true
-}
-
--- 1. Basic Precedence & Modulo
-printiln(1 + 2 * 3)                -- Expected: 7

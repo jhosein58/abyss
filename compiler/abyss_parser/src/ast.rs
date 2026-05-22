@@ -139,8 +139,8 @@ pub enum UnaryOp {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MatchArm {
-    pattern: Box<Expr>,
-    body: Box<Expr>,
+    pub pattern: Box<Expr>,
+    pub body: Box<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
