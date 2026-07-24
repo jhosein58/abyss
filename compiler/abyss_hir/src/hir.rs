@@ -78,6 +78,7 @@ pub enum HirExprKind {
 
 #[derive(Default)]
 pub struct HirProgram {
+    pub root: u32,
     pub kinds: Vec<HirExprKind>,
     pub lhs: Vec<u32>,
     pub rhs: Vec<u32>,
