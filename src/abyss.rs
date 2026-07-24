@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{println, rc::Rc};
 
 use abyss_analyzer::type_checker::engine::TypeChecker;
 use abyss_diagnostics::DiagnosticEngine;
@@ -82,9 +82,10 @@ impl Abyss {
         println!("{:?}", program);
 
         let mut nexus = Nexus::new();
-        let mut lowerer = HirLowerer::new(&mut nexus, FileId(0));
-        let _ = lowerer.lower_expr(&program.body);
-        let hir = lowerer.finish();
+
+        // Lower the program to HIR
+        let lowerer = HirLowerer::new(&mut nexus, FileId(0));
+        let hir = lowerer.lower_program(&program);
         hir.print_dump(&mut nexus);
 
         let mut type_checker = TypeChecker::new(&mut err, &mut idgen);
