@@ -12,6 +12,7 @@ dependencies = [
  "abyss_hir",
  "abyss_ir",
  "abyss_lexer",
+ "abyss_lower",
  "abyss_nexus",
  "abyss_parser",
  "abyss_typer",
@@ -72,6 +73,10 @@ version = "0.1.0"
 dependencies = [
  "abyss_diagnostics",
 ]
+
+[[package]]
+name = "abyss_lower"
+version = "0.1.0"
 
 [[package]]
 name = "abyss_nexus"
