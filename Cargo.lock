@@ -112,6 +112,9 @@ dependencies = [
 [[package]]
 name = "abyss_typer"
 version = "0.1.0"
+dependencies = [
+ "abyss_hir",
+]
 
 [[package]]
 name = "abyss_types"
