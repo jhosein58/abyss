@@ -2,8 +2,8 @@ use std::{dbg, println, rc::Rc};
 
 use abyss_analyzer::type_checker::engine::TypeChecker;
 use abyss_diagnostics::DiagnosticEngine;
-use abyss_hir::lowerer::HirLowerer;
 use abyss_ir::builder::IrBuilder;
+use abyss_lower::HirLowerer;
 use abyss_nexus::nexus::{FileId, Nexus};
 use abyss_parser::parser::Parser;
 use abyss_typer::tyck;

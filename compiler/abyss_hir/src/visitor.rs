@@ -1,11 +1,11 @@
-use crate::hir::{HirExprKind, HirProgram};
+use crate::hir::{HirExprKind, HirTable};
 
 pub struct HirVisitor<'a> {
-    program: &'a HirProgram,
+    program: &'a HirTable,
 }
 
 impl<'a> HirVisitor<'a> {
-    pub fn new(program: &'a HirProgram) -> Self {
+    pub fn new(program: &'a HirTable) -> Self {
         Self { program }
     }
 
