@@ -1,11 +1,10 @@
 use abyss_diagnostics::Span;
+use abyss_hir::hir::{HirExprKind, HirTable};
 use abyss_nexus::nexus::{FileId, HirAttribute, Nexus};
 use abyss_parser::ast::{BinaryOp, Expr, ExprKind, Lit, Program, UnaryOp};
 
-use crate::hir::{HirExprKind, HirProgram};
-
 pub struct HirLowerer<'a> {
-    pub hir: HirProgram,
+    pub hir: HirTable,
     pub nexus: &'a mut Nexus,
     pub current_file: FileId,
 }
@@ -13,19 +12,19 @@ pub struct HirLowerer<'a> {
 impl<'a> HirLowerer<'a> {
     pub fn new(nexus: &'a mut Nexus, current_file: FileId) -> Self {
         Self {
-            hir: HirProgram::default(),
+            hir: HirTable::default(),
             nexus,
             current_file,
         }
     }
 
-    pub fn lower_program(mut self, prog: &Program) -> HirProgram {
+    pub fn lower_program(mut self, prog: &Program) -> HirTable {
         let root = self.lower_expr(&prog.body);
         self.hir.root = root;
         self.hir
     }
 
-    pub fn finish(self) -> HirProgram {
+    pub fn finish(self) -> HirTable {
         self.hir
     }
 

@@ -1,7 +1,7 @@
 use std::vec;
 
 use abyss_hir::{
-    hir::{HirExprKind, HirProgram},
+    hir::{HirExprKind, HirTable},
     visitor::HirVisitor,
 };
 
@@ -11,7 +11,7 @@ pub enum Types {
     Unknown,
 }
 
-pub fn check(hir: &HirProgram) -> Vec<Types> {
+pub fn check(hir: &HirTable) -> Vec<Types> {
     let visitor = HirVisitor::new(hir);
 
     let mut types = vec![Types::Unknown; hir.kinds.len()];
