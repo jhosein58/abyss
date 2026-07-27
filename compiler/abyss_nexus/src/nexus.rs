@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use abyss_diagnostics::Span;
 use abyss_parser::ast::OrderedFloat;
 
+use crate::storages::hir_storage::storage::HirStorage;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct StringId(pub u32);
 
@@ -17,7 +19,11 @@ pub struct HirAttribute {
 }
 
 #[derive(Default)]
+
 pub struct Nexus {
+    // Storages
+    pub hir_storage: HirStorage,
+
     pub strings: Vec<String>,
     pub string_map: HashMap<String, StringId>,
     pub files: Vec<String>,

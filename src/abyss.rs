@@ -1,4 +1,4 @@
-use std::{dbg, println, rc::Rc};
+use std::{println, rc::Rc};
 
 use abyss_analyzer::type_checker::engine::TypeChecker;
 use abyss_diagnostics::DiagnosticEngine;
@@ -87,12 +87,13 @@ impl Abyss {
         // Lower the program to HIR
         let lowerer = HirLowerer::new(&mut nexus, FileId(0));
         let hir = lowerer.lower_program(&program);
-        hir.print_dump(&mut nexus);
+        nexus.hir_storage.set(hir);
+        nexus.hir_storage.print_dump(&nexus);
 
-        dbg!(&hir.kinds);
+        //dbg!(&hir.kinds);
 
         // Typecheck the program
-        let types = tyck::check(&hir);
+        let types = tyck::check(&nexus.hir_storage.table);
         println!("-------------------");
         println!("{:#?}", types.iter().enumerate().collect::<Vec<_>>());
 
