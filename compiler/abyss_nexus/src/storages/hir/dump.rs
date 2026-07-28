@@ -1,8 +1,8 @@
 use abyss_hir::hir::HirExprKind;
 
 use crate::{
-    nexus::{Nexus, StringId},
-    storages::hir_storage::storage::HirStorage,
+    nexus::Nexus,
+    storages::{hir::storage::HirStorage, interner::storage::NameId},
 };
 
 impl HirStorage {
@@ -48,7 +48,7 @@ impl HirStorage {
                 | HirExprKind::LitCstr
                 | HirExprKind::Ident
                 | HirExprKind::Member => {
-                    let text = nexus.get_string(StringId(lhs));
+                    let text = nexus.interner.get(NameId(lhs)).unwrap_or("<unknown>");
                     let display_text: String = if text.len() > 15 {
                         format!("{}...", &text[..15])
                     } else {
