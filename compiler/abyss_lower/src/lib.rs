@@ -132,7 +132,7 @@ impl<'a> HirLowerer<'a> {
             }
             ExprKind::Lit(lit) => self.lower_lit(lit, span),
             ExprKind::Ident(name) => {
-                let id = self.nexus.intern_string(name);
+                let id = self.nexus.interner.intern(name);
                 self.push_node(HirExprKind::Ident, id.0, 0, 0, span)
             }
             ExprKind::Binary(left, op, right) => {
@@ -172,7 +172,7 @@ impl<'a> HirLowerer<'a> {
             }
             ExprKind::Member(expr, name) => {
                 let l = self.lower_expr(expr);
-                let r = self.nexus.intern_string(name).0;
+                let r = self.nexus.interner.intern(name).0;
                 self.push_node(HirExprKind::Member, l, r, 0, span)
             }
             ExprKind::SizeOf(opt) => {
@@ -208,10 +208,10 @@ impl<'a> HirLowerer<'a> {
             ExprKind::Attributed(attrs, expr) => {
                 let mut attr_ids = Vec::with_capacity(attrs.len());
                 for attr in attrs {
-                    let name_id = self.nexus.intern_string(&attr.name);
+                    let name_id = self.nexus.interner.intern(&attr.name);
                     let mut arg_ids = Vec::with_capacity(attr.args.len());
                     for arg in &attr.args {
-                        arg_ids.push(self.nexus.intern_string(arg).0);
+                        arg_ids.push(self.nexus.interner.intern(arg).0);
                     }
                     let args_start = self.nexus.add_list_flat(&arg_ids);
                     let hir_attr = HirAttribute {
@@ -240,11 +240,11 @@ impl<'a> HirLowerer<'a> {
     fn lower_lit(&mut self, lit: &Lit, span: Span) -> u32 {
         match lit {
             Lit::Str(s) => {
-                let id = self.nexus.intern_string(s);
+                let id = self.nexus.interner.intern(s);
                 self.push_node(HirExprKind::LitStr, id.0, 0, 0, span)
             }
             Lit::Cstr(s) => {
-                let id = self.nexus.intern_string(s);
+                let id = self.nexus.interner.intern(s);
                 self.push_node(HirExprKind::LitCstr, id.0, 0, 0, span)
             }
             Lit::Bool(b) => {

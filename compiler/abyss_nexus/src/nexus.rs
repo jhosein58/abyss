@@ -1,19 +1,17 @@
-use std::collections::HashMap;
-
 use abyss_diagnostics::Span;
 use abyss_parser::ast::OrderedFloat;
 
-use crate::storages::hir_storage::storage::HirStorage;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct StringId(pub u32);
+use crate::storages::{
+    hir::storage::HirStorage,
+    interner::storage::{InternerStorage, NameId},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FileId(pub u32);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HirAttribute {
-    pub name: StringId,
+    pub name: NameId,
     pub args_start: u32,
     pub span: Span,
 }
@@ -22,10 +20,9 @@ pub struct HirAttribute {
 
 pub struct Nexus {
     // Storages
-    pub hir_storage: HirStorage,
+    pub hir: HirStorage,
+    pub interner: InternerStorage,
 
-    pub strings: Vec<String>,
-    pub string_map: HashMap<String, StringId>,
     pub files: Vec<String>,
     pub node_spans: Vec<Span>,
     pub node_files: Vec<FileId>,
@@ -46,21 +43,6 @@ impl Nexus {
         let id = self.files.len() as u32;
         self.files.push(path);
         FileId(id)
-    }
-
-    pub fn intern_string(&mut self, s: &str) -> StringId {
-        if let Some(&id) = self.string_map.get(s) {
-            return id;
-        }
-        let id = StringId(self.strings.len() as u32);
-        let owned = s.to_string();
-        self.strings.push(owned.clone());
-        self.string_map.insert(owned, id);
-        id
-    }
-
-    pub fn get_string(&self, id: StringId) -> &str {
-        &self.strings[id.0 as usize]
     }
 
     pub fn add_node_meta(&mut self, span: Span, file_id: FileId) {
