@@ -6,7 +6,7 @@ pub struct NameId(pub u32);
 
 #[derive(Default)]
 pub struct InternerStorage {
-    pub arena: Vec<Rc<str>>,
+    arena: Vec<Rc<str>>,
     cache: HashMap<Rc<str>, NameId>,
 }
 
