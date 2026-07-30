@@ -1,6 +1,7 @@
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HirExprKind {
+    // Literals
     LitInt,
     LitFloat,
     LitBool,
@@ -8,6 +9,8 @@ pub enum HirExprKind {
     LitCstr,
     LitChar,
     Ident,
+
+    // Binary
     BinaryAssign,
     BinaryAssignAdd,
     BinaryAssignSub,
@@ -39,11 +42,14 @@ pub enum HirExprKind {
     BinaryShr,
     BinaryCollon,
     BinaryConstDef,
+
+    // Unary
     UnaryNeg,
     UnaryNot,
     UnaryBitNot,
     UnaryDeref,
     UnaryAddrOf,
+
     Mod,
     Use,
     Sequence,
@@ -81,4 +87,11 @@ pub struct HirTable {
     pub lhs: Vec<u32>,
     pub rhs: Vec<u32>,
     pub extra: Vec<u32>,
+}
+
+impl HirTable {
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.kinds.len()
+    }
 }

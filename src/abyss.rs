@@ -6,7 +6,7 @@ use abyss_ir::builder::IrBuilder;
 use abyss_lower::HirLowerer;
 use abyss_nexus::nexus::{FileId, Nexus};
 use abyss_parser::parser::Parser;
-use abyss_typer::tyck;
+use abyss_typer::{collector, tyck};
 use abyss_utils::idgen::IdGenerator;
 use abyss_vm::{codegen::IrCompiler, vm::core::AbyssVm};
 
@@ -82,20 +82,25 @@ impl Abyss {
         let program = parser.parse_program();
         println!("{:?}", program);
 
+        // init database
         let mut nexus = Nexus::new();
 
         // Lower the program to HIR
         let lowerer = HirLowerer::new(&mut nexus, FileId(0));
         let hir = lowerer.lower_program(&program);
-        nexus.hir_storage.set(hir);
-        nexus.hir_storage.print_dump(&nexus);
+        nexus.set_hir(hir);
+        nexus.hir.print_dump(&nexus);
 
-        //dbg!(&hir.kinds);
+        // collect symbols
+        collector::collect(&mut nexus);
+        dbg!(nexus.symbols.get_span(0));
+        dbg!(nexus.symbols.get_span(1));
+        dbg!(nexus.symbols.get_span(2));
 
         // Typecheck the program
-        let types = tyck::check(&nexus.hir_storage.table);
-        println!("-------------------");
-        println!("{:#?}", types.iter().enumerate().collect::<Vec<_>>());
+        //let types = tyck::check(&nexus.hir.table);
+        //println!("-------------------");
+        //println!("{:#?}", types.iter().enumerate().collect::<Vec<_>>());
 
         let mut type_checker = TypeChecker::new(&mut err, &mut idgen);
 

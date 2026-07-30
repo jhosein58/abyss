@@ -184,7 +184,7 @@ impl TypedExpr {
             String::new()
         };
 
-        let mut node_info = String::new();
+        let node_info: String;
         let mut children: Vec<(Option<String>, &TypedExpr)> = Vec::new();
 
         macro_rules! add_child {
