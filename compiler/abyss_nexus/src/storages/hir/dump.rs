@@ -2,7 +2,11 @@ use abyss_hir::hir::HirExprKind;
 
 use crate::{
     nexus::Nexus,
-    storages::{hir::storage::HirStorage, interner::storage::NameId},
+    storages::{
+        hir::storage::HirStorage,
+        interner::storage::NameId,
+        literals::storage::{FloatId, IntId},
+    },
 };
 
 impl HirStorage {
@@ -33,9 +37,11 @@ impl HirStorage {
             let ext_str = format_idx(extra);
 
             match kind {
-                HirExprKind::LitInt => lhs_str = format!("Int({})", nexus.ints[lhs as usize]),
+                HirExprKind::LitInt => {
+                    lhs_str = format!("Int({})", nexus.literals.get_int(IntId(lhs)))
+                }
                 HirExprKind::LitFloat => {
-                    lhs_str = format!("Float({})", nexus.floats[lhs as usize].0)
+                    lhs_str = format!("Float({})", nexus.literals.get_float(FloatId(lhs)).0)
                 }
                 HirExprKind::LitBool => lhs_str = format!("Bool({})", lhs == 1),
                 HirExprKind::LitChar => {

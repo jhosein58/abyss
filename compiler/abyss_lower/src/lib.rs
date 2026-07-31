@@ -1,6 +1,9 @@
 use abyss_diagnostics::Span;
 use abyss_hir::hir::{HirExprKind, HirTable};
-use abyss_nexus::nexus::{FileId, HirAttribute, Nexus};
+use abyss_nexus::{
+    nexus::{FileId, HirAttribute, Nexus},
+    storages::literals::storage::{FloatId, IntId},
+};
 use abyss_parser::ast::{BinaryOp, Expr, ExprKind, Lit, Program, UnaryOp};
 
 pub struct HirLowerer<'a> {
@@ -253,11 +256,11 @@ impl<'a> HirLowerer<'a> {
             }
             Lit::Char(c) => self.push_node(HirExprKind::LitChar, *c as u32, 0, 0, span),
             Lit::Int(i) => {
-                let id = self.nexus.add_int(*i);
+                let IntId(id) = self.nexus.literals.intern_int(*i);
                 self.push_node(HirExprKind::LitInt, id, 0, 0, span)
             }
             Lit::Float(f) => {
-                let id = self.nexus.add_float(*f);
+                let FloatId(id) = self.nexus.literals.intern_float(*f);
                 self.push_node(HirExprKind::LitFloat, id, 0, 0, span)
             }
         }
