@@ -1,10 +1,10 @@
 use abyss_diagnostics::Span;
 use abyss_hir::hir::HirTable;
-use abyss_parser::ast::OrderedFloat;
 
 use crate::storages::{
     hir::storage::HirStorage,
     interner::storage::{InternerStorage, NameId},
+    literals::storage::LiteralStorage,
     symbols::storage::SymbolStorage,
 };
 
@@ -25,12 +25,12 @@ pub struct Nexus {
     pub hir: HirStorage,
     pub interner: InternerStorage,
     pub symbols: SymbolStorage,
+    pub literals: LiteralStorage,
 
     pub files: Vec<String>,
     pub node_spans: Vec<Span>,
     pub node_files: Vec<FileId>,
-    pub ints: Vec<i64>,
-    pub floats: Vec<OrderedFloat>,
+
     pub u32_items: Vec<u32>,
     pub attributes: Vec<HirAttribute>,
     pub match_arms: Vec<(u32, u32)>,
@@ -65,18 +65,6 @@ impl Nexus {
 
     pub fn get_node_file(&self, node_id: u32) -> FileId {
         self.node_files[node_id as usize]
-    }
-
-    pub fn add_int(&mut self, val: i64) -> u32 {
-        let id = self.ints.len() as u32;
-        self.ints.push(val);
-        id
-    }
-
-    pub fn add_float(&mut self, val: OrderedFloat) -> u32 {
-        let id = self.floats.len() as u32;
-        self.floats.push(val);
-        id
     }
 
     pub fn add_list_flat(&mut self, items: &[u32]) -> u32 {
