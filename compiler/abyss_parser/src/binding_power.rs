@@ -23,3 +23,40 @@ impl BindingPower {
         Some(bp)
     }
 }
+
+#[inline]
+pub fn is_soft(kind: TokenKind) -> bool {
+    matches!(
+        kind,
+        // arithmetic
+        TokenKind::Plus
+        | TokenKind::Slash
+        | TokenKind::Percent
+
+        // key-value / const-def
+        | TokenKind::Colon
+        | TokenKind::ColonColon
+
+        // equality / comparison
+        | TokenKind::EqEq
+        | TokenKind::BangEq
+        | TokenKind::Lt | TokenKind::Gt | TokenKind::LtEq | TokenKind::GtEq
+
+        // logic
+        | TokenKind::And | TokenKind::Or
+
+        // bitwise
+        | TokenKind::Pipe | TokenKind::Caret
+        | TokenKind::LeftShift | TokenKind::RightShift
+
+        // assignments
+        | TokenKind::Eq
+        | TokenKind::PlusEq | TokenKind::MinusEq
+        | TokenKind::StarEq | TokenKind::SlashEq | TokenKind::PercentEq
+        | TokenKind::AmpEq | TokenKind::PipeEq | TokenKind::CaretEq
+        | TokenKind::LeftShiftEq | TokenKind::RightShiftEq
+
+        // cast
+        | TokenKind::As
+    )
+}
