@@ -22,6 +22,11 @@ impl Parser<'_> {
         id
     }
 
+    #[inline(always)]
+    pub fn peek_preceded_by_newline(&self) -> bool {
+        self.cursor < self.end && self.db.tokens.preceded_by_newline(TokenId(self.cursor))
+    }
+
     pub fn parse(db: &mut Nexus, cursor: u32, end: u32) {
         let mut parser = Parser { db, cursor, end };
         engine::parse_expr(&mut parser, 0);
