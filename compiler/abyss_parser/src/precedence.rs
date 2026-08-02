@@ -1,3 +1,6 @@
+use crate::binding_power::BindingPower;
+
+#[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Precedence {
     None = 0,
@@ -24,12 +27,28 @@ pub enum Precedence {
 }
 
 impl Precedence {
-    pub fn value(&self) -> u8 {
-        *self as u8
+    #[inline]
+    pub fn value(self) -> u8 {
+        self as u8
     }
 
-    pub fn lower(&self) -> u8 {
-        let val = *self as u8;
-        if val > 0 { val - 1 } else { 0 }
+    #[inline]
+    pub fn left_assoc(self) -> BindingPower {
+        let val = self.value();
+
+        BindingPower {
+            left: val,
+            right: val + 1,
+        }
+    }
+
+    #[inline]
+    pub fn right_assoc(self) -> BindingPower {
+        let val = self.value();
+
+        BindingPower {
+            left: val,
+            right: if val > 0 { val - 1 } else { 0 },
+        }
     }
 }

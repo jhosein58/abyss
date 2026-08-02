@@ -1,5 +1,3 @@
-use abyss_parser::ast::OrderedFloat;
-
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct IntId(pub u32);
@@ -11,7 +9,7 @@ pub struct FloatId(pub u32);
 #[derive(Default)]
 pub struct LiteralStorage {
     ints: Vec<i64>,
-    floats: Vec<OrderedFloat>,
+    floats: Vec<f64>,
 }
 
 impl LiteralStorage {
@@ -25,13 +23,13 @@ impl LiteralStorage {
         self.ints[id.0 as usize]
     }
 
-    pub fn intern_float(&mut self, val: OrderedFloat) -> FloatId {
+    pub fn intern_float(&mut self, val: f64) -> FloatId {
         let id = self.floats.len() as u32;
         self.floats.push(val);
         FloatId(id)
     }
 
-    pub fn get_float(&self, id: FloatId) -> OrderedFloat {
+    pub fn get_float(&self, id: FloatId) -> f64 {
         self.floats[id.0 as usize]
     }
 }
