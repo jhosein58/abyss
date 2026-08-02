@@ -4,6 +4,7 @@ use abyss::abyss::Abyss;
 pub use abyss_analyzer::type_checker::engine::TypeChecker;
 pub use abyss_diagnostics::DiagnosticEngine;
 pub use abyss_ir::builder::IrBuilder;
+use abyss_lexer_new::lexer::Lexer;
 pub use abyss_parser::parser::Parser;
 
 pub use abyss_utils::idgen::IdGenerator;
@@ -12,7 +13,7 @@ pub use abyss_vm::codegen::IrCompiler;
 fn main() {
     let code = fs::read_to_string("main.a").unwrap();
 
-    Abyss::new(code)
+    Abyss::new(code.clone())
         .with_filename("main.a")
         .with_host_function("print_f32", 1, vec![false], |args, _heap| {
             let val = f64::from_bits(args[0] as u64);
@@ -70,4 +71,8 @@ fn main() {
             0
         })
         .run();
+
+    let mut lexer = Lexer::new(&code);
+    let tokens = lexer.lex();
+    println!("{:#?}", tokens);
 }

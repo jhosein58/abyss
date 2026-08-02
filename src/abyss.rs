@@ -6,7 +6,7 @@ use abyss_ir::builder::IrBuilder;
 use abyss_lower::HirLowerer;
 use abyss_nexus::nexus::{FileId, Nexus};
 use abyss_parser::parser::Parser;
-use abyss_typer::{collector, tyck};
+use abyss_typer::collector;
 use abyss_utils::idgen::IdGenerator;
 use abyss_vm::{codegen::IrCompiler, vm::core::AbyssVm};
 
