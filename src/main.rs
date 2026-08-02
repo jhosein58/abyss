@@ -6,7 +6,7 @@ pub use std::{fs, time::Instant};
 // pub use abyss_ir::builder::IrBuilder;
 use abyss_lexer::lexer::Lexer;
 use abyss_nexus::nexus::Nexus;
-use abyss_parser::parser;
+use abyss_parser::parser::Parser;
 // pub use abyss_parser::parser::Parser;
 
 // pub use abyss_utils::idgen::IdGenerator;
@@ -21,7 +21,7 @@ fn main() {
     let len = tokens.kinds.len();
     nexus.set_tokens(tokens);
 
-    parser::parse(&mut nexus, 0, 0, len as u32);
+    Parser::parse(&mut nexus, 0, len as u32);
     nexus.hir.print_dump(&nexus);
 
     // Abyss::new(code.clone())
