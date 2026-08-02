@@ -257,7 +257,7 @@ impl<'a> Lexer<'a> {
                 self.cursor.bump();
                 if self.cursor.first() == '=' {
                     self.cursor.bump();
-                    TokenKind::PlusAssign
+                    TokenKind::PlusEq
                 } else {
                     TokenKind::Plus
                 }
@@ -267,7 +267,7 @@ impl<'a> Lexer<'a> {
                 self.cursor.bump();
                 if self.cursor.first() == '=' {
                     self.cursor.bump();
-                    TokenKind::MinusAssign
+                    TokenKind::MinusEq
                 } else if self.cursor.first() == '>' {
                     self.cursor.bump();
                     TokenKind::RArrow
@@ -280,7 +280,7 @@ impl<'a> Lexer<'a> {
                 self.cursor.bump();
                 if self.cursor.first() == '=' {
                     self.cursor.bump();
-                    TokenKind::StarAssign
+                    TokenKind::StarEq
                 } else {
                     TokenKind::Star
                 }
@@ -290,7 +290,7 @@ impl<'a> Lexer<'a> {
                 self.cursor.bump();
                 if self.cursor.first() == '=' {
                     self.cursor.bump();
-                    TokenKind::SlashAssign
+                    TokenKind::SlashEq
                 } else {
                     TokenKind::Slash
                 }
@@ -300,7 +300,7 @@ impl<'a> Lexer<'a> {
                 self.cursor.bump();
                 if self.cursor.first() == '=' {
                     self.cursor.bump();
-                    TokenKind::PercentAssign
+                    TokenKind::PercentEq
                 } else {
                     TokenKind::Percent
                 }
@@ -310,7 +310,7 @@ impl<'a> Lexer<'a> {
                 self.cursor.bump();
                 if self.cursor.first() == '=' {
                     self.cursor.bump();
-                    TokenKind::AmpAssign
+                    TokenKind::AmpEq
                 } else {
                     TokenKind::Amp
                 }
@@ -320,7 +320,7 @@ impl<'a> Lexer<'a> {
                 self.cursor.bump();
                 if self.cursor.first() == '=' {
                     self.cursor.bump();
-                    TokenKind::PipeAssign
+                    TokenKind::PipeEq
                 } else {
                     TokenKind::Pipe
                 }
@@ -330,7 +330,7 @@ impl<'a> Lexer<'a> {
                 self.cursor.bump();
                 if self.cursor.first() == '=' {
                     self.cursor.bump();
-                    TokenKind::CaretAssign
+                    TokenKind::CaretEq
                 } else {
                     TokenKind::Caret
                 }
@@ -413,7 +413,7 @@ impl<'a> Lexer<'a> {
                     self.cursor.bump();
                     TokenKind::REqArrow
                 } else {
-                    TokenKind::Assign
+                    TokenKind::Eq
                 }
             }
 
@@ -433,7 +433,7 @@ impl<'a> Lexer<'a> {
                     self.cursor.bump();
                     if self.cursor.first() == '=' {
                         self.cursor.bump();
-                        TokenKind::LeftShiftAssign
+                        TokenKind::LeftShiftEq
                     } else {
                         TokenKind::LeftShift
                     }
@@ -454,7 +454,7 @@ impl<'a> Lexer<'a> {
                     self.cursor.bump();
                     if self.cursor.first() == '=' {
                         self.cursor.bump();
-                        TokenKind::RightShiftAssign
+                        TokenKind::RightShiftEq
                     } else {
                         TokenKind::RightShift
                     }

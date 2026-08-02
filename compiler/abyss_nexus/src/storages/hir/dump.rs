@@ -41,7 +41,7 @@ impl HirStorage {
                     lhs_str = format!("Int({})", nexus.literals.get_int(IntId(lhs)))
                 }
                 HirExprKind::LitFloat => {
-                    lhs_str = format!("Float({})", nexus.literals.get_float(FloatId(lhs)).0)
+                    lhs_str = format!("Float({})", nexus.literals.get_float(FloatId(lhs)))
                 }
                 HirExprKind::LitBool => lhs_str = format!("Bool({})", lhs == 1),
                 HirExprKind::LitChar => {

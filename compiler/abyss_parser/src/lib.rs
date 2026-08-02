@@ -1,4 +1,3 @@
-pub mod ast;
+pub mod binding_power;
 pub mod parser;
-pub mod source_map;
-pub mod stream;
+pub mod precedence;

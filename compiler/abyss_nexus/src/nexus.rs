@@ -1,11 +1,13 @@
 use abyss_diagnostics::Span;
 use abyss_hir::hir::HirTable;
+use abyss_token::stream::TokenStream;
 
 use crate::storages::{
     hir::storage::HirStorage,
     interner::storage::{InternerStorage, NameId},
     literals::storage::LiteralStorage,
     symbols::storage::SymbolStorage,
+    tokens::storage::TokenStorage,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -22,6 +24,7 @@ pub struct HirAttribute {
 
 pub struct Nexus {
     // Storages
+    pub tokens: TokenStorage,
     pub hir: HirStorage,
     pub interner: InternerStorage,
     pub symbols: SymbolStorage,
@@ -42,7 +45,10 @@ impl Nexus {
         Self::default()
     }
 
-    // --------> hir
+    pub fn set_tokens(&mut self, tokens: TokenStream<'static>) {
+        self.tokens.stream = tokens;
+    }
+
     pub fn set_hir(&mut self, table: HirTable) {
         self.hir.set(table);
         self.symbols.init(self.hir.len());

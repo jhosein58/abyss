@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-abyss_lexer = { path = "../abyss_lexer" }
-abyss_diagnostics = { path = "../abyss_diagnostics" }
-abyss_utils = { path = "../abyss_utils" }
+abyss_token = { path = "../abyss_token" }
+abyss_nexus = { path = "../abyss_nexus" }
+abyss_hir = { path = "../abyss_hir" }
