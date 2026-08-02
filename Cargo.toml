@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "compiler/abyss_lexer",
     "compiler/abyss_parser",
     "compiler/abyss_codegen",
     "compiler/abyss_analyzer",
@@ -17,7 +16,8 @@ members = [
     "compiler/abyss_hir",
     "compiler/abyss_typer",
     "compiler/abyss_lower",
-    "compiler/abyss_lexer_new",
+    "compiler/abyss_lexer",
+    "compiler/abyss_token", "compiler/abyss_parser_new",
 ]
 
 
@@ -50,7 +50,6 @@ abyss_hir = { path = "./compiler/abyss_hir" }
 abyss_nexus = { path = "./compiler/abyss_nexus" }
 abyss_typer = { path = "./compiler/abyss_typer" }
 abyss_lower = { path = "./compiler/abyss_lower" }
-abyss_lexer_new = { path = "./compiler/abyss_lexer_new" }
 
 
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm21-1"], optional = true }

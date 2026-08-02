@@ -1,7 +1,6 @@
-use crate::{
-    cursor::Cursor,
-    token::{Token, TokenKind},
-};
+use abyss_token::{kind::TokenKind, stream::TokenStream};
+
+use crate::cursor::Cursor;
 
 pub struct Lexer<'a> {
     source: &'a str,
@@ -22,27 +21,20 @@ impl<'a> Lexer<'a> {
     }
 
     #[inline]
-    pub fn next_token(&mut self) -> Token<'a> {
-        if self.finished {
-            return Token::new(
-                TokenKind::Eof,
-                "",
-                self.cursor.len_consumed(),
-                0,
-                self.had_newline,
-            );
-        }
+    pub fn lex(&mut self) -> TokenStream<'a> {
+        let mut tokens = TokenStream::default();
 
         loop {
             if self.cursor.is_eof() {
                 self.finished = true;
-                return Token::new(
+                tokens.push(
                     TokenKind::Eof,
                     "",
                     self.cursor.len_consumed(),
                     0,
                     self.had_newline,
                 );
+                break;
             }
 
             let start_offset = self.cursor.len_consumed();
@@ -83,13 +75,18 @@ impl<'a> Lexer<'a> {
 
             let end_offset = self.cursor.len_consumed();
             let len = end_offset - start_offset;
-            let text = &self.source[start_offset..end_offset];
 
-            let token = Token::new(kind, text, start_offset, len, self.had_newline);
+            if len == 0 && !self.cursor.is_eof() {
+                self.cursor.bump();
+            }
+
+            let text = &self.source[start_offset..self.cursor.len_consumed()];
+
+            tokens.push(kind, text, start_offset, len, self.had_newline);
             self.had_newline = false;
-
-            return token;
         }
+
+        tokens
     }
 
     #[inline]
@@ -541,25 +538,5 @@ impl<'a> Lexer<'a> {
 
             _ => TokenKind::Ident,
         }
-    }
-}
-
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Token<'a>;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.finished {
-            return None;
-        }
-
-        let token = self.next_token();
-
-        if token.kind == TokenKind::Eof {
-            self.finished = true;
-            return Some(token);
-        }
-
-        Some(token)
     }
 }

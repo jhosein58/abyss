@@ -67,6 +67,7 @@ name = "abyss_lexer"
 version = "0.1.0"
 dependencies = [
  "abyss_diagnostics",
+ "abyss_token",
 ]
 
 [[package]]
@@ -85,7 +86,9 @@ version = "0.1.0"
 dependencies = [
  "abyss_diagnostics",
  "abyss_hir",
+ "abyss_lexer",
  "abyss_parser",
+ "abyss_token",
 ]
 
 [[package]]
@@ -115,6 +118,10 @@ dependencies = [
  "abyss_ir",
  "abyss_vm",
 ]
+
+[[package]]
+name = "abyss_token"
+version = "0.1.0"
 
 [[package]]
 name = "abyss_typer"
