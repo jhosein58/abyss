@@ -9,7 +9,7 @@ pub trait ArenaId: Copy + Clone {
 macro_rules! arena_id {
     ($name:ident) => {
         #[repr(transparent)]
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name(pub u32);
 
         impl crate::arena::ArenaId for $name {
@@ -40,7 +40,9 @@ macro_rules! arena_id {
     };
 }
 
-#[derive(Debug, Clone)]
+pub type DirectArena<ID, T> = Arena<ID, ID, T>;
+
+#[derive(Default, Debug, Clone)]
 pub struct Arena<I: ArenaId, O: ArenaId, T: Copy> {
     data: Vec<T>,
     _marker: std::marker::PhantomData<(I, O)>,
