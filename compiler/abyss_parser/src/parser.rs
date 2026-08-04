@@ -29,6 +29,25 @@ impl Parser<'_> {
 
     pub fn parse(db: &mut Nexus, cursor: u32, end: u32) {
         let mut parser = Parser { db, cursor, end };
-        engine::parse_expr(&mut parser, 0);
+
+        let mut items = vec![];
+
+        loop {
+            if let Some(TokenKind::Eof) = parser.peek() {
+                break;
+            }
+
+            items.push(engine::parse_expr(&mut parser, 0).0);
+
+            if let Some(_) = parser.peek() {
+                continue;
+            }
+            break;
+        }
+
+        let items = parser.db.add_list_flat(&items);
+        let root = parser.db.hir.alloc_block(items);
+
+        parser.db.hir.set_root(root);
     }
 }
