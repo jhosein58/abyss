@@ -4,8 +4,8 @@ use crate::{
     nexus::Nexus,
     storages::{
         hir::storage::HirStorage,
-        interner::storage::NameId,
-        literals::storage::{FloatId, IntId},
+        interner::NameId,
+        literals::{FloatId, IntId},
     },
 };
 

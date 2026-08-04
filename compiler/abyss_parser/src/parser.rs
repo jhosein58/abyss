@@ -1,4 +1,4 @@
-use abyss_nexus::{nexus::Nexus, storages::tokens::storage::TokenId};
+use abyss_nexus::{nexus::Nexus, storages::tokens::TokenId};
 use abyss_token::kind::TokenKind;
 
 use crate::engine;
