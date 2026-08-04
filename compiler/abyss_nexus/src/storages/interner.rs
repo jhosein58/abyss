@@ -1,8 +1,8 @@
 use std::{collections::HashMap, rc::Rc};
 
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NameId(pub u32);
+use crate::arena_id;
+
+arena_id!(NameId);
 
 #[derive(Default)]
 pub struct InternerStorage {

@@ -1,10 +1,7 @@
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct IntId(pub u32);
+use crate::arena_id;
 
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FloatId(pub u32);
+arena_id!(IntId);
+arena_id!(FloatId);
 
 #[derive(Default)]
 pub struct LiteralStorage {

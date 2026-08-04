@@ -1,8 +1,8 @@
 use abyss_token::{kind::TokenKind, stream::TokenStream};
 
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TokenId(pub u32);
+use crate::arena_id;
+
+arena_id!(TokenId);
 
 #[derive(Default)]
 pub struct TokenStorage {
