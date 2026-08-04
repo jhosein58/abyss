@@ -1,4 +1,4 @@
-use abyss_diagnostics::Span;
+use abyss_diagnostics::span::Span;
 use abyss_hir::hir::HirTable;
 use abyss_token::stream::TokenStream;
 
