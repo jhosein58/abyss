@@ -54,7 +54,7 @@ pub enum HirExprKind {
     Use,
     Sequence,
     Signature,
-    Def,
+    Binding,
     Ret,
     Out,
     Continue,
@@ -78,6 +78,8 @@ pub enum HirExprKind {
     Attributed,
     Comptime,
     Wildcard,
+
+    Error,
 }
 
 #[derive(Default)]

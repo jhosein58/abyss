@@ -1,14 +1,18 @@
 use abyss_hir::hir::HirExprKind;
 use abyss_nexus::storages::hir::storage::HirId;
-use abyss_token::kind::TokenKind;
+use abyss_token::kind::TokenKind as Tk;
 
 use crate::parser::Parser;
 
-pub fn build(p: &mut Parser, op: TokenKind, lhs: HirId, rhs: HirId) -> HirId {
+pub fn build(p: &mut Parser, op: Tk, lhs: HirId, rhs: HirId) -> HirId {
     let kind = match op {
-        TokenKind::Plus => HirExprKind::BinaryAdd,
-        TokenKind::Minus => HirExprKind::BinarySub,
-        TokenKind::Star => HirExprKind::BinaryMul,
+        Tk::Plus => HirExprKind::BinaryAdd,
+        Tk::Minus => HirExprKind::BinarySub,
+        Tk::Star => HirExprKind::BinaryMul,
+        Tk::Slash => HirExprKind::BinaryDiv,
+        Tk::Percent => HirExprKind::BinaryMod,
+
+        Tk::ColonColon => HirExprKind::Binding,
         _ => unreachable!(),
     };
     p.db.hir.alloc_binary(kind, lhs, rhs)

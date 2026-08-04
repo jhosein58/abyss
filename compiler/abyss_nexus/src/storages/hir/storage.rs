@@ -19,6 +19,10 @@ impl HirStorage {
         self.table.len()
     }
 
+    pub fn set_root(&mut self, root: HirId) {
+        self.table.root = root.0;
+    }
+
     pub fn root(&self) -> HirId {
         HirId(self.table.root)
     }
