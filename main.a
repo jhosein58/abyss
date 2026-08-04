@@ -606,4 +606,25 @@
 --------------------------------------------------
 
 
-2 + 2
+main :: () {
+
+}
+
+
+User :: [
+    const_var: 42,
+    name: String,
+    age : u32,
+
+    new: (name: String, age: u32) Self {
+        [name, age] as User
+    }
+
+    make_older: (self) {
+        self.age += self.const_var
+    }
+
+    add: (a, b: i32) i32 {
+        a + b
+    }
+]
