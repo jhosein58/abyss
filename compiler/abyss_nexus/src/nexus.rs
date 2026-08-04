@@ -4,10 +4,10 @@ use abyss_token::stream::TokenStream;
 
 use crate::storages::{
     hir::storage::HirStorage,
-    interner::storage::{InternerStorage, NameId},
-    literals::storage::LiteralStorage,
-    symbols::storage::SymbolStorage,
-    tokens::storage::TokenStorage,
+    interner::{InternerStorage, NameId},
+    literals::LiteralStorage,
+    symbols::SymbolStorage,
+    tokens::TokenStorage,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
