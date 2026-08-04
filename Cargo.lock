@@ -6,7 +6,6 @@ version = 4
 name = "abyss"
 version = "0.1.0"
 dependencies = [
- "abyss_indexer",
  "abyss_lexer",
  "abyss_nexus",
  "abyss_parser",
@@ -20,14 +19,6 @@ version = "0.1.0"
 [[package]]
 name = "abyss_hir"
 version = "0.1.0"
-
-[[package]]
-name = "abyss_indexer"
-version = "0.1.0"
-dependencies = [
- "abyss_nexus",
- "abyss_token",
-]
 
 [[package]]
 name = "abyss_lexer"
