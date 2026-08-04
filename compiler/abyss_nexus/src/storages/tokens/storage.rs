@@ -11,6 +11,11 @@ pub struct TokenStorage {
 
 impl TokenStorage {
     #[inline]
+    pub fn count(&self) -> usize {
+        self.stream.kinds.len()
+    }
+
+    #[inline]
     pub fn kind(&self, id: TokenId) -> TokenKind {
         self.stream.kinds[id.0 as usize]
     }
