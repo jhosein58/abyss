@@ -1,5 +1,5 @@
 use abyss_hir::hir::HirExprKind;
-use abyss_nexus::storages::hir::storage::HirId;
+use abyss_nexus::nexus::HirId;
 use abyss_token::kind::TokenKind as Tk;
 
 use crate::parser::Parser;

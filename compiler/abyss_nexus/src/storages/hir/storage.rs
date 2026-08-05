@@ -1,8 +1,6 @@
 use abyss_hir::hir::{HirExprKind, HirTable};
 
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HirId(pub u32);
+use crate::nexus::HirId;
 
 #[derive(Default)]
 pub struct HirStorage {
