@@ -1,12 +1,8 @@
 use abyss_hir::hir::HirExprKind;
 
 use crate::{
-    nexus::Nexus,
-    storages::{
-        hir::storage::HirStorage,
-        interner::NameId,
-        literals::{FloatId, IntId},
-    },
+    nexus::{FloatId, IntId, Nexus},
+    storages::{hir::storage::HirStorage, interner::NameId},
 };
 
 impl HirStorage {
@@ -37,11 +33,9 @@ impl HirStorage {
             let ext_str = format_idx(extra);
 
             match kind {
-                HirExprKind::LitInt => {
-                    lhs_str = format!("Int({})", nexus.literals.get_int(IntId(lhs)))
-                }
+                HirExprKind::LitInt => lhs_str = format!("Int({})", nexus.ints.get(IntId(lhs))),
                 HirExprKind::LitFloat => {
-                    lhs_str = format!("Float({})", nexus.literals.get_float(FloatId(lhs)))
+                    lhs_str = format!("Float({})", nexus.floats.get(FloatId(lhs)))
                 }
                 HirExprKind::LitBool => lhs_str = format!("Bool({})", lhs == 1),
                 HirExprKind::LitChar => {
@@ -54,7 +48,7 @@ impl HirStorage {
                 | HirExprKind::LitCstr
                 | HirExprKind::Ident
                 | HirExprKind::Member => {
-                    let text = nexus.interner.get(NameId(lhs)).unwrap_or("<unknown>");
+                    let text = nexus.interner.get(NameId(lhs));
                     let display_text: String = if text.len() > 15 {
                         format!("{}...", &text[..15])
                     } else {

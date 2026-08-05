@@ -6,5 +6,5 @@ pub fn int(p: &mut Parser) -> HirId {
     let value = p.db.tokens.text(TokenId(p.cursor));
     let value = value.parse::<i64>().unwrap();
     p.bump();
-    p.db.hir.alloc_int(p.db.literals.intern_int(value))
+    p.db.hir.alloc_int(p.db.ints.alloc(value))
 }

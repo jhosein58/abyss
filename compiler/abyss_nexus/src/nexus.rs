@@ -2,40 +2,35 @@ use abyss_diagnostics::span::Span;
 use abyss_hir::hir::HirTable;
 use abyss_token::stream::TokenStream;
 
-use crate::storages::{
-    hir::storage::HirStorage,
-    interner::{InternerStorage, NameId},
-    literals::LiteralStorage,
-    symbols::SymbolStorage,
-    tokens::TokenStorage,
+use crate::{
+    arena::DirectArena,
+    arena_id,
+    storages::{
+        hir::storage::HirStorage, interner::InternerStorage, symbols::SymbolStorage,
+        tokens::TokenStorage,
+    },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FileId(pub u32);
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HirAttribute {
-    pub name: NameId,
-    pub args_start: u32,
-    pub span: Span,
-}
+arena_id!(FileId);
+arena_id!(IntId);
+arena_id!(FloatId);
 
 #[derive(Default)]
-
 pub struct Nexus {
     // Storages
     pub tokens: TokenStorage,
     pub hir: HirStorage,
     pub interner: InternerStorage,
     pub symbols: SymbolStorage,
-    pub literals: LiteralStorage,
+
+    pub ints: DirectArena<IntId, i64>,
+    pub floats: DirectArena<FloatId, f64>,
 
     pub files: Vec<String>,
     pub node_spans: Vec<Span>,
     pub node_files: Vec<FileId>,
 
     pub u32_items: Vec<u32>,
-    pub attributes: Vec<HirAttribute>,
     pub match_arms: Vec<(u32, u32)>,
     pub ranges: Vec<(u32, u32, u32, u32)>,
 }
@@ -84,12 +79,6 @@ impl Nexus {
         let start = start as usize;
         let len = self.u32_items[start] as usize;
         &self.u32_items[start + 1..start + 1 + len]
-    }
-
-    pub fn add_attribute(&mut self, attr: HirAttribute) -> u32 {
-        let id = self.attributes.len() as u32;
-        self.attributes.push(attr);
-        id
     }
 
     pub fn add_match_arm(&mut self, pattern: u32, body: u32) -> u32 {
