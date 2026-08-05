@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::Index};
 
 pub trait ArenaId: Copy + Clone {
     fn new(v: u32) -> Self;
@@ -23,42 +23,19 @@ macro_rules! arena_id {
                 self.0
             }
         }
-
-        impl From<u32> for $name {
-            #[inline(always)]
-            fn from(value: u32) -> Self {
-                Self(value)
-            }
-        }
-
-        impl From<$name> for u32 {
-            #[inline(always)]
-            fn from(id: $name) -> Self {
-                id.0
-            }
-        }
     };
 }
-pub type Arena<ID, OUT, T> = ArenaCore<ID, OUT, T>;
-pub type DirectArena<ID, T> = Arena<ID, ID, T>;
-pub type SideTable<K, V> = ArenaCore<K, K, V>;
 
-impl<ID: ArenaId, OUT: ArenaId, T> Arena<ID, OUT, T> {
-    #[inline]
-    pub fn alloc(&mut self, item: T) -> OUT {
-        let index = self.data.len() as u32;
-        self.data.push(item);
-        OUT::new(index)
-    }
-}
+pub type Arena<I, T> = ArenaCore<I, T, true>;
+pub type SideTable<K, V> = ArenaCore<K, V, false>;
 
 #[derive(Default, Debug, Clone)]
-struct ArenaCore<I: ArenaId, O: ArenaId, T> {
+pub struct ArenaCore<I: ArenaId, T, const ALLOC: bool> {
     data: Vec<T>,
-    _marker: std::marker::PhantomData<(I, O)>,
+    _marker: PhantomData<I>,
 }
 
-impl<I: ArenaId, O: ArenaId, T> ArenaCore<I, O, T> {
+impl<I: ArenaId, T, const ALLOC: bool> ArenaCore<I, T, ALLOC> {
     #[inline]
     pub fn new() -> Self {
         Self {
@@ -92,36 +69,35 @@ impl<I: ArenaId, O: ArenaId, T> ArenaCore<I, O, T> {
     }
 }
 
-impl<I: ArenaId, O: ArenaId, T: Default + Clone + Copy> ArenaCore<I, O, T> {
-    #[inline]
-    pub fn resize(&mut self, new_len: usize) {
-        if new_len > self.data.len() {
-            self.data.resize(new_len, T::default());
-        }
+impl<I: ArenaId, T, const ALLOC: bool> Index<I> for ArenaCore<I, T, ALLOC> {
+    type Output = T;
+    #[inline(always)]
+    fn index(&self, id: I) -> &Self::Output {
+        self.get(id)
     }
 }
 
-impl<I: ArenaId, O: ArenaId, T: Copy> ArenaCore<I, O, T> {
+impl<I: ArenaId, T: Copy, const ALLOC: bool> ArenaCore<I, T, ALLOC> {
     #[inline]
     pub fn get_copy(&self, id: I) -> T {
         self.data[id.value() as usize]
     }
 }
 
-impl<I: ArenaId, O: ArenaId, T: Default + Clone> ArenaCore<I, O, T> {
-    #[inline(always)]
-    pub fn init_for_len(&mut self, len: usize) {
-        if len > self.data.len() {
-            self.data.resize(len, T::default());
-        }
+impl<I: ArenaId, T> ArenaCore<I, T, true> {
+    #[inline]
+    pub fn alloc(&mut self, item: T) -> I {
+        let index = self.data.len() as u32;
+        self.data.push(item);
+        I::new(index)
     }
+}
 
-    #[inline(always)]
-    pub fn set_ensure(&mut self, id: I, value: T) {
-        let index = id.value() as usize;
-        if index >= self.data.len() {
-            self.data.resize(index + 1, T::default());
+impl<I: ArenaId, T: Default + Clone> ArenaCore<I, T, false> {
+    #[inline]
+    pub fn grow_to(&mut self, new_len: usize) {
+        if new_len > self.data.len() {
+            self.data.resize(new_len, T::default());
         }
-        self.data[index] = value;
     }
 }

@@ -3,7 +3,7 @@ use abyss_hir::hir::HirTable;
 use abyss_token::stream::TokenStream;
 
 use crate::{
-    arena::{Arena, DirectArena},
+    arena::{Arena, SideTable},
     arena_id,
     storages::{
         hir::storage::HirStorage, interner::InternerStorage, symbols::SymbolStorage,
@@ -25,11 +25,11 @@ pub struct Nexus {
     pub interner: InternerStorage,
     pub symbols: SymbolStorage,
 
-    pub ints: DirectArena<IntId, i64>,
-    pub floats: DirectArena<FloatId, f64>,
-    pub file_interner: DirectArena<FileId, String>,
-    pub hir_spans: Arena<HirId, SpanId, Span>,
-    pub hir_files: Arena<HirId, FileId, FileId>,
+    pub ints: Arena<IntId, i64>,
+    pub floats: Arena<FloatId, f64>,
+    pub file_interner: Arena<FileId, String>,
+    pub hir_spans: SideTable<HirId, Span>,
+    pub hir_files: SideTable<HirId, FileId>,
 
     pub u32_items: Vec<u32>,
     pub match_arms: Vec<(u32, u32)>,
@@ -48,19 +48,6 @@ impl Nexus {
     pub fn set_hir(&mut self, table: HirTable) {
         self.hir.set(table);
         self.symbols.init(self.hir.len());
-    }
-
-    pub fn add_node_meta(&mut self, span: Span, file_id: FileId) {
-        self.node_spans.push(span);
-        self.node_files.push(file_id);
-    }
-
-    pub fn get_node_span(&self, node_id: u32) -> Span {
-        self.node_spans[node_id as usize].clone()
-    }
-
-    pub fn get_node_file(&self, node_id: u32) -> FileId {
-        self.node_files[node_id as usize]
     }
 
     pub fn add_list_flat(&mut self, items: &[u32]) -> u32 {
