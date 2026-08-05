@@ -27,11 +27,9 @@ pub struct Nexus {
 
     pub ints: DirectArena<IntId, i64>,
     pub floats: DirectArena<FloatId, f64>,
-    pub spans: Arena<HirId, SpanId, Span>,
     pub file_interner: DirectArena<FileId, String>,
-
-    pub node_spans: Vec<Span>,
-    pub node_files: Vec<FileId>,
+    pub hir_spans: Arena<HirId, SpanId, Span>,
+    pub hir_files: Arena<HirId, FileId, FileId>,
 
     pub u32_items: Vec<u32>,
     pub match_arms: Vec<(u32, u32)>,

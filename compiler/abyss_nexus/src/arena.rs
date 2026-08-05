@@ -39,16 +39,26 @@ macro_rules! arena_id {
         }
     };
 }
-
+pub type Arena<ID, OUT, T> = ArenaCore<ID, OUT, T>;
 pub type DirectArena<ID, T> = Arena<ID, ID, T>;
+pub type SideTable<K, V> = ArenaCore<K, K, V>;
+
+impl<ID: ArenaId, OUT: ArenaId, T> Arena<ID, OUT, T> {
+    #[inline]
+    pub fn alloc(&mut self, item: T) -> OUT {
+        let index = self.data.len() as u32;
+        self.data.push(item);
+        OUT::new(index)
+    }
+}
 
 #[derive(Default, Debug, Clone)]
-pub struct Arena<I: ArenaId, O: ArenaId, T> {
+struct ArenaCore<I: ArenaId, O: ArenaId, T> {
     data: Vec<T>,
     _marker: std::marker::PhantomData<(I, O)>,
 }
 
-impl<I: ArenaId, O: ArenaId, T> Arena<I, O, T> {
+impl<I: ArenaId, O: ArenaId, T> ArenaCore<I, O, T> {
     #[inline]
     pub fn new() -> Self {
         Self {
@@ -66,15 +76,14 @@ impl<I: ArenaId, O: ArenaId, T> Arena<I, O, T> {
     }
 
     #[inline]
-    pub fn alloc(&mut self, item: T) -> O {
-        let index = self.data.len() as u32;
-        self.data.push(item);
-        O::new(index)
-    }
-
-    #[inline]
     pub fn get(&self, id: I) -> &T {
         &self.data[id.value() as usize]
+    }
+
+    #[inline(always)]
+    pub fn set(&mut self, id: I, value: T) {
+        let index = id.value() as usize;
+        self.data[index] = value;
     }
 
     #[inline]
@@ -83,7 +92,7 @@ impl<I: ArenaId, O: ArenaId, T> Arena<I, O, T> {
     }
 }
 
-impl<I: ArenaId, O: ArenaId, T: Default + Clone + Copy> Arena<I, O, T> {
+impl<I: ArenaId, O: ArenaId, T: Default + Clone + Copy> ArenaCore<I, O, T> {
     #[inline]
     pub fn resize(&mut self, new_len: usize) {
         if new_len > self.data.len() {
@@ -92,9 +101,27 @@ impl<I: ArenaId, O: ArenaId, T: Default + Clone + Copy> Arena<I, O, T> {
     }
 }
 
-impl<I: ArenaId, O: ArenaId, T: Copy> Arena<I, O, T> {
+impl<I: ArenaId, O: ArenaId, T: Copy> ArenaCore<I, O, T> {
     #[inline]
     pub fn get_copy(&self, id: I) -> T {
         self.data[id.value() as usize]
+    }
+}
+
+impl<I: ArenaId, O: ArenaId, T: Default + Clone> ArenaCore<I, O, T> {
+    #[inline(always)]
+    pub fn init_for_len(&mut self, len: usize) {
+        if len > self.data.len() {
+            self.data.resize(len, T::default());
+        }
+    }
+
+    #[inline(always)]
+    pub fn set_ensure(&mut self, id: I, value: T) {
+        let index = id.value() as usize;
+        if index >= self.data.len() {
+            self.data.resize(index + 1, T::default());
+        }
+        self.data[index] = value;
     }
 }
