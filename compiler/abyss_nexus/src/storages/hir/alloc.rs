@@ -1,9 +1,6 @@
 use crate::{
-    nexus::IntId,
-    storages::{
-        hir::storage::{HirId, HirStorage},
-        interner::NameId,
-    },
+    nexus::{HirId, IntId},
+    storages::{hir::storage::HirStorage, interner::NameId},
 };
 use abyss_hir::hir::HirExprKind as Hir;
 

@@ -1,4 +1,4 @@
-use abyss_nexus::storages::{hir::storage::HirId, tokens::TokenId};
+use abyss_nexus::{nexus::HirId, storages::tokens::TokenId};
 
 use crate::parser::Parser;
 

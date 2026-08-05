@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq, Default, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, Eq, Hash)]
 pub struct Span {
     pub start: u32,
     pub end: u32,

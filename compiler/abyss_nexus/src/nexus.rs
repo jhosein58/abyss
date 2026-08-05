@@ -3,7 +3,7 @@ use abyss_hir::hir::HirTable;
 use abyss_token::stream::TokenStream;
 
 use crate::{
-    arena::DirectArena,
+    arena::{Arena, DirectArena},
     arena_id,
     storages::{
         hir::storage::HirStorage, interner::InternerStorage, symbols::SymbolStorage,
@@ -11,9 +11,11 @@ use crate::{
     },
 };
 
+arena_id!(HirId);
 arena_id!(FileId);
 arena_id!(IntId);
 arena_id!(FloatId);
+arena_id!(SpanId);
 
 #[derive(Default)]
 pub struct Nexus {
@@ -25,8 +27,9 @@ pub struct Nexus {
 
     pub ints: DirectArena<IntId, i64>,
     pub floats: DirectArena<FloatId, f64>,
+    pub spans: Arena<HirId, SpanId, Span>,
+    pub file_interner: DirectArena<FileId, String>,
 
-    pub files: Vec<String>,
     pub node_spans: Vec<Span>,
     pub node_files: Vec<FileId>,
 
@@ -47,12 +50,6 @@ impl Nexus {
     pub fn set_hir(&mut self, table: HirTable) {
         self.hir.set(table);
         self.symbols.init(self.hir.len());
-    }
-
-    pub fn add_file(&mut self, path: String) -> FileId {
-        let id = self.files.len() as u32;
-        self.files.push(path);
-        FileId(id)
     }
 
     pub fn add_node_meta(&mut self, span: Span, file_id: FileId) {

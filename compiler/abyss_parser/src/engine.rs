@@ -1,4 +1,4 @@
-use abyss_nexus::storages::hir::storage::HirId;
+use abyss_nexus::nexus::HirId;
 
 use crate::{
     binding_power::{BindingPower, is_soft},
