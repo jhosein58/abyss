@@ -1,12 +1,12 @@
 use std::{collections::HashMap, rc::Rc};
 
-use crate::{arena::DirectArena, arena_id};
+use crate::{arena::Arena, arena_id};
 
 arena_id!(NameId);
 
 #[derive(Default)]
 pub struct InternerStorage {
-    arena: DirectArena<NameId, Rc<str>>,
+    arena: Arena<NameId, Rc<str>>,
     cache: HashMap<Rc<str>, NameId>,
 }
 
@@ -17,7 +17,7 @@ impl InternerStorage {
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            arena: DirectArena::with_capacity(capacity),
+            arena: Arena::with_capacity(capacity),
             cache: HashMap::new(),
         }
     }
