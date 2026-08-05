@@ -43,12 +43,12 @@ macro_rules! arena_id {
 pub type DirectArena<ID, T> = Arena<ID, ID, T>;
 
 #[derive(Default, Debug, Clone)]
-pub struct Arena<I: ArenaId, O: ArenaId, T: Copy> {
+pub struct Arena<I: ArenaId, O: ArenaId, T> {
     data: Vec<T>,
     _marker: std::marker::PhantomData<(I, O)>,
 }
 
-impl<I: ArenaId, O: ArenaId, T: Copy> Arena<I, O, T> {
+impl<I: ArenaId, O: ArenaId, T> Arena<I, O, T> {
     #[inline]
     pub fn new() -> Self {
         Self {
@@ -73,8 +73,8 @@ impl<I: ArenaId, O: ArenaId, T: Copy> Arena<I, O, T> {
     }
 
     #[inline]
-    pub fn get(&self, id: I) -> T {
-        self.data[id.value() as usize]
+    pub fn get(&self, id: I) -> &T {
+        &self.data[id.value() as usize]
     }
 
     #[inline]
@@ -89,5 +89,12 @@ impl<I: ArenaId, O: ArenaId, T: Default + Clone + Copy> Arena<I, O, T> {
         if new_len > self.data.len() {
             self.data.resize(new_len, T::default());
         }
+    }
+}
+
+impl<I: ArenaId, O: ArenaId, T: Copy> Arena<I, O, T> {
+    #[inline]
+    pub fn get_copy(&self, id: I) -> T {
+        self.data[id.value() as usize]
     }
 }

@@ -11,8 +11,6 @@ fn main() {
     let mut lexer = Lexer::new(code);
     let tokens = lexer.lex();
 
-    dbg!(&tokens);
-
     let len = tokens.kinds.len();
     nexus.set_tokens(tokens);
 
