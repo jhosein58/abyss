@@ -5,6 +5,10 @@ use abyss_token::kind::TokenKind as Tk;
 use crate::parser::Parser;
 
 pub fn build(p: &mut Parser, op: Tk, lhs: HirId, rhs: HirId) -> HirId {
+    if p.is_headless {
+        return HirId::default();
+    }
+
     let kind = match op {
         Tk::Plus => HirExprKind::BinaryAdd,
         Tk::Minus => HirExprKind::BinarySub,

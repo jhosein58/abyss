@@ -4,8 +4,8 @@ use abyss_token::kind::TokenKind;
 pub struct Parser<'db> {
     pub db: &'db mut Nexus,
     pub cursor: u32,
+    pub is_headless: bool,
     end: u32,
-    is_headless: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -37,8 +37,16 @@ impl<'a> Parser<'a> {
         self.cursor < self.end && self.db.tokens.preceded_by_newline(TokenId(self.cursor))
     }
 
-    pub fn index(&mut self) {
-        let mut idxs: Vec<(u32, u32)> = vec![];
+    #[inline(always)]
+    pub fn expect(&mut self, kind: TokenKind) {
+        if self.peek() != Some(kind) {
+            panic!("Error: expected {:?}", kind)
+        }
+        self.bump();
+    }
+
+    pub fn index(&mut self) -> Vec<(u32, u32)> {
+        let mut idxs = vec![];
 
         loop {
             if let Some(TokenKind::Eof) = self.peek() {
@@ -46,8 +54,12 @@ impl<'a> Parser<'a> {
             }
 
             let start = self.cursor;
+
+            self.expect(TokenKind::Ident);
+            self.expect(TokenKind::ColonColon);
+
             self.parse_expr(0);
-            let end = self.cursor;
+            let end = self.cursor - 1;
 
             idxs.push((start, end));
 
@@ -56,6 +68,8 @@ impl<'a> Parser<'a> {
             }
             break;
         }
+
+        return idxs;
     }
 
     // pub fn parse(db: &mut Nexus, cursor: u32, end: u32) {

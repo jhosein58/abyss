@@ -3,6 +3,11 @@ use abyss_nexus::{nexus::HirId, storages::tokens::TokenId};
 use crate::parser::Parser;
 
 pub fn int(p: &mut Parser) -> HirId {
+    if p.is_headless {
+        p.bump();
+        return HirId::default();
+    }
+
     let value = p.db.tokens.text(TokenId(p.cursor));
     let value = value.parse::<i64>().unwrap();
     p.bump();

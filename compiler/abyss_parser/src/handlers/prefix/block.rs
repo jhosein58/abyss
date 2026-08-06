@@ -15,7 +15,14 @@ pub fn handle(p: &mut Parser) -> HirId {
         }
 
         let item = p.parse_expr(0);
-        items.push(item.0);
+
+        if !p.is_headless {
+            items.push(item.0);
+        }
+    }
+
+    if p.is_headless {
+        return HirId::default();
     }
 
     let items = p.db.add_list_flat(&items);
