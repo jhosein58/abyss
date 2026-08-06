@@ -2,13 +2,12 @@ use abyss_nexus::nexus::HirId;
 
 use crate::{
     binding_power::{BindingPower, is_soft},
-    dispatch,
     parser::Parser,
 };
 
 impl<'a> Parser<'a> {
     pub fn parse_expr(&mut self, min_bp: u8) -> HirId {
-        let mut lhs = dispatch::prefix(self);
+        let mut lhs = self.dispatch_prefix();
 
         while let Some(tk) = self.peek() {
             if self.peek_preceded_by_newline() && !is_soft(tk) {
@@ -23,7 +22,7 @@ impl<'a> Parser<'a> {
             }
             self.bump();
 
-            lhs = dispatch::infix(self, tk, lhs, bp.right);
+            lhs = self.dispatch_infix(tk, lhs, bp.right);
         }
         lhs
     }

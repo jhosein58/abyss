@@ -15,12 +15,15 @@ fn main() {
     let tokens = lexer.lex();
     dbg!(&tokens);
 
-    let len = tokens.kinds.len();
+    //let len = tokens.kinds.len();
     nexus.set_tokens(tokens);
     nexus.reserve_for_tokens();
 
-    Parser::parse(&mut nexus, 0, len as u32);
-    nexus.hir.print_dump(&nexus);
+    let idx = Parser::new_indexer(&mut nexus).index();
+    dbg!(&idx);
+
+    //Parser::parse(&mut nexus, 0, len as u32);
+    //nexus.hir.print_dump(&nexus);
 
     println!("Time: {:?}", t.elapsed());
 }

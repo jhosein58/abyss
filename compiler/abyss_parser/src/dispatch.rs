@@ -9,22 +9,24 @@ use crate::{
     parser::Parser,
 };
 
-#[inline]
-pub fn prefix(p: &mut Parser) -> HirId {
-    match p.peek() {
-        Some(Tk::IntLit) => literal::int(p),
-        Some(Tk::Ident) => ident::handle(p),
-        Some(Tk::OBrace) => block::handle(p),
+impl Parser<'_> {
+    #[inline]
+    pub fn dispatch_prefix(&mut self) -> HirId {
+        match self.peek() {
+            Some(Tk::IntLit) => literal::int(self),
+            Some(Tk::Ident) => ident::handle(self),
+            Some(Tk::OBrace) => block::handle(self),
 
-        _ => {
-            p.bump();
-            HirId(0)
-        } // TODO: error node
+            _ => {
+                self.bump();
+                HirId(0)
+            } // TODO: error node
+        }
     }
-}
 
-#[inline]
-pub fn infix(p: &mut Parser, op: Tk, lhs: HirId, right_bp: u8) -> HirId {
-    let rhs = p.parse_expr(right_bp);
-    binary::build(p, op, lhs, rhs)
+    #[inline]
+    pub fn dispatch_infix(&mut self, op: Tk, lhs: HirId, right_bp: u8) -> HirId {
+        let rhs = self.parse_expr(right_bp);
+        binary::build(self, op, lhs, rhs)
+    }
 }
