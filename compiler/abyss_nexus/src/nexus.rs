@@ -89,7 +89,7 @@ impl Nexus {
             Lexer::new(static_content).lex()
         };
 
-        self.set_tokens(tokens);
+        self.tokens.append(tokens);
         self.reserve_for_tokens();
     }
 }
