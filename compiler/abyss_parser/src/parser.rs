@@ -32,12 +32,14 @@ impl Parser<'_> {
 
         let mut items = vec![];
 
+        let root_scope = parser.db.scopes.alloc(None);
+
         loop {
             if let Some(TokenKind::Eof) = parser.peek() {
                 break;
             }
 
-            items.push(engine::parse_expr(&mut parser, 0).0);
+            items.push(engine::parse_expr(&mut parser, 0, root_scope).0);
 
             if let Some(_) = parser.peek() {
                 continue;
@@ -47,7 +49,7 @@ impl Parser<'_> {
 
         let items = parser.db.add_list_flat(&items);
         let root = parser.db.hir.alloc_block(items);
-
+        parser.db.scopes.set(root, root_scope);
         parser.db.hir.set_root(root);
     }
 }

@@ -6,8 +6,8 @@ use crate::{
     arena::{Arena, SideTable},
     arena_id,
     storages::{
-        hir::storage::HirStorage, interner::InternerStorage, symbols::SymbolStorage,
-        tokens::TokenStorage,
+        hir::storage::HirStorage, interner::InternerStorage, scopes::ScopeStorage,
+        symbols::SymbolStorage, tokens::TokenStorage,
     },
 };
 
@@ -26,6 +26,7 @@ pub struct Nexus {
     pub hir: HirStorage,
     pub interner: InternerStorage,
     pub symbols: SymbolStorage,
+    pub scopes: ScopeStorage,
 
     pub ints: Arena<IntId, i64>,
     pub floats: Arena<FloatId, f64>,
@@ -46,6 +47,7 @@ impl Nexus {
         self.hir.reserve(len);
         self.hir_spans.grow_to(len);
         self.hir_files.grow_to(len);
+        self.scopes.grow_to(len);
     }
 
     pub fn set_tokens(&mut self, tokens: TokenStream<'static>) {

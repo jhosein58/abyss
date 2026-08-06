@@ -25,13 +25,4 @@ fn main() {
     nexus.hir.print_dump(&nexus);
 
     println!("Time: {:?}", t.elapsed());
-
-    let mut s = ScopeStorage::default();
-    let parent = s.alloc(None);
-    let child = s.alloc(Some(parent));
-
-    s.bind(parent, NameId(0), HirId(10));
-    s.bind(child, NameId(0), HirId(20));
-
-    println!("{:?}", s.lookup(child, NameId(0)));
 }
