@@ -1,8 +1,7 @@
-use abyss_nexus::nexus::{HirId, ScopeId};
+use abyss_nexus::nexus::HirId;
 use abyss_token::kind::TokenKind as Tk;
 
 use crate::{
-    engine,
     handlers::{
         infix::binary,
         prefix::{block, ident, literal},
@@ -11,11 +10,11 @@ use crate::{
 };
 
 #[inline]
-pub fn prefix(p: &mut Parser, parent: ScopeId) -> HirId {
+pub fn prefix(p: &mut Parser) -> HirId {
     match p.peek() {
         Some(Tk::IntLit) => literal::int(p),
         Some(Tk::Ident) => ident::handle(p),
-        Some(Tk::OBrace) => block::handle(p, parent),
+        Some(Tk::OBrace) => block::handle(p),
 
         _ => {
             p.bump();
@@ -25,7 +24,7 @@ pub fn prefix(p: &mut Parser, parent: ScopeId) -> HirId {
 }
 
 #[inline]
-pub fn infix(p: &mut Parser, parent: ScopeId, op: Tk, lhs: HirId, right_bp: u8) -> HirId {
-    let rhs = engine::parse_expr(p, right_bp, parent);
+pub fn infix(p: &mut Parser, op: Tk, lhs: HirId, right_bp: u8) -> HirId {
+    let rhs = p.parse_expr(right_bp);
     binary::build(p, op, lhs, rhs)
 }
