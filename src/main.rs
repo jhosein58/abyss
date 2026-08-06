@@ -1,10 +1,7 @@
 pub use std::{fs, time::Instant};
 
 use abyss_lexer::lexer::Lexer;
-use abyss_nexus::{
-    nexus::{HirId, NameId, Nexus},
-    storages::scopes::ScopeStorage,
-};
+use abyss_nexus::nexus::Nexus;
 use abyss_parser::parser::Parser;
 
 fn main() {
@@ -16,6 +13,7 @@ fn main() {
 
     let mut lexer = Lexer::new(code);
     let tokens = lexer.lex();
+    dbg!(&tokens);
 
     let len = tokens.kinds.len();
     nexus.set_tokens(tokens);
