@@ -1,8 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 
-use crate::{arena::Arena, arena_id};
-
-arena_id!(NameId);
+use crate::{arena::Arena, nexus::NameId};
 
 #[derive(Default)]
 pub struct InternerStorage {
