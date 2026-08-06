@@ -39,4 +39,8 @@ impl TokenStorage {
     pub fn preceded_by_newline(&self, id: TokenId) -> bool {
         self.stream.preceded_by_newlines[id.0 as usize]
     }
+
+    pub fn append(&mut self, other: TokenStream<'static>) {
+        self.stream.append(other);
+    }
 }
