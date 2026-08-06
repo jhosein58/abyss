@@ -28,8 +28,8 @@ impl ScopeStorage {
         id
     }
 
-    pub fn bind(&mut self, scope: ScopeId, name: NameId, hir: HirId) {
-        self.scopes[scope.0 as usize].nodes.insert(name, hir);
+    pub fn bind(&mut self, scope: ScopeId, name: NameId, target: HirId) {
+        self.scopes[scope.0 as usize].nodes.insert(name, target);
     }
 
     fn lookup_local(&self, scope: ScopeId, name: NameId) -> Option<HirId> {
