@@ -12,10 +12,12 @@ use crate::{
 };
 
 arena_id!(HirId);
+arena_id!(NameId);
 arena_id!(FileId);
 arena_id!(IntId);
 arena_id!(FloatId);
 arena_id!(SpanId);
+arena_id!(ScopeId);
 
 #[derive(Default)]
 pub struct Nexus {
@@ -32,13 +34,18 @@ pub struct Nexus {
     pub hir_files: SideTable<HirId, FileId>,
 
     pub u32_items: Vec<u32>,
-    pub match_arms: Vec<(u32, u32)>,
-    pub ranges: Vec<(u32, u32, u32, u32)>,
 }
 
 impl Nexus {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn reserve_for_tokens(&mut self) {
+        let len = self.tokens.count();
+        self.hir.reserve(len);
+        self.hir_spans.grow_to(len);
+        self.hir_files.grow_to(len);
     }
 
     pub fn set_tokens(&mut self, tokens: TokenStream<'static>) {
@@ -61,17 +68,5 @@ impl Nexus {
         let start = start as usize;
         let len = self.u32_items[start] as usize;
         &self.u32_items[start + 1..start + 1 + len]
-    }
-
-    pub fn add_match_arm(&mut self, pattern: u32, body: u32) -> u32 {
-        let id = self.match_arms.len() as u32;
-        self.match_arms.push((pattern, body));
-        id
-    }
-
-    pub fn add_range(&mut self, start: u32, end: u32, step: u32, inclusive: u32) -> u32 {
-        let id = self.ranges.len() as u32;
-        self.ranges.push((start, end, step, inclusive));
-        id
     }
 }

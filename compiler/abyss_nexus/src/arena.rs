@@ -29,7 +29,7 @@ macro_rules! arena_id {
 pub type Arena<I, T> = ArenaCore<I, T, true>;
 pub type SideTable<K, V> = ArenaCore<K, V, false>;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct ArenaCore<I: ArenaId, T, const ALLOC: bool> {
     data: Vec<T>,
     _marker: PhantomData<I>,
@@ -74,6 +74,12 @@ impl<I: ArenaId, T, const ALLOC: bool> Index<I> for ArenaCore<I, T, ALLOC> {
     #[inline(always)]
     fn index(&self, id: I) -> &Self::Output {
         self.get(id)
+    }
+}
+
+impl<I: ArenaId, T, const ALLOC: bool> Default for ArenaCore<I, T, ALLOC> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

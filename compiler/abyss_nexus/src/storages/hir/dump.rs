@@ -1,8 +1,8 @@
 use abyss_hir::hir::HirExprKind;
 
 use crate::{
-    nexus::{FloatId, IntId, Nexus},
-    storages::{hir::storage::HirStorage, interner::NameId},
+    nexus::{FloatId, IntId, NameId, Nexus},
+    storages::hir::storage::HirStorage,
 };
 
 impl HirStorage {
@@ -75,19 +75,6 @@ impl HirStorage {
                         let len = nexus.u32_items[start] as usize;
                         let items = &nexus.u32_items[(start + 1)..(start + 1 + len)];
                         rhs_str = format!("Nodes{:?}", items);
-                    }
-                }
-
-                HirExprKind::Range => {
-                    if lhs != u32::MAX {
-                        let (start, end, step, inc) = nexus.ranges[lhs as usize];
-                        lhs_str = format!(
-                            "Range(s:{}, e:{}, st:{}, inc:{})",
-                            format_idx(start),
-                            format_idx(end),
-                            format_idx(step),
-                            inc
-                        );
                     }
                 }
 

@@ -1,6 +1,9 @@
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HirExprKind {
+    #[default]
+    Empty,
+
     // Literals
     LitInt,
     LitFloat,
@@ -95,5 +98,13 @@ impl HirTable {
     #[inline]
     pub fn len(&self) -> usize {
         self.kinds.len()
+    }
+
+    #[inline]
+    pub fn reserve(&mut self, capacity: usize) {
+        self.kinds.reserve(capacity);
+        self.lhs.reserve(capacity);
+        self.rhs.reserve(capacity);
+        self.extra.reserve(capacity);
     }
 }
