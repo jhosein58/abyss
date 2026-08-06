@@ -1,5 +1,6 @@
 use abyss_diagnostics::span::Span;
 use abyss_hir::hir::HirTable;
+use abyss_lexer::lexer::Lexer;
 use abyss_token::stream::TokenStream;
 
 use crate::{
@@ -28,9 +29,10 @@ pub struct Nexus {
     pub symbols: SymbolStorage,
     pub scopes: ScopeStorage,
 
+    pub file_map: Arena<FileId, String>,
+    pub path_map: SideTable<NameId, FileId>,
     pub ints: Arena<IntId, i64>,
     pub floats: Arena<FloatId, f64>,
-    pub file_interner: Arena<FileId, String>,
     pub hir_spans: SideTable<HirId, Span>,
     pub hir_files: SideTable<HirId, FileId>,
 
@@ -70,5 +72,24 @@ impl Nexus {
         let start = start as usize;
         let len = self.u32_items[start] as usize;
         &self.u32_items[start + 1..start + 1 + len]
+    }
+
+    pub fn add_file(&mut self, path: &str, content: String) -> FileId {
+        let file_id = self.file_map.alloc(content);
+        let name_id = self.interner.intern(path);
+        self.path_map.grow_to(self.interner.len());
+        self.path_map.set(name_id, file_id);
+        file_id
+    }
+
+    pub fn lex_file(&mut self, file_id: FileId) {
+        let tokens = {
+            let content: &str = self.file_map.get(file_id);
+            let static_content: &'static str = unsafe { std::mem::transmute(content) };
+            Lexer::new(static_content).lex()
+        };
+
+        self.set_tokens(tokens);
+        self.reserve_for_tokens();
     }
 }
