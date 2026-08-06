@@ -1,4 +1,4 @@
-use abyss_nexus::nexus::{HirId, ScopeId};
+use abyss_nexus::nexus::HirId;
 
 use crate::{
     binding_power::{BindingPower, is_soft},
@@ -6,23 +6,25 @@ use crate::{
     parser::Parser,
 };
 
-pub fn parse_expr(p: &mut Parser, min_bp: u8, parent: ScopeId) -> HirId {
-    let mut lhs = dispatch::prefix(p, parent);
+impl<'a> Parser<'a> {
+    pub fn parse_expr(&mut self, min_bp: u8) -> HirId {
+        let mut lhs = dispatch::prefix(self);
 
-    while let Some(tk) = p.peek() {
-        if p.peek_preceded_by_newline() && !is_soft(tk) {
-            break;
+        while let Some(tk) = self.peek() {
+            if self.peek_preceded_by_newline() && !is_soft(tk) {
+                break;
+            }
+
+            let Some(bp) = BindingPower::from_infix(tk) else {
+                break;
+            };
+            if bp.left < min_bp {
+                break;
+            }
+            self.bump();
+
+            lhs = dispatch::infix(self, tk, lhs, bp.right);
         }
-
-        let Some(bp) = BindingPower::from_infix(tk) else {
-            break;
-        };
-        if bp.left < min_bp {
-            break;
-        }
-        p.bump();
-
-        lhs = dispatch::infix(p, parent, tk, lhs, bp.right);
+        lhs
     }
-    lhs
 }

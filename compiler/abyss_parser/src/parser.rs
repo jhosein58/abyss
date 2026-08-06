@@ -1,12 +1,11 @@
 use abyss_nexus::{nexus::Nexus, storages::tokens::TokenId};
 use abyss_token::kind::TokenKind;
 
-use crate::engine;
-
 pub struct Parser<'db> {
     pub db: &'db mut Nexus,
     pub cursor: u32,
     end: u32,
+    is_headless: bool,
 }
 
 impl Parser<'_> {
@@ -28,18 +27,21 @@ impl Parser<'_> {
     }
 
     pub fn parse(db: &mut Nexus, cursor: u32, end: u32) {
-        let mut parser = Parser { db, cursor, end };
+        let mut parser = Parser {
+            db,
+            cursor,
+            end,
+            is_headless: false,
+        };
 
         let mut items = vec![];
-
-        let root_scope = parser.db.scopes.alloc(None);
 
         loop {
             if let Some(TokenKind::Eof) = parser.peek() {
                 break;
             }
 
-            items.push(engine::parse_expr(&mut parser, 0, root_scope).0);
+            items.push(parser.parse_expr(0).0);
 
             if let Some(_) = parser.peek() {
                 continue;
@@ -49,7 +51,7 @@ impl Parser<'_> {
 
         let items = parser.db.add_list_flat(&items);
         let root = parser.db.hir.alloc_block(items);
-        parser.db.scopes.set(root, root_scope);
+
         parser.db.hir.set_root(root);
     }
 }
