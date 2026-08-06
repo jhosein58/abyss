@@ -20,6 +20,11 @@ impl InternerStorage {
         }
     }
 
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.arena.len()
+    }
+
     pub fn intern(&mut self, name: &str) -> NameId {
         if let Some(id) = self.cache.get(name) {
             return *id;
