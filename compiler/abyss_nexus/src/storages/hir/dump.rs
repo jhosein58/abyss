@@ -58,7 +58,7 @@ impl HirStorage {
                 }
 
                 HirExprKind::Sequence
-                | HirExprKind::Signature
+                | HirExprKind::Function
                 | HirExprKind::Block
                 | HirExprKind::Attributed => {
                     if lhs != u32::MAX {

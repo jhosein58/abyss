@@ -14,50 +14,50 @@ pub enum HirExprKind {
     Ident,
 
     // Binary
-    BinaryAssign,
-    BinaryAssignAdd,
-    BinaryAssignSub,
-    BinaryAssignMul,
-    BinaryAssignDiv,
-    BinaryAssignMod,
-    BinaryAssignBitAnd,
-    BinaryAssignBitOr,
-    BinaryAssignBitXor,
-    BinaryAssignShl,
-    BinaryAssignShr,
-    BinaryAdd,
-    BinarySub,
-    BinaryMul,
-    BinaryDiv,
-    BinaryMod,
-    BinaryEq,
-    BinaryNeq,
-    BinaryLt,
-    BinaryGt,
-    BinaryLte,
-    BinaryGte,
-    BinaryAnd,
-    BinaryOr,
-    BinaryBitAnd,
-    BinaryPipe,
-    BinaryBitXor,
-    BinaryShl,
-    BinaryShr,
-    BinaryCollon,
-    BinaryConstDef,
+    BinaryAssign,       // =
+    BinaryAssignAdd,    // +=
+    BinaryAssignSub,    // -=
+    BinaryAssignMul,    // *=
+    BinaryAssignDiv,    // /=
+    BinaryAssignMod,    // %=
+    BinaryAssignBitAnd, // &=
+    BinaryAssignBitOr,  // |=
+    BinaryAssignBitXor, // ^=
+    BinaryAssignShl,    // <<=
+    BinaryAssignShr,    // >>=
+    BinaryAdd,          // +
+    BinarySub,          // -
+    BinaryMul,          // *
+    BinaryDiv,          // /
+    BinaryMod,          // %
+    BinaryEq,           // ==
+    BinaryNeq,          // !=
+    BinaryLt,           // <
+    BinaryGt,           // >
+    BinaryLte,          // <=
+    BinaryGte,          // >=
+    BinaryAnd,          // and
+    BinaryOr,           // or
+    BinaryBitAnd,       // &
+    BinaryPipe,         // |
+    BinaryBitXor,       // ^
+    BinaryShl,          // <<
+    BinaryShr,          // >>
+    BinaryCollon,       // :
 
     // Unary
-    UnaryNeg,
-    UnaryNot,
-    UnaryBitNot,
-    UnaryDeref,
-    UnaryAddrOf,
+    UnaryNeg,    // -x
+    UnaryNot,    // not x
+    UnaryBitNot, // ~x
+    UnaryDeref,  // *x
+    UnaryAddrOf, // &x
 
     Mod,
     Use,
     Sequence,
-    Signature,
-    Binding,
+    Function, // (args_lhs) ret_type_rhs { block_extra }
+    Binding,  // ident :: expr
+    Var,      // pattern := expr, ident: type = expr
     Ret,
     Out,
     Continue,
