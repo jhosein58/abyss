@@ -1,8 +1,8 @@
 use abyss_nexus::{
-    nexus::{FileId, Nexus},
+    nexus::{FileId, NameId, Nexus},
     storages::tokens::TokenId,
 };
-use abyss_token::kind::TokenKind;
+use abyss_token::{kind::TokenKind, stream::TokenRange};
 
 pub struct Parser<'db> {
     pub db: &'db mut Nexus,
@@ -15,6 +15,18 @@ pub struct Parser<'db> {
 impl<'a> Parser<'a> {
     pub fn new_indexer(db: &'a mut Nexus, file_id: FileId) -> Self {
         let range = db.file_token_spans.get_copy(file_id);
+
+        Parser {
+            db,
+            cursor: range.start,
+            end: range.end,
+            is_headless: true,
+            file_id,
+        }
+    }
+
+    pub fn new_parser(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> Self {
+        let range = db.symbol_index.get(&(file_id, name_id)).unwrap().clone();
 
         Parser {
             db,
@@ -50,59 +62,38 @@ impl<'a> Parser<'a> {
         self.bump();
     }
 
-    pub fn index(&mut self) -> Vec<(u32, u32)> {
-        let mut idxs = vec![];
+    pub fn index(db: &'a mut Nexus, file_id: FileId) {
+        let mut p = Parser::new_indexer(db, file_id);
 
         loop {
-            if let Some(TokenKind::Eof) = self.peek() {
+            if let Some(TokenKind::Eof) = p.peek() {
                 break;
             }
 
-            let start = self.cursor;
+            let start = p.cursor;
 
-            self.expect(TokenKind::Ident);
-            self.expect(TokenKind::ColonColon);
+            p.expect(TokenKind::Ident);
 
-            self.parse_expr(0);
-            let end = self.cursor - 1;
+            let name = p.db.tokens.text(TokenId(p.cursor - 1));
+            let name_id = p.db.interner.intern(name);
 
-            idxs.push((start, end));
+            p.expect(TokenKind::ColonColon);
 
-            if let Some(_) = self.peek() {
+            p.parse_expr(0);
+            let end = p.cursor - 1;
+
+            p.db.symbol_index
+                .insert((p.file_id, name_id), TokenRange { start, end });
+
+            if let Some(_) = p.peek() {
                 continue;
             }
             break;
         }
-
-        return idxs;
     }
 
-    // pub fn parse(db: &mut Nexus, cursor: u32, end: u32) {
-    //     let mut parser = Parser {
-    //         db,
-    //         cursor,
-    //         end,
-    //         is_headless: false,
-    //     };
-
-    //     let mut items = vec![];
-
-    //     loop {
-    //         if let Some(TokenKind::Eof) = parser.peek() {
-    //             break;
-    //         }
-
-    //         items.push(parser.parse_expr(0).0);
-
-    //         if let Some(_) = parser.peek() {
-    //             continue;
-    //         }
-    //         break;
-    //     }
-
-    //     let items = parser.db.add_list_flat(&items);
-    //     let root = parser.db.hir.alloc_block(items);
-
-    //     parser.db.hir.set_root(root);
-    // }
+    pub fn parse(db: &'a mut Nexus, file_id: FileId, name_id: NameId) {
+        let mut p = Self::new_parser(db, file_id, name_id);
+        p.parse_expr(0);
+    }
 }

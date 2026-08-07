@@ -43,7 +43,7 @@ pub struct Nexus {
     pub file_token_spans: SideTable<FileId, TokenRange>,
 
     // Symbol & Resolution Lookups
-    pub symbol_index: HashMap<(FileId, NameId), SymbolId>,
+    pub symbol_index: HashMap<(FileId, NameId), TokenRange>,
     pub symbol_to_hir: SideTable<SymbolId, HirId>,
 
     // Metadata & Side Tables
@@ -109,6 +109,4 @@ impl Nexus {
             .set(file_id, TokenRange { start, end });
         self.reserve_for_tokens();
     }
-
-    pub fn parse_symbol(&mut self, symbol_id: SymbolId) {}
 }
