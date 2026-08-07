@@ -1,17 +1,13 @@
 use std::collections::HashMap;
 
 use abyss_diagnostics::span::Span;
-use abyss_hir::hir::HirTable;
 use abyss_lexer::lexer::Lexer;
-use abyss_token::stream::{TokenRange, TokenStream};
 
 use crate::{
     arena::{Arena, SideTable},
     arena_id,
-    storages::{
-        hir::storage::HirStorage, interner::InternerStorage, scopes::ScopeStorage,
-        symbols::SymbolStorage, tokens::TokenStorage,
-    },
+    ranges::{HirRange, TokenRange},
+    storages::{hir::storage::HirStorage, interner::InternerStorage, tokens::TokenStorage},
 };
 
 arena_id!(HirId);
@@ -22,6 +18,7 @@ arena_id!(FloatId);
 arena_id!(SpanId);
 arena_id!(ScopeId);
 arena_id!(SymbolId);
+arena_id!(TokenId);
 
 #[derive(Default)]
 pub struct Nexus {
@@ -29,8 +26,6 @@ pub struct Nexus {
     pub tokens: TokenStorage,
     pub hir: HirStorage,
     pub interner: InternerStorage,
-    pub symbols: SymbolStorage,
-    pub scopes: ScopeStorage,
 
     // Primitive Stores
     pub ints: Arena<IntId, i64>,
@@ -44,7 +39,8 @@ pub struct Nexus {
 
     // Symbol & Resolution Lookups
     pub symbol_index: HashMap<(FileId, NameId), TokenRange>,
-    pub symbol_to_hir: SideTable<SymbolId, HirId>,
+    pub symbols: Arena<SymbolId, HirId>,
+    pub symbol_hir_range: SideTable<SymbolId, HirRange>,
 
     // Metadata & Side Tables
     pub hir_spans: SideTable<HirId, Span>,
@@ -61,16 +57,6 @@ impl Nexus {
         self.hir.reserve(len);
         self.hir_spans.grow_to(len);
         self.hir_files.grow_to(len);
-        self.scopes.grow_to(len);
-    }
-
-    pub fn set_tokens(&mut self, tokens: TokenStream<'static>) {
-        self.tokens.stream = tokens;
-    }
-
-    pub fn set_hir(&mut self, table: HirTable) {
-        self.hir.set(table);
-        self.symbols.init(self.hir.len());
     }
 
     pub fn add_list_flat(&mut self, items: &[u32]) -> u32 {
@@ -102,9 +88,9 @@ impl Nexus {
             Lexer::new(static_content).lex()
         };
 
-        let start = self.tokens.count() as u32;
+        let start = TokenId(self.tokens.count() as u32);
         self.tokens.append(tokens);
-        let end = self.tokens.count() as u32 - 1;
+        let end = TokenId(self.tokens.count() as u32 - 1);
         self.file_token_spans
             .set(file_id, TokenRange { start, end });
         self.reserve_for_tokens();

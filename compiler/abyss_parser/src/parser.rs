@@ -1,8 +1,10 @@
+use abyss_hir::hir::HirExprKind;
 use abyss_nexus::{
-    nexus::{FileId, NameId, Nexus},
+    nexus::{FileId, HirId, NameId, Nexus},
+    ranges::TokenRange,
     storages::tokens::TokenId,
 };
-use abyss_token::{kind::TokenKind, stream::TokenRange};
+use abyss_token::kind::TokenKind;
 
 pub struct Parser<'db> {
     pub db: &'db mut Nexus,
@@ -18,8 +20,8 @@ impl<'a> Parser<'a> {
 
         Parser {
             db,
-            cursor: range.start,
-            end: range.end,
+            cursor: range.start.0,
+            end: range.end.0,
             is_headless: true,
             file_id,
         }
@@ -30,8 +32,8 @@ impl<'a> Parser<'a> {
 
         Parser {
             db,
-            cursor: range.start,
-            end: range.end,
+            cursor: range.start.0,
+            end: range.end.0,
             is_headless: false,
             file_id,
         }
@@ -70,7 +72,7 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            let start = p.cursor;
+            let start = TokenId(p.cursor);
 
             p.expect(TokenKind::Ident);
 
@@ -80,7 +82,7 @@ impl<'a> Parser<'a> {
             p.expect(TokenKind::ColonColon);
 
             p.parse_expr(0);
-            let end = p.cursor - 1;
+            let end = TokenId(p.cursor - 1);
 
             p.db.symbol_index
                 .insert((p.file_id, name_id), TokenRange { start, end });
@@ -92,8 +94,17 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse(db: &'a mut Nexus, file_id: FileId, name_id: NameId) {
+    pub fn parse_top_level(db: &'a mut Nexus, file_id: FileId, name_id: NameId) {
         let mut p = Self::new_parser(db, file_id, name_id);
-        p.parse_expr(0);
+
+        p.expect(TokenKind::Ident);
+        p.expect(TokenKind::ColonColon);
+
+        let text = p.db.tokens.text(TokenId(p.cursor - 2));
+        let sym_id = p.db.hir.alloc_ident(p.db.interner.intern(text));
+
+        let body = p.parse_expr(0);
+
+        p.db.hir.alloc_binary(HirExprKind::Binding, sym_id, body);
     }
 }

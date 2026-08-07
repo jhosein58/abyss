@@ -1,9 +1,4 @@
 use crate::kind::TokenKind;
-#[derive(Debug, Clone, Copy, Default)]
-pub struct TokenRange {
-    pub start: u32,
-    pub end: u32,
-}
 
 #[derive(Default, Debug)]
 pub struct TokenStream<'a> {

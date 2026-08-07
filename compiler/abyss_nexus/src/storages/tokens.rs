@@ -1,8 +1,6 @@
 use abyss_token::{kind::TokenKind, stream::TokenStream};
 
-use crate::arena_id;
-
-arena_id!(TokenId);
+use crate::nexus::TokenId;
 
 #[derive(Default)]
 pub struct TokenStorage {
