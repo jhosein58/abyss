@@ -1,4 +1,7 @@
-use abyss_nexus::{nexus::Nexus, storages::tokens::TokenId};
+use abyss_nexus::{
+    nexus::{FileId, Nexus},
+    storages::tokens::TokenId,
+};
 use abyss_token::kind::TokenKind;
 
 pub struct Parser<'db> {
@@ -6,17 +9,19 @@ pub struct Parser<'db> {
     pub cursor: u32,
     pub is_headless: bool,
     end: u32,
+    file_id: FileId,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new_indexer(db: &'a mut Nexus) -> Self {
-        let end = db.tokens.count() as u32;
+    pub fn new_indexer(db: &'a mut Nexus, file_id: FileId) -> Self {
+        let range = db.file_token_spans.get_copy(file_id);
 
         Parser {
             db,
-            cursor: 0,
-            end,
+            cursor: range.start,
+            end: range.end,
             is_headless: false,
+            file_id,
         }
     }
 
