@@ -14,10 +14,19 @@ pub fn handle(p: &mut Parser) -> HirId {
             break;
         }
 
+        if p.peek().is_none() {
+            break;
+        }
+
         let item = p.parse_expr(0);
 
         if !p.is_headless {
             items.push(item.0);
+        }
+
+        if let Some(Tk::CBrace) = p.peek() {
+            p.bump();
+            break;
         }
     }
 

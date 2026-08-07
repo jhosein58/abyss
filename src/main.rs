@@ -1,6 +1,6 @@
 pub use std::{fs, time::Instant};
 
-use abyss_nexus::nexus::Nexus;
+use abyss_nexus::nexus::{NameId, Nexus};
 use abyss_parser::parser::Parser;
 
 fn main() {
@@ -11,11 +11,12 @@ fn main() {
     let file_id = nexus.add_file("main.a", fs::read_to_string("main.a").unwrap());
     nexus.lex_file(file_id);
 
-    let idx = Parser::new_indexer(&mut nexus, file_id).index();
-    dbg!(&idx);
+    Parser::index(&mut nexus, file_id);
 
-    //Parser::parse(&mut nexus, 0, len as u32);
-    //nexus.hir.print_dump(&nexus);
+    Parser::parse(&mut nexus, file_id, NameId(1));
+    Parser::parse(&mut nexus, file_id, NameId(2));
+
+    nexus.hir.print_dump(&nexus);
 
     println!("Time: {:?}", t.elapsed());
 }
