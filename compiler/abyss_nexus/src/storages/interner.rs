@@ -40,4 +40,8 @@ impl InternerStorage {
     pub fn get(&self, id: NameId) -> &str {
         self.arena.get(id)
     }
+
+    pub fn get_id(&self, name: &str) -> Option<NameId> {
+        self.cache.get(name).copied()
+    }
 }
