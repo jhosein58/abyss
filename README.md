@@ -1,44 +1,49 @@
 # Abyss 🕳️
 
-**High-level Syntax. Low-level Soul. LLVM Powered.**
+**High-level Syntax. Low-level Soul.**
 
-Abyss has been completely rewritten from the ground up. It is an experimental, high-performance systems programming language designed for maximum control, blistering speed, and modern ergonomics. 
+> **⚠️ Status Update: I Blew It Up Again**  
+> Honest truth? The compiler was actually working great. So... naturally, I scrapped the whole codebase.  
+> Right now, **literally nothing works**. I'm doing a massive, ground-zero refactor to rebuild Abyss from scratch—this time with zero architectural compromises.
 
-The original TCC prototype has been scrapped. Welcome to the new Abyss.
+---
 
-## ⚡ Under the Hood
+## 🩸 What It Looks Like Now
 
-Abyss is now powered by **LLVM**, bringing industry-standard optimizations and raw native performance. Furthermore, it introduces a dual-target architecture:
-
-*   **LLVM Backend:** Compiles directly to highly optimized native machine code.
-*   **Custom Abyss VM:** A dedicated virtual machine target that ensures true portability ("Run Anywhere") and unlocks powerful **Comptime** (compile-time execution) capabilities.
-*   **Zero Overhead:** No Garbage Collector. You are in full control of memory.
-*   **Seamless C Interop:** Calling external libraries requires zero boilerplate.
-
-## 🩸 The Flavor: Raw Power, Clean Syntax
-
-The syntax has evolved to be cleaner and more direct, especially when interacting with the outside world. You don't need complex bindings to talk to C; you just define the signature and go.
-
-Here is a minimal example showing how effortless FFI (Foreign Function Interface) is in the new Abyss:
-
+The syntax is shifting towards a clean, no-nonsense style (inspired by Odin and Jai):
 ```rust
--- Declare an external C function with zero friction
-def printf(s: &u8): i32 _
-
--- Call it directly using a C-string literal
-printf(c"Hello, Abyss!\n")
+main :: () {
+    print("Hello, Abyss!\n")
+}
 ```
+---
 
-## 🧠 Comptime & VM Magic
+## 🚀 The Plan: Why Nuke It?
 
-By leveraging the custom Abyss VM, the compiler can execute your code *during compilation*. This allows for advanced metaprogramming, compile-time data generation, and type checking without the need for complex macro systems. 
+I'm rebuilding Abyss as a **data-oriented, query-based compiler engine** designed for sheer execution speed:
+
+* **⚡ Ultra-Fast Data-Oriented Architecture (DOD):** Cache-friendly arenas, contiguous arrays, and stable IDs over slow tree-walking and pointer-chasing.
+* **🧠 Query-Based & Compiler as a Library:** Everything is parsed and type-checked lazily on demand. This makes building an LSP, IDE tools, or static analyzers practically free.
+* **🔄 Microsecond Incremental Compilation:** Change one function, and only that slice gets re-indexed. No more full-file or full-project re-parses.
+* **⚡ Lock-Free Parallel Pipelines:** Unlocked, thread-safe type checking across top-level symbols so multi-threading feels effortless.
+* **📐 Linearized Heavy Passes:** Flattening complex passes like type checking into fast, batchable assembly-line operations.
+
+---
 
 ## 🚧 Status
 
-**Reborn & Active Development**
+**Under Construction 🛠️**
 
-The language has transitioned from a JIT prototype to a serious compiled language. 
-Current focus areas:
-*   Stabilizing the LLVM IR generation.
-*   Expanding VM instructions for broader `comptime` support.
-*   Fleshing out the core syntax and type system.
+* [x] Core storage & fast index allocation (`Nexus`, `SymbolId`)
+* [x] Multi-file symbol indexing
+* [ ] Demand-driven lazy parsing (`parse_symbol`)
+* [ ] Lock-free parallel type checker
+* [ ] LLVM / Comptime VM codegen
+
+*If you want a working compiler, give me a bit. If you like low-level compiler architecture and watching code burn and rise from the ashes, welcome aboard!*
+
+---
+
+## 📜 License
+
+[MIT License](LICENSE) — Do whatever you want with the code, just keep my name on it!
