@@ -1,8 +1,7 @@
 use abyss_hir::hir::HirExprKind;
 use abyss_nexus::{
-    nexus::{FileId, HirId, NameId, Nexus},
-    ranges::TokenRange,
-    storages::tokens::TokenId,
+    nexus::{FileId, NameId, Nexus, SymbolId, TokenId},
+    ranges::{HirRange, TokenRange},
 };
 use abyss_token::kind::TokenKind;
 
@@ -59,7 +58,7 @@ impl<'a> Parser<'a> {
     #[inline(always)]
     pub fn expect(&mut self, kind: TokenKind) {
         if self.peek() != Some(kind) {
-            panic!("Error: expected {:?}", kind)
+            panic!("Error: expected {:?}, found {:?}", kind, self.peek())
         }
         self.bump();
     }
@@ -94,17 +93,34 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_top_level(db: &'a mut Nexus, file_id: FileId, name_id: NameId) {
+    pub fn parse_top_level(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> SymbolId {
         let mut p = Self::new_parser(db, file_id, name_id);
 
         p.expect(TokenKind::Ident);
         p.expect(TokenKind::ColonColon);
 
         let text = p.db.tokens.text(TokenId(p.cursor - 2));
-        let sym_id = p.db.hir.alloc_ident(p.db.interner.intern(text));
+        let ident_hir_id = p.db.hir.alloc_ident(p.db.interner.intern(text));
 
         let body = p.parse_expr(0);
 
-        p.db.hir.alloc_binary(HirExprKind::Binding, sym_id, body);
+        let symbol_id = p.db.symbols.alloc(ident_hir_id);
+        let end =
+            p.db.hir
+                .alloc_binary(HirExprKind::Binding, ident_hir_id, body);
+
+        p.db.symbol_hir_range.grow_to(p.db.symbols.len());
+
+        p.db.hir_to_symbol.set(ident_hir_id, symbol_id);
+
+        p.db.symbol_hir_range.set(
+            symbol_id,
+            HirRange {
+                start: ident_hir_id,
+                end,
+            },
+        );
+
+        symbol_id
     }
 }
