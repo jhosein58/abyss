@@ -17,9 +17,11 @@ impl<'a> Parser<'a> {
             let Some(bp) = BindingPower::from_infix(tk) else {
                 break;
             };
+
             if bp.left < min_bp {
                 break;
             }
+
             self.bump();
 
             lhs = self.dispatch_infix(tk, lhs, bp.right);

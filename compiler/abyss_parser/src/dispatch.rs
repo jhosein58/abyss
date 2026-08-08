@@ -2,10 +2,7 @@ use abyss_nexus::nexus::HirId;
 use abyss_token::kind::TokenKind as Tk;
 
 use crate::{
-    handlers::{
-        infix::binary,
-        prefix::{block, ident, literal},
-    },
+    handlers::{binary, block, ident, literal},
     parser::Parser,
 };
 
