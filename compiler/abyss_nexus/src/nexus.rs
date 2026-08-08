@@ -41,6 +41,7 @@ pub struct Nexus {
     pub symbol_index: HashMap<(FileId, NameId), TokenRange>,
     pub symbols: Arena<SymbolId, HirId>,
     pub symbol_hir_range: SideTable<SymbolId, HirRange>,
+    pub hir_to_symbol: SideTable<HirId, SymbolId>,
 
     // Metadata & Side Tables
     pub hir_spans: SideTable<HirId, Span>,
@@ -57,6 +58,7 @@ impl Nexus {
         self.hir.reserve(len);
         self.hir_spans.grow_to(len);
         self.hir_files.grow_to(len);
+        self.hir_to_symbol.grow_to(len);
     }
 
     pub fn add_list_flat(&mut self, items: &[u32]) -> u32 {

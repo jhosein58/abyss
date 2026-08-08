@@ -14,12 +14,12 @@ fn main() {
     Parser::index(&mut nexus, file_id);
 
     let main_id = nexus.interner.get_id("main").unwrap();
-    let add_id = nexus.interner.get_id("add").unwrap();
 
-    Parser::parse_top_level(&mut nexus, file_id, main_id);
-    Parser::parse_top_level(&mut nexus, file_id, add_id);
+    let symbol_id = Parser::parse_top_level(&mut nexus, file_id, main_id);
 
     nexus.hir.print_dump(&nexus);
+
+    println!("{:?}", nexus.symbol_hir_range.get(symbol_id));
 
     println!("Time: {:?}", t.elapsed());
 }
