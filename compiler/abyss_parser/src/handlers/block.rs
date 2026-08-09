@@ -3,39 +3,41 @@ use abyss_token::kind::TokenKind as Tk;
 
 use crate::parser::Parser;
 
-pub fn handle<const H: bool>(p: &mut Parser<H>) -> HirId {
-    p.bump();
+impl<'db, const H: bool> Parser<'db, H> {
+    pub fn parse_block(&mut self) -> HirId {
+        self.bump();
 
-    let mut items = vec![];
+        let mut items = vec![];
 
-    loop {
-        if let Some(Tk::CBrace) = p.peek() {
-            p.bump();
-            break;
+        loop {
+            if let Some(Tk::CBrace) = self.peek() {
+                self.bump();
+                break;
+            }
+
+            if self.peek().is_none() {
+                break;
+            }
+
+            let item = self.parse_expr(0);
+
+            if !H {
+                items.push(item.0);
+            }
+
+            if let Some(Tk::CBrace) = self.peek() {
+                self.bump();
+                break;
+            }
         }
 
-        if p.peek().is_none() {
-            break;
+        if H {
+            return HirId::default();
         }
 
-        let item = p.parse_expr(0);
+        let items = self.db.add_list_flat(&items);
+        let hir_id = self.db.hir.alloc_block(items);
 
-        if !H {
-            items.push(item.0);
-        }
-
-        if let Some(Tk::CBrace) = p.peek() {
-            p.bump();
-            break;
-        }
+        hir_id
     }
-
-    if H {
-        return HirId::default();
-    }
-
-    let items = p.db.add_list_flat(&items);
-    let hir_id = p.db.hir.alloc_block(items);
-
-    hir_id
 }

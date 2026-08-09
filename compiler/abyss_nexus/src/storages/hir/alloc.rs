@@ -14,19 +14,28 @@ impl HirStorage {
         id
     }
 
+    #[inline(always)]
     pub fn alloc_ident(&mut self, ident: NameId) -> HirId {
         self.alloc(Hir::Ident, ident.0, 0, 0)
     }
 
+    #[inline(always)]
     pub fn alloc_int(&mut self, int_id: IntId) -> HirId {
         self.alloc(Hir::LitInt, int_id.0, 0, 0)
     }
 
+    #[inline(always)]
     pub fn alloc_binary(&mut self, op: Hir, lhs: HirId, rhs: HirId) -> HirId {
         self.alloc(op, lhs.0, rhs.0, 0)
     }
 
+    #[inline(always)]
     pub fn alloc_block(&mut self, items: u32) -> HirId {
         self.alloc(Hir::Block, items, 0, 0)
+    }
+
+    #[inline(always)]
+    pub fn alloc_function(&mut self, args: u32, ret: u32, body: u32) -> HirId {
+        self.alloc(Hir::Function, args, ret, body)
     }
 }
