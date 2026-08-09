@@ -4,8 +4,8 @@ use abyss_token::kind::TokenKind as Tk;
 
 use crate::parser::Parser;
 
-pub fn build(p: &mut Parser, op: Tk, lhs: HirId, rhs: HirId) -> HirId {
-    if p.is_headless {
+pub fn build<const H: bool>(p: &mut Parser<H>, op: Tk, lhs: HirId, rhs: HirId) -> HirId {
+    if H {
         return HirId::default();
     }
 

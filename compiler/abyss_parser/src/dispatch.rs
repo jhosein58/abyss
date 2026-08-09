@@ -6,13 +6,13 @@ use crate::{
     parser::Parser,
 };
 
-impl Parser<'_> {
+impl<const H: bool> Parser<'_, H> {
     #[inline]
     pub fn dispatch_prefix(&mut self) -> HirId {
         match self.peek() {
-            Some(Tk::IntLit) => literal::int(self),
-            Some(Tk::Ident) => ident::handle(self),
-            Some(Tk::OBrace) => block::handle(self),
+            Some(Tk::IntLit) => literal::int::<H>(self),
+            Some(Tk::Ident) => ident::handle::<H>(self),
+            Some(Tk::OBrace) => block::handle::<H>(self),
 
             _ => {
                 self.bump();
