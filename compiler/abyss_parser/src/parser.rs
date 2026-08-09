@@ -5,66 +5,27 @@ use abyss_nexus::{
 };
 use abyss_token::kind::TokenKind;
 
-pub struct Parser<'db> {
+pub struct Parser<'db, const HEADLESS: bool> {
     pub db: &'db mut Nexus,
     pub cursor: u32,
-    pub is_headless: bool,
     end: u32,
     file_id: FileId,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new_indexer(db: &'a mut Nexus, file_id: FileId) -> Self {
+impl<'a> Parser<'a, false> {
+    pub fn indexer(db: &'a mut Nexus, file_id: FileId) -> Self {
         let range = db.file_token_spans.get_copy(file_id);
 
         Parser {
             db,
             cursor: range.start.0,
             end: range.end.0,
-            is_headless: true,
             file_id,
         }
-    }
-
-    pub fn new_parser(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> Self {
-        let range = db.symbol_index.get(&(file_id, name_id)).unwrap().clone();
-
-        Parser {
-            db,
-            cursor: range.start.0,
-            end: range.end.0,
-            is_headless: false,
-            file_id,
-        }
-    }
-
-    #[inline(always)]
-    pub fn peek(&self) -> Option<TokenKind> {
-        (self.cursor < self.end).then(|| self.db.tokens.kind(TokenId(self.cursor)))
-    }
-
-    #[inline(always)]
-    pub fn bump(&mut self) -> TokenId {
-        let id = TokenId(self.cursor);
-        self.cursor += 1;
-        id
-    }
-
-    #[inline(always)]
-    pub fn peek_preceded_by_newline(&self) -> bool {
-        self.cursor < self.end && self.db.tokens.preceded_by_newline(TokenId(self.cursor))
-    }
-
-    #[inline(always)]
-    pub fn expect(&mut self, kind: TokenKind) {
-        if self.peek() != Some(kind) {
-            panic!("Error: expected {:?}, found {:?}", kind, self.peek())
-        }
-        self.bump();
     }
 
     pub fn index(db: &'a mut Nexus, file_id: FileId) {
-        let mut p = Parser::new_indexer(db, file_id);
+        let mut p = Parser::indexer(db, file_id);
 
         loop {
             if let Some(TokenKind::Eof) = p.peek() {
@@ -92,9 +53,22 @@ impl<'a> Parser<'a> {
             break;
         }
     }
+}
+
+impl<'a> Parser<'a, true> {
+    pub fn new(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> Self {
+        let range = db.symbol_index.get(&(file_id, name_id)).unwrap().clone();
+
+        Parser {
+            db,
+            cursor: range.start.0,
+            end: range.end.0,
+            file_id,
+        }
+    }
 
     pub fn parse_top_level(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> SymbolId {
-        let mut p = Self::new_parser(db, file_id, name_id);
+        let mut p = Parser::new(db, file_id, name_id);
 
         p.expect(TokenKind::Ident);
         p.expect(TokenKind::ColonColon);
@@ -122,5 +96,32 @@ impl<'a> Parser<'a> {
         );
 
         symbol_id
+    }
+}
+
+impl<'a, const HEADLESS: bool> Parser<'a, HEADLESS> {
+    #[inline(always)]
+    pub fn peek(&self) -> Option<TokenKind> {
+        (self.cursor < self.end).then(|| self.db.tokens.kind(TokenId(self.cursor)))
+    }
+
+    #[inline(always)]
+    pub fn bump(&mut self) -> TokenId {
+        let id = TokenId(self.cursor);
+        self.cursor += 1;
+        id
+    }
+
+    #[inline(always)]
+    pub fn peek_preceded_by_newline(&self) -> bool {
+        self.cursor < self.end && self.db.tokens.preceded_by_newline(TokenId(self.cursor))
+    }
+
+    #[inline(always)]
+    pub fn expect(&mut self, kind: TokenKind) {
+        if self.peek() != Some(kind) {
+            panic!("Error: expected {:?}, found {:?}", kind, self.peek())
+        }
+        self.bump();
     }
 }

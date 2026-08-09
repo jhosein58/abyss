@@ -2,8 +2,8 @@ use abyss_nexus::nexus::{HirId, TokenId};
 
 use crate::parser::Parser;
 
-pub fn handle(p: &mut Parser) -> HirId {
-    if p.is_headless {
+pub fn handle<const H: bool>(p: &mut Parser<H>) -> HirId {
+    if H {
         p.bump();
         return HirId::default();
     }

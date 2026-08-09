@@ -3,7 +3,7 @@ use abyss_token::kind::TokenKind as Tk;
 
 use crate::parser::Parser;
 
-pub fn handle(p: &mut Parser) -> HirId {
+pub fn handle<const H: bool>(p: &mut Parser<H>) -> HirId {
     p.bump();
 
     let mut items = vec![];
@@ -20,7 +20,7 @@ pub fn handle(p: &mut Parser) -> HirId {
 
         let item = p.parse_expr(0);
 
-        if !p.is_headless {
+        if !H {
             items.push(item.0);
         }
 
@@ -30,7 +30,7 @@ pub fn handle(p: &mut Parser) -> HirId {
         }
     }
 
-    if p.is_headless {
+    if H {
         return HirId::default();
     }
 
@@ -38,9 +38,4 @@ pub fn handle(p: &mut Parser) -> HirId {
     let hir_id = p.db.hir.alloc_block(items);
 
     hir_id
-}
-
-pub fn consume_cbrace(p: &mut Parser) -> HirId {
-    p.bump();
-    HirId(0)
 }
