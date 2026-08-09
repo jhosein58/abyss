@@ -1,39 +1,17 @@
-use std::vec;
-
-use abyss_hir::{
-    hir::{HirExprKind, HirTable},
-    visitor::HirVisitor,
+use abyss_nexus::{
+    nexus::{HirId, Nexus},
+    ranges::HirRange,
 };
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Types {
-    I32,
-    Unknown,
-}
+pub fn check(db: &mut Nexus, range: HirRange) {
+    let start_idx = range.start.0 as usize;
+    let end_idx = range.end.0 as usize;
 
-pub fn check(hir: &HirTable) -> Vec<Types> {
-    let visitor = HirVisitor::new(hir);
+    let kinds_slice = &db.hir.table.kinds[start_idx..=end_idx];
 
-    let mut types = vec![Types::Unknown; hir.kinds.len()];
+    for (offset, kind) in kinds_slice.iter().enumerate() {
+        let id = HirId((start_idx + offset) as u32);
 
-    for (id, node) in hir.kinds.iter().enumerate() {
-        types[id] = match node {
-            // Literals
-            HirExprKind::LitInt => Types::I32,
-
-            // Binary operators
-            HirExprKind::BinaryAdd => {
-                let lhs_ty = types[visitor.lhs(id)];
-                let rhs_ty = types[visitor.rhs(id)];
-
-                assert_eq!(lhs_ty, rhs_ty);
-
-                lhs_ty
-            }
-
-            _ => Types::Unknown,
-        };
+        println!("ID: {:?}, Kind: {:?}", id, kind);
     }
-
-    types
 }

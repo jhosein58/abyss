@@ -55,6 +55,7 @@ pub enum HirExprKind {
     Mod,
     Use,
     Sequence,
+    Arg,
     Function, // (args_lhs) ret_type_rhs { block_extra }
     Binding,  // ident :: expr
     Var,      // pattern := expr, ident: type = expr
