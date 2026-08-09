@@ -19,6 +19,7 @@ arena_id!(SpanId);
 arena_id!(ScopeId);
 arena_id!(SymbolId);
 arena_id!(TokenId);
+arena_id!(TypeId);
 
 #[derive(Default)]
 pub struct Nexus {
