@@ -1,10 +1,23 @@
+use std::collections::HashMap;
+
 use abyss_types::{TypeKind, TypeStore};
 
 use crate::nexus::TypeId;
 
+pub enum TypeKey {
+    Unknown,
+
+    Int(u16), // integer type with bit width
+    UInt(u16),
+    Float(u16),
+
+    Bool,
+}
+
 #[derive(Default)]
 pub struct TypeStorage {
     store: TypeStore,
+    interned: HashMap<TypeKey, TypeId>,
 }
 
 impl TypeStorage {
