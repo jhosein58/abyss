@@ -7,7 +7,10 @@ use crate::{
     arena::{Arena, SideTable},
     arena_id,
     ranges::{HirRange, TokenRange},
-    storages::{hir::storage::HirStorage, interner::InternerStorage, tokens::TokenStorage},
+    storages::{
+        hir::storage::HirStorage, interner::InternerStorage, tokens::TokenStorage,
+        types::TypeStorage,
+    },
 };
 
 arena_id!(HirId);
@@ -27,6 +30,7 @@ pub struct Nexus {
     pub tokens: TokenStorage,
     pub hir: HirStorage,
     pub interner: InternerStorage,
+    pub types: TypeStorage,
 
     // Primitive Stores
     pub ints: Arena<IntId, i64>,
