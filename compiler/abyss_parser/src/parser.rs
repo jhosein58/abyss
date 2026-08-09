@@ -12,7 +12,7 @@ pub struct Parser<'db, const HEADLESS: bool> {
     file_id: FileId,
 }
 
-impl<'a> Parser<'a, false> {
+impl<'a> Parser<'a, true> {
     pub fn indexer(db: &'a mut Nexus, file_id: FileId) -> Self {
         let range = db.file_token_spans.get_copy(file_id);
 
@@ -55,7 +55,7 @@ impl<'a> Parser<'a, false> {
     }
 }
 
-impl<'a> Parser<'a, true> {
+impl<'a> Parser<'a, false> {
     pub fn new(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> Self {
         let range = db.symbol_index.get(&(file_id, name_id)).unwrap().clone();
 

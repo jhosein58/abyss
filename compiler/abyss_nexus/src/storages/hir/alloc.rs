@@ -38,4 +38,9 @@ impl HirStorage {
     pub fn alloc_function(&mut self, args: u32, ret: u32, body: u32) -> HirId {
         self.alloc(Hir::Function, args, ret, body)
     }
+
+    #[inline(always)]
+    pub fn alloc_arg(&mut self, arg: HirId, ty: u32) -> HirId {
+        self.alloc(Hir::Arg, arg.0, ty, 0)
+    }
 }
