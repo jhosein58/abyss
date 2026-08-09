@@ -4,20 +4,22 @@ use abyss_token::kind::TokenKind as Tk;
 
 use crate::parser::Parser;
 
-pub fn build<const H: bool>(p: &mut Parser<H>, op: Tk, lhs: HirId, rhs: HirId) -> HirId {
-    if H {
-        return HirId::default();
+impl<'db, const H: bool> Parser<'db, H> {
+    pub fn parse_binary(&mut self, op: Tk, lhs: HirId, rhs: HirId) -> HirId {
+        if H {
+            return HirId::default();
+        }
+
+        let kind = match op {
+            Tk::Plus => HirExprKind::BinaryAdd,
+            Tk::Minus => HirExprKind::BinarySub,
+            Tk::Star => HirExprKind::BinaryMul,
+            Tk::Slash => HirExprKind::BinaryDiv,
+            Tk::Percent => HirExprKind::BinaryMod,
+
+            Tk::ColonColon => HirExprKind::Binding,
+            _ => unreachable!(),
+        };
+        self.db.hir.alloc_binary(kind, lhs, rhs)
     }
-
-    let kind = match op {
-        Tk::Plus => HirExprKind::BinaryAdd,
-        Tk::Minus => HirExprKind::BinarySub,
-        Tk::Star => HirExprKind::BinaryMul,
-        Tk::Slash => HirExprKind::BinaryDiv,
-        Tk::Percent => HirExprKind::BinaryMod,
-
-        Tk::ColonColon => HirExprKind::Binding,
-        _ => unreachable!(),
-    };
-    p.db.hir.alloc_binary(kind, lhs, rhs)
 }

@@ -1,18 +1,21 @@
 use abyss_nexus::nexus::HirId;
 use abyss_token::kind::TokenKind as Tk;
 
-use crate::{
-    handlers::{binary, block, ident, literal},
-    parser::Parser,
-};
+use crate::parser::Parser;
 
 impl<const H: bool> Parser<'_, H> {
     #[inline]
     pub fn dispatch_prefix(&mut self) -> HirId {
-        match self.peek() {
-            Some(Tk::IntLit) => literal::int::<H>(self),
-            Some(Tk::Ident) => ident::handle::<H>(self),
-            Some(Tk::OBrace) => block::handle::<H>(self),
+        let Some(tk) = self.peek() else {
+            self.bump();
+            return HirId(0);
+        };
+
+        match tk {
+            Tk::IntLit => self.parse_int(),
+            Tk::Ident => self.parse_ident(),
+            Tk::OBrace => self.parse_block(),
+            Tk::OParen => self.parse_paren(),
 
             _ => {
                 self.bump();
@@ -24,6 +27,6 @@ impl<const H: bool> Parser<'_, H> {
     #[inline]
     pub fn dispatch_infix(&mut self, op: Tk, lhs: HirId, right_bp: u8) -> HirId {
         let rhs = self.parse_expr(right_bp);
-        binary::build(self, op, lhs, rhs)
+        self.parse_binary(op, lhs, rhs)
     }
 }
