@@ -15,6 +15,8 @@ pub enum TypeKey {
     Bool,
 
     Ptr(TypeId),
+
+    Error,
 }
 
 #[derive(Default)]
@@ -37,6 +39,25 @@ impl TypeStorage {
     #[inline(always)]
     pub fn kind(&self, idx: TypeId) -> TyKind {
         self.store.kinds[idx.0 as usize]
+    }
+
+    #[inline(always)]
+    pub fn payload(&self, idx: TypeId) -> u32 {
+        self.store.payload[idx.0 as usize]
+    }
+
+    pub fn name(&self, idx: TypeId) -> String {
+        match self.kind(idx) {
+            TyKind::Unknown => "Unknown".to_string(),
+
+            TyKind::Int => format!("i{}", self.payload(idx)),
+            TyKind::UInt => format!("u{}", self.payload(idx)),
+            TyKind::Float => format!("f{}", self.payload(idx)),
+            TyKind::Bool => format!("bool"),
+            TyKind::Ptr => format!("p{}", self.name(TypeId(self.payload(idx)))),
+
+            _ => "<NOT_IMPLEMENTED>".to_string(),
+        }
     }
 
     #[inline(always)]
@@ -75,5 +96,10 @@ impl TypeStorage {
     #[inline(always)]
     pub fn alloc_ptr(&mut self, inner: TypeId) -> TypeId {
         self.get_or_insert(TypeKey::Ptr(inner), TyKind::Ptr, inner.0)
+    }
+
+    #[inline(always)]
+    pub fn alloc_error(&mut self) -> TypeId {
+        self.get_or_insert(TypeKey::Error, TyKind::Error, 0)
     }
 }

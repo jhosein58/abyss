@@ -17,13 +17,16 @@ pub enum Severity {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum DiagnosticMessage {
-    Dummy,
+    // Type Checker
+    TypeMismatchBinOpLhs,
+    TypeMismatchBinOpRhs,
 }
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum HintMessage {
-    Dummy,
+    // Type Checker
+    TypeMismatchBinOp,
 }
 
 #[repr(u8)]
@@ -36,7 +39,6 @@ pub enum DiagnosticKind {
     TypeMismatch,
 }
 
-#[derive(Default)]
 pub struct DiagnosticStorage {
     /// Primary Diagnostic Arena
     pub kinds: Arena<DiagnosticId, DiagnosticKind>,
@@ -64,7 +66,33 @@ pub struct DiagnosticStorage {
     len: u16,
 }
 
+impl Default for DiagnosticStorage {
+    fn default() -> Self {
+        Self::with_capacity(64)
+    }
+}
+
 impl DiagnosticStorage {
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            kinds: Arena::with_capacity(capacity),
+            arg0: SideTable::with_capacity(capacity),
+            arg1: SideTable::with_capacity(capacity),
+            severities: SideTable::with_capacity(capacity),
+            spans: SideTable::with_capacity(capacity),
+            file_ids: SideTable::with_capacity(capacity),
+            help_hints: SideTable::with_capacity(capacity),
+            label_starts: SideTable::with_capacity(capacity),
+            label_counts: SideTable::with_capacity(capacity),
+            label_file_ids: Vec::with_capacity(capacity),
+            label_spans: Vec::with_capacity(capacity),
+            label_messages: Vec::with_capacity(capacity),
+            label_primaries: Vec::with_capacity(capacity),
+            offset: 0,
+            len: 0,
+        }
+    }
+
     #[inline(always)]
     pub fn len(&self) -> usize {
         self.kinds.len()

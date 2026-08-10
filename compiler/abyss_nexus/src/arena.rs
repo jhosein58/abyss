@@ -9,7 +9,7 @@ pub trait ArenaId: Copy + Clone {
 macro_rules! arena_id {
     ($name:ident) => {
         #[repr(transparent)]
-        #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name(pub u32);
 
         impl crate::arena::ArenaId for $name {
@@ -21,6 +21,12 @@ macro_rules! arena_id {
             #[inline(always)]
             fn value(self) -> u32 {
                 self.0
+            }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self(u32::MAX)
             }
         }
     };

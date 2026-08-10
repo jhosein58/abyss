@@ -9,8 +9,8 @@ use abyss_token::kind::TokenKind;
 pub struct Parser<'db, const HEADLESS: bool> {
     pub db: &'db mut Nexus,
     pub cursor: u32,
-    end: u32,
-    file_id: FileId,
+    pub end: u32,
+    pub file_id: FileId,
 }
 
 impl<'a, const HEADLESS: bool> Parser<'a, HEADLESS> {
