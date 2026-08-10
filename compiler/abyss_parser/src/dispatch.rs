@@ -13,6 +13,7 @@ impl<const H: bool> Parser<'_, H> {
 
         match tk {
             Tk::IntLit => self.parse_int(),
+            Tk::FloatLit => self.parse_float(),
             Tk::Ident => self.parse_ident(),
             Tk::OBrace => self.parse_block(),
             Tk::OParen => self.parse_paren(),

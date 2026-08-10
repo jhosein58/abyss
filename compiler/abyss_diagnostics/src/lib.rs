@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use abyss_nexus::{
-    nexus::{DiagnosticId, FileId, Nexus},
+    nexus::{DiagnosticId, FileId, Nexus, TypeId},
     span::Span,
     storages::diagnostics::{DiagnosticKind, DiagnosticMessage, HintMessage, Severity},
 };
@@ -28,17 +28,28 @@ impl DiagnosticFormat for DiagnosticKind {
 }
 
 impl DiagnosticFormat for DiagnosticMessage {
-    fn format_message(&self, _nexus: &Nexus, arg0: u32, _arg1: u32) -> String {
+    fn format_message(&self, nexus: &Nexus, arg0: u32, arg1: u32) -> String {
         match self {
-            DiagnosticMessage::Dummy => format!("this is a dummy, {}", arg0),
+            DiagnosticMessage::TypeMismatchBinOpLhs => {
+                format!("this has type '{}'", nexus.types.name(TypeId(arg0)))
+            }
+            DiagnosticMessage::TypeMismatchBinOpRhs => {
+                format!(
+                    "expected '{}', found '{}'",
+                    nexus.types.name(TypeId(arg0)),
+                    nexus.types.name(TypeId(arg1))
+                )
+            }
         }
     }
 }
 
 impl DiagnosticFormat for HintMessage {
-    fn format_message(&self, _nexus: &Nexus, arg0: u32, _arg1: u32) -> String {
+    fn format_message(&self, _nexus: &Nexus, _arg0: u32, _arg1: u32) -> String {
         match self {
-            HintMessage::Dummy => format!("try replacing this dummy with {}", arg0),
+            HintMessage::TypeMismatchBinOp => {
+                format!("binary operator '+' requires both operands to have the same type")
+            }
         }
     }
 }
@@ -84,6 +95,7 @@ impl<'a> DiagnosticFormatter<'a> {
         );
 
         let source = self.nexus.sources.get(file_id);
+
         let (line_num, col_start, col_end, line_text) = Self::resolve_line(source, span);
 
         let (inline_details, outline_details, max_line) =

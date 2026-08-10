@@ -1,5 +1,5 @@
 use crate::{
-    nexus::{HirId, IntId, NameId},
+    nexus::{FloatId, HirId, IntId, NameId},
     storages::hir::storage::HirStorage,
 };
 use abyss_hir::hir::HirExprKind as Hir;
@@ -22,6 +22,11 @@ impl HirStorage {
     #[inline(always)]
     pub fn alloc_int(&mut self, int_id: IntId) -> HirId {
         self.alloc(Hir::LitInt, int_id.0, 0, 0)
+    }
+
+    #[inline(always)]
+    pub fn alloc_float(&mut self, float_id: FloatId) -> HirId {
+        self.alloc(Hir::LitFloat, float_id.0, 0, 0)
     }
 
     #[inline(always)]

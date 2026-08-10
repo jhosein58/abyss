@@ -10,6 +10,8 @@ pub enum TyKind {
     Bool,
 
     Ptr,
+
+    Error,
 }
 
 #[derive(Default)]

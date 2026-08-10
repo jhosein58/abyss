@@ -10,6 +10,9 @@ impl<'db, const H: bool> Parser<'db, H> {
             return HirId::default();
         }
 
+        let lhs_span = self.db.hir_spans.get(lhs);
+        let rhs_span = self.db.hir_spans.get(rhs);
+
         let kind = match op {
             Tk::Plus => HirExprKind::BinaryAdd,
             Tk::Minus => HirExprKind::BinarySub,
@@ -20,6 +23,9 @@ impl<'db, const H: bool> Parser<'db, H> {
             Tk::ColonColon => HirExprKind::Binding,
             _ => unreachable!(),
         };
-        self.db.hir.alloc_binary(kind, lhs, rhs)
+        let id = self.db.hir.alloc_binary(kind, lhs, rhs);
+        self.db.hir_spans.set(id, lhs_span.merge(*rhs_span));
+        self.db.hir_files.set(id, self.file_id);
+        id
     }
 }
