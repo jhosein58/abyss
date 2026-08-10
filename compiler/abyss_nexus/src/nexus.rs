@@ -42,6 +42,7 @@ pub struct Nexus {
     // File & Source Management
     pub sources: Arena<FileId, String>,
     pub file_paths: SideTable<NameId, FileId>,
+    pub file_to_name: SideTable<FileId, NameId>,
     pub file_token_spans: SideTable<FileId, TokenRange>,
 
     // Symbol & Resolution Lookups
@@ -89,8 +90,10 @@ impl Nexus {
         let file_id = self.sources.alloc(content);
         let name_id = self.interner.intern(path);
         self.file_paths.grow_to(self.interner.len());
+        self.file_to_name.grow_to(self.sources.len());
         self.file_token_spans.grow_to(self.sources.len());
         self.file_paths.set(name_id, file_id);
+        self.file_to_name.set(file_id, name_id);
         file_id
     }
 
