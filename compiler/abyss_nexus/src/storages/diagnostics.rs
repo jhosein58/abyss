@@ -65,6 +65,11 @@ pub struct DiagnosticStorage {
 }
 
 impl DiagnosticStorage {
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.kinds.len()
+    }
+
     #[inline]
     pub fn add_label(
         &mut self,
