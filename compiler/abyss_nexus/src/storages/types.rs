@@ -20,7 +20,7 @@ pub enum TypeKey {
 #[derive(Default)]
 pub struct TypeStorage {
     store: TyStore,
-    interned: HashMap<TypeKey, TypeId>, // FIXME: hash-map inja mitone sari tar beshe ya kolan hazf beshe
+    interned: HashMap<TypeKey, TypeId>, // PERF: hash-map inja mitone sari tar beshe ya kolan hazf beshe
 }
 
 impl TypeStorage {

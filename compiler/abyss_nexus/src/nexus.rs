@@ -8,8 +8,8 @@ use crate::{
     arena_id,
     ranges::{HirRange, TokenRange},
     storages::{
-        hir::storage::HirStorage, interner::InternerStorage, tokens::TokenStorage,
-        types::TypeStorage,
+        diagnostics::DiagnosticStorage, hir::storage::HirStorage, interner::InternerStorage,
+        tokens::TokenStorage, types::TypeStorage,
     },
 };
 
@@ -23,6 +23,7 @@ arena_id!(ScopeId);
 arena_id!(SymbolId);
 arena_id!(TokenId);
 arena_id!(TypeId);
+arena_id!(DiagnosticId);
 
 #[derive(Default)]
 pub struct Nexus {
@@ -31,6 +32,7 @@ pub struct Nexus {
     pub hir: HirStorage,
     pub interner: InternerStorage,
     pub types: TypeStorage,
+    pub diagnostics: DiagnosticStorage,
 
     // Primitive Stores
     pub ints: Arena<IntId, i64>,
@@ -51,6 +53,9 @@ pub struct Nexus {
     // Metadata & Side Tables
     pub hir_spans: SideTable<HirId, Span>,
     pub hir_files: SideTable<HirId, FileId>,
+
+    // Type Lookups
+    pub hir_to_type: SideTable<HirId, TypeId>,
 }
 
 impl Nexus {
@@ -64,6 +69,7 @@ impl Nexus {
         self.hir_spans.grow_to(len);
         self.hir_files.grow_to(len);
         self.hir_to_symbol.grow_to(len);
+        self.hir_to_type.grow_to(len);
     }
 
     pub fn add_list_flat(&mut self, items: &[u32]) -> u32 {

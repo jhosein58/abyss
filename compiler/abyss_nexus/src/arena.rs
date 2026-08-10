@@ -29,9 +29,10 @@ macro_rules! arena_id {
 pub type Arena<I, T> = ArenaCore<I, T, true>;
 pub type SideTable<K, V> = ArenaCore<K, V, false>;
 
+#[repr(transparent)]
 #[derive(Debug, Clone)]
 pub struct ArenaCore<I: ArenaId, T, const ALLOC: bool> {
-    data: Vec<T>,
+    pub data: Vec<T>,
     _marker: PhantomData<I>,
 }
 
