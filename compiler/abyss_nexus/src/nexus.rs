@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use abyss_diagnostics::span::Span;
 use abyss_lexer::lexer::Lexer;
 
 use crate::{
     arena::{Arena, SideTable},
     arena_id,
     ranges::{HirRange, TokenRange},
+    span::Span,
     storages::{
         diagnostics::DiagnosticStorage, hir::storage::HirStorage, interner::InternerStorage,
         tokens::TokenStorage, types::TypeStorage,

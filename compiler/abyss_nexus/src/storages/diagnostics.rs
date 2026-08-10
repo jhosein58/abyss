@@ -1,43 +1,158 @@
-use abyss_diagnostics::span::Span;
-
 use crate::{
-    arena::Arena,
-    nexus::{DiagnosticId, FileId, TypeId},
+    arena::{Arena, SideTable},
+    nexus::{DiagnosticId, FileId},
+    span::Span,
 };
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Severity {
+    #[default]
     Error,
     Warning,
     Help,
     Note,
 }
 
+#[repr(u8)]
+#[derive(Debug, Clone, Copy)]
+pub enum DiagnosticMessage {
+    Dummy,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy)]
+pub enum HintMessage {
+    Dummy,
+}
+
+#[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum DiagnosticKind {
     // Parser
     UnexpectedToken,
 
     // Type Checker
-    TypeMismatch { expected: TypeId, found: TypeId },
+    TypeMismatch,
 }
 
 #[derive(Default)]
 pub struct DiagnosticStorage {
-    // Diagnostics SoA
+    /// Primary Diagnostic Arena
     pub kinds: Arena<DiagnosticId, DiagnosticKind>,
-    pub severities: Arena<DiagnosticId, Severity>,
-    pub spans: Arena<DiagnosticId, Span>,
-    pub file_ids: Arena<DiagnosticId, FileId>,
-    pub help_hints: Arena<DiagnosticId, Option<&'static str>>,
+
+    // SideTables
+    pub arg0: SideTable<DiagnosticId, u32>,
+    pub arg1: SideTable<DiagnosticId, u32>,
+    pub severities: SideTable<DiagnosticId, Severity>,
+    pub spans: SideTable<DiagnosticId, Span>,
+    pub file_ids: SideTable<DiagnosticId, FileId>,
+    pub help_hints: SideTable<DiagnosticId, Option<HintMessage>>,
 
     // Slices for Labels
-    pub label_starts: Arena<DiagnosticId, u32>,
-    pub label_counts: Arena<DiagnosticId, u16>,
+    pub label_starts: SideTable<DiagnosticId, u32>,
+    pub label_counts: SideTable<DiagnosticId, u16>,
 
     // Flat Labels SoA Buffer
+    pub label_file_ids: Vec<FileId>,
     pub label_spans: Vec<Span>,
-    pub label_messages: Vec<&'static str>,
+    pub label_messages: Vec<DiagnosticMessage>,
     pub label_primaries: Vec<bool>,
+
+    // state
+    offset: u32,
+    len: u16,
+}
+
+impl DiagnosticStorage {
+    #[inline]
+    pub fn add_label(
+        &mut self,
+        message: DiagnosticMessage,
+        file_id: FileId,
+        span: Span,
+        is_primary: bool,
+    ) {
+        if self.len == 0 {
+            self.offset = self.label_messages.len() as u32;
+        }
+        self.label_messages.push(message);
+        self.label_file_ids.push(file_id);
+        self.label_spans.push(span);
+        self.label_primaries.push(is_primary);
+        self.len += 1;
+    }
+
+    pub fn emit(
+        &mut self,
+        kind: DiagnosticKind,
+        severity: Severity,
+        arg0: u32,
+        arg1: u32,
+        file_id: FileId,
+        span: Span,
+        help_hint: Option<HintMessage>,
+    ) -> DiagnosticId {
+        let id = self.kinds.alloc(kind);
+        let len = self.kinds.len();
+
+        self.arg0.grow_to(len);
+        self.arg1.grow_to(len);
+        self.severities.grow_to(len);
+        self.spans.grow_to(len);
+        self.file_ids.grow_to(len);
+        self.help_hints.grow_to(len);
+        self.label_starts.grow_to(len);
+        self.label_counts.grow_to(len);
+
+        self.arg0.set(id, arg0);
+        self.arg1.set(id, arg1);
+        self.severities.set(id, severity);
+        self.file_ids.set(id, file_id);
+        self.spans.set(id, span);
+        self.help_hints.set(id, help_hint);
+
+        self.label_starts.set(id, self.offset);
+        self.label_counts.set(id, self.len);
+
+        // Reset state
+        self.len = 0;
+        self.offset = 0;
+
+        id
+    }
+
+    #[inline]
+    pub fn error(
+        &mut self,
+        kind: DiagnosticKind,
+        arg0: u32,
+        arg1: u32,
+        file_id: FileId,
+        span: Span,
+        help_hint: Option<HintMessage>,
+    ) -> DiagnosticId {
+        self.emit(kind, Severity::Error, arg0, arg1, file_id, span, help_hint)
+    }
+
+    #[inline]
+    pub fn warning(
+        &mut self,
+        kind: DiagnosticKind,
+        arg0: u32,
+        arg1: u32,
+        file_id: FileId,
+        span: Span,
+        help_hint: Option<HintMessage>,
+    ) -> DiagnosticId {
+        self.emit(
+            kind,
+            Severity::Warning,
+            arg0,
+            arg1,
+            file_id,
+            span,
+            help_hint,
+        )
+    }
 }
