@@ -5,10 +5,12 @@ use abyss_token::kind::TokenKind as Tk;
 use crate::parser::Parser;
 
 impl<'db, const H: bool> Parser<'db, H> {
-    pub fn parse_binary(&mut self, op: Tk, lhs: HirId, rhs: HirId) -> HirId {
+    pub fn parse_binary(&mut self, op: Tk, lhs: HirId, right_bp: u8) -> HirId {
         if H {
             return HirId::default();
         }
+
+        let rhs = self.parse_expr(right_bp);
 
         let lhs_span = self.db.hir_spans.get(lhs);
         let rhs_span = self.db.hir_spans.get(rhs);

@@ -27,7 +27,9 @@ impl<const H: bool> Parser<'_, H> {
 
     #[inline]
     pub fn dispatch_infix(&mut self, op: Tk, lhs: HirId, right_bp: u8) -> HirId {
-        let rhs = self.parse_expr(right_bp);
-        self.parse_binary(op, lhs, rhs)
+        match op {
+            Tk::Colon => self.parse_var_decl(lhs, right_bp),
+            _ => self.parse_binary(op, lhs, right_bp), // FIXME: match ro az dakhel binary biar inja
+        }
     }
 }

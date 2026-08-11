@@ -32,6 +32,15 @@ impl<'a, const HEADLESS: bool> Parser<'a, HEADLESS> {
     }
 
     #[inline(always)]
+    pub fn optional(&mut self, kind: TokenKind) -> bool {
+        if self.peek() == Some(kind) {
+            self.bump();
+            return true;
+        }
+        false
+    }
+
+    #[inline(always)]
     pub fn expect(&mut self, kind: TokenKind) {
         if self.peek() != Some(kind) {
             panic!("Error: expected {:?}, found {:?}", kind, self.peek())
