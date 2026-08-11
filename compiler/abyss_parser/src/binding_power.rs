@@ -11,6 +11,8 @@ pub struct BindingPower {
 impl BindingPower {
     pub fn from_infix(kind: TokenKind) -> Option<BindingPower> {
         let bp = match kind {
+            TokenKind::Colon | TokenKind::ColonEq => Precedence::VarDef.right_assoc(),
+
             TokenKind::ColonColon => Precedence::ConstDef.right_assoc(),
 
             TokenKind::Eq => Precedence::Assignment.right_assoc(),

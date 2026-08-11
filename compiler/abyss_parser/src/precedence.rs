@@ -4,10 +4,9 @@ use crate::binding_power::BindingPower;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Precedence {
     None = 0,
-    ConstDef = 5, // ::
-    AssignmentRhs = 9,
+    ConstDef = 5,    // ::
+    VarDef = 15,     // :, :=
     Assignment = 10, // =, +=, -=, ...
-    KeyValue = 15,   // :
     Range = 20,      // ->
     LogicOr = 30,    // or
     LogicAnd = 40,   // and
