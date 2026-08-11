@@ -1,3 +1,5 @@
+use std::u32;
+
 use crate::{
     nexus::{FloatId, HirId, IntId, NameId},
     storages::hir::storage::HirStorage,
@@ -47,5 +49,15 @@ impl HirStorage {
     #[inline(always)]
     pub fn alloc_arg(&mut self, arg: HirId, ty: u32) -> HirId {
         self.alloc(Hir::Arg, arg.0, ty, 0)
+    }
+
+    #[inline(always)]
+    pub fn alloc_var(&mut self, pattern: HirId, ty: Option<HirId>, value: Option<HirId>) -> HirId {
+        self.alloc(
+            Hir::Var,
+            pattern.0,
+            ty.unwrap_or(HirId(u32::MAX)).0,
+            value.unwrap_or(HirId(u32::MAX)).0,
+        )
     }
 }
