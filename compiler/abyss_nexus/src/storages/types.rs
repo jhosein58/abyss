@@ -54,7 +54,7 @@ impl TypeStorage {
             TyKind::UInt => format!("u{}", self.payload(idx)),
             TyKind::Float => format!("f{}", self.payload(idx)),
             TyKind::Bool => format!("bool"),
-            TyKind::Ptr => format!("p{}", self.name(TypeId(self.payload(idx)))),
+            TyKind::Ptr => format!("&{}", self.name(TypeId(self.payload(idx)))),
             TyKind::Error => format!("Err!"),
 
             _ => "<NOT_IMPLEMENTED>".to_string(),
