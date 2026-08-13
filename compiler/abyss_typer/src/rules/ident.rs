@@ -1,4 +1,7 @@
-use abyss_nexus::nexus::{HirId, Nexus};
+use abyss_nexus::{
+    arena::ArenaId,
+    nexus::{HirId, Nexus},
+};
 
 #[inline(always)]
 pub fn synth(db: &mut Nexus, id: HirId) {
@@ -12,6 +15,15 @@ pub fn synth(db: &mut Nexus, id: HirId) {
             NumTypeKind::Float => db.types.alloc_float(bits),
         };
 
+        db.hir_to_type.set(id, ty);
+        return;
+    }
+
+    let sym_id = db.hir_to_symbol.get_copy(id);
+
+    if sym_id.is_some() {
+        let origin_hir_id = db.symbols.get_copy(sym_id);
+        let ty = db.hir_to_type.get_copy(origin_hir_id);
         db.hir_to_type.set(id, ty);
     }
 }

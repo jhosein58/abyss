@@ -12,3 +12,11 @@ pub fn check_var(db: &mut Nexus, id: HirId) {
         db.hir_to_expected.set(val_hir_id, ty_hir_id);
     }
 }
+
+#[inline(always)]
+pub fn synth_var(db: &mut Nexus, id: HirId) {
+    let ty_hir_id = db.hir.rhs(id);
+    let ty_id = db.hir_to_type.get_copy(ty_hir_id);
+
+    db.hir_to_type.set(db.hir.lhs(id), ty_id);
+}
