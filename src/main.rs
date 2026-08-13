@@ -25,7 +25,7 @@ fn main() {
 
     let main_range = nexus.symbol_hir_range.get(main_symbol_id).clone();
 
-    tyck::check(&mut nexus, main_range);
+    tyck::type_check(&mut nexus, main_range);
 
     let formater = DiagnosticFormatter::new(&nexus);
     let diagnostics = formater.format_all();
