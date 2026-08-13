@@ -68,7 +68,6 @@ pub enum TokenKind {
     OBracket,     // [
     CBracket,     // ]
     Eq,           // =
-    ColonEq,      // :=
     PlusEq,       // +=
     MinusEq,      // -=
     StarEq,       // *=
