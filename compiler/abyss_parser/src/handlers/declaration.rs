@@ -11,8 +11,10 @@ impl Parser<'_> {
         }
 
         let symbol_id = self.db.symbols.alloc(lhs);
-        let name_id = self.db.hir.ident_name(lhs);
+        self.db.hir_to_symbol.set(lhs, symbol_id);
 
+        // define in scope
+        let name_id = self.db.hir.ident_name(lhs);
         self.env.define(name_id, symbol_id);
 
         if self.optional(Tk::Eq) {

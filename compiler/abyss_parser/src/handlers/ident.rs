@@ -8,7 +8,13 @@ impl Parser<'_> {
 
         self.bump();
         let value = self.db.tokens.text(TokenId(self.cursor - 1));
-        let id = self.db.hir.alloc_ident(self.db.interner.intern(value));
+        let name_id = self.db.interner.intern(value);
+        let id = self.db.hir.alloc_ident(name_id);
+
+        if let Some(sym_id) = self.env.lookup(name_id) {
+            println!("i found it, {}", sym_id.0);
+        }
+
         self.db.hir_spans.set(id, span);
         id
     }
