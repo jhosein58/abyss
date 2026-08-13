@@ -3,15 +3,24 @@ use abyss_nexus::{
     ranges::HirRange,
 };
 
-use crate::pass_synth::synth_node;
+use crate::{pass_check::check_node, pass_synth::synth_node};
 
-pub fn check(db: &mut Nexus, range: HirRange) {
-    let start = range.start.0 as usize;
-    let end = range.end.0 as usize;
+pub fn type_check(db: &mut Nexus, range: HirRange) {
+    let start = range.start.0;
+    let end = range.end.0;
 
-    for offset in 0..=(end - start) {
-        let id = HirId((start + offset) as u32);
-
-        synth_node(db, id);
+    // check
+    for offset in (0..=(end - start)).rev() {
+        check_node(db, cal_id(offset, start));
     }
+
+    // synth
+    for offset in 0..=(end - start) {
+        synth_node(db, cal_id(offset, start));
+    }
+}
+
+#[inline(always)]
+fn cal_id(offset: u32, start: u32) -> HirId {
+    HirId(start + offset)
 }
