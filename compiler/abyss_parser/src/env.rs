@@ -28,9 +28,9 @@ impl ScopeEnv {
 
     #[inline(always)]
     pub fn lookup(&self, name: NameId) -> Option<SymbolId> {
-        for (sym, id) in self.bindings.iter().rev() {
-            if *sym == name {
-                return Some(*id);
+        for (id, sym) in self.bindings.iter().rev() {
+            if *id == name {
+                return Some(*sym);
             }
         }
         None
