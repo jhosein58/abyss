@@ -8,7 +8,7 @@ use crate::{
     ranges::{HirRange, TokenRange},
     span::Span,
     storages::{
-        diagnostics::DiagnosticStorage, hir::storage::HirStorage, interner::InternerStorage,
+        diagnostics::DiagnosticStorage, hir::HirStorage, interner::InternerStorage,
         tokens::TokenStorage, types::TypeStorage,
     },
 };
@@ -57,6 +57,7 @@ pub struct Nexus {
 
     // Type Lookups
     pub hir_to_type: SideTable<HirId, TypeId>,
+    pub hir_to_expected: SideTable<HirId, HirId>,
 }
 
 impl Nexus {
@@ -71,6 +72,7 @@ impl Nexus {
         self.hir_files.grow_to(len);
         self.hir_to_symbol.grow_to(len);
         self.hir_to_type.grow_to(len);
+        self.hir_to_expected.grow_to(len);
     }
 
     pub fn add_list_flat(&mut self, items: &[u32]) -> u32 {
