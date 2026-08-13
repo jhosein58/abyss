@@ -5,14 +5,29 @@ use abyss_nexus::{
 };
 use abyss_token::kind::TokenKind;
 
+use crate::env::ScopeEnv;
+
 pub struct Parser<'db> {
     pub db: &'db mut Nexus,
     pub cursor: u32,
     pub end: u32,
     pub file_id: FileId,
+    pub env: ScopeEnv,
 }
 
 impl<'a> Parser<'a> {
+    pub fn new(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> Self {
+        let range = db.symbol_index.get(&(file_id, name_id)).unwrap().clone();
+
+        Parser {
+            db,
+            cursor: range.start.0,
+            end: range.end.0,
+            file_id,
+            env: ScopeEnv::new(),
+        }
+    }
+
     #[inline(always)]
     pub fn peek(&self) -> Option<TokenKind> {
         (self.cursor < self.end).then(|| self.db.tokens.kind(TokenId(self.cursor)))
@@ -52,17 +67,6 @@ impl<'a> Parser<'a> {
         let start = self.db.tokens.start(TokenId(self.cursor)) as u32;
         let end = start + self.db.tokens.len(TokenId(self.cursor)) as u32;
         Span { start, end }
-    }
-
-    pub fn new(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> Self {
-        let range = db.symbol_index.get(&(file_id, name_id)).unwrap().clone();
-
-        Parser {
-            db,
-            cursor: range.start.0,
-            end: range.end.0,
-            file_id,
-        }
     }
 
     pub fn parse_top_level(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> SymbolId {
