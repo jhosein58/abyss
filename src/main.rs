@@ -1,6 +1,7 @@
 pub use std::{fs, time::Instant};
 
 use abyss_diagnostics::DiagnosticFormatter;
+use abyss_indexer::Indexer;
 use abyss_nexus::nexus::Nexus;
 use abyss_parser::parser::Parser;
 use abyss_typer::tyck;
@@ -13,7 +14,7 @@ fn main() {
     let file_id = nexus.add_file("main.a", fs::read_to_string("main.a").unwrap());
     nexus.lex_file(file_id);
 
-    Parser::index(&mut nexus, file_id);
+    Indexer::index(&mut nexus, file_id);
 
     let main_id = nexus.interner.get_id("main").unwrap();
     //let add_id = nexus.interner.get_id("add").unwrap();
