@@ -21,7 +21,7 @@ fn main() {
     let main_symbol_id = Parser::parse_top_level(&mut nexus, file_id, main_id);
     //let add_symbol_id = Parser::parse_top_level(&mut nexus, file_id, add_id);
 
-    nexus.hir.print_dump(&nexus);
+    nexus.dump_hir();
 
     let main_range = nexus.symbol_hir_range.get(main_symbol_id).clone();
 
