@@ -46,7 +46,7 @@ pub struct Nexus {
     pub file_token_spans: SideTable<FileId, TokenRange>,
 
     // Symbol & Resolution Lookups
-    pub symbol_index: HashMap<(FileId, NameId), TokenRange>,
+    pub symbol_index: HashMap<(FileId, NameId), TokenRange>, // PERF: O(1) lookup by (file, name)
     pub symbols: Arena<SymbolId, HirId>,
     pub symbol_hir_range: SideTable<SymbolId, HirRange>,
     pub hir_to_symbol: SideTable<HirId, SymbolId>,
