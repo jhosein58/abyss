@@ -3,7 +3,7 @@ use abyss_token::kind::TokenKind as Tk;
 
 use crate::parser::Parser;
 
-impl<const H: bool> Parser<'_, H> {
+impl Parser<'_> {
     #[inline]
     pub fn dispatch_prefix(&mut self) -> HirId {
         let Some(tk) = self.peek() else {

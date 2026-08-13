@@ -5,7 +5,7 @@ use crate::parser::Parser;
 
 const NONE: u32 = u32::MAX;
 
-impl<'db, const H: bool> Parser<'db, H> {
+impl Parser<'_> {
     pub fn parse_paren(&mut self) -> HirId {
         self.bump();
 
@@ -29,10 +29,6 @@ impl<'db, const H: bool> Parser<'db, H> {
         }
         self.bump();
 
-        if H {
-            return self.parse_fn_tail(NONE);
-        }
-
         let params = self.db.add_list_flat(&args);
         self.parse_fn_tail(params)
     }
@@ -48,9 +44,6 @@ impl<'db, const H: bool> Parser<'db, H> {
             self.bump();
         }
 
-        if H {
-            return NONE;
-        }
         self.db.hir.alloc_arg(name, ty).0
     }
 
@@ -62,10 +55,6 @@ impl<'db, const H: bool> Parser<'db, H> {
         };
 
         let body = self.parse_block();
-
-        if H {
-            return HirId(0);
-        }
 
         self.db.hir.alloc_function(params, ret, body.0)
     }

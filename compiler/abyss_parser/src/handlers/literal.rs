@@ -2,13 +2,8 @@ use abyss_nexus::nexus::{HirId, TokenId};
 
 use crate::parser::Parser;
 
-impl<'db, const H: bool> Parser<'db, H> {
+impl Parser<'_> {
     pub fn parse_int(&mut self) -> HirId {
-        if H {
-            self.bump();
-            return HirId::default();
-        }
-
         let span = self.span();
 
         let value = self.db.tokens.text(TokenId(self.cursor));
@@ -22,11 +17,6 @@ impl<'db, const H: bool> Parser<'db, H> {
     }
 
     pub fn parse_float(&mut self) -> HirId {
-        if H {
-            self.bump();
-            return HirId::default();
-        }
-
         let span = self.span();
 
         let value = self.db.tokens.text(TokenId(self.cursor));
