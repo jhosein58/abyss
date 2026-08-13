@@ -23,6 +23,14 @@ impl<'db, const H: bool> Parser<'db, H> {
             return self.db.hir.alloc_var(lhs, Some(rhs), Some(value));
         }
 
+        if self.optional(Tk::Colon) {
+            let value = self.parse_expr(0);
+            if H {
+                return HirId::default();
+            }
+            return self.db.hir.alloc_binding(lhs, Some(rhs), Some(value));
+        }
+
         if H {
             return HirId::default();
         }
