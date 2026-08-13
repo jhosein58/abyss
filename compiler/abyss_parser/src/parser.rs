@@ -1,4 +1,3 @@
-use abyss_hir::hir::HirExprKind;
 use abyss_nexus::{
     nexus::{FileId, NameId, Nexus, SymbolId, TokenId},
     ranges::{HirRange, TokenRange},
@@ -126,9 +125,8 @@ impl<'a> Parser<'a, false> {
         let body = p.parse_expr(0);
 
         let symbol_id = p.db.symbols.alloc(ident_hir_id);
-        let end =
-            p.db.hir
-                .alloc_binary(HirExprKind::Binding, ident_hir_id, body);
+
+        let end = p.db.hir.alloc_binding(ident_hir_id, None, Some(body));
 
         p.db.hir_spans.set(end, colon_colon_span);
 

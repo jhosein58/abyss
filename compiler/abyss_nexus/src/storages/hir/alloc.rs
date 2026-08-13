@@ -60,4 +60,13 @@ impl HirStorage {
             value.unwrap_or(HirId(u32::MAX)).0,
         )
     }
+    #[inline(always)]
+    pub fn alloc_binding(&mut self, name: HirId, ty: Option<HirId>, value: Option<HirId>) -> HirId {
+        self.alloc(
+            Hir::Binding,
+            name.0,
+            ty.unwrap_or(HirId(u32::MAX)).0,
+            value.unwrap_or(HirId(u32::MAX)).0,
+        )
+    }
 }
