@@ -1,3 +1,4 @@
+use abyss_hir::hir::HirExprKind as Hir;
 use abyss_nexus::nexus::HirId;
 use abyss_token::kind::TokenKind as Tk;
 
@@ -5,6 +6,15 @@ use crate::{parser::Parser, precedence::Precedence};
 
 impl Parser<'_> {
     pub fn parse_var_decl(&mut self, lhs: HirId, _: u8) -> HirId {
+        if self.db.hir.kind(lhs) != Hir::Ident {
+            panic!("patterns not supported yet");
+        }
+
+        let symbol_id = self.db.symbols.alloc(lhs);
+        let name_id = self.db.hir.ident_name(lhs);
+
+        self.env.define(name_id, symbol_id);
+
         if self.optional(Tk::Eq) {
             let value = self.parse_expr(0);
 
