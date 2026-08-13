@@ -7,7 +7,10 @@ impl Parser<'_> {
     pub fn parse_block(&mut self) -> HirId {
         self.bump();
 
-        let mut items = vec![];
+        let mut items = Vec::with_capacity(16);
+
+        // enter scope
+        let mark = self.env.mark();
 
         loop {
             if let Some(Tk::CBrace) = self.peek() {
@@ -28,6 +31,9 @@ impl Parser<'_> {
                 break;
             }
         }
+
+        // exit scope
+        self.env.reset(mark);
 
         let items = self.db.add_list_flat(&items);
         let hir_id = self.db.hir.alloc_block(items);
