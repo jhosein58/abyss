@@ -1,21 +1,24 @@
 use abyss_hir::hir::HirExprKind;
 
-use crate::nexus::{FloatId, IntId, NameId, Nexus};
+use crate::nexus::{FloatId, HirId, IntId, NameId, Nexus};
 
 impl Nexus {
     pub fn dump_hir(&self) {
-        println!("{:-<110}", "");
+        println!("{:-<135}", "");
         println!(
-            "{:<5} | {:<22} | {:<25} | {:<25} | {:<20}",
-            "ID", "Kind", "LHS (Left/Data)", "RHS (Right/Data)", "Extra"
+            "{:<5} | {:<22} | {:<25} | {:<25} | {:<20} | {:<20}",
+            "ID", "Kind", "LHS (Left/Data)", "RHS (Right/Data)", "Extra", "Type"
         );
-        println!("{:-<110}", "");
+        println!("{:-<135}", "");
 
         for i in 0..self.hir.table.kinds.len() {
             let kind = self.hir.table.kinds[i];
             let lhs = self.hir.table.lhs[i];
             let rhs = self.hir.table.rhs[i];
             let extra = self.hir.table.extra[i];
+
+            let type_id = self.hir_to_type.get_copy(HirId(i as u32));
+            let type_name = self.types.name(type_id);
 
             let format_idx = |idx: u32| {
                 if idx == u32::MAX {
@@ -79,14 +82,15 @@ impl Nexus {
             }
 
             println!(
-                "{:<5} | {:<22} | {:<25} | {:<25} | {:<20}",
+                "{:<5} | {:<22} | {:<25} | {:<25} | {:<20} | {:<20}",
                 i,
                 format!("{:?}", kind),
                 lhs_str,
                 rhs_str,
-                ext_str
+                ext_str,
+                type_name
             );
         }
-        println!("{:-<110}", "");
+        println!("{:-<135}", "");
     }
 }
