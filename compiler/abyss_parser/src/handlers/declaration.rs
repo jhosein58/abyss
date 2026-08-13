@@ -5,6 +5,15 @@ use crate::parser::Parser;
 
 impl<'db, const H: bool> Parser<'db, H> {
     pub fn parse_var_decl(&mut self, lhs: HirId, right_bp: u8) -> HirId {
+
+        if self.optional(Tk::Eq) {
+            let value = self.parse_expr(0);
+            if H {
+                return HirId::default();
+            }
+            return self.db.hir.alloc_var(lhs, None, Some(value));
+        }
+
         let rhs = self.parse_expr(right_bp);
 
         if self.optional(Tk::Eq) {

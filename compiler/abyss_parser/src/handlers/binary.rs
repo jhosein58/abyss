@@ -21,8 +21,10 @@ impl<'db, const H: bool> Parser<'db, H> {
             Tk::Star => HirExprKind::BinaryMul,
             Tk::Slash => HirExprKind::BinaryDiv,
             Tk::Percent => HirExprKind::BinaryMod,
+            Tk::Eq => HirExprKind::BinaryAssign,
 
             Tk::ColonColon => HirExprKind::Binding,
+
             _ => unreachable!(),
         };
         let id = self.db.hir.alloc_binary(kind, lhs, rhs);

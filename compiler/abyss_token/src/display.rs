@@ -67,7 +67,6 @@ impl Display for TokenKind {
             TokenKind::OBracket => write!(f, "'['"),
             TokenKind::CBracket => write!(f, "']'"),
             TokenKind::Eq => write!(f, "'='"),
-            TokenKind::ColonEq => write!(f, "':='"),
             TokenKind::PlusEq => write!(f, "'+='"),
             TokenKind::MinusEq => write!(f, "'-='"),
             TokenKind::StarEq => write!(f, "'*='"),
