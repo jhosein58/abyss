@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use abyss_types::{TyKind, TyStore};
 
-use crate::nexus::TypeId;
+use crate::{arena::ArenaId, nexus::TypeId};
 
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -47,6 +47,10 @@ impl TypeStorage {
     }
 
     pub fn name(&self, idx: TypeId) -> String {
+        if idx.is_none() {
+            return "None".to_string();
+        }
+
         match self.kind(idx) {
             TyKind::Unknown => "Unknown".to_string(),
 

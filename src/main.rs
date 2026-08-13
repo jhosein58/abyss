@@ -21,11 +21,11 @@ fn main() {
     let main_symbol_id = Parser::parse_top_level(&mut nexus, file_id, main_id);
     //let add_symbol_id = Parser::parse_top_level(&mut nexus, file_id, add_id);
 
-    nexus.dump_hir();
-
     let main_range = nexus.symbol_hir_range.get(main_symbol_id).clone();
 
     tyck::type_check(&mut nexus, main_range);
+
+    nexus.dump_hir();
 
     let formater = DiagnosticFormatter::new(&nexus);
     let diagnostics = formater.format_all();
