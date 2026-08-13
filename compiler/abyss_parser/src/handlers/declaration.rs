@@ -1,4 +1,4 @@
-use abyss_nexus::nexus::HirId;
+use abyss_nexus::{arena::ArenaId, nexus::HirId};
 use abyss_token::kind::TokenKind as Tk;
 
 use crate::parser::Parser;
@@ -32,7 +32,7 @@ impl<'db, const H: bool> Parser<'db, H> {
     pub fn parse_binding(&mut self, lhs: HirId, right_bp: u8) -> HirId {
         let rhs = self.parse_expr(right_bp);
         if H {
-            return HirId::default();
+            return HirId::none();
         }
         return self.db.hir.alloc_binding(lhs, None, Some(rhs));
     }
