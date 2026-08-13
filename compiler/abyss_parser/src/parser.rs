@@ -1,18 +1,18 @@
 use abyss_nexus::{
     nexus::{FileId, NameId, Nexus, SymbolId, TokenId},
-    ranges::{HirRange, TokenRange},
+    ranges::HirRange,
     span::Span,
 };
 use abyss_token::kind::TokenKind;
 
-pub struct Parser<'db, const HEADLESS: bool> {
+pub struct Parser<'db> {
     pub db: &'db mut Nexus,
     pub cursor: u32,
     pub end: u32,
     pub file_id: FileId,
 }
 
-impl<'a, const HEADLESS: bool> Parser<'a, HEADLESS> {
+impl<'a> Parser<'a> {
     #[inline(always)]
     pub fn peek(&self) -> Option<TokenKind> {
         (self.cursor < self.end).then(|| self.db.tokens.kind(TokenId(self.cursor)))
@@ -53,52 +53,7 @@ impl<'a, const HEADLESS: bool> Parser<'a, HEADLESS> {
         let end = start + self.db.tokens.len(TokenId(self.cursor)) as u32;
         Span { start, end }
     }
-}
 
-impl<'a> Parser<'a, true> {
-    pub fn indexer(db: &'a mut Nexus, file_id: FileId) -> Self {
-        let range = db.file_token_spans.get_copy(file_id);
-
-        Parser {
-            db,
-            cursor: range.start.0,
-            end: range.end.0,
-            file_id,
-        }
-    }
-
-    pub fn index(db: &'a mut Nexus, file_id: FileId) {
-        let mut p = Parser::indexer(db, file_id);
-
-        loop {
-            if let Some(TokenKind::Eof) = p.peek() {
-                break;
-            }
-
-            let start = TokenId(p.cursor);
-
-            p.expect(TokenKind::Ident);
-
-            let name = p.db.tokens.text(TokenId(p.cursor - 1));
-            let name_id = p.db.interner.intern(name);
-
-            p.expect(TokenKind::ColonColon);
-
-            p.parse_expr(0);
-            let end = TokenId(p.cursor - 1);
-
-            p.db.symbol_index
-                .insert((p.file_id, name_id), TokenRange { start, end });
-
-            if let Some(_) = p.peek() {
-                continue;
-            }
-            break;
-        }
-    }
-}
-
-impl<'a> Parser<'a, false> {
     pub fn new(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> Self {
         let range = db.symbol_index.get(&(file_id, name_id)).unwrap().clone();
 

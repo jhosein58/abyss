@@ -17,10 +17,8 @@ fn main() {
     Indexer::index(&mut nexus, file_id);
 
     let main_id = nexus.interner.get_id("main").unwrap();
-    //let add_id = nexus.interner.get_id("add").unwrap();
 
     let main_symbol_id = Parser::parse_top_level(&mut nexus, file_id, main_id);
-    //let add_symbol_id = Parser::parse_top_level(&mut nexus, file_id, add_id);
 
     let main_range = nexus.symbol_hir_range.get(main_symbol_id).clone();
 

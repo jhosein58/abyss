@@ -5,7 +5,7 @@ use crate::{
     parser::Parser,
 };
 
-impl<'a, const H: bool> Parser<'a, H> {
+impl Parser<'_> {
     pub fn parse_expr(&mut self, min_bp: u8) -> HirId {
         let mut lhs = self.dispatch_prefix();
 

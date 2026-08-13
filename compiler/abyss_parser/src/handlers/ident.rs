@@ -2,13 +2,8 @@ use abyss_nexus::nexus::{HirId, TokenId};
 
 use crate::parser::Parser;
 
-impl<'db, const H: bool> Parser<'db, H> {
+impl Parser<'_> {
     pub fn parse_ident(&mut self) -> HirId {
-        if H {
-            self.bump();
-            return HirId::default();
-        }
-
         let span = self.span();
 
         self.bump();
