@@ -1,8 +1,25 @@
 use std::{marker::PhantomData, ops::Index};
 
+const NONE_ID: u32 = u32::MAX;
+
 pub trait ArenaId: Copy + Clone {
     fn new(v: u32) -> Self;
     fn value(self) -> u32;
+
+    #[inline(always)]
+    fn none() -> Self {
+        Self::new(NONE_ID)
+    }
+
+    #[inline(always)]
+    fn is_none(self) -> bool {
+        self.value() == NONE_ID
+    }
+
+    #[inline(always)]
+    fn is_some(self) -> bool {
+        !self.is_none()
+    }
 }
 
 #[macro_export]
@@ -26,7 +43,7 @@ macro_rules! arena_id {
 
         impl Default for $name {
             fn default() -> Self {
-                Self(u32::MAX)
+                <$name as crate::arena::ArenaId>::none()
             }
         }
     };
