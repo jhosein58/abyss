@@ -351,9 +351,6 @@ impl<'a> Lexer<'a> {
                 if self.cursor.first() == ':' {
                     self.cursor.bump();
                     TokenKind::ColonColon
-                } else if self.cursor.first() == '=' {
-                    self.cursor.bump();
-                    TokenKind::ColonEq
                 } else {
                     TokenKind::Colon
                 }
