@@ -59,6 +59,7 @@ impl TypeStorage {
             TyKind::Float => format!("f{}", self.payload(idx)),
             TyKind::Bool => format!("bool"),
             TyKind::Ptr => format!("&{}", self.name(TypeId(self.payload(idx)))),
+            TyKind::Type => format!("Type({})", self.name(TypeId(self.payload(idx)))),
             TyKind::Error => format!("Err!"),
         }
     }
