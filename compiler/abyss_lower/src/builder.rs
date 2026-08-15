@@ -1,0 +1,30 @@
+pub trait ModuleBuilder {
+    type Type: Copy;
+    type FuncId: Copy;
+    type FuncBuilder<'a>: FunctionBuilder<Type = Self::Type>
+    where
+        Self: 'a;
+
+    fn declare_func(
+        &mut self,
+        name: &str,
+        params: &[Self::Type],
+        ret: Option<Self::Type>,
+    ) -> Self::FuncId;
+
+    fn define_func<'a>(&'a mut self, func: Self::FuncId) -> Self::FuncBuilder<'a>;
+}
+
+pub trait FunctionBuilder {
+    type Type: Copy;
+    type Value: Copy;
+    type BasicBlock: Copy;
+
+    fn create_block(&mut self) -> Self::BasicBlock;
+
+    fn switch_to_block(&mut self, block: Self::BasicBlock);
+
+    fn get_param(&self, index: usize) -> Self::Value;
+
+    fn finish(self);
+}
