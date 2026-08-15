@@ -22,9 +22,13 @@ fn main() {
 
     let main_range = nexus.symbol_hir_range.get(main_symbol_id).clone();
 
+    // Type-Checking
     tyck::type_check(&mut nexus, main_range);
 
     nexus.dump_hir();
+
+    // Compile
+    abyss_lower::materialazer::build(&nexus, main_symbol_id);
 
     let formater = DiagnosticFormatter::new(&nexus);
     let diagnostics = formater.format_all();
