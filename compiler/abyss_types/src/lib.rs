@@ -8,8 +8,8 @@ pub enum TyKind {
     UInt,
     Float,
     Bool,
-
     Ptr,
+    Type,
 
     Error,
 }
