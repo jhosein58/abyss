@@ -57,6 +57,7 @@ pub struct Nexus {
 
     // Type Lookups
     pub hir_to_type: SideTable<HirId, TypeId>,
+    pub hir_to_type_value: SideTable<HirId, TypeId>,
     pub hir_to_expected: SideTable<HirId, HirId>,
 }
 
@@ -72,6 +73,7 @@ impl Nexus {
         self.hir_files.grow_to(len);
         self.hir_to_symbol.grow_to(len);
         self.hir_to_type.grow_to(len);
+        self.hir_to_type_value.grow_to(len);
         self.hir_to_expected.grow_to(len);
     }
 
