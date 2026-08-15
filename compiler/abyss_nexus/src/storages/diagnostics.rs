@@ -17,9 +17,13 @@ pub enum Severity {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum DiagnosticMessage {
-    // Type Checker
+    // Type Checker - Binary Operations
     TypeMismatchBinOpLhs,
     TypeMismatchBinOpRhs,
+
+    // Type Checker - Variable Declaration
+    TypeMismatchDeclExpected,
+    TypeMismatchDeclFound,
 }
 
 #[repr(u8)]
@@ -27,6 +31,7 @@ pub enum DiagnosticMessage {
 pub enum HintMessage {
     // Type Checker
     TypeMismatchBinOp,
+    TypeMismatchDecl,
 }
 
 #[repr(u8)]

@@ -40,6 +40,17 @@ impl DiagnosticFormat for DiagnosticMessage {
                     nexus.types.name(TypeId(arg1))
                 )
             }
+
+            DiagnosticMessage::TypeMismatchDeclExpected => {
+                format!("expected due to this type")
+            }
+            DiagnosticMessage::TypeMismatchDeclFound => {
+                format!(
+                    "expected '{}', found '{}'",
+                    nexus.types.name(TypeId(arg0)),
+                    nexus.types.name(TypeId(arg1))
+                )
+            }
         }
     }
 }
@@ -49,6 +60,11 @@ impl DiagnosticFormat for HintMessage {
         match self {
             HintMessage::TypeMismatchBinOp => {
                 format!("binary operator '+' requires both operands to have the same type")
+            }
+
+            HintMessage::TypeMismatchDecl => {
+                "consider changing the variable type or converting the value to the expected type"
+                    .to_string()
             }
         }
     }

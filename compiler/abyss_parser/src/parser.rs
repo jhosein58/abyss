@@ -69,6 +69,13 @@ impl<'a> Parser<'a> {
         Span { start, end }
     }
 
+    #[inline(always)]
+    pub fn prev_span(&self) -> Span {
+        let start = self.db.tokens.start(TokenId(self.cursor - 1)) as u32;
+        let end = start + self.db.tokens.len(TokenId(self.cursor - 1)) as u32;
+        Span { start, end }
+    } // FIXME: tarkib bayad beshe in dota method ba ham
+
     pub fn parse_top_level(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> SymbolId {
         let mut p = Parser::new(db, file_id, name_id);
 
