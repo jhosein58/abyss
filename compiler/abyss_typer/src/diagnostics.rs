@@ -74,3 +74,24 @@ pub fn report_decl_type_mismatch(
         Some(HintMessage::TypeMismatchDecl),
     );
 }
+
+pub fn report_expected_type(db: &mut Nexus, expr_id: HirId, found_ty: TypeId) {
+    let file_id = db.hir_files.get_copy(expr_id);
+    let span = db.hir_spans.get_copy(expr_id);
+
+    db.diagnostics.add_label(
+        DiagnosticMessage::ExpectedTypeFoundValue,
+        file_id,
+        span,
+        true,
+    );
+
+    db.diagnostics.error(
+        DiagnosticKind::ExpectedType,
+        found_ty.0,
+        0,
+        file_id,
+        span,
+        Some(HintMessage::ExpectedTypeHint),
+    );
+}

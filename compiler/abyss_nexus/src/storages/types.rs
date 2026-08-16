@@ -50,7 +50,7 @@ impl TypeStorage {
 
     pub fn name(&self, idx: TypeId) -> String {
         if idx.is_none() {
-            return "None".to_string();
+            return "".to_string();
         }
 
         match self.kind(idx) {
@@ -61,7 +61,7 @@ impl TypeStorage {
             TyKind::Float => format!("f{}", self.payload(idx)),
             TyKind::Bool => format!("bool"),
             TyKind::Ptr => format!("&{}", self.name(TypeId(self.payload(idx)))),
-            TyKind::Type => format!("Type({})", self.name(TypeId(self.payload(idx)))),
+            TyKind::Type => format!("Type"),
             TyKind::Unit => format!("unit"),
 
             TyKind::Func => format!(
