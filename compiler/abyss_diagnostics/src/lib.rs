@@ -23,6 +23,7 @@ impl DiagnosticFormat for DiagnosticKind {
         match self {
             DiagnosticKind::UnexpectedToken => String::from("Unexpected token encountered"),
             DiagnosticKind::TypeMismatch => String::from("Mismatched types"),
+            DiagnosticKind::ExpectedType => String::from("Expected a type, found a value"),
         }
     }
 }
@@ -51,6 +52,12 @@ impl DiagnosticFormat for DiagnosticMessage {
                     nexus.types.name(TypeId(arg1))
                 )
             }
+            DiagnosticMessage::ExpectedTypeFoundValue => {
+                format!(
+                    "expected a type, found value of type '{}'",
+                    nexus.types.name(TypeId(arg0))
+                )
+            }
         }
     }
 }
@@ -65,6 +72,10 @@ impl DiagnosticFormat for HintMessage {
             HintMessage::TypeMismatchDecl => {
                 "consider changing the variable type or converting the value to the expected type"
                     .to_string()
+            }
+
+            HintMessage::ExpectedTypeHint => {
+                "only types (such as 'i32', 'f32', 'bool') are allowed in this position".to_string()
             }
         }
     }

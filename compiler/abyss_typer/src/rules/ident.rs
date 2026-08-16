@@ -15,7 +15,10 @@ pub fn synth(db: &mut Nexus, id: HirId) {
             NumTypeKind::Float => db.types.alloc_float(bits),
         };
 
-        db.hir_to_type.set(id, ty);
+        let ty_id_of_type = db.types.alloc_type();
+
+        db.hir_to_type.set(id, ty_id_of_type);
+        db.hir_to_type_value.set(id, ty);
         return;
     }
 

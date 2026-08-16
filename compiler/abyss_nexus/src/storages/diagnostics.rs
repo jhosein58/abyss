@@ -24,6 +24,9 @@ pub enum DiagnosticMessage {
     // Type Checker - Variable Declaration
     TypeMismatchDeclExpected,
     TypeMismatchDeclFound,
+
+    // Type Checker - Type Position
+    ExpectedTypeFoundValue,
 }
 
 #[repr(u8)]
@@ -32,6 +35,7 @@ pub enum HintMessage {
     // Type Checker
     TypeMismatchBinOp,
     TypeMismatchDecl,
+    ExpectedTypeHint,
 }
 
 #[repr(u8)]
@@ -42,6 +46,7 @@ pub enum DiagnosticKind {
 
     // Type Checker
     TypeMismatch,
+    ExpectedType,
 }
 
 pub struct DiagnosticStorage {
