@@ -112,6 +112,21 @@ fn lower_expr<B: FunctionBuilder>(
             }
         }
 
+        Hir::BinarySub => {
+            let lhs_id = db.hir.lhs(id);
+            let rhs_id = db.hir.rhs(id);
+
+            let lhs_val = lower_expr(db, ctx, lhs_id, builder)?;
+            let rhs_val = lower_expr(db, ctx, rhs_id, builder)?;
+
+            match db.types.kind(db.hir_to_type.get_copy(id)) {
+                TyKind::Int | TyKind::UInt => Some(builder.ins_isub(lhs_val, rhs_val)),
+                TyKind::Float => Some(builder.ins_fsub(lhs_val, rhs_val)),
+
+                _ => None,
+            }
+        }
+
         Hir::Var => {
             let symbol_hir_id = db.hir.lhs(id);
             let symbol_type = db.hir_to_type.get_copy(symbol_hir_id);
