@@ -22,11 +22,11 @@ main :: () {
 
 I'm rebuilding Abyss as a **data-oriented, query-based compiler engine** designed for sheer execution speed:
 
-* ** Ultra-Fast Data-Oriented Architecture (DOD):** Cache-friendly arenas, contiguous arrays, and stable IDs over slow tree-walking and pointer-chasing.
-* ** Query-Based & Compiler as a Library:** Everything is parsed and type-checked lazily on demand. This makes building an LSP, IDE tools, or static analyzers practically free.
-* ** Microsecond Incremental Compilation:** Change one function, and only that slice gets re-indexed. No more full-file or full-project re-parses.
-* ** Lock-Free Parallel Pipelines:** Unlocked, thread-safe type checking across top-level symbols so multi-threading feels effortless.
-* ** Linearized Heavy Passes:** Flattening complex passes like type checking into fast, batchable assembly-line operations.
+* **Ultra-Fast Data-Oriented Architecture (DOD):** Cache-friendly arenas, contiguous arrays, and stable IDs over slow tree-walking and pointer-chasing.
+* **Query-Based & Compiler as a Library:** Everything is parsed and type-checked lazily on demand. This makes building an LSP, IDE tools, or static analyzers practically free.
+* **Microsecond Incremental Compilation:** Change one function, and only that slice gets re-indexed. No more full-file or full-project re-parses.
+* **Lock-Free Parallel Pipelines:** Unlocked, thread-safe type checking across top-level symbols so multi-threading feels effortless.
+* **Linearized Heavy Passes:** Flattening complex passes like type checking into fast, batchable assembly-line operations.
 
 ---
 
