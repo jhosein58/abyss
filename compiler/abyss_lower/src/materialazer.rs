@@ -9,9 +9,18 @@ pub fn build(db: &Nexus, symbol: SymbolId) {
     build_expr(db, range.end);
 }
 
-fn lower_type<TB: TypeBuilder>(db: &Nexus, type_id: TypeId, builder: &mut TB) -> TB::Type {
-    match db.types.kind(type_id) {
+fn lower_type<TB: TypeBuilder>(db: &Nexus, ty_id: TypeId, builder: &mut TB) -> TB::Type {
+    match db.types.kind(ty_id) {
         TyKind::Unit => builder.type_unit(),
+        TyKind::Int => builder.type_int(db.types.payload(ty_id) as u16),
+        TyKind::UInt => builder.type_uint(db.types.payload(ty_id) as u16),
+        TyKind::Float => builder.type_float(db.types.payload(ty_id) as u16),
+        TyKind::Bool => builder.type_bool(),
+        TyKind::Ptr => {
+            let pointee = lower_type(db, TypeId(db.types.payload(ty_id)), builder);
+            builder.type_ptr(Some(pointee))
+        }
+
         _ => unimplemented!(),
     }
 }
