@@ -24,10 +24,15 @@ pub trait ModuleBuilder: TypeBuilder {
 pub trait FunctionBuilder: TypeBuilder {
     type Value: Copy;
     type BasicBlock: Copy;
+    type Var: Copy;
 
     fn create_block(&mut self) -> Self::BasicBlock;
     fn switch_to_block(&mut self, block: Self::BasicBlock);
     fn seal_block(&mut self, block: Self::BasicBlock);
+
+    fn declare_var(&mut self, var_id: u32, ty: Self::Type);
+    fn def_var(&mut self, var_id: u32, value: Self::Value);
+    fn use_var(&mut self, var_id: u32) -> Self::Value;
 
     fn ins_iconst(&mut self, ty: Self::Type, val: i64) -> Self::Value;
     fn ins_iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
