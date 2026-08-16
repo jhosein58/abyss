@@ -20,7 +20,11 @@ fn lower_type<TB: TypeBuilder>(db: &Nexus, ty_id: TypeId, builder: &mut TB) -> T
             let pointee = lower_type(db, TypeId(db.types.payload(ty_id)), builder);
             builder.type_ptr(Some(pointee))
         }
+        TyKind::Func => {
+            let ret_ty = lower_type(db, db.types.func_return(ty_id), builder);
 
+            builder.type_unit()
+        }
         _ => unimplemented!(),
     }
 }
