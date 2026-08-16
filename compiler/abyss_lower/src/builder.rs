@@ -16,12 +16,7 @@ pub trait ModuleBuilder: TypeBuilder {
     where
         Self: 'a;
 
-    fn declare_func(
-        &mut self,
-        name: &str,
-        params: &[Self::Type],
-        ret: Option<Self::Type>,
-    ) -> Self::FuncId;
+    fn declare_func(&mut self, name: &str, params: &[Self::Type], ret: Self::Type) -> Self::FuncId;
 
     fn define_func<'a>(&'a mut self, func: Self::FuncId) -> Self::FuncBuilder<'a>;
 }
