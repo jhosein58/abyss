@@ -1,7 +1,7 @@
 use abyss_hir::hir::HirExprKind as Hir;
 use abyss_nexus::nexus::{HirId, Nexus};
 
-use crate::rules::{binary, declaration, func, ident, literal};
+use crate::rules::{binary, block, declaration, func, ident, literal};
 
 #[inline(always)]
 pub fn synth_node(db: &mut Nexus, id: HirId) {
@@ -21,6 +21,8 @@ pub fn synth_node(db: &mut Nexus, id: HirId) {
 
         Hir::Arg => func::synth_arg(db, id),
         Hir::Function => func::synth_func(db, id),
+
+        Hir::Block => block::synth(db, id),
 
         _ => {}
     }
