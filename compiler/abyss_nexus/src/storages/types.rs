@@ -71,7 +71,7 @@ impl TypeStorage {
                     .iter()
                     .map(|v| self.name(*v))
                     .collect::<Vec<String>>()
-                    .join(""),
+                    .join(", "),
                 self.name(self.func_return(idx))
             ),
 
