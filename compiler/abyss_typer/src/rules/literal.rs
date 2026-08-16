@@ -10,7 +10,7 @@ pub fn synth_int(db: &mut Nexus, id: HirId) {
 
     let expected = db.hir_to_expected.get_copy(id);
     if expected.is_some() {
-        let expected_tyid = db.hir_to_type.get_copy(expected);
+        let expected_tyid = db.hir_to_type_value.get_copy(expected);
 
         match db.types.kind(expected_tyid) {
             TyKind::Int => tyid = db.types.alloc_int(db.types.payload(expected_tyid) as u16),

@@ -57,7 +57,7 @@ pub struct Nexus {
 
     // Type Lookups
     pub hir_to_type: SideTable<HirId, TypeId>,
-    pub hir_to_type_value: SideTable<HirId, TypeId>,
+    pub hir_to_type_value: SideTable<HirId, TypeId>, // FIXME: make this table more generic and rename it to 'hir_to_value'. comptile engine will fill this table.
     pub hir_to_expected: SideTable<HirId, HirId>,
 }
 

@@ -17,7 +17,8 @@ pub fn synth_node(db: &mut Nexus, id: HirId) {
         // Binary
         Hir::BinaryAdd => binary::synth_add(db, id),
 
-        Hir::Var => declaration::synth_var(db, id),
+        Hir::Binding | Hir::Var => declaration::synth(db, id), // FIXME: bayad jodaa beshe be hamrah type 'const'
+
         Hir::Arg => func::synth_arg(db, id),
         Hir::Function => func::synth_func(db, id),
 
