@@ -39,7 +39,11 @@ pub fn synth_func(db: &mut Nexus, id: HirId) {
         }
     };
 
-    let params = db.get_list_flat(db.hir.lhs(id).0);
+    let params = if db.hir.lhs(id).is_some() {
+        db.get_list_flat(db.hir.lhs(id).0)
+    } else {
+        &[]
+    };
 
     let params = params
         .iter()
