@@ -1,8 +1,5 @@
 use abyss_hir::hir::HirExprKind as Hir;
-use abyss_nexus::{
-    arena::ArenaId,
-    nexus::{HirId, IntId, Nexus, SymbolId, TypeId},
-};
+use abyss_nexus::nexus::{HirId, IntId, Nexus, SymbolId, TypeId};
 use abyss_types::TyKind;
 
 use crate::builder::{FunctionBuilder, ModuleBuilder, TypeBuilder};

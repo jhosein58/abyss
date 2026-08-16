@@ -30,12 +30,27 @@ pub trait FunctionBuilder: TypeBuilder {
     fn switch_to_block(&mut self, block: Self::BasicBlock);
     fn seal_block(&mut self, block: Self::BasicBlock);
 
+    // Var
     fn declare_var(&mut self, ty: Self::Type) -> Self::Var;
     fn def_var(&mut self, var: Self::Var, value: Self::Value);
     fn use_var(&mut self, var: Self::Var) -> Self::Value;
 
+    // Const
     fn ins_iconst(&mut self, ty: Self::Type, val: i64) -> Self::Value;
+    fn ins_fconst(&mut self, ty: Self::Type, val: f64) -> Self::Value;
+
+    // Math -> Integers
     fn ins_iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
+    fn ins_isub(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
+    fn ins_imul(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
+    fn ins_sdiv(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
+    fn ins_udiv(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
+    // Math -> Floats
+    fn ins_fadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
+    fn ins_fsub(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
+    fn ins_fmul(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
+    fn ins_fdiv(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
+
     fn ins_ret(&mut self, values: Option<Self::Value>);
 
     fn get_param(&self, index: usize) -> Self::Value;

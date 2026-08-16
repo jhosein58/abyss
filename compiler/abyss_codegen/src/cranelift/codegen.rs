@@ -45,7 +45,11 @@ impl TypeBuilder for CraneliftBackend {
 
     fn type_int(&mut self, bits: u16) -> Self::Type {
         match bits {
+            8 => types::I8,
+            16 => types::I16,
             32 => types::I32,
+            64 => types::I64,
+            128 => types::I128,
             _ => panic!("unsupported type"),
         }
     }
@@ -56,7 +60,10 @@ impl TypeBuilder for CraneliftBackend {
 
     fn type_float(&mut self, bits: u16) -> Self::Type {
         match bits {
+            16 => types::F16,
             32 => types::F32,
+            64 => types::F64,
+            128 => types::F128,
             _ => panic!("unsupported type"),
         }
     }
@@ -130,7 +137,11 @@ impl<'a> TypeBuilder for CraneliftFnBuilder<'a> {
 
     fn type_int(&mut self, bits: u16) -> Self::Type {
         match bits {
+            8 => types::I8,
+            16 => types::I16,
             32 => types::I32,
+            64 => types::I64,
+            128 => types::I128,
             _ => panic!("unsupported type"),
         }
     }
@@ -141,7 +152,10 @@ impl<'a> TypeBuilder for CraneliftFnBuilder<'a> {
 
     fn type_float(&mut self, bits: u16) -> Self::Type {
         match bits {
+            16 => types::F16,
             32 => types::F32,
+            64 => types::F64,
+            128 => types::F128,
             _ => panic!("unsupported type"),
         }
     }
@@ -195,9 +209,46 @@ impl<'a> FunctionBuilder for CraneliftFnBuilder<'a> {
     fn ins_iconst(&mut self, ty: Self::Type, val: i64) -> Self::Value {
         self.builder.ins().iconst(ty, val)
     }
+    fn ins_fconst(&mut self, ty: Type, val: f64) -> Value {
+        self.builder.ins().const(val)
+    }
 
-    fn ins_iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value {
+    // Integers
+    fn ins_iadd(&mut self, lhs: Value, rhs: Value) -> Value {
         self.builder.ins().iadd(lhs, rhs)
+    }
+
+    fn ins_isub(&mut self, lhs: Value, rhs: Value) -> Value {
+        self.builder.ins().isub(lhs, rhs)
+    }
+
+    fn ins_imul(&mut self, lhs: Value, rhs: Value) -> Value {
+        self.builder.ins().imul(lhs, rhs)
+    }
+
+    fn ins_sdiv(&mut self, lhs: Value, rhs: Value) -> Value {
+        self.builder.ins().sdiv(lhs, rhs)
+    }
+
+    fn ins_udiv(&mut self, lhs: Value, rhs: Value) -> Value {
+        self.builder.ins().udiv(lhs, rhs)
+    }
+
+    // Floats
+    fn ins_fadd(&mut self, lhs: Value, rhs: Value) -> Value {
+        self.builder.ins().fadd(lhs, rhs)
+    }
+
+    fn ins_fsub(&mut self, lhs: Value, rhs: Value) -> Value {
+        self.builder.ins().fsub(lhs, rhs)
+    }
+
+    fn ins_fmul(&mut self, lhs: Value, rhs: Value) -> Value {
+        self.builder.ins().fmul(lhs, rhs)
+    }
+
+    fn ins_fdiv(&mut self, lhs: Value, rhs: Value) -> Value {
+        self.builder.ins().fdiv(lhs, rhs)
     }
 
     fn ins_ret(&mut self, value: Option<Self::Value>) {
