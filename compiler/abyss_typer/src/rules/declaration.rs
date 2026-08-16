@@ -6,7 +6,7 @@ use abyss_nexus::{
 use crate::diagnostics::report_decl_type_mismatch;
 
 #[inline(always)]
-pub fn check_binding_and_var(db: &mut Nexus, id: HirId) {
+pub fn check(db: &mut Nexus, id: HirId) {
     let ty_hir_id = db.hir.rhs(id);
     let val_hir_id = db.hir.extra(id);
 

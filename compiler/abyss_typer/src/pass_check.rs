@@ -8,7 +8,7 @@ pub fn check_node(db: &mut Nexus, id: HirId) {
     let kind = db.hir.kind(id);
 
     match kind {
-        Hir::Var => declaration::check_var(db, id),
+        Hir::Binding | Hir::Var => declaration::check(db, id),
 
         // Binary
         Hir::BinaryAdd => println!("add"),
