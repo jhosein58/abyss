@@ -4,7 +4,7 @@ use abyss_types::TyKind;
 
 use crate::builder::{FunctionBuilder, ModuleBuilder, TypeBuilder};
 
-pub fn lower_function<M: ModuleBuilder>(db: &Nexus, symbol: SymbolId) {
+pub fn lower_function<M: ModuleBuilder>(db: &Nexus, module: &mut M, symbol: SymbolId) {
     let id = db.symbols.get_copy(symbol);
     println!("{:?}", id);
 }
