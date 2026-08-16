@@ -71,20 +71,14 @@ impl ModuleBuilder for CraneliftBackend {
     type FuncId = FuncId;
     type FuncBuilder<'a> = CraneliftFnBuilder<'a>;
 
-    fn declare_func(
-        &mut self,
-        name: &str,
-        params: &[Self::Type],
-        ret: Option<Self::Type>,
-    ) -> Self::FuncId {
+    fn declare_func(&mut self, name: &str, params: &[Self::Type], ret: Self::Type) -> Self::FuncId {
         let mut sig = self.module.make_signature();
         for p in params {
             sig.params.push(AbiParam::new(*p));
         }
-        if let Some(r) = ret {
-            if r != types::INVALID {
-                sig.returns.push(AbiParam::new(r));
-            }
+
+        if ret != types::INVALID {
+            sig.returns.push(AbiParam::new(ret));
         }
 
         self.module
