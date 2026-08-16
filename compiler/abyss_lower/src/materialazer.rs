@@ -7,8 +7,8 @@ pub fn build(db: &Nexus, symbol: SymbolId) {
     let HirId(end) = range.end;
 
     for i in 0..=(end - offset) {
-        let id = HirId(i + offset);
+        let _id = HirId(i + offset);
 
-        println!("{:?}", db.hir.kind(id))
+        // println!("{:?}", db.hir.kind(id))
     }
 }

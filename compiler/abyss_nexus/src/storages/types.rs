@@ -5,7 +5,7 @@ use abyss_types::{TyKind, TyStore};
 use crate::{arena::ArenaId, nexus::TypeId};
 
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)] // FIXME: impl trait Copy
 pub enum TypeKey {
     Unknown,
 
@@ -13,8 +13,10 @@ pub enum TypeKey {
     UInt(u16),
     Float(u16),
     Bool,
-
     Ptr(TypeId),
+    Type,
+    Unit,
+    Func(Box<[TypeId]>, TypeId), // PERF: Box ro hazf kon
 
     Error,
 }
@@ -60,6 +62,8 @@ impl TypeStorage {
             TyKind::Bool => format!("bool"),
             TyKind::Ptr => format!("&{}", self.name(TypeId(self.payload(idx)))),
             TyKind::Type => format!("Type({})", self.name(TypeId(self.payload(idx)))),
+            TyKind::Unit => format!("unit"),
+            TyKind::Func => format!("fn"),
             TyKind::Error => format!("Err!"),
         }
     }
@@ -105,5 +109,49 @@ impl TypeStorage {
     #[inline(always)]
     pub fn alloc_error(&mut self) -> TypeId {
         self.get_or_insert(TypeKey::Error, TyKind::Error, 0)
+    }
+
+    // == Functions =>
+
+    #[inline(always)]
+    pub fn alloc_func(&mut self, params: &[TypeId], ret: TypeId) -> TypeId {
+        let key = TypeKey::Func(params.into(), ret);
+
+        if let Some(&id) = self.interned.get(&key) {
+            return id;
+        }
+
+        let extra_len = self.store.extra.len() as u32;
+
+        // ------------
+        self.store.extra.push(params.len() as u32); // IDEA: u16 kafie baraye tool arg. 2 byte dari ke mitoni tosh meta-data benevisi
+        self.store.extra.push(ret.0);
+        for p in params {
+            self.store.extra.push(p.0);
+        }
+        // ---> [Header: u32] [return: TypeId] [param_n: TypeId] ...
+
+        let id = TypeId(self.store.push(TyKind::Func, extra_len) as u32);
+
+        self.interned.insert(key, id);
+
+        id
+    }
+
+    #[inline(always)]
+    pub fn func_return(&mut self, func: TypeId) -> TypeId {
+        TypeId(self.store.extra[self.payload(func) as usize + 1])
+    }
+
+    #[inline(always)]
+    pub fn func_params(&mut self, func: TypeId) -> Vec<TypeId> /* PREF: remove allocation and return an slice */
+    {
+        let header_idx = self.payload(func) as usize;
+        let header = self.store.extra[header_idx]; // FIXME: unpack header logic
+
+        self.store.extra[(header_idx + 2)..header as usize]
+            .into_iter()
+            .map(|v| TypeId(*v))
+            .collect()
     }
 }
