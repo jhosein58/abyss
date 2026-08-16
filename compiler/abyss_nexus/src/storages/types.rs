@@ -63,7 +63,17 @@ impl TypeStorage {
             TyKind::Ptr => format!("&{}", self.name(TypeId(self.payload(idx)))),
             TyKind::Type => format!("Type({})", self.name(TypeId(self.payload(idx)))),
             TyKind::Unit => format!("unit"),
-            TyKind::Func => format!("fn"),
+
+            TyKind::Func => format!(
+                "fn({}) {}",
+                self.func_params(idx)
+                    .iter()
+                    .map(|v| self.name(*v))
+                    .collect::<Vec<String>>()
+                    .join(""),
+                self.name(self.func_return(idx))
+            ),
+
             TyKind::Error => format!("Err!"),
         }
     }
@@ -139,12 +149,12 @@ impl TypeStorage {
     }
 
     #[inline(always)]
-    pub fn func_return(&mut self, func: TypeId) -> TypeId {
+    pub fn func_return(&self, func: TypeId) -> TypeId {
         TypeId(self.store.extra[self.payload(func) as usize + 1])
     }
 
     #[inline(always)]
-    pub fn func_params(&mut self, func: TypeId) -> Vec<TypeId> /* PREF: remove allocation and return an slice */
+    pub fn func_params(&self, func: TypeId) -> Vec<TypeId> /* PREF: remove allocation and return an slice */
     {
         let header_idx = self.payload(func) as usize;
         let header = self.store.extra[header_idx]; // FIXME: unpack header logic
