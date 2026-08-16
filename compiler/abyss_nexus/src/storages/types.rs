@@ -25,6 +25,7 @@ pub enum TypeKey {
 pub struct TypeStorage {
     store: TyStore,
     interned: HashMap<TypeKey, TypeId>, // PERF: hash-map inja mitone sari tar beshe ya kolan hazf beshe
+                                        // IDEA: use a pre-allocated table to lockup primitive types
 }
 
 impl TypeStorage {
@@ -124,6 +125,11 @@ impl TypeStorage {
     #[inline(always)]
     pub fn alloc_type(&mut self) -> TypeId {
         self.get_or_insert(TypeKey::Type, TyKind::Type, 0)
+    }
+
+    #[inline(always)]
+    pub fn alloc_unit(&mut self) -> TypeId {
+        self.get_or_insert(TypeKey::Unit, TyKind::Unit, 0)
     }
 
     // == Functions =>
