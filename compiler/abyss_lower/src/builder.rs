@@ -30,9 +30,9 @@ pub trait FunctionBuilder: TypeBuilder {
     fn switch_to_block(&mut self, block: Self::BasicBlock);
     fn seal_block(&mut self, block: Self::BasicBlock);
 
-    fn declare_var(&mut self, var_id: u32, ty: Self::Type);
-    fn def_var(&mut self, var_id: u32, value: Self::Value);
-    fn use_var(&mut self, var_id: u32) -> Self::Value;
+    fn declare_var(&mut self, ty: Self::Type) -> Self::Var;
+    fn def_var(&mut self, var: Self::Var, value: Self::Value);
+    fn use_var(&mut self, var: Self::Var) -> Self::Value;
 
     fn ins_iconst(&mut self, ty: Self::Type, val: i64) -> Self::Value;
     fn ins_iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
