@@ -80,7 +80,11 @@ fn lower_expr<B: FunctionBuilder>(
             let ty_id = db.hir_to_type.get_copy(id);
             let cl_ty = lower_type(db, ty_id, builder);
 
-            Some(builder.ins_iconst(cl_ty, val))
+            if db.types.kind(ty_id) == TyKind::Int {
+                Some(builder.ins_iconst(cl_ty, val))
+            } else {
+                Some(builder.ins_fconst(cl_ty, val as f64))
+            }
         }
 
         Hir::LitFloat => {
