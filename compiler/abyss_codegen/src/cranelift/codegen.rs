@@ -166,6 +166,7 @@ impl<'a> TypeBuilder for CraneliftFnBuilder<'a> {
 impl<'a> FunctionBuilder for CraneliftFnBuilder<'a> {
     type Value = Value;
     type BasicBlock = Block;
+    type Var = Variable;
 
     fn create_block(&mut self) -> Self::BasicBlock {
         self.builder.create_block()
@@ -177,6 +178,18 @@ impl<'a> FunctionBuilder for CraneliftFnBuilder<'a> {
 
     fn seal_block(&mut self, block: Self::BasicBlock) {
         self.builder.seal_block(block);
+    }
+
+    fn declare_var(&mut self, ty: Self::Type) -> Self::Var {
+        self.builder.declare_var(ty)
+    }
+
+    fn def_var(&mut self, var: Self::Var, value: Self::Value) {
+        self.builder.def_var(var, value);
+    }
+
+    fn use_var(&mut self, var: Self::Var) -> Self::Value {
+        self.builder.use_var(var)
     }
 
     fn ins_iconst(&mut self, ty: Self::Type, val: i64) -> Self::Value {
