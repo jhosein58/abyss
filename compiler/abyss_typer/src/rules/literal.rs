@@ -21,6 +21,8 @@ pub fn synth_int(db: &mut Nexus, id: HirId) {
         tyid = db.types.alloc_int(32);
     }
 
+    let ty_id_of_type = db.types.alloc
+
     db.hir_to_type.set(id, tyid);
 }
 
