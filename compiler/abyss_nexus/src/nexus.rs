@@ -47,7 +47,7 @@ pub struct Nexus {
 
     // Symbol & Resolution Lookups
     pub symbol_index: HashMap<(FileId, NameId), TokenRange>, // PERF: O(1) lookup by (file, name)
-    pub symbols: Arena<SymbolId, HirId>,
+    pub symbols: Arena<SymbolId, HirId>,                     // FIXME: rename to 'synbol_to_hir'
     pub symbol_hir_range: SideTable<SymbolId, HirRange>,
     pub hir_to_symbol: SideTable<HirId, SymbolId>,
 

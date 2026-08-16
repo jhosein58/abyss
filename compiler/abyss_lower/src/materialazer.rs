@@ -2,11 +2,11 @@ use abyss_hir::hir::HirExprKind as Hir;
 use abyss_nexus::nexus::{HirId, Nexus, SymbolId, TypeId};
 use abyss_types::TyKind;
 
-use crate::builder::TypeBuilder;
+use crate::builder::{FunctionBuilder, ModuleBuilder, TypeBuilder};
 
-pub fn build(db: &Nexus, symbol: SymbolId) {
-    let range = db.symbol_hir_range.get_copy(symbol);
-    build_expr(db, range.end);
+pub fn lower_function<M: ModuleBuilder>(db: &Nexus, symbol: SymbolId) {
+    let id = db.symbols.get_copy(symbol);
+    println!("{:?}", id);
 }
 
 fn lower_type<TB: TypeBuilder>(db: &Nexus, ty_id: TypeId, builder: &mut TB) -> TB::Type {
@@ -38,14 +38,14 @@ fn lower_type<TB: TypeBuilder>(db: &Nexus, ty_id: TypeId, builder: &mut TB) -> T
     }
 }
 
-fn build_expr(db: &Nexus, id: HirId) {
-    let kind = db.hir.kind(id);
+// fn build_expr<B: FunctionBuilder>(db: &Nexus, id: HirId) {
+//     let kind = db.hir.kind(id);
 
-    match kind {
-        Hir::Binding => {
-            let ty_id = db.hir_to_type.get_copy(id);
-            if db.types.kind(ty_id) == TyKind::Func {}
-        }
-        _ => {}
-    }
-}
+//     match kind {
+//         Hir::Binding => {
+//             let ty_id = db.hir_to_type.get_copy(id);
+//             if db.types.kind(ty_id) == TyKind::Func {}
+//         }
+//         _ => {}
+//     }
+// }
