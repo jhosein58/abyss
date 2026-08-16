@@ -28,7 +28,7 @@ fn main() {
     nexus.dump_hir();
 
     // Compile
-    abyss_lower::materialazer::build(&nexus, main_symbol_id);
+    abyss_lower::materialazer::lower_function(&nexus, main_symbol_id);
 
     let formater = DiagnosticFormatter::new(&nexus);
     let diagnostics = formater.format_all();
