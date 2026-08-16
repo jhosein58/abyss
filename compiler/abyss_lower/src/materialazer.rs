@@ -1,5 +1,5 @@
 use abyss_hir::hir::HirExprKind as Hir;
-use abyss_nexus::nexus::{HirId, IntId, Nexus, SymbolId, TypeId};
+use abyss_nexus::nexus::{FloatId, HirId, IntId, Nexus, SymbolId, TypeId};
 use abyss_types::TyKind;
 
 use crate::builder::{FunctionBuilder, ModuleBuilder, TypeBuilder};
@@ -83,6 +83,16 @@ fn lower_expr<B: FunctionBuilder>(
             Some(builder.ins_iconst(cl_ty, val))
         }
 
+        Hir::LitFloat => {
+            let float_id = db.hir.lhs(id);
+            let val = db.floats.get_copy(FloatId(float_id.0));
+
+            let ty_id = db.hir_to_type.get_copy(id);
+            let cl_ty = lower_type(db, ty_id, builder);
+
+            Some(builder.ins_fconst(cl_ty, val))
+        }
+
         Hir::BinaryAdd => {
             let lhs_id = db.hir.lhs(id);
             let rhs_id = db.hir.rhs(id);
@@ -90,7 +100,12 @@ fn lower_expr<B: FunctionBuilder>(
             let lhs_val = lower_expr(db, ctx, lhs_id, builder)?;
             let rhs_val = lower_expr(db, ctx, rhs_id, builder)?;
 
-            Some(builder.ins_iadd(lhs_val, rhs_val))
+            match db.types.kind(db.hir_to_type.get_copy(id)) {
+                TyKind::Int | TyKind::UInt => Some(builder.ins_iadd(lhs_val, rhs_val)),
+                TyKind::Float => Some(builder.ins_fadd(lhs_val, rhs_val)),
+
+                _ => None,
+            }
         }
 
         Hir::Var => {
