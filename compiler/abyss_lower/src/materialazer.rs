@@ -1,8 +1,30 @@
 use abyss_hir::hir::HirExprKind as Hir;
-use abyss_nexus::nexus::{HirId, IntId, Nexus, SymbolId, TypeId};
+use abyss_nexus::{
+    arena::ArenaId,
+    nexus::{HirId, IntId, Nexus, SymbolId, TypeId},
+};
 use abyss_types::TyKind;
 
 use crate::builder::{FunctionBuilder, ModuleBuilder, TypeBuilder};
+
+pub struct LowerCtx<B: FunctionBuilder> {
+    pub vars: Vec<Option<B::Var>>,
+}
+impl<B: FunctionBuilder> LowerCtx<B> {
+    pub fn new(len: usize) -> Self {
+        Self {
+            vars: vec![None; len],
+        }
+    }
+
+    pub fn insert(&mut self, sym: SymbolId, var: B::Var) {
+        self.vars[sym.0 as usize] = Some(var);
+    }
+
+    pub fn get(&self, sym: SymbolId) -> B::Var {
+        self.vars[sym.0 as usize].expect("Variable not defined!")
+    }
+}
 
 pub fn lower_function<M: ModuleBuilder>(db: &Nexus, module: &mut M, symbol: SymbolId) -> M::FuncId {
     let id = db.symbol_hir_range.get_copy(symbol).end;
@@ -31,7 +53,8 @@ pub fn lower_function<M: ModuleBuilder>(db: &Nexus, module: &mut M, symbol: Symb
     let func_node = db.hir.extra(id);
     let func_body = db.hir.extra(func_node);
 
-    let body_value = lower_expr(db, func_body, &mut func_builder);
+    let mut ctx = LowerCtx::new(db.symbols.len());
+    let body_value = lower_expr(db, &mut ctx, func_body, &mut func_builder);
 
     if db.types.kind(ret_ty_id) == TyKind::Unit {
         func_builder.ins_ret(None);
@@ -42,6 +65,74 @@ pub fn lower_function<M: ModuleBuilder>(db: &Nexus, module: &mut M, symbol: Symb
     func_builder.finish();
 
     func_id
+}
+
+fn lower_expr<B: FunctionBuilder>(
+    db: &Nexus,
+    ctx: &mut LowerCtx<B>,
+    id: HirId,
+    builder: &mut B,
+) -> Option<B::Value> {
+    let kind = db.hir.kind(id);
+
+    match kind {
+        Hir::LitInt => {
+            let int_id = db.hir.lhs(id);
+            let val = db.ints.get_copy(IntId(int_id.0));
+
+            let ty_id = db.hir_to_type.get_copy(id);
+            let cl_ty = lower_type(db, ty_id, builder);
+
+            Some(builder.ins_iconst(cl_ty, val))
+        }
+
+        Hir::BinaryAdd => {
+            let lhs_id = db.hir.lhs(id);
+            let rhs_id = db.hir.rhs(id);
+
+            let lhs_val = lower_expr(db, ctx, lhs_id, builder)?;
+            let rhs_val = lower_expr(db, ctx, rhs_id, builder)?;
+
+            Some(builder.ins_iadd(lhs_val, rhs_val))
+        }
+
+        Hir::Var => {
+            let symbol_hir_id = db.hir.lhs(id);
+            let symbol_type = db.hir_to_type.get_copy(symbol_hir_id);
+            let symbol_id = db.hir_to_symbol.get_copy(symbol_hir_id);
+
+            let lty = lower_type(db, symbol_type, builder);
+            let var = builder.declare_var(lty);
+
+            let value = lower_expr(db, ctx, db.hir.extra(id), builder);
+            builder.def_var(var, value?);
+
+            ctx.insert(symbol_id, var);
+
+            None
+        }
+
+        Hir::Ident => {
+            let sym = db.hir_to_symbol.get_copy(id);
+
+            let var = ctx.get(sym);
+
+            Some(builder.use_var(var))
+        }
+
+        Hir::Block => {
+            let nodes = db.get_list_flat(db.hir.lhs(id).0);
+            let mut last_value = None;
+
+            for &node_id in nodes {
+                last_value = lower_expr(db, ctx, HirId(node_id), builder);
+            }
+
+            last_value
+        }
+
+        _ => None,
+    }
 }
 
 fn lower_type<TB: TypeBuilder>(db: &Nexus, ty_id: TypeId, builder: &mut TB) -> TB::Type {
@@ -70,44 +161,5 @@ fn lower_type<TB: TypeBuilder>(db: &Nexus, ty_id: TypeId, builder: &mut TB) -> T
             builder.type_func(&param_types, ret_ty)
         }
         _ => unimplemented!(),
-    }
-}
-
-fn lower_expr<B: FunctionBuilder>(db: &Nexus, id: HirId, builder: &mut B) -> Option<B::Value> {
-    let kind = db.hir.kind(id);
-
-    match kind {
-        Hir::LitInt => {
-            let int_id = db.hir.lhs(id);
-            let val = db.ints.get_copy(IntId(int_id.0));
-
-            let ty_id = db.hir_to_type.get_copy(id);
-            let cl_ty = lower_type(db, ty_id, builder);
-
-            Some(builder.ins_iconst(cl_ty, val))
-        }
-
-        Hir::BinaryAdd => {
-            let lhs_id = db.hir.lhs(id);
-            let rhs_id = db.hir.rhs(id);
-
-            let lhs_val = lower_expr(db, lhs_id, builder)?;
-            let rhs_val = lower_expr(db, rhs_id, builder)?;
-
-            Some(builder.ins_iadd(lhs_val, rhs_val))
-        }
-
-        Hir::Block => {
-            let nodes = db.get_list_flat(db.hir.lhs(id).0);
-            let mut last_value = None;
-
-            for &node_id in nodes {
-                last_value = lower_expr(db, HirId(node_id), builder);
-            }
-
-            last_value
-        }
-
-        _ => None,
     }
 }
