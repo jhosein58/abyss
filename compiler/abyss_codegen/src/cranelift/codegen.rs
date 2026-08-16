@@ -27,6 +27,17 @@ impl CraneliftBackend {
             fn_builder_ctx,
         }
     }
+
+    pub fn compile_and_get_ptr(&mut self, func_id: FuncId) -> *const u8 {
+        self.module
+            .define_function(func_id, &mut self.ctx)
+            .expect("Failed to define function");
+
+        self.module.clear_context(&mut self.ctx);
+        self.module.finalize_definitions().unwrap();
+
+        self.module.get_finalized_function(func_id)
+    }
 }
 
 impl TypeBuilder for CraneliftBackend {
@@ -114,8 +125,45 @@ pub struct CraneliftFnBuilder<'a> {
     pub func_id: FuncId,
 }
 
-impl<'a> FunctionBuilder for CraneliftFnBuilder<'a> {
+impl<'a> TypeBuilder for CraneliftFnBuilder<'a> {
     type Type = Type;
+
+    fn type_int(&mut self, bits: u16) -> Self::Type {
+        match bits {
+            32 => types::I32,
+            _ => panic!("unsupported type"),
+        }
+    }
+
+    fn type_uint(&mut self, bits: u16) -> Self::Type {
+        self.type_int(bits)
+    }
+
+    fn type_float(&mut self, bits: u16) -> Self::Type {
+        match bits {
+            32 => types::F32,
+            _ => panic!("unsupported type"),
+        }
+    }
+
+    fn type_bool(&mut self) -> Self::Type {
+        types::I8
+    }
+
+    fn type_ptr(&mut self, _pointee: Option<Self::Type>) -> Self::Type {
+        self.module.target_config().pointer_type()
+    }
+
+    fn type_unit(&mut self) -> Self::Type {
+        types::INVALID
+    }
+
+    fn type_func(&mut self, _params: &[Self::Type], _ret: Self::Type) -> Self::Type {
+        self.type_ptr(None)
+    }
+}
+
+impl<'a> FunctionBuilder for CraneliftFnBuilder<'a> {
     type Value = Value;
     type BasicBlock = Block;
 
@@ -125,6 +173,22 @@ impl<'a> FunctionBuilder for CraneliftFnBuilder<'a> {
 
     fn switch_to_block(&mut self, block: Self::BasicBlock) {
         self.builder.switch_to_block(block);
+    }
+
+    fn seal_block(&mut self, block: Self::BasicBlock) {
+        self.builder.seal_block(block);
+    }
+
+    fn ins_iconst(&mut self, ty: Self::Type, val: i64) -> Self::Value {
+        self.builder.ins().iconst(ty, val)
+    }
+
+    fn ins_iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value {
+        self.builder.ins().iadd(lhs, rhs)
+    }
+
+    fn ins_ret(&mut self, value: Option<Self::Value>) {
+        self.builder.ins().return_(value.as_slice());
     }
 
     fn get_param(&self, index: usize) -> Self::Value {

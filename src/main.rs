@@ -30,7 +30,13 @@ fn main() {
 
     // Compile
     let mut backend = CraneliftBackend::new();
-    abyss_lower::materialazer::lower_function(&nexus, &mut backend, main_symbol_id);
+    let func_id = abyss_lower::materialazer::lower_function(&nexus, &mut backend, main_symbol_id);
+
+    let code_ptr = backend.compile_and_get_ptr(func_id);
+    let main_fn: extern "C" fn() -> i32 = unsafe { std::mem::transmute(code_ptr) };
+
+    let result = main_fn();
+    println!("main says: {}", result);
 
     let formater = DiagnosticFormatter::new(&nexus);
     let diagnostics = formater.format_all();
