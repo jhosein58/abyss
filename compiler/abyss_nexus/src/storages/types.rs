@@ -121,6 +121,11 @@ impl TypeStorage {
         self.get_or_insert(TypeKey::Error, TyKind::Error, 0)
     }
 
+    #[inline(always)]
+    pub fn alloc_type(&mut self) -> TypeId {
+        self.get_or_insert(TypeKey::Type, TyKind::Type, 0)
+    }
+
     // == Functions =>
 
     #[inline(always)]
