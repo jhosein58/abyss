@@ -28,9 +28,6 @@ I'm rebuilding Abyss as a **data-oriented, query-based compiler engine** designe
 * **Lock-Free Parallel Pipelines:** Unlocked, thread-safe type checking across top-level symbols so multi-threading feels effortless.
 * **Linearized Heavy Passes:** Flattening complex passes like type checking into fast, batchable assembly-line operations.
 
----
-
-*If you want a working compiler, give me a bit. If you like low-level compiler architecture and watching code burn and rise from the ashes, welcome aboard!*
 
 ---
 
