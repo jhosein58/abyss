@@ -1,5 +1,15 @@
-pub trait ModuleBuilder {
+pub trait TypeBuilder {
     type Type: Copy;
+
+    fn type_int(&mut self, bits: u16) -> Self::Type;
+    fn type_uint(&mut self, bits: u16) -> Self::Type;
+    fn type_float(&mut self, bits: u16) -> Self::Type;
+    fn type_bool(&mut self) -> Self::Type;
+    fn type_ptr(&mut self, pointee: Option<Self::Type>) -> Self::Type;
+    fn type_func(&mut self, params: &[Self::Type], ret: Option<Self::Type>) -> Self::Type;
+}
+
+pub trait ModuleBuilder: TypeBuilder {
     type FuncId: Copy;
     type FuncBuilder<'a>: FunctionBuilder<Type = Self::Type>
     where
