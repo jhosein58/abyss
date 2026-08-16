@@ -1,4 +1,7 @@
-use abyss_nexus::{arena::ArenaId, nexus::{HirId, Nexus}};
+use abyss_nexus::{
+    arena::ArenaId,
+    nexus::{HirId, Nexus, TypeId},
+};
 use abyss_types::TyKind;
 
 use crate::diagnostics::report_expected_type;
@@ -21,9 +24,29 @@ pub fn synth_arg(db: &mut Nexus, id: HirId) {
 }
 
 pub fn synth_func(db: &mut Nexus, id: HirId) {
-    let ret_hir_id = db.hir.lhs(id);
+    let ret_hir_id = db.hir.rhs(id);
 
     let ret_ty_id = if ret_hir_id.is_none() {
-        db.types.alloc_uint(width)
-    }
+        db.types.alloc_unit()
+    } else {
+        let real_ret_ty_id = db.hir_to_type.get_copy(ret_hir_id);
+
+        if db.types.kind(real_ret_ty_id) != TyKind::Type {
+            report_expected_type(db, ret_hir_id, real_ret_ty_id);
+            db.types.alloc_error()
+        } else {
+            db.hir_to_type_value.get_copy(ret_hir_id)
+        }
+    };
+
+    let params = db.get_list_flat(db.hir.lhs(id).0);
+
+    let params = params
+        .iter()
+        .map(|p| db.hir_to_type_value.get_copy(HirId(*p)))
+        .collect::<Vec<TypeId>>(); // FIXME: remove vector allocation
+
+    let func_type = db.types.alloc_func(&params, ret_ty_id);
+
+    db.hir_to_type.set(id, func_type);
 }

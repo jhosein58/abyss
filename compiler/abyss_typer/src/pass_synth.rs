@@ -19,6 +19,7 @@ pub fn synth_node(db: &mut Nexus, id: HirId) {
 
         Hir::Var => declaration::synth_var(db, id),
         Hir::Arg => func::synth_arg(db, id),
+        Hir::Function => func::synth_func(db, id),
 
         _ => {}
     }
