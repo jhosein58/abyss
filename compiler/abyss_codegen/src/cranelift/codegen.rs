@@ -1,4 +1,5 @@
 use abyss_lower::builder::{FunctionBuilder, ModuleBuilder, TypeBuilder};
+use cranelift::codegen::ir::immediates::Ieee16;
 use cranelift::module::{FuncId, Linkage};
 use cranelift::prelude::*;
 
@@ -206,11 +207,16 @@ impl<'a> FunctionBuilder for CraneliftFnBuilder<'a> {
         self.builder.use_var(var)
     }
 
+    // const
     fn ins_iconst(&mut self, ty: Self::Type, val: i64) -> Self::Value {
         self.builder.ins().iconst(ty, val)
     }
-    fn ins_fconst(&mut self, _ty: Type, val: f64) -> Value {
-        self.builder.ins().f64const(val)
+    fn ins_fconst(&mut self, ty: Type, val: f64) -> Value {
+        match ty {
+            types::F32 => self.builder.ins().f32const(val as f32),
+            types::F64 => self.builder.ins().f64const(val as f64), // FIXME: remove f64 and i64 type in HIR literals
+            _ => unreachable!(),
+        }
     }
 
     // Integers
