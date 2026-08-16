@@ -66,7 +66,9 @@ impl DiagnosticFormat for HintMessage {
     fn format_message(&self, _nexus: &Nexus, _arg0: u32, _arg1: u32) -> String {
         match self {
             HintMessage::TypeMismatchBinOp => {
-                format!("binary operator '+' requires both operands to have the same type")
+                format!(
+                    "binary operator '+', '-', '*', '/' requires both operands to have the same type"
+                )
             }
 
             HintMessage::TypeMismatchDecl => {

@@ -1,5 +1,4 @@
 use abyss_lower::builder::{FunctionBuilder, ModuleBuilder, TypeBuilder};
-use cranelift::codegen::ir::immediates::Ieee16;
 use cranelift::module::{FuncId, Linkage};
 use cranelift::prelude::*;
 

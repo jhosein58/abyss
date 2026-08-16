@@ -1,9 +1,22 @@
-use abyss_nexus::nexus::{HirId, Nexus};
+use abyss_nexus::{
+    arena::ArenaId,
+    nexus::{HirId, Nexus},
+};
 
 use crate::diagnostics::report_binop_mismatch;
 
 #[inline(always)]
-pub fn synth_add(db: &mut Nexus, id: HirId) {
+pub fn check(db: &mut Nexus, id: HirId) {
+    let expected = db.hir_to_expected.get_copy(id);
+
+    if expected.is_some() {
+        db.hir_to_expected.set(db.hir.lhs(id), expected);
+        db.hir_to_expected.set(db.hir.rhs(id), expected);
+    }
+}
+
+#[inline(always)]
+pub fn synth(db: &mut Nexus, id: HirId) {
     let lhs_hir_id = db.hir.lhs(id);
     let rhs_hir_id = db.hir.rhs(id);
 
