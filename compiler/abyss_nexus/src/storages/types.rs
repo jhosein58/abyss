@@ -168,10 +168,13 @@ impl TypeStorage {
     pub fn func_params(&self, func: TypeId) -> Vec<TypeId> /* PREF: remove allocation and return an slice */
     {
         let header_idx = self.payload(func) as usize;
-        let header = self.store.extra[header_idx]; // FIXME: unpack header logic
+        let count = self.store.extra[header_idx] as usize; // FIXME: unpack header logic
 
-        self.store.extra[(header_idx + 2)..header as usize]
-            .into_iter()
+        let start = header_idx + 2;
+        let end = start + count;
+
+        self.store.extra[start..end]
+            .iter()
             .map(|v| TypeId(*v))
             .collect()
     }
