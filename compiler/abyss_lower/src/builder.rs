@@ -21,14 +21,13 @@ pub trait ModuleBuilder: TypeBuilder {
     fn define_func<'a>(&'a mut self, func: Self::FuncId) -> Self::FuncBuilder<'a>;
 }
 
-pub trait FunctionBuilder {
-    type Type: Copy;
+pub trait FunctionBuilder: TypeBuilder {
     type Value: Copy;
     type BasicBlock: Copy;
 
     fn create_block(&mut self) -> Self::BasicBlock;
-
     fn switch_to_block(&mut self, block: Self::BasicBlock);
+    fn seal_block(&mut self, block: Self::BasicBlock);
 
     fn ins_iconst(&mut self, ty: Self::Type, val: i64) -> Self::Value;
     fn ins_iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
