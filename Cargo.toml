@@ -17,9 +17,7 @@ abyss_typer = { path = "./compiler/abyss_typer" }
 abyss_diagnostics = { path = "./compiler/abyss_diagnostics" }
 abyss_indexer = { path = "./compiler/abyss_indexer" }
 abyss_lower = { path = "./compiler/abyss_lower" }
-
-
-#inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm21-1"], optional = true }
+abyss_codegen = { path = "./compiler/abyss_codegen" }
 
 [profile.release]
 opt-level = 3

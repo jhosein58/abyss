@@ -1,5 +1,6 @@
 pub use std::{fs, time::Instant};
 
+use abyss_codegen::cranelift::codegen::CraneliftBackend;
 use abyss_diagnostics::DiagnosticFormatter;
 use abyss_indexer::Indexer;
 use abyss_nexus::nexus::Nexus;
@@ -28,7 +29,8 @@ fn main() {
     nexus.dump_hir();
 
     // Compile
-    abyss_lower::materialazer::lower_function(&nexus, main_symbol_id);
+    let mut backend = CraneliftBackend::new();
+    abyss_lower::materialazer::lower_function(&nexus, &mut backend, main_symbol_id);
 
     let formater = DiagnosticFormatter::new(&nexus);
     let diagnostics = formater.format_all();
