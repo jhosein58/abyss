@@ -6,6 +6,7 @@ pub trait TypeBuilder {
     fn type_float(&mut self, bits: u16) -> Self::Type;
     fn type_bool(&mut self) -> Self::Type;
     fn type_ptr(&mut self, pointee: Option<Self::Type>) -> Self::Type;
+    fn type_unit(&mut self) -> Self::Type;
     fn type_func(&mut self, params: &[Self::Type], ret: Option<Self::Type>) -> Self::Type;
 }
 
