@@ -10,6 +10,8 @@ pub enum TyKind {
     Bool,
     Ptr,
     Type,
+    Unit,
+    Func,
 
     Error,
 }
