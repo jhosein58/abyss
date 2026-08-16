@@ -30,7 +30,10 @@ pub trait FunctionBuilder {
 
     fn switch_to_block(&mut self, block: Self::BasicBlock);
 
-    fn get_param(&self, index: usize) -> Self::Value;
+    fn ins_iconst(&mut self, ty: Self::Type, val: i64) -> Self::Value;
+    fn ins_iadd(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
+    fn ins_ret(&mut self, values: Option<Self::Value>);
 
+    fn get_param(&self, index: usize) -> Self::Value;
     fn finish(self);
 }

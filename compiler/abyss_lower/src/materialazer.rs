@@ -5,8 +5,29 @@ use abyss_types::TyKind;
 use crate::builder::{FunctionBuilder, ModuleBuilder, TypeBuilder};
 
 pub fn lower_function<M: ModuleBuilder>(db: &Nexus, module: &mut M, symbol: SymbolId) {
-    let id = db.symbols.get_copy(symbol);
-    println!("{:?}", id);
+    let id = db.symbol_hir_range.get_copy(symbol).end;
+    let func_ty_id = db.hir_to_type.get_copy(id);
+
+    if db.types.kind(func_ty_id) != TyKind::Func {
+        panic!("not a function") // FIXME: report a pretty error
+    }
+
+    let ret_type = lower_type(db, db.types.func_return(func_ty_id), module);
+
+    let params: Vec<M::Type> = db
+        .types
+        .func_params(func_ty_id)
+        .iter()
+        .map(|p| lower_type(db, *p, module))
+        .collect();
+
+    let func_id = module.declare_func(&format!("fn_{}", symbol.0), &params, ret_type);
+
+    let mut func_builder = module.define_func(func_id);
+
+    let func_body = db.hir.extra(db.hir.extra(id));
+
+    lower_expr(db, func_body, &mut func_builder);
 }
 
 fn lower_type<TB: TypeBuilder>(db: &Nexus, ty_id: TypeId, builder: &mut TB) -> TB::Type {
@@ -38,14 +59,14 @@ fn lower_type<TB: TypeBuilder>(db: &Nexus, ty_id: TypeId, builder: &mut TB) -> T
     }
 }
 
-// fn build_expr<B: FunctionBuilder>(db: &Nexus, id: HirId) {
-//     let kind = db.hir.kind(id);
+fn lower_expr<B: FunctionBuilder>(db: &Nexus, id: HirId, builder: &mut B) {
+    let kind = db.hir.kind(id);
 
-//     match kind {
-//         Hir::Binding => {
-//             let ty_id = db.hir_to_type.get_copy(id);
-//             if db.types.kind(ty_id) == TyKind::Func {}
-//         }
-//         _ => {}
-//     }
-// }
+    match kind {
+        Hir::Binding => {
+            let ty_id = db.hir_to_type.get_copy(id);
+            if db.types.kind(ty_id) == TyKind::Func {}
+        }
+        _ => {}
+    }
+}
