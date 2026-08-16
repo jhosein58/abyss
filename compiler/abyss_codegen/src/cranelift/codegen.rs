@@ -209,8 +209,8 @@ impl<'a> FunctionBuilder for CraneliftFnBuilder<'a> {
     fn ins_iconst(&mut self, ty: Self::Type, val: i64) -> Self::Value {
         self.builder.ins().iconst(ty, val)
     }
-    fn ins_fconst(&mut self, ty: Type, val: f64) -> Value {
-        self.builder.ins().const(val)
+    fn ins_fconst(&mut self, _ty: Type, val: f64) -> Value {
+        self.builder.ins().f64const(val)
     }
 
     // Integers
