@@ -1,6 +1,9 @@
 use abyss_hir::hir::{HirExprKind as Hir, HirTable};
 
-use crate::nexus::{FloatId, HirId, IntId, NameId};
+use crate::{
+    arena::ArenaId,
+    nexus::{FloatId, HirId, IntId, NameId},
+};
 
 #[derive(Default)]
 pub struct HirStorage {
@@ -108,8 +111,8 @@ impl HirStorage {
         self.alloc(
             Hir::Var,
             pattern.0,
-            ty.unwrap_or(HirId(u32::MAX)).0,
-            value.unwrap_or(HirId(u32::MAX)).0,
+            ty.unwrap_or(HirId::none()).0,
+            value.unwrap_or(HirId::none()).0,
         )
     }
     #[inline(always)]
@@ -117,13 +120,18 @@ impl HirStorage {
         self.alloc(
             Hir::Binding,
             name.0,
-            ty.unwrap_or(HirId(u32::MAX)).0,
-            value.unwrap_or(HirId(u32::MAX)).0,
+            ty.unwrap_or(HirId::none()).0,
+            value.unwrap_or(HirId::none()).0,
         )
     }
 
     #[inline(always)]
     pub fn alloc_error(&mut self) -> HirId {
         self.alloc(Hir::Error, 0, 0, 0)
+    }
+
+    #[inline(always)]
+    pub fn alloc_return(&mut self, value: Option<HirId>) -> HirId {
+        self.alloc(Hir::Ret, value.unwrap_or(HirId::none()).0, 0, 0)
     }
 }
