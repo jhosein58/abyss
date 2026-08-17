@@ -20,7 +20,6 @@ impl Parser<'_> {
 
             _ => {
                 self.report_expected_expression(self.span());
-                self.bump();
                 self.db.hir.alloc_error()
             }
         }
