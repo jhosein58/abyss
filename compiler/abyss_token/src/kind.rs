@@ -92,3 +92,15 @@ pub enum TokenKind {
     Unknown,
     Eof,
 }
+
+impl TryFrom<u8> for TokenKind {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        if value <= TokenKind::Eof as u8 {
+            Ok(unsafe { std::mem::transmute::<u8, TokenKind>(value) })
+        } else {
+            Err(())
+        }
+    }
+}
