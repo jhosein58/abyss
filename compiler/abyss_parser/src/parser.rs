@@ -103,12 +103,12 @@ impl<'a> Parser<'a> {
         false
     }
 
-    #[inline(always)]
     pub fn expect(&mut self, kind: TokenKind) {
         if self.peek() != Some(kind) {
-            panic!("Error: expected {:?}, found {:?}", kind, self.peek())
+            self.report_unexpected_token(kind);
+        } else {
+            self.bump();
         }
-        self.bump();
     }
 
     #[inline(always)]
