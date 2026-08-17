@@ -19,7 +19,7 @@ impl Parser<'_> {
             Tk::OParen => self.parse_paren(),
 
             _ => {
-                self.report_unexpected_token(Tk::Ident);
+                self.report_expected_expression(self.span());
                 self.bump();
                 self.db.hir.alloc_error()
             }
