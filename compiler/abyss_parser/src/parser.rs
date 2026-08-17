@@ -50,6 +50,9 @@ impl<'a> Parser<'a> {
 
     #[inline(always)]
     pub fn prev(&self) -> TokenKind {
+        if self.cursor == 0 {
+            return TokenKind::Eof;
+        }
         self.db.tokens.kind(self.tk_id(-1))
     }
 
