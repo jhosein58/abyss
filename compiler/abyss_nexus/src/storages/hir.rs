@@ -121,4 +121,9 @@ impl HirStorage {
             value.unwrap_or(HirId(u32::MAX)).0,
         )
     }
+
+    #[inline(always)]
+    pub fn alloc_error(&mut self) -> HirId {
+        self.alloc(Hir::Error, 0, 0, 0)
+    }
 }

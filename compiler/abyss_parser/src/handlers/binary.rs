@@ -18,9 +18,9 @@ impl Parser<'_> {
             Tk::Slash => HirExprKind::BinaryDiv,
             Tk::Percent => HirExprKind::BinaryMod,
             Tk::Eq => HirExprKind::BinaryAssign,
-
-            _ => unreachable!(),
+            _ => return self.db.hir.alloc_error(),
         };
+
         let id = self.db.hir.alloc_binary(kind, lhs, rhs);
         self.db.hir_spans.set(id, lhs_span.merge(*rhs_span));
         self.db.hir_files.set(id, self.file_id);
