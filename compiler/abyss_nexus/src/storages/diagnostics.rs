@@ -17,6 +17,11 @@ pub enum Severity {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum DiagnosticMessage {
+    // Parser
+    ExpectedTokenFound,
+
+    // Type Checker
+
     // Type Checker - Binary Operations
     TypeMismatchBinOpLhs,
     TypeMismatchBinOpRhs,
@@ -32,6 +37,9 @@ pub enum DiagnosticMessage {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum HintMessage {
+    // Parser
+    ParserSyncHint,
+
     // Type Checker
     TypeMismatchBinOp,
     TypeMismatchDecl,

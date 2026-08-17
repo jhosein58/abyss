@@ -1,10 +1,11 @@
 use std::fmt::Write;
 
 use abyss_nexus::{
-    nexus::{DiagnosticId, FileId, Nexus, TypeId},
+    nexus::{DiagnosticId, FileId, Nexus, TokenId, TypeId},
     span::Span,
     storages::diagnostics::{DiagnosticKind, DiagnosticMessage, HintMessage, Severity},
 };
+use abyss_token::kind::TokenKind;
 
 const RESET: &str = "\x1b[0m";
 const BOLD: &str = "\x1b[1m";
@@ -56,6 +57,14 @@ impl DiagnosticFormat for DiagnosticMessage {
                 format!(
                     "expected a type, found value of type '{}'",
                     nexus.types.name(TypeId(arg0))
+                )
+            }
+
+            DiagnosticMessage::ExpectedTokenFound => {
+                format!(
+                    "expected token {}, but found {}.",
+                    TokenKind::try_from(arg0 as u8).unwrap_or(TokenKind::Unknown),
+                    nexus.tokens.kind(TokenId(arg1))
                 )
             }
         }
