@@ -29,8 +29,24 @@ impl<'a> Parser<'a> {
     }
 
     #[inline(always)]
+    pub fn tk_id(&self, n: i32) -> TokenId {
+        // FIXME: -1 as u32 -> boom!
+        TokenId((self.cursor as i32 + n) as u32)
+    }
+
+    #[inline(always)]
     pub fn peek(&self) -> Option<TokenKind> {
-        (self.cursor < self.end).then(|| self.db.tokens.kind(TokenId(self.cursor)))
+        (self.cursor < self.end).then(|| self.db.tokens.kind(self.tk_id(0)))
+    }
+
+    #[inline(always)]
+    pub fn is_eof(&self) -> bool {
+        self.cursor < self.end
+    }
+
+    #[inline(always)]
+    pub fn prev(&self) -> TokenKind {
+        self.db.tokens.kind(self.tk_id(-1))
     }
 
     #[inline(always)]
@@ -43,6 +59,22 @@ impl<'a> Parser<'a> {
     #[inline(always)]
     pub fn peek_preceded_by_newline(&self) -> bool {
         self.cursor < self.end && self.db.tokens.preceded_by_newline(TokenId(self.cursor))
+    }
+
+    #[inline(always)]
+    pub fn sync(&mut self) {
+        while !self.is_eof() {
+            if self.db.tokens.preceded_by_newline(self.tk_id(-1)) {
+                break;
+            }
+
+            match self.prev() {
+                TokenKind::CBrace => break,
+                _ => {}
+            }
+
+            self.bump();
+        }
     }
 
     #[inline(always)]

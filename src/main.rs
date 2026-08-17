@@ -40,11 +40,12 @@ fn main() {
     println!("Compile Time: {:?}\n", elapsed);
 
     let code_ptr = backend.compile_and_get_ptr(func_id);
-    let main_fn: extern "C" fn() -> f32 = unsafe { std::mem::transmute(code_ptr) };
+    let main_fn: extern "C" fn() -> i32 = unsafe { std::mem::transmute(code_ptr) };
 
     let t = Instant::now();
     let result = main_fn();
+    let elapsed = t.elapsed();
 
     println!("main says: {}\n", result);
-    println!("Run Time: {:?}", t.elapsed());
+    println!("Run Time: {:?}", elapsed);
 }
