@@ -27,9 +27,8 @@ fn main() {
     tyck::type_check(&mut nexus, main_range);
 
     // Compile
-    // let mut backend = CraneliftBackend::new();
-
-    // let func_id = abyss_lower::materialazer::lower_function(&nexus, &mut backend, main_symbol_id);
+    //let mut backend = CraneliftBackend::new();
+    //let func_id = abyss_lower::materialazer::lower_function(&nexus, &mut backend, main_symbol_id);
 
     let elapsed = t.elapsed();
 

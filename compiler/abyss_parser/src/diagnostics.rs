@@ -29,11 +29,11 @@ impl Parser<'_> {
         self.sync();
     }
 
-    pub fn report_invalid_binding_target(&mut self, invalid_target_span: Span) {
+    pub fn report_invalid_binding_target(&mut self, span: Span) {
         self.db.diagnostics.add_label(
             DiagnosticMessage::ExpectedIdentifierInBinding,
             self.file_id,
-            invalid_target_span,
+            span,
             true,
         );
 
@@ -42,8 +42,28 @@ impl Parser<'_> {
             0,
             0,
             self.file_id,
-            invalid_target_span,
+            span,
             Some(HintMessage::BindingPatternNotSupported),
+        );
+
+        self.sync();
+    }
+
+    pub fn report_out_of_range_integer_literal(&mut self, span: Span) {
+        self.db.diagnostics.add_label(
+            DiagnosticMessage::IntegerLiteralOverflow,
+            self.file_id,
+            span,
+            true,
+        );
+
+        self.db.diagnostics.error(
+            DiagnosticKind::LiteralOutOfRange,
+            0,
+            0,
+            self.file_id,
+            span,
+            Some(HintMessage::IntegerLiteralRangeHint),
         );
 
         self.sync();

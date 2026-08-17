@@ -81,7 +81,7 @@ fn lower_expr<B: FunctionBuilder>(
             let cl_ty = lower_type(db, ty_id, builder);
 
             if db.types.kind(ty_id) == TyKind::Int {
-                Some(builder.ins_iconst(cl_ty, val))
+                Some(builder.ins_iconst(cl_ty, val as i64))
             } else {
                 Some(builder.ins_fconst(cl_ty, val as f64))
             }
