@@ -1,4 +1,4 @@
-use abyss_nexus::nexus::HirId;
+use abyss_nexus::{nexus::HirId, span::Span};
 
 use crate::parser::Parser;
 
@@ -16,7 +16,7 @@ impl Parser<'_> {
                 id
             }
             Err(_) => {
-                self.report_out_of_range_integer_literal(span);
+                self.report_int_overflow(span);
                 self.db.hir.alloc_error()
             }
         }
@@ -31,13 +31,21 @@ impl Parser<'_> {
 
         match text_value.parse::<f64>() {
             Ok(value) => {
+                if value == f64::INFINITY {
+                    self.report_float_overflow(span);
+                    return self.db.hir.alloc_error();
+                }
+
                 let id = self.db.hir.alloc_float(self.db.floats.alloc(value));
                 self.db.hir_spans.set(id, span);
                 self.db.hir_files.set(id, self.file_id);
+
                 id
             }
+
             Err(_) => {
-                self.report_out_of_range_float_literal(span);
+                .1.2;
+                self.report_float_overflow(span);
                 self.db.hir.alloc_error()
             }
         }

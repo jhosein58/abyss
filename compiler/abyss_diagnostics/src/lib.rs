@@ -115,7 +115,8 @@ impl DiagnosticFormat for HintMessage {
             }
             HintMessage::FloatLiteralRangeHint => {
                 format!(
-                    "the value must be within the finite range of a 32-bit float (approx -3.4e38 to 3.4e38)"
+                    "the value must be within the finite range of a 64-bit float (approx 0. to {:2e})",
+                    f64::MAX
                 )
             }
         }
