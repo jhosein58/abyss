@@ -45,7 +45,7 @@ impl<'a> Indexer<'a> {
                         && self.db.tokens.kind(TokenId(self.cursor + 1)) == TokenKind::ColonColon
                     {
                         if let Some((start_tk, name_id)) = current_symbol {
-                            let end_tk = TokenId(self.cursor - 1);
+                            let end_tk = TokenId(self.cursor);
                             self.db.symbol_index.insert(
                                 (self.file_id, name_id),
                                 TokenRange {
@@ -70,7 +70,7 @@ impl<'a> Indexer<'a> {
         }
 
         if let Some((start_tk, name_id)) = current_symbol {
-            let end_tk = TokenId(self.end.saturating_sub(1));
+            let end_tk = TokenId(self.end);
             self.db.symbol_index.insert(
                 (self.file_id, name_id),
                 TokenRange {
