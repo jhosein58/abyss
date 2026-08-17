@@ -26,6 +26,7 @@ impl DiagnosticFormat for DiagnosticKind {
             DiagnosticKind::UnexpectedToken => String::from("Unexpected token encountered"),
             DiagnosticKind::InvalidBindingTarget => String::from("Invalid binding target"),
             DiagnosticKind::LiteralOutOfRange => String::from("Literal value out of range"),
+            DiagnosticKind::ExpectedExpression => String::from("expected expression"),
 
             // tyck
             DiagnosticKind::TypeMismatch => String::from("Mismatched types"),
@@ -119,6 +120,10 @@ impl DiagnosticFormat for HintMessage {
                     f64::MAX
                 )
             }
+
+            HintMessage::ExpectedExpressionHint => String::from(
+                "an expression can be a literal, identifier, block `{ ... }`, or control flow like `if`",
+            ),
         }
     }
 }

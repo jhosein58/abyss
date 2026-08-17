@@ -7,8 +7,8 @@ impl Parser<'_> {
     #[inline]
     pub fn dispatch_prefix(&mut self) -> HirId {
         let Some(tk) = self.peek() else {
-            self.bump();
-            return HirId(0);
+            self.report_unexpected_token(Tk::Eof);
+            return self.db.hir.alloc_error();
         };
 
         match tk {
@@ -19,9 +19,10 @@ impl Parser<'_> {
             Tk::OParen => self.parse_paren(),
 
             _ => {
+                self.report_unexpected_token(Tk::Ident);
                 self.bump();
-                HirId(0)
-            } // TODO: error node
+                self.db.hir.alloc_error()
+            }
         }
     }
 

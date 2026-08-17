@@ -9,15 +9,13 @@ impl Parser<'_> {
     pub fn parse_paren(&mut self) -> HirId {
         self.bump();
 
-        if self.peek() == Some(TokenKind::CParen) {
-            self.bump();
+        if self.optional(TokenKind::CParen) {
             return self.parse_fn_tail(NONE);
         }
 
         let first = self.parse_expr(0);
 
-        if self.peek() == Some(TokenKind::CParen) {
-            self.bump();
+        if self.optional(TokenKind::CParen) {
             return first;
         }
 
@@ -25,8 +23,7 @@ impl Parser<'_> {
         let mut pending_names = vec![first];
 
         loop {
-            if self.peek() == Some(TokenKind::Comma) {
-                self.bump();
+            if self.optional(TokenKind::Comma) {
             } else if self.peek() != Some(TokenKind::CParen) && self.peek().is_some() {
                 let ty = self.parse_expr(0).0;
 
@@ -34,9 +31,7 @@ impl Parser<'_> {
                     args.push(self.db.hir.alloc_arg(name, ty).0);
                 }
 
-                if self.peek() == Some(TokenKind::Comma) {
-                    self.bump();
-                }
+                self.optional(TokenKind::Comma);
             }
 
             if self.peek() == Some(TokenKind::CParen) || self.peek().is_none() {
@@ -44,16 +39,18 @@ impl Parser<'_> {
             }
 
             let name = self.parse_expr(0);
-            pending_names.push(name);
+            if name != self.db.hir.alloc_error() {
+                pending_names.push(name);
+            } else {
+                self.sync();
+            }
         }
 
         for name in pending_names {
             args.push(self.db.hir.alloc_arg(name, NONE).0);
         }
 
-        if self.peek() == Some(TokenKind::CParen) {
-            self.bump();
-        }
+        self.expect(TokenKind::CParen);
 
         let params = self.db.add_list_flat(&args);
         self.parse_fn_tail(params)
@@ -67,7 +64,6 @@ impl Parser<'_> {
         };
 
         let body = self.parse_block();
-
         self.db.hir.alloc_function(params, ret, body.0)
     }
 }

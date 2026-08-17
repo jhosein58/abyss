@@ -45,6 +45,7 @@ pub enum HintMessage {
     BindingPatternNotSupported,
     IntegerLiteralRangeHint,
     FloatLiteralRangeHint,
+    ExpectedExpressionHint,
 
     // Type Checker
     TypeMismatchBinOp,
@@ -59,6 +60,7 @@ pub enum DiagnosticKind {
     UnexpectedToken,
     InvalidBindingTarget,
     LiteralOutOfRange,
+    ExpectedExpression,
 
     // Type Checker
     TypeMismatch,
