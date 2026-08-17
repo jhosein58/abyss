@@ -78,19 +78,16 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            if self.cursor > 0 && self.prev() == TokenKind::CBrace {
+            let next = self.peek();
+
+            if matches!(next, Some(TokenKind::CBrace) | Some(TokenKind::OBrace)) {
                 break;
             }
 
-            match self.peek() {
-                // ident :: expr
-                Some(TokenKind::Ident) => {
-                    if let Some(TokenKind::ColonColon) = self.peek_n(1) {
-                        break;
-                    }
-                }
-
-                _ => {}
+            if matches!(next, Some(TokenKind::Ident))
+                && matches!(self.peek_n(1), Some(TokenKind::ColonColon))
+            {
+                break;
             }
 
             self.bump();

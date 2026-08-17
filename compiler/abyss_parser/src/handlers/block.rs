@@ -1,3 +1,4 @@
+use abyss_hir::hir::HirExprKind;
 use abyss_nexus::nexus::HirId;
 use abyss_token::kind::TokenKind as Tk;
 
@@ -25,10 +26,8 @@ impl Parser<'_> {
                 }
                 _ => {
                     let item = self.parse_expr(0);
-                    if item != HirId(0) {
+                    if self.db.hir.kind(item) != HirExprKind::Error {
                         items.push(item.0);
-                    } else {
-                        self.sync();
                     }
                 }
             }
@@ -45,4 +44,7 @@ impl Parser<'_> {
 
         hir_id
     }
+
+    // #[inline(always)]
+    // pub fn parse_return_stmt(&mut self, id: HirId) -> HirId {}
 }
