@@ -1,4 +1,7 @@
-use abyss_nexus::storages::diagnostics::{DiagnosticKind, DiagnosticMessage};
+use abyss_nexus::{
+    span::Span,
+    storages::diagnostics::{DiagnosticKind, DiagnosticMessage, HintMessage},
+};
 use abyss_token::kind::TokenKind;
 
 use crate::parser::Parser;
@@ -21,6 +24,26 @@ impl Parser<'_> {
             self.file_id,
             self.span(),
             None,
+        );
+
+        self.sync();
+    }
+
+    pub fn report_invalid_binding_target(&mut self, invalid_target_span: Span) {
+        self.db.diagnostics.add_label(
+            DiagnosticMessage::ExpectedIdentifierInBinding,
+            self.file_id,
+            invalid_target_span,
+            true,
+        );
+
+        self.db.diagnostics.error(
+            DiagnosticKind::InvalidBindingTarget,
+            0,
+            0,
+            self.file_id,
+            invalid_target_span,
+            Some(HintMessage::BindingPatternNotSupported),
         );
 
         self.sync();

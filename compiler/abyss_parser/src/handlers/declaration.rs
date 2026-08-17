@@ -20,19 +20,18 @@ impl Parser<'_> {
     #[inline(always)]
     fn inner_parse_var_decl(&mut self, lhs: HirId, _: u8) -> HirId {
         if self.db.hir.kind(lhs) != Hir::Ident {
-            panic!("patterns not supported yet");
+            self.report_invalid_binding_target(self.db.hir_spans.get_copy(lhs));
+            return self.db.hir.alloc_error();
         }
 
         let symbol_id = self.db.symbols.alloc(lhs);
         self.db.hir_to_symbol.set(lhs, symbol_id);
 
-        // define in scope
         let name_id = self.db.hir.ident_name(lhs);
         self.env.define(name_id, symbol_id);
 
         if self.optional(Tk::Eq) {
             let value = self.parse_expr(0);
-
             return self.db.hir.alloc_var(lhs, None, Some(value));
         }
 
@@ -40,20 +39,17 @@ impl Parser<'_> {
 
         if self.optional(Tk::Eq) {
             let value = self.parse_expr(0);
-
             return self.db.hir.alloc_var(lhs, Some(rhs), Some(value));
         } else if self.optional(Tk::Colon) {
             let value = self.parse_expr(0);
-
             return self.db.hir.alloc_binding(lhs, Some(rhs), Some(value));
         }
 
-        return self.db.hir.alloc_var(lhs, Some(rhs), None);
+        self.db.hir.alloc_var(lhs, Some(rhs), None)
     }
 
     pub fn parse_binding(&mut self, lhs: HirId, right_bp: u8) -> HirId {
         let rhs = self.parse_expr(right_bp);
-
-        return self.db.hir.alloc_binding(lhs, None, Some(rhs));
+        self.db.hir.alloc_binding(lhs, None, Some(rhs))
     }
 }
