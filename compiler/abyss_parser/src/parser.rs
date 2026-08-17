@@ -40,8 +40,13 @@ impl<'a> Parser<'a> {
     }
 
     #[inline(always)]
+    pub fn peek_n(&self, n: u32) -> Option<TokenKind> {
+        let target = self.cursor + n;
+        (target < self.end).then(|| self.db.tokens.kind(TokenId(target)))
+    }
+
     pub fn is_eof(&self) -> bool {
-        self.cursor < self.end
+        self.cursor >= self.end
     }
 
     #[inline(always)]
@@ -61,15 +66,27 @@ impl<'a> Parser<'a> {
         self.cursor < self.end && self.db.tokens.preceded_by_newline(TokenId(self.cursor))
     }
 
-    #[inline(always)]
     pub fn sync(&mut self) {
+        if !self.is_eof() {
+            self.bump();
+        }
+
         while !self.is_eof() {
-            if self.db.tokens.preceded_by_newline(self.tk_id(-1)) {
+            if self.peek_preceded_by_newline() {
                 break;
             }
 
-            match self.prev() {
-                TokenKind::CBrace => break,
+            if self.cursor > 0 && self.prev() == TokenKind::CBrace {
+                break;
+            }
+
+            match self.peek() {
+                // ident :: expr
+                Some(TokenKind::Ident) => {
+                    if let Some(TokenKind::ColonColon) = self.peek_n(1) {
+                        break;
+                    }
+                }
                 _ => {}
             }
 
