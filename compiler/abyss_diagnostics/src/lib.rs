@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use abyss_nexus::{
-    nexus::{DiagnosticId, FileId, Nexus, TokenId, TypeId},
+    nexus::{DiagnosticId, FileId, Nexus, TypeId},
     span::Span,
     storages::diagnostics::{DiagnosticKind, DiagnosticMessage, HintMessage, Severity},
 };
