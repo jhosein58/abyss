@@ -10,6 +10,11 @@ impl Parser<'_> {
     pub fn report_unexpected_token(&mut self, expected: TokenKind) {
         let found = self.peek().unwrap_or(TokenKind::Eof);
 
+        if found == TokenKind::Eof {
+            self.report_unexpected_eof(self.span());
+            return;
+        }
+
         self.db.diagnostics.add_label(
             DiagnosticMessage::ExpectedTokenFound,
             self.file_id,
@@ -98,5 +103,20 @@ impl Parser<'_> {
             span,
             Some(HintMessage::ExpectedExpressionHint),
         );
+
+        self.sync();
+    }
+
+    pub fn report_unexpected_eof(&mut self, span: Span) {
+        self.db.diagnostics.error(
+            DiagnosticKind::UnexpectedEof,
+            0,
+            0,
+            self.file_id,
+            span,
+            Some(HintMessage::UnexpectedEofHint),
+        );
+
+        self.sync();
     }
 }
