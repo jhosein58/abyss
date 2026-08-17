@@ -68,4 +68,24 @@ impl Parser<'_> {
 
         self.sync();
     }
+
+    pub fn report_out_of_range_float_litera(&mut self, span: Span) {
+        self.db.diagnostics.add_label(
+            DiagnosticMessage::FloatLiteralOverflow,
+            self.file_id,
+            span,
+            true,
+        );
+
+        self.db.diagnostics.error(
+            DiagnosticKind::LiteralOutOfRange,
+            0,
+            0,
+            self.file_id,
+            span,
+            Some(HintMessage::FloatLiteralRangeHint),
+        );
+
+        self.sync();
+    }
 }
