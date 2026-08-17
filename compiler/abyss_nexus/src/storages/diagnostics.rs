@@ -21,6 +21,7 @@ pub enum DiagnosticMessage {
     ExpectedTokenFound,
     ExpectedIdentifierInBinding,
     IntegerLiteralOverflow,
+    FloatLiteralOverflow,
 
     // Type Checker
 
@@ -43,6 +44,7 @@ pub enum HintMessage {
     ParserSyncHint,
     BindingPatternNotSupported,
     IntegerLiteralRangeHint,
+    FloatLiteralRangeHint,
 
     // Type Checker
     TypeMismatchBinOp,

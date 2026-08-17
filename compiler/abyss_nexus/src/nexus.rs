@@ -35,7 +35,7 @@ pub struct Nexus {
     pub diagnostics: DiagnosticStorage,
 
     // Primitive Stores
-    pub ints: Arena<IntId, i64>,
+    pub ints: Arena<IntId, u64>, // FIXME: change it to string
     pub floats: Arena<FloatId, f64>,
     pub u32_items: Vec<u32>,
 

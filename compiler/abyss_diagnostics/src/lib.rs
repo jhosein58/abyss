@@ -77,8 +77,11 @@ impl DiagnosticFormat for DiagnosticMessage {
                 String::from("expected an identifier on the left-hand side of binding operator")
             }
             DiagnosticMessage::IntegerLiteralOverflow => String::from(
-                "integer literal is too large to fit in a 64-bit signed integer (`i64`)",
+                "integer literal is too large to fit in a 64-bit unsigned integer (`u64`)",
             ),
+            DiagnosticMessage::FloatLiteralOverflow => {
+                String::from("float literal is too large to be represented")
+            }
         }
     }
 }
@@ -109,6 +112,11 @@ impl DiagnosticFormat for HintMessage {
 
             HintMessage::IntegerLiteralRangeHint => {
                 format!("value must be between {} and {}", u64::MIN, u64::MAX)
+            }
+            HintMessage::FloatLiteralRangeHint => {
+                format!(
+                    "the value must be within the finite range of a 32-bit float (approx -3.4e38 to 3.4e38)"
+                )
             }
         }
     }
