@@ -20,6 +20,7 @@ pub enum DiagnosticMessage {
     // Parser
     ExpectedTokenFound,
     ExpectedIdentifierInBinding,
+    IntegerLiteralOverflow,
 
     // Type Checker
 
@@ -41,6 +42,7 @@ pub enum HintMessage {
     // Parser
     ParserSyncHint,
     BindingPatternNotSupported,
+    IntegerLiteralRangeHint,
 
     // Type Checker
     TypeMismatchBinOp,
@@ -54,6 +56,7 @@ pub enum DiagnosticKind {
     // Parser
     UnexpectedToken,
     InvalidBindingTarget,
+    LiteralOutOfRange,
 
     // Type Checker
     TypeMismatch,

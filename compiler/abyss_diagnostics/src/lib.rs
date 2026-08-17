@@ -25,6 +25,7 @@ impl DiagnosticFormat for DiagnosticKind {
             //parser
             DiagnosticKind::UnexpectedToken => String::from("Unexpected token encountered"),
             DiagnosticKind::InvalidBindingTarget => String::from("Invalid binding target"),
+            DiagnosticKind::LiteralOutOfRange => String::from("Literal value out of range"),
 
             // tyck
             DiagnosticKind::TypeMismatch => String::from("Mismatched types"),
@@ -75,6 +76,9 @@ impl DiagnosticFormat for DiagnosticMessage {
             DiagnosticMessage::ExpectedIdentifierInBinding => {
                 String::from("expected an identifier on the left-hand side of binding operator")
             }
+            DiagnosticMessage::IntegerLiteralOverflow => String::from(
+                "integer literal is too large to fit in a 64-bit signed integer (`i64`)",
+            ),
         }
     }
 }
@@ -102,6 +106,10 @@ impl DiagnosticFormat for HintMessage {
             HintMessage::BindingPatternNotSupported => String::from(
                 "destructuring patterns and complex expressions are not supported here yet; use a simple identifier instead",
             ),
+
+            HintMessage::IntegerLiteralRangeHint => {
+                format!("value must be between {} and {}", u64::MIN, u64::MAX)
+            }
         }
     }
 }
