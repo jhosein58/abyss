@@ -1,4 +1,4 @@
-use abyss_nexus::{nexus::HirId, span::Span};
+use abyss_nexus::nexus::HirId;
 
 use crate::parser::Parser;
 
@@ -44,7 +44,6 @@ impl Parser<'_> {
             }
 
             Err(_) => {
-                .1.2;
                 self.report_float_overflow(span);
                 self.db.hir.alloc_error()
             }

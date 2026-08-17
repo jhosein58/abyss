@@ -88,4 +88,15 @@ impl Parser<'_> {
 
         self.sync();
     }
+
+    pub fn report_expected_expression(&mut self, span: Span) {
+        self.db.diagnostics.error(
+            DiagnosticKind::ExpectedExpression,
+            0,
+            0,
+            self.file_id,
+            span,
+            Some(HintMessage::ExpectedExpressionHint),
+        );
+    }
 }
