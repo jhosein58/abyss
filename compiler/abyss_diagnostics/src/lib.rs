@@ -88,6 +88,8 @@ impl DiagnosticFormat for HintMessage {
             HintMessage::ExpectedTypeHint => {
                 "only types (such as 'i32', 'f32', 'bool') are allowed in this position".to_string()
             }
+
+            HintMessage::ParserSyncHint => "this is your problem, not mine.".to_string(),
         }
     }
 }
