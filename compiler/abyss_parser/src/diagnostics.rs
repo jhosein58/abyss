@@ -49,7 +49,7 @@ impl Parser<'_> {
         self.sync();
     }
 
-    pub fn report_out_of_range_integer_literal(&mut self, span: Span) {
+    pub fn report_int_overflow(&mut self, span: Span) {
         self.db.diagnostics.add_label(
             DiagnosticMessage::IntegerLiteralOverflow,
             self.file_id,
@@ -69,7 +69,7 @@ impl Parser<'_> {
         self.sync();
     }
 
-    pub fn report_out_of_range_float_literal(&mut self, span: Span) {
+    pub fn report_float_overflow(&mut self, span: Span) {
         self.db.diagnostics.add_label(
             DiagnosticMessage::FloatLiteralOverflow,
             self.file_id,
