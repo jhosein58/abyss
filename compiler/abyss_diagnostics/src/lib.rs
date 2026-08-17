@@ -27,6 +27,7 @@ impl DiagnosticFormat for DiagnosticKind {
             DiagnosticKind::InvalidBindingTarget => String::from("Invalid binding target"),
             DiagnosticKind::LiteralOutOfRange => String::from("Literal value out of range"),
             DiagnosticKind::ExpectedExpression => String::from("expected expression"),
+            DiagnosticKind::UnexpectedEof => String::from("unexpected end of file"),
 
             // tyck
             DiagnosticKind::TypeMismatch => String::from("Mismatched types"),
@@ -123,6 +124,10 @@ impl DiagnosticFormat for HintMessage {
 
             HintMessage::ExpectedExpressionHint => String::from(
                 "an expression can be a literal, identifier, block `{ ... }`, or control flow like `if`",
+            ),
+
+            HintMessage::UnexpectedEofHint => String::from(
+                "the expression or block is incomplete, check for unclosed delimiters like `}` or `)`",
             ),
         }
     }
