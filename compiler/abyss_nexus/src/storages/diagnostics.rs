@@ -19,6 +19,7 @@ pub enum Severity {
 pub enum DiagnosticMessage {
     // Parser
     ExpectedTokenFound,
+    ExpectedIdentifierInBinding,
 
     // Type Checker
 
@@ -39,6 +40,7 @@ pub enum DiagnosticMessage {
 pub enum HintMessage {
     // Parser
     ParserSyncHint,
+    BindingPatternNotSupported,
 
     // Type Checker
     TypeMismatchBinOp,
@@ -51,6 +53,7 @@ pub enum HintMessage {
 pub enum DiagnosticKind {
     // Parser
     UnexpectedToken,
+    InvalidBindingTarget,
 
     // Type Checker
     TypeMismatch,

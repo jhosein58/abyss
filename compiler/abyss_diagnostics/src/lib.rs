@@ -22,7 +22,11 @@ pub trait DiagnosticFormat {
 impl DiagnosticFormat for DiagnosticKind {
     fn format_message(&self, _nexus: &Nexus, _arg0: u32, _arg1: u32) -> String {
         match self {
+            //parser
             DiagnosticKind::UnexpectedToken => String::from("Unexpected token encountered"),
+            DiagnosticKind::InvalidBindingTarget => String::from("Invalid binding target"),
+
+            // tyck
             DiagnosticKind::TypeMismatch => String::from("Mismatched types"),
             DiagnosticKind::ExpectedType => String::from("Expected a type, found a value"),
         }
@@ -67,6 +71,10 @@ impl DiagnosticFormat for DiagnosticMessage {
                     TokenKind::try_from(arg1 as u8).unwrap_or(TokenKind::Unknown)
                 )
             }
+
+            DiagnosticMessage::ExpectedIdentifierInBinding => {
+                String::from("expected an identifier on the left-hand side of binding operator")
+            }
         }
     }
 }
@@ -90,6 +98,10 @@ impl DiagnosticFormat for HintMessage {
             }
 
             HintMessage::ParserSyncHint => "this is your problem, not mine.".to_string(),
+
+            HintMessage::BindingPatternNotSupported => String::from(
+                "destructuring patterns and complex expressions are not supported here yet; use a simple identifier instead",
+            ),
         }
     }
 }
