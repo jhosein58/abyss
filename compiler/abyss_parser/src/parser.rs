@@ -30,8 +30,7 @@ impl<'a> Parser<'a> {
 
     #[inline(always)]
     pub fn tk_id(&self, n: i32) -> TokenId {
-        // FIXME: -1 as u32 -> boom!
-        TokenId((self.cursor as i32 + n) as u32)
+        TokenId((self.cursor as i32 + n).max(0) as u32)
     }
 
     #[inline(always)]
@@ -87,6 +86,7 @@ impl<'a> Parser<'a> {
                         break;
                     }
                 }
+
                 _ => {}
             }
 
