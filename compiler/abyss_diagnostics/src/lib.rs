@@ -64,7 +64,7 @@ impl DiagnosticFormat for DiagnosticMessage {
                 format!(
                     "expected token {}, but found {}.",
                     TokenKind::try_from(arg0 as u8).unwrap_or(TokenKind::Unknown),
-                    nexus.tokens.kind(TokenId(arg1))
+                    TokenKind::try_from(arg1 as u8).unwrap_or(TokenKind::Unknown)
                 )
             }
         }
