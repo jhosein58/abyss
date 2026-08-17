@@ -1,4 +1,4 @@
-use abyss_nexus::nexus::{HirId, TokenId};
+use abyss_nexus::nexus::HirId;
 
 use crate::parser::Parser;
 
@@ -25,13 +25,21 @@ impl Parser<'_> {
     pub fn parse_float(&mut self) -> HirId {
         let span = self.span();
 
-        let value = self.db.tokens.text(TokenId(self.cursor));
-        let value = value.parse::<f64>().unwrap();
         self.bump();
-        let id = self.db.hir.alloc_float(self.db.floats.alloc(value));
 
-        self.db.hir_spans.set(id, span);
-        self.db.hir_files.set(id, self.file_id);
-        id
+        let text_value = self.db.tokens.text(self.tk_id(-1));
+
+        match text_value.parse::<f64>() {
+            Ok(value) => {
+                let id = self.db.hir.alloc_float(self.db.floats.alloc(value));
+                self.db.hir_spans.set(id, span);
+                self.db.hir_files.set(id, self.file_id);
+                id
+            }
+            Err(_) => {
+                self.report_out_of_range_float_literal(span);
+                self.db.hir.alloc_error()
+            }
+        }
     }
 }
