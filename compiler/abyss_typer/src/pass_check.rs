@@ -1,6 +1,6 @@
 use abyss_hir::hir::HirExprKind as Hir;
 use abyss_nexus::{
-    nexus::{HirId, Nexus, TypeId},
+    nexus::{HirId, Nexus},
     ranges::HirRange,
 };
 
@@ -11,15 +11,13 @@ pub fn check_all(db: &mut Nexus, range: HirRange) {
     let start = range.start.0;
     let end = range.end.0;
 
-    let mut func_ret_stack = Vec::with_capacity(16);
-
     for offset in (0..=(end - start)).rev() {
-        check_node(db, &mut func_ret_stack, HirId(start + offset));
+        check_node(db, HirId(start + offset));
     }
 }
 
 #[inline(always)]
-fn check_node(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
+fn check_node(db: &mut Nexus, id: HirId) {
     let kind = db.hir.kind(id);
 
     match kind {

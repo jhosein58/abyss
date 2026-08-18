@@ -17,6 +17,7 @@ pub enum TypeKey {
     Type,
     Unit,
     Func(Box<[TypeId]>, TypeId), // PERF: Box ro hazf kon
+    Never,
 
     Error,
 }
@@ -64,6 +65,7 @@ impl TypeStorage {
             TyKind::Ptr => format!("&{}", self.name(TypeId(self.payload(idx)))),
             TyKind::Type => format!("Type"),
             TyKind::Unit => format!("unit"),
+            TyKind::Never => format!("!"),
 
             TyKind::Func => format!(
                 "fn({}) {}",
@@ -132,8 +134,6 @@ impl TypeStorage {
         self.get_or_insert(TypeKey::Unit, TyKind::Unit, 0)
     }
 
-    // == Functions =>
-
     #[inline(always)]
     pub fn alloc_func(&mut self, params: &[TypeId], ret: TypeId) -> TypeId {
         let key = TypeKey::Func(params.into(), ret);
@@ -177,5 +177,10 @@ impl TypeStorage {
             .iter()
             .map(|v| TypeId(*v))
             .collect()
+    }
+
+    #[inline(always)]
+    pub fn alloc_never(&mut self) -> TypeId {
+        self.get_or_insert(TypeKey::Never, TyKind::Never, 0)
     }
 }
