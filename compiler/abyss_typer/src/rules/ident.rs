@@ -4,21 +4,6 @@ use abyss_nexus::{
 };
 
 #[inline(always)]
-pub fn check(db: &mut Nexus, id: HirId) {
-    let e = db.hir_to_expected.get_copy(id);
-
-    if e.is_some() {
-        let sym = db.hir_to_symbol.get_copy(id);
-
-        if sym.is_some() {
-            let root = db.symbols.get_copy(sym);
-
-            db.hir_to_expected.set(root, e);
-        }
-    }
-}
-
-#[inline(always)]
 pub fn synth(db: &mut Nexus, id: HirId) {
     let name_id = db.hir.ident_name(id);
     let name = db.interner.get(name_id);

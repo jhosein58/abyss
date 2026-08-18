@@ -7,27 +7,6 @@ use abyss_types::TyKind;
 use crate::diagnostics::{report_decl_type_mismatch, report_expected_type};
 
 #[inline(always)]
-pub fn check(db: &mut Nexus, id: HirId) {
-    let ty_hir_id = db.hir.rhs(id);
-    let val_hir_id = db.hir.extra(id);
-
-    if ty_hir_id.is_some() && val_hir_id.is_some() {
-        db.hir_to_expected.set(val_hir_id, ty_hir_id);
-        return;
-    }
-
-    // FIXME: baraye support kardan patteren ha inja bayad eslah beshe
-
-    let lhs_ident = db.hir.lhs(id);
-
-    let expected = db.hir_to_expected.get_copy(lhs_ident);
-
-    if expected.is_some() && ty_hir_id.is_none() {
-        db.hir_to_expected.set(val_hir_id, expected);
-    }
-}
-
-#[inline(always)]
 pub fn synth(db: &mut Nexus, id: HirId) {
     let ty_hir_id = db.hir.rhs(id);
     let val_hir_id = db.hir.extra(id);

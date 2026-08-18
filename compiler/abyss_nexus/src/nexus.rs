@@ -9,7 +9,7 @@ use crate::{
     span::Span,
     storages::{
         diagnostics::DiagnosticStorage, hir::HirStorage, interner::InternerStorage,
-        tokens::TokenStorage, types::TypeStorage,
+        tokens::TokenStorage, types::TypeStorage, unify::UnifyStorage,
     },
 };
 
@@ -24,6 +24,7 @@ arena_id!(SymbolId);
 arena_id!(TokenId);
 arena_id!(TypeId);
 arena_id!(DiagnosticId);
+arena_id!(SlotId);
 
 #[derive(Default)]
 pub struct Nexus {
@@ -33,6 +34,7 @@ pub struct Nexus {
     pub interner: InternerStorage,
     pub types: TypeStorage,
     pub diagnostics: DiagnosticStorage,
+    pub unify: UnifyStorage,
 
     // Primitive Stores
     pub ints: Arena<IntId, u64>, // FIXME: change it to string
@@ -75,6 +77,7 @@ impl Nexus {
         self.hir_to_type.grow_to(len);
         self.hir_to_type_value.grow_to(len);
         self.hir_to_expected.grow_to(len);
+        self.unify.grow_to(len);
     }
 
     pub fn add_list_flat(&mut self, items: &[u32]) -> u32 {
