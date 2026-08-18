@@ -12,6 +12,7 @@ pub enum TyKind {
     Type,
     Unit,
     Func,
+    Never,
 
     Error,
 }
