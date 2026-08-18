@@ -74,10 +74,15 @@ impl Parser<'_> {
         };
 
         // mark
-        self.db.hir.alloc(HirExprKind::MarkerFnEnd, 0, 0, 0);
+        let mark = self.db.hir.alloc(HirExprKind::MarkerFnStart, 0, 0, 0);
 
         let body = self.parse_block();
 
-        self.db.hir.alloc_function(params, ret, body.0)
+        let id = self.db.hir.alloc_function(params, ret, body.0);
+
+        // patch mark
+        self.db.hir.table.lhs[mark.0 as usize] = id.0;
+
+        id
     }
 }
