@@ -17,6 +17,7 @@ impl Parser<'_> {
             Tk::Ident => self.parse_ident(),
             Tk::OBrace => self.parse_block(),
             Tk::OParen => self.parse_paren(),
+            Tk::Ret => self.parse_return_stmt(),
 
             _ => {
                 self.report_expected_expression(self.span());

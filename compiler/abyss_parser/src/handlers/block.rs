@@ -45,6 +45,27 @@ impl Parser<'_> {
         hir_id
     }
 
-    // #[inline(always)]
-    // pub fn parse_return_stmt(&mut self, id: HirId) -> HirId {}
+    #[inline(always)]
+    pub fn parse_return_stmt(&mut self) -> HirId {
+        let start_span = self.span();
+        self.bump(); // ret
+
+        if self.peek_preceded_by_newline() || (self.peek() == Some(Tk::CBrace)) {
+            let stmt_id = self.db.hir.alloc_return(None);
+            self.db.hir_files.set(stmt_id, self.file_id);
+            self.db.hir_spans.set(stmt_id, start_span);
+
+            return stmt_id;
+        }
+
+        let val_id = self.parse_expr(0);
+
+        let stmt_id = self.db.hir.alloc_return(Some(val_id));
+        self.db.hir_files.set(stmt_id, self.file_id);
+        self.db
+            .hir_spans
+            .set(stmt_id, start_span.merge(self.span()));
+
+        stmt_id
+    }
 }
