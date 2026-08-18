@@ -9,6 +9,7 @@ pub struct UnifyStorage {
     pub ranks: SideTable<SlotId, u8>,
     pub types: SideTable<SlotId, TypeId>,
     pub origins: SideTable<SlotId, HirId>,
+    pub hir_to_slot: SideTable<HirId, SlotId>,
 }
 
 impl UnifyStorage {
@@ -22,6 +23,7 @@ impl UnifyStorage {
         self.ranks.grow_to(capacity);
         self.types.grow_to(capacity);
         self.origins.grow_to(capacity);
+        self.origins.grow_to(capacity);
     }
 
     #[inline]
@@ -31,8 +33,14 @@ impl UnifyStorage {
 
         self.types.set(slot, TypeId::none());
         self.origins.set(slot, origin);
+        self.hir_to_slot.set(origin, slot);
 
         slot
+    }
+
+    #[inline]
+    pub fn get_slot(&mut self, id: HirId) -> SlotId {
+        self.hir_to_slot.get_copy(id)
     }
 
     #[inline]

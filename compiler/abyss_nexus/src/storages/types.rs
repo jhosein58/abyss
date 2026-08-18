@@ -9,6 +9,8 @@ use crate::{arena::ArenaId, nexus::TypeId};
 pub enum TypeKey {
     Unknown,
 
+    UntypedInt,
+    UntypedFloat,
     Int(u16), // bit width
     UInt(u16),
     Float(u16),
@@ -58,6 +60,8 @@ impl TypeStorage {
         match self.kind(idx) {
             TyKind::Unknown => "Unknown".to_string(),
 
+            TyKind::UntypedInt => format!("UtInt"),
+            TyKind::UntypedFloat => format!("UtFloat"),
             TyKind::Int => format!("i{}", self.payload(idx)),
             TyKind::UInt => format!("u{}", self.payload(idx)),
             TyKind::Float => format!("f{}", self.payload(idx)),
@@ -92,6 +96,16 @@ impl TypeStorage {
     #[inline(always)]
     pub fn alloc_unknown(&mut self) -> TypeId {
         self.get_or_insert(TypeKey::Unknown, TyKind::Unknown, 0)
+    }
+
+    #[inline(always)]
+    pub fn alloc_untyped_int(&mut self) -> TypeId {
+        self.get_or_insert(TypeKey::UntypedInt, TyKind::UntypedInt, 0)
+    }
+
+    #[inline(always)]
+    pub fn alloc_untyped_float(&mut self) -> TypeId {
+        self.get_or_insert(TypeKey::UntypedFloat, TyKind::UntypedFloat, 0)
     }
 
     #[inline(always)]
