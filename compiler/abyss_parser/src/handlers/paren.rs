@@ -1,3 +1,4 @@
+use abyss_hir::hir::HirExprKind;
 use abyss_nexus::nexus::HirId;
 use abyss_token::kind::TokenKind;
 
@@ -6,7 +7,7 @@ use crate::parser::Parser;
 const NONE: u32 = u32::MAX;
 
 impl Parser<'_> {
-    // FIXME:
+    // FIXME: tarotamiz taresh kon
     pub fn parse_paren(&mut self) -> HirId {
         let start_span = self.span();
         self.bump();
@@ -15,8 +16,11 @@ impl Parser<'_> {
             return self.parse_fn_tail(NONE);
         }
 
+        println!("ok");
+
         let first = self.parse_expr(0);
 
+        // (expr)
         if self.optional(TokenKind::CParen) {
             self.db
                 .hir_spans
@@ -58,6 +62,7 @@ impl Parser<'_> {
         self.expect(TokenKind::CParen);
 
         let params = self.db.add_list_flat(&args);
+
         self.parse_fn_tail(params)
     }
 
@@ -68,7 +73,11 @@ impl Parser<'_> {
             self.parse_expr(0).0
         };
 
+        // mark
+        self.db.hir.alloc(HirExprKind::MarkerFnEnd, 0, 0, 0);
+
         let body = self.parse_block();
+
         self.db.hir.alloc_function(params, ret, body.0)
     }
 }
