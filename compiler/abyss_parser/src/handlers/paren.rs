@@ -8,6 +8,7 @@ const NONE: u32 = u32::MAX;
 impl Parser<'_> {
     // FIXME:
     pub fn parse_paren(&mut self) -> HirId {
+        let start_span = self.span();
         self.bump();
 
         if self.optional(TokenKind::CParen) {
@@ -17,6 +18,9 @@ impl Parser<'_> {
         let first = self.parse_expr(0);
 
         if self.optional(TokenKind::CParen) {
+            self.db
+                .hir_spans
+                .set(first, start_span.merge(self.prev_span()));
             return first;
         }
 
