@@ -194,6 +194,7 @@ impl<'a> FunctionBuilder for CraneliftFnBuilder<'a> {
         self.builder.seal_block(block);
     }
 
+    // vars
     fn declare_var(&mut self, ty: Self::Type) -> Self::Var {
         self.builder.declare_var(ty)
     }
@@ -258,6 +259,9 @@ impl<'a> FunctionBuilder for CraneliftFnBuilder<'a> {
 
     fn ins_ret(&mut self, value: Option<Self::Value>) {
         self.builder.ins().return_(value.as_slice());
+
+        let dead_block = self.builder.create_block();
+        self.builder.switch_to_block(dead_block);
     }
 
     fn get_param(&self, index: usize) -> Self::Value {

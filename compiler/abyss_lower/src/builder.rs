@@ -51,7 +51,7 @@ pub trait FunctionBuilder: TypeBuilder {
     fn ins_fmul(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
     fn ins_fdiv(&mut self, lhs: Self::Value, rhs: Self::Value) -> Self::Value;
 
-    fn ins_ret(&mut self, values: Option<Self::Value>);
+    fn ins_ret(&mut self, value: Option<Self::Value>);
 
     fn get_param(&self, index: usize) -> Self::Value;
     fn finish(self);

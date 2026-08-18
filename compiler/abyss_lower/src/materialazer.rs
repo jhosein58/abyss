@@ -1,5 +1,8 @@
 use abyss_hir::hir::HirExprKind as Hir;
-use abyss_nexus::nexus::{FloatId, HirId, IntId, Nexus, SymbolId, TypeId};
+use abyss_nexus::{
+    arena::ArenaId,
+    nexus::{FloatId, HirId, IntId, Nexus, SymbolId, TypeId},
+};
 use abyss_types::TyKind;
 
 use crate::builder::{FunctionBuilder, ModuleBuilder, TypeBuilder};
@@ -55,8 +58,8 @@ pub fn lower_function<M: ModuleBuilder>(db: &Nexus, module: &mut M, symbol: Symb
 
     if db.types.kind(ret_ty_id) == TyKind::Unit {
         func_builder.ins_ret(None);
-    } else {
-        func_builder.ins_ret(body_value);
+    } else if let Some(val) = body_value {
+        func_builder.ins_ret(Some(val));
     }
 
     func_builder.finish();
@@ -191,6 +194,20 @@ fn lower_expr<B: FunctionBuilder>(
             }
 
             last_value
+        }
+
+        Hir::Ret => {
+            let mut val = None;
+
+            let lhs = db.hir.lhs(id);
+
+            if lhs.is_some() {
+                val = lower_expr(db, ctx, lhs, builder);
+            }
+
+            builder.ins_ret(val);
+
+            None
         }
 
         _ => None,
