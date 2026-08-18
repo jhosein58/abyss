@@ -56,3 +56,8 @@ pub fn synth_func(db: &mut Nexus, id: HirId) {
 
     db.hir_to_type.set(id, func_type);
 }
+
+#[inline(always)]
+pub fn synth_return(db: &mut Nexus, id: HirId) {
+    db.hir_to_type.set(id, db.types.alloc_never());
+}

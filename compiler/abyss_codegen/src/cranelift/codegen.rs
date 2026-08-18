@@ -80,6 +80,10 @@ impl TypeBuilder for CraneliftBackend {
         types::INVALID
     }
 
+    fn type_never(&mut self) -> Self::Type {
+        types::INVALID
+    }
+
     fn type_func(&mut self, _params: &[Self::Type], _ret: Self::Type) -> Self::Type {
         self.type_ptr(None)
     }
@@ -169,6 +173,10 @@ impl<'a> TypeBuilder for CraneliftFnBuilder<'a> {
     }
 
     fn type_unit(&mut self) -> Self::Type {
+        types::INVALID
+    }
+
+    fn type_never(&mut self) -> Self::Type {
         types::INVALID
     }
 

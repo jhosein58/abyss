@@ -33,8 +33,8 @@ fn synth_node(db: &mut Nexus, id: HirId) {
         Hir::Binding | Hir::Var => declaration::synth(db, id), // FIXME: bayad jodaa beshe be hamrah type 'const'
 
         Hir::Arg => func::synth_arg(db, id),
-
         Hir::Function => func::synth_func(db, id),
+        Hir::Ret => func::synth_return(db, id),
 
         Hir::Block => block::synth(db, id),
 
