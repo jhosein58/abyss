@@ -58,6 +58,31 @@ pub fn synth_func(db: &mut Nexus, id: HirId) {
 }
 
 #[inline(always)]
+pub fn check_func(db: &mut Nexus, stack: &mut Vec<HirId>, id: HirId) {
+    let ret_hir_id = db.hir.rhs(id);
+    stack.push(ret_hir_id);
+}
+
+#[inline(always)]
+pub fn check_return(db: &mut Nexus, stack: &mut Vec<HirId>, id: HirId) {
+    if let Some(&last) = stack.last() {
+        let lhs = db.hir.lhs(id);
+
+        if lhs.is_some() {
+            if last.is_none() {
+                panic!("function return type is unit"); // FIXME: use diags
+            }
+
+            db.hir_to_expected.set(lhs, last);
+        } else {
+            if last.is_some() {
+                panic!("function return value but you nothing returns"); // FIXME: use diags
+            }
+        }
+    }
+}
+
+#[inline(always)]
 pub fn synth_return(db: &mut Nexus, id: HirId) {
     db.hir_to_type.set(id, db.types.alloc_never());
 }
