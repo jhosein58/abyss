@@ -7,6 +7,7 @@ use abyss_types::TyKind;
 use crate::diagnostics::report_expected_type;
 
 // FIXME: logic comptime va eval kardan type ezaafe beshe
+#[inline(always)]
 pub fn synth_arg(db: &mut Nexus, id: HirId) {
     let ty_hir_id = db.hir.rhs(id);
     let ty_id = db.hir_to_type.get_copy(ty_hir_id);
@@ -23,6 +24,7 @@ pub fn synth_arg(db: &mut Nexus, id: HirId) {
     db.hir_to_type.set(id, ty_id);
 }
 
+#[inline(always)]
 pub fn synth_func(db: &mut Nexus, id: HirId) {
     let ret_hir_id = db.hir.rhs(id);
 
