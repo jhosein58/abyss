@@ -8,11 +8,13 @@ use abyss_parser::parser::Parser;
 use abyss_typer::tyck;
 
 fn main() {
-    let t = Instant::now();
+    let source = fs::read_to_string("main.a").unwrap();
+
+    let tc = Instant::now();
 
     let mut nexus = Nexus::new();
 
-    let file_id = nexus.add_file("main.a", fs::read_to_string("main.a").unwrap());
+    let file_id = nexus.add_file("main.a", source);
     nexus.lex_file(file_id);
 
     Indexer::index(&mut nexus, file_id);
@@ -27,24 +29,23 @@ fn main() {
     tyck::type_check(&mut nexus, main_range);
 
     // Compile
-    let mut backend = CraneliftBackend::new();
-    let func_id = abyss_lower::materialazer::lower_function(&nexus, &mut backend, main_symbol_id);
+    // let mut backend = CraneliftBackend::new();
+    // let func_id = abyss_lower::materialazer::lower_function(&nexus, &mut backend, main_symbol_id);
+    // let code_ptr = backend.compile_and_get_ptr(func_id);
+    // let main_fn: extern "C" fn() -> i32 = unsafe { std::mem::transmute(code_ptr) };
 
-    let elapsed = t.elapsed();
+    let comptime = tc.elapsed();
 
     nexus.dump_hir();
     let formater = DiagnosticFormatter::new(&nexus);
     let diagnostics = formater.format_all();
     println!("{}", diagnostics);
-    println!("Compile Time: {:?}\n", elapsed);
+    println!("Compile Time: {:?}\n", comptime);
 
-    let code_ptr = backend.compile_and_get_ptr(func_id);
-    let main_fn: extern "C" fn() -> i32 = unsafe { std::mem::transmute(code_ptr) };
+    // let tr = Instant::now();
+    // let result = main_fn();
+    // let runtime = tr.elapsed();
 
-    let t = Instant::now();
-    let result = main_fn();
-    let elapsed = t.elapsed();
-
-    println!("main says: {}\n", result);
-    println!("Run Time: {:?}", elapsed);
+    // println!("main says: {}\n", result);
+    // println!("Run Time: {:?}", runtime);
 }
