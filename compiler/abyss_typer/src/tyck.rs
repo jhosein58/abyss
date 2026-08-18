@@ -4,6 +4,8 @@ use abyss_nexus::{
     ranges::HirRange,
 };
 
+use crate::rules::literal;
+
 pub fn type_check(db: &mut Nexus, range: HirRange) {
     let start = range.start.0;
     let end = range.end.0;
@@ -18,6 +20,8 @@ fn synth_node(db: &mut Nexus, id: HirId) {
     let kind = db.hir.kind(id);
 
     match kind {
+        Hir::LitInt => literal::synth_int(db, id),
+
         _ => {}
     }
 }
