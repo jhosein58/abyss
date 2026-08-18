@@ -221,6 +221,7 @@ fn lower_type<TB: TypeBuilder>(db: &Nexus, ty_id: TypeId, builder: &mut TB) -> T
         TyKind::UInt => builder.type_uint(db.types.payload(ty_id) as u16),
         TyKind::Float => builder.type_float(db.types.payload(ty_id) as u16),
         TyKind::Bool => builder.type_bool(),
+        TyKind::Never => builder.type_never(),
 
         TyKind::Ptr => {
             let pointee = lower_type(db, TypeId(db.types.payload(ty_id)), builder);
