@@ -86,7 +86,7 @@ pub enum HirExprKind {
     Error,
 
     // markers
-    MarkerFnEnd, // FIXME: i need to find a better way :/
+    MarkerFnStart, // FIXME: i need to find a better way :/
 }
 
 #[derive(Default)]
