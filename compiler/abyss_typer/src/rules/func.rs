@@ -85,35 +85,38 @@ pub fn synth_arg(db: &mut Nexus, id: HirId) {
     db.unify.union(&mut db.types, slot, ident_slot).unwrap(); // FIXME
 }
 
-// #[inline(always)]
-// pub fn synth_func(db: &mut Nexus, id: HirId) {
-//     let ret_hir_id = db.hir.rhs(id);
+#[inline(always)]
+pub fn synth_func(db: &mut Nexus, id: HirId) {
+    let slot = db.unify.new_slot(id);
 
-//     let ret_ty_id = if ret_hir_id.is_none() {
-//         db.types.alloc_unit()
-//     } else {
-//         let real_ret_ty_id = db.hir_to_type.get_copy(ret_hir_id);
+    let ret_hir_id = db.hir.rhs(id);
 
-//         if db.types.kind(real_ret_ty_id) != TyKind::Type {
-//             report_expected_type(db, ret_hir_id, real_ret_ty_id);
-//             db.types.alloc_error()
-//         } else {
-//             db.hir_to_type_value.get_copy(ret_hir_id)
-//         }
-//     };
+    let ret_ty_id = if ret_hir_id.is_none() {
+        db.types.alloc_unit()
+    } else {
+        let real_ret_ty_slot = db.unify.get_slot(ret_hir_id);
+        let real_ret_ty_id = db.unify.resolve_type(real_ret_ty_slot);
 
-//     let params = if db.hir.lhs(id).is_some() {
-//         db.get_list_flat(db.hir.lhs(id).0)
-//     } else {
-//         &[]
-//     };
+        if real_ret_ty_id != TypeId::TYPE {
+            report_expected_type(db, ret_hir_id, real_ret_ty_id);
+            db.types.alloc_error()
+        } else {
+            db.consts.get_type(ret_hir_id) // FIXME: is comptime value available ?
+        }
+    };
 
-//     let params = params
-//         .iter()
-//         .map(|p| db.hir_to_type_value.get_copy(HirId(*p)))
-//         .collect::<Vec<TypeId>>(); // FIXME: remove vector allocation
+    let params = if db.hir.lhs(id).is_some() {
+        db.get_list_flat(db.hir.lhs(id).0).to_owned()
+    } else {
+        vec![] // FIXME: remove allocation
+    };
 
-//     let func_type = db.types.alloc_func(&params, ret_ty_id);
+    let params = params
+        .iter()
+        .map(|p| db.consts.get_type(HirId(*p)))
+        .collect::<Vec<TypeId>>(); // FIXME: remove vector allocation
 
-//     db.hir_to_type.set(id, func_type);
-// }
+    let func_type = db.types.alloc_func(&params, ret_ty_id);
+
+    db.unify.bind_type(&mut db.types, slot, func_type).unwrap(); // FIXME
+}
