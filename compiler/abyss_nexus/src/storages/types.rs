@@ -76,6 +76,10 @@ impl TypeStorage {
 
     #[inline(always)]
     pub fn kind(&self, idx: TypeId) -> TyKind {
+        if idx.is_none() {
+            return TyKind::Unknown;
+        }
+
         self.store.kinds[idx.0 as usize]
     }
 

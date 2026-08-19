@@ -29,10 +29,11 @@ fn main() {
     tyck::type_check(&mut nexus, main_range);
 
     // Compile
-    // let mut backend = CraneliftBackend::new();
-    // let func_id = abyss_lower::materialazer::lower_function(&nexus, &mut backend, main_symbol_id);
-    // let code_ptr = backend.compile_and_get_ptr(func_id);
-    // let main_fn: extern "C" fn() -> i32 = unsafe { std::mem::transmute(code_ptr) };
+    let mut backend = CraneliftBackend::new();
+    let func_id =
+        abyss_lower::materialazer::lower_function(&mut nexus, &mut backend, main_symbol_id);
+    let code_ptr = backend.compile_and_get_ptr(func_id);
+    let main_fn: extern "C" fn() -> i32 = unsafe { std::mem::transmute(code_ptr) };
 
     let comptime = tc.elapsed();
 
@@ -42,10 +43,10 @@ fn main() {
     println!("{}", diagnostics);
     println!("Compile Time: {:?}\n", comptime);
 
-    // let tr = Instant::now();
-    // let result = main_fn();
-    // let runtime = tr.elapsed();
+    let tr = Instant::now();
+    let result = main_fn();
+    let runtime = tr.elapsed();
 
-    // println!("main says: {}\n", result);
-    // println!("Run Time: {:?}", runtime);
+    println!("main says: {}\n", result);
+    println!("Run Time: {:?}", runtime);
 }
