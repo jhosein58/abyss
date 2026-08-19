@@ -8,6 +8,8 @@ use cranelift::{
     module::{Module, default_libcall_names},
 };
 
+use crate::provider::ComptimeProvider;
+
 pub struct CraneliftBackend {
     pub module: JITModule,
     pub ctx: Context,
@@ -29,6 +31,11 @@ impl CraneliftBackend {
     }
 
     pub fn compile_and_get_ptr(&mut self, func_id: FuncId) -> *const u8 {
+        let ptr = self.module.get_finalized_function(func_id);
+        if !ptr.is_null() {
+            return ptr;
+        }
+
         self.module
             .define_function(func_id, &mut self.ctx)
             .expect("Failed to define function");
@@ -37,6 +44,59 @@ impl CraneliftBackend {
         self.module.finalize_definitions().unwrap();
 
         self.module.get_finalized_function(func_id)
+    }
+}
+
+impl ComptimeProvider for CraneliftBackend {
+    type FuncHandle = FuncId;
+
+    fn eval_function(&mut self, handle: Self::FuncHandle, args: &[u64]) -> Option<u64> {
+        let ptr = self.compile_and_get_ptr(handle);
+
+        if ptr.is_null() {
+            return None;
+        }
+
+        let result = unsafe {
+            match args.len() {
+                0 => {
+                    let func: unsafe extern "C" fn() -> u64 = std::mem::transmute(ptr);
+                    func()
+                }
+                1 => {
+                    let func: unsafe extern "C" fn(u64) -> u64 = std::mem::transmute(ptr);
+                    func(args[0])
+                }
+                2 => {
+                    let func: unsafe extern "C" fn(u64, u64) -> u64 = std::mem::transmute(ptr);
+                    func(args[0], args[1])
+                }
+                3 => {
+                    let func: unsafe extern "C" fn(u64, u64, u64) -> u64 = std::mem::transmute(ptr);
+                    func(args[0], args[1], args[2])
+                }
+                4 => {
+                    let func: unsafe extern "C" fn(u64, u64, u64, u64) -> u64 =
+                        std::mem::transmute(ptr);
+                    func(args[0], args[1], args[2], args[3])
+                }
+                5 => {
+                    let func: unsafe extern "C" fn(u64, u64, u64, u64, u64) -> u64 =
+                        std::mem::transmute(ptr);
+                    func(args[0], args[1], args[2], args[3], args[4])
+                }
+                6 => {
+                    let func: unsafe extern "C" fn(u64, u64, u64, u64, u64, u64) -> u64 =
+                        std::mem::transmute(ptr);
+                    func(args[0], args[1], args[2], args[3], args[4], args[5])
+                }
+                _ => {
+                    panic!("Too many comptime arguments (max 6 supported directly)");
+                }
+            }
+        };
+
+        Some(result)
     }
 }
 
