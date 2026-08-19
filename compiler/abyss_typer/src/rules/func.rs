@@ -1,10 +1,54 @@
-use abyss_nexus::nexus::{HirId, Nexus};
+use abyss_nexus::{
+    arena::ArenaId,
+    nexus::{HirId, Nexus, TypeId},
+};
 
 #[inline(always)]
-pub fn synth_return(db: &mut Nexus, id: HirId) {
+pub fn check_func(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
+    let func_id = db.hir.lhs(id);
+    let ret_id = db.hir.rhs(func_id);
+
+    let ty_id = if ret_id.is_some() {
+        let slot = db.unify.get_slot(ret_id);
+        let ty_of_ty = db.unify.resolve_type(slot);
+
+        if ty_of_ty.is_some() && ty_of_ty == TypeId::TYPE {
+            let val = db.consts.get_type(ret_id);
+
+            if val.is_none() {
+                panic!() // FIXME
+            }
+
+            val
+        } else {
+            panic!(); // FIXME
+        }
+    } else {
+        db.types.alloc_unit()
+    };
+
+    stack.push(ty_id);
+}
+
+#[inline(always)]
+pub fn synth_return(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
     let slot = db.unify.new_slot(id);
     let never_tyid = db.types.alloc_never();
     db.unify.bind_type(&mut db.types, slot, never_tyid).unwrap(); // FIXME
+
+    let val = db.hir.lhs(id);
+    let val_slot = db.unify.get_slot(val);
+
+    if let Some(&l) = stack.last() {
+        if l.is_some() {
+            db.unify.bind_type(&mut db.types, val_slot, l).unwrap(); // FIXME
+        } else {
+            let unit_tyid = db.types.alloc_unit();
+            db.unify
+                .bind_type(&mut db.types, val_slot, unit_tyid)
+                .unwrap(); // FIXME
+        }
+    }
 }
 
 // // FIXME: logic comptime va eval kardan type ezaafe beshe
