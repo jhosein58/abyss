@@ -8,11 +8,12 @@ use crate::{
     ranges::{HirRange, TokenRange},
     span::Span,
     storages::{
-        diagnostics::DiagnosticStorage, hir::HirStorage, interner::InternerStorage,
-        tokens::TokenStorage, types::TypeStorage, unify::UnifyStorage,
+        consts::ConstStorage, diagnostics::DiagnosticStorage, hir::HirStorage,
+        interner::InternerStorage, tokens::TokenStorage, types::TypeStorage, unify::UnifyStorage,
     },
 };
 
+arena_id!(RawId);
 arena_id!(HirId);
 arena_id!(NameId);
 arena_id!(FileId);
@@ -35,6 +36,7 @@ pub struct Nexus {
     pub types: TypeStorage,
     pub diagnostics: DiagnosticStorage,
     pub unify: UnifyStorage,
+    pub consts: ConstStorage,
 
     // Primitive Stores
     pub ints: Arena<IntId, u64>, // FIXME: change it to string
@@ -70,6 +72,7 @@ impl Nexus {
         self.hir_files.grow_to(len);
         self.hir_to_symbol.grow_to(len);
         self.unify.grow_to(len);
+        self.consts.grow_to(len);
     }
 
     pub fn add_list_flat(&mut self, items: &[u32]) -> u32 {
