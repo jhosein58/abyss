@@ -3,6 +3,8 @@ use abyss_nexus::{
     nexus::{HirId, Nexus, TypeId},
 };
 
+use crate::diagnostics::report_expected_type;
+
 #[inline(always)]
 pub fn check_func(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
     let func_id = db.hir.lhs(id);
@@ -51,23 +53,37 @@ pub fn synth_return(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
     }
 }
 
-// // FIXME: logic comptime va eval kardan type ezaafe beshe
-// #[inline(always)]
-// pub fn synth_arg(db: &mut Nexus, id: HirId) {
-//     let ty_hir_id = db.hir.rhs(id);
-//     let ty_id = db.hir_to_type.get_copy(ty_hir_id);
+// FIXME: logic comptime va eval kardan type ezaafe beshe
+#[inline(always)]
+pub fn synth_arg(db: &mut Nexus, id: HirId) {
+    let slot = db.unify.new_slot(id);
 
-//     if db.types.kind(ty_id) != TyKind::Type {
-//         report_expected_type(db, ty_hir_id, ty_id);
+    let ty_hir_id = db.hir.rhs(id);
 
-//         db.hir_to_type.set(id, db.types.alloc_error());
-//         return;
-//     }
+    let ident_slot = db.unify.new_slot(db.hir.lhs(id));
 
-//     let type_value = db.hir_to_type_value.get_copy(ty_hir_id);
-//     db.hir_to_type_value.set(id, type_value);
-//     db.hir_to_type.set(id, ty_id);
-// }
+    let ty_slot = db.unify.get_slot(ty_hir_id);
+    let ty_id = db.unify.resolve_type(ty_slot);
+
+    if ty_id != TypeId::TYPE {
+        report_expected_type(db, ty_hir_id, ty_id);
+
+        let err_id = db.types.alloc_error();
+
+        db.unify.bind_type(&mut db.types, slot, err_id).unwrap(); // FIXME
+        return;
+    }
+
+    let type_value = db.consts.get_type(ty_hir_id);
+
+    if type_value.is_none() {
+        panic!() // FIXME
+    }
+
+    db.consts.set_type(id, type_value);
+    db.unify.bind_type(&mut db.types, slot, ty_id).unwrap(); // FIXME
+    db.unify.union(&mut db.types, slot, ident_slot).unwrap(); // FIXME
+}
 
 // #[inline(always)]
 // pub fn synth_func(db: &mut Nexus, id: HirId) {
