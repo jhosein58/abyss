@@ -38,20 +38,23 @@ impl Default for TypeStorage {
         let mut store = TyStore::default();
         store.reserve(TypeId::BUILTIN_COUNT);
 
-        debug_assert_eq!(store.push(TyKind::Unknown, 0), TypeId::UNKNOWN.0 as usize);
-        debug_assert_eq!(
-            store.push(TyKind::UntypedInt, 0),
-            TypeId::UNTYPED_INT.0 as usize
-        );
-        debug_assert_eq!(
-            store.push(TyKind::UntypedFloat, 0),
-            TypeId::UNTYPED_FLOAT.0 as usize
-        );
-        debug_assert_eq!(store.push(TyKind::Bool, 0), TypeId::BOOL.0 as usize);
-        debug_assert_eq!(store.push(TyKind::Type, 0), TypeId::TYPE.0 as usize);
-        debug_assert_eq!(store.push(TyKind::Unit, 0), TypeId::UNIT.0 as usize);
-        debug_assert_eq!(store.push(TyKind::Never, 0), TypeId::NEVER.0 as usize);
-        debug_assert_eq!(store.push(TyKind::Error, 0), TypeId::ERROR.0 as usize);
+        let id0 = store.push(TyKind::Unknown, 0);
+        let id1 = store.push(TyKind::UntypedInt, 0);
+        let id2 = store.push(TyKind::UntypedFloat, 0);
+        let id3 = store.push(TyKind::Bool, 0);
+        let id4 = store.push(TyKind::Type, 0);
+        let id5 = store.push(TyKind::Unit, 0);
+        let id6 = store.push(TyKind::Never, 0);
+        let id7 = store.push(TyKind::Error, 0);
+
+        debug_assert_eq!(id0, TypeId::UNKNOWN.0 as usize);
+        debug_assert_eq!(id1, TypeId::UNTYPED_INT.0 as usize);
+        debug_assert_eq!(id2, TypeId::UNTYPED_FLOAT.0 as usize);
+        debug_assert_eq!(id3, TypeId::BOOL.0 as usize);
+        debug_assert_eq!(id4, TypeId::TYPE.0 as usize);
+        debug_assert_eq!(id5, TypeId::UNIT.0 as usize);
+        debug_assert_eq!(id6, TypeId::NEVER.0 as usize);
+        debug_assert_eq!(id7, TypeId::ERROR.0 as usize);
 
         Self {
             store,
