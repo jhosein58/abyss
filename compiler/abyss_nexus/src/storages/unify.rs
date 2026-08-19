@@ -23,7 +23,6 @@ impl UnifyStorage {
         self.ranks.grow_to(capacity);
         self.types.grow_to(capacity);
         self.origins.grow_to(capacity);
-        self.origins.grow_to(capacity);
         self.hir_to_slot.grow_to(capacity);
     }
 
