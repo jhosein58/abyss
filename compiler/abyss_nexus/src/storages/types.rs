@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
 use abyss_types::{TyKind, TyStore};
 
@@ -20,28 +20,44 @@ impl TypeId {
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)] // FIXME: impl trait Copy
 pub enum TypeKey {
-    Unknown,
-
-    UntypedInt,
-    UntypedFloat,
     Int(u16), // bit width
     UInt(u16),
     Float(u16),
-    Bool,
     Ptr(TypeId),
-    Type,
-    Unit,
     Func(Box<[TypeId]>, TypeId), // PERF: Box ro hazf kon
-    Never,
-
-    Error,
 }
 
-#[derive(Default)]
 pub struct TypeStorage {
     store: TyStore,
     interned: HashMap<TypeKey, TypeId>, // PERF: hash-map inja mitone sari tar beshe ya kolan hazf beshe
                                         // IDEA: use a pre-allocated table to lockup primitive types
+}
+
+impl Default for TypeStorage {
+    fn default() -> Self {
+        let mut store = TyStore::default();
+        store.reserve(TypeId::BUILTIN_COUNT);
+
+        debug_assert_eq!(store.push(TyKind::Unknown, 0), TypeId::UNKNOWN.0 as usize);
+        debug_assert_eq!(
+            store.push(TyKind::UntypedInt, 0),
+            TypeId::UNTYPED_INT.0 as usize
+        );
+        debug_assert_eq!(
+            store.push(TyKind::UntypedFloat, 0),
+            TypeId::UNTYPED_FLOAT.0 as usize
+        );
+        debug_assert_eq!(store.push(TyKind::Bool, 0), TypeId::BOOL.0 as usize);
+        debug_assert_eq!(store.push(TyKind::Type, 0), TypeId::TYPE.0 as usize);
+        debug_assert_eq!(store.push(TyKind::Unit, 0), TypeId::UNIT.0 as usize);
+        debug_assert_eq!(store.push(TyKind::Never, 0), TypeId::NEVER.0 as usize);
+        debug_assert_eq!(store.push(TyKind::Error, 0), TypeId::ERROR.0 as usize);
+
+        Self {
+            store,
+            interned: HashMap::default(),
+        }
+    }
 }
 
 impl TypeStorage {
@@ -107,18 +123,43 @@ impl TypeStorage {
     }
 
     #[inline(always)]
-    pub fn alloc_unknown(&mut self) -> TypeId {
-        self.get_or_insert(TypeKey::Unknown, TyKind::Unknown, 0)
+    pub fn alloc_unknown(&self) -> TypeId {
+        TypeId::UNKNOWN
     }
 
     #[inline(always)]
-    pub fn alloc_untyped_int(&mut self) -> TypeId {
-        self.get_or_insert(TypeKey::UntypedInt, TyKind::UntypedInt, 0)
+    pub fn alloc_untyped_int(&self) -> TypeId {
+        TypeId::UNTYPED_INT
     }
 
     #[inline(always)]
-    pub fn alloc_untyped_float(&mut self) -> TypeId {
-        self.get_or_insert(TypeKey::UntypedFloat, TyKind::UntypedFloat, 0)
+    pub fn alloc_untyped_float(&self) -> TypeId {
+        TypeId::UNTYPED_FLOAT
+    }
+
+    #[inline(always)]
+    pub fn alloc_bool(&self) -> TypeId {
+        TypeId::BOOL
+    }
+
+    #[inline(always)]
+    pub fn alloc_error(&self) -> TypeId {
+        TypeId::ERROR
+    }
+
+    #[inline(always)]
+    pub fn alloc_type(&self) -> TypeId {
+        TypeId::TYPE
+    }
+
+    #[inline(always)]
+    pub fn alloc_unit(&self) -> TypeId {
+        TypeId::UNIT
+    }
+
+    #[inline(always)]
+    pub fn alloc_never(&self) -> TypeId {
+        TypeId::NEVER
     }
 
     #[inline(always)]
@@ -137,28 +178,8 @@ impl TypeStorage {
     }
 
     #[inline(always)]
-    pub fn alloc_bool(&mut self) -> TypeId {
-        self.get_or_insert(TypeKey::Bool, TyKind::Bool, 0)
-    }
-
-    #[inline(always)]
     pub fn alloc_ptr(&mut self, inner: TypeId) -> TypeId {
         self.get_or_insert(TypeKey::Ptr(inner), TyKind::Ptr, inner.0)
-    }
-
-    #[inline(always)]
-    pub fn alloc_error(&mut self) -> TypeId {
-        self.get_or_insert(TypeKey::Error, TyKind::Error, 0)
-    }
-
-    #[inline(always)]
-    pub fn alloc_type(&mut self) -> TypeId {
-        self.get_or_insert(TypeKey::Type, TyKind::Type, 0)
-    }
-
-    #[inline(always)]
-    pub fn alloc_unit(&mut self) -> TypeId {
-        self.get_or_insert(TypeKey::Unit, TyKind::Unit, 0)
     }
 
     #[inline(always)]
@@ -204,10 +225,5 @@ impl TypeStorage {
             .iter()
             .map(|v| TypeId(*v))
             .collect()
-    }
-
-    #[inline(always)]
-    pub fn alloc_never(&mut self) -> TypeId {
-        self.get_or_insert(TypeKey::Never, TyKind::Never, 0)
     }
 }
