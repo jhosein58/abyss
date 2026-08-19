@@ -19,7 +19,9 @@ pub fn synth(db: &mut Nexus, id: HirId) {
 
         let ty_id_of_type = db.types.alloc_type();
 
-        db.unify.bind_type(slot, ty_id_of_type).unwrap(); // FIXME
+        db.unify
+            .bind_type(&mut db.types, slot, ty_id_of_type)
+            .unwrap(); // FIXME
 
         return;
     }
@@ -29,7 +31,7 @@ pub fn synth(db: &mut Nexus, id: HirId) {
     if sym_id.is_some() {
         let origin_hir_id = db.symbols.get_copy(sym_id);
         let origin_slot = db.unify.get_slot(origin_hir_id);
-        db.unify.union(slot, origin_slot).unwrap();
+        db.unify.union(&mut db.types, slot, origin_slot).unwrap();
     }
 }
 
