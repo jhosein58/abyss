@@ -29,12 +29,13 @@ fn synth_node(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
 
         Hir::BinaryAdd | Hir::BinaryMul | Hir::BinarySub | Hir::BinaryDiv => binary::synth(db, id),
 
-        Hir::Var => declaration::synth(db, id),
+        Hir::Binding | Hir::Var => declaration::synth(db, id),
 
         Hir::Arg => func::synth_arg(db, id),
         Hir::MarkerFnStart => func::check_func(db, stack, id),
         Hir::Ret => func::synth_return(db, stack, id),
         Hir::Function => {
+            func::synth_func(db, id);
             stack.pop();
         }
 
