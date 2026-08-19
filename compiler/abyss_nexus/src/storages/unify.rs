@@ -74,6 +74,15 @@ impl UnifyStorage {
         let type_a = self.types.get_copy(root_a);
         let type_b = self.types.get_copy(root_b);
 
+        // jolo giri az vrood 'Never' be graph
+        if type_a == TypeId::NEVER {
+            return Ok(root_a);
+        }
+
+        if type_b == TypeId::NEVER {
+            return Ok(root_b);
+        }
+
         let final_type = match (type_a.is_some(), type_b.is_some()) {
             (true, true) => types.unify_types(type_a, type_b)?,
             (true, false) => type_a,
