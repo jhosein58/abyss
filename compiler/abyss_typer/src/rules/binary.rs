@@ -12,14 +12,16 @@ pub fn synth(db: &mut Nexus, id: HirId) {
     let lhs_slot = db.unify.get_slot(lhs_id);
     let rhs_slot = db.unify.get_slot(rhs_id);
 
-    match db.unify.union(lhs_slot, rhs_slot) {
+    match db.unify.union(&mut db.types, lhs_slot, rhs_slot) {
         Err((ta, tb)) => {
             report_binop_mismatch(db, id, lhs_id, rhs_id, ta, tb);
-            db.unify.bind_type(slot, TypeId::ERROR).unwrap(); // FIXME
+            db.unify
+                .bind_type(&mut db.types, slot, TypeId::ERROR)
+                .unwrap(); // FIXME
         }
 
         Ok(s) => {
-            db.unify.union(slot, s).unwrap(); // FIXME
+            db.unify.union(&mut db.types, slot, s).unwrap(); // FIXME
         }
     }
 }
