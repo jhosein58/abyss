@@ -1,10 +1,11 @@
-// use abyss_nexus::{
-//     arena::ArenaId,
-//     nexus::{HirId, Nexus, TypeId},
-// };
-// use abyss_types::TyKind;
+use abyss_nexus::nexus::{HirId, Nexus};
 
-// use crate::diagnostics::report_expected_type;
+#[inline(always)]
+pub fn synth_return(db: &mut Nexus, id: HirId) {
+    let slot = db.unify.new_slot(id);
+    let never_tyid = db.types.alloc_never();
+    db.unify.bind_type(&mut db.types, slot, never_tyid).unwrap(); // FIXME
+}
 
 // // FIXME: logic comptime va eval kardan type ezaafe beshe
 // #[inline(always)]
@@ -55,9 +56,4 @@
 //     let func_type = db.types.alloc_func(&params, ret_ty_id);
 
 //     db.hir_to_type.set(id, func_type);
-// }
-
-// #[inline(always)]
-// pub fn synth_return(db: &mut Nexus, id: HirId) {
-//     db.hir_to_type.set(id, db.types.alloc_never());
 // }
