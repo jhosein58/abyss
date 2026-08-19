@@ -17,18 +17,10 @@ pub fn synth(db: &mut Nexus, id: HirId) {
 
         let ty_id_of_type = db.types.alloc_type();
 
-        db.hir_to_type.set(id, ty_id_of_type);
-        db.hir_to_type_value.set(id, ty);
+        let slot = db.unify.new_slot(id);
+        let _ = db.unify.bind_type(slot, ty_id_of_type);
 
         return;
-    }
-
-    let sym_id = db.hir_to_symbol.get_copy(id);
-
-    if sym_id.is_some() {
-        let origin_hir_id = db.symbols.get_copy(sym_id);
-        let ty = db.hir_to_type.get_copy(origin_hir_id);
-        db.hir_to_type.set(id, ty);
     }
 }
 

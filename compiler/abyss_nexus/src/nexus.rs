@@ -56,11 +56,6 @@ pub struct Nexus {
     // Metadata & Side Tables
     pub hir_spans: SideTable<HirId, Span>,
     pub hir_files: SideTable<HirId, FileId>,
-
-    // Type Lookups
-    pub hir_to_type: SideTable<HirId, TypeId>,
-    pub hir_to_type_value: SideTable<HirId, TypeId>, // FIXME: make this table more generic and rename it to 'hir_to_value'. comptile engine will fill this table.
-    pub hir_to_expected: SideTable<HirId, HirId>,
 }
 
 impl Nexus {
@@ -74,9 +69,6 @@ impl Nexus {
         self.hir_spans.grow_to(len);
         self.hir_files.grow_to(len);
         self.hir_to_symbol.grow_to(len);
-        self.hir_to_type.grow_to(len);
-        self.hir_to_type_value.grow_to(len);
-        self.hir_to_expected.grow_to(len);
         self.unify.grow_to(len);
     }
 
