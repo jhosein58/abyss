@@ -58,3 +58,8 @@ pub trait FunctionBuilder: TypeBuilder {
     fn get_param(&self, index: usize) -> Self::Value;
     fn finish(self);
 }
+
+pub trait ComptimeProvider: ModuleBuilder {
+    fn new() -> Self;
+    fn eval_function(&mut self, handle: Self::FuncId, args: &[u64]) -> u64;
+}
