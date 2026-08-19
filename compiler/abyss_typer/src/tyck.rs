@@ -4,7 +4,7 @@ use abyss_nexus::{
     ranges::HirRange,
 };
 
-use crate::rules::{ident, literal};
+use crate::rules::{declaration, ident, literal};
 
 pub fn type_check(db: &mut Nexus, range: HirRange) {
     let start = range.start.0;
@@ -24,6 +24,8 @@ fn synth_node(db: &mut Nexus, id: HirId) {
         Hir::LitFloat => literal::synth_float(db, id),
 
         Hir::Ident => ident::synth(db, id),
+
+        Hir::Var => declaration::synth(db, id),
 
         _ => {}
     }

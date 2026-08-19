@@ -8,6 +8,8 @@ pub fn synth(db: &mut Nexus, id: HirId) {
     let name_id = db.hir.ident_name(id);
     let name = db.interner.get(name_id);
 
+    let slot = db.unify.new_slot(id);
+
     if let Some((kind, bits)) = parse_builtin_num_type(name) {
         let ty = match kind {
             NumTypeKind::Signed => db.types.alloc_int(bits),
@@ -17,10 +19,17 @@ pub fn synth(db: &mut Nexus, id: HirId) {
 
         let ty_id_of_type = db.types.alloc_type();
 
-        let slot = db.unify.new_slot(id);
-        let _ = db.unify.bind_type(slot, ty_id_of_type);
+        db.unify.bind_type(slot, ty_id_of_type).unwrap(); // FIXME
 
         return;
+    }
+
+    let sym_id = db.hir_to_symbol.get_copy(id);
+
+    if sym_id.is_some() {
+        let origin_hir_id = db.symbols.get_copy(sym_id);
+        let origin_slot = db.unify.get_slot(origin_hir_id);
+        db.unify.union(slot, origin_slot).unwrap();
     }
 }
 
