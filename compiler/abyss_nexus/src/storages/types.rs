@@ -81,6 +81,54 @@ impl TypeStorage {
         self.store.payload[idx.0 as usize]
     }
 
+    #[inline(always)]
+    pub fn unify_types(&mut self, a: TypeId, b: TypeId) -> Result<TypeId, (TypeId, TypeId)> {
+        if a == b {
+            return Ok(a);
+        }
+
+        let kind_a = self.kind(a);
+        let kind_b = self.kind(b);
+
+        if kind_a == TyKind::Never {
+            return Ok(b);
+        }
+        if kind_b == TyKind::Never {
+            return Ok(a);
+        }
+
+        if kind_a == TyKind::Unknown {
+            return Ok(b);
+        }
+        if kind_b == TyKind::Unknown {
+            return Ok(a);
+        }
+
+        match (kind_a, kind_b) {
+            (
+                TyKind::UntypedInt,
+                TyKind::Int | TyKind::UInt | TyKind::Float | TyKind::UntypedFloat,
+            ) => Ok(b),
+            (
+                TyKind::Int | TyKind::UInt | TyKind::Float | TyKind::UntypedFloat,
+                TyKind::UntypedInt,
+            ) => Ok(a),
+
+            (TyKind::UntypedFloat, TyKind::Float) => Ok(b),
+            (TyKind::Float, TyKind::UntypedFloat) => Ok(a),
+
+            (TyKind::Ptr, TyKind::Ptr) => {
+                let inner_a = TypeId(self.payload(a));
+                let inner_b = TypeId(self.payload(b));
+                let unified_inner = self.unify_types(inner_a, inner_b)?;
+                Ok(self.alloc_ptr(unified_inner))
+            }
+
+            // TODO: Func type
+            _ => Err((a, b)),
+        }
+    }
+
     pub fn name(&self, idx: TypeId) -> String {
         if idx.is_none() {
             return "".to_string();
