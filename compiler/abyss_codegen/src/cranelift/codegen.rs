@@ -1,4 +1,4 @@
-use abyss_lower::builder::{FunctionBuilder, ModuleBuilder, TypeBuilder};
+use abyss_lower::builder::{ComptimeProvider, FunctionBuilder, ModuleBuilder, TypeBuilder};
 use cranelift::module::{FuncId, Linkage};
 use cranelift::prelude::*;
 
@@ -7,8 +7,6 @@ use cranelift::{
     jit::{JITBuilder, JITModule},
     module::{Module, default_libcall_names},
 };
-
-use crate::provider::ComptimeProvider;
 
 pub struct CraneliftBackend {
     pub module: JITModule,
@@ -31,11 +29,6 @@ impl CraneliftBackend {
     }
 
     pub fn compile_and_get_ptr(&mut self, func_id: FuncId) -> *const u8 {
-        let ptr = self.module.get_finalized_function(func_id);
-        if !ptr.is_null() {
-            return ptr;
-        }
-
         self.module
             .define_function(func_id, &mut self.ctx)
             .expect("Failed to define function");
@@ -48,14 +41,12 @@ impl CraneliftBackend {
 }
 
 impl ComptimeProvider for CraneliftBackend {
-    type FuncHandle = FuncId;
+    fn new() -> Self {
+        Self::new()
+    }
 
-    fn eval_function(&mut self, handle: Self::FuncHandle, args: &[u64]) -> Option<u64> {
+    fn eval_function(&mut self, handle: Self::FuncId, args: &[u64]) -> u64 {
         let ptr = self.compile_and_get_ptr(handle);
-
-        if ptr.is_null() {
-            return None;
-        }
 
         let result = unsafe {
             match args.len() {
@@ -96,7 +87,7 @@ impl ComptimeProvider for CraneliftBackend {
             }
         };
 
-        Some(result)
+        result
     }
 }
 

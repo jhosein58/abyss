@@ -27,6 +27,13 @@ arena_id!(TypeId);
 arena_id!(DiagnosticId);
 arena_id!(SlotId);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SymbolState {
+    Unresolved,
+    Resolving,
+    Resolved,
+}
+
 #[derive(Default)]
 pub struct Nexus {
     // Primary Storages
