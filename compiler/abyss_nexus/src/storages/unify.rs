@@ -1,6 +1,7 @@
 use crate::{
     arena::{Arena, ArenaId, SideTable},
     nexus::{HirId, SlotId, TypeId},
+    storages::types::TypeStorage,
 };
 
 #[derive(Default)]
@@ -57,7 +58,12 @@ impl UnifyStorage {
         }
     }
 
-    pub fn union(&mut self, a: SlotId, b: SlotId) -> Result<SlotId, (TypeId, TypeId)> {
+    pub fn union(
+        &mut self,
+        types: &mut TypeStorage,
+        a: SlotId,
+        b: SlotId,
+    ) -> Result<SlotId, (TypeId, TypeId)> {
         let root_a = self.find(a);
         let root_b = self.find(b);
 
@@ -69,12 +75,7 @@ impl UnifyStorage {
         let type_b = self.types.get_copy(root_b);
 
         let final_type = match (type_a.is_some(), type_b.is_some()) {
-            (true, true) => {
-                if type_a != type_b {
-                    return Err((type_a, type_b));
-                }
-                type_a
-            }
+            (true, true) => types.unify_types(type_a, type_b)?,
             (true, false) => type_a,
             (false, true) => type_b,
             (false, false) => TypeId::none(),
@@ -102,14 +103,18 @@ impl UnifyStorage {
     }
 
     #[inline]
-    pub fn bind_type(&mut self, slot: SlotId, ty: TypeId) -> Result<(), (TypeId, TypeId)> {
+    pub fn bind_type(
+        &mut self,
+        types: &mut TypeStorage,
+        slot: SlotId,
+        ty: TypeId,
+    ) -> Result<(), (TypeId, TypeId)> {
         let root = self.find(slot);
         let existing = self.types.get_copy(root);
 
         if existing.is_some() {
-            if existing != ty {
-                return Err((existing, ty));
-            }
+            let unified_type = types.unify_types(existing, ty)?;
+            self.types.set(root, unified_type);
         } else {
             self.types.set(root, ty);
         }
