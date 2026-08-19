@@ -1,9 +1,6 @@
-use abyss_types::TyKind;
-
 use crate::{
     arena::{Arena, ArenaId, SideTable},
     nexus::{HirId, SlotId, TypeId},
-    storages::types::TypeStorage,
 };
 
 #[derive(Default)]
@@ -27,59 +24,6 @@ impl UnifyStorage {
         self.types.grow_to(capacity);
         self.origins.grow_to(capacity);
         self.hir_to_slot.grow_to(capacity);
-    }
-
-    #[inline(always)]
-    pub fn unify_types(
-        &mut self,
-        types: &mut TypeStorage,
-        a: TypeId,
-        b: TypeId,
-    ) -> Result<TypeId, (TypeId, TypeId)> {
-        if a == b {
-            return Ok(a);
-        }
-
-        let kind_a = types.kind(a);
-        let kind_b = types.kind(b);
-
-        if kind_a == TyKind::Never {
-            return Ok(b);
-        }
-        if kind_b == TyKind::Never {
-            return Ok(a);
-        }
-
-        if kind_a == TyKind::Unknown {
-            return Ok(b);
-        }
-        if kind_b == TyKind::Unknown {
-            return Ok(a);
-        }
-
-        match (kind_a, kind_b) {
-            (
-                TyKind::UntypedInt,
-                TyKind::Int | TyKind::UInt | TyKind::Float | TyKind::UntypedFloat,
-            ) => Ok(b),
-            (
-                TyKind::Int | TyKind::UInt | TyKind::Float | TyKind::UntypedFloat,
-                TyKind::UntypedInt,
-            ) => Ok(a),
-
-            (TyKind::UntypedFloat, TyKind::Float) => Ok(b),
-            (TyKind::Float, TyKind::UntypedFloat) => Ok(a),
-
-            (TyKind::Ptr, TyKind::Ptr) => {
-                let inner_a = TypeId(types.payload(a));
-                let inner_b = TypeId(types.payload(b));
-                let unified_inner = self.unify_types(types, inner_a, inner_b)?;
-                Ok(types.alloc_ptr(unified_inner))
-            }
-
-            // TODO: Func type
-            _ => Err((a, b)),
-        }
     }
 
     #[inline]
