@@ -1,9 +1,12 @@
 use abyss_hir::hir::HirExprKind;
 
-use crate::nexus::{FloatId, HirId, IntId, NameId, Nexus};
+use crate::{
+    arena::ArenaId,
+    nexus::{FloatId, HirId, IntId, NameId, Nexus, TypeId},
+};
 
 impl Nexus {
-    pub fn dump_hir(&self) {
+    pub fn dump_hir(&mut self) {
         println!("{:-<135}", "");
         println!(
             "{:<5} | {:<22} | {:<25} | {:<25} | {:<20} | {:<20}",
@@ -17,8 +20,15 @@ impl Nexus {
             let rhs = self.hir.table.rhs[i];
             let extra = self.hir.table.extra[i];
 
-            let type_id = self.hir_to_type.get_copy(HirId(i as u32));
-            let type_name = self.types.name(type_id);
+            let slot = self.unify.get_slot(HirId(i as u32));
+
+            let tyid = if slot.is_some() {
+                self.unify.resolve_type(slot)
+            } else {
+                TypeId::none()
+            };
+
+            let type_name = self.types.name(tyid);
 
             let format_idx = |idx: u32| {
                 if idx == u32::MAX {

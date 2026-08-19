@@ -6,6 +6,8 @@ pub fn synth_int(db: &mut Nexus, id: HirId) {
 
     let slot = db.unify.new_slot(id);
 
+    let _ = db.unify.bind_type(slot, tyid);
+
     db.hir_to_type.set(id, tyid);
 }
 
