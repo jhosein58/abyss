@@ -2,9 +2,7 @@ pub use std::{fs, time::Instant};
 
 use abyss_codegen::cranelift::codegen::CraneliftBackend;
 use abyss_diagnostics::DiagnosticFormatter;
-use abyss_indexer::Indexer;
-use abyss_nexus::nexus::Nexus;
-use abyss_parser::parser::Parser;
+use abyss_engine::engine::Engine;
 use abyss_typer::tyck;
 
 fn main() {
@@ -12,21 +10,11 @@ fn main() {
 
     let tc = Instant::now();
 
-    let mut nexus = Nexus::new();
+    let mut eng = Engine::new();
 
-    let file_id = nexus.add_file("main.a", source);
-    nexus.lex_file(file_id);
-
-    Indexer::index(&mut nexus, file_id);
-
-    let main_id = nexus.interner.get_id("main").unwrap();
-
-    let main_symbol_id = Parser::parse_top_level(&mut nexus, file_id, main_id);
-
-    let main_range = nexus.symbol_hir_range.get(main_symbol_id).clone();
-
-    // Type-Checking
-    tyck::type_check(&mut nexus, main_range);
+    let file_id = eng.add_file("main.a", source);
+    let sym_id = eng.parse(file_id, "main");
+    eng.type_check(sym_id);
 
     // Compile
     let mut backend = CraneliftBackend::new();
