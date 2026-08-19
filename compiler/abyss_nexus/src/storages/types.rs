@@ -4,6 +4,19 @@ use abyss_types::{TyKind, TyStore};
 
 use crate::{arena::ArenaId, nexus::TypeId};
 
+impl TypeId {
+    pub const UNKNOWN: TypeId = TypeId(0);
+    pub const UNTYPED_INT: TypeId = TypeId(1);
+    pub const UNTYPED_FLOAT: TypeId = TypeId(2);
+    pub const BOOL: TypeId = TypeId(3);
+    pub const TYPE: TypeId = TypeId(4);
+    pub const UNIT: TypeId = TypeId(5);
+    pub const NEVER: TypeId = TypeId(6);
+    pub const ERROR: TypeId = TypeId(7);
+
+    pub const BUILTIN_COUNT: usize = 8;
+}
+
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)] // FIXME: impl trait Copy
 pub enum TypeKey {
