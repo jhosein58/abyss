@@ -23,6 +23,8 @@ pub fn synth(db: &mut Nexus, id: HirId) {
             .bind_type(&mut db.types, slot, ty_id_of_type)
             .unwrap(); // FIXME
 
+        db.consts.set_type(id, ty);
+
         return;
     }
 
