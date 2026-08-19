@@ -202,6 +202,10 @@ impl<'a> FunctionBuilder for CraneliftFnBuilder<'a> {
         self.builder.seal_block(block);
     }
 
+    fn append_block_params_for_function_params(&mut self, block: Self::BasicBlock) {
+        self.builder.append_block_params_for_function_params(block);
+    }
+
     // vars
     fn declare_var(&mut self, ty: Self::Type) -> Self::Var {
         self.builder.declare_var(ty)
