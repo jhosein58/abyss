@@ -136,7 +136,7 @@ impl HirStorage {
     }
 
     #[inline(always)]
-    pub fn alloc_call(&mut self, args: u32) -> HirId {
-        self.alloc(Hir::Call, args, 0, 0)
+    pub fn alloc_call(&mut self, lhs: HirId, args: u32) -> HirId {
+        self.alloc(Hir::Call, lhs.0, args, 0)
     }
 }
