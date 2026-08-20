@@ -83,7 +83,7 @@ impl Nexus {
         self.symbol_files.grow_to(sym_len);
         self.symbol_token_range.grow_to(sym_len);
         self.symbol_hir_range.grow_to(sym_len);
-        self.symbol_to_state.grow_to(sym_len);
+        self.symbol_is_resolving.grow_to(sym_len);
     }
 
     pub fn add_list_flat(&mut self, items: &[u32]) -> u32 {
