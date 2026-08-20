@@ -33,9 +33,9 @@ impl UnifyStorage {
         let slot_val = self.parents.len() as u32;
         let slot = self.parents.alloc(SlotId::new(slot_val));
 
-        self.types.set(slot, TypeId::none());
-        self.origins.set(slot, origin);
-        self.hir_to_slot.set(origin, slot);
+        self.types.set_safe(slot, TypeId::none());
+        self.origins.set_safe(slot, origin);
+        self.hir_to_slot.set_safe(origin, slot);
 
         slot
     }
@@ -95,14 +95,14 @@ impl UnifyStorage {
         } else if rank_a < rank_b {
             (root_b, root_a)
         } else {
-            self.ranks.set(root_a, rank_a + 1);
+            self.ranks.set_safe(root_a, rank_a + 1);
             (root_a, root_b)
         };
 
         self.parents.set(old_root, new_root);
 
         if final_type.is_some() {
-            self.types.set(new_root, final_type);
+            self.types.set_safe(new_root, final_type);
         }
 
         Ok(new_root)
@@ -120,9 +120,9 @@ impl UnifyStorage {
 
         if existing.is_some() {
             let unified_type = types.unify_types(existing, ty)?;
-            self.types.set(root, unified_type);
+            self.types.set_safe(root, unified_type);
         } else {
-            self.types.set(root, ty);
+            self.types.set_safe(root, ty);
         }
         Ok(())
     }

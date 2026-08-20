@@ -14,6 +14,9 @@ pub fn check_func(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
 
     if func_sym.is_some() {
         db.symbol_to_state.set(func_sym, SymbolState::Resolved);
+
+        let origin = db.symbols.get_copy(func_sym);
+        db.unify.new_slot(origin);
     }
 
     let ret_id = db.hir.rhs(func_id);

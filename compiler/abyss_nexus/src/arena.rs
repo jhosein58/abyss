@@ -84,6 +84,7 @@ impl<I: ArenaId, T, const ALLOC: bool> ArenaCore<I, T, ALLOC> {
     #[inline(always)]
     pub fn set(&mut self, id: I, value: T) {
         let index = id.value() as usize;
+
         self.data[index] = value;
     }
 
@@ -134,5 +135,17 @@ impl<I: ArenaId, T: Default + Clone> ArenaCore<I, T, false> {
         if new_len > self.data.len() {
             self.data.resize(new_len, T::default());
         }
+    }
+
+    // TODO: remove this method. all spaces must be allocated before set
+    #[inline(always)]
+    pub fn set_safe(&mut self, id: I, value: T) {
+        let index = id.value() as usize;
+
+        if id.is_some() {
+            self.grow_to(index + 1);
+        }
+
+        self.data[index] = value;
     }
 }

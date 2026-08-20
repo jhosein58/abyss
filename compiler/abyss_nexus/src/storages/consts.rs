@@ -25,7 +25,7 @@ impl ConstStorage {
 
     #[inline(always)]
     pub fn set_type(&mut self, id: HirId, ty: TypeId) {
-        self.values.set(id, RawId(ty.0));
+        self.values.set_safe(id, RawId(ty.0));
     }
 
     #[inline(always)]

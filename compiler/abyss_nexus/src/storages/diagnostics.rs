@@ -157,26 +157,26 @@ impl DiagnosticStorage {
         help_hint: Option<HintMessage>,
     ) -> DiagnosticId {
         let id = self.kinds.alloc(kind);
-        let len = self.kinds.len();
+        //let len = self.kinds.len();
 
-        self.arg0.grow_to(len);
-        self.arg1.grow_to(len);
-        self.severities.grow_to(len);
-        self.spans.grow_to(len);
-        self.file_ids.grow_to(len);
-        self.help_hints.grow_to(len);
-        self.label_starts.grow_to(len);
-        self.label_counts.grow_to(len);
+        // self.arg0.grow_to(len);
+        // self.arg1.grow_to(len);
+        // self.severities.grow_to(len);
+        // self.spans.grow_to(len);
+        // self.file_ids.grow_to(len);
+        // self.help_hints.grow_to(len);
+        // self.label_starts.grow_to(len);
+        // self.label_counts.grow_to(len);
 
-        self.arg0.set(id, arg0);
-        self.arg1.set(id, arg1);
-        self.severities.set(id, severity);
-        self.file_ids.set(id, file_id);
-        self.spans.set(id, span);
-        self.help_hints.set(id, help_hint);
+        self.arg0.set_safe(id, arg0);
+        self.arg1.set_safe(id, arg1);
+        self.severities.set_safe(id, severity);
+        self.file_ids.set_safe(id, file_id);
+        self.spans.set_safe(id, span);
+        self.help_hints.set_safe(id, help_hint);
 
-        self.label_starts.set(id, self.offset);
-        self.label_counts.set(id, self.len);
+        self.label_starts.set_safe(id, self.offset);
+        self.label_counts.set_safe(id, self.len);
 
         // Reset state
         self.len = 0;
