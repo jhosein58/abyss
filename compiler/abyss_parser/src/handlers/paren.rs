@@ -29,7 +29,10 @@ impl Parser<'_> {
         self.bump();
 
         if self.optional(TokenKind::CParen) {
-            return self.parse_fn_tail(NONE);
+            let mark = self.env.mark(); // new scope
+            let id = self.parse_fn_tail(NONE);
+            self.env.reset(mark); // end of function scope
+            return id;
         }
 
         let first = self.parse_expr(0);
@@ -41,6 +44,9 @@ impl Parser<'_> {
                 .set(first, start_span.merge(self.prev_span()));
             return first;
         }
+
+        let mark = self.env.mark(); // enter scope
+        self.define_param(first);
 
         let mut args = Vec::new();
         let mut pending_names = vec![first];
@@ -63,6 +69,7 @@ impl Parser<'_> {
 
             let name = self.parse_expr(0);
             if name != self.db.hir.alloc_error() {
+                self.define_param(name);
                 pending_names.push(name);
             } else {
                 self.sync();
@@ -77,7 +84,11 @@ impl Parser<'_> {
 
         let params = self.db.add_list_flat(&args);
 
-        self.parse_fn_tail(params)
+        let id = self.parse_fn_tail(params);
+
+        self.env.reset(mark);
+
+        id
     }
 
     fn parse_fn_tail(&mut self, params: u32) -> HirId {
