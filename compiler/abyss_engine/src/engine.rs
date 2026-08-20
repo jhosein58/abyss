@@ -60,6 +60,8 @@ impl<B: ComptimeProvider> Engine<B> {
         println!("{}", diagnostics);
     }
 
+    // PERF: create a fast-path
+    // TODO: report error
     pub fn ensure_resolved(&mut self, sym_id: SymbolId) {
         let is_resolving = self.db.symbol_is_resolving.get_copy(sym_id);
 
@@ -67,21 +69,25 @@ impl<B: ComptimeProvider> Engine<B> {
             panic!("Error, cycle")
         }
 
-        let is_parsed = self.db.symbols.get_copy(sym_id).is_none();
+        let needs_parsing = self.db.symbols.get_copy(sym_id).is_none();
 
-        if is_parsed {
+        if needs_parsing {
+            self.db.symbol_is_resolving.set(sym_id, true);
             self.parse(sym_id);
         }
 
-        let is_typed = self
+        let needs_typecheck = self
             .db
             .unify
             .get_slot(self.db.symbols.get_copy(sym_id))
             .is_none();
 
-        if is_typed {
+        if needs_typecheck {
+            self.db.symbol_is_resolving.set(sym_id, true);
             self.type_check(sym_id);
         }
+
+        self.db.symbol_is_resolving.set(sym_id, false);
     }
 }
 
