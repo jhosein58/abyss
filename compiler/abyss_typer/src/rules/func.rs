@@ -95,8 +95,6 @@ pub fn synth_arg(db: &mut Nexus, id: HirId) {
 
     let type_value = db.consts.get_type(ty_hir_id);
 
-    println!("{:?}", db.types.name(type_value));
-
     if type_value.is_none() {
         panic!() // FIXME
     }
