@@ -45,6 +45,10 @@ impl ComptimeProvider for CraneliftBackend {
         Self::new()
     }
 
+    fn compile(&mut self, fnunc_id: Self::FuncId) {
+        self.compile_and_get_ptr(fnunc_id);
+    }
+
     fn eval_function(&mut self, handle: Self::FuncId, args: &[u64]) -> u64 {
         let ptr = self.compile_and_get_ptr(handle);
 

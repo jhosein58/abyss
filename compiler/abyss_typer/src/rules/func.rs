@@ -90,11 +90,11 @@ pub fn synth_func(db: &mut Nexus, id: HirId) {
     let slot = db.unify.new_slot(id);
 
     let ret_hir_id = db.hir.rhs(id);
+    let real_ret_ty_slot = db.unify.get_slot(ret_hir_id);
 
     let ret_ty_id = if ret_hir_id.is_none() {
         db.types.alloc_unit()
     } else {
-        let real_ret_ty_slot = db.unify.get_slot(ret_hir_id);
         let real_ret_ty_id = db.unify.resolve_type(real_ret_ty_slot);
 
         if real_ret_ty_id != TypeId::TYPE {

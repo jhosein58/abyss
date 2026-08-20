@@ -1,5 +1,5 @@
 use abyss_nexus::{
-    nexus::{FileId, NameId, Nexus, SymbolId, TokenId},
+    nexus::{FileId, Nexus, SymbolId, TokenId},
     ranges::HirRange,
     span::Span,
 };
@@ -16,8 +16,9 @@ pub struct Parser<'db> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> Self {
-        let range = db.symbol_index.get(&(file_id, name_id)).unwrap().clone();
+    pub fn new(db: &'a mut Nexus, sym_id: SymbolId) -> Self {
+        let range = db.symbol_token_range.get_copy(sym_id);
+        let file_id = db.symbol_files.get_copy(sym_id);
 
         Parser {
             db,
@@ -125,8 +126,8 @@ impl<'a> Parser<'a> {
         Span { start, end }
     } // FIXME: tarkib bayad beshe in dota method ba ham
 
-    pub fn parse_top_level(db: &'a mut Nexus, file_id: FileId, name_id: NameId) -> SymbolId {
-        let mut p = Parser::new(db, file_id, name_id);
+    pub fn parse_top_level(db: &'a mut Nexus, sym_id: SymbolId) -> SymbolId {
+        let mut p = Parser::new(db, sym_id);
 
         let main_span = p.span();
         p.expect(TokenKind::Ident);
@@ -135,28 +136,27 @@ impl<'a> Parser<'a> {
 
         let text = p.db.tokens.text(TokenId(p.cursor - 2));
         let ident_hir_id = p.db.hir.alloc_ident(p.db.interner.intern(text));
+
+        p.db.symbols.data[sym_id.0 as usize] = ident_hir_id; // patch symbol
+
         p.db.hir_spans.set(ident_hir_id, main_span);
 
         let body = p.parse_expr(0);
-
-        let symbol_id = p.db.symbols.alloc(ident_hir_id);
 
         let end = p.db.hir.alloc_binding(ident_hir_id, None, Some(body));
 
         p.db.hir_spans.set(end, colon_colon_span);
 
-        p.db.symbol_hir_range.grow_to(p.db.symbols.len());
-
-        p.db.hir_to_symbol.set(ident_hir_id, symbol_id);
+        p.db.hir_to_symbol.set(ident_hir_id, sym_id);
 
         p.db.symbol_hir_range.set(
-            symbol_id,
+            sym_id,
             HirRange {
                 start: ident_hir_id,
                 end,
             },
         );
 
-        symbol_id
+        sym_id
     }
 }

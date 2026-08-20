@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, default};
 
 use abyss_lexer::lexer::Lexer;
 
@@ -27,8 +27,10 @@ arena_id!(TypeId);
 arena_id!(DiagnosticId);
 arena_id!(SlotId);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum SymbolState {
+    #[default]
     Unresolved,
     Resolving,
     Resolved,
@@ -48,7 +50,7 @@ pub struct Nexus {
     // Primitive Stores
     pub ints: Arena<IntId, u64>, // FIXME: change it to string
     pub floats: Arena<FloatId, f64>,
-    pub u32_items: Vec<u32>,
+    pub u32_items: Vec<u32>, // FIXME: use ItemId instead of raw u32
 
     // File & Source Management
     pub sources: Arena<FileId, String>,
@@ -57,10 +59,13 @@ pub struct Nexus {
     pub file_token_spans: SideTable<FileId, TokenRange>,
 
     // Symbol & Resolution Lookups
-    pub symbol_index: HashMap<(FileId, NameId), TokenRange>, // PERF: O(1) lookup by (file, name)
-    pub symbols: Arena<SymbolId, HirId>,                     // FIXME: rename to 'synbol_to_hir'
+    pub symbols: Arena<SymbolId, HirId>,
+    pub symbol_index: HashMap<(FileId, NameId), SymbolId>, // PERF: O(1) lookup by (file, name)
+    pub symbol_files: SideTable<SymbolId, FileId>,
+    pub symbol_token_range: SideTable<SymbolId, TokenRange>,
     pub symbol_hir_range: SideTable<SymbolId, HirRange>,
     pub hir_to_symbol: SideTable<HirId, SymbolId>,
+    pub symbol_to_state: SideTable<SymbolId, SymbolState>,
 
     // Metadata & Side Tables
     pub hir_spans: SideTable<HirId, Span>,
@@ -80,6 +85,14 @@ impl Nexus {
         self.hir_to_symbol.grow_to(len);
         self.unify.grow_to(len);
         self.consts.grow_to(len);
+
+        // symbols
+        let sym_len = len / 4;
+        self.symbols.reserve(sym_len);
+        self.symbol_files.grow_to(sym_len);
+        self.symbol_token_range.grow_to(sym_len);
+        self.symbol_hir_range.grow_to(sym_len);
+        self.symbol_to_state.grow_to(sym_len);
     }
 
     pub fn add_list_flat(&mut self, items: &[u32]) -> u32 {
