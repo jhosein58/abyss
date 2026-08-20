@@ -1,4 +1,5 @@
 use abyss_nexus::{
+    arena::ArenaId,
     nexus::{FileId, NameId, Nexus, SymbolId, TokenId},
     ranges::HirRange,
     span::Span,
@@ -13,6 +14,7 @@ pub struct Parser<'db> {
     pub end: u32,
     pub file_id: FileId,
     pub env: ScopeEnv,
+    pub toplv_sym: SymbolId,
 }
 
 impl<'a> Parser<'a> {
@@ -26,6 +28,7 @@ impl<'a> Parser<'a> {
             end: range.end.0,
             file_id,
             env: ScopeEnv::new(),
+            toplv_sym: SymbolId::none(),
         }
     }
 
@@ -137,6 +140,8 @@ impl<'a> Parser<'a> {
 
     pub fn parse_top_level(db: &'a mut Nexus, sym_id: SymbolId) -> SymbolId {
         let mut p = Parser::new(db, sym_id);
+
+        p.toplv_sym = sym_id;
 
         let main_span = p.span();
         p.expect(TokenKind::Ident);
