@@ -35,7 +35,6 @@ fn synth_node(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
         Hir::MarkerFnStart => func::check_func(db, stack, id),
         Hir::Ret => func::synth_return(db, stack, id),
         Hir::Function => {
-            func::synth_func(db, id);
             stack.pop();
         }
 
