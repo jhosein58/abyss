@@ -3,7 +3,7 @@ use abyss_indexer::Indexer;
 use abyss_lower::{builder::ComptimeProvider, materialazer};
 use abyss_nexus::nexus::{FileId, Nexus, SymbolId, SymbolState, TypeId};
 use abyss_parser::parser::Parser;
-use abyss_typer::tyck;
+use abyss_typer::tyck::{TyCtx, Typer};
 
 pub struct Engine<B: ComptimeProvider> {
     pub db: Nexus,
@@ -36,7 +36,10 @@ impl<B: ComptimeProvider> Engine<B> {
 
     pub fn type_check(&mut self, sym_id: SymbolId) {
         let range = self.db.symbol_hir_range.get_copy(sym_id);
-        tyck::type_check(&mut self.db, range);
+
+        let mut tc = Typer::new(self);
+
+        tc.type_check(range);
     }
 
     pub fn compile(&mut self, sym_id: SymbolId) -> B::FuncId {
@@ -48,7 +51,23 @@ impl<B: ComptimeProvider> Engine<B> {
         self.provider.eval_function(func_id, &[])
     }
 
-    pub fn type_of(&mut self, sym_id: SymbolId) -> TypeId {
+    pub fn print_err(&self) {
+        let formater = DiagnosticFormatter::new(&self.db);
+        let diagnostics = formater.format_all();
+        println!("{}", diagnostics);
+    }
+}
+
+impl<B: ComptimeProvider> TyCtx for Engine<B> {
+    fn db(&self) -> &Nexus {
+        &self.db
+    }
+
+    fn db_mut(&mut self) -> &mut Nexus {
+        &mut self.db
+    }
+
+    fn type_of(&mut self, sym_id: SymbolId) -> TypeId {
         let state = self.db.symbol_to_state.get_copy(sym_id);
 
         if state == SymbolState::Resolving {
@@ -66,11 +85,5 @@ impl<B: ComptimeProvider> Engine<B> {
         let hir_id = self.db.symbols.get_copy(sym_id);
         let slot = self.db.unify.get_slot(hir_id);
         self.db.unify.resolve_type(slot)
-    }
-
-    pub fn print_err(&self) {
-        let formater = DiagnosticFormatter::new(&self.db);
-        let diagnostics = formater.format_all();
-        println!("{}", diagnostics);
     }
 }
