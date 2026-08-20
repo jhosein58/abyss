@@ -8,6 +8,9 @@ use crate::diagnostics::report_expected_type;
 #[inline(always)]
 pub fn check_func(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
     let func_id = db.hir.lhs(id);
+
+    synth_func(db, func_id);
+
     let ret_id = db.hir.rhs(func_id);
 
     let ty_id = if ret_id.is_some() {
