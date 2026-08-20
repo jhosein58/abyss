@@ -67,11 +67,9 @@ pub fn synth_return(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
 // FIXME: logic comptime va eval kardan type ezaafe beshe
 #[inline(always)]
 pub fn synth_arg(db: &mut Nexus, id: HirId) {
-    let slot = db.unify.new_slot(id);
-
     let ty_hir_id = db.hir.rhs(id);
 
-    let ident_slot = db.unify.new_slot(db.hir.lhs(id));
+    let ident_slot = db.unify.get_slot(db.hir.lhs(id));
 
     let ty_slot = db.unify.get_slot(ty_hir_id);
     let ty_id = db.unify.resolve_type(ty_slot);
@@ -81,19 +79,23 @@ pub fn synth_arg(db: &mut Nexus, id: HirId) {
 
         let err_id = db.types.alloc_error();
 
-        db.unify.bind_type(&mut db.types, slot, err_id).unwrap(); // FIXME
+        db.unify
+            .bind_type(&mut db.types, ident_slot, err_id)
+            .unwrap(); // FIXME
         return;
     }
 
     let type_value = db.consts.get_type(ty_hir_id);
 
+    println!("{:?}", db.types.name(type_value));
+
     if type_value.is_none() {
         panic!() // FIXME
     }
 
-    db.consts.set_type(id, type_value);
-    db.unify.bind_type(&mut db.types, slot, ty_id).unwrap(); // FIXME
-    db.unify.union(&mut db.types, slot, ident_slot).unwrap(); // FIXME
+    db.unify
+        .bind_type(&mut db.types, ident_slot, type_value)
+        .unwrap(); // FIXME
 }
 
 #[inline(always)]
