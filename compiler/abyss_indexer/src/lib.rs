@@ -1,5 +1,6 @@
 use abyss_nexus::{
-    nexus::{FileId, NameId, Nexus, TokenId},
+    arena::ArenaId,
+    nexus::{FileId, HirId, NameId, Nexus, TokenId},
     ranges::TokenRange,
 };
 use abyss_token::kind::TokenKind;
@@ -46,13 +47,19 @@ impl<'a> Indexer<'a> {
                     {
                         if let Some((start_tk, name_id)) = current_symbol {
                             let end_tk = TokenId(self.cursor);
-                            self.db.symbol_index.insert(
-                                (self.file_id, name_id),
+
+                            let sym_id = self.db.symbols.alloc(HirId::none()); // patch in parser
+
+                            self.db.symbol_token_range.set(
+                                sym_id,
                                 TokenRange {
                                     start: start_tk,
                                     end: end_tk,
                                 },
                             );
+
+                            self.db.symbol_index.insert((self.file_id, name_id), sym_id);
+                            self.db.symbol_files.set(sym_id, self.file_id);
                         }
 
                         let start_tk = TokenId(self.cursor);
@@ -71,13 +78,18 @@ impl<'a> Indexer<'a> {
 
         if let Some((start_tk, name_id)) = current_symbol {
             let end_tk = TokenId(self.end);
-            self.db.symbol_index.insert(
-                (self.file_id, name_id),
+            let sym_id = self.db.symbols.alloc(HirId::none()); // patch in parser
+
+            self.db.symbol_token_range.set(
+                sym_id,
                 TokenRange {
                     start: start_tk,
                     end: end_tk,
                 },
             );
+
+            self.db.symbol_index.insert((self.file_id, name_id), sym_id);
+            self.db.symbol_files.set(sym_id, self.file_id);
         }
     }
 }

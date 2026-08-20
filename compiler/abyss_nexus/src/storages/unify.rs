@@ -21,6 +21,7 @@ impl UnifyStorage {
 
     #[inline]
     pub fn grow_to(&mut self, capacity: usize) {
+        self.parents.reserve(capacity);
         self.ranks.grow_to(capacity);
         self.types.grow_to(capacity);
         self.origins.grow_to(capacity);

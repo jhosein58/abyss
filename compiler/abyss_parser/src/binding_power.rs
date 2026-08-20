@@ -1,4 +1,4 @@
-use abyss_token::kind::TokenKind;
+use abyss_token::kind::TokenKind as Tk;
 
 use crate::precedence::Precedence;
 
@@ -9,17 +9,16 @@ pub struct BindingPower {
 }
 
 impl BindingPower {
-    pub fn from_infix(kind: TokenKind) -> Option<BindingPower> {
+    pub fn from_infix(kind: Tk) -> Option<BindingPower> {
         let bp = match kind {
-            TokenKind::Colon => Precedence::VarDef.right_assoc(),
+            Tk::Colon => Precedence::VarDef.right_assoc(),
+            Tk::ColonColon => Precedence::ConstDef.right_assoc(),
 
-            TokenKind::ColonColon => Precedence::ConstDef.right_assoc(),
+            Tk::Eq => Precedence::Assignment.right_assoc(),
+            Tk::Plus | Tk::Minus => Precedence::Term.left_assoc(),
+            Tk::Star | Tk::Slash => Precedence::Factor.left_assoc(),
 
-            TokenKind::Eq => Precedence::Assignment.right_assoc(),
-
-            TokenKind::Plus | TokenKind::Minus => Precedence::Term.left_assoc(),
-
-            TokenKind::Star | TokenKind::Slash => Precedence::Factor.left_assoc(),
+            Tk::OParen => Precedence::Call.left_assoc(),
 
             _ => return None,
         };
@@ -29,38 +28,38 @@ impl BindingPower {
 }
 
 #[inline]
-pub fn is_soft(kind: TokenKind) -> bool {
+pub fn is_soft(kind: Tk) -> bool {
     matches!(
         kind,
         // arithmetic
-        TokenKind::Plus
-        | TokenKind::Slash
-        | TokenKind::Percent
+        Tk::Plus
+        | Tk::Slash
+        | Tk::Percent
 
         // key-value / const-def
-        | TokenKind::Colon
-        | TokenKind::ColonColon
+        | Tk::Colon
+        | Tk::ColonColon
 
         // equality / comparison
-        | TokenKind::EqEq
-        | TokenKind::BangEq
-        | TokenKind::Lt | TokenKind::Gt | TokenKind::LtEq | TokenKind::GtEq
+        | Tk::EqEq
+        | Tk::BangEq
+        | Tk::Lt | Tk::Gt | Tk::LtEq | Tk::GtEq
 
         // logic
-        | TokenKind::And | TokenKind::Or
+        | Tk::And | Tk::Or
 
         // bitwise
-        | TokenKind::Pipe | TokenKind::Caret
-        | TokenKind::LeftShift | TokenKind::RightShift
+        | Tk::Pipe | Tk::Caret
+        | Tk::LeftShift | Tk::RightShift
 
         // assignments
-        | TokenKind::Eq
-        | TokenKind::PlusEq | TokenKind::MinusEq
-        | TokenKind::StarEq | TokenKind::SlashEq | TokenKind::PercentEq
-        | TokenKind::AmpEq | TokenKind::PipeEq | TokenKind::CaretEq
-        | TokenKind::LeftShiftEq | TokenKind::RightShiftEq
+        | Tk::Eq
+        | Tk::PlusEq | Tk::MinusEq
+        | Tk::StarEq | Tk::SlashEq | Tk::PercentEq
+        | Tk::AmpEq | Tk::PipeEq | Tk::CaretEq
+        | Tk::LeftShiftEq | Tk::RightShiftEq
 
         // cast
-        | TokenKind::As
+        | Tk::As
     )
 }

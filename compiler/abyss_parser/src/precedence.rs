@@ -20,7 +20,7 @@ pub enum Precedence {
     Factor = 120,     //  *, /, %
     _Cast = 130,      // as
     _Unary = 140,     // -x, !x, ~x, *x, &x
-    _Call = 150,      //  (), []
+    Call = 150,       //  (), []
     _Member = 160,    // .
     _Primary = 170,
 }

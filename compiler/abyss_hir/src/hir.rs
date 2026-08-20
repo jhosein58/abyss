@@ -57,6 +57,7 @@ pub enum HirExprKind {
     Sequence,
     Arg,
     Function, // (args_lhs) ret_type_rhs { block_extra }
+    Call,     // expr(expr, expr, ..)
     Binding,  // ident :: expr
     Var,      // pattern := expr, ident: type = expr
     Ret,
@@ -69,7 +70,6 @@ pub enum HirExprKind {
     While,
     Forever,
     Defer,
-    Call,
     Index,
     Cast,
     Is,

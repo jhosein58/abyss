@@ -61,5 +61,6 @@ pub trait FunctionBuilder: TypeBuilder {
 
 pub trait ComptimeProvider: ModuleBuilder {
     fn new() -> Self;
+    fn compile(&mut self, fnunc_id: Self::FuncId);
     fn eval_function(&mut self, handle: Self::FuncId, args: &[u64]) -> u64;
 }

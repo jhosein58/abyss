@@ -116,6 +116,11 @@ impl<I: ArenaId, T: Copy, const ALLOC: bool> ArenaCore<I, T, ALLOC> {
 
 impl<I: ArenaId, T> ArenaCore<I, T, true> {
     #[inline]
+    pub fn reserve(&mut self, additional: usize) {
+        self.data.reserve(additional);
+    }
+
+    #[inline]
     pub fn alloc(&mut self, item: T) -> I {
         let index = self.data.len() as u32;
         self.data.push(item);
