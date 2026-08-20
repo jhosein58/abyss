@@ -4,7 +4,7 @@ use abyss_nexus::{
     ranges::HirRange,
 };
 
-use crate::rules::{binary, block, declaration, func, ident, literal};
+use crate::rules::{binary, block, declaration, func, literal};
 
 pub trait TyCtx {
     fn db(&self) -> &Nexus;
@@ -56,6 +56,7 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::Function => {
                 stack.pop();
             }
+            Hir::Call => self.synth_call(id),
 
             Hir::Block => block::synth(db, id),
 

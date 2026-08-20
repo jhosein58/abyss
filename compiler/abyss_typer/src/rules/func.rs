@@ -3,7 +3,15 @@ use abyss_nexus::{
     nexus::{HirId, Nexus, SymbolId, TypeId},
 };
 
-use crate::diagnostics::report_expected_type;
+use crate::{
+    diagnostics::report_expected_type,
+    tyck::{TyCtx, Typer},
+};
+
+impl<'a, T: TyCtx> Typer<'a, T> {
+    #[inline(always)]
+    pub fn synth_call(&mut self, id: HirId) {}
+}
 
 #[inline(always)]
 pub fn check_func(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
