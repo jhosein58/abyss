@@ -10,6 +10,19 @@ use crate::parser::Parser;
 const NONE: u32 = u32::MAX;
 
 impl Parser<'_> {
+    #[inline(always)]
+    fn define_param(&mut self, name_hir: HirId) {
+        if self.db.hir.kind(name_hir) == HirExprKind::Ident {
+            let symbol_id = self.db.symbols.alloc(name_hir);
+            self.db.hir_to_symbol.set(name_hir, symbol_id);
+
+            let name_id = self.db.hir.ident_name(name_hir);
+            self.env.define(name_id, symbol_id);
+        } else {
+            self.report_invalid_binding_target(self.db.hir_spans.get_copy(name_hir));
+        }
+    }
+
     // FIXME: tarotamiz taresh kon
     pub fn parse_paren(&mut self) -> HirId {
         let start_span = self.span();
