@@ -2,6 +2,7 @@ pub use std::{fs, time::Instant};
 
 use abyss_codegen::cranelift::codegen::CraneliftBackend;
 use abyss_engine::engine::Engine;
+use abyss_typer::tyck::TyCtx;
 
 fn main() {
     let mut eng: Engine<CraneliftBackend> = Engine::new();
