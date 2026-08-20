@@ -33,16 +33,11 @@ impl<'a, T: TyCtx> Typer<'a, T> {
         let sym_id = db.hir_to_symbol.get_copy(id);
 
         if sym_id.is_some() {
-            let origin_slot = self.ctx.slot_of(sym_id);
-            println!("ok");
-            if origin_slot.is_some() {
-                let new_db = self.ctx.db_mut();
+            let origin_slot = self.ctx.slot_of(sym_id); // ghat'an 100% slot ghablan barash sakhte shode
 
-                new_db
-                    .unify
-                    .union(&mut new_db.types, slot, origin_slot)
-                    .unwrap();
-            }
+            let db = self.ctx.db_mut();
+
+            db.unify.union(&mut db.types, slot, origin_slot).unwrap();
         }
     }
 }
