@@ -1,5 +1,8 @@
 use abyss_hir::hir::HirExprKind;
-use abyss_nexus::nexus::HirId;
+use abyss_nexus::{
+    arena::ArenaId,
+    nexus::{HirId, SymbolId},
+};
 use abyss_token::kind::TokenKind;
 
 use crate::parser::Parser;
@@ -71,8 +74,14 @@ impl Parser<'_> {
             self.parse_expr(0).0
         };
 
+        let sym_id = self.toplv_sym;
+        self.toplv_sym = SymbolId::none();
+
         // mark
-        let mark = self.db.hir.alloc(HirExprKind::MarkerFnStart, 0, 0, 0);
+        let mark = self
+            .db
+            .hir
+            .alloc(HirExprKind::MarkerFnStart, 0, sym_id.0, 0);
 
         let body = self.parse_block();
 
