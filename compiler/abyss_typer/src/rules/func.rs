@@ -1,6 +1,6 @@
 use abyss_nexus::{
     arena::ArenaId,
-    nexus::{HirId, Nexus, SymbolId, SymbolState, TypeId},
+    nexus::{HirId, Nexus, SymbolId, TypeId},
 };
 
 use crate::diagnostics::report_expected_type;
@@ -13,7 +13,7 @@ pub fn check_func(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
     synth_func(db, func_id);
 
     if func_sym.is_some() {
-        db.symbol_to_state.set(func_sym, SymbolState::Resolved);
+        db.symbol_is_resolving.set(func_sym, false);
 
         let origin = db.symbols.get_copy(func_sym);
         db.unify.new_slot(origin);

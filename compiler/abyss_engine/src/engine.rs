@@ -1,7 +1,10 @@
 use abyss_diagnostics::DiagnosticFormatter;
 use abyss_indexer::Indexer;
 use abyss_lower::{builder::ComptimeProvider, materialazer};
-use abyss_nexus::nexus::{FileId, Nexus, SlotId, SymbolId, SymbolState, TypeId};
+use abyss_nexus::{
+    arena::ArenaId,
+    nexus::{FileId, Nexus, SlotId, SymbolId, TypeId},
+};
 use abyss_parser::parser::Parser;
 use abyss_typer::tyck::{TyCtx, Typer};
 
@@ -56,6 +59,30 @@ impl<B: ComptimeProvider> Engine<B> {
         let diagnostics = formater.format_all();
         println!("{}", diagnostics);
     }
+
+    pub fn ensure_resolved(&mut self, sym_id: SymbolId) {
+        let is_resolving = self.db.symbol_is_resolving.get_copy(sym_id);
+
+        if is_resolving == true {
+            panic!("Error, cycle")
+        }
+
+        let is_parsed = self.db.symbols.get_copy(sym_id).is_none();
+
+        if is_parsed {
+            self.parse(sym_id);
+        }
+
+        let is_typed = self
+            .db
+            .unify
+            .get_slot(self.db.symbols.get_copy(sym_id))
+            .is_none();
+
+        if is_typed {
+            self.type_check(sym_id);
+        }
+    }
 }
 
 impl<B: ComptimeProvider> TyCtx for Engine<B> {
@@ -68,21 +95,7 @@ impl<B: ComptimeProvider> TyCtx for Engine<B> {
     }
 
     fn slot_of(&mut self, sym_id: SymbolId) -> SlotId {
-        let state = self.db.symbol_to_state.get_copy(sym_id);
-
-        if state == SymbolState::Resolving {
-            panic!("Error, cycle")
-        }
-
-        if state == SymbolState::Unresolved {
-            self.parse(sym_id);
-
-            self.type_check(sym_id);
-
-            //self.compile(sym_id);
-
-            self.db.symbol_to_state.set(sym_id, SymbolState::Resolved);
-        }
+        self.ensure_resolved(sym_id);
 
         let hir_id = self.db.symbols.get_copy(sym_id);
         self.db.unify.get_slot(hir_id)
