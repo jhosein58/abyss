@@ -6,6 +6,16 @@ use abyss_nexus::{
 
 use crate::rules::{binary, block, declaration, func, ident, literal};
 
+pub struct Typer<'db> {
+    db: &'db mut Nexus,
+}
+
+impl<'db> Typer<'db> {
+    pub fn new(db: &'db mut Nexus) -> Self {
+        Self { db }
+    }
+}
+
 pub fn type_check(db: &mut Nexus, range: HirRange) {
     let start = range.start.0;
     let end = range.end.0;
