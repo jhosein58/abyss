@@ -31,6 +31,7 @@ impl Parser<'_> {
         match op {
             Tk::Colon => self.parse_var_decl(lhs, right_bp),
             Tk::ColonColon => self.parse_binding(lhs, right_bp),
+            Tk::OParen => self.parse_call(lhs, right_bp),
             _ => self.parse_binary(op, lhs, right_bp), // FIXME: match ro az dakhel binary biar inja
         }
     }
