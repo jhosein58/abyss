@@ -1,42 +1,51 @@
-use abyss_nexus::{
-    arena::ArenaId,
-    nexus::{HirId, Nexus},
-};
+use abyss_nexus::{arena::ArenaId, nexus::HirId};
 
-#[inline(always)]
-pub fn synth(db: &mut Nexus, id: HirId) {
-    let name_id = db.hir.ident_name(id);
-    let name = db.interner.get(name_id);
+use crate::tyck::{TyCtx, Typer};
 
-    let slot = db.unify.new_slot(id);
+impl<'a, T: TyCtx> Typer<'a, T> {
+    #[inline(always)]
+    pub fn synth_ident(&mut self, id: HirId) {
+        let db = self.ctx.db_mut();
 
-    if let Some((kind, bits)) = parse_builtin_num_type(name) {
-        let ty = match kind {
-            NumTypeKind::Signed => db.types.alloc_int(bits),
-            NumTypeKind::Unsigned => db.types.alloc_uint(bits),
-            NumTypeKind::Float => db.types.alloc_float(bits),
-        };
+        let name_id = db.hir.ident_name(id);
+        let name = db.interner.get(name_id);
 
-        let ty_id_of_type = db.types.alloc_type();
+        let slot = db.unify.new_slot(id);
 
-        db.unify
-            .bind_type(&mut db.types, slot, ty_id_of_type)
-            .unwrap(); // FIXME
+        if let Some((kind, bits)) = parse_builtin_num_type(name) {
+            let ty = match kind {
+                NumTypeKind::Signed => db.types.alloc_int(bits),
+                NumTypeKind::Unsigned => db.types.alloc_uint(bits),
+                NumTypeKind::Float => db.types.alloc_float(bits),
+            };
 
-        db.consts.set_type(id, ty);
+            let ty_id_of_type = db.types.alloc_type();
 
-        return;
-    }
+            db.unify
+                .bind_type(&mut db.types, slot, ty_id_of_type)
+                .unwrap(); // FIXME
 
-    let sym_id = db.hir_to_symbol.get_copy(id);
+            db.consts.set_type(id, ty);
 
-    if sym_id.is_some() {
-        let origin_hir_id = db.symbols.get_copy(sym_id);
-        let origin_slot = db.unify.get_slot(origin_hir_id);
-        db.unify.union(&mut db.types, slot, origin_slot).unwrap();
+            return;
+        }
+
+        let sym_id = db.hir_to_symbol.get_copy(id);
+
+        if sym_id.is_some() {
+            let origin_slot = self.ctx.slot_of(sym_id);
+            println!("ok");
+            if origin_slot.is_some() {
+                let new_db = self.ctx.db_mut();
+
+                new_db
+                    .unify
+                    .union(&mut new_db.types, slot, origin_slot)
+                    .unwrap();
+            }
+        }
     }
 }
-
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NumTypeKind {

@@ -1,7 +1,7 @@
 use abyss_diagnostics::DiagnosticFormatter;
 use abyss_indexer::Indexer;
 use abyss_lower::{builder::ComptimeProvider, materialazer};
-use abyss_nexus::nexus::{FileId, Nexus, SymbolId, SymbolState, TypeId};
+use abyss_nexus::nexus::{FileId, Nexus, SlotId, SymbolId, SymbolState, TypeId};
 use abyss_parser::parser::Parser;
 use abyss_typer::tyck::{TyCtx, Typer};
 
@@ -67,7 +67,7 @@ impl<B: ComptimeProvider> TyCtx for Engine<B> {
         &mut self.db
     }
 
-    fn type_of(&mut self, sym_id: SymbolId) -> TypeId {
+    fn slot_of(&mut self, sym_id: SymbolId) -> SlotId {
         let state = self.db.symbol_to_state.get_copy(sym_id);
 
         if state == SymbolState::Resolving {
@@ -76,14 +76,20 @@ impl<B: ComptimeProvider> TyCtx for Engine<B> {
 
         if state == SymbolState::Unresolved {
             self.parse(sym_id);
+
             self.type_check(sym_id);
+
             //self.compile(sym_id);
 
             self.db.symbol_to_state.set(sym_id, SymbolState::Resolved);
         }
 
         let hir_id = self.db.symbols.get_copy(sym_id);
-        let slot = self.db.unify.get_slot(hir_id);
+        self.db.unify.get_slot(hir_id)
+    }
+
+    fn type_of(&mut self, sym_id: SymbolId) -> TypeId {
+        let slot = self.slot_of(sym_id);
         self.db.unify.resolve_type(slot)
     }
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, default};
+use std::collections::HashMap;
 
 use abyss_lexer::lexer::Lexer;
 
@@ -26,15 +26,6 @@ arena_id!(TokenId);
 arena_id!(TypeId);
 arena_id!(DiagnosticId);
 arena_id!(SlotId);
-
-#[repr(u8)]
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum SymbolState {
-    #[default]
-    Unresolved,
-    Resolving,
-    Resolved,
-}
 
 #[derive(Default)]
 pub struct Nexus {
@@ -65,7 +56,7 @@ pub struct Nexus {
     pub symbol_token_range: SideTable<SymbolId, TokenRange>,
     pub symbol_hir_range: SideTable<SymbolId, HirRange>,
     pub hir_to_symbol: SideTable<HirId, SymbolId>,
-    pub symbol_to_state: SideTable<SymbolId, SymbolState>,
+    pub symbol_is_resolving: SideTable<SymbolId, bool>,
 
     // Metadata & Side Tables
     pub hir_spans: SideTable<HirId, Span>,
@@ -114,8 +105,8 @@ impl Nexus {
         self.file_paths.grow_to(self.interner.len());
         self.file_to_name.grow_to(self.sources.len());
         self.file_token_spans.grow_to(self.sources.len());
-        self.file_paths.set(name_id, file_id);
-        self.file_to_name.set(file_id, name_id);
+        self.file_paths.set_safe(name_id, file_id);
+        self.file_to_name.set_safe(file_id, name_id);
         file_id
     }
 
@@ -130,7 +121,7 @@ impl Nexus {
         self.tokens.append(tokens);
         let end = TokenId(self.tokens.count() as u32 - 1);
         self.file_token_spans
-            .set(file_id, TokenRange { start, end });
+            .set_safe(file_id, TokenRange { start, end });
         self.reserve_for_tokens();
     }
 }
