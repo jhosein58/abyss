@@ -16,11 +16,9 @@ impl Parser<'_> {
             return self.parse_fn_tail(NONE);
         }
 
-        println!("ok");
-
         let first = self.parse_expr(0);
 
-        // (expr)
+        // group
         if self.optional(TokenKind::CParen) {
             self.db
                 .hir_spans
