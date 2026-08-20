@@ -1,5 +1,5 @@
 use abyss_nexus::{
-    nexus::{FileId, Nexus, SymbolId, TokenId},
+    nexus::{FileId, NameId, Nexus, SymbolId, TokenId},
     ranges::HirRange,
     span::Span,
 };
@@ -27,6 +27,15 @@ impl<'a> Parser<'a> {
             file_id,
             env: ScopeEnv::new(),
         }
+    }
+
+    #[inline(always)]
+    pub fn lookup(&self, name: NameId) -> Option<SymbolId> {
+        if let Some(sym) = self.env.lookup_(name) {
+            return Some(sym);
+        }
+
+        self.db.symbol_index.get(&(self.file_id, name)).cloned() // PERF: hashmaps are slow -_-
     }
 
     #[inline(always)]

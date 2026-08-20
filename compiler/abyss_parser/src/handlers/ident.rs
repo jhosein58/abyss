@@ -11,7 +11,7 @@ impl Parser<'_> {
         let name_id = self.db.interner.intern(value);
         let id = self.db.hir.alloc_ident(name_id);
 
-        if let Some(sym_id) = self.env.lookup(name_id) {
+        if let Some(sym_id) = self.lookup(name_id) {
             self.db.hir_to_symbol.set(id, sym_id);
         }
 
