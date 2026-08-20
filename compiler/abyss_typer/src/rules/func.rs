@@ -1,6 +1,6 @@
 use abyss_nexus::{
     arena::ArenaId,
-    nexus::{HirId, Nexus, TypeId},
+    nexus::{HirId, Nexus, SymbolId, SymbolState, TypeId},
 };
 
 use crate::diagnostics::report_expected_type;
@@ -8,8 +8,13 @@ use crate::diagnostics::report_expected_type;
 #[inline(always)]
 pub fn check_func(db: &mut Nexus, stack: &mut Vec<TypeId>, id: HirId) {
     let func_id = db.hir.lhs(id);
+    let func_sym = SymbolId(db.hir.rhs(id).0);
 
     synth_func(db, func_id);
+
+    if func_sym.is_some() {
+        db.symbol_to_state.set(func_sym, SymbolState::Resolved);
+    }
 
     let ret_id = db.hir.rhs(func_id);
 
