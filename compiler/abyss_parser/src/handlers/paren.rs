@@ -68,12 +68,9 @@ impl Parser<'_> {
             }
 
             let name = self.parse_expr(0);
-            if name != self.db.hir.alloc_error() {
-                self.define_param(name);
-                pending_names.push(name);
-            } else {
-                self.sync();
-            }
+
+            self.define_param(name);
+            pending_names.push(name);
         }
 
         for name in pending_names {
