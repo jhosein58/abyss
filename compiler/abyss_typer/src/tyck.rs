@@ -1,29 +1,35 @@
 use abyss_hir::hir::HirExprKind as Hir;
 use abyss_nexus::{
-    nexus::{HirId, Nexus, TypeId},
+    nexus::{HirId, Nexus, SymbolId, TypeId},
     ranges::HirRange,
 };
 
 use crate::rules::{binary, block, declaration, func, ident, literal};
 
-pub struct Typer<'db> {
-    db: &'db mut Nexus,
+pub trait TyCtx {
+    fn db(&self) -> &Nexus;
+    fn db_mut(&mut self) -> &mut Nexus;
+    fn type_of(&mut self, sym_id: SymbolId) -> TypeId;
 }
 
-impl<'db> Typer<'db> {
-    pub fn new(db: &'db mut Nexus) -> Self {
-        Self { db }
+pub struct Typer<'a, T: TyCtx> {
+    ctx: &'a mut T,
+}
+
+impl<'a, T: TyCtx> Typer<'a, T> {
+    pub fn new(ctx: &'a mut T) -> Self {
+        Self { ctx }
     }
-}
 
-pub fn type_check(db: &mut Nexus, range: HirRange) {
-    let start = range.start.0;
-    let end = range.end.0;
+    pub fn type_check(&mut self, range: HirRange) {
+        let start = range.start.0;
+        let end = range.end.0;
 
-    let mut func_stack = Vec::with_capacity(16);
+        let mut func_stack = Vec::with_capacity(16);
 
-    for offset in 0..=(end - start) {
-        synth_node(db, &mut func_stack, HirId(start + offset));
+        for offset in 0..=(end - start) {
+            synth_node(self.ctx.db_mut(), &mut func_stack, HirId(start + offset));
+        }
     }
 }
 
