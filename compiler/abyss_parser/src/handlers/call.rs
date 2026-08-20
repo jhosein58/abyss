@@ -19,11 +19,7 @@ impl Parser<'_> {
 
             let arg = self.parse_expr(0);
 
-            if arg == self.db.hir.alloc_error() {
-                self.bump();
-            } else {
-                args.push(arg.0);
-            }
+            args.push(arg.0);
 
             if self.peek() == Some(Tk::CParen) {
                 break;
