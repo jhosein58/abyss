@@ -1,5 +1,6 @@
 use abyss_hir::hir::HirExprKind as Hir;
 use abyss_nexus::{
+    arena::ArenaId,
     nexus::{HirId, Nexus, SlotId, SymbolId, TypeId},
     ranges::HirRange,
 };
@@ -54,6 +55,13 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::MarkerFnStart => func::check_func(db, stack, id),
             Hir::Ret => func::synth_return(db, stack, id),
             Hir::Function => {
+                let tyid = db.hir.rhs(id);
+                let tyid = db.consts.get_type(tyid);
+
+                let block_slot = db.unify.get_slot(db.hir.extra(id));
+
+                db.unify.bind_type(&mut db.types, block_slot, tyid).unwrap();
+
                 stack.pop();
             }
             Hir::Call => self.synth_call(id),

@@ -1,4 +1,7 @@
-use crate::tyck::{TyCtx, Typer};
+use crate::{
+    rules::block,
+    tyck::{TyCtx, Typer},
+};
 use abyss_nexus::{
     arena::ArenaId,
     nexus::{HirId, Nexus, SlotId, SymbolId, TypeId},
@@ -57,7 +60,13 @@ pub fn check_func(db: &mut Nexus, stack: &mut Vec<SlotId>, id: HirId) {
             panic!() // FIXME
         }
 
-        slot
+        let ret_value_type_slot = db.unify.tmp_slot();
+
+        db.unify
+            .bind_type(&mut db.types, ret_value_type_slot, val)
+            .unwrap();
+
+        ret_value_type_slot
     } else {
         SlotId::none()
     };
@@ -138,6 +147,9 @@ pub fn synth_func(db: &mut Nexus, id: HirId) {
         .iter()
         .map(|p| db.consts.get_type(HirId(*p)))
         .collect::<Vec<TypeId>>(); // FIXME: remove vector allocation
+
+    let block_id = db.hir.extra(id);
+    let block_slot = db.unify.get_slot(block_id);
 
     let func_type = db.types.alloc_func(&params, ret_ty_id);
 

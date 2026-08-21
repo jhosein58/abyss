@@ -38,12 +38,12 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
     let ret_ty_id = db.types.func_return(func_ty_id);
     let ret_type = lower_type(db, ret_ty_id);
 
-    let params: Vec<CType> = db
-        .types
-        .func_params(func_ty_id)
-        .iter()
-        .map(|p| lower_type(db, *p))
-        .collect();
+    // let params: Vec<CType> = db
+    //     .types
+    //     .func_params(func_ty_id)
+    //     .iter()
+    //     .map(|p| lower_type(db, *p))
+    //     .collect();
 
     let fn_name = &format!("fn_{}", symbol.0);
 

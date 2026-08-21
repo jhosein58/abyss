@@ -41,6 +41,16 @@ impl UnifyStorage {
     }
 
     #[inline]
+    pub fn tmp_slot(&mut self) -> SlotId {
+        let slot_val = self.parents.len() as u32;
+        let slot = self.parents.alloc(SlotId::new(slot_val));
+
+        self.types.set_safe(slot, TypeId::none());
+
+        slot
+    }
+
+    #[inline]
     pub fn get_slot(&mut self, id: HirId) -> SlotId {
         self.hir_to_slot.get_copy(id)
     }
