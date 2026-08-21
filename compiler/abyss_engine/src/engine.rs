@@ -1,6 +1,6 @@
 use abyss_diagnostics::DiagnosticFormatter;
 use abyss_indexer::Indexer;
-use abyss_lower::{builder::ComptimeProvider, lowerer};
+use abyss_lower::{codegen::CCodeGen, lowerer};
 use abyss_nexus::{
     arena::ArenaId,
     nexus::{FileId, Nexus, SlotId, SymbolId, TypeId},
@@ -8,16 +8,16 @@ use abyss_nexus::{
 use abyss_parser::parser::Parser;
 use abyss_typer::tyck::{TyCtx, Typer};
 
-pub struct Engine<B: ComptimeProvider> {
+pub struct Engine {
     pub db: Nexus,
-    pub provider: B,
+    pub ccg: CCodeGen,
 }
 
-impl<B: ComptimeProvider> Engine<B> {
+impl Engine {
     pub fn new() -> Self {
         Self {
             db: Nexus::default(),
-            provider: B::new(),
+            ccg: CCodeGen::default(),
         }
     }
 
@@ -45,13 +45,8 @@ impl<B: ComptimeProvider> Engine<B> {
         tc.type_check(range);
     }
 
-    pub fn compile(&mut self, sym_id: SymbolId) -> B::FuncId {
-        lowerer::lower_function(&mut self.db, &mut self.provider, sym_id)
-    }
-
-    pub fn run(&mut self, sym_id: SymbolId) -> u64 {
-        let func_id = self.compile(sym_id);
-        self.provider.eval_function(func_id, &[])
+    pub fn compile(&mut self, sym_id: SymbolId) {
+        lowerer::lower_function(&mut self.db, &mut self.ccg, sym_id)
     }
 
     pub fn print_err(&self) {
@@ -91,7 +86,7 @@ impl<B: ComptimeProvider> Engine<B> {
     }
 }
 
-impl<B: ComptimeProvider> TyCtx for Engine<B> {
+impl TyCtx for Engine {
     fn db(&self) -> &Nexus {
         &self.db
     }
