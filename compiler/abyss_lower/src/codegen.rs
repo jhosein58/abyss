@@ -76,21 +76,48 @@ impl CCodeGen {
         name
     }
 
-    pub fn declare_function(&mut self, name: &str, ret_type: CType) {
-        let decl = format!("{} {}();\n", ret_type.to_string(), name);
+    fn format_args(args: &[(&str, CType)]) -> String {
+        if args.is_empty() {
+            "void".to_string()
+        } else {
+            args.iter()
+                .map(|(name, ctype)| format!("{} {}", ctype.to_string(), name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+    }
+
+    fn declare_function(&mut self, name: &str, ret_type: CType, args: &[(&str, CType)]) {
+        let args_str = Self::format_args(args);
+        let decl = format!("{} {}({});\n", ret_type.to_string(), name, args_str);
         self.func_forward_decl.push_str(&decl);
     }
 
-    pub fn start_function(&mut self, name: &str, ret_type: CType) {
-        self.declare_function(name, ret_type.clone());
-        self.code
-            .push_str(&format!("{} {}() {{\n", ret_type.to_string(), name));
+    pub fn start_function(&mut self, name: &str, ret_type: CType, args: &[(&str, CType)]) {
+        self.declare_function(name, ret_type.clone(), args);
+        let args_str = Self::format_args(args);
+        self.code.push_str(&format!(
+            "{} {}({}) {{\n",
+            ret_type.to_string(),
+            name,
+            args_str
+        ));
         self.indent_level += 1;
     }
 
     pub fn end_function(&mut self) {
         self.indent_level -= 1;
         self.code.push_str(&format!("{}}}\n\n", self.indent()));
+    }
+
+    pub fn call(&self, func_expr: CValue, args: &[CValue]) -> CValue {
+        let args_str = args
+            .iter()
+            .map(|v| v.0.clone())
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        CValue(format!("{}({})", func_expr.0, args_str))
     }
 
     pub fn literal(&self, val: &str) -> CValue {
@@ -190,9 +217,13 @@ impl CCodeGen {
     }
 
     pub fn finish(&self) -> String {
+        let includes = "#include <stdint.h>\n#include <stdbool.h>\n\n";
         format!(
-            "// Forward Declarations\n{}\n// Implementations\n{}",
-            self.func_forward_decl, self.code
+            "{}{}\n// Forward Declarations\n{}\n// Implementations\n{}",
+            includes,
+            "// Typedefs or macros for 128-bit support if needed could go here.",
+            self.func_forward_decl,
+            self.code
         )
     }
 }
