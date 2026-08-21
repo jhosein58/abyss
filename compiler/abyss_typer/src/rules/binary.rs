@@ -1,6 +1,4 @@
-use abyss_nexus::nexus::{HirId, Nexus, TypeId};
-
-use crate::diagnostics::report_binop_mismatch;
+use abyss_nexus::nexus::{HirId, Nexus};
 
 #[inline(always)]
 pub fn synth(db: &mut Nexus, id: HirId) {
@@ -14,10 +12,11 @@ pub fn synth(db: &mut Nexus, id: HirId) {
 
     match db.unify.union(&mut db.types, lhs_slot, rhs_slot) {
         Err((ta, tb)) => {
-            report_binop_mismatch(db, id, lhs_id, rhs_id, ta, tb);
-            db.unify
-                .bind_type(&mut db.types, slot, TypeId::ERROR)
-                .unwrap(); // FIXME
+            panic!(
+                "error in binary, ta: {}, tb: {}",
+                db.types.name(ta),
+                db.types.name(tb)
+            )
         }
 
         Ok(s) => {

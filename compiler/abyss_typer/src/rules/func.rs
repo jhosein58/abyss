@@ -1,7 +1,4 @@
-use crate::{
-    diagnostics::report_expected_type,
-    tyck::{TyCtx, Typer},
-};
+use crate::tyck::{TyCtx, Typer};
 use abyss_nexus::{
     arena::ArenaId,
     nexus::{HirId, Nexus, SymbolId, TypeId},
@@ -101,14 +98,7 @@ pub fn synth_arg(db: &mut Nexus, id: HirId) {
     let ty_id = db.unify.resolve_type(ty_slot);
 
     if ty_id != TypeId::TYPE {
-        report_expected_type(db, ty_hir_id, ty_id);
-
-        let err_id = db.types.alloc_error();
-
-        db.unify
-            .bind_type(&mut db.types, ident_slot, err_id)
-            .unwrap(); // FIXME
-        return;
+        panic!("not a type");
     }
 
     let type_value = db.consts.get_type(ty_hir_id);
@@ -135,8 +125,7 @@ pub fn synth_func(db: &mut Nexus, id: HirId) {
         let real_ret_ty_id = db.unify.resolve_type(real_ret_ty_slot);
 
         if real_ret_ty_id != TypeId::TYPE {
-            report_expected_type(db, ret_hir_id, real_ret_ty_id);
-            db.types.alloc_error()
+            panic!("not a type");
         } else {
             db.consts.get_type(ret_hir_id) // FIXME: is comptime value available ?
         }
