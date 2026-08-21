@@ -1,6 +1,6 @@
 use abyss_diagnostics::DiagnosticFormatter;
 use abyss_indexer::Indexer;
-use abyss_lower::{builder::ComptimeProvider, materialazer};
+use abyss_lower::{builder::ComptimeProvider, lowerer};
 use abyss_nexus::{
     arena::ArenaId,
     nexus::{FileId, Nexus, SlotId, SymbolId, TypeId},
@@ -46,7 +46,7 @@ impl<B: ComptimeProvider> Engine<B> {
     }
 
     pub fn compile(&mut self, sym_id: SymbolId) -> B::FuncId {
-        materialazer::lower_function(&mut self.db, &mut self.provider, sym_id)
+        lowerer::lower_function(&mut self.db, &mut self.provider, sym_id)
     }
 
     pub fn run(&mut self, sym_id: SymbolId) -> u64 {

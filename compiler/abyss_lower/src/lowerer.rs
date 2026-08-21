@@ -5,27 +5,6 @@ use abyss_nexus::{
 };
 use abyss_types::TyKind;
 
-use crate::builder::{FunctionBuilder, ModuleBuilder, TypeBuilder};
-
-pub struct LowerCtx<B: FunctionBuilder> {
-    pub vars: Vec<Option<B::Var>>,
-}
-impl<B: FunctionBuilder> LowerCtx<B> {
-    pub fn new(len: usize) -> Self {
-        Self {
-            vars: vec![None; len],
-        }
-    }
-
-    pub fn insert(&mut self, sym: SymbolId, var: B::Var) {
-        self.vars[sym.0 as usize] = Some(var);
-    }
-
-    pub fn get(&self, sym: SymbolId) -> B::Var {
-        self.vars[sym.0 as usize].expect("Variable not defined!")
-    }
-}
-
 fn get_type(db: &mut Nexus, id: HirId) -> TypeId {
     if id.is_none() {
         return TypeId::none();
@@ -255,7 +234,7 @@ fn lower_expr<B: FunctionBuilder>(
     }
 }
 
-fn lower_type<TB: TypeBuilder>(db: &Nexus, ty_id: TypeId, builder: &mut TB) -> TB::Type {
+fn lower_type<TB: TypeBuilder>(db: &Nexus, ty_id: TypeId, builder: &mut TB) ->  {
     match db.types.kind(ty_id) {
         TyKind::Unit => builder.type_unit(),
         TyKind::Int => builder.type_int(db.types.payload(ty_id) as u16),
