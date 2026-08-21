@@ -60,9 +60,12 @@ impl CCodeGen {
         CValue(val.to_string())
     }
 
-    pub fn gen_return(&mut self, value: CValue) {
-        self.code
-            .push_str(&format!("{}return {};\n", self.indent(), value.0));
+    pub fn gen_return(&mut self, value: Option<CValue>) {
+        self.code.push_str(&format!(
+            "{}return {};\n",
+            self.indent(),
+            value.map(|v| v.0).unwrap_or("".to_string())
+        ));
     }
 
     pub fn create_variable(&mut self, name: &str, var_type: CType, init_val: CValue) -> CValue {
