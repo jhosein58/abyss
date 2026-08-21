@@ -1,11 +1,9 @@
-use crate::{
-    rules::block,
-    tyck::{TyCtx, Typer},
-};
+use crate::tyck::{TyCtx, Typer};
 use abyss_nexus::{
     arena::ArenaId,
     nexus::{HirId, Nexus, SlotId, SymbolId, TypeId},
 };
+use abyss_types::TyKind;
 
 impl<'a, T: TyCtx> Typer<'a, T> {
     #[inline(always)]
@@ -19,15 +17,26 @@ impl<'a, T: TyCtx> Typer<'a, T> {
 
         let lhs_type = db.unify.resolve_type(lhs_slot);
 
-        println!("{:?}", db.types.kind(lhs_type));
+        if db.types.kind(lhs_type) != TyKind::Func {
+            panic!() // FIXME
+        }
 
-        // if db.types.kind(lhs_type) != TyKind::Func {
-        //     panic!() // FIXME
-        // }
+        let ret_type = db.types.func_return(lhs_type);
 
-        // let ret_type = db.types.func_return(lhs_type);
+        db.unify.bind_type(&mut db.types, slot, ret_type).unwrap(); // FIXME
 
-        // db.unify.bind_type(&mut db.types, slot, ret_type).unwrap(); // FIXME
+        let args = db.get_list_flat(db.hir.rhs(id).0).to_vec(); // PERF
+        let args: Vec<SlotId> = args.iter().map(|n| db.unify.get_slot(HirId(*n))).collect();
+
+        let params_type = db.types.func_params(lhs_type);
+
+        if args.len() != params_type.len() {
+            panic!()
+        }
+
+        for (slot, ty) in args.into_iter().zip(params_type) {
+            db.unify.bind_type(&mut db.types, slot, ty).unwrap();
+        }
     }
 }
 
