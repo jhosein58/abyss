@@ -1,7 +1,7 @@
 use abyss_hir::hir::HirExprKind as Hir;
 use abyss_nexus::{
     arena::ArenaId,
-    nexus::{HirId, Nexus, SymbolId, TypeId},
+    nexus::{FloatId, HirId, IntId, NameId, Nexus, SymbolId, TypeId},
 };
 use abyss_types::TyKind;
 
@@ -47,7 +47,6 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
 
     let fn_name = &format!("fn_{}", symbol.0);
 
-    ccg.declare_function(fn_name, ret_type.clone());
     ccg.start_function(fn_name, ret_type);
 
     let func_node = db.hir.extra(id);
@@ -68,9 +67,63 @@ fn lower_expr(db: &mut Nexus, id: HirId, ccg: &mut CCodeGen) -> Option<CValue> {
     let kind = db.hir.kind(id);
 
     match kind {
-        Hir::LitInt => None,
+        Hir::LitInt => {
+            let lhs = db.hir.lhs(id).0;
+            let value = db.ints.get_copy(IntId(lhs));
 
-        Hir::Block => None,
+            Some(ccg.literal(&format!("{}", value)))
+        }
+
+        Hir::LitFloat => {
+            let lhs = db.hir.lhs(id).0;
+            let value = db.floats.get_copy(FloatId(lhs));
+
+            Some(ccg.literal(&format!("{}", value)))
+        }
+
+        Hir::Ident => {
+            let sym_id = db.hir_to_symbol.get_copy(id);
+            Some(CValue(format!("v_{}", sym_id.0)))
+        }
+
+        Hir::Var => {
+            let ident_hir_id = db.hir.lhs(id);
+
+            let sym_id = db.hir_to_symbol.get_copy(ident_hir_id);
+
+            let ty = get_type(db, ident_hir_id);
+            let ty = lower_type(db, ty);
+
+            let init_id = db.hir.extra(id);
+            let init = lower_expr(db, init_id, ccg);
+
+            Some(ccg.create_variable(&format!("v_{}", sym_id.0), ty, init))
+        }
+
+        Hir::Ret => {
+            let lhs = db.hir.lhs(id);
+
+            if lhs.is_none() {
+                ccg.gen_return(None);
+            } else {
+                let v = lower_expr(db, lhs, ccg);
+                ccg.gen_return(v);
+            }
+
+            return None;
+        }
+
+        Hir::Block => {
+            let mut last_val = None;
+
+            let items = db.get_list_flat(db.hir.lhs(id).0).to_owned();
+
+            for n in items {
+                last_val = lower_expr(db, HirId(n), ccg)
+            }
+
+            last_val
+        }
 
         _ => None,
     }
@@ -79,6 +132,7 @@ fn lower_expr(db: &mut Nexus, id: HirId, ccg: &mut CCodeGen) -> Option<CValue> {
 fn lower_type(db: &Nexus, ty_id: TypeId) -> CType {
     match db.types.kind(ty_id) {
         TyKind::Unit => CType::Void,
+        TyKind::Int => CType::I32,
 
         _ => unimplemented!(),
     }

@@ -21,5 +21,5 @@ fn main() {
 
     println!("{:?}", t.elapsed());
 
-    println!("main says: {}", eng.ccg.finish());
+    println!("\n\n{}", eng.ccg.finish());
 }

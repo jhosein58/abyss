@@ -68,14 +68,29 @@ impl CCodeGen {
         ));
     }
 
-    pub fn create_variable(&mut self, name: &str, var_type: CType, init_val: CValue) -> CValue {
-        self.code.push_str(&format!(
-            "{}{} {} = {};\n",
-            self.indent(),
-            var_type.to_string(),
-            name,
-            init_val.0
-        ));
+    pub fn create_variable(
+        &mut self,
+        name: &str,
+        var_type: CType,
+        init_val: Option<CValue>,
+    ) -> CValue {
+        if let Some(iv) = init_val {
+            self.code.push_str(&format!(
+                "{}{} {} = {};\n",
+                self.indent(),
+                var_type.to_string(),
+                name,
+                iv.0
+            ));
+        } else {
+            self.code.push_str(&format!(
+                "{}{} {};\n",
+                self.indent(),
+                var_type.to_string(),
+                name,
+            ));
+        }
+
         CValue(name.to_string())
     }
 
