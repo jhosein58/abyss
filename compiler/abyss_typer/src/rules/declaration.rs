@@ -20,18 +20,19 @@ pub fn synth(db: &mut Nexus, id: HirId) {
 
     if type_id.is_some() {
         let type_slot = db.unify.get_slot(type_id);
-        if db.unify.resolve_type(type_slot) != TypeId::TYPE {
-            panic!() // FIXME: report error
-        }
+
+        db.unify
+            .bind_type(&mut db.types, type_slot, TypeId::TYPE)
+            .unwrap(); // ERR
 
         let type_value = db.consts.get_type(type_id);
 
         if type_value.is_none() {
-            panic!() // FIXME
+            panic!() // ERR
         }
 
         db.unify
             .bind_type(&mut db.types, ident_slot, type_value)
-            .unwrap(); // FIXME
+            .unwrap(); // ERR
     }
 }
