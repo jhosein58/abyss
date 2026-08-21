@@ -4,6 +4,3 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-cranelift = { version = "0.133.1", features = ["module", "jit"] }
-
-abyss_lower = { path = "../abyss_lower" }

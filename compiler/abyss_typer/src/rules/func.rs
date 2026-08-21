@@ -1,16 +1,34 @@
+use crate::{
+    diagnostics::report_expected_type,
+    tyck::{TyCtx, Typer},
+};
 use abyss_nexus::{
     arena::ArenaId,
     nexus::{HirId, Nexus, SymbolId, TypeId},
 };
 
-use crate::{
-    diagnostics::report_expected_type,
-    tyck::{TyCtx, Typer},
-};
-
 impl<'a, T: TyCtx> Typer<'a, T> {
     #[inline(always)]
-    pub fn synth_call(&mut self, id: HirId) {}
+    pub fn synth_call(&mut self, id: HirId) {
+        let db = self.ctx.db_mut();
+
+        let slot = db.unify.new_slot(id);
+
+        let lhs = db.hir.lhs(id);
+        let lhs_slot = db.unify.get_slot(lhs);
+
+        let lhs_type = db.unify.resolve_type(lhs_slot);
+
+        println!("{:?}", db.types.kind(lhs_type));
+
+        // if db.types.kind(lhs_type) != TyKind::Func {
+        //     panic!() // FIXME
+        // }
+
+        // let ret_type = db.types.func_return(lhs_type);
+
+        // db.unify.bind_type(&mut db.types, slot, ret_type).unwrap(); // FIXME
+    }
 }
 
 #[inline(always)]
