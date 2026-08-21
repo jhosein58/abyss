@@ -34,7 +34,7 @@ impl<'a, T: TyCtx> Typer<'a, T> {
     }
 
     #[inline(always)]
-    fn synth_node(&mut self, stack: &mut Vec<TypeId>, id: HirId) {
+    fn synth_node(&mut self, stack: &mut Vec<SlotId>, id: HirId) {
         let db = self.ctx.db_mut();
         let kind = db.hir.kind(id);
 
