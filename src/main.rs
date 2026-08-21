@@ -2,8 +2,11 @@ pub use std::{fs, time::Instant};
 
 use abyss_engine::engine::Engine;
 use abyss_typer::tyck::TyCtx;
+use color_eyre::eyre::Ok;
 
-fn main() {
+fn main() -> color_eyre::Result<()> {
+    color_eyre::install()?;
+
     let t = Instant::now();
 
     let mut eng = Engine::new();
@@ -22,4 +25,6 @@ fn main() {
     println!("{:?}", t.elapsed());
 
     println!("\n\n{}", eng.ccg.finish());
+
+    Ok(())
 }

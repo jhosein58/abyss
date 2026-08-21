@@ -9,6 +9,8 @@ pub fn synth(db: &mut Nexus, id: HirId) {
     let type_id = db.hir.rhs(id);
     let value_id = db.hir.extra(id);
 
+    let slot = db.unify.new_slot(id);
+
     let ident_slot = db.unify.get_slot(ident_id);
     let value_slot = db.unify.get_slot(value_id);
 
@@ -23,7 +25,7 @@ pub fn synth(db: &mut Nexus, id: HirId) {
 
         db.unify
             .bind_type(&mut db.types, type_slot, TypeId::TYPE)
-            .unwrap(); // ERR
+            .expect("not a type"); // ERR
 
         let type_value = db.consts.get_type(type_id);
 
@@ -35,4 +37,6 @@ pub fn synth(db: &mut Nexus, id: HirId) {
             .bind_type(&mut db.types, ident_slot, type_value)
             .unwrap(); // ERR
     }
+
+    db.unify.union(&mut db.types, slot, ident_slot).unwrap(); // ERR
 }

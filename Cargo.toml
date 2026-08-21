@@ -18,6 +18,7 @@ abyss_diagnostics = { path = "./compiler/abyss_diagnostics" }
 abyss_indexer = { path = "./compiler/abyss_indexer" }
 abyss_lower = { path = "./compiler/abyss_lower" }
 abyss_engine = { path = "./compiler/abyss_engine" }
+color-eyre = "0.6.5"
 
 [profile.release]
 opt-level = 3
