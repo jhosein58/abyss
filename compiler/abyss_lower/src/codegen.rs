@@ -3,15 +3,52 @@ pub struct CValue(pub String);
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum CType {
-    I32,
     Void,
+    Bool,
+
+    // Signed Integers
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
+
+    // Unsigned Integers
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+
+    // Floats
+    F16,
+    F32,
+    F64,
+    F128,
 }
 
 impl CType {
     pub fn to_string(&self) -> String {
         match self {
-            CType::I32 => "int".to_string(),
             CType::Void => "void".to_string(),
+            CType::Bool => "bool".to_string(),
+
+            CType::I8 => "int8_t".to_string(),
+            CType::I16 => "int16_t".to_string(),
+            CType::I32 => "int32_t".to_string(),
+            CType::I64 => "int64_t".to_string(),
+            CType::I128 => "__int128".to_string(),
+
+            CType::U8 => "uint8_t".to_string(),
+            CType::U16 => "uint16_t".to_string(),
+            CType::U32 => "uint32_t".to_string(),
+            CType::U64 => "uint64_t".to_string(),
+            CType::U128 => "unsigned __int128".to_string(),
+
+            CType::F16 => "_Float16".to_string(),
+            CType::F32 => "float".to_string(),
+            CType::F64 => "double".to_string(),
+            CType::F128 => "__float128".to_string(),
         }
     }
 }

@@ -56,11 +56,14 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::Ret => func::synth_return(db, stack, id),
             Hir::Function => {
                 let tyid = db.hir.rhs(id);
-                let tyid = db.consts.get_type(tyid);
 
-                let block_slot = db.unify.get_slot(db.hir.extra(id));
+                if tyid.is_some() {
+                    let tyid = db.consts.get_type(tyid);
 
-                db.unify.bind_type(&mut db.types, block_slot, tyid).unwrap();
+                    let block_slot = db.unify.get_slot(db.hir.extra(id));
+
+                    db.unify.bind_type(&mut db.types, block_slot, tyid).unwrap();
+                }
 
                 stack.pop();
             }
