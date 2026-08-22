@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use abyss_hir::hir::HirExprKind as Hir;
 use abyss_nexus::{
     arena::ArenaId,
@@ -63,7 +65,7 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
 
     let fn_name = format!("sym_{}", symbol.0);
 
-    let mut compile_queue: Vec<SymbolId> = vec![];
+    let mut compile_queue: HashSet<SymbolId> = HashSet::new();
 
     ccg.start_function(&fn_name, ret_type, &fn_params);
 
@@ -89,7 +91,7 @@ fn lower_expr(
     db: &mut Nexus,
     id: HirId,
     ccg: &mut CCodeGen,
-    queue: &mut Vec<SymbolId>,
+    queue: &mut HashSet<SymbolId>,
 ) -> Option<CValue> {
     let kind = db.hir.kind(id);
 
@@ -114,7 +116,7 @@ fn lower_expr(
             let ty = get_type(db, id);
 
             if db.types.kind(ty) == TyKind::Func {
-                queue.push(sym_id);
+                queue.insert(sym_id);
             }
 
             Some(CValue(format!("sym_{}", sym_id.0)))
