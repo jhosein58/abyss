@@ -222,20 +222,20 @@ impl CCodeGen {
         CValue(result_var_name)
     }
 
-    pub fn add(&mut self, CValue(rhs): CValue, CValue(lhs): CValue) -> CValue {
-        CValue(format!("({rhs} + {lhs})"))
+    pub fn add(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} + {})", lhs.0, rhs.0))
     }
 
-    pub fn sub(&mut self, CValue(rhs): CValue, CValue(lhs): CValue) -> CValue {
-        CValue(format!("({rhs} - {lhs})"))
+    pub fn sub(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} - {})", lhs.0, rhs.0))
     }
 
-    pub fn mul(&mut self, CValue(rhs): CValue, CValue(lhs): CValue) -> CValue {
-        CValue(format!("({rhs} * {lhs})"))
+    pub fn mul(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} * {})", lhs.0, rhs.0))
     }
 
-    pub fn div(&mut self, CValue(rhs): CValue, CValue(lhs): CValue) -> CValue {
-        CValue(format!("({rhs} / {lhs})"))
+    pub fn div(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} / {})", lhs.0, rhs.0))
     }
 
     pub fn finish(&self) -> String {

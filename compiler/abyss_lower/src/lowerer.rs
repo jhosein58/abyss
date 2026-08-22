@@ -134,6 +134,44 @@ fn lower_expr(
             Some(ccg.create_variable(&format!("sym_{}", sym_id.0), ty, init))
         }
 
+        Hir::BinaryAdd => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+
+            Some(ccg.add(lhs, rhs))
+        }
+
+        Hir::BinarySub => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+
+            Some(ccg.sub(lhs, rhs))
+        }
+        Hir::BinaryMul => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+
+            Some(ccg.mul(lhs, rhs))
+        }
+        Hir::BinaryDiv => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+
+            Some(ccg.div(lhs, rhs))
+        }
+
         Hir::Call => {
             let callee = db.hir.lhs(id);
             let callee = lower_expr(db, callee, ccg, queue).unwrap();
