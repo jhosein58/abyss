@@ -38,16 +38,32 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
     let ret_ty_id = db.types.func_return(func_ty_id);
     let ret_type = lower_type(db, ret_ty_id);
 
-    // let params: Vec<CType> = db
-    //     .types
-    //     .func_params(func_ty_id)
-    //     .iter()
-    //     .map(|p| lower_type(db, *p))
-    //     .collect();
+    let args_id = db.hir.lhs(func_id);
+    let args_name = if args_id.is_some() {
+        db.get_list_flat(args_id.0).to_owned()
+    } else {
+        vec![]
+    };
 
-    let fn_name = &format!("fn_{}", symbol.0);
+    let args_name: Vec<_> = args_name
+        .iter()
+        .map(|a| db.hir.lhs(db.hir.lhs(db.hir.lhs(HirId(*a)))))
+        .map(|a| db.hir_to_symbol.get_copy(a))
+        .map(|a| format!("sym_{}", a.0))
+        .collect();
 
-    ccg.start_function(fn_name, ret_type);
+    let params: Vec<CType> = db
+        .types
+        .func_params(func_ty_id)
+        .iter()
+        .map(|p| lower_type(db, *p))
+        .collect();
+
+    let fn_params: Vec<(&str, CType)> = args_name.iter().map(|s| s.as_str()).zip(params).collect();
+
+    let fn_name = format!("sym_{}", symbol.0);
+
+    ccg.start_function(&fn_name, ret_type, &fn_params);
 
     let func_node = db.hir.extra(id);
     let func_body = db.hir.extra(func_node);
@@ -83,7 +99,7 @@ fn lower_expr(db: &mut Nexus, id: HirId, ccg: &mut CCodeGen) -> Option<CValue> {
 
         Hir::Ident => {
             let sym_id = db.hir_to_symbol.get_copy(id);
-            Some(CValue(format!("v_{}", sym_id.0)))
+            Some(CValue(format!("sym_{}", sym_id.0)))
         }
 
         Hir::Var => {
@@ -97,7 +113,27 @@ fn lower_expr(db: &mut Nexus, id: HirId, ccg: &mut CCodeGen) -> Option<CValue> {
             let init_id = db.hir.extra(id);
             let init = lower_expr(db, init_id, ccg);
 
-            Some(ccg.create_variable(&format!("v_{}", sym_id.0), ty, init))
+            Some(ccg.create_variable(&format!("sym_{}", sym_id.0), ty, init))
+        }
+
+        Hir::Call => {
+            let callee = db.hir.lhs(id);
+            let callee = lower_expr(db, callee, ccg).unwrap();
+
+            let mut vec = vec![];
+
+            let args = db.hir.rhs(id);
+            let args = db
+                .get_list_flat(args.0)
+                .into_iter()
+                .map(|a| HirId(*a))
+                .collect::<Vec<_>>();
+
+            for a in args {
+                vec.push(lower_expr(db, a, ccg).unwrap());
+            }
+
+            Some(ccg.call(callee, &vec))
         }
 
         Hir::Ret => {
@@ -114,12 +150,19 @@ fn lower_expr(db: &mut Nexus, id: HirId, ccg: &mut CCodeGen) -> Option<CValue> {
         }
 
         Hir::Block => {
+            let items = db.get_list_flat(db.hir.lhs(id).0).to_owned();
+            let count = items.len();
             let mut last_val = None;
 
-            let items = db.get_list_flat(db.hir.lhs(id).0).to_owned();
+            for (idx, n) in items.into_iter().enumerate() {
+                let val = lower_expr(db, HirId(n), ccg);
 
-            for n in items {
-                last_val = lower_expr(db, HirId(n), ccg)
+                let is_last = idx + 1 == count;
+                if !is_last {
+                    ccg.expr(val);
+                } else {
+                    last_val = val;
+                }
             }
 
             last_val

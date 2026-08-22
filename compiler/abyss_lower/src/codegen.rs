@@ -158,6 +158,12 @@ impl CCodeGen {
         CValue(name.to_string())
     }
 
+    pub fn expr(&mut self, e: Option<CValue>) {
+        if let Some(CValue(s)) = e {
+            self.code.push_str(&format!("{}{};\n", self.indent(), s));
+        }
+    }
+
     pub fn gen_if_else<F1, F2>(
         &mut self,
         condition: CValue,
@@ -219,11 +225,8 @@ impl CCodeGen {
     pub fn finish(&self) -> String {
         let includes = "#include <stdint.h>\n#include <stdbool.h>\n\n";
         format!(
-            "{}{}\n// Forward Declarations\n{}\n// Implementations\n{}",
-            includes,
-            "// Typedefs or macros for 128-bit support if needed could go here.",
-            self.func_forward_decl,
-            self.code
+            "{}\n// Forward Declarations\n{}\n// Implementations\n{}",
+            includes, self.func_forward_decl, self.code
         )
     }
 }
