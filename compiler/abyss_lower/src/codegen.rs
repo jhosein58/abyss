@@ -222,6 +222,22 @@ impl CCodeGen {
         CValue(result_var_name)
     }
 
+    pub fn add(&mut self, CValue(rhs): CValue, CValue(lhs): CValue) -> CValue {
+        CValue(format!("({rhs} + {lhs})"))
+    }
+
+    pub fn sub(&mut self, CValue(rhs): CValue, CValue(lhs): CValue) -> CValue {
+        CValue(format!("({rhs} - {lhs})"))
+    }
+
+    pub fn mul(&mut self, CValue(rhs): CValue, CValue(lhs): CValue) -> CValue {
+        CValue(format!("({rhs} * {lhs})"))
+    }
+
+    pub fn div(&mut self, CValue(rhs): CValue, CValue(lhs): CValue) -> CValue {
+        CValue(format!("({rhs} / {lhs})"))
+    }
+
     pub fn finish(&self) -> String {
         let includes = "#include <stdint.h>\n#include <stdbool.h>\n\n";
         format!(
