@@ -1,7 +1,7 @@
 use abyss_hir::hir::HirExprKind as Hir;
 use abyss_nexus::{
     arena::ArenaId,
-    nexus::{FloatId, HirId, IntId, NameId, Nexus, SymbolId, TypeId},
+    nexus::{FloatId, HirId, IntId, Nexus, SymbolId, TypeId},
 };
 use abyss_types::TyKind;
 
@@ -47,7 +47,7 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
 
     let args_name: Vec<_> = args_name
         .iter()
-        .map(|a| db.hir.lhs(db.hir.lhs(db.hir.lhs(HirId(*a)))))
+        .map(|a| db.hir.lhs(HirId(*a)))
         .map(|a| db.hir_to_symbol.get_copy(a))
         .map(|a| format!("sym_{}", a.0))
         .collect();
@@ -63,12 +63,14 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
 
     let fn_name = format!("sym_{}", symbol.0);
 
+    let mut compile_queue: Vec<SymbolId> = vec![];
+
     ccg.start_function(&fn_name, ret_type, &fn_params);
 
     let func_node = db.hir.extra(id);
     let func_body = db.hir.extra(func_node);
 
-    let body_value = lower_expr(db, func_body, ccg);
+    let body_value = lower_expr(db, func_body, ccg, &mut compile_queue);
 
     if db.types.kind(ret_ty_id) == TyKind::Unit {
         ccg.gen_return(None);
@@ -77,9 +79,18 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
     }
 
     ccg.end_function();
+
+    for s in compile_queue {
+        lower_function(db, ccg, s);
+    }
 }
 
-fn lower_expr(db: &mut Nexus, id: HirId, ccg: &mut CCodeGen) -> Option<CValue> {
+fn lower_expr(
+    db: &mut Nexus,
+    id: HirId,
+    ccg: &mut CCodeGen,
+    queue: &mut Vec<SymbolId>,
+) -> Option<CValue> {
     let kind = db.hir.kind(id);
 
     match kind {
@@ -99,6 +110,13 @@ fn lower_expr(db: &mut Nexus, id: HirId, ccg: &mut CCodeGen) -> Option<CValue> {
 
         Hir::Ident => {
             let sym_id = db.hir_to_symbol.get_copy(id);
+
+            let ty = get_type(db, id);
+
+            if db.types.kind(ty) == TyKind::Func {
+                queue.push(sym_id);
+            }
+
             Some(CValue(format!("sym_{}", sym_id.0)))
         }
 
@@ -111,14 +129,14 @@ fn lower_expr(db: &mut Nexus, id: HirId, ccg: &mut CCodeGen) -> Option<CValue> {
             let ty = lower_type(db, ty);
 
             let init_id = db.hir.extra(id);
-            let init = lower_expr(db, init_id, ccg);
+            let init = lower_expr(db, init_id, ccg, queue);
 
             Some(ccg.create_variable(&format!("sym_{}", sym_id.0), ty, init))
         }
 
         Hir::Call => {
             let callee = db.hir.lhs(id);
-            let callee = lower_expr(db, callee, ccg).unwrap();
+            let callee = lower_expr(db, callee, ccg, queue).unwrap();
 
             let mut vec = vec![];
 
@@ -130,7 +148,7 @@ fn lower_expr(db: &mut Nexus, id: HirId, ccg: &mut CCodeGen) -> Option<CValue> {
                 .collect::<Vec<_>>();
 
             for a in args {
-                vec.push(lower_expr(db, a, ccg).unwrap());
+                vec.push(lower_expr(db, a, ccg, queue).unwrap());
             }
 
             Some(ccg.call(callee, &vec))
@@ -142,7 +160,7 @@ fn lower_expr(db: &mut Nexus, id: HirId, ccg: &mut CCodeGen) -> Option<CValue> {
             if lhs.is_none() {
                 ccg.gen_return(None);
             } else {
-                let v = lower_expr(db, lhs, ccg);
+                let v = lower_expr(db, lhs, ccg, queue);
                 ccg.gen_return(v);
             }
 
@@ -155,7 +173,7 @@ fn lower_expr(db: &mut Nexus, id: HirId, ccg: &mut CCodeGen) -> Option<CValue> {
             let mut last_val = None;
 
             for (idx, n) in items.into_iter().enumerate() {
-                let val = lower_expr(db, HirId(n), ccg);
+                let val = lower_expr(db, HirId(n), ccg, queue);
 
                 let is_last = idx + 1 == count;
                 if !is_last {
