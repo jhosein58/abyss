@@ -5,6 +5,8 @@ use crate::{
     nexus::{FloatId, HirId, IntId, NameId},
 };
 
+const NONE: u32 = u32::MAX;
+
 #[derive(Default)]
 pub struct HirStorage {
     pub table: HirTable,
@@ -73,27 +75,27 @@ impl HirStorage {
 
     #[inline(always)]
     pub fn alloc_ident(&mut self, ident: NameId) -> HirId {
-        self.alloc(Hir::Ident, ident.0, 0, 0)
+        self.alloc(Hir::Ident, ident.0, NONE, NONE)
     }
 
     #[inline(always)]
     pub fn alloc_int(&mut self, int_id: IntId) -> HirId {
-        self.alloc(Hir::LitInt, int_id.0, 0, 0)
+        self.alloc(Hir::LitInt, int_id.0, NONE, NONE)
     }
 
     #[inline(always)]
     pub fn alloc_float(&mut self, float_id: FloatId) -> HirId {
-        self.alloc(Hir::LitFloat, float_id.0, 0, 0)
+        self.alloc(Hir::LitFloat, float_id.0, NONE, NONE)
     }
 
     #[inline(always)]
     pub fn alloc_binary(&mut self, op: Hir, lhs: HirId, rhs: HirId) -> HirId {
-        self.alloc(op, lhs.0, rhs.0, 0)
+        self.alloc(op, lhs.0, rhs.0, NONE)
     }
 
     #[inline(always)]
     pub fn alloc_block(&mut self, items: u32) -> HirId {
-        self.alloc(Hir::Block, items, 0, 0)
+        self.alloc(Hir::Block, items, NONE, NONE)
     }
 
     #[inline(always)]
@@ -103,7 +105,7 @@ impl HirStorage {
 
     #[inline(always)]
     pub fn alloc_arg(&mut self, arg: HirId, ty: u32) -> HirId {
-        self.alloc(Hir::Arg, arg.0, ty, 0)
+        self.alloc(Hir::Arg, arg.0, ty, NONE)
     }
 
     #[inline(always)]
@@ -127,17 +129,17 @@ impl HirStorage {
 
     #[inline(always)]
     pub fn alloc_error(&mut self) -> HirId {
-        self.alloc(Hir::Error, 0, 0, 0)
+        self.alloc(Hir::Error, 0, NONE, NONE)
     }
 
     #[inline(always)]
     pub fn alloc_return(&mut self, value: Option<HirId>) -> HirId {
-        self.alloc(Hir::Ret, value.unwrap_or(HirId::none()).0, 0, 0)
+        self.alloc(Hir::Ret, value.unwrap_or(HirId::none()).0, NONE, NONE)
     }
 
     #[inline(always)]
     pub fn alloc_call(&mut self, lhs: HirId, args: u32) -> HirId {
-        self.alloc(Hir::Call, lhs.0, args, 0)
+        self.alloc(Hir::Call, lhs.0, args, NONE)
     }
 
     #[inline(always)]
@@ -147,6 +149,6 @@ impl HirStorage {
 
     #[inline(always)]
     pub fn alloc_while(&mut self, cond: HirId, body: HirId) -> HirId {
-        self.alloc(Hir::While, cond.0, body.0, 0)
+        self.alloc(Hir::While, cond.0, body.0, NONE)
     }
 }
