@@ -75,7 +75,7 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::If => controlflow::synth_if(db, id),
             Hir::While => controlflow::synth_while(db, id),
 
-            Hir::BinaryAnd | Hir::Binary
+            Hir::BinaryAnd | Hir::BinaryOr => binary::synth_logic_and_or(db, id),
 
             _ => {}
         }
