@@ -52,11 +52,13 @@ impl Parser<'_> {
 
     #[inline(always)]
     pub fn parse_true(&mut self) -> HirId {
+        self.bump();
         self.db.hir.alloc_true()
     }
 
     #[inline(always)]
     pub fn parse_false(&mut self) -> HirId {
+        self.bump();
         self.db.hir.alloc_false()
     }
 }
