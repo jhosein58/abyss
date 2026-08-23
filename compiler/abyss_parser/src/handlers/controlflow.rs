@@ -1,4 +1,4 @@
-use abyss_nexus::{arena::ArenaId, nexus::HirId};
+use abyss_nexus::nexus::HirId;
 use abyss_token::kind::TokenKind as Tk;
 
 use crate::parser::Parser;
@@ -16,6 +16,6 @@ impl Parser<'_> {
             elseb = Some(self.parse_expr(0))
         }
 
-        HirId::none()
+        self.db.hir.alloc_if(cond, thenb, elseb)
     }
 }
