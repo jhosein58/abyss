@@ -166,4 +166,14 @@ impl HirStorage {
     pub fn alloc_not(&mut self, body: HirId) -> HirId {
         self.alloc(Hir::UnaryNot, body.0, NONE, NONE)
     }
+
+    #[inline(always)]
+    pub fn alloc_and(&mut self, lhs: HirId, rhs: HirId) -> HirId {
+        self.alloc(Hir::BinaryAnd, lhs.0, rhs.0, NONE)
+    }
+
+    #[inline(always)]
+    pub fn alloc_or(&mut self, lhs: HirId, rhs: HirId) -> HirId {
+        self.alloc(Hir::BinaryOr, lhs.0, rhs.0, NONE)
+    }
 }
