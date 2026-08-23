@@ -18,4 +18,13 @@ impl Parser<'_> {
 
         self.db.hir.alloc_if(cond, thenb, elseb)
     }
+
+    pub fn parse_while(&mut self) -> HirId {
+        self.bump();
+
+        let cond = self.parse_expr(0);
+        let body = self.parse_expr(0);
+
+        self.db.hir.alloc_while(cond, body)
+    }
 }
