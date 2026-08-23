@@ -23,6 +23,7 @@ impl Parser<'_> {
             Tk::Ret => self.parse_return_stmt(),
             Tk::If => self.parse_if(),
             Tk::While => self.parse_while(),
+            Tk::Not => self.parse_not(),
 
             _ => {
                 self.report_expected_expression(self.span());
