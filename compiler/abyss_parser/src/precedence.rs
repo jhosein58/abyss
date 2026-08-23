@@ -8,8 +8,8 @@ pub enum Precedence {
     VarDef = 15,      // :, :=
     Assignment = 10,  // =, +=, -=, ...
     _Range = 20,      // ->
-    _LogicOr = 30,    // or
-    _LogicAnd = 40,   // and
+    LogicOr = 30,     // or
+    LogicAnd = 40,    // and
     _Equality = 50,   //  ==, !=
     _Comparison = 60, //  <, >, <=, >=, Is (Type check)
     _BitOr = 70,      // |
