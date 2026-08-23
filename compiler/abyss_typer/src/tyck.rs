@@ -42,6 +42,7 @@ impl<'a, T: TyCtx> Typer<'a, T> {
         match kind {
             Hir::LitInt => literal::synth_int(db, id),
             Hir::LitFloat => literal::synth_float(db, id),
+            Hir::LitBoolTrue | Hir::LitBoolFalse => literal::synth_bool(db, id),
 
             Hir::Ident => self.synth_ident(id),
 
