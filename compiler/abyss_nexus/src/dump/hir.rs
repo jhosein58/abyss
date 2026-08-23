@@ -47,7 +47,8 @@ impl Nexus {
                 HirExprKind::LitFloat => {
                     lhs_str = format!("Float({})", self.floats.get(FloatId(lhs)))
                 }
-                HirExprKind::LitBool => lhs_str = format!("Bool({})", lhs == 1),
+                HirExprKind::LitBoolTrue => lhs_str = format!("Bool(True)"),
+                HirExprKind::LitBoolFalse => lhs_str = format!("Bool(False)"),
                 HirExprKind::LitChar => {
                     if let Some(c) = std::char::from_u32(lhs) {
                         lhs_str = format!("Char('{}')", c);
