@@ -151,4 +151,7 @@ impl HirStorage {
     pub fn alloc_while(&mut self, cond: HirId, body: HirId) -> HirId {
         self.alloc(Hir::While, cond.0, body.0, NONE)
     }
+
+    #[inline(always)]
+    pub fn alloc_true(&mut self) -> HirId {}
 }
