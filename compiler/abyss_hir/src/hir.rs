@@ -7,7 +7,8 @@ pub enum HirExprKind {
     // Literals
     LitInt,
     LitFloat,
-    LitBool,
+    LitBoolTrue,
+    LitBoolFalse,
     LitStr,
     LitCstr,
     LitChar,
