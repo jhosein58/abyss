@@ -1,4 +1,4 @@
-use abyss_hir::hir::HirExprKind;
+use abyss_hir::hir::HirExprKind as Hir;
 use abyss_nexus::nexus::HirId;
 use abyss_token::kind::TokenKind as Tk;
 
@@ -12,12 +12,14 @@ impl Parser<'_> {
         let rhs_span = self.db.hir_spans.get(rhs);
 
         let kind = match op {
-            Tk::Plus => HirExprKind::BinaryAdd,
-            Tk::Minus => HirExprKind::BinarySub,
-            Tk::Star => HirExprKind::BinaryMul,
-            Tk::Slash => HirExprKind::BinaryDiv,
-            Tk::Percent => HirExprKind::BinaryMod,
-            Tk::Eq => HirExprKind::BinaryAssign,
+            Tk::Plus => Hir::BinaryAdd,
+            Tk::Minus => Hir::BinarySub,
+            Tk::Star => Hir::BinaryMul,
+            Tk::Slash => Hir::BinaryDiv,
+            Tk::Percent => Hir::BinaryMod,
+            Tk::Eq => Hir::BinaryAssign,
+            Tk::And => Hir::BinaryAnd,
+            Tk::Or => Hir::BinaryOr,
             _ => return self.db.hir.alloc_error(),
         };
 
