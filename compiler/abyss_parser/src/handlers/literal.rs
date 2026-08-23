@@ -52,6 +52,11 @@ impl Parser<'_> {
 
     #[inline(always)]
     pub fn parse_true(&mut self) -> HirId {
-        HirId::none()
+        self.db.hir.alloc_true()
+    }
+
+    #[inline(always)]
+    pub fn parse_false(&mut self) -> HirId {
+        self.db.hir.alloc_false()
     }
 }
