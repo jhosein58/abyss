@@ -14,9 +14,10 @@ impl<'a, T: TyCtx> Typer<'a, T> {
 
         if let Some((kind, bits)) = parse_builtin_num_type(name) {
             let ty = match kind {
-                NumTypeKind::Signed => db.types.alloc_int(bits),
-                NumTypeKind::Unsigned => db.types.alloc_uint(bits),
-                NumTypeKind::Float => db.types.alloc_float(bits),
+                LitTyKind::Signed => db.types.alloc_int(bits),
+                LitTyKind::Unsigned => db.types.alloc_uint(bits),
+                LitTyKind::Float => db.types.alloc_float(bits),
+                LitTyKind::Bool => db.types.alloc_bool(),
             };
 
             let ty_id_of_type = db.types.alloc_type();
@@ -43,19 +44,24 @@ impl<'a, T: TyCtx> Typer<'a, T> {
 }
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NumTypeKind {
+pub enum LitTyKind {
     Signed,   // i
     Unsigned, // u
     Float,    // f
+    Bool,     // bool
 }
 
-pub fn parse_builtin_num_type(name: &str) -> Option<(NumTypeKind, u16)> {
+pub fn parse_builtin_num_type(name: &str) -> Option<(LitTyKind, u16)> {
+    if name == "bool" {
+        return Some((LitTyKind::Bool, 0));
+    }
+
     let mut chars = name.chars();
 
     let kind = match chars.next()? {
-        'i' => NumTypeKind::Signed,
-        'u' => NumTypeKind::Unsigned,
-        'f' => NumTypeKind::Float,
+        'i' => LitTyKind::Signed,
+        'u' => LitTyKind::Unsigned,
+        'f' => LitTyKind::Float,
         _ => return None,
     };
 
