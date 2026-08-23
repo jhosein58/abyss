@@ -14,6 +14,9 @@ impl Parser<'_> {
         match tk {
             Tk::IntLit => self.parse_int(),
             Tk::FloatLit => self.parse_float(),
+            Tk::True => self.parse_true(),
+            Tk::False => self.parse_false(),
+
             Tk::Ident => self.parse_ident(),
             Tk::OBrace => self.parse_block(),
             Tk::OParen => self.parse_paren(),
