@@ -20,6 +20,9 @@ impl BindingPower {
 
             Tk::OParen => Precedence::Call.left_assoc(),
 
+            Tk::And => Precedence::LogicAnd.left_assoc(),
+            Tk::Or => Precedence::LogicOr.left_assoc(),
+
             _ => return None,
         };
 
