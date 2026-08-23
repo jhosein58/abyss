@@ -1,4 +1,4 @@
-use abyss_nexus::{arena::ArenaId, nexus::HirId};
+use abyss_nexus::nexus::HirId;
 
 use crate::parser::Parser;
 
