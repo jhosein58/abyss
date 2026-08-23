@@ -5,7 +5,7 @@ use abyss_nexus::{
     ranges::HirRange,
 };
 
-use crate::rules::{binary, block, declaration, func, literal};
+use crate::rules::{binary, block, controlflow, declaration, func, literal};
 
 pub trait TyCtx {
     fn db(&self) -> &Nexus;
@@ -71,6 +71,8 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::Call => self.synth_call(id),
 
             Hir::Block => block::synth(db, id),
+
+            Hir::If => controlflow::synth_if(db, id),
 
             _ => {}
         }
