@@ -156,4 +156,9 @@ impl HirStorage {
     pub fn alloc_true(&mut self) -> HirId {
         self.alloc(Hir::LitBoolTrue, NONE, NONE, NONE)
     }
+
+    #[inline(always)]
+    pub fn alloc_false(&mut self) -> HirId {
+        self.alloc(Hir::LitBoolFalse, NONE, NONE, NONE)
+    }
 }
