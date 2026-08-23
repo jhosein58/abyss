@@ -1,4 +1,4 @@
-use abyss_nexus::nexus::{HirId, Nexus};
+use abyss_nexus::nexus::{HirId, Nexus, TypeId};
 
 #[inline(always)]
 pub fn synth(db: &mut Nexus, id: HirId) {
@@ -28,4 +28,19 @@ pub fn synth(db: &mut Nexus, id: HirId) {
 #[inline(always)]
 pub fn synth_logic_and_or(db: &mut Nexus, id: HirId) {
     let slot = db.unify.new_slot(id);
+    db.unify
+        .bind_type(&mut db.types, slot, TypeId::BOOL)
+        .unwrap();
+
+    let lhs_id = db.hir.lhs(id);
+    let lhs_slot = db.unify.get_slot(lhs_id);
+    db.unify
+        .bind_type(&mut db.types, lhs_slot, TypeId::BOOL)
+        .unwrap();
+
+    let rhs_id = db.hir.lhs(id);
+    let rhs_slot = db.unify.get_slot(rhs_id);
+    db.unify
+        .bind_type(&mut db.types, rhs_slot, TypeId::BOOL)
+        .unwrap();
 }
