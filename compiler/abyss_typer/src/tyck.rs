@@ -73,6 +73,9 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::Block => block::synth(db, id),
 
             Hir::If => controlflow::synth_if(db, id),
+            Hir::While => controlflow::synth_while(db, id),
+
+            Hir::BinaryAnd | Hir::Binary
 
             _ => {}
         }
