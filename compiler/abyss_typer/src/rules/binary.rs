@@ -24,3 +24,8 @@ pub fn synth(db: &mut Nexus, id: HirId) {
         }
     }
 }
+
+#[inline(always)]
+pub fn synth_logic_and_or(db: &mut Nexus, id: HirId) {
+    let slot = db.unify.new_slot(id);
+}

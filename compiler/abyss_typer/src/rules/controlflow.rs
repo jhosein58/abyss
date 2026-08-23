@@ -35,3 +35,19 @@ pub fn synth_if(db: &mut Nexus, id: HirId) {
 
     db.unify.union(&mut db.types, thenb_slot, slot).unwrap();
 }
+
+#[inline(always)]
+pub fn synth_while(db: &mut Nexus, id: HirId) {
+    let slot = db.unify.new_slot(id);
+
+    db.unify
+        .bind_type(&mut db.types, slot, TypeId::UNIT)
+        .unwrap(); // Make it work, make it right, make it fast
+
+    let cond_id = db.hir.lhs(id);
+    let cond_slot = db.unify.get_slot(cond_id);
+
+    db.unify
+        .bind_type(&mut db.types, cond_slot, TypeId::BOOL)
+        .unwrap();
+}
