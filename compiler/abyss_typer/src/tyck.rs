@@ -53,6 +53,13 @@ impl<'a, T: TyCtx> Typer<'a, T> {
 
             Hir::BinaryAssign => binary::synth_assign(db, id),
 
+            Hir::BinaryGt
+            | Hir::BinaryGtEq
+            | Hir::BinaryLt
+            | Hir::BinaryLtEq
+            | Hir::BinaryEqEq
+            | Hir::BinaryNeq => binary::synth_binary_comp(db, id),
+
             Hir::Binding | Hir::Var => declaration::synth(db, id),
 
             Hir::Arg => func::synth_arg(db, id),
