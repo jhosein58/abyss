@@ -252,10 +252,6 @@ impl TypeStorage {
         let is_extern = is_extern as u16;
 
         let packed = ((params_len as u32) << 16) | is_extern as u32;
-        println!("{:#b}", packed);
-
-        println!("unpacked len: {:#b}", (packed >> 16) & 0xFFFF);
-        println!("unpacked is_extern: {:#b}", (packed) & 0xFFFF);
 
         self.store.extra.push(packed);
         self.store.extra.push(ret.0);
@@ -296,7 +292,7 @@ impl TypeStorage {
     pub fn func_params(&self, func: TypeId) -> Vec<TypeId> /* PREF: remove allocation and return an slice */
     {
         let header_idx = self.payload(func) as usize;
-        let count = self.store.extra[header_idx] as usize; // FIXME: unpack header logic
+        let count = self.func_params_len(func) as usize;
 
         let start = header_idx + 2;
         let end = start + count;

@@ -161,8 +161,5 @@ pub fn synth_func(db: &mut Nexus, id: HirId) {
 
     let func_type = db.types.alloc_func(&params, ret_ty_id, is_extern);
 
-    println!("len -> {}", db.types.func_params_len(func_type));
-    println!("extern -> {}", db.types.func_is_extern(func_type));
-
     db.unify.bind_type(&mut db.types, slot, func_type).unwrap(); // FIXME
 }
