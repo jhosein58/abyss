@@ -24,7 +24,7 @@ pub enum TypeKey {
     UInt(u16),
     Float(u16),
     Ptr(TypeId),
-    Func(Box<[TypeId]>, TypeId), // PERF: Box ro hazf kon
+    Func(Box<[TypeId]>, TypeId, bool), // Key(params, return, is_extern), PERF: Box ro hazf kon
 }
 
 pub struct TypeStorage {
@@ -238,7 +238,7 @@ impl TypeStorage {
     }
 
     #[inline(always)]
-    pub fn alloc_func(&mut self, params: &[TypeId], ret: TypeId) -> TypeId {
+    pub fn alloc_func(&mut self, params: &[TypeId], ret: TypeId, is_extern: bool) -> TypeId {
         let key = TypeKey::Func(params.into(), ret);
 
         if let Some(&id) = self.interned.get(&key) {
@@ -248,6 +248,9 @@ impl TypeStorage {
         let extra_len = self.store.extra.len() as u32;
 
         // ------------
+        let is_extern = is_extern as u16;
+        println!("{:#b}", is_extern);
+
         self.store.extra.push(params.len() as u32); // IDEA: u16 kafie baraye tool arg. 2 byte dari ke mitoni tosh meta-data benevisi
         self.store.extra.push(ret.0);
         for p in params {

@@ -157,7 +157,9 @@ pub fn synth_func(db: &mut Nexus, id: HirId) {
         .map(|p| db.consts.get_type(db.hir.rhs(HirId(*p))))
         .collect::<Vec<TypeId>>(); // FIXME: remove vector allocation
 
-    let func_type = db.types.alloc_func(&params, ret_ty_id);
+    let is_extern = db.hir.extra(id).is_none();
+
+    let func_type = db.types.alloc_func(&params, ret_ty_id, is_extern);
 
     db.unify.bind_type(&mut db.types, slot, func_type).unwrap(); // FIXME
 }
