@@ -174,6 +174,22 @@ impl CCodeGen {
         }
     }
 
+    pub fn gen_while<F>(&mut self, cond: CValue, mut body: F) -> CValue
+    where
+        F: FnMut(&mut Self),
+    {
+        self.code
+            .push_str(&format!("{}while ({}) {{\n", self.indent(), cond.0));
+        self.indent_level += 1;
+
+        body(self);
+
+        self.indent_level -= 1;
+        self.code.push_str(&format!("{}}}\n", self.indent()));
+
+        CValue::empty()
+    }
+
     pub fn gen_if_else<F1, F2>(
         &mut self,
         db: &mut Nexus,
