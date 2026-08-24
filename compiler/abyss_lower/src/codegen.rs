@@ -69,6 +69,7 @@ pub struct CCodeGen {
     code: String,
     indent_level: usize,
     temp_counter: usize,
+    abyss_main: String,
 }
 
 impl CCodeGen {
@@ -298,9 +299,22 @@ impl CCodeGen {
 
     pub fn finish(&self) -> String {
         let includes = "#include <stdint.h>\n#include <stdbool.h>\n\n";
-        format!(
+        let mut res = format!(
             "{}\n// Forward Declarations\n{}\n// Implementations\n{}",
             includes, self.func_forward_decl, self.code
-        )
+        );
+
+        if self.abyss_main != "" {
+            res.push_str(&format!(
+                "int main(void) {{\n\t{}();\n\treturn 0;\n}}",
+                self.abyss_main
+            ));
+        }
+
+        res
+    }
+
+    pub fn abyss_main(&mut self, name: &str) {
+        self.abyss_main = name.to_owned();
     }
 }

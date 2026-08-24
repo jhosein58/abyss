@@ -15,6 +15,7 @@ fn main() -> color_eyre::Result<()> {
 
     let sym_id = eng.get_symbol_id(file_id, "main");
 
+    eng.abyss_main(sym_id);
     eng.type_of(sym_id);
 
     eng.db.dump_hir();
