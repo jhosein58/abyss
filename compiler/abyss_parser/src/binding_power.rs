@@ -11,17 +11,23 @@ pub struct BindingPower {
 impl BindingPower {
     pub fn from_infix(kind: Tk) -> Option<BindingPower> {
         let bp = match kind {
+            // Decl
             Tk::Colon => Precedence::VarDef.right_assoc(),
             Tk::ColonColon => Precedence::ConstDef.right_assoc(),
 
+            // Binary
             Tk::Eq => Precedence::Assignment.right_assoc(),
             Tk::Plus | Tk::Minus => Precedence::Term.left_assoc(),
             Tk::Star | Tk::Slash => Precedence::Factor.left_assoc(),
 
-            Tk::OParen => Precedence::Call.left_assoc(),
-
             Tk::And => Precedence::LogicAnd.left_assoc(),
             Tk::Or => Precedence::LogicOr.left_assoc(),
+
+            Tk::Gt | Tk::GtEq | Tk::Lt | Tk::LtEq | Tk::EqEq | Tk::BangEq => {
+                Precedence::Comparison.left_assoc()
+            }
+
+            Tk::OParen => Precedence::Call.left_assoc(),
 
             _ => return None,
         };

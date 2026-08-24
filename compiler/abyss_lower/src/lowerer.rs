@@ -285,6 +285,19 @@ fn lower_expr(
             ))
         }
 
+        Hir::While => {
+            let cond_id = db.hir.lhs(id);
+            let cond_v = lower_expr(db, cond_id, ccg, queue);
+
+            let body_id = db.hir.rhs(id);
+
+            ccg.gen_while(cond_v.unwrap(), |builder| {
+                lower_expr(db, body_id, builder, queue);
+            });
+
+            None
+        }
+
         _ => None,
     }
 }
