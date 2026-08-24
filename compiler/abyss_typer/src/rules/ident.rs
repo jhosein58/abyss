@@ -21,6 +21,7 @@ impl<'a, T: TyCtx> Typer<'a, T> {
                 LitTyKind::Unsigned => db.types.alloc_uint(bits),
                 LitTyKind::Float => db.types.alloc_float(bits),
                 LitTyKind::Bool => db.types.alloc_bool(),
+                LitTyKind::Unit => db.types.alloc_unit(),
             };
 
             let ty_id_of_type = db.types.alloc_type();
@@ -63,11 +64,16 @@ pub enum LitTyKind {
     Unsigned, // u
     Float,    // f
     Bool,     // bool
+    Unit,     // unit
 }
 
 pub fn parse_builtin_num_type(name: &str) -> Option<(LitTyKind, u16)> {
     if name == "bool" {
         return Some((LitTyKind::Bool, 0));
+    }
+
+    if name == "unit" {
+        return Some((LitTyKind::Unit, 0));
     }
 
     let mut chars = name.chars();

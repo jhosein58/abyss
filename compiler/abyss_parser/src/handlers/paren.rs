@@ -104,7 +104,11 @@ impl Parser<'_> {
             .hir
             .alloc(HirExprKind::MarkerFnStart, 0, sym_id.0, 0);
 
-        let body = self.parse_block();
+        let body = if self.peek() == Some(TokenKind::OBrace) {
+            self.parse_block()
+        } else {
+            HirId::none()
+        };
 
         let id = self.db.hir.alloc_function(params, ret, body.0);
 

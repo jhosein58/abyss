@@ -71,9 +71,13 @@ impl<'a, T: TyCtx> Typer<'a, T> {
                 if tyid.is_some() {
                     let tyid = db.consts.get_type(tyid);
 
-                    let block_slot = db.unify.get_slot(db.hir.extra(id));
+                    let block_id = db.hir.extra(id);
 
-                    db.unify.bind_type(&mut db.types, block_slot, tyid).unwrap();
+                    if block_id.is_some() {
+                        let block_slot = db.unify.get_slot(block_id);
+
+                        db.unify.bind_type(&mut db.types, block_slot, tyid).unwrap();
+                    }
                 }
 
                 stack.pop();
