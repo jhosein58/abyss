@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use abyss_hir::hir::HirExprKind as Hir;
 use abyss_nexus::{
     arena::ArenaId,
-    nexus::{FloatId, HirId, IntId, Nexus, SymbolId, TypeId},
+    nexus::{FloatId, HirId, IntId, NameId, Nexus, SymbolId, TypeId},
 };
 use abyss_types::TyKind;
 
@@ -120,6 +120,12 @@ fn lower_expr(
             let ty = get_type(db, id);
 
             if db.types.kind(ty) == TyKind::Func {
+                if db.types.func_is_extern(ty) {
+                    let name_id = NameId(db.hir.lhs(id).0);
+                    let name = db.interner.get(name_id);
+
+                    return Some(CValue(name.to_owned()));
+                }
                 queue.insert(sym_id);
             }
 
