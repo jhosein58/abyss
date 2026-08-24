@@ -197,6 +197,66 @@ fn lower_expr(
             Some(ccg.div(lhs, rhs))
         }
 
+        Hir::BinaryLt => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+
+            Some(ccg.cmp_lt(lhs, rhs))
+        }
+
+        Hir::BinaryLtEq => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+
+            Some(ccg.cmp_lte(lhs, rhs))
+        }
+
+        Hir::BinaryGt => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+
+            Some(ccg.cmp_gt(lhs, rhs))
+        }
+
+        Hir::BinaryGtEq => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+
+            Some(ccg.cmp_gte(lhs, rhs))
+        }
+
+        Hir::BinaryEqEq => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+
+            Some(ccg.cmp_eq(lhs, rhs))
+        }
+
+        Hir::BinaryNeq => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+
+            Some(ccg.cmp_neq(lhs, rhs))
+        }
+
         Hir::Call => {
             let callee = db.hir.lhs(id);
             let callee = lower_expr(db, callee, ccg, queue).unwrap();
