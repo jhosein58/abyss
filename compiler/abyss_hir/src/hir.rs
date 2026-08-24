@@ -31,12 +31,12 @@ pub enum HirExprKind {
     BinaryMul,          // *
     BinaryDiv,          // /
     BinaryMod,          // %
-    BinaryEq,           // ==
+    BinaryEqEq,         // ==
     BinaryNeq,          // !=
     BinaryLt,           // <
     BinaryGt,           // >
-    BinaryLte,          // <=
-    BinaryGte,          // >=
+    BinaryLtEq,         // <=
+    BinaryGtEq,         // >=
     BinaryAnd,          // and
     BinaryOr,           // or
     BinaryBitAnd,       // &

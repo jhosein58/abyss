@@ -18,8 +18,17 @@ impl Parser<'_> {
             Tk::Slash => Hir::BinaryDiv,
             Tk::Percent => Hir::BinaryMod,
             Tk::Eq => Hir::BinaryAssign,
+
+            // logical
             Tk::And => Hir::BinaryAnd,
             Tk::Or => Hir::BinaryOr,
+
+            // comp
+            Tk::Lt => Hir::BinaryLt,
+            Tk::LtEq => Hir::BinaryLte,
+            Tk::Gt => Hir::BinaryGt,
+            Tk::GtEq => Hir::BinaryGte,
+            Tk::EqEq => Hir::BinaryEq
             _ => return self.db.hir.alloc_error(),
         };
 
