@@ -176,4 +176,9 @@ impl HirStorage {
     pub fn alloc_or(&mut self, lhs: HirId, rhs: HirId) -> HirId {
         self.alloc(Hir::BinaryOr, lhs.0, rhs.0, NONE)
     }
+
+    #[inline(always)]
+    pub fn alloc_wildcard(&mut self) -> HirId {
+        self.alloc(Hir::Wildcard, NONE, NONE, NONE)
+    }
 }

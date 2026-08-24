@@ -1,4 +1,7 @@
-use abyss_nexus::{arena::ArenaId, nexus::HirId};
+use abyss_nexus::{
+    arena::ArenaId,
+    nexus::{HirId, TypeId},
+};
 
 use crate::tyck::{TyCtx, Typer};
 
@@ -40,6 +43,17 @@ impl<'a, T: TyCtx> Typer<'a, T> {
 
             db.unify.union(&mut db.types, slot, origin_slot).unwrap();
         }
+    }
+
+    #[inline(always)]
+    pub fn synth_wildcard(&mut self, id: HirId) {
+        let db = self.ctx.db_mut();
+
+        let slot = db.unify.new_slot(id);
+
+        db.unify
+            .bind_type(&mut db.types, slot, TypeId::UNIT)
+            .unwrap()
     }
 }
 #[repr(u8)]

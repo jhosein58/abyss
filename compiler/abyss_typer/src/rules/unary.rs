@@ -14,4 +14,10 @@ pub fn synth_not(db: &mut Nexus, id: HirId) {
     db.unify
         .bind_type(&mut db.types, child_slot, TypeId::BOOL)
         .unwrap();
+
+    // abcdefg
+
+    db.unify
+        .bind_type(&mut db.types, child_slot, TypeId::BOOL)
+        .unwrap();
 }

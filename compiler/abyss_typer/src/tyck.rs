@@ -45,10 +45,13 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::LitBoolTrue | Hir::LitBoolFalse => literal::synth_bool(db, id),
 
             Hir::Ident => self.synth_ident(id),
+            Hir::Wildcard => self.synth_wildcard(id),
 
             Hir::BinaryAdd | Hir::BinaryMul | Hir::BinarySub | Hir::BinaryDiv => {
                 binary::synth(db, id)
             }
+
+            Hir::BinaryAssign => binary::synth_assign(db, id),
 
             Hir::Binding | Hir::Var => declaration::synth(db, id),
 

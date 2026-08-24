@@ -96,6 +96,7 @@ fn lower_expr(
     let kind = db.hir.kind(id);
 
     match kind {
+        // Literals
         Hir::LitInt => {
             let lhs = db.hir.lhs(id).0;
             let value = db.ints.get_copy(IntId(lhs));
@@ -109,6 +110,9 @@ fn lower_expr(
 
             Some(ccg.literal(&format!("{}", value)))
         }
+
+        Hir::LitBoolTrue => Some(ccg.literal(&format!("true"))),
+        Hir::LitBoolFalse => Some(ccg.literal(&format!("false"))),
 
         Hir::Ident => {
             let sym_id = db.hir_to_symbol.get_copy(id);
@@ -131,9 +135,28 @@ fn lower_expr(
             let ty = lower_type(db, ty);
 
             let init_id = db.hir.extra(id);
-            let init = lower_expr(db, init_id, ccg, queue);
+            let init = if init_id.is_some() {
+                lower_expr(db, init_id, ccg, queue)
+            } else {
+                None
+            };
 
             Some(ccg.create_variable(&format!("sym_{}", sym_id.0), ty, init))
+        }
+
+        Hir::BinaryAssign => {
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+
+            let lhs = db.hir.lhs(id);
+
+            if db.hir.kind(lhs) == Hir::Wildcard {
+                return None;
+            }
+
+            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+
+            Some(ccg.assign(lhs, rhs))
         }
 
         Hir::BinaryAdd => {
@@ -226,6 +249,42 @@ fn lower_expr(
             last_val
         }
 
+        Hir::If => {
+            let cond_id = db.hir.lhs(id);
+            let cond_v = lower_expr(db, cond_id, ccg, queue).unwrap();
+
+            let if_ty = get_type(db, id);
+            let if_ty = lower_type(db, if_ty);
+
+            let thenb_id = db.hir.rhs(id);
+            let elseb_id = db.hir.extra(id);
+
+            Some(ccg.gen_if_else(
+                db,
+                queue,
+                cond_v,
+                if_ty,
+                |builder, db, q| {
+                    if let Some(v) = lower_expr(db, thenb_id, builder, q) {
+                        return v;
+                    } else {
+                        CValue::empty()
+                    }
+                },
+                |builder, db, q| {
+                    if elseb_id.is_some() {
+                        if let Some(v) = lower_expr(db, elseb_id, builder, q) {
+                            return v;
+                        } else {
+                            CValue::empty()
+                        }
+                    } else {
+                        CValue::empty()
+                    }
+                },
+            ))
+        }
+
         _ => None,
     }
 }
@@ -233,7 +292,33 @@ fn lower_expr(
 fn lower_type(db: &Nexus, ty_id: TypeId) -> CType {
     match db.types.kind(ty_id) {
         TyKind::Unit => CType::Void,
-        TyKind::Int => CType::I32,
+        TyKind::Int => match db.types.payload(ty_id) {
+            8 => CType::I8,
+            16 => CType::I16,
+            32 => CType::I32,
+            64 => CType::I64,
+            128 => CType::I128,
+            _ => unimplemented!(),
+        },
+
+        TyKind::UInt => match db.types.payload(ty_id) {
+            8 => CType::U8,
+            16 => CType::U16,
+            32 => CType::U32,
+            64 => CType::U64,
+            128 => CType::U128,
+            _ => unimplemented!(),
+        },
+
+        TyKind::Float => match db.types.payload(ty_id) {
+            16 => CType::F16,
+            32 => CType::F32,
+            64 => CType::F64,
+            128 => CType::F128,
+            _ => unimplemented!(),
+        },
+
+        TyKind::Bool => CType::Bool,
 
         _ => unimplemented!(),
     }
