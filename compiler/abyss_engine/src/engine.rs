@@ -84,6 +84,10 @@ impl Engine {
 
         self.db.symbol_is_resolving.set(sym_id, false);
     }
+
+    pub fn abyss_main(&mut self, sym_id: SymbolId) {
+        self.ccg.abyss_main(&format!("sym_{}", sym_id.0));
+    }
 }
 
 impl TyCtx for Engine {
