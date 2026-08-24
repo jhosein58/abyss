@@ -25,10 +25,12 @@ impl Parser<'_> {
 
             // comp
             Tk::Lt => Hir::BinaryLt,
-            Tk::LtEq => Hir::BinaryLte,
+            Tk::LtEq => Hir::BinaryLtEq,
             Tk::Gt => Hir::BinaryGt,
-            Tk::GtEq => Hir::BinaryGte,
-            Tk::EqEq => Hir::BinaryEq
+            Tk::GtEq => Hir::BinaryGtEq,
+            Tk::EqEq => Hir::BinaryEqEq,
+            Tk::BangEq => Hir::BinaryNeq,
+
             _ => return self.db.hir.alloc_error(),
         };
 
