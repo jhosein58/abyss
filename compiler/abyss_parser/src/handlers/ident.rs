@@ -9,7 +9,13 @@ impl Parser<'_> {
 
         let value = self.db.tokens.text(TokenId(self.cursor - 1));
         let name_id = self.db.interner.intern(value);
-        let id = self.db.hir.alloc_ident(name_id);
+        let id;
+
+        if value == "_" {
+            id = self.db.hir.alloc_wildcard();
+        } else {
+            id = self.db.hir.alloc_ident(name_id)
+        }
 
         if let Some(sym_id) = self.lookup(name_id) {
             self.db.hir_to_symbol.set(id, sym_id);

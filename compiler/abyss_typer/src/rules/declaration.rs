@@ -12,12 +12,15 @@ pub fn synth(db: &mut Nexus, id: HirId) {
     let slot = db.unify.new_slot(id);
 
     let ident_slot = db.unify.get_slot(ident_id);
-    let value_slot = db.unify.get_slot(value_id);
 
     if value_id.is_some() {
-        db.unify
-            .union(&mut db.types, ident_slot, value_slot)
-            .unwrap();
+        let value_slot = db.unify.get_slot(value_id);
+
+        if value_id.is_some() {
+            db.unify
+                .union(&mut db.types, ident_slot, value_slot)
+                .unwrap();
+        }
     }
 
     if type_id.is_some() {

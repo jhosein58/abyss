@@ -1,5 +1,15 @@
+use std::collections::HashSet;
+
+use abyss_nexus::nexus::{Nexus, SymbolId};
+
 #[derive(Clone, Debug)]
 pub struct CValue(pub String);
+
+impl CValue {
+    pub fn empty() -> Self {
+        CValue(String::new())
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum CType {
@@ -166,14 +176,16 @@ impl CCodeGen {
 
     pub fn gen_if_else<F1, F2>(
         &mut self,
+        db: &mut Nexus,
+        queue: &mut HashSet<SymbolId>,
         condition: CValue,
         result_type: CType,
         mut then_block: F1,
         mut else_block: F2,
     ) -> CValue
     where
-        F1: FnMut(&mut Self) -> CValue,
-        F2: FnMut(&mut Self) -> CValue,
+        F1: FnMut(&mut Self, &mut Nexus, &mut HashSet<SymbolId>) -> CValue,
+        F2: FnMut(&mut Self, &mut Nexus, &mut HashSet<SymbolId>) -> CValue,
     {
         let mut result_var_name = String::new();
 
@@ -191,7 +203,7 @@ impl CCodeGen {
             .push_str(&format!("{}if ({}) {{\n", self.indent(), condition.0));
         self.indent_level += 1;
 
-        let then_val = then_block(self);
+        let then_val = then_block(self, db, queue);
         if result_type != CType::Void {
             self.code.push_str(&format!(
                 "{}{} = {};\n",
@@ -206,7 +218,7 @@ impl CCodeGen {
             .push_str(&format!("{}}} else {{\n", self.indent()));
         self.indent_level += 1;
 
-        let else_val = else_block(self);
+        let else_val = else_block(self, db, queue);
         if result_type != CType::Void {
             self.code.push_str(&format!(
                 "{}{} = {};\n",
@@ -236,6 +248,12 @@ impl CCodeGen {
 
     pub fn div(&mut self, lhs: CValue, rhs: CValue) -> CValue {
         CValue(format!("({} / {})", lhs.0, rhs.0))
+    }
+
+    pub fn assign(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        self.code
+            .push_str(&format!("{}{} = {};\n", self.indent(), lhs.0, rhs.0));
+        CValue(format!("{}", lhs.0))
     }
 
     pub fn finish(&self) -> String {
