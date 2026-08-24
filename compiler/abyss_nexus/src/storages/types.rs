@@ -239,7 +239,7 @@ impl TypeStorage {
 
     #[inline(always)]
     pub fn alloc_func(&mut self, params: &[TypeId], ret: TypeId, is_extern: bool) -> TypeId {
-        let key = TypeKey::Func(params.into(), ret);
+        let key = TypeKey::Func(params.into(), ret, is_extern);
 
         if let Some(&id) = self.interned.get(&key) {
             return id;
@@ -248,10 +248,16 @@ impl TypeStorage {
         let extra_len = self.store.extra.len() as u32;
 
         // ------------
+        let params_len = params.len() as u16;
         let is_extern = is_extern as u16;
-        println!("{:#b}", is_extern);
 
-        self.store.extra.push(params.len() as u32); // IDEA: u16 kafie baraye tool arg. 2 byte dari ke mitoni tosh meta-data benevisi
+        let packed = ((params_len as u32) << 16) | is_extern as u32;
+        println!("{:#b}", packed);
+
+        println!("unpacked len: {:#b}", (packed >> 16) & 0xFFFF);
+        println!("unpacked is_extern: {:#b}", (packed) & 0xFFFF);
+
+        self.store.extra.push(packed);
         self.store.extra.push(ret.0);
         for p in params {
             self.store.extra.push(p.0);
@@ -268,6 +274,22 @@ impl TypeStorage {
     #[inline(always)]
     pub fn func_return(&self, func: TypeId) -> TypeId {
         TypeId(self.store.extra[self.payload(func) as usize + 1])
+    }
+
+    #[inline(always)]
+    pub fn func_params_len(&self, func: TypeId) -> u16 {
+        let header_idx = self.payload(func) as usize;
+        let header_data = self.store.extra[header_idx];
+
+        (header_data >> 16) as u16
+    }
+
+    #[inline(always)]
+    pub fn func_is_extern(&self, func: TypeId) -> bool {
+        let header_idx = self.payload(func) as usize;
+        let header_data = self.store.extra[header_idx];
+
+        (header_data & 0xFFFF) != 0
     }
 
     #[inline(always)]
