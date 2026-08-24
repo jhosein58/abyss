@@ -272,6 +272,30 @@ impl CCodeGen {
         CValue(format!("{}", lhs.0))
     }
 
+    pub fn cmp_lt(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} < {})", lhs.0, rhs.0))
+    }
+
+    pub fn cmp_lte(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} <= {})", lhs.0, rhs.0))
+    }
+
+    pub fn cmp_gt(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} > {})", lhs.0, rhs.0))
+    }
+
+    pub fn cmp_gte(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} >= {})", lhs.0, rhs.0))
+    }
+
+    pub fn cmp_eq(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} == {})", lhs.0, rhs.0))
+    }
+
+    pub fn cmp_neq(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} != {})", lhs.0, rhs.0))
+    }
+
     pub fn finish(&self) -> String {
         let includes = "#include <stdint.h>\n#include <stdbool.h>\n\n";
         format!(
