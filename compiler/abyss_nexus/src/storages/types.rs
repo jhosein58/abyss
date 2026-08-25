@@ -1,4 +1,4 @@
-use std::{collections::HashMap, field, hash::Hash};
+use std::{collections::HashMap, hash::Hash};
 
 use abyss_types::{TyKind, TyStore};
 
@@ -273,6 +273,25 @@ impl TypeStorage {
 
         self.interned.insert(key, id);
         id
+    }
+
+    #[inline(always)]
+    pub fn get_struct_fields(&mut self, id: TypeId) -> Vec<(NameId, TypeId)> {
+        let extra_idx = self.payload(id) as usize;
+        let len = self.store.extra[extra_idx] as usize;
+
+        let mut res = vec![];
+
+        let offset = extra_idx + 1;
+
+        for i in 0..len {
+            res.push((
+                NameId(self.store.extra[offset + (i * 2)]),
+                TypeId(self.store.extra[offset + ((i * 2) + 1)]),
+            ));
+        }
+
+        res
     }
 
     #[inline(always)]
