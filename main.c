@@ -18,28 +18,14 @@ void print_new_line() {
 
 
 // Forward Declarations
-void sym_3(void);
+void sym_0(void);
 
 // Implementations
-void sym_3(void) {
-    int32_t sym_4 = 20;
-    sym_4;
-    int32_t sym_5 = 0;
-    sym_5;
-    while ((sym_5 < sym_4)) {
-        int32_t sym_6 = 0;
-        sym_6;
-        while ((sym_6 < sym_5)) {
-            print_star();
-            sym_6 = (sym_6 + 1);
-        }
-        print_new_line();
-        sym_5 = (sym_5 + 1);
-    }
+void sym_0(void) {
     return ;
 }
 
 int main(void) {
-	sym_3();
+	sym_0();
 	return 0;
 }
