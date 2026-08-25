@@ -68,10 +68,7 @@ impl Nexus {
                     lhs_str = format!("\"{}\"", display_text);
                 }
 
-                HirExprKind::Sequence
-                | HirExprKind::Function
-                | HirExprKind::Block
-                | HirExprKind::Attributed => {
+                HirExprKind::Function | HirExprKind::Block | HirExprKind::Attributed => {
                     if lhs != u32::MAX {
                         let start = lhs as usize;
                         let len = self.u32_items[start] as usize;
@@ -80,6 +77,21 @@ impl Nexus {
                     }
                 }
 
+                HirExprKind::Struct => {
+                    if lhs != u32::MAX {
+                        let start = lhs as usize;
+                        let len = self.u32_items[start] as usize;
+                        let items = &self.u32_items[(start + 1)..(start + 1 + len)];
+                        lhs_str = format!("Nodes{:?}", items);
+                    }
+
+                    if rhs != u32::MAX {
+                        let start = rhs as usize;
+                        let len = self.u32_items[start] as usize;
+                        let items = &self.u32_items[(start + 1)..(start + 1 + len)];
+                        rhs_str = format!("Nodes{:?}", items);
+                    }
+                }
                 HirExprKind::Call | HirExprKind::Match => {
                     if rhs != u32::MAX {
                         let start = rhs as usize;
