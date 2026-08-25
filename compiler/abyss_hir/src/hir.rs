@@ -55,7 +55,6 @@ pub enum HirExprKind {
 
     Mod,
     Use,
-    Sequence,
     Arg,
     Function, // (args_lhs) ret_type_rhs { block_extra }
     Call,     // expr(expr, expr, ..)
@@ -74,6 +73,7 @@ pub enum HirExprKind {
     Index,
     Cast,
     Is,
+    Struct, // lhs: field names, rhs: field types
     Member,
     SizeOf,
     Match,
