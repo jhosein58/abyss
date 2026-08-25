@@ -1,8 +1,11 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, field, hash::Hash};
 
 use abyss_types::{TyKind, TyStore};
 
-use crate::{arena::ArenaId, nexus::TypeId};
+use crate::{
+    arena::ArenaId,
+    nexus::{NameId, TypeId},
+};
 
 impl TypeId {
     pub const UNKNOWN: TypeId = TypeId(0);
@@ -25,6 +28,7 @@ pub enum TypeKey {
     Float(u16),
     Ptr(TypeId),
     Func(Box<[TypeId]>, TypeId, bool), // Key(params, return, is_extern), PERF: Box ro hazf kon
+    Struct(Box<[(NameId, TypeId)]>),   // FIXME: remove allocation
 }
 
 pub struct TypeStorage {
@@ -165,6 +169,8 @@ impl TypeStorage {
                 self.name(self.func_return(idx))
             ),
 
+            TyKind::Struct => todo!(),
+
             TyKind::Error => format!("Err!"),
         }
     }
@@ -235,6 +241,38 @@ impl TypeStorage {
     #[inline(always)]
     pub fn alloc_ptr(&mut self, inner: TypeId) -> TypeId {
         self.get_or_insert(TypeKey::Ptr(inner), TyKind::Ptr, inner.0)
+    }
+
+    #[inline(always)]
+    pub fn sort_struct_fields(fields: &[(NameId, TypeId)]) -> Vec<(NameId, TypeId)> {
+        let mut fields = fields.to_vec();
+        fields.sort_by_key(|&(name_id, _)| name_id);
+        fields
+    }
+
+    #[inline(always)]
+    pub fn alloc_struct(&mut self, fields: &[(NameId, TypeId)]) -> TypeId {
+        let sorted_fields = Self::sort_struct_fields(fields);
+        let key = TypeKey::Struct(sorted_fields.clone().into()); // PERF
+
+        if let Some(&id) = self.interned.get(&key) {
+            return id;
+        }
+
+        let extra_len = self.store.extra.len() as u32;
+        let fields_len = sorted_fields.len();
+
+        self.store.extra.push(fields_len as u32);
+
+        for (name, ty) in sorted_fields {
+            self.store.extra.push(name.0);
+            self.store.extra.push(ty.0);
+        }
+
+        let id = TypeId(self.store.push(TyKind::Struct, extra_len) as u32);
+
+        self.interned.insert(key, id);
+        id
     }
 
     #[inline(always)]
