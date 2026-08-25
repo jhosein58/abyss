@@ -298,10 +298,23 @@ impl CCodeGen {
     }
 
     pub fn finish(&self) -> String {
-        let includes = "#include <stdint.h>\n#include <stdbool.h>\n\n";
+        let includes = "#include <stdio.h>\n#include <stdint.h>\n#include <stdbool.h>\n\n";
+
+        let abyss_prelude = r#"
+
+void echo() {
+    printf("Abyss is alive!\n");
+}
+
+void print_i32(int32_t v) {
+    printf("%d\n", v);
+}
+
+"#;
+
         let mut res = format!(
-            "{}\n// Forward Declarations\n{}\n// Implementations\n{}",
-            includes, self.func_forward_decl, self.code
+            "{}{}\n// Forward Declarations\n{}\n// Implementations\n{}",
+            includes, abyss_prelude, self.func_forward_decl, self.code
         );
 
         if self.abyss_main != "" {
