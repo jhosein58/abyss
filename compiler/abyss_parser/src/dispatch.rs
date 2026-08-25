@@ -25,6 +25,8 @@ impl Parser<'_> {
             Tk::While => self.parse_while(),
             Tk::Not => self.parse_not(),
 
+            Tk::Struct => self.parse_struct(),
+
             _ => {
                 self.report_expected_expression(self.span());
                 self.db.hir.alloc_error()
