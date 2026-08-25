@@ -5,4 +5,5 @@ pub mod declaration;
 pub mod func;
 pub mod ident;
 pub mod literal;
+pub mod structs;
 pub mod unary;

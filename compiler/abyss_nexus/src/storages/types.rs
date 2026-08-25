@@ -169,7 +169,18 @@ impl TypeStorage {
                 self.name(self.func_return(idx))
             ),
 
-            TyKind::Struct => todo!(),
+            TyKind::Struct => {
+                format!(
+                    "_S_{}",
+                    self.get_struct_fields(idx)
+                        .iter()
+                        .map(|(n, t)| format!("{}_{}", n.0, self.name(*t)))
+                        .collect::<Vec<_>>()
+                        .join("_")
+                )
+            }
+
+            TyKind::Nominal => format!("n{}({})", idx.0, self.name(TypeId(self.payload(idx)))),
 
             TyKind::Error => format!("Err!"),
         }
@@ -276,7 +287,7 @@ impl TypeStorage {
     }
 
     #[inline(always)]
-    pub fn get_struct_fields(&mut self, id: TypeId) -> Vec<(NameId, TypeId)> {
+    pub fn get_struct_fields(&self, id: TypeId) -> Vec<(NameId, TypeId)> {
         let extra_idx = self.payload(id) as usize;
         let len = self.store.extra[extra_idx] as usize;
 
