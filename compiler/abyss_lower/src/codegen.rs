@@ -310,6 +310,14 @@ void print_i32(int32_t v) {
     printf("%d\n", v);
 }
 
+void print_star() {
+    printf("*");
+}
+
+void print_new_line() {
+    printf("\n");
+}
+
 "#;
 
         let mut res = format!(
