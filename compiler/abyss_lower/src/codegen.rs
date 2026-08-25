@@ -221,6 +221,7 @@ impl CCodeGen {
         self.indent_level += 1;
 
         let then_val = then_block(self, db, queue);
+
         if result_type != CType::Void {
             self.code.push_str(&format!(
                 "{}{} = {};\n",
@@ -228,6 +229,9 @@ impl CCodeGen {
                 result_var_name,
                 then_val.0
             ));
+        } else {
+            self.code
+                .push_str(&format!("{}{};\n", self.indent(), then_val.0));
         }
 
         self.indent_level -= 1;
@@ -301,10 +305,6 @@ impl CCodeGen {
         let includes = "#include <stdio.h>\n#include <stdint.h>\n#include <stdbool.h>\n\n";
 
         let abyss_prelude = r#"
-
-void echo() {
-    printf("Abyss is alive!\n");
-}
 
 void print_i32(int32_t v) {
     printf("%d\n", v);
