@@ -93,6 +93,7 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::UnaryNot => unary::synth_not(db, id),
 
             Hir::Struct => structs::synth(db, id),
+            Hir::StructInit => structs::synth_init(db, id),
 
             _ => {}
         }
