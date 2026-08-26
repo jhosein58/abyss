@@ -45,6 +45,11 @@ impl Parser<'_> {
 
     #[inline]
     pub fn parse_struct_init(&mut self) -> HirId {
+        self.bump(); // .
+        self.expect(Tk::OBrace);
+
+        self.expect(Tk::CBrace);
+
         HirId::none()
     }
 }

@@ -186,4 +186,9 @@ impl HirStorage {
     pub fn alloc_struct(&mut self, fields: u32, types: u32) -> HirId {
         self.alloc(Hir::Struct, fields, types, NONE)
     }
+
+    #[inline(always)]
+    pub fn alloc_struct_init(&mut self, fields: u32, values: u32) -> HirId {
+        self.alloc(Hir::StructInit, fields, values, NONE)
+    }
 }
