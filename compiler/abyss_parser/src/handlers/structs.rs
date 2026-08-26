@@ -1,6 +1,6 @@
 use std::u32;
 
-use abyss_nexus::nexus::HirId;
+use abyss_nexus::{arena::ArenaId, nexus::HirId};
 use abyss_token::kind::TokenKind::{self as Tk, CBrace};
 
 use crate::parser::Parser;
@@ -41,5 +41,10 @@ impl Parser<'_> {
 
         let id = self.db.hir.alloc_struct(names_id, types_id);
         id
+    }
+
+    #[inline]
+    pub fn parse_struct_init(&mut self) -> HirId {
+        HirId::none()
     }
 }

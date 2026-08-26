@@ -16,33 +16,35 @@ fn main() -> color_eyre::Result<()> {
 
     let sym_id = eng.get_symbol_id(file_id, "main");
 
-    eng.abyss_main(sym_id);
-    eng.type_of(sym_id);
+    eng.parse(sym_id);
+
+    // eng.abyss_main(sym_id);
+    // eng.type_of(sym_id);
 
     eng.db.dump_hir();
-    eng.print_err();
+    // eng.print_err();
 
-    eng.compile(sym_id);
+    // eng.compile(sym_id);
 
-    println!("{:?}", t.elapsed());
+    // println!("{:?}", t.elapsed());
 
-    let c_code = eng.ccg.finish();
-    println!("\n\n{}", c_code);
+    // let c_code = eng.ccg.finish();
+    // println!("\n\n{}", c_code);
 
-    let mut f_hanlde = File::create("main.c").unwrap();
-    f_hanlde.write_all(c_code.as_bytes()).unwrap();
+    // let mut f_hanlde = File::create("main.c").unwrap();
+    // f_hanlde.write_all(c_code.as_bytes()).unwrap();
 
-    let _ = Command::new("gcc")
-        .arg("main.c")
-        .arg("-o")
-        .arg("abyss")
-        .status();
+    // let _ = Command::new("gcc")
+    //     .arg("main.c")
+    //     .arg("-o")
+    //     .arg("abyss")
+    //     .status();
 
-    let abyss_out = Command::new("./abyss").output().unwrap();
+    // let abyss_out = Command::new("./abyss").output().unwrap();
 
-    let output = String::from_utf8(abyss_out.stdout).unwrap();
+    // let output = String::from_utf8(abyss_out.stdout).unwrap();
 
-    println!("\n-------\n{}", output);
+    // println!("\n-------\n{}", output);
 
     Ok(())
 }

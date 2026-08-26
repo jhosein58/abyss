@@ -26,6 +26,7 @@ impl Parser<'_> {
             Tk::Not => self.parse_not(),
 
             Tk::Struct => self.parse_struct(),
+            Tk::Dot => self.parse_struct_init(),
 
             _ => {
                 self.report_expected_expression(self.span());
