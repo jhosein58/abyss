@@ -55,10 +55,7 @@ impl Nexus {
                     }
                 }
 
-                HirExprKind::LitStr
-                | HirExprKind::LitCstr
-                | HirExprKind::Ident
-                | HirExprKind::Member => {
+                HirExprKind::LitStr | HirExprKind::LitCstr | HirExprKind::Ident => {
                     let text = self.interner.get(NameId(lhs));
                     let display_text: String = if text.len() > 15 {
                         format!("{}...", &text[..15])

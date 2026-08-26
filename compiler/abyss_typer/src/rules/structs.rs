@@ -63,3 +63,26 @@ pub fn synth_init(db: &mut Nexus, id: HirId) {
 
     db.unify.bind_type(&mut db.types, slot, tyid).unwrap();
 }
+
+#[inline]
+pub fn synth_memeber(db: &mut Nexus, id: HirId) {
+    let slot = db.unify.new_slot(id);
+
+    let lhs_id = db.hir.lhs(id);
+    let lhs_slot = db.unify.get_slot(lhs_id);
+    let lhs_type = db.unify.resolve_type(lhs_slot);
+
+    let rhs_id = db.hir.rhs(id);
+    let name_id = NameId(db.hir.lhs(rhs_id).0);
+
+    let fields = db.types.get_struct_fields(lhs_type);
+
+    for (n, t) in fields {
+        if n == name_id {
+            db.unify.bind_type(&mut db.types, slot, t).unwrap();
+            return;
+        }
+    }
+
+    panic!()
+}

@@ -97,6 +97,8 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::Struct => structs::synth(db, id),
             Hir::StructInit => structs::synth_init(db, id),
 
+            Hir::Member => structs::synth_memeber(db, id),
+
             _ => {}
         }
     }
