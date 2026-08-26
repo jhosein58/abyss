@@ -180,8 +180,6 @@ impl TypeStorage {
                 )
             }
 
-            TyKind::Nominal => format!("n{}({})", idx.0, self.name(TypeId(self.payload(idx)))),
-
             TyKind::Error => format!("Err!"),
         }
     }

@@ -12,6 +12,7 @@ impl<'a, T: TyCtx> Typer<'a, T> {
 
         let name_id = db.hir.ident_name(id);
         let name = db.interner.get(name_id);
+        println!("{}", name);
 
         let slot = db.unify.new_slot(id);
 
@@ -41,6 +42,11 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             let origin_slot = self.ctx.slot_of(sym_id); // ghat'an 100% slot ghablan barash sakhte shode
 
             let db = self.ctx.db_mut();
+
+            let origin_id = db.symbols.get_copy(sym_id);
+            let origin_type = db.consts.get_type(origin_id);
+
+            db.consts.set_type(id, origin_type);
 
             db.unify.union(&mut db.types, slot, origin_slot).unwrap();
         }

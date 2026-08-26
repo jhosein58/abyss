@@ -2,6 +2,7 @@ use abyss_nexus::{
     arena::ArenaId,
     nexus::{HirId, Nexus, TypeId},
 };
+use abyss_types::TyKind;
 
 #[inline(always)]
 pub fn synth(db: &mut Nexus, id: HirId) {
@@ -23,9 +24,33 @@ pub fn synth(db: &mut Nexus, id: HirId) {
         if value_slot.is_some() {
             println!("{}", ident_slot.0);
 
-            db.unify
-                .union(&mut db.types, ident_slot, value_slot)
-                .unwrap();
+            let value_type = db.unify.resolve_type(value_slot);
+
+            let kind = db.types.kind(value_type);
+
+            if kind != TyKind::Func {
+                if kind == TyKind::Type {
+                    let type_value = db.consts.get_type(value_id);
+
+                    db.consts.set_type(ident_id, type_value);
+                    db.consts.set_type(id, type_value);
+
+                    let nominal_type = db.types.alloc_nominal(type_value);
+
+                    db.unify
+                        .bind_type(&mut db.types, ident_slot, nominal_type)
+                        .unwrap()
+                } else {
+                    let ident_ty = db.types.alloc_nominal(value_type);
+                    db.unify
+                        .bind_type(&mut db.types, ident_slot, ident_ty)
+                        .unwrap()
+                }
+            } else {
+                db.unify
+                    .union(&mut db.types, ident_slot, value_slot)
+                    .unwrap();
+            }
         }
     }
 
