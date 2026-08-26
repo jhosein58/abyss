@@ -83,3 +83,19 @@ pub fn synth_binary_comp(db: &mut Nexus, id: HirId) {
         .bind_type(&mut db.types, slot, TypeId::BOOL)
         .unwrap();
 }
+
+#[inline(always)]
+pub fn synth_cast(db: &mut Nexus, id: HirId) {
+    let slot = db.unify.new_slot(id);
+    let lhs_id = db.hir.lhs(id);
+    let lhs_slot = db.unify.get_slot(lhs_id);
+
+    let rhs_id = db.hir.rhs(id);
+    let rhs_type = db.consts.get_type(rhs_id);
+
+    db.unify
+        .bind_type(&mut db.types, lhs_slot, rhs_type)
+        .unwrap();
+
+    db.unify.union(&mut db.types, slot, lhs_slot).unwrap();
+}
