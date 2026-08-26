@@ -18,14 +18,19 @@ void print_new_line() {
 
 
 // Forward Declarations
-void sym_0(void);
+void sym_2(void);
+void sym_1(uint32_t sym_3);
 
 // Implementations
-void sym_0(void) {
+void sym_2(void) {
+    return ;
+}
+
+void sym_1(uint32_t sym_3) {
     return ;
 }
 
 int main(void) {
-	sym_0();
+	sym_2();
 	return 0;
 }

@@ -114,15 +114,15 @@ pub fn synth_arg(db: &mut Nexus, id: HirId) {
     let ty_slot = db.unify.get_slot(ty_hir_id);
     let ty_id = db.unify.resolve_type(ty_slot);
 
-    if ty_id != TypeId::TYPE {
-        panic!("not a type");
-    }
+    // if ty_id != TypeId::TYPE {
+    //     panic!("not a type");
+    // }
 
     let type_value = db.consts.get_type(ty_hir_id);
 
-    if type_value.is_none() {
-        panic!() // FIXME
-    }
+    // if type_value.is_none() {
+    //     panic!() // FIXME
+    // }
 
     db.unify
         .bind_type(&mut db.types, ident_slot, type_value)
