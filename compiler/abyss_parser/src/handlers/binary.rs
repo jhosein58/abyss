@@ -31,6 +31,8 @@ impl Parser<'_> {
             Tk::EqEq => Hir::BinaryEqEq,
             Tk::BangEq => Hir::BinaryNeq,
 
+            Tk::As => Hir::Cast,
+
             _ => return self.db.hir.alloc_error(),
         };
 
