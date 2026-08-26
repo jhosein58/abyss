@@ -38,7 +38,10 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
     }
 
     let ret_ty_id = db.types.func_return(func_ty_id);
-    let ret_type = lower_type(db, ret_ty_id);
+
+    let mut type_queue: HashSet<TypeId> = HashSet::new();
+
+    let ret_type = lower_type(db, ret_ty_id, &mut type_queue);
 
     let args_id = db.hir.lhs(func_id);
     let args_name = if args_id.is_some() {
@@ -58,7 +61,7 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
         .types
         .func_params(func_ty_id)
         .iter()
-        .map(|p| lower_type(db, *p))
+        .map(|p| lower_type(db, *p, &mut type_queue))
         .collect();
 
     let fn_params: Vec<(&str, CType)> = args_name.iter().map(|s| s.as_str()).zip(params).collect();
@@ -72,7 +75,7 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
     let func_node = db.hir.extra(id);
     let func_body = db.hir.extra(func_node);
 
-    let body_value = lower_expr(db, func_body, ccg, &mut compile_queue);
+    let body_value = lower_expr(db, func_body, ccg, &mut compile_queue, &mut type_queue);
 
     if db.types.kind(ret_ty_id) == TyKind::Unit {
         ccg.gen_return(None);
@@ -85,6 +88,10 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
     for s in compile_queue {
         lower_function(db, ccg, s);
     }
+
+    for t in type_queue {
+        ccg.def_struct(db, t);
+    }
 }
 
 fn lower_expr(
@@ -92,6 +99,7 @@ fn lower_expr(
     id: HirId,
     ccg: &mut CCodeGen,
     queue: &mut HashSet<SymbolId>,
+    type_queue: &mut HashSet<TypeId>,
 ) -> Option<CValue> {
     let kind = db.hir.kind(id);
 
@@ -138,11 +146,11 @@ fn lower_expr(
             let sym_id = db.hir_to_symbol.get_copy(ident_hir_id);
 
             let ty = get_type(db, ident_hir_id);
-            let ty = lower_type(db, ty);
+            let ty = lower_type(db, ty, type_queue);
 
             let init_id = db.hir.extra(id);
             let init = if init_id.is_some() {
-                lower_expr(db, init_id, ccg, queue)
+                lower_expr(db, init_id, ccg, queue, type_queue)
             } else {
                 None
             };
@@ -152,7 +160,7 @@ fn lower_expr(
 
         Hir::BinaryAssign => {
             let rhs = db.hir.rhs(id);
-            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
 
             let lhs = db.hir.lhs(id);
 
@@ -160,112 +168,112 @@ fn lower_expr(
                 return None;
             }
 
-            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
 
             Some(ccg.assign(lhs, rhs))
         }
 
         Hir::BinaryAdd => {
             let lhs = db.hir.lhs(id);
-            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
 
             let rhs = db.hir.rhs(id);
-            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
 
             Some(ccg.add(lhs, rhs))
         }
 
         Hir::BinarySub => {
             let lhs = db.hir.lhs(id);
-            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
 
             let rhs = db.hir.rhs(id);
-            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
 
             Some(ccg.sub(lhs, rhs))
         }
         Hir::BinaryMul => {
             let lhs = db.hir.lhs(id);
-            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
 
             let rhs = db.hir.rhs(id);
-            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
 
             Some(ccg.mul(lhs, rhs))
         }
         Hir::BinaryDiv => {
             let lhs = db.hir.lhs(id);
-            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
 
             let rhs = db.hir.rhs(id);
-            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
 
             Some(ccg.div(lhs, rhs))
         }
 
         Hir::BinaryLt => {
             let lhs = db.hir.lhs(id);
-            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
 
             let rhs = db.hir.rhs(id);
-            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
 
             Some(ccg.cmp_lt(lhs, rhs))
         }
 
         Hir::BinaryLtEq => {
             let lhs = db.hir.lhs(id);
-            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
 
             let rhs = db.hir.rhs(id);
-            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
 
             Some(ccg.cmp_lte(lhs, rhs))
         }
 
         Hir::BinaryGt => {
             let lhs = db.hir.lhs(id);
-            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
 
             let rhs = db.hir.rhs(id);
-            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
 
             Some(ccg.cmp_gt(lhs, rhs))
         }
 
         Hir::BinaryGtEq => {
             let lhs = db.hir.lhs(id);
-            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
 
             let rhs = db.hir.rhs(id);
-            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
 
             Some(ccg.cmp_gte(lhs, rhs))
         }
 
         Hir::BinaryEqEq => {
             let lhs = db.hir.lhs(id);
-            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
 
             let rhs = db.hir.rhs(id);
-            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
 
             Some(ccg.cmp_eq(lhs, rhs))
         }
 
         Hir::BinaryNeq => {
             let lhs = db.hir.lhs(id);
-            let lhs = lower_expr(db, lhs, ccg, queue).unwrap();
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
 
             let rhs = db.hir.rhs(id);
-            let rhs = lower_expr(db, rhs, ccg, queue).unwrap();
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
 
             Some(ccg.cmp_neq(lhs, rhs))
         }
 
         Hir::Call => {
             let callee = db.hir.lhs(id);
-            let callee = lower_expr(db, callee, ccg, queue).unwrap();
+            let callee = lower_expr(db, callee, ccg, queue, type_queue).unwrap();
 
             let mut vec = vec![];
 
@@ -277,7 +285,7 @@ fn lower_expr(
                 .collect::<Vec<_>>();
 
             for a in args {
-                vec.push(lower_expr(db, a, ccg, queue).unwrap());
+                vec.push(lower_expr(db, a, ccg, queue, type_queue).unwrap());
             }
 
             Some(ccg.call(callee, &vec))
@@ -289,7 +297,7 @@ fn lower_expr(
             if lhs.is_none() {
                 ccg.gen_return(None);
             } else {
-                let v = lower_expr(db, lhs, ccg, queue);
+                let v = lower_expr(db, lhs, ccg, queue, type_queue);
                 ccg.gen_return(v);
             }
 
@@ -302,7 +310,7 @@ fn lower_expr(
             let mut last_val = None;
 
             for (idx, n) in items.into_iter().enumerate() {
-                let val = lower_expr(db, HirId(n), ccg, queue);
+                let val = lower_expr(db, HirId(n), ccg, queue, type_queue);
 
                 let is_last = idx + 1 == count;
                 if !is_last {
@@ -317,10 +325,10 @@ fn lower_expr(
 
         Hir::If => {
             let cond_id = db.hir.lhs(id);
-            let cond_v = lower_expr(db, cond_id, ccg, queue).unwrap();
+            let cond_v = lower_expr(db, cond_id, ccg, queue, type_queue).unwrap();
 
             let if_ty = get_type(db, id);
-            let if_ty = lower_type(db, if_ty);
+            let if_ty = lower_type(db, if_ty, type_queue);
 
             let thenb_id = db.hir.rhs(id);
             let elseb_id = db.hir.extra(id);
@@ -328,18 +336,19 @@ fn lower_expr(
             Some(ccg.gen_if_else(
                 db,
                 queue,
+                type_queue,
                 cond_v,
                 if_ty,
-                |builder, db, q| {
-                    if let Some(v) = lower_expr(db, thenb_id, builder, q) {
+                |builder, db, q, tq| {
+                    if let Some(v) = lower_expr(db, thenb_id, builder, q, tq) {
                         return v;
                     } else {
                         CValue::empty()
                     }
                 },
-                |builder, db, q| {
+                |builder, db, q, tq| {
                     if elseb_id.is_some() {
-                        if let Some(v) = lower_expr(db, elseb_id, builder, q) {
+                        if let Some(v) = lower_expr(db, elseb_id, builder, q, tq) {
                             return v;
                         } else {
                             CValue::empty()
@@ -353,12 +362,12 @@ fn lower_expr(
 
         Hir::While => {
             let cond_id = db.hir.lhs(id);
-            let cond_v = lower_expr(db, cond_id, ccg, queue);
+            let cond_v = lower_expr(db, cond_id, ccg, queue, type_queue);
 
             let body_id = db.hir.rhs(id);
 
             ccg.gen_while(cond_v.unwrap(), |builder| {
-                lower_expr(db, body_id, builder, queue);
+                lower_expr(db, body_id, builder, queue, type_queue);
             });
 
             None
@@ -368,7 +377,7 @@ fn lower_expr(
     }
 }
 
-fn lower_type(db: &Nexus, ty_id: TypeId) -> CType {
+pub fn lower_type(db: &Nexus, ty_id: TypeId, queue: &mut HashSet<TypeId>) -> CType {
     match db.types.kind(ty_id) {
         TyKind::Unit => CType::Void,
         TyKind::Int => match db.types.payload(ty_id) {
@@ -398,6 +407,35 @@ fn lower_type(db: &Nexus, ty_id: TypeId) -> CType {
         },
 
         TyKind::Bool => CType::Bool,
+
+        TyKind::Struct => {
+            let fields = db.types.get_struct_fields(ty_id);
+
+            fn add_to_queue_with_deps(db: &Nexus, ty: TypeId, queue: &mut HashSet<TypeId>) {
+                let kind = db.types.kind(ty);
+
+                match kind {
+                    TyKind::Struct => {
+                        queue.insert(ty);
+
+                        let fields = db.types.get_struct_fields(ty);
+
+                        for (_, f_ty) in fields {
+                            add_to_queue_with_deps(db, f_ty, queue);
+                        }
+                    }
+
+                    _ => {}
+                }
+            }
+
+            queue.insert(ty_id);
+            for (_, t) in fields {
+                add_to_queue_with_deps(db, t, queue);
+            }
+
+            CType::Struct(db.types.name(ty_id))
+        }
 
         _ => unimplemented!(),
     }

@@ -33,6 +33,8 @@ impl Parser<'_> {
 
             Tk::As => Hir::Cast,
 
+            Tk::Dot => Hir::Member,
+
             _ => return self.db.hir.alloc_error(),
         };
 
