@@ -62,6 +62,8 @@ impl<'a, T: TyCtx> Typer<'a, T> {
 
             Hir::Binding | Hir::Var => declaration::synth(db, id),
 
+            Hir::Cast => binary::synth_cast(db, id),
+
             Hir::Arg => func::synth_arg(db, id),
             Hir::MarkerFnStart => func::check_func(db, stack, id),
             Hir::Ret => func::synth_return(db, stack, id),
