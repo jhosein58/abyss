@@ -18,7 +18,7 @@ pub enum Precedence {
     _Shift = 100,    // <<, >>
     Term = 110,      // +, -
     Factor = 120,    //  *, /, %
-    _Cast = 130,     // as
+    Cast = 130,      // as
     _Unary = 140,    // -x, !x, ~x, *x, &x
     Call = 150,      //  (), []
     _Member = 160,   // .
