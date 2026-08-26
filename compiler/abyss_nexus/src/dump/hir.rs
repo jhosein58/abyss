@@ -77,7 +77,7 @@ impl Nexus {
                     }
                 }
 
-                HirExprKind::Struct => {
+                HirExprKind::Struct | HirExprKind::StructInit => {
                     if lhs != u32::MAX {
                         let start = lhs as usize;
                         let len = self.u32_items[start] as usize;

@@ -73,7 +73,8 @@ pub enum HirExprKind {
     Index,
     Cast,
     Is,
-    Struct, // lhs: field names, rhs: field types
+    Struct,     // lhs: field names, rhs: field types
+    StructInit, // lhs: fileds, rhs: values
     Member,
     SizeOf,
     Match,
