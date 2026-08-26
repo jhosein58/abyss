@@ -31,6 +31,8 @@ impl BindingPower {
 
             Tk::As => Precedence::Cast.left_assoc(),
 
+            Tk::Dot => Precedence::Member.left_assoc(),
+
             _ => return None,
         };
 

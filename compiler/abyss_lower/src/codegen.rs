@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 
-use abyss_nexus::nexus::{Nexus, SymbolId};
+use abyss_nexus::nexus::{Nexus, SymbolId, TypeId};
+
+use crate::{codegen::CType::Struct, lowerer::lower_type};
 
 #[derive(Clone, Debug)]
 pub struct CValue(pub String);
@@ -35,6 +37,8 @@ pub enum CType {
     F32,
     F64,
     F128,
+
+    Struct(String),
 }
 
 impl CType {
@@ -59,6 +63,8 @@ impl CType {
             CType::F32 => "float".to_string(),
             CType::F64 => "double".to_string(),
             CType::F128 => "__float128".to_string(),
+
+            Struct(s) => s.to_owned(),
         }
     }
 }
@@ -66,6 +72,8 @@ impl CType {
 #[derive(Default)]
 pub struct CCodeGen {
     func_forward_decl: String,
+    struct_forward_decl: String,
+    struct_body: String,
     code: String,
     indent_level: usize,
     temp_counter: usize,
@@ -195,14 +203,15 @@ impl CCodeGen {
         &mut self,
         db: &mut Nexus,
         queue: &mut HashSet<SymbolId>,
+        type_queue: &mut HashSet<TypeId>,
         condition: CValue,
         result_type: CType,
         mut then_block: F1,
         mut else_block: F2,
     ) -> CValue
     where
-        F1: FnMut(&mut Self, &mut Nexus, &mut HashSet<SymbolId>) -> CValue,
-        F2: FnMut(&mut Self, &mut Nexus, &mut HashSet<SymbolId>) -> CValue,
+        F1: FnMut(&mut Self, &mut Nexus, &mut HashSet<SymbolId>, &mut HashSet<TypeId>) -> CValue,
+        F2: FnMut(&mut Self, &mut Nexus, &mut HashSet<SymbolId>, &mut HashSet<TypeId>) -> CValue,
     {
         let mut result_var_name = String::new();
 
@@ -220,7 +229,7 @@ impl CCodeGen {
             .push_str(&format!("{}if ({}) {{\n", self.indent(), condition.0));
         self.indent_level += 1;
 
-        let then_val = then_block(self, db, queue);
+        let then_val = then_block(self, db, queue, type_queue);
 
         if result_type != CType::Void {
             self.code.push_str(&format!(
@@ -239,7 +248,7 @@ impl CCodeGen {
             .push_str(&format!("{}}} else {{\n", self.indent()));
         self.indent_level += 1;
 
-        let else_val = else_block(self, db, queue);
+        let else_val = else_block(self, db, queue, type_queue);
         if result_type != CType::Void {
             self.code.push_str(&format!(
                 "{}{} = {};\n",
@@ -321,8 +330,13 @@ void print_new_line() {
 "#;
 
         let mut res = format!(
-            "{}{}\n// Forward Declarations\n{}\n// Implementations\n{}",
-            includes, abyss_prelude, self.func_forward_decl, self.code
+            "{}{}\n// Forward Declarations\n{}\n\n{}\n\n{}\n// Implementations\n{}",
+            includes,
+            abyss_prelude,
+            self.struct_forward_decl,
+            self.struct_body,
+            self.func_forward_decl,
+            self.code
         );
 
         if self.abyss_main != "" {
@@ -337,5 +351,37 @@ void print_new_line() {
 
     pub fn abyss_main(&mut self, name: &str) {
         self.abyss_main = name.to_owned();
+    }
+
+    pub fn decl_struct(&mut self, name: &str) {
+        self.struct_forward_decl
+            .push_str(&format!("typedef struct {} {};\n", name, name));
+    }
+
+    pub fn def_struct(&mut self, db: &mut Nexus, id: TypeId) {
+        let name = db.types.name(id);
+        self.decl_struct(&name);
+
+        self.struct_body.push_str(&format!("struct {} {{\n", &name));
+        self.indent_level += 1;
+
+        let fields = db.types.get_struct_fields(id);
+
+        let mut queue = HashSet::new();
+
+        for (n, t) in fields {
+            let t = lower_type(db, t, &mut queue);
+
+            self.struct_body.push_str(&format!(
+                "{}{} {};\n",
+                self.indent(),
+                t.to_string(),
+                db.interner.get(n)
+            ));
+        }
+
+        self.indent_level -= 1;
+
+        self.struct_body.push_str("};\n\n");
     }
 }

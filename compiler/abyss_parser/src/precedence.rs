@@ -21,7 +21,7 @@ pub enum Precedence {
     Cast = 130,      // as
     _Unary = 140,    // -x, !x, ~x, *x, &x
     Call = 150,      //  (), []
-    _Member = 160,   // .
+    Member = 160,    // .
     _Primary = 170,
 }
 
