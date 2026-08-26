@@ -1,4 +1,4 @@
-use abyss_nexus::nexus::{HirId, NameId, Nexus};
+use abyss_nexus::nexus::{HirId, NameId, Nexus, TypeId};
 
 #[inline(always)]
 pub fn synth(db: &mut Nexus, id: HirId) {
@@ -18,5 +18,7 @@ pub fn synth(db: &mut Nexus, id: HirId) {
 
     db.consts.set_type(id, tyid);
 
-    db.unify.bind_type(&mut db.types, slot, tyid).unwrap();
+    db.unify
+        .bind_type(&mut db.types, slot, TypeId::TYPE)
+        .unwrap();
 }

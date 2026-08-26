@@ -34,18 +34,11 @@ pub fn synth(db: &mut Nexus, id: HirId) {
 
                     db.consts.set_type(ident_id, type_value);
                     db.consts.set_type(id, type_value);
-
-                    let nominal_type = db.types.alloc_nominal(type_value);
-
-                    db.unify
-                        .bind_type(&mut db.types, ident_slot, nominal_type)
-                        .unwrap()
-                } else {
-                    let ident_ty = db.types.alloc_nominal(value_type);
-                    db.unify
-                        .bind_type(&mut db.types, ident_slot, ident_ty)
-                        .unwrap()
                 }
+
+                db.unify
+                    .bind_type(&mut db.types, ident_slot, value_type)
+                    .unwrap()
             } else {
                 db.unify
                     .union(&mut db.types, ident_slot, value_slot)
