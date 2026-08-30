@@ -384,4 +384,31 @@ void print_new_line() {
 
         self.struct_body.push_str("};\n\n");
     }
+
+    #[inline(always)]
+    pub fn gen_struct_init(&mut self, fields: &[u32], vals: &[CValue], ty: CType) -> CValue {
+        let tmp_name = self.new_temp_var();
+
+        let mut fields_buf = String::from(".{\n");
+
+        self.indent_level += 1;
+
+        for f in fields {
+            fields_buf.push_str(&format!("{}.{} = ,\n", self.indent(), f));
+        }
+
+        self.indent_level -= 1;
+
+        fields_buf.push_str(&format!("{}}}", self.indent()));
+
+        self.code.push_str(&format!(
+            "{}{} {} = {};\n",
+            self.indent(),
+            ty.to_string(),
+            tmp_name,
+            fields_buf
+        ));
+
+        CValue(tmp_name)
+    }
 }
