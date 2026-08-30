@@ -392,6 +392,16 @@ fn lower_expr(
             Some(ccg.gen_struct_init(&names, &[], ty))
         }
 
+        Hir::Cast => {
+            let ty = get_type(db, id);
+            let ty = lower_type(db, ty, type_queue);
+
+            let lhs_id = db.hir.lhs(id);
+            let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue);
+
+            Some(ccg.gen_csat(lhs_v.unwrap(), ty))
+        }
+
         _ => None,
     }
 }
