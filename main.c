@@ -31,7 +31,7 @@ void sym_0(void);
 
 // Implementations
 void sym_0(void) {
-    float sym_1;
+    float sym_1 = (float)3;
     sym_1;
     _S_4_i32 _tmp0 = .{
         .4 = ,
