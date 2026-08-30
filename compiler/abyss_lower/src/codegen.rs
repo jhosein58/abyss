@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use abyss_nexus::nexus::{Nexus, SymbolId, TypeId};
+use abyss_nexus::nexus::{NameId, Nexus, SymbolId, TypeId};
 
 use crate::{codegen::CType::Struct, lowerer::lower_type};
 
@@ -411,5 +411,10 @@ void print_new_line() {
     #[inline(always)]
     pub fn gen_csat(&mut self, lhs: CValue, ty: CType) -> CValue {
         CValue(format!("({}){}", ty.to_string(), lhs.0))
+    }
+
+    #[inline(always)]
+    pub fn gen_member(&mut self, lhs: CValue, access: NameId) -> CValue {
+        CValue(format!("({})._f{}", lhs.0, access.0))
     }
 }

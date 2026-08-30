@@ -35,6 +35,8 @@ void sym_1(void) {
         ._f4 = (int32_t)100,
     };
     _S_4_i32 sym_2 = _tmp0;
+    sym_2;
+    int32_t sym_3;
     return ;
 }
 
