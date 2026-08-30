@@ -411,4 +411,9 @@ void print_new_line() {
 
         CValue(tmp_name)
     }
+
+    #[inline(always)]
+    pub fn gen_csat(&mut self, lhs: CValue, ty: CType) -> CValue {
+        CValue(format!("({}){}", ty.to_string(), lhs.0))
+    }
 }
