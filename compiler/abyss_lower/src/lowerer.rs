@@ -389,7 +389,19 @@ fn lower_expr(
                 .map(|n| db.hir.lhs(HirId(*n)).0)
                 .collect::<Vec<_>>();
 
-            Some(ccg.gen_struct_init(&names, &[], ty))
+            let vals = db.hir.rhs(id).0;
+            let vals = db
+                .get_list_flat(vals)
+                .iter()
+                .map(|v| HirId(*v))
+                .collect::<Vec<_>>();
+
+            let vlas = vals
+                .iter()
+                .map(|v| lower_expr(db, *v, ccg, queue, type_queue).unwrap())
+                .collect::<Vec<_>>();
+
+            Some(ccg.gen_struct_init(&names, &vlas, ty))
         }
 
         Hir::Cast => {

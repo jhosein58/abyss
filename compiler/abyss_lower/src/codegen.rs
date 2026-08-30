@@ -372,12 +372,8 @@ void print_new_line() {
         for (n, t) in fields {
             let t = lower_type(db, t, &mut queue);
 
-            self.struct_body.push_str(&format!(
-                "{}{} {};\n",
-                self.indent(),
-                t.to_string(),
-                db.interner.get(n)
-            ));
+            self.struct_body
+                .push_str(&format!("{}{} _f{};\n", self.indent(), t.to_string(), n.0));
         }
 
         self.indent_level -= 1;
@@ -389,12 +385,12 @@ void print_new_line() {
     pub fn gen_struct_init(&mut self, fields: &[u32], vals: &[CValue], ty: CType) -> CValue {
         let tmp_name = self.new_temp_var();
 
-        let mut fields_buf = String::from(".{\n");
+        let mut fields_buf = String::from("{\n");
 
         self.indent_level += 1;
 
-        for f in fields {
-            fields_buf.push_str(&format!("{}.{} = ,\n", self.indent(), f));
+        for (f, v) in fields.iter().zip(vals) {
+            fields_buf.push_str(&format!("{}._f{} = {},\n", self.indent(), f, v.0));
         }
 
         self.indent_level -= 1;
