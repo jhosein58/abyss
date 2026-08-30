@@ -418,6 +418,16 @@ fn lower_expr(
             }
         }
 
+        Hir::Member => {
+            let lhs_id = db.hir.lhs(id);
+            let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue);
+
+            let rhs_id = db.hir.rhs(id);
+            let field_name = NameId(db.hir.lhs(rhs_id).0);
+
+            Some(ccg.gen_member(lhs_v.unwrap(), field_name))
+        }
+
         _ => None,
     }
 }
