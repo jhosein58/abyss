@@ -12,7 +12,6 @@ impl<'a, T: TyCtx> Typer<'a, T> {
 
         let name_id = db.hir.ident_name(id);
         let name = db.interner.get(name_id);
-        println!("{}", name);
 
         let slot = db.unify.new_slot(id);
 

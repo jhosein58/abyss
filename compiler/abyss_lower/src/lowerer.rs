@@ -405,13 +405,17 @@ fn lower_expr(
         }
 
         Hir::Cast => {
-            let ty = get_type(db, id);
-            let ty = lower_type(db, ty, type_queue);
+            let ty_id = get_type(db, id);
+            let ty = lower_type(db, ty_id, type_queue);
 
             let lhs_id = db.hir.lhs(id);
             let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue);
 
-            Some(ccg.gen_csat(lhs_v.unwrap(), ty))
+            if db.types.kind(ty_id) == TyKind::Struct {
+                Some(lhs_v.unwrap())
+            } else {
+                Some(ccg.gen_csat(lhs_v.unwrap(), ty))
+            }
         }
 
         _ => None,
