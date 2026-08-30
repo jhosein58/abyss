@@ -22,8 +22,6 @@ pub fn synth(db: &mut Nexus, id: HirId) {
         let value_slot = db.unify.get_slot(value_id);
 
         if value_slot.is_some() {
-            println!("{}", ident_slot.0);
-
             let value_type = db.unify.resolve_type(value_slot);
 
             let kind = db.types.kind(value_type);
