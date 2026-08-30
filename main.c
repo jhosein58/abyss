@@ -18,16 +18,11 @@ void print_new_line() {
 
 
 // Forward Declarations
-typedef struct _S_3__S_4_f32 _S_3__S_4_f32;
-typedef struct _S_4_f32 _S_4_f32;
+typedef struct _S_4_i32 _S_4_i32;
 
 
-struct _S_3__S_4_f32 {
-    _S_4_f32 inner;
-};
-
-struct _S_4_f32 {
-    float test;
+struct _S_4_i32 {
+    int32_t a;
 };
 
 
@@ -36,9 +31,12 @@ void sym_0(void);
 
 // Implementations
 void sym_0(void) {
-    _S_3__S_4_f32 sym_1;
+    float sym_1;
     sym_1;
-    float sym_2;
+    _S_4_i32 _tmp0 = .{
+        .4 = ,
+    };
+    _S_4_i32 sym_2 = _tmp0;
     return ;
 }
 

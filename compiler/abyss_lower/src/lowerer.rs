@@ -7,7 +7,10 @@ use abyss_nexus::{
 };
 use abyss_types::TyKind;
 
-use crate::codegen::{CCodeGen, CType, CValue};
+use crate::{
+    codegen::{CCodeGen, CType, CValue},
+    topo_sort::topo_sort,
+};
 
 fn get_type(db: &mut Nexus, id: HirId) -> TypeId {
     if id.is_none() {
@@ -89,7 +92,9 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
         lower_function(db, ccg, s);
     }
 
-    for t in type_queue {
+    let sorted = topo_sort(db, &type_queue);
+
+    for t in sorted {
         ccg.def_struct(db, t);
     }
 }
@@ -371,6 +376,20 @@ fn lower_expr(
             });
 
             None
+        }
+
+        Hir::StructInit => {
+            let ty = get_type(db, id);
+            let ty = lower_type(db, ty, type_queue);
+
+            let names = db.hir.lhs(id);
+            let names = db
+                .get_list_flat(names.0)
+                .iter()
+                .map(|n| db.hir.lhs(HirId(*n)).0)
+                .collect::<Vec<_>>();
+
+            Some(ccg.gen_struct_init(&names, &[], ty))
         }
 
         _ => None,
