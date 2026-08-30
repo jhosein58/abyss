@@ -18,31 +18,39 @@ void print_new_line() {
 
 
 // Forward Declarations
-typedef struct _S_5_i32 _S_5_i32;
+typedef struct _S_6_i32 _S_6_i32;
+typedef struct _S_6_i32 _S_6_i32;
 
 
-struct _S_5_i32 {
-    int32_t _f5;
+struct _S_6_i32 {
+    int32_t _f6;
+};
+
+struct _S_6_i32 {
+    int32_t _f6;
 };
 
 
 
-void sym_2(void);
+void sym_3(void);
+_S_6_i32 sym_2(int32_t sym_5);
 
 // Implementations
-void sym_2(void) {
-    _S_5_i32 _tmp0 = {
-        ._f5 = (int32_t)100,
-    };
-    _S_5_i32 sym_3 = _tmp0;
-    sym_3;
-    (sym_3)._f5 = 399;
-    (sym_3)._f5;
-    print_i32((sym_3)._f5);
+void sym_3(void) {
+    _S_6_i32 sym_4 = sym_2(33);
+    sym_4;
+    print_i32((sym_4)._f6);
     return ;
 }
 
+_S_6_i32 sym_2(int32_t sym_5) {
+    _S_6_i32 _tmp0 = {
+        ._f6 = sym_5,
+    };
+    return _tmp0;
+}
+
 int main(void) {
-	sym_2();
+	sym_3();
 	return 0;
 }

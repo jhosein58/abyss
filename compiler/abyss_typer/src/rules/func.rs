@@ -18,6 +18,8 @@ impl<'a, T: TyCtx> Typer<'a, T> {
         let lhs_type = db.unify.resolve_type(lhs_slot);
 
         if db.types.kind(lhs_type) != TyKind::Func {
+            println!("{:?}", db.types.kind(lhs_type));
+
             panic!() // FIXME
         }
 

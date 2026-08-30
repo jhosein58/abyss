@@ -325,7 +325,14 @@ fn lower_expr(
                 }
             }
 
-            last_val
+            let block_ret_type = get_type(db, id);
+
+            if db.types.kind(block_ret_type) == TyKind::Unit {
+                ccg.expr(last_val);
+                None
+            } else {
+                last_val
+            }
         }
 
         Hir::If => {
