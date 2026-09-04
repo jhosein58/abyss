@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use abyss_nexus::nexus::{NameId, Nexus, SymbolId, TypeId};
 
-use crate::{codegen::CType::Struct, lowerer::lower_type};
+use crate::lowerer::lower_type;
 
 #[derive(Clone, Debug)]
 pub struct CValue(pub String);
@@ -39,6 +39,8 @@ pub enum CType {
     F128,
 
     Struct(String),
+
+    Ptr(Box<CType>),
 }
 
 impl CType {
@@ -64,7 +66,9 @@ impl CType {
             CType::F64 => "double".to_string(),
             CType::F128 => "__float128".to_string(),
 
-            Struct(s) => s.to_owned(),
+            CType::Struct(s) => s.to_owned(),
+
+            CType::Ptr(ptree) => format!("{}*", ptree.to_string()),
         }
     }
 }
