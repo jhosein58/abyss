@@ -191,4 +191,14 @@ impl HirStorage {
     pub fn alloc_struct_init(&mut self, fields: u32, values: u32) -> HirId {
         self.alloc(Hir::StructInit, fields, values, NONE)
     }
+
+    #[inline(always)]
+    pub fn alloc_addrof(&mut self, inner: HirId) -> HirId {
+        self.alloc(Hir::UnaryAddrOf, inner.0, NONE, NONE)
+    }
+
+    #[inline(always)]
+    pub fn alloc_deref(&mut self, inner: HirId) -> HirId {
+        self.alloc(Hir::UnaryDeref, inner.0, NONE, NONE)
+    }
 }
