@@ -10,10 +10,19 @@ impl Parser<'_> {
         self.db.hir.alloc_not(body)
     }
 
+    // IDEA: combine all methods to a one single methode called "parse_unary"
+
     #[inline(always)]
-    pub fn parse_amp(&mut self) -> HirId {
+    pub fn parse_addrof(&mut self) -> HirId {
         self.bump();
-        let body = self.parse_expr(0);
-        self.db.hir.alloc_amp(body)
+        let inner = self.parse_expr(0);
+        self.db.hir.alloc_addrof(inner)
+    }
+
+    #[inline(always)]
+    pub fn parse_deref(&mut self) -> HirId {
+        self.bump();
+        let inner = self.parse_expr(0);
+        self.db.hir.alloc_deref(inner)
     }
 }
