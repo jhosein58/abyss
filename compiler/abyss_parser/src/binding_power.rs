@@ -33,6 +33,9 @@ impl BindingPower {
 
             Tk::Dot => Precedence::Member.left_assoc(),
 
+            // Unary
+            Tk::Amp => Precedence::Unary.left_assoc(),
+
             _ => return None,
         };
 
