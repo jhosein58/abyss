@@ -92,13 +92,17 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::While => controlflow::synth_while(db, id),
 
             Hir::BinaryAnd | Hir::BinaryOr => binary::synth_logic_and_or(db, id),
-            Hir::UnaryNot => unary::synth_not(db, id),
 
             Hir::Struct => structs::synth(db, id),
             Hir::StructInit => structs::synth_init(db, id),
 
             Hir::Member => structs::synth_memeber(db, id),
 
+            // Unary
+            Hir::UnaryNot => unary::synth_not(db, id),
+
+            Hir::UnaryAddrOf => unary::synth_addrof(db, id),
+            Hir::UnaryDeref => unary::synth_deref(db, id),
             _ => {}
         }
     }
