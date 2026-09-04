@@ -53,4 +53,17 @@ pub fn synth_addrof(db: &mut Nexus, id: HirId) {
 #[inline(always)]
 pub fn synth_deref(db: &mut Nexus, id: HirId) {
     let slot = db.unify.new_slot(id);
+
+    let lhs_id = db.hir.lhs(id);
+
+    let lhs_slot = db.unify.get_slot(lhs_id);
+    let lhs_ty = db.unify.resolve_type(lhs_slot);
+
+    if db.types.kind(lhs_ty) == TyKind::Type {
+        panic!();
+    }
+
+    let ptree = TypeId(db.types.payload(lhs_ty));
+
+    db.unify.bind_type(&mut db.types, slot, ptree).unwrap();
 }
