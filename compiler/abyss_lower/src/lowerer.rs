@@ -435,6 +435,13 @@ fn lower_expr(
             Some(ccg.gen_member(lhs_v.unwrap(), field_name))
         }
 
+        Hir::UnaryAddrOf => {
+            let lhs_id = db.hir.lhs(id);
+            let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue);
+
+            Some(ccg.addrof(lhs_v.unwrap()))
+        }
+
         _ => None,
     }
 }
@@ -469,6 +476,12 @@ pub fn lower_type(db: &Nexus, ty_id: TypeId, queue: &mut HashSet<TypeId>) -> CTy
         },
 
         TyKind::Bool => CType::Bool,
+
+        TyKind::Ptr => {
+            let ptree = TypeId(db.types.payload(ty_id));
+            let ptree = lower_type(db, ptree, queue);
+            CType::Ptr(Box::new(ptree))
+        }
 
         TyKind::Struct => {
             let fields = db.types.get_struct_fields(ty_id);
