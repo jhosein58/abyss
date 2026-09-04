@@ -442,6 +442,13 @@ fn lower_expr(
             Some(ccg.addrof(lhs_v.unwrap()))
         }
 
+        Hir::UnaryDeref => {
+            let lhs_id = db.hir.lhs(id);
+            let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue);
+
+            Some(ccg.deref(lhs_v.unwrap()))
+        }
+
         _ => None,
     }
 }
