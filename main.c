@@ -28,6 +28,7 @@ void sym_1(void);
 void sym_1(void) {
     int32_t sym_2 = 100;
     sym_2;
+    int32_t* sym_3 = &(sym_2);
     return ;
 }
 

@@ -290,6 +290,14 @@ impl CCodeGen {
         CValue(format!("{}", lhs.0))
     }
 
+    pub fn addrof(&mut self, inner: CValue) -> CValue {
+        CValue(format!("&({})", inner.0))
+    }
+
+    pub fn deref(&mut self, inner: CValue) -> CValue {
+        CValue(format!("*({})", inner.0))
+    }
+
     pub fn cmp_lt(&mut self, lhs: CValue, rhs: CValue) -> CValue {
         CValue(format!("({} < {})", lhs.0, rhs.0))
     }
