@@ -27,7 +27,7 @@ impl BindingPower {
                 Precedence::Comparison.left_assoc()
             }
 
-            Tk::OParen => Precedence::Call.left_assoc(),
+            Tk::OParen | Tk::OBracket => Precedence::Call.left_assoc(),
 
             Tk::As => Precedence::Cast.left_assoc(),
 
