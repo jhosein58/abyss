@@ -18,11 +18,11 @@ void print_new_line() {
 
 
 // Forward Declarations
-typedef struct _A_i32_10 _A_i32_10;
+typedef struct _A_i32_3 _A_i32_3;
 
 
-struct _A_i32_10 {
-    int32_t _data[10];
+struct _A_i32_3 {
+    int32_t _data[3];
 };
 
 
@@ -31,7 +31,14 @@ void sym_1(void);
 
 // Implementations
 void sym_1(void) {
-    _A_i32_10 sym_2;
+    _A_i32_3 _tmp0 = {
+        ._data = {
+            (int32_t)1,
+            2,
+            3,
+        }
+    };
+    _A_i32_3 sym_2 = _tmp0;
     return ;
 }
 
