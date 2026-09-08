@@ -58,7 +58,9 @@ impl Parser<'_> {
         self.db.hir.alloc_array_init(list_id)
     }
 
-    pub fn parse_index(&mut self, lhs: HirId, rbp: u8) -> HirId {
-        HirId::none()
+    pub fn parse_index(&mut self, lhs: HirId, _: u8) -> HirId {
+        let expr = self.parse_expr(0);
+        self.expect(Tk::CBracket);
+        self.db.hir.alloc_index(lhs, expr)
     }
 }

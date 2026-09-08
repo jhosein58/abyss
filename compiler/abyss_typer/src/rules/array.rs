@@ -2,6 +2,7 @@ use abyss_nexus::{
     arena::ArenaId,
     nexus::{HirId, Nexus, TypeId},
 };
+use abyss_types::TyKind;
 
 #[inline(always)]
 pub fn synth_array_type(db: &mut Nexus, id: HirId) {
@@ -58,4 +59,24 @@ pub fn synth_array_init(db: &mut Nexus, id: HirId) {
     let arr_ty = db.types.alloc_array(f_ty, arr_len);
 
     db.unify.bind_type(&mut db.types, slot, arr_ty).unwrap()
+}
+
+#[inline(always)]
+pub fn synth_index(db: &mut Nexus, id: HirId) {
+    let slot = db.unify.new_slot(id);
+
+    let lhs_id = db.hir.lhs(id);
+    let lhs_slot = db.unify.get_slot(lhs_id);
+
+    let lhs_ty = db.unify.resolve_type(lhs_slot);
+
+    if db.types.kind(lhs_ty) != TyKind::Array {
+        panic!()
+    }
+
+    let array_inner_ty = db.types.get_array_type(lhs_ty);
+
+    db.unify
+        .bind_type(&mut db.types, slot, array_inner_ty)
+        .unwrap();
 }

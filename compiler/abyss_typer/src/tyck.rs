@@ -100,6 +100,7 @@ impl<'a, T: TyCtx> Typer<'a, T> {
 
             Hir::Array => array::synth_array_type(db, id),
             Hir::ArrayInit => array::synth_array_init(db, id),
+            Hir::Index => array::synth_index(db, id),
 
             // Unary
             Hir::UnaryNot => unary::synth_not(db, id),
