@@ -492,25 +492,6 @@ pub fn lower_type(db: &Nexus, ty_id: TypeId, queue: &mut HashSet<TypeId>) -> CTy
 
         TyKind::Struct => {
             let fields = db.types.get_struct_fields(ty_id);
-
-            fn add_to_queue_with_deps(db: &Nexus, ty: TypeId, queue: &mut HashSet<TypeId>) {
-                let kind = db.types.kind(ty);
-
-                match kind {
-                    TyKind::Struct => {
-                        queue.insert(ty);
-
-                        let fields = db.types.get_struct_fields(ty);
-
-                        for (_, f_ty) in fields {
-                            add_to_queue_with_deps(db, f_ty, queue);
-                        }
-                    }
-
-                    _ => {}
-                }
-            }
-
             queue.insert(ty_id);
             for (_, t) in fields {
                 add_to_queue_with_deps(db, t, queue);
@@ -519,6 +500,34 @@ pub fn lower_type(db: &Nexus, ty_id: TypeId, queue: &mut HashSet<TypeId>) -> CTy
             CType::Struct(db.types.name(ty_id))
         }
 
+        TyKind::Array => {
+            queue.insert(ty_id);
+
+            CType::Array(db.types.name(ty_id))
+        }
+
         _ => unimplemented!(),
+    }
+}
+
+fn add_to_queue_with_deps(db: &Nexus, ty: TypeId, queue: &mut HashSet<TypeId>) {
+    let kind = db.types.kind(ty);
+
+    match kind {
+        TyKind::Struct => {
+            queue.insert(ty);
+
+            let fields = db.types.get_struct_fields(ty);
+
+            for (_, f_ty) in fields {
+                add_to_queue_with_deps(db, f_ty, queue);
+            }
+        }
+
+        TyKind::Array => {
+            queue.insert(ty);
+        }
+
+        _ => {}
     }
 }
