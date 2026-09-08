@@ -1,8 +1,5 @@
 use abyss_hir::hir::HirExprKind as Hir;
-use abyss_nexus::{
-    arena::ArenaId,
-    nexus::{HirId, IntId},
-};
+use abyss_nexus::nexus::{HirId, IntId};
 use abyss_token::kind::TokenKind as Tk;
 
 use crate::parser::Parser;

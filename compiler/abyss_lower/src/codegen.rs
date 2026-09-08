@@ -39,6 +39,7 @@ pub enum CType {
     F128,
 
     Struct(String),
+    Array(String),
 
     Ptr(Box<CType>),
 }
@@ -67,6 +68,7 @@ impl CType {
             CType::F128 => "__float128".to_string(),
 
             CType::Struct(s) => s.to_owned(),
+            CType::Array(a) => a.to_owned(),
 
             CType::Ptr(ptree) => format!("{}*", ptree.to_string()),
         }
