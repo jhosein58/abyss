@@ -450,6 +450,41 @@ void print_new_line() {
     }
 
     #[inline(always)]
+    pub fn gen_array_init(&mut self, vals: &[CValue], ty: CType) -> CValue {
+        let tmp_name = self.new_temp_var();
+
+        let mut fields_buf = String::from("{\n");
+
+        self.indent_level += 1;
+
+        fields_buf.push_str(&format!("{}._data = {{\n", self.indent()));
+
+        self.indent_level += 1;
+
+        for v in vals {
+            fields_buf.push_str(&format!("{}{},\n", self.indent(), v.0));
+        }
+
+        self.indent_level -= 1;
+
+        fields_buf.push_str(&format!("{}}}", self.indent()));
+
+        self.indent_level -= 1;
+
+        fields_buf.push_str(&format!("{}}}", self.indent()));
+
+        self.code.push_str(&format!(
+            "{}{} {} = {};\n",
+            self.indent(),
+            ty.to_string(),
+            tmp_name,
+            fields_buf
+        ));
+
+        CValue(tmp_name)
+    }
+
+    #[inline(always)]
     pub fn gen_csat(&mut self, lhs: CValue, ty: CType) -> CValue {
         CValue(format!("({}){}", ty.to_string(), lhs.0))
     }
