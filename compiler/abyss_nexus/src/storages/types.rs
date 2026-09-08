@@ -288,6 +288,25 @@ impl TypeStorage {
     }
 
     #[inline(always)]
+    pub fn get_struct_fields(&self, id: TypeId) -> Vec<(NameId, TypeId)> {
+        let extra_idx = self.payload(id) as usize;
+        let len = self.store.extra[extra_idx] as usize;
+
+        let mut res = vec![];
+
+        let offset = extra_idx + 1;
+
+        for i in 0..len {
+            res.push((
+                NameId(self.store.extra[offset + (i * 2)]),
+                TypeId(self.store.extra[offset + ((i * 2) + 1)]),
+            ));
+        }
+
+        res
+    }
+
+    #[inline(always)]
     pub fn alloc_array(&mut self, ty: TypeId, len: u32) -> TypeId {
         let key = TypeKey::Array(ty, len);
 
@@ -308,22 +327,19 @@ impl TypeStorage {
     }
 
     #[inline(always)]
-    pub fn get_struct_fields(&self, id: TypeId) -> Vec<(NameId, TypeId)> {
+    pub fn get_array_type(&mut self, id: TypeId) -> TypeId {
         let extra_idx = self.payload(id) as usize;
-        let len = self.store.extra[extra_idx] as usize;
+        let ty = self.store.extra[extra_idx];
 
-        let mut res = vec![];
+        TypeId(ty)
+    }
 
-        let offset = extra_idx + 1;
+    #[inline(always)]
+    pub fn get_array_len(&mut self, id: TypeId) -> u32 {
+        let extra_idx = self.payload(id) as usize;
+        let len = self.store.extra[extra_idx + 1];
 
-        for i in 0..len {
-            res.push((
-                NameId(self.store.extra[offset + (i * 2)]),
-                TypeId(self.store.extra[offset + ((i * 2) + 1)]),
-            ));
-        }
-
-        res
+        len
     }
 
     #[inline(always)]
