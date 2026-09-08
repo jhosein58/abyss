@@ -29,6 +29,7 @@ pub enum TypeKey {
     Ptr(TypeId),
     Func(Box<[TypeId]>, TypeId, bool), // Key(params, return, is_extern), PERF: Box ro hazf kon
     Struct(Box<[(NameId, TypeId)]>),   // FIXME: remove allocation
+    Array(TypeId, u32),                // key(ty, len)
 }
 
 pub struct TypeStorage {
@@ -179,6 +180,8 @@ impl TypeStorage {
                         .join("_")
                 )
             }
+
+            TyKind::Array => format!("_A_{}_{}",),
 
             TyKind::Error => format!("Err!"),
         }
