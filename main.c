@@ -26,7 +26,7 @@ void sym_1(void);
 
 // Implementations
 void sym_1(void) {
-    int32_t sym_2;
+    bool sym_2;
     return ;
 }
 
