@@ -29,6 +29,32 @@ impl Parser<'_> {
             return self.db.hir.alloc_array(first, array_len);
         }
 
-        HirId::none()
+        // Array Literal
+
+        self.expect(Tk::Comma);
+
+        let mut list = Vec::with_capacity(32);
+        list.push(first.0);
+
+        loop {
+            if self.peek() == Some(Tk::CBracket) {
+                break;
+            }
+
+            let node = self.parse_expr(0);
+            list.push(node.0);
+
+            self.optional(Tk::Comma); // TODO
+
+            if self.peek() == Some(Tk::CBracket) {
+                break;
+            }
+        }
+
+        self.expect(Tk::CBracket);
+
+        let list_id = self.db.add_list_flat(&list);
+
+        self.db.hir.alloc_array_init(list_id)
     }
 }
