@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use abyss_nexus::nexus::{NameId, Nexus, SymbolId, TypeId};
+use abyss_types::TyKind;
 
 use crate::lowerer::lower_type;
 
@@ -377,20 +378,46 @@ void print_new_line() {
         self.decl_struct(&name);
 
         self.struct_body.push_str(&format!("struct {} {{\n", &name));
-        self.indent_level += 1;
-
-        let fields = db.types.get_struct_fields(id);
 
         let mut queue = HashSet::new();
 
-        for (n, t) in fields {
-            let t = lower_type(db, t, &mut queue);
+        match db.types.kind(id) {
+            TyKind::Struct => {
+                self.indent_level += 1;
+                let fields = db.types.get_struct_fields(id);
 
-            self.struct_body
-                .push_str(&format!("{}{} _f{};\n", self.indent(), t.to_string(), n.0));
+                for (n, t) in fields {
+                    let t = lower_type(db, t, &mut queue);
+
+                    self.struct_body.push_str(&format!(
+                        "{}{} _f{};\n",
+                        self.indent(),
+                        t.to_string(),
+                        n.0
+                    ));
+                }
+                self.indent_level -= 1;
+            }
+
+            TyKind::Array => {
+                let inner_ty = db.types.get_array_type(id);
+                let arr_len = db.types.get_array_len(id);
+
+                let t = lower_type(db, inner_ty, &mut queue);
+                self.indent_level += 1;
+                self.struct_body.push_str(&format!(
+                    "{}{} _data[{}];\n",
+                    self.indent(),
+                    t.to_string(),
+                    arr_len
+                ));
+
+                self.indent_level -= 1;
+            }
+            _ => {
+                // panic!("{:?}", db.types.kind(id));
+            }
         }
-
-        self.indent_level -= 1;
 
         self.struct_body.push_str("};\n\n");
     }

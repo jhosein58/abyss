@@ -19,6 +19,11 @@ pub fn get_deps(db: &Nexus, tyid: TypeId) -> Vec<TypeId> {
 
             deps
         }
+
+        TyKind::Array => {
+            vec![db.types.get_array_type(tyid)]
+        }
+
         _ => {
             vec![]
         }
