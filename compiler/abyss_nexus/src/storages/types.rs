@@ -288,6 +288,26 @@ impl TypeStorage {
     }
 
     #[inline(always)]
+    pub fn alloc_array(&mut self, ty: TypeId, len: u32) -> TypeId {
+        let key = TypeKey::Array(ty, len);
+
+        if let Some(&id) = self.interned.get(&key) {
+            return id;
+        }
+
+        let extra_len = self.store.extra.len() as u32;
+
+        // [arr_inner_type] [arr_len]
+        self.store.extra.push(ty.0);
+        self.store.extra.push(len);
+
+        let id = TypeId(self.store.push(TyKind::Array, extra_len) as u32);
+
+        self.interned.insert(key, id);
+        id
+    }
+
+    #[inline(always)]
     pub fn get_struct_fields(&self, id: TypeId) -> Vec<(NameId, TypeId)> {
         let extra_idx = self.payload(id) as usize;
         let len = self.store.extra[extra_idx] as usize;
