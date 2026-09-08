@@ -454,6 +454,16 @@ fn lower_expr(
             Some(ccg.gen_member(lhs_v.unwrap(), field_name))
         }
 
+        Hir::Index => {
+            let lhs_id = db.hir.lhs(id);
+            let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue);
+
+            let rhs_id = db.hir.rhs(id);
+            let rhs_v = lower_expr(db, rhs_id, ccg, queue, type_queue);
+
+            Some(ccg.index(lhs_v.unwrap(), rhs_v.unwrap()))
+        }
+
         Hir::UnaryAddrOf => {
             let lhs_id = db.hir.lhs(id);
             let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue);
