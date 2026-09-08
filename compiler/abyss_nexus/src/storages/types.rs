@@ -126,6 +126,8 @@ impl TypeStorage {
                 TyKind::UntypedInt,
             ) => Ok(a),
 
+            // (TyKind::Int, TyKind::Ptr) => Ok(b),
+            // (TyKind::Ptr, TyKind::Int) => Ok(a),
             (TyKind::UntypedFloat, TyKind::Float) => Ok(b),
             (TyKind::Float, TyKind::UntypedFloat) => Ok(a),
 
@@ -155,7 +157,7 @@ impl TypeStorage {
             TyKind::UInt => format!("u{}", self.payload(idx)),
             TyKind::Float => format!("f{}", self.payload(idx)),
             TyKind::Bool => format!("bool"),
-            TyKind::Ptr => format!("&{}", self.name(TypeId(self.payload(idx)))),
+            TyKind::Ptr => format!("ref_{}", self.name(TypeId(self.payload(idx)))),
             TyKind::Type => format!("Type"),
             TyKind::Unit => format!("unit"),
             TyKind::Never => format!("!"),
