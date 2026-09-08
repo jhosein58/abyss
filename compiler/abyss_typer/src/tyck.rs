@@ -5,7 +5,7 @@ use abyss_nexus::{
     ranges::HirRange,
 };
 
-use crate::rules::{binary, block, controlflow, declaration, func, literal, structs, unary};
+use crate::rules::{array, binary, block, controlflow, declaration, func, literal, structs, unary};
 
 pub trait TyCtx {
     fn db(&self) -> &Nexus;
@@ -97,6 +97,8 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::StructInit => structs::synth_init(db, id),
 
             Hir::Member => structs::synth_memeber(db, id),
+
+            Hir::Array => array::synth_array_type(db, id),
 
             // Unary
             Hir::UnaryNot => unary::synth_not(db, id),
