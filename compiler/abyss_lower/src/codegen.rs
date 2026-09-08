@@ -467,7 +467,7 @@ void print_new_line() {
 
         self.indent_level -= 1;
 
-        fields_buf.push_str(&format!("{}}}", self.indent()));
+        fields_buf.push_str(&format!("{}}}\n", self.indent()));
 
         self.indent_level -= 1;
 

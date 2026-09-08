@@ -411,6 +411,25 @@ fn lower_expr(
             Some(ccg.gen_struct_init(&names, &vlas, ty))
         }
 
+        Hir::ArrayInit => {
+            let ty = get_type(db, id);
+            let ty = lower_type(db, ty, type_queue);
+
+            let vals = db.hir.lhs(id).0;
+            let vals = db
+                .get_list_flat(vals)
+                .iter()
+                .map(|v| HirId(*v))
+                .collect::<Vec<_>>();
+
+            let vlas = vals
+                .iter()
+                .map(|v| lower_expr(db, *v, ccg, queue, type_queue).unwrap())
+                .collect::<Vec<_>>();
+
+            Some(ccg.gen_array_init(&vlas, ty))
+        }
+
         Hir::Cast => {
             let ty_id = get_type(db, id);
             let ty = lower_type(db, ty_id, type_queue);
