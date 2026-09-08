@@ -21,7 +21,12 @@ pub fn get_deps(db: &Nexus, tyid: TypeId) -> Vec<TypeId> {
         }
 
         TyKind::Array => {
-            vec![db.types.get_array_type(tyid)]
+            let inner_kind = db.types.kind(db.types.get_array_type(tyid));
+
+            if matches!(inner_kind, TyKind::Array | TyKind::Struct) {
+                return vec![db.types.get_array_type(tyid)];
+            }
+            vec![]
         }
 
         _ => {
