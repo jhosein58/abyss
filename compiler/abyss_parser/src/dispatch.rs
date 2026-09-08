@@ -26,6 +26,7 @@ impl Parser<'_> {
 
             Tk::Struct => self.parse_struct(),
             Tk::Dot => self.parse_struct_init(),
+            Tk::OBracket => self.parse_array(),
 
             // Unary
             Tk::Not => self.parse_not(),
