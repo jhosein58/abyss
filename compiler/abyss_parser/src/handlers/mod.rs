@@ -1,3 +1,4 @@
+pub mod array;
 pub mod binary;
 pub mod block;
 pub mod call;
