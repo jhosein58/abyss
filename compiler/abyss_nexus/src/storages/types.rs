@@ -181,7 +181,11 @@ impl TypeStorage {
                 )
             }
 
-            TyKind::Array => format!("_A_{}_{}",),
+            TyKind::Array => format!(
+                "_A_{}_{}",
+                self.name(self.get_array_type(idx)),
+                self.get_array_len(idx)
+            ),
 
             TyKind::Error => format!("Err!"),
         }
@@ -327,7 +331,7 @@ impl TypeStorage {
     }
 
     #[inline(always)]
-    pub fn get_array_type(&mut self, id: TypeId) -> TypeId {
+    pub fn get_array_type(&self, id: TypeId) -> TypeId {
         let extra_idx = self.payload(id) as usize;
         let ty = self.store.extra[extra_idx];
 
@@ -335,7 +339,7 @@ impl TypeStorage {
     }
 
     #[inline(always)]
-    pub fn get_array_len(&mut self, id: TypeId) -> u32 {
+    pub fn get_array_len(&self, id: TypeId) -> u32 {
         let extra_idx = self.payload(id) as usize;
         let len = self.store.extra[extra_idx + 1];
 

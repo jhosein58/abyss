@@ -193,8 +193,8 @@ impl HirStorage {
     }
 
     #[inline(always)]
-    pub fn alloc_array(&mut self, ty: HirId, len: HirId) -> HirId {
-        self.alloc(Hir::Array, ty.0, len.0, NONE)
+    pub fn alloc_array(&mut self, ty: HirId, len: u32) -> HirId {
+        self.alloc(Hir::Array, ty.0, len, NONE)
     }
 
     #[inline(always)]
