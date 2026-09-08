@@ -70,13 +70,14 @@ pub enum HirExprKind {
     While,
     Forever,
     Defer,
-    Index,
+
     Cast,
     Is,
     Struct,     // lhs: field names, rhs: field types     ex: struct { data i32 }
     StructInit, // lhs: fileds, rhs: values               ex: .{ data: 100 }
     Array,      // Array Type                             ex: [i32; 10]
     ArrayInit,  // Array Literal                          ex: [1, 2, 3]
+    Index,      // Array Index                            ex: x[y]
     Member,
     SizeOf,
     Match,
