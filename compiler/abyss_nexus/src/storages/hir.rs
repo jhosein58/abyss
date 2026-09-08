@@ -203,6 +203,11 @@ impl HirStorage {
     }
 
     #[inline(always)]
+    pub fn alloc_index(&mut self, idxee: HirId, idx: HirId) -> HirId {
+        self.alloc(Hir::Index, idxee.0, idx.0, NONE)
+    }
+
+    #[inline(always)]
     pub fn alloc_addrof(&mut self, inner: HirId) -> HirId {
         self.alloc(Hir::UnaryAddrOf, inner.0, NONE, NONE)
     }
