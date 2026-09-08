@@ -24,3 +24,38 @@ pub fn synth_array_type(db: &mut Nexus, id: HirId) {
         .bind_type(&mut db.types, slot, TypeId::TYPE)
         .unwrap();
 }
+
+#[inline(always)]
+pub fn synth_array_init(db: &mut Nexus, id: HirId) {
+    let slot = db.unify.new_slot(id);
+
+    let list_id = db.hir.lhs(id).0;
+
+    let list_nodes = db
+        .get_list_flat(list_id)
+        .iter()
+        .map(|n| HirId(*n))
+        .collect::<Vec<_>>();
+
+    if list_nodes.is_empty() {
+        panic!()
+    }
+
+    let f = list_nodes.first().unwrap();
+    let f_slot = db.unify.get_slot(*f);
+
+    let mut nodes_iter = list_nodes.iter();
+    nodes_iter.next();
+
+    for n in nodes_iter {
+        let n_slot = db.unify.get_slot(*n);
+        db.unify.union(&mut db.types, f_slot, n_slot).unwrap();
+    }
+
+    let f_ty = db.unify.resolve_type(f_slot);
+    let arr_len = list_nodes.len() as u32;
+
+    let arr_ty = db.types.alloc_array(f_ty, arr_len);
+
+    db.unify.bind_type(&mut db.types, slot, arr_ty).unwrap()
+}
