@@ -10,6 +10,20 @@ impl Parser<'_> {
         self.db.hir.alloc_not(body)
     }
 
+    #[inline(always)]
+    pub fn parse_neg(&mut self) -> HirId {
+        self.bump();
+        let body = self.parse_expr(0);
+        self.db.hir.alloc_neg(body)
+    }
+
+    #[inline(always)]
+    pub fn parse_bit_not(&mut self) -> HirId {
+        self.bump();
+        let body = self.parse_expr(0);
+        self.db.hir.alloc_bit_not(body)
+    }
+
     // IDEA: combine all methods to a one single methode called "parse_unary"
 
     #[inline(always)]
