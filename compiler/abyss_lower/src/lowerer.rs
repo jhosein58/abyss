@@ -518,6 +518,56 @@ fn lower_expr(
             Some(ccg.neg(lhs_v))
         }
 
+        Hir::BinaryBitOr => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
+
+            Some(ccg.bit_or(lhs, rhs))
+        }
+
+        Hir::BinaryBitAnd => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
+
+            Some(ccg.bit_and(lhs, rhs))
+        }
+
+        Hir::BinaryBitXor => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
+
+            Some(ccg.bit_xor(lhs, rhs))
+        }
+
+        Hir::BinaryShl => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
+
+            Some(ccg.bit_shl(lhs, rhs))
+        }
+
+        Hir::BinaryShr => {
+            let lhs = db.hir.lhs(id);
+            let lhs = lower_expr(db, lhs, ccg, queue, type_queue).unwrap();
+
+            let rhs = db.hir.rhs(id);
+            let rhs = lower_expr(db, rhs, ccg, queue, type_queue).unwrap();
+
+            Some(ccg.bit_shr(lhs, rhs))
+        }
+
         _ => None,
     }
 }
