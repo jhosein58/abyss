@@ -216,4 +216,13 @@ impl HirStorage {
     pub fn alloc_deref(&mut self, inner: HirId) -> HirId {
         self.alloc(Hir::UnaryDeref, inner.0, NONE, NONE)
     }
+
+    #[inline(always)]
+    pub fn alloc_neg(&mut self, inner: HirId) -> HirId {
+        self.alloc(Hir::UnaryNeg, inner.0, NONE, NONE)
+    }
+    #[inline(always)]
+    pub fn alloc_bit_not(&mut self, inner: HirId) -> HirId {
+        self.alloc(Hir::UnaryBitNot, inner.0, NONE, NONE)
+    }
 }
