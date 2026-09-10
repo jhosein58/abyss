@@ -126,8 +126,21 @@ impl TypeStorage {
                 TyKind::UntypedInt,
             ) => Ok(a),
 
-            // (TyKind::Int, TyKind::Ptr) => Ok(b),
-            // (TyKind::Ptr, TyKind::Int) => Ok(a),
+            (TyKind::Array, TyKind::Array) => {
+                let len_a = self.get_array_len(a);
+                let len_b = self.get_array_len(b);
+
+                if len_a != len_b {
+                    return Err((a, b));
+                }
+
+                let inner_a = self.get_array_type(a);
+                let inner_b = self.get_array_type(b);
+
+                let unified_inner = self.unify_types(inner_a, inner_b)?;
+                Ok(self.alloc_array(unified_inner, len_a))
+            }
+
             (TyKind::UntypedFloat, TyKind::Float) => Ok(b),
             (TyKind::Float, TyKind::UntypedFloat) => Ok(a),
 
