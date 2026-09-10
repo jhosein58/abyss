@@ -40,7 +40,7 @@ pub enum HirExprKind {
     BinaryAnd,          // and
     BinaryOr,           // or
     BinaryBitAnd,       // &
-    BinaryPipe,         // |
+    BinaryBitOr,        // |
     BinaryBitXor,       // ^
     BinaryShl,          // <<
     BinaryShr,          // >>
