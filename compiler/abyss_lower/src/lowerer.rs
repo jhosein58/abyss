@@ -504,6 +504,19 @@ fn lower_expr(
 
             Some(ccg.not(lhs_v))
         }
+        Hir::UnaryBitNot => {
+            let lhs_id = db.hir.lhs(id);
+            let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue).unwrap();
+
+            Some(ccg.not(lhs_v))
+        }
+
+        Hir::UnaryNeg => {
+            let lhs_id = db.hir.lhs(id);
+            let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue).unwrap();
+
+            Some(ccg.neg(lhs_v))
+        }
 
         _ => None,
     }
