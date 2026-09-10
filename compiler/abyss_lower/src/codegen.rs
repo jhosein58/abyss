@@ -379,6 +379,34 @@ impl CCodeGen {
         CValue(format!("({} != {})", lhs.0, rhs.0))
     }
 
+    pub fn bit_shr(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} >> {})", lhs.0, rhs.0))
+    }
+
+    pub fn bit_shl(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} << {})", lhs.0, rhs.0))
+    }
+
+    pub fn bit_xor(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} ^ {})", lhs.0, rhs.0))
+    }
+
+    pub fn bit_or(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} | {})", lhs.0, rhs.0))
+    }
+
+    pub fn bit_and(&mut self, lhs: CValue, rhs: CValue) -> CValue {
+        CValue(format!("({} & {})", lhs.0, rhs.0))
+    }
+
+    pub fn bit_not(&mut self, v: CValue) -> CValue {
+        CValue(format!("(~({}))", v.0))
+    }
+
+    pub fn neg(&mut self, v: CValue) -> CValue {
+        CValue(format!("(-({}))", v.0))
+    }
+
     pub fn finish(&self) -> String {
         let includes = "#include <stdio.h>\n#include <stdint.h>\n#include <stdbool.h>\n\n";
 
