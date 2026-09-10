@@ -30,6 +30,8 @@ impl Parser<'_> {
 
             // Unary
             Tk::Not => self.parse_not(),
+            Tk::Minus => self.parse_neg(),
+            Tk::Tilde => self.parse_bit_not(),
             Tk::Amp => self.parse_addrof(),
             Tk::Star => self.parse_deref(),
 
