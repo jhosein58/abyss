@@ -210,7 +210,7 @@ impl CCodeGen {
             .push_str(&format!("{}{} = {};\n", self.indent(), tmp_name, val.0));
 
         self.indent_level -= 1;
-        self.code.push_str("}");
+        self.code.push_str(&format!("{}}}\n", self.indent()));
 
         CValue(tmp_name)
     }
