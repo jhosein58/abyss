@@ -1,5 +1,6 @@
 use abyss_hir::hir::HirExprKind;
 use abyss_nexus::nexus::{HirId, Nexus, TypeId};
+use abyss_types::TyKind;
 
 #[inline(always)]
 pub fn synth(db: &mut Nexus, id: HirId) {
@@ -9,23 +10,18 @@ pub fn synth(db: &mut Nexus, id: HirId) {
     let rhs_id = db.hir.rhs(id);
 
     let lhs_slot = db.unify.get_slot(lhs_id);
-    let _rhs_slot = db.unify.get_slot(rhs_id);
+    let rhs_slot = db.unify.get_slot(rhs_id);
 
-    db.unify.union(&mut db.types, slot, lhs_slot).unwrap();
+    let lhs_ty = db.unify.resolve_type(lhs_slot);
 
-    // match db.unify.union(&mut db.types, lhs_slot, rhs_slot) {
-    //     Err((ta, tb)) => {
-    //         panic!(
-    //             "error in binary, ta: {}, tb: {}",
-    //             db.types.name(ta),
-    //             db.types.name(tb)
-    //         )
-    //     }
+    if db.types.kind(lhs_ty) == TyKind::Ptr {
+        db.unify.union(&mut db.types, slot, lhs_slot).unwrap();
 
-    //     Ok(s) => {
-    //         db.unify.union(&mut db.types, slot, s).unwrap(); // FIXME
-    //     }
-    // }
+        return;
+    }
+
+    let unified = db.unify.union(&mut db.types, lhs_slot, rhs_slot).unwrap();
+    db.unify.union(&mut db.types, slot, unified).unwrap();
 }
 
 #[inline(always)]
