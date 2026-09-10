@@ -478,6 +478,16 @@ fn lower_expr(
             Some(ccg.deref(lhs_v.unwrap()))
         }
 
+        Hir::BinaryAnd => {
+            let lhs_id = db.hir.lhs(id);
+            let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue).unwrap();
+
+            Some(ccg.and(lhs_v, |b| {
+                let rhs_id = db.hir.rhs(id);
+                lower_expr(db, rhs_id, b, queue, type_queue).unwrap()
+            }))
+        }
+
         _ => None,
     }
 }

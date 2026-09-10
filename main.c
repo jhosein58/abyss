@@ -26,31 +26,15 @@ void sym_1(void);
 
 // Implementations
 void sym_1(void) {
-
-    // case1:   false and true        وقتی اولی فالس شد. دومی نباید چک بشه
-    // درست کار میکنه 
-
-
-    // case2: true and false          اولی ترو میشه. دومی هم باید چک بشه
-
-    // درست کار میکنه!
-
-    
-
-
-    bool cond = LG; // false
-
-    if (cond) { // false
-        cond = RG; // true
+    bool _tmp0 = true;
+    if (_tmp0) {
+        bool _tmp1 = true;
+        if (_tmp1) {
+            _tmp1 = true;
+        }
+        _tmp0 = _tmp1;
     }
-
-    if (cond) { // true
-        // ......
-    }
-
-
-
-    if (false) {
+    if (_tmp0) {
         print_i32(10);
         ;
     } else {
