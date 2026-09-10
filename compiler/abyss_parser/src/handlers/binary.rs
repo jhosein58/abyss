@@ -35,6 +35,8 @@ impl Parser<'_> {
 
             Tk::Dot => Hir::Member,
 
+            // bitwise
+            Tk::Pipe => Hir::BinaryBit
             _ => return self.db.hir.alloc_error(),
         };
 
