@@ -20,6 +20,12 @@ impl BindingPower {
             Tk::Plus | Tk::Minus => Precedence::Term.left_assoc(),
             Tk::Star | Tk::Slash => Precedence::Factor.left_assoc(),
 
+            // Bitwise
+            Tk::Amp => Precedence::BitAnd.left_assoc(),
+            Tk::Pipe => Precedence::BitOr.left_assoc(),
+            Tk::LeftShift | Tk::RightShift => Precedence::Shift.left_assoc(),
+            Tk::Caret => Precedence::BitXor.left_assoc(),
+
             Tk::And => Precedence::LogicAnd.left_assoc(),
             Tk::Or => Precedence::LogicOr.left_assoc(),
 
