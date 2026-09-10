@@ -498,6 +498,13 @@ fn lower_expr(
             }))
         }
 
+        Hir::UnaryNot => {
+            let lhs_id = db.hir.lhs(id);
+            let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue).unwrap();
+
+            Some(ccg.not(lhs_v))
+        }
+
         _ => None,
     }
 }
