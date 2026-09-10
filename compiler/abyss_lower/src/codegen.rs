@@ -240,6 +240,10 @@ impl CCodeGen {
         CValue(tmp_name)
     }
 
+    pub fn not(&mut self, val: CValue) -> CValue {
+        CValue(format!("!({})", val.0))
+    }
+
     pub fn gen_while<F>(&mut self, cond: CValue, mut body: F) -> CValue
     where
         F: FnMut(&mut Self),
