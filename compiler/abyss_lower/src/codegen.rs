@@ -215,6 +215,31 @@ impl CCodeGen {
         CValue(tmp_name)
     }
 
+    pub fn or<RG>(&mut self, lg: CValue, mut rg: RG) -> CValue
+    where
+        RG: FnMut(&mut Self) -> CValue,
+    {
+        let tmp_name = self.new_temp_var();
+
+        self.code
+            .push_str(&format!("{}bool {} = {};\n", self.indent(), tmp_name, lg.0));
+
+        self.code
+            .push_str(&format!("{}if (!({})) {{\n", self.indent(), tmp_name));
+
+        self.indent_level += 1;
+
+        let val = rg(self);
+
+        self.code
+            .push_str(&format!("{}{} = {};\n", self.indent(), tmp_name, val.0));
+
+        self.indent_level -= 1;
+        self.code.push_str(&format!("{}}}\n", self.indent()));
+
+        CValue(tmp_name)
+    }
+
     pub fn gen_while<F>(&mut self, cond: CValue, mut body: F) -> CValue
     where
         F: FnMut(&mut Self),

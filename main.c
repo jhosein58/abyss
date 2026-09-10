@@ -26,20 +26,9 @@ void sym_1(void);
 
 // Implementations
 void sym_1(void) {
-    bool _tmp0 = true;
-    if (_tmp0) {
-        bool _tmp1 = true;
-        if (_tmp1) {
-            _tmp1 = true;
-        }
-        _tmp0 = _tmp1;
-    }
-    if (_tmp0) {
-        print_i32(10);
-        ;
-    } else {
-    }
-    ;
+
+
+
     return ;
 }
 
