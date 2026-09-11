@@ -194,8 +194,9 @@ impl TypeStorage {
     }
 
     #[inline(always)]
-    pub fn alloc_infer(&mut self, id: u32) -> TypeId {
-        self.get_or_insert(TypeKey::Infer(id), TyKind::Infer, id as u32)
+    pub fn alloc_infer(&mut self, id: SlotId) -> TypeId {
+        let id = id.value();
+        self.get_or_insert(TypeKey::Infer(id), TyKind::Infer, id)
     }
 
     #[inline(always)]
