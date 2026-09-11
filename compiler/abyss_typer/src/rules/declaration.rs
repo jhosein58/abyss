@@ -22,7 +22,7 @@ pub fn synth(db: &mut Nexus, id: HirId) {
         let value_slot = db.unify.get_slot(value_id);
 
         if value_slot.is_some() {
-            let value_type = db.unify.resolve_type(value_slot);
+            let value_type = db.unify.resolve_type_deep(&mut db.types, value_slot);
 
             let kind = db.types.kind(value_type);
 
@@ -61,6 +61,9 @@ pub fn synth(db: &mut Nexus, id: HirId) {
         db.unify
             .bind_type(&mut db.types, ident_slot, type_value)
             .unwrap(); // ERR
+
+        let tmpp = db.unify.resolve_type_deep(&mut db.types, ident_slot);
+        println!("{}", db.types.name(tmpp));
     }
 
     db.unify.union(&mut db.types, slot, ident_slot).unwrap(); // ERR
