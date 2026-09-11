@@ -25,7 +25,6 @@ fn main() -> color_eyre::Result<()> {
     eng.print_err();
 
     eng.compile(sym_id);
-
     println!("{:?}", t.elapsed());
 
     let c_code = eng.ccg.finish();
