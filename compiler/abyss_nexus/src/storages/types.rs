@@ -163,6 +163,7 @@ impl TypeStorage {
 
         match self.kind(idx) {
             TyKind::Unknown => "Unknown".to_string(),
+            TyKind::Infer => "Infer".to_string(),
 
             TyKind::UntypedInt => format!("UtInt"),
             TyKind::UntypedFloat => format!("UtFloat"),
