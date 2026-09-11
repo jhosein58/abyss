@@ -53,10 +53,10 @@ pub fn synth_array_init(db: &mut Nexus, id: HirId) {
         db.unify.union(&mut db.types, f_slot, n_slot).unwrap();
     }
 
-    let f_ty = db.unify.resolve_type(f_slot);
-    let arr_len = list_nodes.len() as u32;
+    let f_infer_type = db.types.alloc_infer(f_slot);
 
-    let arr_ty = db.types.alloc_array(f_ty, arr_len);
+    let arr_len = list_nodes.len() as u32;
+    let arr_ty = db.types.alloc_array(f_infer_type, arr_len);
 
     db.unify.bind_type(&mut db.types, slot, arr_ty).unwrap()
 }
