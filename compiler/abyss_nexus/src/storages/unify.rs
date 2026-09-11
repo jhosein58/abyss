@@ -252,7 +252,7 @@ impl UnifyStorage {
 
                     types.alloc_array(ty, len)
                 } else {
-                    inner_ty
+                    tyid
                 }
             }
             _ => tyid,

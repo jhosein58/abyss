@@ -23,7 +23,7 @@ fn get_type(db: &mut Nexus, id: HirId) -> TypeId {
         return TypeId::none();
     }
 
-    db.unify.resolve_type(slot)
+    db.unify.resolve_type_deep(&mut db.types, slot)
 }
 
 pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
