@@ -92,6 +92,13 @@ impl UnifyStorage {
 
             return Ok(types.alloc_infer(new_slot));
         } else if kind_a == TyKind::Infer {
+            let slot_a = types.infer_slot(a);
+            self.bind_type(types, slot_a, b)?;
+            return Ok(b);
+        } else if kind_b == TyKind::Infer {
+            let slot_b = types.infer_slot(b);
+            self.bind_type(types, slot_b, a)?;
+            return Ok(a);
         }
 
         if kind_a == TyKind::Never {
