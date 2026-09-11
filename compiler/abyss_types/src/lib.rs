@@ -4,6 +4,8 @@ pub enum TyKind {
     #[default]
     Unknown,
 
+    Infer,
+
     UntypedInt,
     UntypedFloat,
     Int,
