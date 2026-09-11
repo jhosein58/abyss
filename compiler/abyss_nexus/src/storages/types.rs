@@ -4,7 +4,7 @@ use abyss_types::{TyKind, TyStore};
 
 use crate::{
     arena::ArenaId,
-    nexus::{NameId, TypeId},
+    nexus::{NameId, SlotId, TypeId},
 };
 
 impl TypeId {
@@ -92,69 +92,6 @@ impl TypeStorage {
     #[inline(always)]
     pub fn payload(&self, idx: TypeId) -> u32 {
         self.store.payload[idx.0 as usize]
-    }
-
-    #[inline(always)]
-    pub fn unify_types(&mut self, a: TypeId, b: TypeId) -> Result<TypeId, (TypeId, TypeId)> {
-        if a == b {
-            return Ok(a);
-        }
-
-        let kind_a = self.kind(a);
-        let kind_b = self.kind(b);
-
-        if kind_a == TyKind::Never {
-            return Ok(b);
-        }
-        if kind_b == TyKind::Never {
-            return Ok(a);
-        }
-
-        if kind_a == TyKind::Unknown {
-            return Ok(b);
-        }
-        if kind_b == TyKind::Unknown {
-            return Ok(a);
-        }
-
-        match (kind_a, kind_b) {
-            (
-                TyKind::UntypedInt,
-                TyKind::Int | TyKind::UInt | TyKind::Float | TyKind::UntypedFloat,
-            ) => Ok(b),
-            (
-                TyKind::Int | TyKind::UInt | TyKind::Float | TyKind::UntypedFloat,
-                TyKind::UntypedInt,
-            ) => Ok(a),
-
-            (TyKind::Array, TyKind::Array) => {
-                let len_a = self.get_array_len(a);
-                let len_b = self.get_array_len(b);
-
-                if len_a != len_b {
-                    return Err((a, b));
-                }
-
-                let inner_a = self.get_array_type(a);
-                let inner_b = self.get_array_type(b);
-
-                let unified_inner = self.unify_types(inner_a, inner_b)?;
-                Ok(self.alloc_array(unified_inner, len_a))
-            }
-
-            (TyKind::UntypedFloat, TyKind::Float) => Ok(b),
-            (TyKind::Float, TyKind::UntypedFloat) => Ok(a),
-
-            (TyKind::Ptr, TyKind::Ptr) => {
-                let inner_a = TypeId(self.payload(a));
-                let inner_b = TypeId(self.payload(b));
-                let unified_inner = self.unify_types(inner_a, inner_b)?;
-                Ok(self.alloc_ptr(unified_inner))
-            }
-
-            // TODO: Func type
-            _ => Err((a, b)),
-        }
     }
 
     pub fn name(&self, idx: TypeId) -> String {
@@ -432,5 +369,10 @@ impl TypeStorage {
             .iter()
             .map(|v| TypeId(*v))
             .collect()
+    }
+
+    #[inline(always)]
+    pub fn infer_slot(&self, id: TypeId) -> SlotId {
+        SlotId(self.payload(id))
     }
 }
