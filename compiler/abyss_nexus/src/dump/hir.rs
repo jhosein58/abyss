@@ -89,6 +89,16 @@ impl Nexus {
                         rhs_str = format!("Nodes{:?}", items);
                     }
                 }
+
+                HirExprKind::ArrayInit => {
+                    if lhs != u32::MAX {
+                        let start = lhs as usize;
+                        let len = self.u32_items[start] as usize;
+                        let items = &self.u32_items[(start + 1)..(start + 1 + len)];
+                        lhs_str = format!("Nodes{:?}", items);
+                    }
+                }
+
                 HirExprKind::Call | HirExprKind::Match => {
                     if rhs != u32::MAX {
                         let start = rhs as usize;

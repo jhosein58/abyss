@@ -8,50 +8,41 @@ impl Parser<'_> {
     pub fn parse_array(&mut self) -> HirId {
         self.bump(); // [
 
+        if self.optional(Tk::CBracket) {
+            let empty_list = self.db.add_list_flat(&[]);
+            return self.db.hir.alloc_array_init(empty_list);
+        }
+
         let first = self.parse_expr(0);
 
-        // Array Type
         if self.optional(Tk::Semi) {
             let arr_len_id = self.parse_expr(0);
 
             if self.db.hir.kind(arr_len_id) != Hir::LitInt {
-                panic!()
+                panic!();
             }
 
             let array_int_id = self.db.hir.lhs(arr_len_id).0;
-
             let array_len = self.db.ints.get_copy(IntId(array_int_id)) as u32;
 
             self.expect(Tk::CBracket);
             return self.db.hir.alloc_array(first, array_len);
         }
 
-        // Array Literal
-
-        self.expect(Tk::Comma);
-
-        let mut list = Vec::with_capacity(32);
+        let mut list = Vec::with_capacity(8);
         list.push(first.0);
 
-        loop {
+        while self.optional(Tk::Comma) {
             if self.peek() == Some(Tk::CBracket) {
                 break;
             }
-
             let node = self.parse_expr(0);
             list.push(node.0);
-
-            self.optional(Tk::Comma); // TODO
-
-            if self.peek() == Some(Tk::CBracket) {
-                break;
-            }
         }
 
         self.expect(Tk::CBracket);
 
         let list_id = self.db.add_list_flat(&list);
-
         self.db.hir.alloc_array_init(list_id)
     }
 
