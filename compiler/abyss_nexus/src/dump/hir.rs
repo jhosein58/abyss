@@ -23,7 +23,7 @@ impl Nexus {
             let slot = self.unify.get_slot(HirId(i as u32));
 
             let tyid = if slot.is_some() {
-                self.unify.resolve_type(slot)
+                self.unify.resolve_type_deep(&mut self.types, slot)
             } else {
                 TypeId::none()
             };
