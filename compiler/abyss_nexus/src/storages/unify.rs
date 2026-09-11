@@ -258,7 +258,7 @@ impl UnifyStorage {
 
         match kind {
             TyKind::Infer => {
-                let inner_slot = SlotId(types.payload(tyid));
+                let inner_slot = types.infer_slot(tyid);
                 self.resolve_type_deep(types, inner_slot)
             }
 
@@ -267,7 +267,7 @@ impl UnifyStorage {
                 let inner_ty = types.get_array_type(tyid);
 
                 if types.kind(inner_ty) == TyKind::Infer {
-                    let infer_slot = SlotId(types.payload(inner_ty));
+                    let infer_slot = types.infer_slot(inner_ty);
 
                     let ty = self.resolve_type_deep(types, infer_slot);
 
@@ -276,6 +276,30 @@ impl UnifyStorage {
                     tyid
                 }
             }
+
+            TyKind::Struct => {
+                let fields = types.get_struct_fields(tyid);
+                let mut new_fields = Vec::with_capacity(fields.len());
+                let mut changed = false;
+
+                for (name, field_ty) in fields {
+                    if types.kind(field_ty) == TyKind::Infer {
+                        let field_slot = types.infer_slot(field_ty);
+                        let resolved = self.resolve_type_deep(types, field_slot);
+                        new_fields.push((name, resolved));
+                        changed = true;
+                    } else {
+                        new_fields.push((name, field_ty));
+                    }
+                }
+
+                if changed {
+                    types.alloc_struct(&new_fields)
+                } else {
+                    tyid
+                }
+            }
+
             _ => tyid,
         }
     }
