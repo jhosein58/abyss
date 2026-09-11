@@ -71,6 +71,76 @@ impl UnifyStorage {
         }
     }
 
+    #[inline(always)]
+    pub fn unify_types(
+        &mut self,
+        types: &mut TypeStorage,
+        a: TypeId,
+        b: TypeId,
+    ) -> Result<TypeId, (TypeId, TypeId)> {
+        if a == b {
+            return Ok(a);
+        }
+
+        let kind_a = types.kind(a);
+        let kind_b = types.kind(b);
+
+        if kind_a == TyKind::Infer && kind_b == TyKind::Infer {}
+
+        if kind_a == TyKind::Never {
+            return Ok(b);
+        }
+        if kind_b == TyKind::Never {
+            return Ok(a);
+        }
+
+        if kind_a == TyKind::Unknown {
+            return Ok(b);
+        }
+        if kind_b == TyKind::Unknown {
+            return Ok(a);
+        }
+
+        match (kind_a, kind_b) {
+            (
+                TyKind::UntypedInt,
+                TyKind::Int | TyKind::UInt | TyKind::Float | TyKind::UntypedFloat,
+            ) => Ok(b),
+            (
+                TyKind::Int | TyKind::UInt | TyKind::Float | TyKind::UntypedFloat,
+                TyKind::UntypedInt,
+            ) => Ok(a),
+
+            (TyKind::Array, TyKind::Array) => {
+                let len_a = types.get_array_len(a);
+                let len_b = types.get_array_len(b);
+
+                if len_a != len_b {
+                    return Err((a, b));
+                }
+
+                let inner_a = types.get_array_type(a);
+                let inner_b = types.get_array_type(b);
+
+                let unified_inner = self.unify_types(types, inner_a, inner_b)?;
+                Ok(types.alloc_array(unified_inner, len_a))
+            }
+
+            (TyKind::UntypedFloat, TyKind::Float) => Ok(b),
+            (TyKind::Float, TyKind::UntypedFloat) => Ok(a),
+
+            (TyKind::Ptr, TyKind::Ptr) => {
+                let inner_a = TypeId(types.payload(a));
+                let inner_b = TypeId(types.payload(b));
+                let unified_inner = self.unify_types(types, inner_a, inner_b)?;
+                Ok(types.alloc_ptr(unified_inner))
+            }
+
+            // TODO: Func type
+            _ => Err((a, b)),
+        }
+    }
+
     pub fn union(
         &mut self,
         types: &mut TypeStorage,
@@ -93,7 +163,7 @@ impl UnifyStorage {
         }
 
         let final_type = match (type_a.is_some(), type_b.is_some()) {
-            (true, true) => types.unify_types(type_a, type_b)?,
+            (true, true) => self.unify_types(types, type_a, type_b)?,
             (true, false) => type_a,
             (false, true) => type_b,
             (false, false) => TypeId::none(),
@@ -131,7 +201,7 @@ impl UnifyStorage {
         let existing = self.types.get_copy(root);
 
         if existing.is_some() {
-            let unified_type = types.unify_types(existing, ty)?;
+            let unified_type = self.unify_types(types, existing, ty)?;
             self.types.set_safe(root, unified_type);
         } else {
             self.types.set_safe(root, ty);
