@@ -34,9 +34,14 @@ pub fn synth(db: &mut Nexus, id: HirId) {
                     db.consts.set_type(id, type_value);
                 }
 
-                db.unify
-                    .bind_type(&mut db.types, ident_slot, value_type)
-                    .unwrap()
+                if value_id.is_some() {
+                    let value_slot = db.unify.get_slot(value_id);
+                    if value_slot.is_some() {
+                        db.unify
+                            .union(&mut db.types, ident_slot, value_slot)
+                            .unwrap();
+                    }
+                }
             } else {
                 db.unify
                     .union(&mut db.types, ident_slot, value_slot)
