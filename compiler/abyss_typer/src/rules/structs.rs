@@ -51,7 +51,7 @@ pub fn synth_init(db: &mut Nexus, id: HirId) {
         .map(|t| db.unify.get_slot(t))
         .collect::<Vec<_>>()
         .iter()
-        .map(|s| db.unify.resolve_type(*s))
+        .map(|s| db.types.alloc_infer(*s))
         .collect::<Vec<TypeId>>();
 
     let fields = fields_id
