@@ -1,7 +1,7 @@
 use std::u32;
 
 use abyss_nexus::nexus::HirId;
-use abyss_token::kind::TokenKind::{self as Tk, CBrace};
+use abyss_token::kind::TokenKind::{self as Tk};
 
 use crate::{parser::Parser, precedence::Precedence};
 
@@ -15,17 +15,20 @@ impl Parser<'_> {
         let mut types: Vec<u32> = vec![];
 
         loop {
-            if self.peek() == Some(CBrace) {
+            let peeked = self.peek();
+            if peeked == Some(Tk::CBrace) || peeked.is_none() {
                 break;
             }
 
-            let name = self.parse_expr(0);
+            let name = self.parse_expr(Precedence::VarDef.value() + 1);
+            self.expect(Tk::Colon);
             let ty = self.parse_expr(0);
 
             names.push(name.0);
             types.push(ty.0);
 
-            if self.peek() == Some(CBrace) {
+            let peeked_after = self.peek();
+            if peeked_after == Some(Tk::CBrace) || peeked_after.is_none() {
                 break;
             }
 
@@ -52,7 +55,8 @@ impl Parser<'_> {
         let mut values = vec![];
 
         loop {
-            if self.peek() == Some(Tk::CBrace) {
+            let peeked = self.peek();
+            if peeked == Some(Tk::CBrace) || peeked.is_none() {
                 break;
             }
 
@@ -63,9 +67,11 @@ impl Parser<'_> {
             fields.push(f.0);
             values.push(v.0);
 
-            if self.peek() == Some(CBrace) {
+            let peeked_after = self.peek();
+            if peeked_after == Some(Tk::CBrace) || peeked_after.is_none() {
                 break;
             }
+
             if !self.peek_preceded_by_newline() {
                 self.expect(Tk::Comma);
             }
