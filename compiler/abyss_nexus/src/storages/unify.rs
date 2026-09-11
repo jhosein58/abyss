@@ -252,14 +252,23 @@ impl UnifyStorage {
 
     #[inline]
     pub fn resolve_type_deep(&mut self, types: &mut TypeStorage, slot: SlotId) -> TypeId {
-        let tyid = self.resolve_type(slot);
+        let root = self.find(slot);
+        let tyid = self.types.get_copy(root);
 
+        if tyid.is_none() {
+            return types.alloc_infer(root);
+        }
         let kind = types.kind(tyid);
 
         match kind {
             TyKind::Infer => {
                 let inner_slot = types.infer_slot(tyid);
-                self.resolve_type_deep(types, inner_slot)
+                let inner_root = self.find(inner_slot);
+
+                if inner_root == root {
+                    return tyid;
+                }
+                self.resolve_type_deep(types, inner_root)
             }
 
             TyKind::Array => {
