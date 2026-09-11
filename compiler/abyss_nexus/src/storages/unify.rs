@@ -141,6 +141,26 @@ impl UnifyStorage {
                 Ok(types.alloc_array(unified_inner, len_a))
             }
 
+            (TyKind::Struct, TyKind::Struct) => {
+                let field_a = types.get_struct_fields(a);
+                let field_b = types.get_struct_fields(b);
+
+                if field_a.len() != field_b.len() {
+                    panic!()
+                }
+
+                let mut unified_fields = Vec::new();
+
+                for ((na, ta), (nb, tb)) in field_a.into_iter().zip(field_b) {
+                    if na != nb {
+                        return Err((a, b));
+                    }
+
+                    unified_fields.push((na, self.unify_types(types, ta, tb)?));
+                }
+                Ok(types.alloc_struct(&unified_fields))
+            }
+
             (TyKind::UntypedFloat, TyKind::Float) => Ok(b),
             (TyKind::Float, TyKind::UntypedFloat) => Ok(a),
 
