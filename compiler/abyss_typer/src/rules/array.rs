@@ -68,7 +68,7 @@ pub fn synth_index(db: &mut Nexus, id: HirId) {
     let lhs_id = db.hir.lhs(id);
     let lhs_slot = db.unify.get_slot(lhs_id);
 
-    let lhs_ty = db.unify.resolve_type(lhs_slot);
+    let lhs_ty = db.unify.resolve_type_deep(&mut db.types, lhs_slot);
 
     if db.types.kind(lhs_ty) != TyKind::Array {
         panic!()
