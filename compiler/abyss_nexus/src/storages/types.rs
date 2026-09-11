@@ -23,7 +23,8 @@ impl TypeId {
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)] // FIXME: impl trait Copy
 pub enum TypeKey {
-    Int(u16), // bit width
+    Infer(u32), // Slot id
+    Int(u16),   // bit width
     UInt(u16),
     Float(u16),
     Ptr(TypeId),
@@ -253,6 +254,11 @@ impl TypeStorage {
     #[inline(always)]
     pub fn alloc_never(&self) -> TypeId {
         TypeId::NEVER
+    }
+
+    #[inline(always)]
+    pub fn alloc_infer(&mut self, id: u32) -> TypeId {
+        self.get_or_insert(TypeKey::Infer(id), TyKind::Infer, id as u32)
     }
 
     #[inline(always)]
