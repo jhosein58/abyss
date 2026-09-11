@@ -12,7 +12,7 @@ pub fn get_deps(db: &Nexus, tyid: TypeId) -> Vec<TypeId> {
             let fields = db.types.get_struct_fields(tyid);
 
             for (_, t) in fields {
-                if db.types.kind(t) == TyKind::Struct {
+                if matches!(db.types.kind(t), TyKind::Struct | TyKind::Array) {
                     deps.push(t);
                 }
             }
