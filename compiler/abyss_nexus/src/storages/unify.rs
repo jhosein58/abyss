@@ -137,6 +137,7 @@ impl UnifyStorage {
                 let inner_b = types.get_array_type(b);
 
                 let unified_inner = self.unify_types(types, inner_a, inner_b)?;
+
                 Ok(types.alloc_array(unified_inner, len_a))
             }
 
