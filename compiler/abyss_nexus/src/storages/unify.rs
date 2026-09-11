@@ -85,7 +85,14 @@ impl UnifyStorage {
         let kind_a = types.kind(a);
         let kind_b = types.kind(b);
 
-        if kind_a == TyKind::Infer && kind_b == TyKind::Infer {}
+        if kind_a == TyKind::Infer && kind_b == TyKind::Infer {
+            let slot_a = types.infer_slot(a);
+            let slot_b = types.infer_slot(b);
+            let new_slot = self.union(types, slot_a, slot_b)?;
+
+            return Ok(types.alloc_infer(new_slot));
+        } else if kind_a == TyKind::Infer {
+        }
 
         if kind_a == TyKind::Never {
             return Ok(b);
