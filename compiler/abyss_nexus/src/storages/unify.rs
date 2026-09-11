@@ -1,3 +1,5 @@
+use abyss_types::TyKind;
+
 use crate::{
     arena::{Arena, ArenaId, SideTable},
     nexus::{HirId, SlotId, TypeId},
@@ -141,5 +143,35 @@ impl UnifyStorage {
     pub fn resolve_type(&mut self, slot: SlotId) -> TypeId {
         let root = self.find(slot);
         self.types.get_copy(root)
+    }
+
+    #[inline]
+    pub fn resolve_type_deep(&mut self, types: &mut TypeStorage, slot: SlotId) -> TypeId {
+        let tyid = self.resolve_type(slot);
+
+        let kind = types.kind(tyid);
+
+        match kind {
+            TyKind::Infer => {
+                let inner_slot = SlotId(types.payload(tyid));
+                self.resolve_type_deep(types, inner_slot)
+            }
+
+            TyKind::Array => {
+                let len = types.get_array_len(tyid);
+                let inner_ty = types.get_array_type(tyid);
+
+                if types.kind(inner_ty) == TyKind::Infer {
+                    let infer_slot = SlotId(types.payload(inner_ty));
+
+                    let ty = self.resolve_type_deep(types, infer_slot);
+
+                    types.alloc_array(ty, len)
+                } else {
+                    inner_ty
+                }
+            }
+            _ => tyid,
+        }
     }
 }
