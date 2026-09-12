@@ -37,8 +37,8 @@ pub enum TokenKind {
     Or,           // or
     Not,          // not
     Size,         // size
-    Mod,          // mod
-    Use,          // use
+    Import,       // import
+    From,         // from
     True,         // true
     False,        // false
     Match,        // match
