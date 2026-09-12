@@ -24,7 +24,7 @@ impl Engine {
     pub fn add_file(&mut self, path: &str, source: String) -> FileId {
         let file_id = self.db.add_file(path, source);
         self.db.lex_file(file_id);
-        Indexer::index(&mut self.db, file_id);
+        Indexer::index(&mut self.db, file_id, path);
         file_id
     }
 
