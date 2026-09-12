@@ -1,7 +1,13 @@
 
 
-import inner_pi from "main.a"
+ExprKindData :: struct {
+    lit_int: i32,
+    lit_float: i32,
+}
 
-PI :: () i32 {
-    inner_pi()
+HirExprKind :: () ExprKindData {
+    .{
+        lit_int:   0,
+        lit_float: 1,
+    }
 }

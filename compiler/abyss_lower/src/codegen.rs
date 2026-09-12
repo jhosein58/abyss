@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, fs};
 
 use abyss_nexus::nexus::{NameId, Nexus, SymbolId, TypeId};
 use abyss_types::TyKind;
@@ -408,27 +408,10 @@ impl CCodeGen {
     }
 
     pub fn finish(&self) -> String {
-        let includes = "#include <stdio.h>\n#include <stdint.h>\n#include <stdbool.h>\n\n";
-
-        let abyss_prelude = r#"
-
-void print_i32(int32_t v) {
-    printf("%d\n", v);
-}
-
-void print_star() {
-    printf("*");
-}
-
-void print_new_line() {
-    printf("\n");
-}
-
-"#;
+        let abyss_prelude = fs::read_to_string("prelude.c").unwrap();
 
         let mut res = format!(
-            "{}{}\n// Forward Declarations\n{}\n\n{}\n\n{}\n// Implementations\n{}",
-            includes,
+            "{}\n// Forward Declarations\n{}\n{}\n{}\n// Implementations\n{}",
             abyss_prelude,
             self.struct_forward_decl,
             self.struct_body,
