@@ -497,8 +497,6 @@ impl<'a> Lexer<'a> {
                 b"out" => TokenKind::Out,
                 b"and" => TokenKind::And,
                 b"not" => TokenKind::Not,
-                b"mod" => TokenKind::Mod,
-                b"use" => TokenKind::Use,
                 b"def" => TokenKind::Def,
                 b"for" => TokenKind::For,
                 b"pub" => TokenKind::Pub,
@@ -512,6 +510,7 @@ impl<'a> Lexer<'a> {
                 b"true" => TokenKind::True,
                 b"size" => TokenKind::Size,
                 b"cmpt" => TokenKind::Cmpt,
+                b"from" => TokenKind::From,
                 _ => TokenKind::Ident,
             },
 
@@ -525,11 +524,13 @@ impl<'a> Lexer<'a> {
 
             6 => match b {
                 b"struct" => TokenKind::Struct,
+                b"import" => TokenKind::Import,
                 _ => TokenKind::Ident,
             },
 
             7 => match b {
                 b"forever" => TokenKind::Forever,
+
                 _ => TokenKind::Ident,
             },
 
