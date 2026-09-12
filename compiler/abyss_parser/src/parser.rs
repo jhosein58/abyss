@@ -149,7 +149,8 @@ impl<'a> Parser<'a> {
         p.expect(TokenKind::ColonColon);
 
         let text = p.db.tokens.text(TokenId(p.cursor - 2));
-        let ident_hir_id = p.db.hir.alloc_ident(p.db.interner.intern(text));
+        let ident_name_id = p.db.interner.intern(text);
+        let ident_hir_id = p.db.hir.alloc_ident(ident_name_id);
 
         p.db.symbols.data[sym_id.0 as usize] = ident_hir_id; // patch symbol
 

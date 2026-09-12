@@ -38,6 +38,7 @@ impl Engine {
     }
 
     pub fn type_check(&mut self, sym_id: SymbolId) {
+        println!("{}", sym_id.0);
         let range = self.db.symbol_hir_range.get_copy(sym_id);
 
         let mut tc = Typer::new(self);
