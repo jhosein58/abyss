@@ -12,10 +12,12 @@ impl Parser<'_> {
         };
 
         match tk {
+            // Literals
             Tk::IntLit => self.parse_int(),
             Tk::FloatLit => self.parse_float(),
             Tk::True => self.parse_true(),
             Tk::False => self.parse_false(),
+            Tk::StrLit => self.parse_str(),
 
             Tk::Ident => self.parse_ident(),
             Tk::OBrace => self.parse_block(),
