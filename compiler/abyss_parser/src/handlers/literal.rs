@@ -1,4 +1,4 @@
-use abyss_nexus::nexus::HirId;
+use abyss_nexus::{arena::ArenaId, nexus::HirId};
 
 use crate::parser::Parser;
 
@@ -60,5 +60,11 @@ impl Parser<'_> {
     pub fn parse_false(&mut self) -> HirId {
         self.bump();
         self.db.hir.alloc_false()
+    }
+
+    #[inline(always)]
+    pub fn parse_str(&mut self) -> HirId {
+        panic!("testttttt");
+        HirId::none()
     }
 }
