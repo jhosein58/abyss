@@ -1,0 +1,45 @@
+malloc  :: (size u64) &u8
+realloc :: (ptr &u8, size u64) &u8
+free    :: (ptr &u8) unit
+
+VecType :: i32
+INIT_CAP :: () u64 {
+    4
+}
+
+VecI32 :: struct {
+    ptr: &VecType,
+    len: u64,
+    cap: u64
+}
+
+VecI32_new :: () VecI32 {
+    p := malloc(INIT_CAP() * 4) as &VecType
+
+    .{
+        ptr: p,
+        len: 0,
+        cap: INIT_CAP()
+    }
+}
+
+VecI32_destroy :: (v &VecI32) {
+    free((*v).ptr as &u8)
+}
+
+VecI32_grow :: (v &VecI32) {
+    if (*v).len == (*v).cap {
+        new_cap := (*v).cap * 2
+        new_ptr := realloc((*v).ptr as &u8, new_cap * 4) as &VecType
+
+        (*v).ptr = new_ptr
+        (*v).cap = new_cap
+    }
+}
+
+VecI32_push :: (v &VecI32, val VecType) {
+    VecI32_grow(v)
+
+    *((*v).ptr + (*v).len) = val
+    (*v).len = (*v).len + 1
+}
