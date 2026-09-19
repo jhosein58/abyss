@@ -13,7 +13,7 @@ Abyss is a statically typed, compiled systems programming language engineered fo
 
 Abyss compiles directly to portable C99 with seamless libc interoperability and explicit memory management:
 
-```abyss
+```rust
 print :: (s &u8) unit
 
 main :: () {
