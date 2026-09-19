@@ -25,8 +25,16 @@ fn get_type(db: &mut Nexus, id: HirId) -> TypeId {
 
     db.unify.resolve_type_deep(&mut db.types, slot)
 }
+pub fn lower_function(
+    db: &mut Nexus,
+    ccg: &mut CCodeGen,
+    symbol: SymbolId,
+    visited: &mut HashSet<SymbolId>,
+) {
+    if !visited.insert(symbol) {
+        return;
+    }
 
-pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
     let id = db.symbol_hir_range.get_copy(symbol).end;
 
     if db.hir.kind(id) != Hir::Binding {
@@ -43,7 +51,6 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
     let ret_ty_id = db.types.func_return(func_ty_id);
 
     let mut type_queue: HashSet<TypeId> = HashSet::new();
-
     let ret_type = lower_type(db, ret_ty_id, &mut type_queue);
 
     let args_id = db.hir.lhs(func_id);
@@ -68,7 +75,6 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
         .collect();
 
     let fn_params: Vec<(&str, CType)> = args_name.iter().map(|s| s.as_str()).zip(params).collect();
-
     let fn_name = format!("sym_{}", symbol.0);
 
     let mut compile_queue: HashSet<SymbolId> = HashSet::new();
@@ -89,11 +95,10 @@ pub fn lower_function(db: &mut Nexus, ccg: &mut CCodeGen, symbol: SymbolId) {
     ccg.end_function();
 
     for s in compile_queue {
-        lower_function(db, ccg, s);
+        lower_function(db, ccg, s, visited);
     }
 
     let sorted = topo_sort(db, &type_queue);
-
     for t in sorted {
         ccg.def_struct(db, t);
     }

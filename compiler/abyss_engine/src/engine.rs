@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use abyss_diagnostics::DiagnosticFormatter;
 use abyss_indexer::Indexer;
 use abyss_lower::{codegen::CCodeGen, lowerer};
@@ -11,6 +13,7 @@ use abyss_typer::tyck::{TyCtx, Typer};
 pub struct Engine {
     pub db: Nexus,
     pub ccg: CCodeGen,
+    visited: HashSet<SymbolId>,
 }
 
 impl Engine {
@@ -18,6 +21,7 @@ impl Engine {
         Self {
             db: Nexus::default(),
             ccg: CCodeGen::default(),
+            visited: HashSet::new(),
         }
     }
 
@@ -46,7 +50,7 @@ impl Engine {
     }
 
     pub fn compile(&mut self, sym_id: SymbolId) {
-        lowerer::lower_function(&mut self.db, &mut self.ccg, sym_id)
+        lowerer::lower_function(&mut self.db, &mut self.ccg, sym_id, &mut self.visited)
     }
 
     pub fn print_err(&self) {
