@@ -8,7 +8,7 @@ impl Parser<'_> {
     #[inline(always)]
     pub fn parse_var_decl(&mut self, lhs: HirId, bp: u8) -> HirId {
         let id = self.inner_parse_var_decl(lhs, bp);
-        self.db.hir_files.set(id, self.file_id);
+        self.db.hir_files.set_safe(id, self.file_id);
 
         let lhs_span = self.db.hir_spans.get(lhs);
         let prev_span = self.prev_span();
