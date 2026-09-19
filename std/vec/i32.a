@@ -43,3 +43,16 @@ VecI32_push :: (v &VecI32, val VecType) {
     *((*v).ptr + (*v).len) = val
     (*v).len = (*v).len + 1
 }
+
+VecI32_get :: (v &VecI32, idx u64) VecType {
+    *((*v).ptr + idx)
+}
+
+VecI32_set :: (v &VecI32, idx u64, val VecType) unit {
+    *((*v).ptr + idx) = val
+}
+
+VecI32_pop :: (v &VecI32) VecType {
+    (*v).len = (*v).len - 1
+    *((*v).ptr + (*v).len)
+}
