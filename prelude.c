@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-
+#include <string.h>
 
 void print(const uint8_t *s) {
     printf("%s", (const char *)s);
