@@ -1,35 +1,52 @@
-# Abyss 🕳️
+# Abyss
 
 **High-level Syntax. Low-level Soul.**
 
-> **⚠️ Status Update: I Blew It Up Again**  
-> Honest truth? The compiler was actually working great. So... naturally, I scrapped the whole codebase.  
-> Right now, **literally nothing works**. I'm doing a massive, ground-zero refactor to rebuild Abyss from scratch—this time with zero architectural compromises.
+Abyss is a statically typed, compiled systems programming language engineered for mechanical sympathy, predictability, and uncompromising performance. It combines modern syntactic ergonomics (inspired by Odin and Jai) with the raw control and transparency of C.
+
+> **Status: Stage 0 is Operational & Self-Hosting Has Begun**  
+> The architectural rewrite is complete. The core compiler pipeline—including the data-oriented Nexus store, Pratt parser, unification-based type checker, and C code generator—is fully functional. Implementation of the standard library (`std`) and the Stage 1 self-hosted compiler is currently in progress.
 
 ---
 
-## 🩸 What It Looks Like Now
+## Code at a Glance
 
-The syntax is shifting towards a clean, no-nonsense style (inspired by Odin and Jai):
-```rust
+Abyss compiles directly to portable C99 with seamless libc interoperability and explicit memory management:
+
+```abyss
+print :: (s &u8) unit
+
 main :: () {
-    print("Hello, Abyss!\n")
+    print("Hello, Abyss!")
 }
 ```
----
-
-## The Plan: Why Nuke It?
-
-I'm rebuilding Abyss as a **data-oriented, query-based compiler engine** designed for sheer execution speed:
-
-* **Ultra-Fast Data-Oriented Architecture (DOD):** Cache-friendly arenas, contiguous arrays, and stable IDs over slow tree-walking and pointer-chasing.
-* **Query-Based & Compiler as a Library:** Everything is parsed and type-checked lazily on demand. This makes building an LSP, IDE tools, or static analyzers practically free.
-* **Microsecond Incremental Compilation:** Change one function, and only that slice gets re-indexed. No more full-file or full-project re-parses.
-* **Lock-Free Parallel Pipelines:** Unlocked, thread-safe type checking across top-level symbols so multi-threading feels effortless.
-* **Linearized Heavy Passes:** Flattening complex passes like type checking into fast, batchable assembly-line operations.
 
 ---
 
-## 📜 License
+## Architectural Highlights
+
+* **Data-Oriented (DOD) Nexus Engine:** Replaces heavy pointer-chasing AST nodes with cache-aligned arenas, flat storage tables, and dense numeric IDs (`HirId`, `SymbolId`, `TypeId`).
+* **Unification-Based Type Inference:** Type checking driven by union-find logic, resolving nested structs, pointer indirection, and literal coercions bidirectionally.
+* **C as Intermediate Representation:** Emits clean, portable C99 code, leveraging GCC and Clang for backend code optimization, instruction scheduling, and architecture-specific vectorization.
+* **Zero-Cost Interop:** Native binding and direct execution of any C library without runtime wrappers or marshaling overhead.
+
+---
+
+## Roadmap & Progress
+
+* [x] Data-oriented storage architecture (`abyss_nexus`)
+* [x] Pratt parser with lookahead header resolution (`abyss_parser`)
+* [x] Hindley-Milner / Unification type system (`abyss_typer`)
+* [x] C code generator with topological struct resolution (`abyss_lower`)
+* [x] Zero-overhead C FFI and minimal runtime (`prelude.c`)
+* [x] Dynamic collections (`Vec`) with direct pointer arithmetic (`std/vec`)
+* [ ] Core standard library (File I/O, Arena Allocator, String Utilities)
+* [ ] Self-hosting bootstrap (Stage 1 compiler written in Abyss)
+
+---
+
+## License
 
 [MIT License](LICENSE) — Do whatever you want with the code, just keep my name on it!
+
+

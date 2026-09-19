@@ -1,3 +1,4 @@
+
 import I32_size from "../primitive/i32.a"
 
 malloc  :: (size u64) &u8
@@ -18,7 +19,7 @@ VecI32_new :: () VecI32 {
     .{
         ptr: p,
         len: 0,
-        cap: I32_size()
+        cap: 4
     }
 }
 
