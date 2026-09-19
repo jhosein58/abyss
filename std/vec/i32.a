@@ -1,12 +1,10 @@
+import I32_size from "../primitive/i32.a"
 
 malloc  :: (size u64) &u8
 realloc :: (ptr &u8, size u64) &u8
 free    :: (ptr &u8) unit
 
 VecType :: i32
-I32_size :: () u64 {
-    4
-}
 
 VecI32 :: struct {
     ptr: &VecType,
