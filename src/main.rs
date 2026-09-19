@@ -19,11 +19,9 @@ fn main() -> color_eyre::Result<()> {
 
     eng.abyss_main(sym_id);
 
-    //eng.type_of(sym_id);
-    eng.parse(sym_id);
+    eng.type_of(sym_id);
 
     eng.db.dump_hir();
-    return Ok(());
 
     //eng.print_err();
 

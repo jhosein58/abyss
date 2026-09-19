@@ -563,4 +563,9 @@ impl CCodeGen {
     pub fn gen_member(&mut self, lhs: CValue, access: NameId) -> CValue {
         CValue(format!("({})._f{}", lhs.0, access.0))
     }
+
+    #[inline(always)]
+    pub fn gen_str_lit(&mut self, raw: &str) -> CValue {
+        CValue(format!("((uint8_t*){})", raw))
+    }
 }
