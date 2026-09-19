@@ -127,6 +127,11 @@ fn lower_expr(
         Hir::LitBoolTrue => Some(ccg.literal(&format!("true"))),
         Hir::LitBoolFalse => Some(ccg.literal(&format!("false"))),
 
+        Hir::LitStr => {
+            let lhs = db.hir.lhs(id).0;
+            let v = db.interner.get(NameId(lhs));
+            Some(ccg.gen_str_lit(v))
+        }
         Hir::Ident => {
             let sym_id = db.hir_to_symbol.get_copy(id);
 

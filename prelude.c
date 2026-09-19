@@ -13,3 +13,7 @@ void print_star() {
 void print_new_line() {
     printf("\n");
 }
+
+void print(const uint8_t *s) {
+    printf("%s", (const char *)s);
+}
