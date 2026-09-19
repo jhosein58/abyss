@@ -1,4 +1,4 @@
-use abyss_nexus::nexus::{HirId, NameId, Nexus};
+use abyss_nexus::nexus::{HirId, Nexus};
 
 #[inline(always)]
 pub fn synth_int(db: &mut Nexus, id: HirId) {

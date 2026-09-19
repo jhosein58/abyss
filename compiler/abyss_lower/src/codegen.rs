@@ -566,6 +566,6 @@ impl CCodeGen {
 
     #[inline(always)]
     pub fn gen_str_lit(&mut self, raw: &str) -> CValue {
-        CValue(format!("((uint8_t*){})", raw))
+        CValue(format!("((uint8_t*)\"{}\")", raw))
     }
 }
