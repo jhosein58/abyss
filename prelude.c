@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdlib.h>
 
 void print(const uint8_t *s) {
     printf("%s", (const char *)s);
@@ -64,7 +65,7 @@ void print_ptr(const void *p) {
     printf("%p\n", p);
 }
 
-// String
+// ------> String
 
 uint64_t str_len(const uint8_t *s) {
     if (!s) return 0;
@@ -76,3 +77,4 @@ bool str_eq(const uint8_t *a, const uint8_t *b) {
     if (!a || !b) return false;
     return strcmp((const char *)a, (const char *)b) == 0;
 }
+

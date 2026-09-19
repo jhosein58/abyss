@@ -1,26 +1,26 @@
 use abyss_nexus::nexus::HirId;
 
-use crate::parser::Parser;
+use crate::{parser::Parser, precedence::Precedence};
 
 impl Parser<'_> {
     #[inline(always)]
     pub fn parse_not(&mut self) -> HirId {
         self.bump();
-        let body = self.parse_expr(0);
+        let body = self.parse_expr(Precedence::Unary.value());
         self.db.hir.alloc_not(body)
     }
 
     #[inline(always)]
     pub fn parse_neg(&mut self) -> HirId {
         self.bump();
-        let body = self.parse_expr(0);
+        let body = self.parse_expr(Precedence::Unary.value());
         self.db.hir.alloc_neg(body)
     }
 
     #[inline(always)]
     pub fn parse_bit_not(&mut self) -> HirId {
         self.bump();
-        let body = self.parse_expr(0);
+        let body = self.parse_expr(Precedence::Unary.value());
         self.db.hir.alloc_bit_not(body)
     }
 
@@ -29,14 +29,14 @@ impl Parser<'_> {
     #[inline(always)]
     pub fn parse_addrof(&mut self) -> HirId {
         self.bump();
-        let inner = self.parse_expr(0);
+        let inner = self.parse_expr(Precedence::Unary.value());
         self.db.hir.alloc_addrof(inner)
     }
 
     #[inline(always)]
     pub fn parse_deref(&mut self) -> HirId {
         self.bump();
-        let inner = self.parse_expr(0);
+        let inner = self.parse_expr(Precedence::Unary.value());
         self.db.hir.alloc_deref(inner)
     }
 }

@@ -19,9 +19,9 @@ pub enum Precedence {
     Term = 110,      // +, -
     Factor = 120,    //  *, /, %
     Cast = 130,      // as
-    //_Unary = 140,    // -x, !x, ~x, *x, &x
-    Call = 150,   //  (), []
-    Member = 160, // .
+    Unary = 140,     // -x, !x, ~x, *x, &x
+    Call = 150,      //  (), []
+    Member = 160,    // .
     _Primary = 170,
 }
 
