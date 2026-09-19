@@ -64,7 +64,6 @@ impl Parser<'_> {
 
     #[inline(always)]
     pub fn parse_str(&mut self) -> HirId {
-        let span = self.span();
         let text_value = self
             .db
             .tokens
@@ -74,36 +73,7 @@ impl Parser<'_> {
 
         self.bump();
 
-        let mut str_bytes = text_value.as_bytes().to_vec();
-        str_bytes.push(0);
-
-        let mut allocated_lits = Vec::with_capacity(str_bytes.len());
-
-        for b in str_bytes {
-            let lit_id = self.db.hir.alloc_int(self.db.ints.alloc(b as u64));
-            self.db.hir_spans.set_safe(lit_id, span);
-            self.db.hir_files.set_safe(lit_id, self.file_id);
-            allocated_lits.push(lit_id.0);
-        }
-
-        let zero_lit_id = self.db.hir.alloc_int(self.db.ints.alloc(0));
-        self.db.hir_spans.set_safe(zero_lit_id, span);
-        self.db.hir_files.set_safe(zero_lit_id, self.file_id);
-
-        let list_id = self.db.add_list_flat(&allocated_lits);
-
-        let array_id = self.db.hir.alloc_array_init(list_id);
-        self.db.hir_spans.set_safe(array_id, span);
-        self.db.hir_files.set_safe(array_id, self.file_id);
-
-        let indexed_arr_id = self.db.hir.alloc_index(array_id, zero_lit_id);
-        self.db.hir_spans.set_safe(indexed_arr_id, span);
-        self.db.hir_files.set_safe(indexed_arr_id, self.file_id);
-
-        let addrof_id = self.db.hir.alloc_addrof(indexed_arr_id);
-        self.db.hir_spans.set_safe(addrof_id, span);
-        self.db.hir_files.set_safe(addrof_id, self.file_id);
-
-        addrof_id
+        let nid = self.db.interner.intern(&text_value);
+        self.db.hir.alloc_str(nid.0)
     }
 }
