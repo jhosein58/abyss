@@ -85,6 +85,7 @@ pub struct CCodeGen {
     indent_level: usize,
     temp_counter: usize,
     abyss_main: String,
+    emitted_structs: HashSet<TypeId>,
 }
 
 impl CCodeGen {
@@ -439,6 +440,10 @@ impl CCodeGen {
     }
 
     pub fn def_struct(&mut self, db: &mut Nexus, id: TypeId) {
+        if !self.emitted_structs.insert(id) {
+            return;
+        }
+
         let name = db.types.name(id);
         self.decl_struct(&name);
 
@@ -479,9 +484,7 @@ impl CCodeGen {
 
                 self.indent_level -= 1;
             }
-            _ => {
-                // panic!("{:?}", db.types.kind(id));
-            }
+            _ => {}
         }
 
         self.struct_body.push_str("};\n\n");
