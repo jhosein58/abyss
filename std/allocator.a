@@ -6,7 +6,7 @@ ArenaChunk_size :: () u64 {
 }
 
 ArenaChunk :: struct {
-    next: &ArenaChunk,
+    next_chunk: &u8,
     memory: &u8,
     offset: u64,
     cap: u64
@@ -21,11 +21,11 @@ align_up :: (n u64) u64 {
     (n + 7) & ~7
 }
 
-ArenaChunk_new :: (cap u64, next &ArenaChunk) &ArenaChunk {
+ArenaChunk_new :: (cap u64, next_chunk &u8) &ArenaChunk {
     chunk := malloc(ArenaChunk_size()) as &ArenaChunk
     mem   := malloc(cap)
 
-    (*chunk).next = next
+    (*chunk).next_chunk = next_chunk
     (*chunk).memory = mem
     (*chunk).offset = 0
     (*chunk).cap = cap
@@ -34,7 +34,7 @@ ArenaChunk_new :: (cap u64, next &ArenaChunk) &ArenaChunk {
 }
 
 Arena_new :: (default_chunk_size u64) Arena {
-    first_chunk := ArenaChunk_new(default_chunk_size, 0 as &ArenaChunk)
+    first_chunk := ArenaChunk_new(default_chunk_size, 0 as &u8)
 
     .{
         current: first_chunk,
@@ -53,7 +53,7 @@ Arena_alloc :: (a &Arena, size u64) &u8 {
             new_cap = aligned_size
         }
 
-        new_chunk := ArenaChunk_new(new_cap, curr)
+        new_chunk := ArenaChunk_new(new_cap, curr as &u8)
         (*a).current = new_chunk
         curr = new_chunk
     }
@@ -66,19 +66,20 @@ Arena_alloc :: (a &Arena, size u64) &u8 {
 
 Arena_reset :: (a &Arena) {
     curr := (*a).current
-    while curr != (0 as &ArenaChunk) {
+    while (curr as &u8) != (0 as &u8) {
         (*curr).offset = 0
-        curr = (*curr).next
+        curr = (*curr).next_chunk as &ArenaChunk
     }
 }
 
 Arena_destroy :: (a &Arena) {
     curr := (*a).current
-    while curr != (0 as &ArenaChunk) {
-        next := (*curr).next
+    while (curr as &u8) != (0 as &u8) {
+        next_chunk := (*curr).next_chunk as &ArenaChunk
         free((*curr).memory)
         free(curr as &u8)
-        curr = next
+        curr = next_chunk
     }
     (*a).current = 0 as &ArenaChunk
 }
+
