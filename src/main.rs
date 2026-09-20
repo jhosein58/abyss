@@ -9,7 +9,7 @@ use color_eyre::eyre::Ok;
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
 
-    // let t = Instant::now();
+    //let t = Instant::now();
 
     let mut eng = Engine::new();
 
@@ -21,13 +21,13 @@ fn main() -> color_eyre::Result<()> {
 
     eng.type_of(sym_id);
 
-    eng.db.dump_hir();
+    //eng.db.dump_hir();
 
     //eng.print_err();
 
     eng.compile(sym_id);
     //println!("{:?}", t.elapsed());
-    //
+    
     let c_code = eng.ccg.finish();
 
     let mut f_hanlde = File::create("main.c").unwrap();
