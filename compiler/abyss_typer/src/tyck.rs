@@ -47,9 +47,15 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             Hir::Ident => self.synth_ident(id),
             Hir::Wildcard => self.synth_wildcard(id),
 
-            Hir::BinaryAdd | Hir::BinaryMul | Hir::BinarySub | Hir::BinaryDiv => {
-                binary::synth(db, id)
-            }
+            Hir::BinaryAdd
+            | Hir::BinaryMul
+            | Hir::BinarySub
+            | Hir::BinaryDiv
+            | Hir::BinaryBitAnd
+            | Hir::BinaryBitOr
+            | Hir::BinaryBitXor
+            | Hir::BinaryShl
+            | Hir::BinaryShr => binary::synth(db, id),
 
             Hir::BinaryAssign => binary::synth_assign(db, id),
 
@@ -104,7 +110,18 @@ impl<'a, T: TyCtx> Typer<'a, T> {
 
             // Unary
             Hir::UnaryNot => unary::synth_not(db, id),
-
+            Hir::UnaryBitNot => {
+                let slot = db.unify.new_slot(id);
+                let child = db.hir.lhs(id);
+                let child_slot = db.unify.get_slot(child);
+                db.unify.union(&mut db.types, slot, child_slot).unwrap();
+            }
+            Hir::UnaryNeg => {
+                let slot = db.unify.new_slot(id);
+                let child = db.hir.lhs(id);
+                let child_slot = db.unify.get_slot(child);
+                db.unify.union(&mut db.types, slot, child_slot).unwrap();
+            }
             Hir::UnaryAddrOf => unary::synth_addrof(db, id),
             Hir::UnaryDeref => unary::synth_deref(db, id),
             _ => {}
