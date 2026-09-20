@@ -635,7 +635,10 @@ pub fn lower_type(db: &Nexus, ty_id: TypeId, queue: &mut HashSet<TypeId>) -> CTy
             CType::Array(db.types.name(ty_id))
         }
 
-        _ => unimplemented!(),
+        _ => {
+            println!("type kind: {:?}", db.types.kind(ty_id));
+            unimplemented!()
+        }
     }
 }
 
