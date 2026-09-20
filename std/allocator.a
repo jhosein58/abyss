@@ -1,5 +1,6 @@
-malloc :: (size u64) &u8
-free   :: (ptr &u8) unit
+malloc   :: (size u64) &u8
+free     :: (ptr &u8) unit
+mem_copy :: (dest &u8, src &u8, n u64) unit
 
 ArenaChunk_size :: () u64 {
     32
@@ -42,8 +43,8 @@ Arena_new :: (default_chunk_size u64) Arena {
     }
 }
 
-Arena_alloc :: (a &Arena, size u64) &u8 {
-    aligned_size := align_up(size)
+Arena_alloc :: (a &Arena, s u64) &u8 {
+    aligned_size := align_up(s)
     curr := (*a).current
 
     if (*curr).offset + aligned_size > (*curr).cap {
@@ -72,14 +73,45 @@ Arena_reset :: (a &Arena) {
     }
 }
 
+
+Arena_realloc :: (a &Arena, old_ptr &u8, old_size u64, new_size u64) &u8 {
+    if new_size <= old_size {
+        old_ptr
+    } else {
+        aligned_old := align_up(old_size)
+        aligned_new := align_up(new_size)
+        curr := (*a).current
+
+        last_alloc_ptr := (*curr).memory + ((*curr).offset - aligned_old)
+
+        if old_ptr == last_alloc_ptr {
+            diff := aligned_new - aligned_old
+
+            if (*curr).offset + diff <= (*curr).cap {
+                (*curr).offset = (*curr).offset + diff
+                old_ptr
+            } else {
+                new_ptr := Arena_alloc(a, new_size)
+                mem_copy(new_ptr, old_ptr, old_size)
+                new_ptr
+            }
+        } else {
+            new_ptr := Arena_alloc(a, new_size)
+            mem_copy(new_ptr, old_ptr, old_size)
+            new_ptr
+        }
+    }
+}
+
 Arena_destroy :: (a &Arena) {
     curr := (*a).current
-    while (curr as &u8) != (0 as &u8) {
+
+    while (curr as &u8) != 0 as &u8 {
         next_chunk := (*curr).next_chunk as &ArenaChunk
         free((*curr).memory)
         free(curr as &u8)
         curr = next_chunk
     }
+
     (*a).current = 0 as &ArenaChunk
 }
-
