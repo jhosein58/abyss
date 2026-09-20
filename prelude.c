@@ -78,3 +78,7 @@ bool str_eq(const uint8_t *a, const uint8_t *b) {
     return strcmp((const char *)a, (const char *)b) == 0;
 }
 
+// ------> mem
+void mem_copy(uint8_t *dest, const uint8_t *src, uint64_t n) {
+    memcpy(dest, src, (size_t)n);
+}

@@ -518,7 +518,7 @@ fn lower_expr(
             let lhs_id = db.hir.lhs(id);
             let lhs_v = lower_expr(db, lhs_id, ccg, queue, type_queue).unwrap();
 
-            Some(ccg.not(lhs_v))
+            Some(ccg.bit_not(lhs_v))
         }
 
         Hir::UnaryNeg => {
