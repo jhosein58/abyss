@@ -1,7 +1,7 @@
 import Arena         from "../allocator.a"
 import Arena_alloc   from "../allocator.a"
 import Arena_realloc from "../allocator.a"
-import U8_size      from "../primitive/u8.a"
+import U8_size       from "../primitive/u8.a"
 
 ArenaVecType :: u8
 Self :: ArenaVecU8
@@ -52,7 +52,7 @@ ArenaVecU8_grow :: (v &Self) {
 }
 
 ArenaVecU8_push :: (v &Self, val ArenaVecType) {
-    ArenaVecI32_grow(v)
+    ArenaVecU8_grow(v)
 
     *((*v).ptr + (*v).len) = val
     (*v).len = (*v).len + 1
