@@ -1,0 +1,14 @@
+str_len :: (s &u8) u64
+
+Str :: struct {
+    ptr: &u8,
+    len: u64
+}
+
+
+Str_from :: (s &u8) Str {
+    .{
+        ptr: s,
+        len: str_len(s)
+    }
+}
