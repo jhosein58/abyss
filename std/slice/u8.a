@@ -1,0 +1,17 @@
+
+
+SliceType :: u8
+Self :: SliceU8
+
+SliceU8 :: struct {
+    ptr: &SliceType,
+    len: u64
+}
+
+
+SliceU8_from :: (p &SliceType, len u64) Self {
+    .{
+        ptr: p,
+        len: len
+    }
+}
