@@ -1,6 +1,8 @@
 str_len    :: (s &u8) u64
 print_char :: (c u8)  unit
 
+----------------------> Str
+
 Str :: struct {
     ptr: &u8,
     len: u64
@@ -34,4 +36,13 @@ Str_sub :: (s Str, start u64, len u64) Str {
         ptr: (s.ptr + start),
         len: len
     }
+}
+
+
+
+
+----------------------> String
+
+String :: struct {
+    
 }
