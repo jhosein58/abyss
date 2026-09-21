@@ -28,3 +28,10 @@ Str_println :: (s Str) {
     Str_print(s)
     print_char(*"\n")
 }
+
+Str_sub :: (s Str, start u64, len u64) Str {
+    .{
+        ptr: (s.ptr + start),
+        len: len
+    }
+}
