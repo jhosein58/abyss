@@ -1,3 +1,8 @@
+import Arena           from "allocator.a"
+import ArenaVecU8      from "avec/u8.a"
+import ArenaVecU8_new  from "avec/u8.a"
+import ArenaVecU8_push from "avec/u8.a"
+
 str_len    :: (s &u8) u64
 print_char :: (c u8)  unit
 
@@ -44,5 +49,27 @@ Str_sub :: (s Str, start u64, len u64) Str {
 ----------------------> String
 
 String :: struct {
-    
+    buf: ArenaVecU8,
+}
+
+String_new :: (a &Arena) String {
+    .{
+        buf: ArenaVecU8_new(a)
+    }
+}
+
+String_push_str :: (self &String, s Str) {
+    i := 0
+
+    while i < s.len {
+        ArenaVecU8_push(&(*self).buf, *(s.ptr + i))
+        i = i + 1
+    }
+}
+
+String_as_str :: (self &String) Str {
+    .{
+        ptr: (*self).buf.ptr,
+        len: (*self).buf.len
+    }
 }
