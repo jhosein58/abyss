@@ -1,20 +1,21 @@
 import Arena         from "../allocator.a"
 import Arena_alloc   from "../allocator.a"
 import Arena_realloc from "../allocator.a"
-import I32_size      from "../primitive/i32.a"
+import U8_size      from "../primitive/u8.a"
 
-ArenaVecType :: i32
+ArenaVecType :: u8
+Self :: ArenaVecU8
 
-ArenaVecI32 :: struct {
+ArenaVecU8 :: struct {
     arena: &Arena,
     ptr: &ArenaVecType,
     len: u64,
     cap: u64
 }
 
-ArenaVecI32_new :: (arena &Arena) ArenaVecI32 {
+ArenaVecU8_new :: (arena &Arena) Self {
     initial_cap: u64 = 4
-    bytes := initial_cap * I32_size()
+    bytes := initial_cap * U8_size()
     p := Arena_alloc(arena, bytes) as &ArenaVecType
 
     .{
@@ -25,8 +26,8 @@ ArenaVecI32_new :: (arena &Arena) ArenaVecI32 {
     }
 }
 
-ArenaVecI32_with_cap :: (arena &Arena, initial_cap u64) ArenaVecI32 {
-    bytes := initial_cap * I32_size()
+ArenaVecU8_with_cap :: (arena &Arena, initial_cap u64) Self {
+    bytes := initial_cap * U8_size()
     p := Arena_alloc(arena, bytes) as &ArenaVecType
 
     .{
@@ -37,11 +38,11 @@ ArenaVecI32_with_cap :: (arena &Arena, initial_cap u64) ArenaVecI32 {
     }
 }
 
-ArenaVecI32_grow :: (v &ArenaVecI32) {
+ArenaVecU8_grow :: (v &Self) {
     if (*v).len == (*v).cap {
         new_cap := (*v).cap * 2
-        old_bytes := (*v).cap * I32_size()
-        new_bytes := new_cap * I32_size()
+        old_bytes := (*v).cap * U8_size()
+        new_bytes := new_cap * U8_size()
 
         new_ptr := Arena_realloc((*v).arena, (*v).ptr as &u8, old_bytes, new_bytes) as &ArenaVecType
 
@@ -50,26 +51,26 @@ ArenaVecI32_grow :: (v &ArenaVecI32) {
     }
 }
 
-ArenaVecI32_push :: (v &ArenaVecI32, val ArenaVecType) {
+ArenaVecU8_push :: (v &Self, val ArenaVecType) {
     ArenaVecI32_grow(v)
 
     *((*v).ptr + (*v).len) = val
     (*v).len = (*v).len + 1
 }
 
-ArenaVecI32_get :: (v &ArenaVecI32, idx u64) ArenaVecType {
+ArenaVecU8_get :: (v &Self, idx u64) ArenaVecType {
     *((*v).ptr + idx)
 }
 
-ArenaVecI32_set :: (v &ArenaVecI32, idx u64, val ArenaVecType) {
+ArenaVecU8_set :: (v &Self, idx u64, val ArenaVecType) {
     *((*v).ptr + idx) = val
 }
 
-ArenaVecI32_pop :: (v &ArenaVecI32) ArenaVecType {
+ArenaVecU8_pop :: (v &Self) ArenaVecType {
     (*v).len = (*v).len - 1
     *((*v).ptr + (*v).len)
 }
 
-ArenaVecI32_clear :: (v &ArenaVecI32) {
+ArenaVecU8_clear :: (v &Self) {
     (*v).len = 0
 }
