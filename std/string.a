@@ -1,4 +1,5 @@
-str_len :: (s &u8) u64
+str_len    :: (s &u8) u64
+print_char :: (c u8)  unit
 
 Str :: struct {
     ptr: &u8,
@@ -10,5 +11,15 @@ Str_from :: (s &u8) Str {
     .{
         ptr: s,
         len: str_len(s)
+    }
+}
+
+
+Str_print :: (s Str) {
+    i := 0
+
+    while i < s.len {
+        print_char(*(s.ptr + i))
+        i = i + 1
     }
 }
