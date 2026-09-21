@@ -23,3 +23,8 @@ Str_print :: (s Str) {
         i = i + 1
     }
 }
+
+Str_println :: (s Str) {
+    Str_print(s)
+    print_char(*"\n")
+}
