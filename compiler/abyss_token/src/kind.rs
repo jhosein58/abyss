@@ -28,8 +28,8 @@ pub enum TokenKind {
     While,        // while
     For,          // for
     Forever,      // forever
-    Out,          // out
-    Next,         // next
+    Break,        // out
+    Cont,         // next
     In,           // in
     As,           // as
     Is,           // is
