@@ -13,6 +13,12 @@ Str :: struct {
     len: u64
 }
 
+Str_empty :: () Str {
+    .{
+        ptr: 0 as &u8,
+        len: 0,
+    }
+}
 
 Str_from :: (s &u8) Str {
     .{
