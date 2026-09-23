@@ -97,7 +97,7 @@ int64_t file_tell(uint8_t *handle) {
     return ftell((FILE*)handle);
 }
 
-uint64_t file_read(uint8_t *ptr, uint64_t size, uint64_t count, uint8_t *handle) {
+uint64_t file_read(uint8_t *handle, uint8_t *ptr, uint64_t size, uint64_t count) {
     return fread(ptr, size ,count, (FILE*)handle);
 }
 
