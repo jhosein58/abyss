@@ -124,6 +124,7 @@ impl<'a, T: TyCtx> Typer<'a, T> {
             }
             Hir::UnaryAddrOf => unary::synth_addrof(db, id),
             Hir::UnaryDeref => unary::synth_deref(db, id),
+            Hir::Break | Hir::Cont => unary::synth_break_cont(db, id),
             _ => {}
         }
     }

@@ -571,4 +571,14 @@ impl CCodeGen {
     pub fn gen_str_lit(&mut self, raw: &str) -> CValue {
         CValue(format!("((uint8_t*)\"{}\")", raw))
     }
+
+    #[inline(always)]
+    pub fn gen_break(&mut self) {
+        self.code.push_str(&format!("{}break;\n", self.indent()));
+    }
+
+    #[inline(always)]
+    pub fn gen_cont(&mut self) {
+        self.code.push_str(&format!("{}continue;\n", self.indent()));
+    }
 }

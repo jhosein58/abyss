@@ -39,4 +39,16 @@ impl Parser<'_> {
         let inner = self.parse_expr(Precedence::Unary.value());
         self.db.hir.alloc_deref(inner)
     }
+
+    #[inline(always)]
+    pub fn parse_break(&mut self) -> HirId {
+        self.bump();
+        self.db.hir.alloc_break()
+    }
+
+    #[inline(always)]
+    pub fn parse_cont(&mut self) -> HirId {
+        self.bump();
+        self.db.hir.alloc_cont()
+    }
 }

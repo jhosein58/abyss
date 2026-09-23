@@ -578,6 +578,16 @@ fn lower_expr(
             Some(ccg.bit_shr(lhs, rhs))
         }
 
+        Hir::Break => {
+            ccg.gen_break();
+            None
+        }
+
+        Hir::Cont => {
+            ccg.gen_cont();
+            None
+        }
+
         _ => None,
     }
 }
