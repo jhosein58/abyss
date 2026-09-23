@@ -6,6 +6,7 @@ import U8_size       from "../primitive/u8.a"
 ArenaVecType :: u8
 Self :: ArenaVecU8
 
+
 ArenaVecU8 :: struct {
     arena: &Arena,
     ptr: &ArenaVecType,
