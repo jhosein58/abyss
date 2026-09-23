@@ -82,3 +82,25 @@ bool str_eq(const uint8_t *a, const uint8_t *b) {
 void mem_copy(uint8_t *dest, const uint8_t *src, uint64_t n) {
     memcpy(dest, src, (size_t)n);
 }
+
+// ------> File Stream
+
+uint8_t *file_open(const uint8_t *path, const uint8_t *mode) {
+    return (uint8_t*)(fopen(path, mode));
+}
+
+int32_t file_seek(uint8_t *handle, int64_t offset, int32_t w) {
+    return fseek((FILE*)handle, offset, w);
+}
+
+int64_t file_tell(uint8_t *handle) {
+    return ftell((FILE*)handle);
+}
+
+uint64_t file_read(uint8_t *ptr, uint64_t size, uint64_t count, uint8_t *handle) {
+    return fread(ptr, size ,count, (FILE*)handle);
+}
+
+int32_t file_close(uint8_t *handle) {
+    return fclose((FILE*)handle);
+}
