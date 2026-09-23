@@ -494,7 +494,6 @@ impl<'a> Lexer<'a> {
 
             3 => match b {
                 b"ret" => TokenKind::Ret,
-                b"out" => TokenKind::Out,
                 b"and" => TokenKind::And,
                 b"not" => TokenKind::Not,
                 b"def" => TokenKind::Def,
@@ -506,7 +505,7 @@ impl<'a> Lexer<'a> {
             4 => match b {
                 b"then" => TokenKind::Then,
                 b"else" => TokenKind::Else,
-                b"next" => TokenKind::Next,
+                b"cont" => TokenKind::Cont,
                 b"true" => TokenKind::True,
                 b"size" => TokenKind::Size,
                 b"cmpt" => TokenKind::Cmpt,
@@ -519,6 +518,7 @@ impl<'a> Lexer<'a> {
                 b"false" => TokenKind::False,
                 b"match" => TokenKind::Match,
                 b"while" => TokenKind::While,
+                b"break" => TokenKind::Break,
                 _ => TokenKind::Ident,
             },
 
