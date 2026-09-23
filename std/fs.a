@@ -1,7 +1,44 @@
-import Arena from "allocator.a"
-import Str   from "string.a"
+import Arena       from "allocator.a"
+import Arena_alloc from "allocator.a"
+import Str         from "string.a"
+import Str_empty   from "string.a"
 
+file_open  :: (path &u8, mode &u8) &u8
+file_seek  :: (handle &u8, offset i64, w i32) i32
+file_tell  :: (handle &u8) i64
+file_read  :: (ptr &u8, s u64, count u64, handle &u8) u64
+file_close :: (handle &u8) i32
+
+print_i64 :: (v i64) unit
+print_u64 :: (v u64) unit
+
+SEEK_SET :: () i32 { 0 }
+SEEK_END :: () i32 { 2 }
 
 read_file :: (a &Arena, path &u8) Str {
 
+    file_handle := file_open(path, "rb")
+
+    has_err := file_handle == (0 as &u8)
+
+    if has_err {
+        ret Str_empty()
+    }
+
+    file_seek(file_handle, 0, SEEK_END())
+    file_size := file_tell(file_handle) as u64
+    file_seek(file_handle, 0, SEEK_SET())
+
+    buf := Arena_alloc(a, file_size + 1)
+
+    read_bytes := file_read(buf, 1, file_size, file_handle)
+    
+    file_close(file_handle)
+  
+    *(buf + read_bytes) = 0 as u8
+
+    .{
+        ptr: buf, 
+        len: read_bytes
+    }
 }
