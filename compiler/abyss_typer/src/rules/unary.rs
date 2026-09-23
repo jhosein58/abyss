@@ -67,3 +67,12 @@ pub fn synth_deref(db: &mut Nexus, id: HirId) {
 
     db.unify.bind_type(&mut db.types, slot, ptree).unwrap();
 }
+
+#[inline(always)]
+pub fn synth_break_cont(db: &mut Nexus, id: HirId) {
+    let slot = db.unify.new_slot(id);
+
+    db.unify
+        .bind_type(&mut db.types, slot, TypeId::UNIT)
+        .unwrap();
+}

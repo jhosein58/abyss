@@ -36,6 +36,8 @@ impl Parser<'_> {
             Tk::Tilde => self.parse_bit_not(),
             Tk::Amp => self.parse_addrof(),
             Tk::Star => self.parse_deref(),
+            Tk::Break => self.parse_break(),
+            Tk::Cont => self.parse_cont(),
 
             _ => {
                 self.report_expected_expression(self.span());
