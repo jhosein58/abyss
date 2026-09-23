@@ -230,4 +230,14 @@ impl HirStorage {
     pub fn alloc_str(&mut self, name_id: u32) -> HirId {
         self.alloc(Hir::LitStr, name_id, NONE, NONE)
     }
+
+    #[inline(always)]
+    pub fn alloc_break(&mut self) -> HirId {
+        self.alloc(Hir::Break, NONE, NONE, NONE)
+    }
+
+    #[inline(always)]
+    pub fn alloc_cont(&mut self) -> HirId {
+        self.alloc(Hir::Cont, NONE, NONE, NONE)
+    }
 }
