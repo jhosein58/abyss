@@ -61,13 +61,14 @@ pub enum HirExprKind {
     Binding,  // ident :: expr
     Var,      // pattern := expr, ident: type = expr
     Ret,
-    Out,
     Continue,
     Block,
     If,
     For,
     Range,
     While,
+    Break,
+    Cont,
     Forever,
     Defer,
 
