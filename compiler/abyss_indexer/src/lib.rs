@@ -95,33 +95,45 @@ impl Indexer {
                         db.symbol_files.set(sym_id, fid);
                     }
 
-                    let imported_name_str = db.tokens.text(TokenId(cursor + 1));
-                    let imported_name = db.interner.intern(imported_name_str);
-                    let local_name = imported_name;
+                    let mut scan = cursor + 1;
+                    let mut imported_names = Vec::new();
 
-                    let path_str = &db
-                        .tokens
-                        .text(TokenId(cursor + 3))
-                        .trim_matches('"')
-                        .to_string();
+                    while scan < end {
+                        let text = db.tokens.text(TokenId(scan));
+                        if text == "from" {
+                            scan += 1;
+                            break;
+                        }
+                        if text != "," {
+                            let name_id = db.interner.intern(text);
+                            imported_names.push(name_id);
+                        }
+                        scan += 1;
+                    }
 
-                    let target_fid = Self::resolve_and_load_file(
-                        db,
-                        current_file_path,
-                        path_str,
-                        loaded_files,
-                        queue,
-                    );
+                    if scan < end {
+                        let path_str = db.tokens.text(TokenId(scan)).trim_matches('"').to_string();
 
-                    pending_imports.push(PendingImport {
-                        source_fid: fid,
-                        local_name,
-                        imported_name,
-                        target_fid,
-                    });
+                        let target_fid = Self::resolve_and_load_file(
+                            db,
+                            current_file_path,
+                            &path_str,
+                            loaded_files,
+                            queue,
+                        );
 
-                    cursor += 4;
-                    continue;
+                        for name_id in imported_names {
+                            pending_imports.push(PendingImport {
+                                source_fid: fid,
+                                local_name: name_id,
+                                imported_name: name_id,
+                                target_fid,
+                            });
+                        }
+
+                        cursor = scan + 1;
+                        continue;
+                    }
                 }
                 TokenKind::Ident if depth == 0 => {
                     if cursor + 1 < end
@@ -150,15 +162,16 @@ impl Indexer {
                             let imported_name_str = db.tokens.text(TokenId(cursor + 3));
                             let imported_name = db.interner.intern(imported_name_str);
 
-                            let path_str = &db
+                            let path_str = db
                                 .tokens
                                 .text(TokenId(cursor + 5))
                                 .trim_matches('"')
                                 .to_string();
+
                             let target_fid = Self::resolve_and_load_file(
                                 db,
                                 current_file_path,
-                                path_str,
+                                &path_str,
                                 loaded_files,
                                 queue,
                             );
