@@ -30,16 +30,16 @@ fn main() -> color_eyre::Result<()> {
     
     let c_code = eng.ccg.finish();
 
-    let mut f_hanlde = File::create("main.c").unwrap();
+    let mut f_hanlde = File::create("tmp/main.c").unwrap();
     f_hanlde.write_all(c_code.as_bytes()).unwrap();
 
     let _ = Command::new("gcc")
-        .arg("main.c")
+        .arg("tmp/main.c")
         .arg("-o")
-        .arg("abyss")
+        .arg("tmp/abyss")
         .status();
 
-    let abyss_out = Command::new("./abyss").output().unwrap();
+    let abyss_out = Command::new("./tmp/abyss").output().unwrap();
 
     let output = String::from_utf8(abyss_out.stdout).unwrap();
 
