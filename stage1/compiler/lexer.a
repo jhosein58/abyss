@@ -1,9 +1,11 @@
-import Str, Str_println from "../../std/string.a"
+import Str, Str_new, Str_println from "../../std/string.a"
+import token, TokenStream, TokenStream_push from "token.a"
 
 print_u64 :: (v u64) unit
 print_char :: (c u8) unit
 print_bool :: (v bool) unit
 print_u8 :: (v u8) unit
+print_u32 :: (v u32) unit
 
 Lexer :: struct {
     source: Str,
@@ -31,6 +33,10 @@ peek :: (l &Lexer) u8 {
     read_char(l, curr + 1)
 }
 
+current :: (l &Lexer) u8 {
+    read_char(l, (*l).cursor)
+}
+
 next :: (l &Lexer) u8 {
     curr := &(*l).cursor
 
@@ -47,16 +53,50 @@ is_digit :: (c u8) bool {
     (c >= 48) and (c <= 57)
 }
 
-lex :: (source Str) {
+lex :: (stream &TokenStream, source Str) {
 
     lexer := Lexer_new(source)
     
-    
-    curr := next(&lexer)
+
+    curr := current(&lexer)
 
     if is_digit(curr) {
-        print_u64(8888)
+        scan_number(&lexer, stream)
+    }
+
+    bump(&lexer)
+
+
+    if is_digit(curr) {
+        scan_number(&lexer, stream)
     }
 
 
+    bump(&lexer)
+
+
+    if is_digit(curr) {
+        scan_number(&lexer, stream)
+    }
+}
+
+scan_number :: (lexer &Lexer, stream &TokenStream) {
+
+    len: u32 = 0
+    offset: u64 = (*lexer).cursor
+
+    while true {
+        curr := current(lexer)
+
+
+        if not is_digit(curr) {
+            break
+        }
+
+        bump(lexer)
+
+        len = len + 1
+    } 
+
+    TokenStream_push(stream, token().lit_int,0,  len, Str_new((*lexer).source.ptr + offset, len as u64), false)
 }
