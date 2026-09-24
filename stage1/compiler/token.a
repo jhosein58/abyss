@@ -183,6 +183,7 @@ token_name :: (tk u8) Str {
     if tk == t.eq          { ret Str_from("=")         }
     if tk == t.eq_eq       { ret Str_from("==")        }
     if tk == t.bang_eq     { ret Str_from("!=")        }
+    if tk == t.amp         { ret Str_from("&")         }
     if tk == t.colon       { ret Str_from(":")         }
     if tk == t.colon_colon { ret Str_from("::")        }
     if tk == t.comma       { ret Str_from(",")         }
@@ -194,6 +195,7 @@ token_name :: (tk u8) Str {
     if tk == t.c_brace     { ret Str_from("}")         }
     if tk == t.o_bracket   { ret Str_from("[")         }
     if tk == t.c_bracket   { ret Str_from("]")         }
+    
 
     Str_from("Unknown")
 }
