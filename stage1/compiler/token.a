@@ -29,7 +29,7 @@ TokenStream :: struct {
 
 TokenStream_new :: () TokenStream {
     .{
-        kind          : VecU32_new(),
+        kind          : VecU3_new(),
         lhs           : VecU32_new(),
         rhs           : VecU32_new(),
         extra         : VecU32_new(),
@@ -50,7 +50,6 @@ TokenSTream_destroy :: (self &TokenStream) {
 }
 
 TokenStream_push :: (self &TokenStream, kind, lhs, rhs, extra, len u32, text Str, newline_before bool) {
-    
     VecU32_push(&(*self).kind, kind)
     VecU32_push(&(*self).lhs, lhs)
     VecU32_push(&(*self).rhs, rhs)
@@ -59,3 +58,5 @@ TokenStream_push :: (self &TokenStream, kind, lhs, rhs, extra, len u32, text Str
     VecStr_push(&(*self).text, text)
     VecBool_push(&(*self).newline_before, newline_before)
 }
+
+TokenStream_kind

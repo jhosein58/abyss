@@ -1,0 +1,59 @@
+
+import U8_size from "../primitive/u8.a"
+
+malloc  :: (size u64) &u8
+realloc :: (ptr &u8, size u64) &u8
+free    :: (ptr &u8) unit
+
+VecType :: u8
+Self :: VecU8
+
+VecU8 :: struct {
+    ptr: &VecType,
+    len: u64,
+    cap: u64
+}
+
+VecU8_new :: () Self {
+    p := malloc(4 * U8_size()) as &VecType
+
+    .{
+        ptr: p,
+        len: 0,
+        cap: 4
+    }
+}
+
+VecU8_destroy :: (v &Self) {
+    free((*v).ptr as &u8)
+}
+
+VecU8_grow :: (v &Self) {
+    if (*v).len == (*v).cap {
+        new_cap := (*v).cap * 2
+        new_ptr := realloc((*v).ptr as &u8, new_cap * U8_size()) as &VecType
+
+        (*v).ptr = new_ptr
+        (*v).cap = new_cap
+    }
+}
+
+VecU8_push :: (v &Self, val VecType) {
+    VecU8_grow(v)
+
+    *((*v).ptr + (*v).len) = val
+    (*v).len = (*v).len + 1
+}
+
+VecU8_get :: (v &Self, idx u64) VecType {
+    *((*v).ptr + idx)
+}
+
+VecU8_set :: (v &Self, idx u64, val VecType) {
+    *((*v).ptr + idx) = val
+}
+
+VecU8_pop :: (v &Self) VecType {
+    (*v).len = (*v).len - 1
+    *((*v).ptr + (*v).len)
+}
