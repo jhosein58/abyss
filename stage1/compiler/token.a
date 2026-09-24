@@ -6,32 +6,196 @@ import VecBool, VecBool_new, VecBool_destroy, VecBool_push, VecBool_get from "..
 import Str, Str_from, Str_empty from "../../std/string.a"
 
 TokenType :: struct {
-    lit_int: u8,
-    ident  : u8,
+    eof           : u8,
+    unknown       : u8,
+    ident         : u8,
+
+    lit_int       : u8,
+    lit_float     : u8,
+    lit_str       : u8,
+    lit_char      : u8,
+
+    kw_ret        : u8,
+    kw_if         : u8,
+    kw_else       : u8,
+    kw_while      : u8,
+    kw_break      : u8,
+    kw_cont       : u8,
+    kw_struct     : u8,
+    kw_import     : u8,
+    kw_from       : u8,
+    kw_true       : u8,
+    kw_false      : u8,
+    kw_as         : u8,
+    kw_and        : u8,
+    kw_or         : u8,
+    kw_not        : u8,
+
+    plus          : u8,
+    minus         : u8,
+    star          : u8,
+    slash         : u8,
+    percent       : u8,
+    plus_eq       : u8,
+    minus_eq      : u8,
+    star_eq       : u8,
+    slash_eq      : u8,
+    percent_eq    : u8,
+
+    amp           : u8,
+    pipe          : u8,
+    caret         : u8,
+    tilde         : u8,
+    amp_eq        : u8,
+    pipe_eq       : u8,
+    caret_eq      : u8,
+
+    left_shift    : u8,
+    right_shift   : u8,
+    left_shift_eq : u8,
+    right_shift_eq: u8,
+
+    eq            : u8,
+    eq_eq         : u8,
+    bang_eq       : u8,
+    lt            : u8,
+    lt_eq         : u8,
+    gt            : u8,
+    gt_eq         : u8,
+
+    colon         : u8,
+    colon_colon   : u8,
+    semi          : u8,
+    comma         : u8,
+    dot           : u8,
+    hash          : u8,
+
+    o_paren       : u8,
+    c_paren       : u8,
+    o_brace       : u8,
+    c_brace       : u8,
+    o_bracket     : u8,
+    c_bracket     : u8,
 }
 
 token :: () TokenType {
     .{
-        lit_int: 0,
-        ident  : 1,
+        eof           : 0,
+        unknown       : 1,
+        ident         : 2,
+
+        lit_int       : 3,
+        lit_float     : 4,
+        lit_str       : 5,
+        lit_char      : 6,
+
+        kw_ret        : 7,
+        kw_if         : 8,
+        kw_else       : 9,
+        kw_while      : 10,
+        kw_break      : 11,
+        kw_cont       : 12,
+        kw_struct     : 13,
+        kw_import     : 14,
+        kw_from       : 15,
+        kw_true       : 16,
+        kw_false      : 17,
+        kw_as         : 18,
+        kw_and        : 19,
+        kw_or         : 20,
+        kw_not        : 21,
+
+        plus          : 22,
+        minus         : 23,
+        star          : 24,
+        slash         : 25,
+        percent       : 26,
+        plus_eq       : 27,
+        minus_eq      : 28,
+        star_eq       : 29,
+        slash_eq      : 30,
+        percent_eq    : 31,
+
+        amp           : 32,
+        pipe          : 33,
+        caret         : 34,
+        tilde         : 35,
+        amp_eq        : 36,
+        pipe_eq       : 37,
+        caret_eq      : 38,
+
+        left_shift    : 39,
+        right_shift   : 40,
+        left_shift_eq : 41,
+        right_shift_eq: 42,
+
+        eq            : 43,
+        eq_eq         : 44,
+        bang_eq       : 45,
+        lt            : 46,
+        lt_eq         : 47,
+        gt            : 48,
+        gt_eq         : 49,
+
+        colon         : 50,
+        colon_colon   : 51,
+        semi          : 52,
+        comma         : 53,
+        dot           : 54,
+
+        hash          : 55,
+
+        o_paren       : 56,
+        c_paren       : 57,
+        o_brace       : 58,
+        c_brace       : 59,
+        o_bracket     : 60,
+        c_bracket     : 61,
     }
 }
 
 token_name :: (tk u8) Str {
+    t := token()
 
-    tokens := token()
+    if tk == t.eof         { ret Str_from("eof")       }
+    if tk == t.ident       { ret Str_from("ident")     }
+    if tk == t.lit_int     { ret Str_from("lit_int")   }
+    if tk == t.lit_float   { ret Str_from("lit_float") }
+    if tk == t.lit_str     { ret Str_from("lit_str")   }
+    if tk == t.lit_char    { ret Str_from("lit_char")  }
 
-    if tk == tokens.lit_int {
-        Str_from("LitInt")
-    } else 
-    
-    if tk == tokens.ident {
-        Str_from("Ident")
-    } 
+    if tk == t.kw_ret      { ret Str_from("kw_ret")    }
+    if tk == t.kw_if       { ret Str_from("kw_if")     }
+    if tk == t.kw_else     { ret Str_from("kw_else")   }
+    if tk == t.kw_while    { ret Str_from("kw_while")  }
+    if tk == t.kw_break    { ret Str_from("kw_break")  }
+    if tk == t.kw_cont     { ret Str_from("kw_cont")   }
+    if tk == t.kw_struct   { ret Str_from("kw_struct") }
+    if tk == t.kw_import   { ret Str_from("kw_import") }
+    if tk == t.kw_from     { ret Str_from("kw_from")   }
+    if tk == t.kw_true     { ret Str_from("kw_true")   }
+    if tk == t.kw_false    { ret Str_from("kw_false")  }
 
-    else {
-        Str_empty()
-    }
+    if tk == t.plus        { ret Str_from("+")         }
+    if tk == t.minus       { ret Str_from("-")         }
+    if tk == t.star        { ret Str_from("*")         }
+    if tk == t.slash       { ret Str_from("/")         }
+    if tk == t.eq          { ret Str_from("=")         }
+    if tk == t.eq_eq       { ret Str_from("==")        }
+    if tk == t.bang_eq     { ret Str_from("!=")        }
+    if tk == t.colon       { ret Str_from(":")         }
+    if tk == t.colon_colon { ret Str_from("::")        }
+    if tk == t.comma       { ret Str_from(",")         }
+    if tk == t.semi        { ret Str_from(";")         }
+    if tk == t.dot         { ret Str_from(".")         }
+    if tk == t.o_paren     { ret Str_from("(")         }
+    if tk == t.c_paren     { ret Str_from(")")         }
+    if tk == t.o_brace     { ret Str_from("{")         }
+    if tk == t.c_brace     { ret Str_from("}")         }
+    if tk == t.o_bracket   { ret Str_from("[")         }
+    if tk == t.c_bracket   { ret Str_from("]")         }
+
+    Str_from("Unknown")
 }
 
 TokenStream :: struct {
