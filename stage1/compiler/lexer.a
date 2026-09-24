@@ -2,6 +2,8 @@ import Str, Str_println from "../../std/string.a"
 
 print_u64 :: (v u64) unit
 print_char :: (c u8) unit
+print_bool :: (v bool) unit
+print_u8 :: (v u8) unit
 
 Lexer :: struct {
     source: Str,
@@ -37,9 +39,18 @@ next :: (l &Lexer) u8 {
     read_char(l, (*curr) - 1)
 }
 
+is_eof :: (l &Lexer) bool {
+    (*l).cursor >= (*l).source.len
+}
+
+is_digit :: (c u8) bool {
+    (c >= 48) and (c <= 57)
+}
+
 lex :: (source Str) {
 
     lexer := Lexer_new(source)
-
+    
+    print_bool(is_digit(47))
 
 }
