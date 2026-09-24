@@ -34,12 +34,12 @@ next :: (l &Lexer) u8 {
 
     *curr = *curr + 1
 
-    read_char(l, curr - 1)
+    read_char(l, (*curr) - 1)
 }
 
 lex :: (source Str) {
 
     lexer := Lexer_new(source)
 
-    print_char(read_char(&lexer, 0))
+
 }
