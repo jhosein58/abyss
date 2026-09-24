@@ -384,13 +384,17 @@ fn lower_expr(
 
         Hir::While => {
             let cond_id = db.hir.lhs(id);
-            let cond_v = lower_expr(db, cond_id, ccg, queue, type_queue);
-
             let body_id = db.hir.rhs(id);
 
-            ccg.gen_while(cond_v.unwrap(), |builder| {
-                lower_expr(db, body_id, builder, queue, type_queue);
-            });
+            ccg.start_while();
+
+            let cond_v = lower_expr(db, cond_id, ccg, queue, type_queue).unwrap();
+
+            ccg.while_condition(cond_v);
+
+            lower_expr(db, body_id, ccg, queue, type_queue);
+
+            ccg.end_while();
 
             None
         }

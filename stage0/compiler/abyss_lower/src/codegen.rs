@@ -245,20 +245,27 @@ impl CCodeGen {
         CValue(format!("!({})", val.0))
     }
 
-    pub fn gen_while<F>(&mut self, cond: CValue, mut body: F) -> CValue
-    where
-        F: FnMut(&mut Self),
-    {
+    #[inline(always)]
+    pub fn start_while(&mut self) {
         self.code
-            .push_str(&format!("{}while ({}) {{\n", self.indent(), cond.0));
+            .push_str(&format!("{}while (1) {{\n", self.indent()));
         self.indent_level += 1;
+    }
 
-        body(self);
-
+    #[inline(always)]
+    pub fn while_condition(&mut self, cond: CValue) {
+        self.code
+            .push_str(&format!("{}if (!({})) {{\n", self.indent(), cond.0));
+        self.indent_level += 1;
+        self.code.push_str(&format!("{}break;\n", self.indent()));
         self.indent_level -= 1;
         self.code.push_str(&format!("{}}}\n", self.indent()));
+    }
 
-        CValue::empty()
+    #[inline(always)]
+    pub fn end_while(&mut self) {
+        self.indent_level -= 1;
+        self.code.push_str(&format!("{}}}\n", self.indent()));
     }
 
     pub fn gen_if_else<F1, F2>(
