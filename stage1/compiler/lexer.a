@@ -1,102 +1,368 @@
-import Str, Str_new, Str_println from "../../std/string.a"
-import token, TokenStream, TokenStream_push from "token.a"
-
-print_u64 :: (v u64) unit
-print_char :: (c u8) unit
-print_bool :: (v bool) unit
-print_u8 :: (v u8) unit
-print_u32 :: (v u32) unit
+import Str, Str_new, Str_from, Str_eq, Str_empty from "../../std/string.a"
+import token, TokenType, TokenStream, TokenStream_push from "token.a"
 
 Lexer :: struct {
     source: Str,
-    cursor: u64
+    cursor: u64,
+    had_newline: bool
 }
 
 Lexer_new :: (source Str) Lexer {
     .{
         source: source,
         cursor: 0,
+        had_newline: true
     }
-}
-
-bump :: (l &Lexer) {
-    (*l).cursor = (*l).cursor + 1
-}
-
-read_char :: (l &Lexer, offset u64) u8 {
-    *((*l).source.ptr + offset)
-}
-
-peek :: (l &Lexer) u8 {
-    curr := (*l).cursor
-
-    read_char(l, curr + 1)
-}
-
-current :: (l &Lexer) u8 {
-    read_char(l, (*l).cursor)
-}
-
-next :: (l &Lexer) u8 {
-    curr := &(*l).cursor
-
-    *curr = *curr + 1
-
-    read_char(l, (*curr) - 1)
 }
 
 is_eof :: (l &Lexer) bool {
     (*l).cursor >= (*l).source.len
 }
 
+read_char :: (l &Lexer, offset u64) u8 {
+    *((*l).source.ptr + offset)
+}
+
+current :: (l &Lexer) u8 {
+    if is_eof(l) {
+        ret 0 as u8
+    }
+    read_char(l, (*l).cursor)
+}
+
+peek :: (l &Lexer) u8 {
+    if (*l).cursor + 1 >= (*l).source.len {
+        ret 0 as u8
+    }
+    read_char(l, (*l).cursor + 1)
+}
+
+bump :: (l &Lexer) {
+    if not is_eof(l) {
+        (*l).cursor = (*l).cursor + 1
+    }
+}
+
 is_digit :: (c u8) bool {
     (c >= 48) and (c <= 57)
 }
 
-lex :: (stream &TokenStream, source Str) {
+is_hex_digit :: (c u8) bool {
+    (c >= 48 and c <= 57) or (c >= 65 and c <= 70) or (c >= 97 and c <= 102)
+}
 
-    lexer := Lexer_new(source)
-    
+is_alpha :: (c u8) bool {
+    (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or (c == 95)
+}
 
-    curr := current(&lexer)
+is_ident_start :: (c u8) bool {
+    is_alpha(c)
+}
 
-    if is_digit(curr) {
-        scan_number(&lexer, stream)
-    }
+is_ident_continue :: (c u8) bool {
+    is_alpha(c) or is_digit(c)
+}
 
-    bump(&lexer)
+is_whitespace :: (c u8) bool {
+    c == 32 or c == 9
+}
 
+is_newline :: (c u8) bool {
+    c == 10 or c == 13
+}
 
-    if is_digit(curr) {
-        scan_number(&lexer, stream)
-    }
-
-
-    bump(&lexer)
-
-
-    if is_digit(curr) {
-        scan_number(&lexer, stream)
+skip_whitespace :: (l &Lexer) {
+    while ((not is_eof(l)) and is_whitespace(current(l))) or false {
+        bump(l)
     }
 }
 
-scan_number :: (lexer &Lexer, stream &TokenStream) {
+skip_newlines :: (l &Lexer) {
+    while ((not is_eof(l)) and is_newline(current(l))) or false {
+        bump(l)
+        (*l).had_newline = true
+    }
+}
 
-    len: u32 = 0
-    offset: u64 = (*lexer).cursor
+skip_comment :: (l &Lexer) {
+    bump(l)
+    bump(l)
+    while ((not is_eof(l)) and (not is_newline(current(l)))) or false {
+        bump(l)
+    }
+}
 
-    while true {
-        curr := current(lexer)
+scan_number :: (l &Lexer, stream &TokenStream) {
+    offset := (*l).cursor
+    is_float := false
 
+    if current(l) == 48 { -- '0'
+        p := peek(l)
+        if p == 120 or p == 88 { -- 'x' | 'X'
+            bump(l)
+            bump(l)
+            while ((not is_eof(l)) and (is_hex_digit(current(l)) or current(l) == 95)) or false {
+                bump(l)
+            }
+            len := ((*l).cursor - offset) as u32
+            text := Str_new((*l).source.ptr + offset, len as u64)
+            TokenStream_push(stream, token().lit_int, offset as u32, len, text, (*l).had_newline)
+            (*l).had_newline = false
+            ret
+        }
+    }
 
-        if not is_digit(curr) {
-            break
+    while ((not is_eof(l)) and (is_digit(current(l)) or current(l) == 95)) or false {
+        bump(l)
+    }
+
+    if current(l) == 46 and peek(l) != 46 and is_digit(peek(l)) { -- '.'
+        is_float = true
+        bump(l)
+        while ((not is_eof(l)) and (is_digit(current(l)) or current(l) == 95)) or false {
+            bump(l)
+        }
+    }
+
+    len := ((*l).cursor - offset) as u32
+    text := Str_new((*l).source.ptr + offset, len as u64)
+    
+    tk_kind := token().lit_int
+    if is_float {
+        tk_kind = token().lit_float
+    }
+
+    TokenStream_push(stream, tk_kind, offset as u32, len, text, (*l).had_newline)
+    (*l).had_newline = false
+}
+
+scan_string :: (l &Lexer, stream &TokenStream) {
+    offset := (*l).cursor
+    bump(l) -- '"'
+
+    while (not is_eof(l)) and current(l) != 34 {
+        if current(l) == 92 { -- '\\'
+            bump(l)
+        }
+        bump(l)
+    }
+
+    if not is_eof(l) {
+        bump(l) -- '"'
+    }
+
+    len := ((*l).cursor - offset) as u32
+    text := Str_new((*l).source.ptr + offset, len as u64)
+    TokenStream_push(stream, token().lit_str, offset as u32, len, text, (*l).had_newline)
+    (*l).had_newline = false
+}
+
+scan_char :: (l &Lexer, stream &TokenStream) {
+    offset := (*l).cursor
+    bump(l) -- '\''
+
+    if current(l) == 92 { -- '\\'
+        bump(l)
+    }
+    bump(l)
+
+    if current(l) == 39 { -- '\''
+        bump(l)
+    }
+
+    len := ((*l).cursor - offset) as u32
+    text := Str_new((*l).source.ptr + offset, len as u64)
+    TokenStream_push(stream, token().lit_char, offset as u32, len, text, (*l).had_newline)
+    (*l).had_newline = false
+}
+
+match_keyword :: (text Str) u8 {
+    t := token()
+
+    if text.len == 2 {
+        if Str_eq(text, Str_from("if")) { ret t.kw_if }
+        if Str_eq(text, Str_from("as")) { ret t.kw_as }
+        if Str_eq(text, Str_from("or")) { ret t.kw_or }
+    }
+
+    if text.len == 3 {
+        if Str_eq(text, Str_from("ret")) { ret t.kw_ret }
+        if Str_eq(text, Str_from("and")) { ret t.kw_and }
+        if Str_eq(text, Str_from("not")) { ret t.kw_not }
+    }
+
+    if text.len == 4 {
+        if Str_eq(text, Str_from("else")) { ret t.kw_else }
+        if Str_eq(text, Str_from("cont")) { ret t.kw_cont }
+        if Str_eq(text, Str_from("true")) { ret t.kw_true }
+        if Str_eq(text, Str_from("from")) { ret t.kw_from }
+    }
+
+    if text.len == 5 {
+        if Str_eq(text, Str_from("while")) { ret t.kw_while }
+        if Str_eq(text, Str_from("break")) { ret t.kw_break }
+        if Str_eq(text, Str_from("false")) { ret t.kw_false }
+    }
+
+    if text.len == 6 {
+        if Str_eq(text, Str_from("struct")) { ret t.kw_struct }
+        if Str_eq(text, Str_from("import")) { ret t.kw_import }
+    }
+
+    t.ident
+}
+
+scan_identifier :: (l &Lexer, stream &TokenStream) {
+    offset := (*l).cursor
+
+    while ((not is_eof(l)) and is_ident_continue(current(l))) or false {
+        bump(l)
+    }
+
+    len := ((*l).cursor - offset) as u32
+    text := Str_new((*l).source.ptr + offset, len as u64)
+    kind := match_keyword(text)
+
+    TokenStream_push(stream, kind, offset as u32, len, text, (*l).had_newline)
+    (*l).had_newline = false
+}
+
+scan_symbol :: (l &Lexer) u8 {
+    t := token()
+    c := current(l)
+    bump(l)
+
+    if c == 43 { -- '+'
+        if current(l) == 61 { bump(l) ret t.plus_eq }
+        ret t.plus
+    }
+    if c == 45 { -- '-'
+        if current(l) == 61 { bump(l) ret t.minus_eq }
+        ret t.minus
+    }
+    if c == 42 { -- '*'
+        if current(l) == 61 { bump(l) ret t.star_eq }
+        ret t.star
+    }
+    if c == 47 { -- '/'
+        if current(l) == 61 { bump(l) ret t.slash_eq }
+        ret t.slash
+    }
+    if c == 37 { -- '%'
+        if current(l) == 61 { bump(l) ret t.percent_eq }
+        ret t.percent
+    }
+    if c == 38 { -- '&'
+        if current(l) == 61 { bump(l) ret t.amp_eq }
+        ret t.amp
+    }
+    if c == 124 { -- '|'
+        if current(l) == 61 { bump(l) ret t.pipe_eq }
+        ret t.pipe
+    }
+    if c == 94 { -- '^'
+        if current(l) == 61 { bump(l) ret t.caret_eq }
+        ret t.caret
+    }
+    if c == 126 { -- '~'
+        ret t.tilde
+    }
+    if c == 61 { -- '='
+        if current(l) == 61 { bump(l) ret t.eq_eq }
+        ret t.eq
+    }
+    if c == 33 { -- '!'
+        if current(l) == 61 { bump(l) ret t.bang_eq }
+        ret t.unknown
+    }
+    if c == 58 { -- ':'
+        if current(l) == 58 { bump(l) ret t.colon_colon }
+        ret t.colon
+    }
+    if c == 46 { -- '.'
+        ret t.dot
+    }
+    if c == 60 { -- '<'
+        if current(l) == 60 {
+            bump(l)
+            if current(l) == 61 { bump(l) ret t.left_shift_eq }
+            ret t.left_shift
+        }
+        if current(l) == 61 { bump(l) ret t.lt_eq }
+        ret t.lt
+    }
+    if c == 62 { -- '>'
+        if current(l) == 62 {
+            bump(l)
+            if current(l) == 61 { bump(l) ret t.right_shift_eq }
+            ret t.right_shift
+        }
+        if current(l) == 61 { bump(l) ret t.gt_eq }
+        ret t.gt
+    }
+    if c == 44 { ret t.comma }
+    if c == 59 { ret t.semi }
+    if c == 40 { ret t.o_paren }
+    if c == 41 { ret t.c_paren }
+    if c == 123 { ret t.o_brace }
+    if c == 125 { ret t.c_brace }
+    if c == 91 { ret t.o_bracket }
+    if c == 93 { ret t.c_bracket }
+    if c == 35 { ret t.hash }
+
+    t.unknown
+}
+
+lex :: (stream &TokenStream, source Str) {
+    lexer := Lexer_new(source)
+
+    while not is_eof(&lexer) {
+        c := current(&lexer)
+
+        if is_whitespace(c) {
+            skip_whitespace(&lexer)
+            cont
         }
 
-        bump(lexer)
+        if is_newline(c) {
+            skip_newlines(&lexer)
+            cont
+        }
 
-        len = len + 1
-    } 
+        if c == 45 and peek(&lexer) == 45 { -- '--'
+            skip_comment(&lexer)
+            cont
+        }
 
-    TokenStream_push(stream, token().lit_int,0,  len, Str_new((*lexer).source.ptr + offset, len as u64), false)
+        if (is_digit(c) or (c == 46 and is_digit(peek(&lexer)))) or false {
+            scan_number(&lexer, stream)
+            cont
+        }
+
+        if c == 34 { -- '"'
+            scan_string(&lexer, stream)
+            cont
+        }
+
+        if c == 39 { -- '\''
+            scan_char(&lexer, stream)
+            cont
+        }
+
+        if is_ident_start(c) {
+            scan_identifier(&lexer, stream)
+            cont
+        }
+
+        offset := lexer.cursor
+        had_nl := lexer.had_newline
+        kind := scan_symbol(&lexer)
+        len := (lexer.cursor - offset) as u32
+        text := Str_new(lexer.source.ptr + offset, len as u64)
+
+        TokenStream_push(stream, kind, offset as u32, len, text, had_nl)
+        lexer.had_newline = false
+    }
+
+    TokenStream_push(stream, token().eof, lexer.cursor as u32, 0, Str_empty(), lexer.had_newline)
 }
