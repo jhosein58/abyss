@@ -23,6 +23,20 @@ read_char :: (l &Lexer, offset u64) u8 {
     *((*l).source.ptr + offset)
 }
 
+peek :: (l &Lexer) u8 {
+    curr := (*l).cursor
+
+    read_char(l, curr + 1)
+}
+
+next :: (l &Lexer) u8 {
+    curr := &(*l).cursor
+
+    *curr = *curr + 1
+
+    read_char(l, curr - 1)
+}
+
 lex :: (source Str) {
 
     lexer := Lexer_new(source)
