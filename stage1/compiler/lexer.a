@@ -51,6 +51,12 @@ lex :: (source Str) {
 
     lexer := Lexer_new(source)
     
-    print_bool(is_digit(47))
+    
+    curr := next(&lexer)
+
+    if is_digit(curr) {
+        print_u64(8888)
+    }
+
 
 }
