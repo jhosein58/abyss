@@ -232,6 +232,10 @@ TokenStream_push :: (self &TokenStream, kind u8, start, len u32, text Str, newli
     VecBool_push(&(*self).newline_before, newline_before)
 }
 
+TokenStream_count :: (self &TokenStream) u64 {
+    (*self).kind.len
+}
+
 TokenStream_kind :: (self &TokenStream, idx u32) u8 {
     VecU8_get(&(*self).kind, idx as u64)
 }
