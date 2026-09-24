@@ -1,3 +1,5 @@
+import 
+
 TokenType :: struct {
     lit_int: u32,
     ident  : u32,
@@ -9,3 +11,4 @@ token :: () TokenType {
         ident  : 1,
     }
 }
+

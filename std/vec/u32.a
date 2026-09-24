@@ -1,21 +1,21 @@
 
-import I32_size from "../primitive/i32.a"
+import U32_size from "../primitive/u32.a"
 
 malloc  :: (size u64) &u8
 realloc :: (ptr &u8, size u64) &u8
 free    :: (ptr &u8) unit
 
-VecType :: i32
-Self :: VecI32
+VecType :: u32
+Self :: VecU32
 
-VecI32 :: struct {
+VecU32 :: struct {
     ptr: &VecType,
     len: u64,
     cap: u64
 }
 
-VecI32_new :: () Self {
-    p := malloc(4 * I32_size()) as &VecType
+VecU32_new :: () Self {
+    p := malloc(4 * U32_size()) as &VecType
 
     .{
         ptr: p,
@@ -24,36 +24,36 @@ VecI32_new :: () Self {
     }
 }
 
-VecI32_destroy :: (v &Self) {
+VecU32_destroy :: (v &Self) {
     free((*v).ptr as &u8)
 }
 
-VecI32_grow :: (v &Self) {
+VecU32_grow :: (v &Self) {
     if (*v).len == (*v).cap {
         new_cap := (*v).cap * 2
-        new_ptr := realloc((*v).ptr as &u8, new_cap * I32_size()) as &VecType
+        new_ptr := realloc((*v).ptr as &u8, new_cap * U32_size()) as &VecType
 
         (*v).ptr = new_ptr
         (*v).cap = new_cap
     }
 }
 
-VecI32_push :: (v &Self, val VecType) {
-    VecI32_grow(v)
+VecU32_push :: (v &Self, val VecType) {
+    VecU32_grow(v)
 
     *((*v).ptr + (*v).len) = val
     (*v).len = (*v).len + 1
 }
 
-VecI32_get :: (v &Self, idx u64) VecType {
+VecU32_get :: (v &Self, idx u64) VecType {
     *((*v).ptr + idx)
 }
 
-VecI32_set :: (v &Self, idx u64, val VecType) {
+VecU32_set :: (v &Self, idx u64, val VecType) {
     *((*v).ptr + idx) = val
 }
 
-VecI32_pop :: (v &Self) VecType {
+VecU32_pop :: (v &Self) VecType {
     (*v).len = (*v).len - 1
     *((*v).ptr + (*v).len)
 }
