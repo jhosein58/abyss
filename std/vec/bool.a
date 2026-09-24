@@ -1,0 +1,59 @@
+
+import Bool_size from "../primitive/bool.a"
+
+malloc  :: (size u64) &u8
+realloc :: (ptr &u8, size u64) &u8
+free    :: (ptr &u8) unit
+
+VecType :: bool
+Self :: VecBool
+
+VecBool :: struct {
+    ptr: &VecType,
+    len: u64,
+    cap: u64
+}
+
+VecBool_new :: () Self {
+    p := malloc(4 * Bool_size()) as &VecType
+
+    .{
+        ptr: p,
+        len: 0,
+        cap: 4
+    }
+}
+
+VecBool_destroy :: (v &Self) {
+    free((*v).ptr as &u8)
+}
+
+VecBool_grow :: (v &Self) {
+    if (*v).len == (*v).cap {
+        new_cap := (*v).cap * 2
+        new_ptr := realloc((*v).ptr as &u8, new_cap * Bool_size()) as &VecType
+
+        (*v).ptr = new_ptr
+        (*v).cap = new_cap
+    }
+}
+
+VecBool_push :: (v &Self, val VecType) {
+    VecBool_grow(v)
+
+    *((*v).ptr + (*v).len) = val
+    (*v).len = (*v).len + 1
+}
+
+VecBool_get :: (v &Self, idx u64) VecType {
+    *((*v).ptr + idx)
+}
+
+VecBool_set :: (v &Self, idx u64, val VecType) {
+    *((*v).ptr + idx) = val
+}
+
+VecBool_pop :: (v &Self) VecType {
+    (*v).len = (*v).len - 1
+    *((*v).ptr + (*v).len)
+}

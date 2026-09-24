@@ -1,4 +1,5 @@
 import VecU32 from "../../std/vec/u32.a"
+import VecStr from "../../std/vec/str.a"
 
 TokenType :: struct {
     lit_int: u32,
@@ -19,5 +20,5 @@ TokenStream :: struct {
     rhs  : VecU32,
     extra: VecU32,
     len  : VecU32,
-   -- text : 
+    text : VecStr,
 }
