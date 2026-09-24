@@ -1,0 +1,11 @@
+TokenType :: struct {
+    lit_int: u32,
+    ident  : u32,
+}
+
+token :: () TokenType {
+    .{
+        lit_int: 0,
+        ident  : 1,
+    }
+}
