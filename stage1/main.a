@@ -1,0 +1,38 @@
+import token, token_name, TokenStream_new, TokenSTream_destroy, TokenStream_push, TokenStream_kind, TokenStream_text, TokenStream_count from "compiler/token.a"
+import lex   from "compiler/lexer.a"
+
+import Str_from, Str_println from "../std/string.a"
+
+import Arena_new from "../std/allocator.a"
+import read_file from "../std/fs.a"
+
+print_u32 :: (s u32) unit
+print_u8 :: (s u8) unit
+print_char :: (s u8) unit
+
+main :: () {
+
+    arena := Arena_new(1024)
+  
+    source := read_file(&arena, "tmp/main.a")
+
+
+    tks := TokenStream_new()
+    lex(&tks, source)
+
+    tk_count := TokenStream_count(&tks)
+
+    i: u64 = 0
+
+    while i < tk_count {
+
+        name := token_name(TokenStream_kind(&tks, i as u32))
+        Str_println(name)
+        i = i + 1
+    }
+   
+    TokenSTream_destroy(&tks)
+
+
+}
+
