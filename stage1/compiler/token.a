@@ -1,6 +1,8 @@
-import VecU32,  VecU32_new  from "../../std/vec/u32.a"
-import VecStr,  VecStr_new  from "../../std/vec/str.a"
-import VecBool, VecBool_new from "../../std/vec/bool.a"
+import VecU32,  VecU32_new,  VecU32_destroy,  VecU32_push  from "../../std/vec/u32.a"
+import VecStr,  VecStr_new,  VecStr_destroy,  VecStr_push  from "../../std/vec/str.a"
+import VecBool, VecBool_new, VecBool_destroy, VecBool_push from "../../std/vec/bool.a"
+
+import Str from "../../std/string.a"
 
 TokenType :: struct {
     lit_int: u32,
@@ -35,4 +37,25 @@ TokenStream_new :: () TokenStream {
         text          : VecStr_new(),
         newline_before: VecBool_new(),
     }
+}
+
+TokenSTream_destroy :: (self &TokenStream) {
+    VecU32_destroy(&(*self).kind)
+    VecU32_destroy(&(*self).lhs)
+    VecU32_destroy(&(*self).rhs)
+    VecU32_destroy(&(*self).extra)
+    VecU32_destroy(&(*self).len)
+    VecStr_destroy(&(*self).text)
+    VecBool_destroy(&(*self).newline_before)
+}
+
+TokenStream_push :: (self &TokenStream, kind, lhs, rhs, extra, len u32, text Str, newline_before bool) {
+    
+    VecU32_push(&(*self).kind, kind)
+    VecU32_push(&(*self).lhs, lhs)
+    VecU32_push(&(*self).rhs, rhs)
+    VecU32_push(&(*self).extra, extra)
+    VecU32_push(&(*self).len, len)
+    VecStr_push(&(*self).text, text)
+    VecBool_push(&(*self).newline_before, newline_before)
 }
