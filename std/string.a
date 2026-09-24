@@ -17,6 +17,13 @@ Str_size :: () u64 {
     16
 }
 
+Str_new :: (ptr &u8, len u64) Str {
+    .{
+        ptr: ptr,
+        len: len,
+    }
+}
+
 Str_empty :: () Str {
     .{
         ptr: 0 as &u8,
@@ -51,6 +58,23 @@ Str_sub :: (s Str, start u64, len u64) Str {
         ptr: (s.ptr + start),
         len: len
     }
+}
+
+Str_eq :: (a Str, b Str) bool {
+    if a.len != b.len {
+        ret false
+    }
+
+    i: u64 = 0
+    while i < a.len {
+        -- HACK: 'or false' Disambiguate from fn syntax
+        if (*(a.ptr + i) != *(b.ptr + i)) or false {
+            ret false
+        }
+        i = i + 1
+    }
+
+    true
 }
 
 
