@@ -10,7 +10,11 @@ print_char :: (c u8)  unit
 
 Str :: struct {
     ptr: &u8,
-    len: u64
+    len: u64 
+}
+
+Str_size :: () u64 {
+    16
 }
 
 Str_empty :: () Str {
