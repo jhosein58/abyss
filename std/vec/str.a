@@ -1,0 +1,58 @@
+import Str, Str_size from "../string.a"
+
+malloc  :: (size u64) &u8
+realloc :: (ptr &u8, size u64) &u8
+free    :: (ptr &u8) unit
+
+VecType :: Str
+Self :: VecStr
+
+VecStr :: struct {
+    ptr: &VecType,
+    len: u64,
+    cap: u64
+}
+
+VecStr_new :: () Self {
+    p := malloc(4 * U32_size()) as &VecType
+
+    .{
+        ptr: p,
+        len: 0,
+        cap: 4
+    }
+}
+
+VecStr_destroy :: (v &Self) {
+    free((*v).ptr as &u8)
+}
+
+VecStr_grow :: (v &Self) {
+    if (*v).len == (*v).cap {
+        new_cap := (*v).cap * 2
+        new_ptr := realloc((*v).ptr as &u8, new_cap * U32_size()) as &VecType
+
+        (*v).ptr = new_ptr
+        (*v).cap = new_cap
+    }
+}
+
+VecStr_push :: (v &Self, val VecType) {
+    VecStr_grow(v)
+
+    *((*v).ptr + (*v).len) = val
+    (*v).len = (*v).len + 1
+}
+
+VecStr_get :: (v &Self, idx u64) VecType {
+    *((*v).ptr + idx)
+}
+
+VecStr_set :: (v &Self, idx u64, val VecType) {
+    *((*v).ptr + idx) = val
+}
+
+VecStr_pop :: (v &Self) VecType {
+    (*v).len = (*v).len - 1
+    *((*v).ptr + (*v).len)
+}

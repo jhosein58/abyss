@@ -1,4 +1,4 @@
-import 
+import VecU32 from "../../std/vec/u32.a"
 
 TokenType :: struct {
     lit_int: u32,
@@ -12,3 +12,12 @@ token :: () TokenType {
     }
 }
 
+
+TokenStream :: struct {
+    kind : VecU32,
+    lhs  : VecU32,
+    rhs  : VecU32,
+    extra: VecU32,
+    len  : VecU32,
+   -- text : 
+}
