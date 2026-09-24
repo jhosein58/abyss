@@ -14,7 +14,7 @@ VecStr :: struct {
 }
 
 VecStr_new :: () Self {
-    p := malloc(4 * U32_size()) as &VecType
+    p := malloc(4 * Str_size()) as &VecType
 
     .{
         ptr: p,
@@ -30,7 +30,7 @@ VecStr_destroy :: (v &Self) {
 VecStr_grow :: (v &Self) {
     if (*v).len == (*v).cap {
         new_cap := (*v).cap * 2
-        new_ptr := realloc((*v).ptr as &u8, new_cap * U32_size()) as &VecType
+        new_ptr := realloc((*v).ptr as &u8, new_cap * Str_size()) as &VecType
 
         (*v).ptr = new_ptr
         (*v).cap = new_cap
