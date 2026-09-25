@@ -1,0 +1,116 @@
+import token from "token.a"
+
+Precedence :: struct {
+    none       : u8,
+    const_def  : u8, -- ::
+    assignment : u8, -- =, +=, -=, ...
+    var_def    : u8, -- :, :=
+    logic_or   : u8, -- or
+    logic_and  : u8, -- and
+    comparison : u8, -- <, >, <=, >=, ==, !=
+    bit_or     : u8, -- |
+    bit_xor    : u8, -- ^
+    bit_and    : u8, -- &
+    shift      : u8, -- <<, >>
+    term       : u8, -- +, -
+    factor     : u8, -- *, /, %
+    cast       : u8, -- as
+    unary      : u8, -- -, not, ~, *, &
+    call       : u8, -- (), []
+    member     : u8  -- .
+}
+
+prec :: () Precedence {
+    .{
+        none       : 0,
+        const_def  : 5,
+        assignment : 10,
+        var_def    : 15,
+        logic_or   : 30,
+        logic_and  : 40,
+        comparison : 60,
+        bit_or     : 70,
+        bit_xor    : 80,
+        bit_and    : 90,
+        shift      : 100,
+        term       : 110,
+        factor     : 120,
+        cast       : 130,
+        unary      : 140,
+        call       : 150,
+        member     : 160
+    }
+}
+
+BindingPower :: struct {
+    left    : u8,
+    right   : u8,
+    is_some : bool
+}
+
+bp_left :: (val u8) BindingPower {
+    .{ left: val, right: val + 1, is_some: true }
+}
+
+bp_right :: (val u8) BindingPower {
+    r := val
+    if val > 0 { r = val - 1 }
+    .{ left: val, right: r, is_some: true }
+}
+
+bp_none :: () BindingPower {
+    .{ left: 0, right: 0, is_some: false }
+}
+
+bp_from_infix :: (kind u8) BindingPower {
+    t := token()
+    pr := prec()
+
+    if kind == t.colon       { ret bp_right(pr.var_def) }
+    if kind == t.colon_colon { ret bp_right(pr.const_def) }
+
+    if kind == t.eq          { ret bp_right(pr.assignment) }
+    if kind == t.plus_eq or kind == t.minus_eq or kind == t.star_eq or kind == t.slash_eq or kind == t.percent_eq {
+        ret bp_right(pr.assignment)
+    }
+    if kind == t.amp_eq or kind == t.pipe_eq or kind == t.caret_eq or kind == t.left_shift_eq or kind == t.right_shift_eq {
+        ret bp_right(pr.assignment)
+    }
+
+    if kind == t.plus or kind == t.minus { ret bp_left(pr.term) }
+    if kind == t.star or kind == t.slash or kind == t.percent { ret bp_left(pr.factor) }
+
+    if kind == t.amp         { ret bp_left(pr.bit_and) }
+    if kind == t.pipe        { ret bp_left(pr.bit_or) }
+    if kind == t.caret       { ret bp_left(pr.bit_xor) }
+    if kind == t.left_shift or kind == t.right_shift { ret bp_left(pr.shift) }
+
+    if kind == t.kw_and      { ret bp_left(pr.logic_and) }
+    if kind == t.kw_or       { ret bp_left(pr.logic_or) }
+
+    if kind == t.gt or kind == t.gt_eq or kind == t.lt or kind == t.lt_eq or kind == t.eq_eq or kind == t.bang_eq {
+        ret bp_left(pr.comparison)
+    }
+
+    if kind == t.o_paren or kind == t.o_bracket { ret bp_left(pr.call) }
+    if kind == t.kw_as       { ret bp_left(pr.cast) }
+    if kind == t.dot         { ret bp_left(pr.member) }
+
+    bp_none()
+}
+
+is_soft :: (kind u8) bool {
+    t := token()
+
+    if kind == t.plus or kind == t.minus or kind == t.star or kind == t.slash or kind == t.percent { ret true }
+    if kind == t.colon or kind == t.colon_colon { ret true }
+    if kind == t.eq_eq or kind == t.bang_eq { ret true }
+    if kind == t.lt or kind == t.gt or kind == t.lt_eq or kind == t.gt_eq { ret true }
+    if kind == t.kw_and or kind == t.kw_or { ret true }
+    if kind == t.pipe or kind == t.caret or kind == t.amp or kind == t.left_shift or kind == t.right_shift { ret true }
+    if kind == t.eq or kind == t.plus_eq or kind == t.minus_eq or kind == t.star_eq or kind == t.slash_eq or kind == t.percent_eq { ret true }
+    if kind == t.amp_eq or kind == t.pipe_eq or kind == t.caret_eq or kind == t.left_shift_eq or kind == t.right_shift_eq { ret true }
+    if kind == t.kw_as { ret true }
+
+    false
+}
