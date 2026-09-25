@@ -55,7 +55,7 @@ impl Nexus {
                     }
                 }
 
-                HirExprKind::LitStr | HirExprKind::LitCstr | HirExprKind::Ident => {
+                HirExprKind::LitStr | HirExprKind::Ident => {
                     let text = self.interner.get(NameId(lhs));
                     let display_text: String = if text.len() > 15 {
                         format!("{}...", &text[..15])
@@ -65,7 +65,7 @@ impl Nexus {
                     lhs_str = format!("\"{}\"", display_text);
                 }
 
-                HirExprKind::Function | HirExprKind::Block | HirExprKind::Attributed => {
+                HirExprKind::Function | HirExprKind::Block => {
                     if lhs != u32::MAX {
                         let start = lhs as usize;
                         let len = self.u32_items[start] as usize;
@@ -99,7 +99,7 @@ impl Nexus {
                     }
                 }
 
-                HirExprKind::Call | HirExprKind::Match => {
+                HirExprKind::Call => {
                     if rhs != u32::MAX {
                         let start = rhs as usize;
                         let len = self.u32_items[start] as usize;
