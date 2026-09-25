@@ -53,7 +53,21 @@ pub fn check_func(db: &mut Nexus, stack: &mut Vec<SlotId>, id: HirId) {
         db.symbol_is_resolving.set(func_sym, false);
 
         let origin = db.symbols.get_copy(func_sym);
-        db.unify.new_slot(origin);
+
+        let origin_slot = {
+            let s = db.unify.get_slot(origin);
+            if s.is_some() {
+                s
+            } else {
+                db.unify.new_slot(origin)
+            }
+        };
+
+        let func_slot = db.unify.get_slot(func_id);
+
+        db.unify
+            .union(&mut db.types, origin_slot, func_slot)
+            .unwrap();
     }
 
     let ret_id = db.hir.rhs(func_id);

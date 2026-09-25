@@ -10,7 +10,6 @@ pub enum HirExprKind {
     LitBoolTrue,
     LitBoolFalse,
     LitStr,
-    LitCstr,
     LitChar,
     Ident,
 
@@ -53,8 +52,6 @@ pub enum HirExprKind {
     UnaryDeref,  // *x
     UnaryAddrOf, // &x
 
-    Mod,
-    Use,
     Arg,
     Function, // (args_lhs) ret_type_rhs { block_extra }
     Call,     // expr(expr, expr, ..)
@@ -63,29 +60,17 @@ pub enum HirExprKind {
     Ret,
     Block,
     If,
-    For,
-    Range,
     While,
     Break,
     Cont,
-    Forever,
-    Defer,
 
     Cast,
-    Is,
     Struct,     // lhs: field names, rhs: field types     ex: struct { data i32 }
     StructInit, // lhs: fileds, rhs: values               ex: .{ data: 100 }
     Array,      // Array Type                             ex: [i32; 10]
     ArrayInit,  // Array Literal                          ex: [1, 2, 3]
     Index,      // Array Index                            ex: x[y]
     Member,
-    SizeOf,
-    Match,
-    Then,
-    TypeOf,
-    Refinement,
-    Attributed,
-    Comptime,
     Wildcard,
 
     Error,
