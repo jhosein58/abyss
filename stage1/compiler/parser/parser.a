@@ -1,0 +1,90 @@
+import token, TokenType, TokenStream, TokenStream_kind, TokenStream_text, TokenStream_newline_before from "../token.a"
+import hir_kind, HirExprKind, HirTable, HirTable_push, hir_none from "../hir.a"
+import Str from "../../../std/string.a"
+import is_soft, bp_from_infix from "prec.a"
+
+Parser :: struct {
+    tokens : &TokenStream,
+    hir    : &HirTable,
+    cursor : u32,
+    end    : u32
+}
+
+Parser_new :: (tokens &TokenStream, hir &HirTable, start u32, count u32) Parser {
+    .{
+        tokens : tokens,
+        hir    : hir,
+        cursor : start,
+        end    : start + count
+    }
+}
+
+is_eof :: (p &Parser) bool {
+    (*p).cursor >= (*p).end
+}
+
+peek :: (p &Parser) u8 {
+    if (*p).cursor >= (*p).end { ret token().eof }
+    TokenStream_kind((*p).tokens, (*p).cursor)
+}
+
+bump :: (p &Parser) {
+    if (*p).cursor < (*p).end {
+        (*p).cursor = (*p).cursor + 1
+    }
+}
+
+str_to_u32 :: (s Str) u32 {
+    res: u32 = 0
+    i: u64 = 0
+    while i < s.len {
+        c := *(s.ptr + i)
+        if c >= 48 and c <= 57 {
+            res = (res * 10) + ((c - 48) as u32)
+        }
+        i = i + 1
+    }
+    res
+}
+
+
+parse_expr :: (p &Parser, min_bp u8) u32 {
+    t := token()
+    k := hir_kind()
+
+    lhs := hir_none()
+    if peek(p) == t.lit_int {
+        val := str_to_u32(TokenStream_text((*p).tokens, (*p).cursor))
+        bump(p)
+        lhs = HirTable_push((*p).hir, k.lit_int, val, hir_none(), hir_none())
+        _
+    } else {
+        bump(p)
+        ret HirTable_push((*p).hir, k.error, hir_none(), hir_none(), hir_none())
+    }
+
+    while not is_eof(p) {
+        tk := peek(p)
+
+        if (TokenStream_newline_before((*p).tokens, (*p).cursor) and (not is_soft(tk))) or false {
+            break
+        }
+
+        bp := bp_from_infix(tk)
+        if not bp.is_some or bp.left < min_bp {
+            break
+        }
+
+        bump(p) 
+
+        rhs := parse_expr(p, bp.right)
+
+        op_kind := k.empty
+        if tk == t.plus  { op_kind = k.binary_add }
+        if tk == t.minus { op_kind = k.binary_sub }
+
+        lhs = HirTable_push((*p).hir, op_kind, lhs, rhs, hir_none())
+    }
+
+    lhs
+}

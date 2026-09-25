@@ -6,7 +6,8 @@ import Str_from, Str_println from "../std/string.a"
 import Arena_new from "../std/allocator.a"
 import read_file from "../std/fs.a"
 
-import hir_kind_name from "compiler/hir.a"
+import HirTable_new from "compiler/hir.a"
+import Parser_new, parse_expr from "compiler/parser/parser.a"
 
 print_u32 :: (s u32) unit
 print_u8 :: (s u8) unit
@@ -19,10 +20,15 @@ main :: () {
     source := read_file(&arena, "tmp/main.a")
 
 
+    -- Lex
     tks := TokenStream_new()
     lex(&tks, source)
-
     tk_count := TokenStream_count(&tks)
+
+    -- Parse
+    hir_tbl := HirTable_new()
+    parser := Parser_new(&tks, &hir_tbl, 0, tk_count as u32)
+    parse_expr(&parser, 0)
 
     i: u64 = 0
 
@@ -35,7 +41,6 @@ main :: () {
    
     TokenStream_destroy(&tks)
 
-    Str_println(hir_kind_name(1))
 
 
 }
