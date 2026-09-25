@@ -1,0 +1,53 @@
+import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set from "../../../std/vec/u32.a"
+import U32_MAX from "../../../std/primitive/u32.a"
+
+id_none :: () u32 {
+    U32_MAX()
+}
+
+PoolU32 :: struct {
+    data: VecU32
+}
+
+PoolU32_new :: () PoolU32 {
+    .{
+        data: VecU32_new()
+    }
+}
+
+PoolU32_destroy :: (p &PoolU32) {
+    VecU32_destroy(&(*p).data)
+}
+
+PoolU32_count :: (p &PoolU32) u32 {
+    (*p).data.len as u32
+}
+
+PoolU32_alloc :: (p &PoolU32, val u32) u32 {
+    id := (*p).data.len as u32
+    VecU32_push(&(*p).data, val)
+    id
+}
+
+PoolU32_get :: (p &PoolU32, id u32) u32 {
+    VecU32_get(&(*p).data, id as u64)
+}
+
+PoolU32_set :: (p &PoolU32, id u32, val u32) {
+    VecU32_set(&(*p).data, id as u64, val)
+}
+
+PoolU32_grow_to :: (p &PoolU32, new_len u32, default_val u32) {
+    target := new_len as u64
+    while (*p).data.len < target {
+        VecU32_push(&(*p).data, default_val)
+    }
+}
+
+PoolU32_set_safe :: (p &PoolU32, id u32, val u32, default_val u32) {
+    idx := id as u64
+    if idx >= (*p).data.len {
+        PoolU32_grow_to(p, (id + 1) as u32, default_val)
+    }
+    VecU32_set(&(*p).data, idx, val)
+}

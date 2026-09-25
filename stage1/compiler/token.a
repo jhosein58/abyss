@@ -218,7 +218,7 @@ TokenStream_new :: () TokenStream {
     }
 }
 
-TokenSTream_destroy :: (self &TokenStream) {
+TokenStream_destroy :: (self &TokenStream) {
     VecU8_destroy(&(*self).kind)
     VecU32_destroy(&(*self).start)
     VecU32_destroy(&(*self).len)
