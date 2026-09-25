@@ -8,6 +8,7 @@ import read_file from "../std/fs.a"
 
 import HirTable_new from "compiler/hir.a"
 import Parser_new, parse_expr from "compiler/parser/parser.a"
+import dump_hir from "compiler/dump.a"
 
 print_u32 :: (s u32) unit
 print_u8 :: (s u8) unit
@@ -30,14 +31,7 @@ main :: () {
     parser := Parser_new(&tks, &hir_tbl, 0, tk_count as u32)
     parse_expr(&parser, 0)
 
-    i: u64 = 0
-
-    while i < tk_count {
-
-        name := token_name(TokenStream_kind(&tks, i as u32))
-        Str_println(name)
-        i = i + 1
-    }
+    dump_hir(&hir_tbl)
    
     TokenStream_destroy(&tks)
 

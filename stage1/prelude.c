@@ -13,56 +13,56 @@ void print_char(uint8_t c) {
 }
 
 void print_i8(int8_t v) {
-    printf("%d\n", (int)v);
+    printf("%d", (int)v);
 }
 
 void print_i16(int16_t v) {
-    printf("%d\n", (int)v);
+    printf("%d", (int)v);
 }
 
 void print_i32(int32_t v) {
-    printf("%d\n", v);
+    printf("%d", v);
 }
 
 void print_i64(int64_t v) {
-    printf("%lld\n", (long long)v);
+    printf("%lld", (long long)v);
 }
 
 void print_u8(uint8_t v) {
-    printf("%u\n", (unsigned int)v);
+    printf("%u", (unsigned int)v);
 }
 
 void print_u16(uint16_t v) {
-    printf("%u\n", (unsigned int)v);
+    printf("%u", (unsigned int)v);
 }
 
 void print_u32(uint32_t v) {
-    printf("%u\n", v);
+    printf("%u", v);
 }
 
 void print_u64(uint64_t v) {
-    printf("%llu\n", (unsigned long long)v);
+    printf("%llu", (unsigned long long)v);
 }
 
 void print_f16(_Float16 v) {
-    printf("%f\n", (double)v);
+    printf("%f", (double)v);
 }
 
 void print_f32(float v) {
-    printf("%f\n", (double)v);
+    printf("%f", (double)v);
 }
 
 void print_f64(double v) {
-    printf("%f\n", v);
+    printf("%f", v);
 }
 
 
 void print_bool(bool b) {
-    printf("%s\n", b ? "true" : "false");
+    printf("%s", b ? "true" : "false");
 }
 
 void print_ptr(const void *p) {
-    printf("%p\n", p);
+    printf("%p", p);
 }
 
 // ------> String
