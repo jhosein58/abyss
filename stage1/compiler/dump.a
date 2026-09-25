@@ -1,0 +1,113 @@
+import HirTable, HirTable_len, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind_name, hir_kind, hir_none from "hir.a"
+import Str, Str_from, Str_print, Str_println from "../../std/string.a"
+
+print_char :: (c u8) unit
+print_u32  :: (n u32) unit
+
+print_spaces :: (count u32) {
+    i: u32 = 0
+    while i < count {
+        print_char(32 as u8) -- ' '
+        i = i + 1
+    }
+}
+
+u32_digits :: (val u32) u32 {
+    if val == 0 {
+        ret 1
+    }
+    count: u32 = 0
+    v := val
+    while v > 0 {
+        count = count + 1
+        v = v / 10
+    }
+    count
+}
+
+print_str_padded :: (s Str, width u32) {
+    Str_print(s)
+    len := s.len as u32
+    if width > len {
+        print_spaces(width - len)
+    }
+}
+
+print_u32_padded :: (val u32, width u32) {
+    print_u32(val)
+    d := u32_digits(val)
+    if width > d {
+        print_spaces(width - d)
+    }
+}
+
+print_idx_or_none :: (val u32, width u32) {
+    if val == hir_none() {
+        print_str_padded(Str_from("None"), width)
+    } else {
+        print_u32_padded(val, width)
+    }
+}
+
+print_divider :: () {
+    i: u32 = 0
+    while i < 85 {
+        print_char(45 as u8) -- '-'
+        i = i + 1
+    }
+    print_char(10 as u8) -- '\n'
+}
+
+
+dump_hir :: (hir &HirTable) {
+    k := hir_kind()
+    total := HirTable_len(hir)
+
+    print_divider()
+    print_str_padded(Str_from("ID"), 6)
+    print_str_padded(Str_from("| Kind"), 22)
+    print_str_padded(Str_from("| LHS (Left/Data)"), 24)
+    print_str_padded(Str_from("| RHS (Right/Data)"), 22)
+    print_str_padded(Str_from("| Extra"), 10)
+    print_char(10 as u8)
+    print_divider()
+
+    i: u32 = 0
+    while i < total {
+        kind := HirTable_kind(hir, i)
+        lhs := HirTable_lhs(hir, i)
+        rhs := HirTable_rhs(hir, i)
+        extra := HirTable_extra(hir, i)
+
+        print_u32_padded(i, 6)
+
+        print_str_padded(Str_from("| "), 2)
+        print_str_padded(hir_kind_name(kind), 20)
+
+        print_str_padded(Str_from("| "), 2)
+        if kind == k.lit_int {
+            Str_print(Str_from("Int("))
+            print_u32(lhs)
+            Str_print(Str_from(")"))
+
+            len := u32_digits(lhs) + 5
+            if 22 > len {
+                print_spaces(22 - len)
+            }
+        } else {
+            print_idx_or_none(lhs, 22)
+        }
+
+        print_str_padded(Str_from("| "), 2)
+        print_idx_or_none(rhs, 20)
+
+        print_str_padded(Str_from("| "), 2)
+        print_idx_or_none(extra, 8)
+
+        print_char(10 as u8) 
+
+        i = i + 1
+    }
+
+    print_divider()
+}
