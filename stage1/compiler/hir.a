@@ -1,0 +1,309 @@
+import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get,  VecU8_set  from "../../std/vec/u8.a"
+import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set from "../../std/vec/u32.a"
+import U32_MAX from "../../std/primitive/u32.a"
+import Str, Str_from from "../../std/string.a"
+
+hir_none :: () u32 {
+    U32_MAX()
+}
+
+HirExprKind :: struct {
+    empty                 : u8,
+
+    -- Literals
+    lit_int               : u8,
+    lit_float             : u8,
+    lit_bool_true         : u8,
+    lit_bool_false        : u8,
+    lit_str               : u8,
+    lit_char              : u8,
+    ident                 : u8,
+
+    -- Binary Operations
+    binary_assign         : u8,
+    binary_assign_add     : u8,
+    binary_assign_sub     : u8,
+    binary_assign_mul     : u8,
+    binary_assign_div     : u8,
+    binary_assign_mod     : u8,
+    binary_assign_bit_and : u8,
+    binary_assign_bit_or  : u8,
+    binary_assign_bit_xor : u8,
+    binary_assign_shl     : u8,
+    binary_assign_shr     : u8,
+    binary_add            : u8,
+    binary_sub            : u8,
+    binary_mul            : u8,
+    binary_div            : u8,
+    binary_mod            : u8,
+    binary_eq_eq          : u8,
+    binary_neq            : u8,
+    binary_lt             : u8,
+    binary_gt             : u8,
+    binary_lt_eq          : u8,
+    binary_gt_eq          : u8,
+    binary_and            : u8,
+    binary_or             : u8,
+    binary_bit_and        : u8,
+    binary_bit_or         : u8,
+    binary_bit_xor        : u8,
+    binary_shl            : u8,
+    binary_shr            : u8,
+    binary_colon          : u8,
+
+    -- Unary Operations
+    unary_neg             : u8,
+    unary_not             : u8,
+    unary_bit_not         : u8,
+    unary_deref           : u8,
+    unary_addr_of         : u8,
+
+    -- Declarations & Control Flow
+    arg                   : u8,
+    function              : u8,
+    call                  : u8,
+    binding               : u8,
+    var                   : u8,
+    k_ret                 : u8,
+    block                 : u8,
+    k_if                  : u8,
+    k_while               : u8,
+    k_break               : u8,
+    k_cont                : u8,
+
+    -- Types & Access
+    cast                  : u8,
+    k_struct              : u8,
+    struct_init           : u8,
+    array                 : u8,
+    array_init            : u8,
+    index                 : u8,
+    member                : u8,
+    wildcard              : u8,
+
+    error                 : u8,
+    marker_fn_start       : u8
+}
+
+hir_kind :: () HirExprKind {
+    .{
+        empty                 : 0,
+
+        lit_int               : 1,
+        lit_float             : 2,
+        lit_bool_true         : 3,
+        lit_bool_false        : 4,
+        lit_str               : 5,
+        lit_char              : 6,
+        ident                 : 7,
+
+        binary_assign         : 8,
+        binary_assign_add     : 9,
+        binary_assign_sub     : 10,
+        binary_assign_mul     : 11,
+        binary_assign_div     : 12,
+        binary_assign_mod     : 13,
+        binary_assign_bit_and : 14,
+        binary_assign_bit_or  : 15,
+        binary_assign_bit_xor : 16,
+        binary_assign_shl     : 17,
+        binary_assign_shr     : 18,
+        binary_add            : 19,
+        binary_sub            : 20,
+        binary_mul            : 21,
+        binary_div            : 22,
+        binary_mod            : 23,
+        binary_eq_eq          : 24,
+        binary_neq            : 25,
+        binary_lt             : 26,
+        binary_gt             : 27,
+        binary_lt_eq          : 28,
+        binary_gt_eq          : 29,
+        binary_and            : 30,
+        binary_or             : 31,
+        binary_bit_and        : 32,
+        binary_bit_or         : 33,
+        binary_bit_xor        : 34,
+        binary_shl            : 35,
+        binary_shr            : 36,
+        binary_colon          : 37,
+
+        unary_neg             : 38,
+        unary_not             : 39,
+        unary_bit_not         : 40,
+        unary_deref           : 41,
+        unary_addr_of         : 42,
+
+        arg                   : 43,
+        function              : 44,
+        call                  : 45,
+        binding               : 46,
+        var                   : 47,
+        k_ret                 : 48,
+        block                 : 49,
+        k_if                  : 50,
+        k_while               : 51,
+        k_break               : 52,
+        k_cont                : 53,
+
+        cast                  : 54,
+        k_struct              : 55,
+        struct_init           : 56,
+        array                 : 57,
+        array_init            : 58,
+        index                 : 59,
+        member                : 60,
+        wildcard              : 61,
+
+        error                 : 62,
+        marker_fn_start       : 63
+    }
+}
+
+hir_kind_name :: (kind u8) Str {
+    k := hir_kind()
+
+    if kind == k.empty                 { ret Str_from("Empty")         }
+    if kind == k.lit_int               { ret Str_from("LitInt")        }
+    if kind == k.lit_float             { ret Str_from("LitFloat")      }
+    if kind == k.lit_bool_true         { ret Str_from("LitBoolTrue")   }
+    if kind == k.lit_bool_false        { ret Str_from("LitBoolFalse")  }
+    if kind == k.lit_str               { ret Str_from("LitStr")        }
+    if kind == k.lit_char              { ret Str_from("LitChar")       }
+    if kind == k.ident                 { ret Str_from("Ident")         }
+
+    if kind == k.binary_assign         { ret Str_from("=")             }
+    if kind == k.binary_assign_add     { ret Str_from("+=")            }
+    if kind == k.binary_assign_sub     { ret Str_from("-=")            }
+    if kind == k.binary_assign_mul     { ret Str_from("*=")            }
+    if kind == k.binary_assign_div     { ret Str_from("/=")            }
+    if kind == k.binary_assign_mod     { ret Str_from("%=")            }
+    if kind == k.binary_assign_bit_and { ret Str_from("&=")            }
+    if kind == k.binary_assign_bit_or  { ret Str_from("|=")            }
+    if kind == k.binary_assign_bit_xor { ret Str_from("^=")            }
+    if kind == k.binary_assign_shl     { ret Str_from("<<=")           }
+    if kind == k.binary_assign_shr     { ret Str_from(">>=")           }
+    if kind == k.binary_add            { ret Str_from("+")             }
+    if kind == k.binary_sub            { ret Str_from("-")             }
+    if kind == k.binary_mul            { ret Str_from("*")             }
+    if kind == k.binary_div            { ret Str_from("/")             }
+    if kind == k.binary_mod            { ret Str_from("%")             }
+    if kind == k.binary_eq_eq          { ret Str_from("==")            }
+    if kind == k.binary_neq            { ret Str_from("!=")            }
+    if kind == k.binary_lt             { ret Str_from("<")             }
+    if kind == k.binary_gt             { ret Str_from(">")             }
+    if kind == k.binary_lt_eq          { ret Str_from("<=")            }
+    if kind == k.binary_gt_eq          { ret Str_from(">=")            }
+    if kind == k.binary_and            { ret Str_from("and")           }
+    if kind == k.binary_or             { ret Str_from("or")            }
+    if kind == k.binary_bit_and        { ret Str_from("&")             }
+    if kind == k.binary_bit_or         { ret Str_from("|")             }
+    if kind == k.binary_bit_xor        { ret Str_from("^")             }
+    if kind == k.binary_shl            { ret Str_from("<<")            }
+    if kind == k.binary_shr            { ret Str_from(">>")            }
+    if kind == k.binary_colon          { ret Str_from(":")             }
+
+    if kind == k.unary_neg             { ret Str_from("UnaryNeg")      }
+    if kind == k.unary_not             { ret Str_from("UnaryNot")      }
+    if kind == k.unary_bit_not         { ret Str_from("UnaryBitNot")   }
+    if kind == k.unary_deref           { ret Str_from("UnaryDeref")    }
+    if kind == k.unary_addr_of         { ret Str_from("UnaryAddrOf")   }
+
+    if kind == k.arg                   { ret Str_from("Arg")           }
+    if kind == k.function              { ret Str_from("Function")      }
+    if kind == k.call                  { ret Str_from("Call")          }
+    if kind == k.binding               { ret Str_from("Binding")       }
+    if kind == k.var                   { ret Str_from("Var")           }
+    if kind == k.k_ret                 { ret Str_from("Ret")           }
+    if kind == k.block                 { ret Str_from("Block")         }
+    if kind == k.k_if                  { ret Str_from("If")            }
+    if kind == k.k_while               { ret Str_from("While")         }
+    if kind == k.k_break               { ret Str_from("Break")         }
+    if kind == k.k_cont                { ret Str_from("Cont")          }
+
+    if kind == k.cast                  { ret Str_from("Cast")          }
+    if kind == k.k_struct              { ret Str_from("Struct")        }
+    if kind == k.struct_init           { ret Str_from("StructInit")    }
+    if kind == k.array                 { ret Str_from("Array")         }
+    if kind == k.array_init            { ret Str_from("ArrayInit")     }
+    if kind == k.index                 { ret Str_from("Index")         }
+    if kind == k.member                { ret Str_from("Member")        }
+    if kind == k.wildcard              { ret Str_from("Wildcard")      }
+
+    if kind == k.error                 { ret Str_from("Error")         }
+    if kind == k.marker_fn_start       { ret Str_from("MarkerFnStart") }
+
+    Str_from("Unknown")
+}
+
+HirTable :: struct {
+    root  : u32,
+    kinds : VecU8,
+    lhs   : VecU32,
+    rhs   : VecU32,
+    extra : VecU32
+}
+
+HirTable_new :: () HirTable {
+    .{
+        root  : hir_none(),
+        kinds : VecU8_new(),
+        lhs   : VecU32_new(),
+        rhs   : VecU32_new(),
+        extra : VecU32_new()
+    }
+}
+
+HirTable_destroy :: (self &HirTable) {
+    VecU8_destroy(&(*self).kinds)
+    VecU32_destroy(&(*self).lhs)
+    VecU32_destroy(&(*self).rhs)
+    VecU32_destroy(&(*self).extra)
+}
+
+HirTable_len :: (self &HirTable) u32 {
+    (*self).kinds.len as u32
+}
+
+HirTable_push :: (self &HirTable, kind u8, lhs, rhs, extra u32) u32 {
+    id := (*self).kinds.len as u32
+
+    VecU8_push(&(*self).kinds, kind)
+    VecU32_push(&(*self).lhs, lhs)
+    VecU32_push(&(*self).rhs, rhs)
+    VecU32_push(&(*self).extra, extra)
+
+    id
+}
+
+HirTable_kind :: (self &HirTable, id u32) u8 {
+    VecU8_get(&(*self).kinds, id as u64)
+}
+
+HirTable_lhs :: (self &HirTable, id u32) u32 {
+    VecU32_get(&(*self).lhs, id as u64)
+}
+
+HirTable_rhs :: (self &HirTable, id u32) u32 {
+    VecU32_get(&(*self).rhs, id as u64)
+}
+
+HirTable_extra :: (self &HirTable, id u32) u32 {
+    VecU32_get(&(*self).extra, id as u64)
+}
+
+HirTable_set_lhs :: (self &HirTable, id u32, val u32) {
+    VecU32_set(&(*self).lhs, id as u64, val)
+}
+
+HirTable_set_rhs :: (self &HirTable, id u32, val u32) {
+    VecU32_set(&(*self).rhs, id as u64, val)
+}
+
+HirTable_set_extra :: (self &HirTable, id u32, val u32) {
+    VecU32_set(&(*self).extra, id as u64, val)
+}
+
+HirTable_set_root :: (self &HirTable, root u32) {
+    (*self).root = root
+}

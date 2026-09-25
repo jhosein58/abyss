@@ -6,6 +6,8 @@ import Str_from, Str_println from "../std/string.a"
 import Arena_new from "../std/allocator.a"
 import read_file from "../std/fs.a"
 
+import hir_kind_name from "compiler/hir.a"
+
 print_u32 :: (s u32) unit
 print_u8 :: (s u8) unit
 print_char :: (s u8) unit
@@ -32,6 +34,8 @@ main :: () {
     }
    
     TokenStream_destroy(&tks)
+
+    Str_println(hir_kind_name(1))
 
 
 }
