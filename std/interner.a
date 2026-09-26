@@ -1,0 +1,123 @@
+import Str, Str_eq from "string.a"
+import hash_str from "hash/str.a"
+import VecStr, VecStr_new, VecStr_destroy, VecStr_push, VecStr_get from "vec/str.a"
+import U32_size, U32_MAX from "primitive/u32.a"
+import malloc, free, mem_set from "mem.a"
+
+intern_none :: () u32 {
+    U32_MAX()
+}
+
+
+Interner :: struct {
+    strings : VecStr, 
+    table   : &u32,
+    cap     : u64,
+    count   : u64
+}
+
+Interner_new :: () Interner {
+    Interner_with_cap(64)
+}
+
+Interner_with_cap :: (initial_cap u64) Interner {
+    cap := initial_cap
+    if cap < 64 {
+        cap = 64
+    }
+
+    bytes := cap * U32_size()
+    ptr := malloc(bytes) as &u32
+
+    mem_set(ptr as &u8, 255 as u8, bytes)
+
+    .{
+        strings : VecStr_new(),
+        table   : ptr,
+        cap     : cap,
+        count   : 0
+    }
+}
+
+Interner_destroy :: (self &Interner) {
+    VecStr_destroy(&(*self).strings)
+    free((*self).table as &u8)
+    (*self).table = 0 as &u32
+    (*self).cap = 0
+    (*self).count = 0
+}
+
+Interner_grow :: (self &Interner) {
+    old_cap := (*self).cap
+    old_table := (*self).table
+
+    new_cap := old_cap * 2
+    new_bytes := new_cap * U32_size()
+    new_table := malloc(new_bytes) as &u32
+
+    mem_set(new_table as &u8, 255 as u8, new_bytes)
+
+    mask := new_cap - 1
+    empty := intern_none()
+
+    i: u64 = 0
+    while i < old_cap {
+        id := *(old_table + i)
+        if id != empty {
+            s := VecStr_get(&(*self).strings, id as u64)
+            idx := (hash_str(s) as u64) & mask
+
+            while *(new_table + idx) != empty {
+                idx = (idx + 1) & mask
+            }
+
+            *(new_table + idx) = id
+        }
+        i = i + 1
+    }
+
+    free(old_table as &u8)
+    (*self).table = new_table
+    (*self).cap = new_cap
+}
+
+Interner_intern :: (self &Interner, s Str) u32 {
+    if ((*self).count + 1) * 10 >= (*self).cap * 7 {
+        Interner_grow(self)
+    }
+
+    mask := (*self).cap - 1
+    h := hash_str(s) as u64
+    idx := h & mask
+    empty := intern_none()
+
+    while true {
+        id := *((*self).table + idx)
+
+        if id == empty {
+            new_id := (*self).strings.len as u32
+            VecStr_push(&(*self).strings, s)
+
+            *((*self).table + idx) = new_id
+            (*self).count = (*self).count + 1
+            ret new_id
+        }
+
+        existing_str := VecStr_get(&(*self).strings, id as u64)
+        if Str_eq(s, existing_str) {
+            ret id
+        }
+
+        idx = (idx + 1) & mask
+    }
+
+    empty
+}
+
+Interner_get :: (self &Interner, id u32) Str {
+    VecStr_get(&(*self).strings, id as u64)
+}
+
+Interner_len :: (self &Interner) u64 {
+    (*self).strings.len
+}
