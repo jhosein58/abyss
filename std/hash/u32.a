@@ -1,6 +1,9 @@
+
+
 hash_u32 :: (x u32) u32 {
     -- Knuth Multiplicative Hash (2654435761) + XOR Shift
     h := x * 2654435761 as u32
     h ^ (h >> 16)
 }
+
 
