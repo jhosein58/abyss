@@ -83,6 +83,10 @@ void mem_copy(uint8_t *dest, const uint8_t *src, uint64_t n) {
     memcpy(dest, src, (size_t)n);
 }
 
+void mem_set(uint8_t *dest, uint8_t val, uint64_t n) {
+    memset(dest, (int)val, (size_t)n);
+}
+
 // ------> File Stream
 
 uint8_t *file_open(const uint8_t *path, const uint8_t *mode) {
