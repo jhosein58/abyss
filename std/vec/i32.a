@@ -57,3 +57,9 @@ VecI32_pop :: (v &Self) VecType {
     (*v).len = (*v).len - 1
     *((*v).ptr + (*v).len)
 }
+
+VecI32_reset :: (v &Self, mark u64) {
+    if mark <= (*v).len {
+        (*v).len = mark
+    }
+}
