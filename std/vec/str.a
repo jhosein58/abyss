@@ -13,15 +13,26 @@ VecStr :: struct {
     cap: u64
 }
 
+
 VecStr_new :: () Self {
-    p := malloc(4 * Str_size()) as &VecType
+    VecStr_with_cap(4)
+}
+
+VecStr_with_cap :: (initial_cap u64) Self {
+    cap := initial_cap
+    if cap < 4 {
+        cap = 4
+    }
+
+    p := malloc(cap * Str_size()) as &VecType
 
     .{
         ptr: p,
         len: 0,
-        cap: 4
+        cap: cap
     }
 }
+
 
 VecStr_destroy :: (v &Self) {
     free((*v).ptr as &u8)
