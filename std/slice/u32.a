@@ -1,0 +1,20 @@
+
+--- Generics -------------------------------------------------------------------------------
+SliceTy :: u32
+SliceU32 :: Self
+
+SliceU32_new :: (p &SliceTy, len u64) Self { Self_new() }
+--------------------------------------------------------------------------------------------
+
+Self :: struct {
+    ptr: &SliceTy,
+    len: u64
+}
+
+
+Self_new :: (p &SliceTy, len u64) Self {
+    .{
+        ptr: p,
+        len: len
+    }
+}
