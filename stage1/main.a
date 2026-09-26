@@ -14,7 +14,11 @@ import dump_hir from "compiler/dump.a"
 import FastMapU32_new, FastMapU32_destroy, FastMapU32_insert, FastMapU32_get from "../std/fast_map/u32.a"
 import Interner_new, Interner_intern, Interner_get from "../std/interner.a"
 
+
+import VecStr_new, VecStr_push, VecStr_as_slice from "../std/vec/str.a"
+
 print_u32 :: (s u32) unit
+print_u64 :: (s u64) unit
 print_u8 :: (s u8) unit
 print_char :: (s u8) unit
 
@@ -38,6 +42,19 @@ main :: () {
     dump_hir(&hir_tbl)
    
     TokenStream_destroy(&tks)
+
+
+
+    vec := VecStr_new()
+
+    VecStr_push(&vec, Str_from("a"))
+    VecStr_push(&vec, Str_from("b"))
+    VecStr_push(&vec, Str_from("c"))
+
+    s := VecStr_as_slice(&vec)
+
+    print_u64(s.len)
+
 
 
 
