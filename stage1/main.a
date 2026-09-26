@@ -7,7 +7,8 @@ import Arena_new from "../std/allocator.a"
 import read_file from "../std/fs.a"
 
 import HirTable_new from "compiler/hir.a"
-import Parser_new, parse_expr from "compiler/parser/parser.a"
+import Parser_new from "compiler/parser/core.a"
+import parse_expr from "compiler/parser/parser.a"
 import dump_hir from "compiler/dump.a"
 
 import FastMapU32_new, FastMapU32_destroy, FastMapU32_insert, FastMapU32_get from "../std/fast_map/u32.a"

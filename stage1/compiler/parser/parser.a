@@ -1,90 +1,111 @@
-import token, TokenType, TokenStream, TokenStream_kind, TokenStream_text, TokenStream_newline_before from "../token.a"
-import hir_kind, HirExprKind, HirTable, HirTable_push, hir_none from "../hir.a"
-import Str from "../../../std/string.a"
-import is_soft, bp_from_infix from "prec.a"
+import token from "../token.a"
+import hir_kind, HirTable, HirTable_push, hir_none from "../hir.a"
 
-Parser :: struct {
-    tokens : &TokenStream,
-    hir    : &HirTable,
-    cursor : u32,
-    end    : u32
-}
+import Parser, Parser_new, is_eof, peek, bump, expect, optional,
+       peek_preceded_by_newline, curr_text, prev_text, str_to_u32 from "core.a"
+import is_soft, bp_from_infix, prec from "prec.a"
 
-Parser_new :: (tokens &TokenStream, hir &HirTable, start u32, count u32) Parser {
-    .{
-        tokens : tokens,
-        hir    : hir,
-        cursor : start,
-        end    : start + count
-    }
-}
 
-is_eof :: (p &Parser) bool {
-    (*p).cursor >= (*p).end
-}
 
-peek :: (p &Parser) u8 {
-    if (*p).cursor >= (*p).end { ret token().eof }
-    TokenStream_kind((*p).tokens, (*p).cursor)
-}
-
-bump :: (p &Parser) {
-    if (*p).cursor < (*p).end {
-        (*p).cursor = (*p).cursor + 1
-    }
-}
-
-str_to_u32 :: (s Str) u32 {
-    res: u32 = 0
-    i: u64 = 0
-    while i < s.len {
-        c := *(s.ptr + i)
-        if c >= 48 and c <= 57 {
-            res = (res * 10) + ((c - 48) as u32)
-        }
-        i = i + 1
-    }
-    res
-}
-
+--- Pratt Engine ---------------------------------------------------------------------------------
 
 parse_expr :: (p &Parser, min_bp u8) u32 {
-    t := token()
-    k := hir_kind()
-
-    lhs := hir_none()
-    if peek(p) == t.lit_int {
-        val := str_to_u32(TokenStream_text((*p).tokens, (*p).cursor))
-        bump(p)
-        lhs = HirTable_push((*p).hir, k.lit_int, val, hir_none(), hir_none())
-        _
-    } else {
-        bump(p)
-        ret HirTable_push((*p).hir, k.error, hir_none(), hir_none(), hir_none())
-    }
+    lhs := dispatch_prefix(p)
 
     while not is_eof(p) {
         tk := peek(p)
 
-        if (TokenStream_newline_before((*p).tokens, (*p).cursor) and (not is_soft(tk))) or false {
+        if (peek_preceded_by_newline(p) and (not is_soft(tk))) or false {
             break
         }
 
         bp := bp_from_infix(tk)
-        if not bp.is_some or bp.left < min_bp {
+        if ((not bp.is_some) or (bp.left < min_bp)) or false {
             break
         }
 
         bump(p) 
-
-        rhs := parse_expr(p, bp.right)
-
-        op_kind := k.empty
-        if tk == t.plus  { op_kind = k.binary_add }
-        if tk == t.minus { op_kind = k.binary_sub }
-
-        lhs = HirTable_push((*p).hir, op_kind, lhs, rhs, hir_none())
+        lhs = dispatch_infix(p, tk, lhs, bp.right)
     }
 
     lhs
+}
+
+--- Dispatch Layer -------------------------------------------------------------------------------
+
+dispatch_prefix :: (p &Parser) u32 {
+    t := token()
+    tk := peek(p)
+
+    if tk == t.lit_int { ret parse_lit_int(p) }
+
+    if tk == t.o_paren { ret parse_grouping(p) }
+
+    if tk == t.minus or tk == t.kw_not or tk == t.tilde {
+        ret parse_unary(p, tk)
+    }
+
+    bump(p)
+    HirTable_push((*p).hir, hir_kind().error, hir_none(), hir_none(), hir_none())
+}
+
+dispatch_infix :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
+    t := token()
+
+    if op == t.plus or op == t.minus or op == t.star or op == t.slash or op == t.percent {
+        ret parse_binary(p, op, lhs, right_bp)
+    }
+
+    HirTable_push((*p).hir, hir_kind().error, hir_none(), hir_none(), hir_none())
+}
+
+
+--- Prefix Handlers ------------------------------------------------------------------------------
+
+parse_lit_int :: (p &Parser) u32 {
+    k := hir_kind()
+    val := str_to_u32(curr_text(p))
+    bump(p)
+    HirTable_push((*p).hir, k.lit_int, val, hir_none(), hir_none())
+}
+
+parse_grouping :: (p &Parser) u32 {
+    t := token()
+    bump(p) -- '('
+    expr := parse_expr(p, 0 as u8)
+    expect(p, t.c_paren)
+    expr
+}
+
+parse_unary :: (p &Parser, op u8) u32 {
+    t := token()
+    k := hir_kind()
+    bump(p)
+
+    body := parse_expr(p, prec().unary)
+
+    op_kind := k.empty
+    if op == t.minus  { op_kind = k.unary_neg }
+    if op == t.kw_not { op_kind = k.unary_not }
+    if op == t.tilde  { op_kind = k.unary_bit_not }
+
+    HirTable_push((*p).hir, op_kind, body, hir_none(), hir_none())
+}
+
+--- Infix Handlers -------------------------------------------------------------------------------
+
+parse_binary :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
+    t := token()
+    k := hir_kind()
+
+    rhs := parse_expr(p, right_bp)
+
+    op_kind := k.empty
+    if op == t.plus    { op_kind = k.binary_add }
+    if op == t.minus   { op_kind = k.binary_sub }
+    if op == t.star    { op_kind = k.binary_mul }
+    if op == t.slash   { op_kind = k.binary_div }
+    if op == t.percent { op_kind = k.binary_mod }
+
+    HirTable_push((*p).hir, op_kind, lhs, rhs, hir_none())
 }
