@@ -6,7 +6,7 @@ realloc :: (ptr &u8, size u64) &u8
 free    :: (ptr &u8) unit
 
 VecType :: u8
-Self :: VecU8
+Self    :: VecU8
 
 VecU8 :: struct {
     ptr: &VecType,
@@ -14,13 +14,23 @@ VecU8 :: struct {
     cap: u64
 }
 
+
 VecU8_new :: () Self {
-    p := malloc(4 * U8_size()) as &VecType
+    VecU8_with_cap(4)
+}
+
+VecU8_with_cap :: (initial_cap u64) Self {
+    cap := initial_cap
+    if cap < 4 {
+        cap = 4
+    }
+
+    p := malloc(cap * U8_size()) as &VecType
 
     .{
         ptr: p,
         len: 0,
-        cap: 4
+        cap: cap
     }
 }
 
