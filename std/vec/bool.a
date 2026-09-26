@@ -14,13 +14,23 @@ VecBool :: struct {
     cap: u64
 }
 
+
 VecBool_new :: () Self {
-    p := malloc(4 * Bool_size()) as &VecType
+    VecBool_with_cap(4)
+}
+
+VecBool_with_cap :: (initial_cap u64) Self {
+    cap := initial_cap
+    if cap < 4 {
+        cap = 4
+    }
+
+    p := malloc(cap * Bool_size()) as &VecType
 
     .{
         ptr: p,
         len: 0,
-        cap: 4
+        cap: cap
     }
 }
 
