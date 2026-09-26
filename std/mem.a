@@ -1,5 +1,6 @@
 malloc   :: (size u64                ) &u8
 free     :: (ptr  &u8                ) unit
+realloc  :: (ptr  &u8, size u64      ) &u8
 mem_copy :: (dest &u8, src &u8, n u64) unit
 mem_set  :: (dest &u8, val u8,  n u64) unit
 
