@@ -10,6 +10,9 @@ import HirTable_new from "compiler/hir.a"
 import Parser_new, parse_expr from "compiler/parser/parser.a"
 import dump_hir from "compiler/dump.a"
 
+import FastMapU32_new, FastMapU32_destroy, FastMapU32_insert, FastMapU32_get from "../std/fast_map/u32.a"
+import Interner_new, Interner_intern, Interner_get from "../std/interner.a"
+
 print_u32 :: (s u32) unit
 print_u8 :: (s u8) unit
 print_char :: (s u8) unit

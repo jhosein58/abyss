@@ -1,0 +1,96 @@
+import token, TokenType, TokenStream, TokenStream_kind, TokenStream_text, TokenStream_newline_before from "../token.a"
+import HirTable from "../hir.a"
+import Str, Str_empty from "../../../std/string.a"
+
+Parser :: struct {
+    tokens : &TokenStream,
+    hir    : &HirTable,
+    cursor : u32,
+    end    : u32
+}
+
+Parser_new :: (tokens &TokenStream, hir &HirTable, start u32, count u32) Parser {
+    .{
+        tokens : tokens,
+        hir    : hir,
+        cursor : start,
+        end    : start + count
+    }
+}
+
+is_eof :: (p &Parser) bool {
+    (*p).cursor >= (*p).end
+}
+
+peek :: (p &Parser) u8 {
+    if (*p).cursor >= (*p).end {
+        ret token().eof
+    }
+    TokenStream_kind((*p).tokens, (*p).cursor)
+}
+
+peek_n :: (p &Parser, n u32) u8 {
+    target := (*p).cursor + n
+    if target >= (*p).end {
+        ret token().eof
+    }
+    TokenStream_kind((*p).tokens, target)
+}
+
+bump :: (p &Parser) u32 {
+    c := (*p).cursor
+    if (*p).cursor < (*p).end {
+        (*p).cursor = (*p).cursor + 1
+    }
+    c
+}
+
+optional :: (p &Parser, kind u8) bool {
+    if peek(p) == kind {
+        bump(p)
+        ret true
+    }
+    false
+}
+
+expect :: (p &Parser, kind u8) bool {
+    if peek(p) == kind {
+        bump(p)
+        ret true
+    }
+    false
+}
+
+peek_preceded_by_newline :: (p &Parser) bool {
+    if (*p).cursor >= (*p).end {
+        ret false
+    }
+    TokenStream_newline_before((*p).tokens, (*p).cursor)
+}
+
+curr_text :: (p &Parser) Str {
+    if (*p).cursor >= (*p).end {
+        ret Str_empty()
+    }
+    TokenStream_text((*p).tokens, (*p).cursor)
+}
+
+prev_text :: (p &Parser) Str {
+    if (*p).cursor == 0 {
+        ret Str_empty()
+    }
+    TokenStream_text((*p).tokens, (*p).cursor - 1)
+}
+
+str_to_u32 :: (s Str) u32 {
+    res: u32 = 0
+    i: u64 = 0
+    while i < s.len {
+        c := *(s.ptr + i)
+        if c >= 48 and c <= 57 {
+            res = (res * 10) + ((c - 48) as u32)
+        }
+        i = i + 1
+    }
+    res
+}
