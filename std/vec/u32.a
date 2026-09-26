@@ -15,12 +15,21 @@ VecU32 :: struct {
 }
 
 VecU32_new :: () Self {
-    p := malloc(4 * U32_size()) as &VecType
+    VecU32_with_cap(4)
+}
+
+VecU32_with_cap :: (initial_cap u64) Self {
+    cap := initial_cap
+    if cap < 4 {
+        cap = 4
+    }
+
+    p := malloc(cap * U32_size()) as &VecType
 
     .{
         ptr: p,
         len: 0,
-        cap: 4
+        cap: cap
     }
 }
 
@@ -56,4 +65,10 @@ VecU32_set :: (v &Self, idx u64, val VecType) {
 VecU32_pop :: (v &Self) VecType {
     (*v).len = (*v).len - 1
     *((*v).ptr + (*v).len)
+}
+
+VecU32_reset :: (v &Self, mark u64) {
+    if mark <= (*v).len {
+        (*v).len = mark
+    }
 }
