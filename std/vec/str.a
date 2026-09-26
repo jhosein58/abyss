@@ -6,23 +6,23 @@ VecType            :: Str
 VecStr             :: Self 
 elem_size          :: () u64 { Str_size() }
 
-VecStr_new         :: () VecStr                            { Self_new() }
-VecStr_with_cap    :: (initial_cap u64) VecStr             { Self_with_cap(initial_cap) }
-VecStr_destroy     :: (v &VecStr)                          { Self_destroy(v) }
-VecStr_reserve     :: (v &VecStr, additional u64)          { Self_reserve(v, additional) }
-VecStr_push        :: (v &VecStr, val VecType)             { Self_push(v, val) }
-VecStr_pop         :: (v &VecStr) VecType                  { Self_pop(v) }
-VecStr_get         :: (v &VecStr, idx u64) VecType         { Self_get(v, idx) }
-VecStr_set         :: (v &VecStr, idx u64, val VecType)    { Self_set(v, idx, val) }
-VecStr_last        :: (v &VecStr) VecType                  { Self_last(v) }
-VecStr_is_empty    :: (v &VecStr) bool                     { Self_is_empty(v) }
-VecStr_extend      :: (v &VecStr, src &VecType, count u64) { Self_extend(v, src, count) }
-VecStr_mark        :: (v &VecStr) u64                      { Self_mark(v) }
-VecStr_reset       :: (v &VecStr, mark u64)                { Self_reset(v, mark) }
-VecStr_clear       :: (v &VecStr)                          { Self_clear(v) }
-VecStr_ptr_at      :: (v &VecStr, offset u64) &VecType     { Self_ptr_at(v, offset) }
-VecStr_len         :: (v &VecStr) u64                      { Self_len(v) }
-VecStr_swap_remove :: (v &VecStr, idx u64) VecType         { Self_swap_remove(v, idx) }
+VecStr_new         :: () Self                            { Self_new() }
+VecStr_with_cap    :: (initial_cap u64) Self             { Self_with_cap(initial_cap) }
+VecStr_destroy     :: (v &Self)                          { Self_destroy(v) }
+VecStr_reserve     :: (v &Self, additional u64)          { Self_reserve(v, additional) }
+VecStr_push        :: (v &Self, val VecType)             { Self_push(v, val) }
+VecStr_pop         :: (v &Self) VecType                  { Self_pop(v) }
+VecStr_get         :: (v &Self, idx u64) VecType         { Self_get(v, idx) }
+VecStr_set         :: (v &Self, idx u64, val VecType)    { Self_set(v, idx, val) }
+VecStr_last        :: (v &Self) VecType                  { Self_last(v) }
+VecStr_is_empty    :: (v &Self) bool                     { Self_is_empty(v) }
+VecStr_extend      :: (v &Self, src &VecType, count u64) { Self_extend(v, src, count) }
+VecStr_mark        :: (v &Self) u64                      { Self_mark(v) }
+VecStr_reset       :: (v &Self, mark u64)                { Self_reset(v, mark) }
+VecStr_clear       :: (v &Self)                          { Self_clear(v) }
+VecStr_ptr_at      :: (v &Self, offset u64) &VecType     { Self_ptr_at(v, offset) }
+VecStr_len         :: (v &Self) u64                      { Self_len(v) }
+VecStr_swap_remove :: (v &Self, idx u64) VecType         { Self_swap_remove(v, idx) }
 --------------------------------------------------------------------------------------------
 
 Self :: struct {
