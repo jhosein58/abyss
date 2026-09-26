@@ -1,0 +1,168 @@
+import U32_size, U32_MAX from "../primitive/u32.a"
+import malloc, free, mem_set from "../mem.a"
+import hash_u32 from "../hash/u32.a"
+
+-- Generic
+--------------------------------------------------------------------------------
+
+KeyTy :: u32
+ValTy :: u32
+Self  :: FastMapU32
+
+key_size  :: () u64   { U32_size() }
+val_size  :: () u64   { U32_size() }
+key_none  :: () KeyTy { U32_MAX() }
+val_none  :: () ValTy { U32_MAX() }
+key_hash  :: (k KeyTy) u32 { hash_u32(k) }
+
+--------------------------------------------------------------------------------
+
+FastMapU32 :: struct {
+    keys : &KeyTy,
+    vals : &ValTy,
+    cap  : u64,
+    len  : u64
+}
+
+FastMapU32_new :: () Self {
+    FastMapU32_with_cap(16)
+}
+
+FastMapU32_with_cap :: (initial_cap u64) Self {
+    cap := initial_cap
+    if cap < 16 {
+        cap = 16
+    }
+
+    k_bytes := cap * key_size()
+    v_bytes := cap * val_size()
+
+    keys_ptr := malloc(k_bytes) as &KeyTy
+    vals_ptr := malloc(v_bytes) as &ValTy
+
+    mem_set(keys_ptr as &u8, 255 as u8, k_bytes)
+
+    .{
+        keys : keys_ptr,
+        vals : vals_ptr,
+        cap  : cap,
+        len  : 0
+    }
+}
+
+FastMapU32_destroy :: (m &Self) {
+    free((*m).keys as &u8)
+    free((*m).vals as &u8)
+    (*m).keys = 0 as &KeyTy
+    (*m).vals = 0 as &ValTy
+    (*m).len = 0
+    (*m).cap = 0
+}
+
+FastMapU32_clear :: (m &Self) {
+    k_bytes := (*m).cap * key_size()
+    mem_set((*m).keys as &u8, 255 as u8, k_bytes)
+    (*m).len = 0
+}
+
+FastMapU32_count :: (m &Self) u64 {
+    (*m).len
+}
+
+FastMapU32_grow :: (m &Self) {
+    old_cap := (*m).cap
+    old_keys := (*m).keys
+    old_vals := (*m).vals
+
+    new_cap := old_cap * 2
+    new_k_bytes := new_cap * key_size()
+    new_v_bytes := new_cap * val_size()
+
+    new_keys := malloc(new_k_bytes) as &KeyTy
+    new_vals := malloc(new_v_bytes) as &ValTy
+
+    mem_set(new_keys as &u8, 255 as u8, new_k_bytes)
+
+    mask := new_cap - 1
+    empty := key_none()
+
+    i: u64 = 0
+    while i < old_cap {
+        k := *(old_keys + i)
+        if k != empty {
+            v := *(old_vals + i)
+            idx := (key_hash(k) as u64) & mask
+
+            while *(new_keys + idx) != empty {
+                idx = (idx + 1) & mask
+            }
+
+            *(new_keys + idx) = k
+            *(new_vals + idx) = v
+        }
+        i = i + 1
+    }
+
+    free(old_keys as &u8)
+    free(old_vals as &u8)
+
+    (*m).keys = new_keys
+    (*m).vals = new_vals
+    (*m).cap = new_cap
+}
+
+FastMapU32_insert :: (m &Self, key KeyTy, val ValTy) bool {
+    if ((*m).len + 1) * 10 >= (*m).cap * 7 {
+        FastMapU32_grow(m)
+    }
+
+    mask := (*m).cap - 1
+    idx := (key_hash(key) as u64) & mask
+    empty := key_none()
+
+    while true {
+        k := *((*m).keys + idx)
+
+        if k == empty {
+            *((*m).keys + idx) = key
+            *((*m).vals + idx) = val
+            (*m).len = (*m).len + 1
+            ret true
+        }
+
+        if k == key {
+            *((*m).vals + idx) = val
+            ret false
+        }
+
+        idx = (idx + 1) & mask
+    }
+
+    false
+}
+
+FastMapU32_get :: (m &Self, key KeyTy) ValTy {
+    mask := (*m).cap - 1
+    idx := (key_hash(key) as u64) & mask
+    empty := key_none()
+
+    while true {
+        k := *((*m).keys + idx)
+
+        if k == empty {
+            ret val_none()
+        }
+
+        if k == key {
+            ret *((*m).vals + idx)
+        }
+
+        idx = (idx + 1) & mask
+    }
+
+    val_none()
+}
+
+FastMapU32_contains :: (m &Self, key KeyTy) bool {
+    FastMapU32_get(m, key) != val_none()
+}
