@@ -1,0 +1,13 @@
+import Str from "../string.a"
+
+-- FNV-1a 
+hash_str :: (s Str) u32 {
+    h: u32 = 2166136261 as u32
+    i: u64 = 0
+    while i < s.len {
+        c := *(s.ptr + i) as u32
+        h = (h ^ c) * 16777619 as u32
+        i = i + 1
+    }
+    h
+}
