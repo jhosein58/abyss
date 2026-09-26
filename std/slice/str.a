@@ -1,9 +1,10 @@
+import Str from "../string.a"
 
 --- Generics -------------------------------------------------------------------------------
-SliceTy :: u8
-SliceU8 :: Self
+SliceTy  :: Str
+SliceStr :: Self
 
-SliceU8_new :: (p &SliceTy, len u64) Self { Self_new() }
+SliceStr_new :: (p &SliceTy, len u64) Self { Self_new() }
 --------------------------------------------------------------------------------------------
 
 Self :: struct {
