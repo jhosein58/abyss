@@ -1,30 +1,47 @@
+import malloc, realloc, free, mem_copy from "../mem.a"
 import Str, Str_size from "../string.a"
 
-malloc  :: (size u64) &u8
-realloc :: (ptr &u8, size u64) &u8
-free    :: (ptr &u8) unit
+--- Generics -------------------------------------------------------------------------------
+VecType            :: Str
+VecStr             :: Self 
+elem_size          :: () u64 { Str_size() }
 
-VecType :: Str
-Self    :: VecStr
+VecStr_new         :: () VecStr                            { Self_new() }
+VecStr_with_cap    :: (initial_cap u64) VecStr             { Self_with_cap(initial_cap) }
+VecStr_destroy     :: (v &VecStr)                          { Self_destroy(v) }
+VecStr_reserve     :: (v &VecStr, additional u64)          { Self_reserve(v, additional) }
+VecStr_push        :: (v &VecStr, val VecType)             { Self_push(v, val) }
+VecStr_pop         :: (v &VecStr) VecType                  { Self_pop(v) }
+VecStr_get         :: (v &VecStr, idx u64) VecType         { Self_get(v, idx) }
+VecStr_set         :: (v &VecStr, idx u64, val VecType)    { Self_set(v, idx, val) }
+VecStr_last        :: (v &VecStr) VecType                  { Self_last(v) }
+VecStr_is_empty    :: (v &VecStr) bool                     { Self_is_empty(v) }
+VecStr_extend      :: (v &VecStr, src &VecType, count u64) { Self_extend(v, src, count) }
+VecStr_mark        :: (v &VecStr) u64                      { Self_mark(v) }
+VecStr_reset       :: (v &VecStr, mark u64)                { Self_reset(v, mark) }
+VecStr_clear       :: (v &VecStr)                          { Self_clear(v) }
+VecStr_ptr_at      :: (v &VecStr, offset u64) &VecType     { Self_ptr_at(v, offset) }
+VecStr_len         :: (v &VecStr) u64                      { Self_len(v) }
+VecStr_swap_remove :: (v &VecStr, idx u64) VecType         { Self_swap_remove(v, idx) }
+--------------------------------------------------------------------------------------------
 
-VecStr :: struct {
+Self :: struct {
     ptr: &VecType,
     len: u64,
     cap: u64
 }
 
-
-VecStr_new :: () Self {
-    VecStr_with_cap(4)
+Self_new :: () Self {
+    Self_with_cap(4)
 }
 
-VecStr_with_cap :: (initial_cap u64) Self {
+Self_with_cap :: (initial_cap u64) Self {
     cap := initial_cap
     if cap < 4 {
         cap = 4
     }
 
-    p := malloc(cap * Str_size()) as &VecType
+    p := malloc(cap * elem_size()) as &VecType
 
     .{
         ptr: p,
@@ -33,43 +50,102 @@ VecStr_with_cap :: (initial_cap u64) Self {
     }
 }
 
-
-VecStr_destroy :: (v &Self) {
+Self_destroy :: (v &Self) {
     free((*v).ptr as &u8)
+    (*v).ptr = 0 as &VecType
+    (*v).len = 0
+    (*v).cap = 0
 }
 
-VecStr_grow :: (v &Self) {
-    if (*v).len == (*v).cap {
+Self_reserve :: (v &Self, additional u64) {
+    needed := (*v).len + additional
+    if needed > (*v).cap {
         new_cap := (*v).cap * 2
-        new_ptr := realloc((*v).ptr as &u8, new_cap * Str_size()) as &VecType
+        if new_cap < 4 { new_cap = 4 }
+        while new_cap < needed {
+            new_cap = new_cap * 2
+        }
 
+        new_ptr := realloc((*v).ptr as &u8, new_cap * elem_size()) as &VecType
         (*v).ptr = new_ptr
         (*v).cap = new_cap
     }
 }
 
-VecStr_push :: (v &Self, val VecType) {
-    VecStr_grow(v)
+Self_grow :: (v &Self) {
+    if (*v).len == (*v).cap {
+        Self_reserve(v, 1)
+    }
+}
+
+Self_push :: (v &Self, val VecType) {
+    Self_grow(v)
 
     *((*v).ptr + (*v).len) = val
     (*v).len = (*v).len + 1
 }
 
-VecStr_get :: (v &Self, idx u64) VecType {
-    *((*v).ptr + idx)
-}
-
-VecStr_set :: (v &Self, idx u64, val VecType) {
-    *((*v).ptr + idx) = val
-}
-
-VecStr_pop :: (v &Self) VecType {
+Self_pop :: (v &Self) VecType {
     (*v).len = (*v).len - 1
     *((*v).ptr + (*v).len)
 }
 
-VecStr_reset :: (v &Self, mark u64) {
+Self_get :: (v &Self, idx u64) VecType {
+    *((*v).ptr + idx)
+}
+
+Self_set :: (v &Self, idx u64, val VecType) {
+    *((*v).ptr + idx) = val
+}
+
+Self_last :: (v &Self) VecType {
+    *((*v).ptr + ((*v).len - 1))
+}
+
+Self_is_empty :: (v &Self) bool {
+    (*v).len == 0
+}
+
+Self_extend :: (v &Self, src &VecType, count u64) {
+    if count == 0 { ret }
+
+    Self_reserve(v, count)
+    dst := ((*v).ptr + (*v).len) as &u8
+
+    mem_copy(dst, src as &u8, count * elem_size())
+    (*v).len = (*v).len + count
+}
+
+Self_mark :: (v &Self) u64 {
+    (*v).len
+}
+
+Self_reset :: (v &Self, mark u64) {
     if mark <= (*v).len {
         (*v).len = mark
     }
+}
+
+Self_clear :: (v &Self) {
+    (*v).len = 0
+}
+
+Self_ptr_at :: (v &Self, offset u64) &VecType {
+    (*v).ptr + offset
+}
+
+Self_len :: (v &Self) u64 {
+    (*v).len
+}
+
+Self_swap_remove :: (v &Self, idx u64) VecType {
+    last_idx := (*v).len - 1
+    removed := *((*v).ptr + idx)
+    
+    if idx != last_idx {
+        *((*v).ptr + idx) = *((*v).ptr + last_idx)
+    }
+    
+    (*v).len = last_idx
+    removed
 }
