@@ -5,7 +5,7 @@ realloc :: (ptr &u8, size u64) &u8
 free    :: (ptr &u8) unit
 
 VecType :: Str
-Self :: VecStr
+Self    :: VecStr
 
 VecStr :: struct {
     ptr: &VecType,
