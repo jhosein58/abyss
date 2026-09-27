@@ -7,9 +7,10 @@ import is_soft, bp_from_infix, prec from "prec.a"
 
 import VecU32_mark, VecU32_reset, VecU32_push, VecU32_new, VecU32_as_slice from "../../../std/vec/u32.a"
 
-import Nexus_add_list from "../nexus/nexus.a"
+import Nexus_add_list, Nexus_get_list from "../nexus/nexus.a"
 
 print :: (s &u8) unit
+print_u32 :: (v u32) unit
 
 --- Pratt Engine ---------------------------------------------------------------------------------
 
@@ -101,9 +102,24 @@ parse_block :: (p &Parser) u32 {
 
     s := VecU32_as_slice(&test_list)
 
-    Nexus_add_list(db, s)
 
     Nexus_add_list(db, s)
+    start_idx := Nexus_add_list(db, s)
+
+    print_u32(start_idx)
+    print("\n")
+
+    slice := Nexus_get_list(db, start_idx)
+
+    print("\n----------\n")
+
+    i := 0
+    while i < slice.len {
+        print_u32(*(slice.ptr + i))
+        i = i + 1
+    }
+
+    print("\n----------\n")
 
 
 
