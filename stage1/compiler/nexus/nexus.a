@@ -1,7 +1,9 @@
-import VecU32, VecU32_new, VecU32_extend, VecU32_len, VecU32_push from "../../../std/vec/u32.a"
-import SliceU32 from "../../../std/slice/u32.a"
+import VecU32, VecU32_new, VecU32_extend, VecU32_len, VecU32_push, VecU32_get, VecU32_ptr_at from "../../../std/vec/u32.a"
+import SliceU32, SliceU32_new from "../../../std/slice/u32.a"
 
+print :: (s &u8) unit
 print_u64 :: (v u64) unit
+print_u32 :: (v u32) unit
 
 Nexus :: struct {
     glob_stack : VecU32
@@ -15,9 +17,21 @@ Nexus_new :: () Nexus {
     }
 }
 
-Nexus_add_list :: (self &Nexus, items SliceU32) {
+Nexus_add_list :: (self &Nexus, items SliceU32) u32 {
     list := &(*self).u32_items
-    start := VecU32_len(list)
+    start := VecU32_len(list) as u32
     VecU32_push(list, items.len as u32)
     VecU32_extend(list, items.ptr, items.len)
+    start
+}
+
+Nexus_get_list :: (self &Nexus, start u32) SliceU32 {
+    list := &(*self).u32_items 
+    len := VecU32_get(list, start as u64)
+
+    
+    .{
+        ptr: VecU32_ptr_at(list, (start as u64) + 1),
+        len: len as u64
+    }
 }
