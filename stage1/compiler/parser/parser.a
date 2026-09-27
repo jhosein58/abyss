@@ -97,6 +97,7 @@ parse_block :: (p &Parser) u32 {
 
     bump(p) -- {
 
+    -- TODO
     expr := parse_expr(p, 0)
     count = count + 1
 

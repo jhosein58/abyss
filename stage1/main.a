@@ -42,7 +42,7 @@ main :: () {
     parser := Parser_new(&nexus, &tks, &hir_tbl, 0, tk_count as u32)
     parse_expr(&parser, 0)
 
-    dump_hir(&hir_tbl)
+    dump_hir(&nexus, &hir_tbl)
    
     TokenStream_destroy(&tks)
 
