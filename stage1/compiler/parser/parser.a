@@ -87,6 +87,7 @@ parse_grouping :: (p &Parser) u32 {
 
 parse_block :: (p &Parser) u32 {
     k := hir_kind()
+    t := token()
 
     db := &(*(*p).db);
     glob_stack := &(*db).glob_stack
@@ -97,11 +98,22 @@ parse_block :: (p &Parser) u32 {
 
     bump(p) -- {
 
-    -- TODO
-    expr := parse_expr(p, 0)
-    count = count + 1
+    while true {
+        peek_tk := peek(p)
 
-    bump(p) -- }
+        if peek_tk == t.c_brace {
+            bump(p)
+            break
+        }
+
+        if peek_tk == t.eof {
+            break
+        }
+
+        VecU32_push(glob_stack, parse_expr(p, 0))
+        count = count + 1
+
+    }
 
     slice: SliceU32 = .{
         ptr: VecU32_ptr_at(glob_stack, mark),
@@ -111,7 +123,6 @@ parse_block :: (p &Parser) u32 {
     list_id := Nexus_add_list(db, slice)
 
     VecU32_reset(glob_stack, mark)
-
 
     HirTable_push((*p).hir, k.block, list_id, hir_none(), hir_none())
 }
