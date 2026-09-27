@@ -1,9 +1,11 @@
 import HirTable, HirTable_len, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind_name, hir_kind, hir_none from "hir.a"
 import Str, Str_from, Str_print, Str_println from "../../std/string.a"
+import Nexus, Nexus_get_list from "nexus/nexus.a"
 
-print_char :: (c u8) unit
+print_char :: (c u8)  unit
 print_u32  :: (n u32) unit
-
+print      :: (s &u8) unit
+ 
 print_spaces :: (count u32) {
     i: u32 = 0
     while i < count {
@@ -59,7 +61,7 @@ print_divider :: () {
 }
 
 
-dump_hir :: (hir &HirTable) {
+dump_hir :: (db &Nexus, hir &HirTable) {
     k := hir_kind()
     total := HirTable_len(hir)
 
@@ -85,6 +87,7 @@ dump_hir :: (hir &HirTable) {
         print_str_padded(hir_kind_name(kind), 20)
 
         print_str_padded(Str_from("| "), 2)
+
         if kind == k.lit_int {
             Str_print(Str_from("Int("))
             print_u32(lhs)
@@ -94,7 +97,29 @@ dump_hir :: (hir &HirTable) {
             if 22 > len {
                 print_spaces(22 - len)
             }
-        } else {
+        } else if kind == k.block{
+                Str_print(Str_from("["))
+
+                slice := Nexus_get_list(db, lhs)
+
+                len := 2
+
+                i := 0
+                while i < slice.len {
+                    print_u32(*(slice.ptr + i))
+                    print(", ")
+
+                    len = len + 3
+                    i = i + 1
+                }
+
+                Str_print(Str_from("]"))
+
+               
+                if 22 > len {
+                    print_spaces(22 - len)
+                }
+        }else{
             print_idx_or_none(lhs, 22)
         }
 
