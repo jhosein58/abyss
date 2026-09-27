@@ -1,16 +1,19 @@
 import token, TokenType, TokenStream, TokenStream_kind, TokenStream_text, TokenStream_newline_before from "../token.a"
 import HirTable from "../hir.a"
 import Str, Str_empty from "../../../std/string.a"
+import Nexus from "../nexus/nexus.a"
 
 Parser :: struct {
+    db     : &Nexus,
     tokens : &TokenStream,
     hir    : &HirTable,
     cursor : u32,
     end    : u32
 }
 
-Parser_new :: (tokens &TokenStream, hir &HirTable, start u32, count u32) Parser {
+Parser_new :: (db &Nexus, tokens &TokenStream, hir &HirTable, start u32, count u32) Parser {
     .{
+        db     : db,
         tokens : tokens,
         hir    : hir,
         cursor : start,

@@ -15,7 +15,7 @@ import FastMapU32_new, FastMapU32_destroy, FastMapU32_insert, FastMapU32_get fro
 import Interner_new, Interner_intern, Interner_get from "../std/interner.a"
 
 
-import VecStr_new, VecStr_push, VecStr_as_slice from "../std/vec/str.a"
+import Nexus_new from "compiler/nexus/nexus.a"
 
 print_u32 :: (s u32) unit
 print_u64 :: (s u64) unit
@@ -29,6 +29,9 @@ main :: () {
     source := read_file(&arena, "tmp/main.a")
 
 
+    -- init Database
+    nexus := Nexus_new()
+
     -- Lex
     tks := TokenStream_new()
     lex(&tks, source)
@@ -36,27 +39,12 @@ main :: () {
 
     -- Parse
     hir_tbl := HirTable_new()
-    parser := Parser_new(&tks, &hir_tbl, 0, tk_count as u32)
+    parser := Parser_new(&nexus, &tks, &hir_tbl, 0, tk_count as u32)
     parse_expr(&parser, 0)
 
     dump_hir(&hir_tbl)
    
     TokenStream_destroy(&tks)
-
-
-
-    vec := VecStr_new()
-
-    VecStr_push(&vec, Str_from("a"))
-    VecStr_push(&vec, Str_from("b"))
-    VecStr_push(&vec, Str_from("c"))
-
-    s := VecStr_as_slice(&vec)
-
-    print_u64(s.len)
-
-
-
 
 }
 
