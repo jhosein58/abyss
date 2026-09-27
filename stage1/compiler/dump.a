@@ -97,28 +97,32 @@ dump_hir :: (db &Nexus, hir &HirTable) {
             if 22 > len {
                 print_spaces(22 - len)
             }
-        } else if kind == k.block{
-                Str_print(Str_from("["))
+        } else if kind == k.block {
+            Str_print(Str_from("["))
 
-                slice := Nexus_get_list(db, lhs)
+            slice := Nexus_get_list(db, lhs)
 
-                len := 2
+            len: u32 = 2
+            j: u64 = 0
 
-                i := 0
-                while i < slice.len {
-                    print_u32(*(slice.ptr + i))
+            while j < slice.len {
+                node_id := *(slice.ptr + j)
+                print_u32(node_id)
+                len = len + u32_digits(node_id)
+
+                if (j + 1) < slice.len {
                     print(", ")
-
-                    len = len + 3
-                    i = i + 1
+                    len = len + 2
                 }
 
-                Str_print(Str_from("]"))
+                j = j + 1
+            }
 
-               
-                if 22 > len {
-                    print_spaces(22 - len)
-                }
+            Str_print(Str_from("]"))
+
+            if 22 > len {
+                print_spaces(22 - len)
+            }
         }else{
             print_idx_or_none(lhs, 22)
         }
