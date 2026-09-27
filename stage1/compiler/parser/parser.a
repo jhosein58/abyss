@@ -5,7 +5,11 @@ import Parser, Parser_new, is_eof, peek, bump, expect, optional,
        peek_preceded_by_newline, curr_text, prev_text, str_to_u32 from "core.a"
 import is_soft, bp_from_infix, prec from "prec.a"
 
+import VecU32_mark, VecU32_reset, VecU32_push, VecU32_new, VecU32_as_slice from "../../../std/vec/u32.a"
 
+import Nexus_add_list from "../nexus/nexus.a"
+
+print :: (s &u8) unit
 
 --- Pratt Engine ---------------------------------------------------------------------------------
 
@@ -41,6 +45,8 @@ dispatch_prefix :: (p &Parser) u32 {
 
     if tk == t.o_paren { ret parse_grouping(p) }
 
+    if tk == t.o_brace { ret parse_block(p) }
+
     if tk == t.minus or tk == t.kw_not or tk == t.tilde {
         ret parse_unary(p, tk)
     }
@@ -75,6 +81,37 @@ parse_grouping :: (p &Parser) u32 {
     expr := parse_expr(p, 0 as u8)
     expect(p, t.c_paren)
     expr
+}
+
+parse_block :: (p &Parser) u32 {
+    print("start block parsing\n")
+    k := hir_kind()
+    bump(p)
+
+    db := &(*(*p).db);
+    glob_stack := &(*db).glob_stack
+
+    mark := VecU32_mark(glob_stack)
+
+    test_list := VecU32_new()
+
+    VecU32_push(&test_list, 1)
+    VecU32_push(&test_list, 2)
+    VecU32_push(&test_list, 3)
+
+    s := VecU32_as_slice(&test_list)
+
+    Nexus_add_list(db, s)
+
+    Nexus_add_list(db, s)
+
+
+
+    VecU32_reset(glob_stack, mark)
+
+
+    --HirTable_push((*p).hir, k.block)
+    0
 }
 
 parse_unary :: (p &Parser, op u8) u32 {
