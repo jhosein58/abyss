@@ -5,7 +5,8 @@ import Parser, Parser_new, is_eof, peek, bump, expect, optional,
        peek_preceded_by_newline, curr_text, prev_text, str_to_u32 from "core.a"
 import is_soft, bp_from_infix, prec from "prec.a"
 
-import VecU32_mark, VecU32_reset, VecU32_push, VecU32_new, VecU32_as_slice from "../../../std/vec/u32.a"
+import VecU32_mark, VecU32_reset, VecU32_push, VecU32_new, VecU32_as_slice, VecU32_ptr_at from "../../../std/vec/u32.a"
+import SliceU32 from "../../../std/slice/u32.a"
 
 import Nexus_add_list, Nexus_get_list from "../nexus/nexus.a"
 
@@ -85,49 +86,33 @@ parse_grouping :: (p &Parser) u32 {
 }
 
 parse_block :: (p &Parser) u32 {
-    print("start block parsing\n")
     k := hir_kind()
-    bump(p)
 
     db := &(*(*p).db);
     glob_stack := &(*db).glob_stack
 
     mark := VecU32_mark(glob_stack)
 
-    test_list := VecU32_new()
+    count := 0
 
-    VecU32_push(&test_list, 1)
-    VecU32_push(&test_list, 2)
-    VecU32_push(&test_list, 3)
+    bump(p) -- {
 
-    s := VecU32_as_slice(&test_list)
+    expr := parse_expr(p, 0)
+    count = count + 1
 
+    bump(p) -- }
 
-    Nexus_add_list(db, s)
-    start_idx := Nexus_add_list(db, s)
-
-    print_u32(start_idx)
-    print("\n")
-
-    slice := Nexus_get_list(db, start_idx)
-
-    print("\n----------\n")
-
-    i := 0
-    while i < slice.len {
-        print_u32(*(slice.ptr + i))
-        i = i + 1
+    slice: SliceU32 = .{
+        ptr: VecU32_ptr_at(glob_stack, mark),
+        len: count
     }
 
-    print("\n----------\n")
-
-
+    list_id := Nexus_add_list(db, slice)
 
     VecU32_reset(glob_stack, mark)
 
 
-    --HirTable_push((*p).hir, k.block)
-    0
+    HirTable_push((*p).hir, k.block, list_id, hir_none(), hir_none())
 }
 
 parse_unary :: (p &Parser, op u8) u32 {
