@@ -1,0 +1,11 @@
+import VecU32, VecU32_new from "../../../std/vec/u32.a"
+
+Nexus :: struct {
+    glob_stack: VecU32
+}
+
+Nexus_new :: () Nexus {
+    .{
+        glob_stack: VecU32_new()
+    }
+}
