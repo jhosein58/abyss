@@ -17,6 +17,9 @@ import Interner_new, Interner_intern, Interner_get from "../std/interner.a"
 
 import Nexus_new from "compiler/nexus/nexus.a"
 
+
+import TypeStorage_new, TypeStorage_alloc_int from "compiler/types.a"
+
 print_u32 :: (s u32) unit
 print_u64 :: (s u64) unit
 print_u8 :: (s u8) unit
@@ -45,6 +48,15 @@ main :: () {
     dump_hir(&nexus, &hir_tbl)
    
     TokenStream_destroy(&tks)
+
+
+    storage := TypeStorage_new()
+
+    print_u32(TypeStorage_alloc_int(&storage, 8))
+    
+    print_u32(TypeStorage_alloc_int(&storage, 3))
+
+    print_u32(TypeStorage_alloc_int(&storage, 8))
 
 }
 
