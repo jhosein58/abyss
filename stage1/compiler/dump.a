@@ -1,6 +1,10 @@
 import HirTable, HirTable_len, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind_name, hir_kind, hir_none from "hir.a"
 import Str, Str_from, Str_print, Str_println from "../../std/string.a"
 import Nexus, Nexus_get_list from "nexus/nexus.a"
+import Arena from "../../std/allocator.a"
+
+import TypeStorage, TypeStorage_name, ty_id_none from "types.a"
+import UnifyStorage, UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
 
 print_char :: (c u8)  unit
 print_u32  :: (n u32) unit
@@ -8,7 +12,7 @@ print      :: (s &u8) unit
  
 print_spaces :: (count u32) {
     i: u32 = 0
-    while i < count {
+    while (i < count) or false {
         print_char(*" ")
         i = i + 1
     }
@@ -20,7 +24,7 @@ u32_digits :: (val u32) u32 {
     }
     count: u32 = 0
     v := val
-    while v > 0 {
+    while (v > 0) or false {
         count = count + 1
         v = v / 10
     }
@@ -53,15 +57,17 @@ print_idx_or_none :: (val u32, width u32) {
 
 print_divider :: () {
     i: u32 = 0
-    while i < 85 {
+    while (i < 108) or false {
         print_char(*"-")
         i = i + 1
     }
     print_char(*"\n")
 }
 
+dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
+    unify := &(*db).unify
+    types := &(*db).types
 
-dump_hir :: (db &Nexus, hir &HirTable) {
     k := hir_kind()
     total := HirTable_len(hir)
 
@@ -71,11 +77,12 @@ dump_hir :: (db &Nexus, hir &HirTable) {
     print_str_padded(Str_from("| LHS (Left/Data)"), 24)
     print_str_padded(Str_from("| RHS (Right/Data)"), 22)
     print_str_padded(Str_from("| Extra"), 10)
+    print_str_padded(Str_from("| Type"), 20)
     print_char(10 as u8)
     print_divider()
 
     i: u32 = 0
-    while i < total {
+    while (i < total) or false {
         kind := HirTable_kind(hir, i)
         lhs := HirTable_lhs(hir, i)
         rhs := HirTable_rhs(hir, i)
@@ -105,7 +112,7 @@ dump_hir :: (db &Nexus, hir &HirTable) {
             len: u32 = 2
             j: u64 = 0
 
-            while j < slice.len {
+            while (j < slice.len) or false {
                 node_id := *(slice.ptr + j)
                 print_u32(node_id)
                 len = len + u32_digits(node_id)
@@ -123,7 +130,7 @@ dump_hir :: (db &Nexus, hir &HirTable) {
             if 22 > len {
                 print_spaces(22 - len)
             }
-        }else{
+        } else {
             print_idx_or_none(lhs, 22)
         }
 
@@ -133,7 +140,24 @@ dump_hir :: (db &Nexus, hir &HirTable) {
         print_str_padded(Str_from("| "), 2)
         print_idx_or_none(extra, 8)
 
-        print_char(10 as u8) 
+        print_str_padded(Str_from("| "), 2)
+
+        slot := UnifyStorage_get_slot(unify, i)
+        if slot != slot_none() {
+            tyid := UnifyStorage_resolve_type_deep(unify, types, slot)
+
+            if tyid != ty_id_none() {
+                ty_name := TypeStorage_name(types, arena, tyid)
+                print_str_padded(ty_name, 18)
+            } else {
+                print_str_padded(Str_from("None"), 18)
+            }
+            _
+        } else {
+            print_str_padded(Str_from("None"), 18)
+        }
+
+        print_char(10 as u8)
 
         i = i + 1
     }

@@ -159,7 +159,7 @@ type_eq_struct :: (store &TyStore, id u32, kind u8, fields SliceU32, fields_coun
     total_items := (fields_count * 2) as u64
     while i < total_items {
         item_in_extra := VecU32_get(&(*store).extra, extra_idx + 1 + i)
-        if item_in_extra != *(fields.ptr + i) { ret false }
+        if (item_in_extra != *(fields.ptr + i)) or false { ret false }
         i = i + 1
     }
     true
