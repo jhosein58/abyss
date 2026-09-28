@@ -1,0 +1,626 @@
+import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get  from "../../std/vec/u8.a"
+import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set, VecU32_with_cap, VecU32_ptr_at from "../../std/vec/u32.a"
+import SliceU32 from "../../std/slice/u32.a"
+import U32_MAX from "../../std/primitive/u32.a"
+import Str, Str_from, Str_print from "../../std/string.a"
+
+print_char :: (c u8) unit
+print_u32  :: (n u32) unit
+print      :: (s &u8) unit
+
+
+TyKind :: struct {
+    unknown       : u8,
+    infer         : u8,
+    untyped_int   : u8,
+    untyped_float : u8,
+    int           : u8,
+    uint          : u8,
+    float         : u8,
+    bool          : u8,
+    ptr           : u8,
+    type_         : u8,
+    unit          : u8,
+    func          : u8,
+    never         : u8,
+    struct_       : u8,
+    array         : u8,
+    error         : u8
+}
+
+ty_kind :: () TyKind {
+    .{
+        unknown       : 0,
+        infer         : 1,
+        untyped_int   : 2,
+        untyped_float : 3,
+        int           : 4,
+        uint          : 5,
+        float         : 6,
+        bool          : 7,
+        ptr           : 8,
+        type_         : 9,
+        unit          : 10,
+        func          : 11,
+        never         : 12,
+        struct_       : 13,
+        array         : 14,
+        error         : 15
+    }
+}
+
+ty_kind_name :: (k u8) Str {
+    t := ty_kind()
+    if k == t.unknown       { ret Str_from("Unknown")      }
+    if k == t.infer         { ret Str_from("Infer")        }
+    if k == t.untyped_int   { ret Str_from("UtInt")        }
+    if k == t.untyped_float { ret Str_from("UtFloat")      }
+    if k == t.int           { ret Str_from("Int")          }
+    if k == t.uint          { ret Str_from("UInt")         }
+    if k == t.float         { ret Str_from("Float")        }
+    if k == t.bool          { ret Str_from("Bool")         }
+    if k == t.ptr           { ret Str_from("Ptr")          }
+    if k == t.type_         { ret Str_from("Type")         }
+    if k == t.unit          { ret Str_from("Unit")         }
+    if k == t.func          { ret Str_from("Func")         }
+    if k == t.never         { ret Str_from("Never")        }
+    if k == t.struct_       { ret Str_from("Struct")       }
+    if k == t.array         { ret Str_from("Array")        }
+    if k == t.error         { ret Str_from("Error")        }
+    Str_from("Unknown")
+}
+
+
+ty_id_none          :: () u32 { U32_MAX() }
+ty_id_unknown       :: () u32 { 0 }
+ty_id_untyped_int   :: () u32 { 1 }
+ty_id_untyped_float :: () u32 { 2 }
+ty_id_bool          :: () u32 { 3 }
+ty_id_type          :: () u32 { 4 }
+ty_id_unit          :: () u32 { 5 }
+ty_id_never         :: () u32 { 6 }
+ty_id_error         :: () u32 { 7 }
+ty_builtin_count    :: () u32 { 8 }
+
+
+TyStore :: struct {
+    kinds   : VecU8,
+    payload : VecU32,
+    extra   : VecU32
+}
+
+TyStore_new :: () TyStore {
+    .{
+        kinds   : VecU8_new(),
+        payload : VecU32_new(),
+        extra   : VecU32_new()
+    }
+}
+
+TyStore_destroy :: (s &TyStore) {
+    VecU8_destroy(&(*s).kinds)
+    VecU32_destroy(&(*s).payload)
+    VecU32_destroy(&(*s).extra)
+}
+
+TyStore_len :: (s &TyStore) u32 {
+    (*s).kinds.len as u32
+}
+
+TyStore_push :: (s &TyStore, kind u8, payload u32) u32 {
+    idx := (*s).kinds.len as u32
+    VecU8_push(&(*s).kinds, kind)
+    VecU32_push(&(*s).payload, payload)
+    idx
+}
+
+
+hash_combine :: (seed u32, val u32) u32 {
+    (seed ^ val) * 16777619
+}
+
+type_eq_simple :: (store &TyStore, id u32, kind u8, payload u32) bool {
+    if VecU8_get(&(*store).kinds, id as u64) != kind { ret false }
+    VecU32_get(&(*store).payload, id as u64) == payload
+}
+
+type_eq_array :: (store &TyStore, id u32, kind u8, ty u32, len u32) bool {
+    if VecU8_get(&(*store).kinds, id as u64) != kind { ret false }
+    extra_idx := VecU32_get(&(*store).payload, id as u64) as u64
+    ex_ty  := VecU32_get(&(*store).extra, extra_idx)
+    ex_len := VecU32_get(&(*store).extra, extra_idx + 1)
+    (ex_ty == ty) and (ex_len == len)
+}
+
+type_eq_func :: (store &TyStore, id u32, kind u8, params SliceU32, ret_ty u32, packed u32) bool {
+    if VecU8_get(&(*store).kinds, id as u64) != kind { ret false }
+    extra_idx := VecU32_get(&(*store).payload, id as u64) as u64
+    ex_packed := VecU32_get(&(*store).extra, extra_idx)
+    ex_ret    := VecU32_get(&(*store).extra, extra_idx + 1)
+    if (ex_packed != packed) or (ex_ret != ret_ty) { ret false }
+
+    i: u64 = 0
+    while i < params.len {
+        param_in_extra := VecU32_get(&(*store).extra, extra_idx + 2 + i)
+        if param_in_extra != *(params.ptr + i) { ret false }
+        i = i + 1
+    }
+    true
+}
+
+type_eq_struct :: (store &TyStore, id u32, kind u8, fields SliceU32, fields_count u32) bool {
+    if VecU8_get(&(*store).kinds, id as u64) != kind { ret false }
+    extra_idx := VecU32_get(&(*store).payload, id as u64) as u64
+    ex_len := VecU32_get(&(*store).extra, extra_idx)
+    if ex_len != fields_count { ret false }
+
+    i: u64 = 0
+    total_items := (fields_count * 2) as u64
+    while i < total_items {
+        item_in_extra := VecU32_get(&(*store).extra, extra_idx + 1 + i)
+        if item_in_extra != *(fields.ptr + i) { ret false }
+        i = i + 1
+    }
+    true
+}
+
+
+
+TypeStorage :: struct {
+    store     : TyStore,
+    table     : VecU32,
+    table_cap : u32,
+    table_len : u32
+}
+
+TypeStorage_new :: () TypeStorage {
+    store := TyStore_new()
+
+    k := ty_kind()
+    TyStore_push(&store, k.unknown, 0)       -- 0: Unknown
+    TyStore_push(&store, k.untyped_int, 0)   -- 1: UntypedInt
+    TyStore_push(&store, k.untyped_float, 0) -- 2: UntypedFloat
+    TyStore_push(&store, k.bool, 0)          -- 3: Bool
+    TyStore_push(&store, k.type_, 0)         -- 4: Type
+    TyStore_push(&store, k.unit, 0)          -- 5: Unit
+    TyStore_push(&store, k.never, 0)         -- 6: Never
+    TyStore_push(&store, k.error, 0)         -- 7: Error
+
+    init_cap: u32 = 64
+    tbl := VecU32_with_cap(init_cap as u64)
+    i: u32 = 0
+    while i < init_cap {
+        VecU32_push(&tbl, ty_id_none())
+        i = i + 1
+    }
+
+    .{
+        store     : store,
+        table     : tbl,
+        table_cap : init_cap,
+        table_len : 0
+    }
+}
+
+TypeStorage_destroy :: (self &TypeStorage) {
+    TyStore_destroy(&(*self).store)
+    VecU32_destroy(&(*self).table)
+}
+
+TypeStorage_len :: (self &TypeStorage) u32 {
+    TyStore_len(&(*self).store)
+}
+
+TypeStorage_kind :: (self &TypeStorage, id u32) u8 {
+    if id == ty_id_none() { ret ty_kind().unknown }
+    VecU8_get(&(*self).store.kinds, id as u64)
+}
+
+TypeStorage_payload :: (self &TypeStorage, id u32) u32 {
+    VecU32_get(&(*self).store.payload, id as u64)
+}
+
+TypeStorage_hash_of :: (self &TypeStorage, id u32) u32 {
+    k := ty_kind()
+    kind := TypeStorage_kind(self, id)
+    payload := TypeStorage_payload(self, id)
+
+    if kind == k.array {
+        extra_idx := payload as u64
+        ty  := VecU32_get(&(*self).store.extra, extra_idx)
+        len := VecU32_get(&(*self).store.extra, extra_idx + 1)
+        h := hash_combine(2166136261, kind as u32)
+        h = hash_combine(h, ty)
+        ret hash_combine(h, len)
+    }
+
+    if kind == k.func {
+        extra_idx := payload as u64
+        packed := VecU32_get(&(*self).store.extra, extra_idx)
+        ret_ty := VecU32_get(&(*self).store.extra, extra_idx + 1)
+        params_len := packed >> 16
+
+        h := hash_combine(2166136261, kind as u32)
+        h = hash_combine(h, ret_ty)
+        h = hash_combine(h, packed)
+
+        i: u64 = 0
+        while (i < (params_len as u64)) or false {
+            param := VecU32_get(&(*self).store.extra, extra_idx + 2 + i)
+            h = hash_combine(h, param)
+            i = i + 1
+        }
+        ret h
+    }
+
+    if kind == k.struct_ {
+        extra_idx := payload as u64
+        fields_count := VecU32_get(&(*self).store.extra, extra_idx)
+        total_items := (fields_count * 2) as u64
+
+        h := hash_combine(2166136261, kind as u32)
+        h = hash_combine(h, fields_count)
+
+        i: u64 = 0
+        while i < total_items {
+            item := VecU32_get(&(*self).store.extra, extra_idx + 1 + i)
+            h = hash_combine(h, item)
+            i = i + 1
+        }
+        ret h
+    }
+
+    h := hash_combine(2166136261, kind as u32)
+    hash_combine(h, payload)
+}
+
+TypeStorage_grow_table :: (self &TypeStorage) {
+    old_cap := (*self).table_cap
+    new_cap := old_cap * 2
+    new_tbl := VecU32_with_cap(new_cap as u64)
+
+    i: u32 = 0
+    while i < new_cap {
+        VecU32_push(&new_tbl, ty_id_none())
+        i = i + 1
+    }
+
+    mask := new_cap - 1
+    total_types := TyStore_len(&(*self).store)
+    id: u32 = ty_builtin_count()
+
+    while id < total_types {
+        h := TypeStorage_hash_of(self, id)
+        idx := h & mask
+
+        while VecU32_get(&new_tbl, idx as u64) != ty_id_none() {
+            idx = (idx + 1) & mask
+        }
+
+        VecU32_set(&new_tbl, idx as u64, id)
+        id = id + 1
+    }
+
+    VecU32_destroy(&(*self).table)
+    (*self).table = new_tbl
+    (*self).table_cap = new_cap
+}
+
+
+
+TypeStorage_alloc_unknown       :: () u32 { ty_id_unknown()       }
+TypeStorage_alloc_untyped_int   :: () u32 { ty_id_untyped_int()   }
+TypeStorage_alloc_untyped_float :: () u32 { ty_id_untyped_float() }
+TypeStorage_alloc_bool          :: () u32 { ty_id_bool()          }
+TypeStorage_alloc_type          :: () u32 { ty_id_type()          }
+TypeStorage_alloc_unit          :: () u32 { ty_id_unit()          }
+TypeStorage_alloc_never         :: () u32 { ty_id_never()         }
+TypeStorage_alloc_error         :: () u32 { ty_id_error()         }
+
+TypeStorage_get_or_insert_simple :: (self &TypeStorage, kind u8, payload u32) u32 {
+    if ((*self).table_len + 1) * 10 >= (*self).table_cap * 7 {
+        TypeStorage_grow_table(self)
+    }
+
+    h := hash_combine(2166136261, kind as u32)
+    h = hash_combine(h, payload)
+
+    mask := (*self).table_cap - 1
+    idx := h & mask
+
+    while true {
+        existing := VecU32_get(&(*self).table, idx as u64)
+        if existing == ty_id_none() {
+            new_id := TyStore_push(&(*self).store, kind, payload)
+            VecU32_set(&(*self).table, idx as u64, new_id)
+            (*self).table_len = (*self).table_len + 1
+            ret new_id
+        }
+
+        if type_eq_simple(&(*self).store, existing, kind, payload) {
+            ret existing
+        }
+
+        idx = (idx + 1) & mask
+    }
+
+    ty_id_error()
+}
+
+TypeStorage_alloc_infer :: (self &TypeStorage, slot u32) u32 {
+    TypeStorage_get_or_insert_simple(self, ty_kind().infer, slot)
+}
+
+TypeStorage_alloc_int :: (self &TypeStorage, width u16) u32 {
+   TypeStorage_get_or_insert_simple(self, ty_kind().int, width as u32)
+}
+
+TypeStorage_alloc_uint :: (self &TypeStorage, width u16) u32 {
+    TypeStorage_get_or_insert_simple(self, ty_kind().uint, width as u32)
+}
+
+TypeStorage_alloc_float :: (self &TypeStorage, width u16) u32 {
+    TypeStorage_get_or_insert_simple(self, ty_kind().float, width as u32)
+}
+
+TypeStorage_alloc_ptr :: (self &TypeStorage, inner u32) u32 {
+    TypeStorage_get_or_insert_simple(self, ty_kind().ptr, inner)
+}
+
+TypeStorage_alloc_array :: (self &TypeStorage, ty u32, len u32) u32 {
+    k := ty_kind()
+    if ((*self).table_len + 1) * 10 >= (*self).table_cap * 7 {
+        TypeStorage_grow_table(self)
+    }
+
+    h := hash_combine(2166136261, k.array as u32)
+    h = hash_combine(h, ty)
+    h = hash_combine(h, len)
+
+    mask := (*self).table_cap - 1
+    idx := h & mask
+
+    while true {
+        existing := VecU32_get(&(*self).table, idx as u64)
+        if existing == ty_id_none() {
+            extra_idx := (*self).store.extra.len as u32
+            VecU32_push(&(*self).store.extra, ty)
+            VecU32_push(&(*self).store.extra, len)
+
+            new_id := TyStore_push(&(*self).store, k.array, extra_idx)
+            VecU32_set(&(*self).table, idx as u64, new_id)
+            (*self).table_len = (*self).table_len + 1
+            ret new_id
+        }
+
+        if type_eq_array(&(*self).store, existing, k.array, ty, len) {
+            ret existing
+        }
+
+        idx = (idx + 1) & mask
+    }
+
+    ty_id_error()
+}
+
+TypeStorage_alloc_func :: (self &TypeStorage, params SliceU32, ret_ty u32, is_extern bool) u32 {
+    k := ty_kind()
+    if ((*self).table_len + 1) * 10 >= (*self).table_cap * 7 {
+        TypeStorage_grow_table(self)
+    }
+
+    params_len := params.len as u32
+    ext_val: u32 = 0
+    if is_extern { ext_val = 1 }
+    packed := (params_len << 16) | ext_val
+
+    h := hash_combine(2166136261, k.func as u32)
+    h = hash_combine(h, ret_ty)
+    h = hash_combine(h, packed)
+
+    i: u64 = 0
+    while i < params.len {
+        h = hash_combine(h, *(params.ptr + i))
+        i = i + 1
+    }
+
+    mask := (*self).table_cap - 1
+    idx := h & mask
+
+    while true {
+        existing := VecU32_get(&(*self).table, idx as u64)
+        if existing == ty_id_none() {
+            extra_idx := (*self).store.extra.len as u32
+            VecU32_push(&(*self).store.extra, packed)
+            VecU32_push(&(*self).store.extra, ret_ty)
+
+            p_i: u64 = 0
+            while p_i < params.len {
+                VecU32_push(&(*self).store.extra, *(params.ptr + p_i))
+                p_i = p_i + 1
+            }
+
+            new_id := TyStore_push(&(*self).store, k.func, extra_idx)
+            VecU32_set(&(*self).table, idx as u64, new_id)
+            (*self).table_len = (*self).table_len + 1
+            ret new_id
+        }
+
+        if type_eq_func(&(*self).store, existing, k.func, params, ret_ty, packed) {
+            ret existing
+        }
+
+        idx = (idx + 1) & mask
+    }
+
+    ty_id_error()
+}
+
+TypeStorage_alloc_struct :: (self &TypeStorage, fields SliceU32) u32 {
+    k := ty_kind()
+    if ((*self).table_len + 1) * 10 >= (*self).table_cap * 7 {
+        TypeStorage_grow_table(self)
+    }
+
+    fields_count := (fields.len / 2) as u32
+
+    h := hash_combine(2166136261, k.struct_ as u32)
+    h = hash_combine(h, fields_count)
+
+    i: u64 = 0
+    while i < fields.len {
+        h = hash_combine(h, *(fields.ptr + i))
+        i = i + 1
+    }
+
+    mask := (*self).table_cap - 1
+    idx := h & mask
+
+    while true {
+        existing := VecU32_get(&(*self).table, idx as u64)
+        if existing == ty_id_none() {
+            extra_idx := (*self).store.extra.len as u32
+            VecU32_push(&(*self).store.extra, fields_count)
+
+            f_i: u64 = 0
+            while f_i < fields.len {
+                VecU32_push(&(*self).store.extra, *(fields.ptr + f_i))
+                f_i = f_i + 1
+            }
+
+            new_id := TyStore_push(&(*self).store, k.struct_, extra_idx)
+            VecU32_set(&(*self).table, idx as u64, new_id)
+            (*self).table_len = (*self).table_len + 1
+            ret new_id
+        }
+
+        if type_eq_struct(&(*self).store, existing, k.struct_, fields, fields_count) {
+            ret existing
+        }
+
+        idx = (idx + 1) & mask
+    }
+
+    ty_id_error()
+}
+
+
+TypeStorage_infer_slot :: (self &TypeStorage, id u32) u32 {
+    TypeStorage_payload(self, id)
+}
+
+TypeStorage_get_array_type :: (self &TypeStorage, id u32) u32 {
+    extra_idx := TypeStorage_payload(self, id) as u64
+    VecU32_get(&(*self).store.extra, extra_idx)
+}
+
+TypeStorage_get_array_len :: (self &TypeStorage, id u32) u32 {
+    extra_idx := TypeStorage_payload(self, id) as u64
+    VecU32_get(&(*self).store.extra, extra_idx + 1)
+}
+
+TypeStorage_func_return :: (self &TypeStorage, func u32) u32 {
+    extra_idx := TypeStorage_payload(self, func) as u64
+    VecU32_get(&(*self).store.extra, extra_idx + 1)
+}
+
+TypeStorage_func_params_len :: (self &TypeStorage, func u32) u32 {
+    extra_idx := TypeStorage_payload(self, func) as u64
+    packed := VecU32_get(&(*self).store.extra, extra_idx)
+    packed >> 16
+}
+
+TypeStorage_func_is_extern :: (self &TypeStorage, func u32) bool {
+    extra_idx := TypeStorage_payload(self, func) as u64
+    packed := VecU32_get(&(*self).store.extra, extra_idx)
+    (packed & 65535) != 0
+}
+
+TypeStorage_func_params :: (self &TypeStorage, func u32) SliceU32 {
+    extra_idx := TypeStorage_payload(self, func) as u64
+    count := TypeStorage_func_params_len(self, func)
+    start_ptr := VecU32_ptr_at(&(*self).store.extra, extra_idx + 2)
+    .{
+        ptr: start_ptr,
+        len: count as u64
+    }
+}
+
+TypeStorage_get_struct_fields_len :: (self &TypeStorage, id u32) u32 {
+    extra_idx := TypeStorage_payload(self, id) as u64
+    VecU32_get(&(*self).store.extra, extra_idx)
+}
+
+TypeStorage_get_struct_fields :: (self &TypeStorage, id u32) SliceU32 {
+    extra_idx := TypeStorage_payload(self, id) as u64
+    fields_count := VecU32_get(&(*self).store.extra, extra_idx)
+    start_ptr := VecU32_ptr_at(&(*self).store.extra, extra_idx + 1)
+    .{
+        ptr: start_ptr,
+        len: (fields_count * 2) as u64
+    }
+}
+
+
+
+TypeStorage_print_type :: (self &TypeStorage, id u32) {
+    if id == ty_id_none() {
+        print("None")
+        ret
+    }
+
+    k := ty_kind()
+    kind := TypeStorage_kind(self, id)
+    payload := TypeStorage_payload(self, id)
+
+    if kind == k.unknown       { print("Unknown")   ret }
+    if kind == k.infer         { print("Infer(") print_u32(payload) print(")") ret }
+    if kind == k.untyped_int   { print("UtInt")     ret }
+    if kind == k.untyped_float { print("UtFloat")   ret }
+    if kind == k.int           { print("i") print_u32(payload) ret }
+    if kind == k.uint          { print("u") print_u32(payload) ret }
+    if kind == k.float         { print("f") print_u32(payload) ret }
+    if kind == k.bool          { print("bool")      ret }
+    if kind == k.type_         { print("Type")      ret }
+    if kind == k.unit          { print("unit")      ret }
+    if kind == k.never         { print("!")         ret }
+    if kind == k.error         { print("Err!")      ret }
+
+    if kind == k.ptr {
+        print("&")
+        TypeStorage_print_type(self, payload)
+        ret
+    }
+
+    if kind == k.array {
+        print("[")
+        TypeStorage_print_type(self, TypeStorage_get_array_type(self, id))
+        print("; ")
+        print_u32(TypeStorage_get_array_len(self, id))
+        print("]")
+        ret
+    }
+
+    if kind == k.func {
+        print("fn(")
+        params := TypeStorage_func_params(self, id)
+        i: u64 = 0
+        while i < params.len {
+            TypeStorage_print_type(self, *(params.ptr + i))
+            if i + 1 < params.len { print(", ") }
+            i = i + 1
+        }
+        print(") ")
+        TypeStorage_print_type(self, TypeStorage_func_return(self, id))
+        ret
+    }
+
+    if kind == k.struct_ {
+        print("struct { count: ")
+        print_u32(TypeStorage_get_struct_fields_len(self, id))
+        print(" }")
+        ret
+    }
+
+    Str_print(ty_kind_name(kind))
+}
