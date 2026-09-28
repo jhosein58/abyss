@@ -349,6 +349,7 @@ UnifyStorage_resolve_type_deep :: (self &UnifyStorage, types &TypeStorage, slot 
                 VecU32_push(&(*self).scratch, name)
                 VecU32_push(&(*self).scratch, resolved)
                 changed = true
+                _
             } else {
                 VecU32_push(&(*self).scratch, name)
                 VecU32_push(&(*self).scratch, field_ty)
@@ -362,6 +363,7 @@ UnifyStorage_resolve_type_deep :: (self &UnifyStorage, types &TypeStorage, slot 
                 ptr: VecU32_ptr_at(&(*self).scratch, mark),
                 len: fields.len
             }
+
             res = TypeStorage_alloc_struct(types, slice)
         }
 
