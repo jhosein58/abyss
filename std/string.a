@@ -107,3 +107,27 @@ String_as_str :: (self &String) Str {
         len: (*self).buf.len
     }
 }
+
+String_push_char :: (self &String, c u8) {
+    ArenaVecU8_push(&(*self).buf, c)
+}
+
+String_push_u32 :: (self &String, val u32) {
+    if val == 0 {
+        String_push_char(self, *"0")
+        ret
+    }
+
+    v := val
+    divisor: u32 = 1
+
+    while ((v / divisor) >= 10) or false {
+        divisor = divisor * 10
+    }
+
+    while (divisor > 0) or false {
+        digit := (v / divisor) % 10
+        String_push_char(self, (digit + 48) as u8)
+        divisor = divisor / 10
+    }
+}
