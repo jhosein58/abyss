@@ -2,7 +2,8 @@ import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get  from "../../s
 import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set, VecU32_with_cap, VecU32_ptr_at from "../../std/vec/u32.a"
 import SliceU32 from "../../std/slice/u32.a"
 import U32_MAX from "../../std/primitive/u32.a"
-import Str, Str_from, Str_print from "../../std/string.a"
+import Str, Str_from, Str_print, String, String_new, String_push_str, String_push_char, String_push_u32, String_as_str from "../../std/string.a"
+import Arena from "../../std/allocator.a"
 
 print_char :: (c u8) unit
 print_u32  :: (n u32) unit
@@ -656,4 +657,120 @@ TypeStorage_print_type :: (self &TypeStorage, id u32) {
     }
 
     Str_print(ty_kind_name(kind))
+}
+
+
+
+TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
+    if id == ty_id_none() {
+        String_push_str(s, Str_from("None"))
+        ret
+    }
+
+    k := ty_kind()
+    kind := TypeStorage_kind(self, id)
+    payload := TypeStorage_payload(self, id)
+
+    if kind == k.unknown       { String_push_str(s, Str_from("Unknown")) ret }
+    if kind == k.infer         {
+        String_push_str(s, Str_from("Infer("))
+        String_push_u32(s, payload)
+        String_push_char(s, *")")
+        ret
+    }
+    if kind == k.untyped_int   { String_push_str(s, Str_from("UtInt"))   ret }
+    if kind == k.untyped_float { String_push_str(s, Str_from("UtFloat")) ret }
+
+    if kind == k.int {
+        String_push_char(s, *"i")
+        String_push_u32(s, payload)
+        ret
+    }
+
+    if kind == k.uint {
+        String_push_char(s, *"u")
+        String_push_u32(s, payload)
+        ret
+    }
+
+    if kind == k.float {
+        String_push_char(s, *"f")
+        String_push_u32(s, payload)
+        ret
+    }
+
+    if kind == k.bool  { String_push_str(s, Str_from("bool")) ret }
+    if kind == k.type_ { String_push_str(s, Str_from("Type")) ret }
+    if kind == k.unit  { String_push_str(s, Str_from("unit")) ret }
+    if kind == k.never { String_push_str(s, Str_from("!"))    ret }
+    if kind == k.error { String_push_str(s, Str_from("Err!")) ret }
+
+    if kind == k.ptr {
+        String_push_str(s, Str_from("R_"))
+        TypeStorage_name_to_buf(self, s, payload)
+        ret
+    }
+
+    if kind == k.array {
+        String_push_str(s, Str_from("A_"))
+        inner := TypeStorage_get_array_type(self, id)
+        len := TypeStorage_get_array_len(self, id)
+
+        TypeStorage_name_to_buf(self, s, inner)
+        String_push_char(s, *"_")
+        String_push_u32(s, len)
+        ret
+    }
+
+    if kind == k.struct_ {
+        String_push_str(s, Str_from("S_"))
+        fields := TypeStorage_get_struct_fields(self, id)
+        count := fields.len / 2
+
+        i: u64 = 0
+        while (i < count) or false {
+            idx := i * 2
+            name_id := *(fields.ptr + idx)
+            field_ty := *(fields.ptr + idx + 1)
+
+            String_push_u32(s, name_id)
+            String_push_char(s, *"_")
+            TypeStorage_name_to_buf(self, s, field_ty)
+
+            if (i + 1 < count) or false {
+                String_push_char(s, *"_")
+            }
+            i = i + 1
+        }
+        ret
+    }
+
+    if kind == k.func {
+        String_push_str(s, Str_from("fn("))
+        params := TypeStorage_func_params(self, id)
+
+        i: u64 = 0
+        while (i < params.len) or false {
+            param_ty := *(params.ptr + i)
+            TypeStorage_name_to_buf(self, s, param_ty)
+
+            if (i + 1 < params.len) or false {
+                String_push_str(s, Str_from(", "))
+            }
+            i = i + 1
+        }
+
+        String_push_str(s, Str_from(") "))
+        ret_ty := TypeStorage_func_return(self, id)
+        TypeStorage_name_to_buf(self, s, ret_ty)
+        ret
+    }
+
+    String_push_str(s, ty_kind_name(kind))
+}
+
+TypeStorage_name :: (self &TypeStorage, a &Arena, id u32) Str {
+    s := String_new(a)
+    TypeStorage_name_to_buf(self, &s, id)
+    String_as_str(&s)
 }
