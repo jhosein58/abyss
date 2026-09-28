@@ -456,7 +456,40 @@ TypeStorage_alloc_func :: (self &TypeStorage, params SliceU32, ret_ty u32, is_ex
     ty_id_error()
 }
 
+sort_struct_fields :: (fields SliceU32) {
+    count := fields.len / 2
+    if count <= 1 { ret }
+
+    i: u64 = 0
+    while i < count {
+        j: u64 = i + 1
+        while j < count {
+            idx_i := i * 2
+            idx_j := j * 2
+
+            name_i := *(fields.ptr + idx_i)
+            name_j := *(fields.ptr + idx_j)
+
+            if name_i > name_j {
+                ty_i := *(fields.ptr + idx_i + 1)
+                ty_j := *(fields.ptr + idx_j + 1)
+
+                *(fields.ptr + idx_i)     = name_j
+                *(fields.ptr + idx_i + 1) = ty_j
+
+                *(fields.ptr + idx_j)     = name_i
+                *(fields.ptr + idx_j + 1) = ty_i
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+}
+
 TypeStorage_alloc_struct :: (self &TypeStorage, fields SliceU32) u32 {
+
+    sort_struct_fields(fields)
+
     k := ty_kind()
     if ((*self).table_len + 1) * 10 >= (*self).table_cap * 7 {
         TypeStorage_grow_table(self)
