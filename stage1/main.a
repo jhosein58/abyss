@@ -50,13 +50,5 @@ main :: () {
     TokenStream_destroy(&tks)
 
 
-    storage := TypeStorage_new()
-
-    print_u32(TypeStorage_alloc_int(&storage, 8))
-    
-    print_u32(TypeStorage_alloc_int(&storage, 3))
-
-    print_u32(TypeStorage_alloc_int(&storage, 8))
-
 }
 
