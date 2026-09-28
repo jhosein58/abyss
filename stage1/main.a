@@ -6,11 +6,11 @@ import Str_from, Str_println from "../std/string.a"
 import Arena_new from "../std/allocator.a"
 import read_file from "../std/fs.a"
 
-import HirTable_new from "compiler/hir.a"
+import HirTable_new, HirTable_len from "compiler/hir.a"
 import Parser_new from "compiler/parser/core.a"
 import parse_expr from "compiler/parser/parser.a"
 import dump_hir from "compiler/dump.a"
-
+import type_check from "compiler/typer/tyck.a"
 import FastMapU32_new, FastMapU32_destroy, FastMapU32_insert, FastMapU32_get from "../std/fast_map/u32.a"
 import Interner_new, Interner_intern, Interner_get from "../std/interner.a"
 
@@ -20,10 +20,13 @@ import Nexus_new from "compiler/nexus/nexus.a"
 
 import TypeStorage_new, TypeStorage_alloc_int, TypeStorage_name from "compiler/types.a"
 
+import UnifyStorage_get_slot, UnifyStorage_resolve_type, slot_none from "compiler/unify.a"
+
 print_u32 :: (s u32) unit
 print_u64 :: (s u64) unit
 print_u8 :: (s u8) unit
 print_char :: (s u8) unit
+print :: (s &u8) unit
 
 main :: () {
 
@@ -45,14 +48,16 @@ main :: () {
     parser := Parser_new(&nexus, &tks, &hir_tbl, 0, tk_count as u32)
     parse_expr(&parser, 0)
 
+    -- Type Check
+    hir_len := HirTable_len(&hir_tbl)
+    type_check(&nexus, &hir_tbl,  0, hir_len as u32)
+
+
     dump_hir(&nexus, &hir_tbl, &arena)
    
     TokenStream_destroy(&tks)
 
 
-    storage := TypeStorage_new()
-
-    Str_println(TypeStorage_name(&storage, &arena, TypeStorage_alloc_int(&storage, 32)))
 
 }
 

@@ -1,0 +1,43 @@
+import Nexus from "../nexus/nexus.a"
+import HirTable, HirTable_kind, hir_kind, hir_kind_name from "../hir.a"
+import Str_println from "../../../std/string.a"
+import UnifyStorage_new_slot, UnifyStorage_bind_type from "../unify.a"
+import ty_id_untyped_int from "../types.a"
+
+import UnifyStorage_get_slot,
+       UnifyStorage_resolve_type,
+       slot_none from "../unify.a"
+
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
+  
+type_check :: (db &Nexus, tbl &HirTable, start u32, len u32) {
+
+    i := start
+    while i < len {
+        synth_node(db, tbl, i)
+        i = i + 1
+    }     
+}
+
+synth_node :: (db &Nexus, tbl &HirTable, id u32)  {
+    k := hir_kind()
+    curr := HirTable_kind(tbl, id)
+
+    if curr == k.lit_int { synth_lit_int(db, tbl, id) }
+
+}
+
+
+
+synth_lit_int :: (db &Nexus, tbl &HirTable, id u32) {
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := UnifyStorage_new_slot(unify_ptr, id)
+    ty := ty_id_untyped_int()
+
+    UnifyStorage_bind_type(unify_ptr, types_ptr, slot, ty)
+
+    _ -- <--
+}
