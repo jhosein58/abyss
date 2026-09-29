@@ -64,3 +64,27 @@ Nexus_get_list :: (self &Nexus, start u32) SliceU32 {
         len: len as u64
     }
 }
+
+Nexus_alloc_symbol :: (self &Nexus, file_id u32, name_id u32, tok_start u32, tok_end u32) u32 {
+    sym_id := PoolU32_alloc(&(*self).sym_names, name_id)
+    PoolU32_alloc(&(*self).sym_files, file_id)
+    PoolU32_alloc(&(*self).sym_tok_start, tok_start)
+    PoolU32_alloc(&(*self).sym_tok_end, tok_end)
+    PoolU32_alloc(&(*self).sym_hir_start, id_none())
+    PoolU32_alloc(&(*self).sym_hir_end, id_none())
+    sym_id
+}
+
+Nexus_find_symbol :: (self &Nexus, file_id u32, name_id u32) u32 {
+    count := PoolU32_count(&(*self).sym_names)
+    i: u32 = 0
+    while i < count {
+        f := PoolU32_get(&(*self).sym_files, i)
+        n := PoolU32_get(&(*self).sym_names, i)
+        if (f == file_id) and (n == name_id) {
+            ret i
+        }
+        i = i + 1
+    }
+    id_none()
+}
