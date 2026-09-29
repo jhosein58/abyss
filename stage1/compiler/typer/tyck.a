@@ -39,5 +39,5 @@ synth_lit_int :: (db &Nexus, tbl &HirTable, id u32) {
 
     UnifyStorage_bind_type(unify_ptr, types_ptr, slot, ty)
 
-    _ -- <--
+    _ -- <-- traling expression bug
 }

@@ -87,11 +87,11 @@ pub fn lower_function(
     let body_value = lower_expr(db, func_body, ccg, &mut compile_queue, &mut type_queue);
 
     if db.types.kind(ret_ty_id) == TyKind::Unit {
+        ccg.expr(body_value);
         ccg.gen_return(None);
     } else if let Some(val) = body_value {
         ccg.gen_return(Some(val));
     }
-
     ccg.end_function();
 
     for s in compile_queue {
