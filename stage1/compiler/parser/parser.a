@@ -7,8 +7,10 @@ import is_soft, bp_from_infix, prec from "prec.a"
 
 import VecU32_mark, VecU32_reset, VecU32_push, VecU32_new, VecU32_as_slice, VecU32_ptr_at, VecU32_len from "../../../std/vec/u32.a"
 import SliceU32 from "../../../std/slice/u32.a"
+import Interner_intern from "../../../std/interner.a"
 
 import Nexus_add_list, Nexus_get_list from "../nexus/nexus.a"
+
 
 print :: (s &u8) unit
 print_u32 :: (v u32) unit
@@ -44,9 +46,8 @@ dispatch_prefix :: (p &Parser) u32 {
     tk := peek(p)
 
     if tk == t.lit_int { ret parse_lit_int(p) }
-
-    if tk == t.o_paren { ret parse_grouping(p) }
-
+    if tk == t.ident   { ret parse_ident(p) }
+    if tk == t.o_paren { ret parse_paren(p) }
     if tk == t.o_brace { ret parse_block(p) }
 
     if tk == t.minus or tk == t.kw_not or tk == t.tilde {
@@ -77,9 +78,27 @@ parse_lit_int :: (p &Parser) u32 {
     HirTable_push((*p).hir, k.lit_int, val, hir_none(), hir_none())
 }
 
-parse_grouping :: (p &Parser) u32 {
+parse_ident :: (p &Parser) u32 {
+    k := hir_kind()
+    name := curr_text(p)
+    name_id := Interner_intern(&(*(*p).db).interner, name)
+    bump(p)
+    HirTable_push((*p).hir, k.ident, name_id, hir_none(), hir_none())
+}
+
+parse_paren :: (p &Parser) u32 {
     t := token()
+    k := hir_kind()
     bump(p) -- '('
+
+    if optional(p, t.c_paren) {
+        if peek(p) == t.o_brace {
+            body := parse_block(p)
+            ret HirTable_push((*p).hir, k.function, hir_none(), hir_none(), body)
+        }
+        ret hir_none()
+    }
+
     expr := parse_expr(p, 0 as u8)
     expect(p, t.c_paren)
     expr

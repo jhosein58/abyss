@@ -1,5 +1,6 @@
 import VecU32, VecU32_new, VecU32_extend, VecU32_len, VecU32_push, VecU32_get, VecU32_ptr_at from "../../../std/vec/u32.a"
 import SliceU32, SliceU32_new from "../../../std/slice/u32.a"
+import Interner, Interner_new from "../../../std/interner.a"
 
 import TypeStorage, TypeStorage_new from "../types.a"
 import UnifyStorage, UnifyStorage_new from "../unify.a"
@@ -7,6 +8,7 @@ import UnifyStorage, UnifyStorage_new from "../unify.a"
 Nexus :: struct {
     glob_stack : VecU32,
     u32_items  : VecU32,
+    interner   : Interner,
     types      : TypeStorage,
     unify      : UnifyStorage,
     
@@ -17,6 +19,7 @@ Nexus_new :: () Nexus {
     .{
         glob_stack : VecU32_new(),
         u32_items  : VecU32_new(),
+        interner   : Interner_new(),
         types      : TypeStorage_new(),
         unify      : UnifyStorage_new(),
     }
