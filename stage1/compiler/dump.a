@@ -2,6 +2,7 @@ import HirTable, HirTable_len, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTab
 import Str, Str_from, Str_print, Str_println from "../../std/string.a"
 import Nexus, Nexus_get_list from "nexus/nexus.a"
 import Arena from "../../std/allocator.a"
+import Interner_get from "../../std/interner.a"
 
 import TypeStorage, TypeStorage_name, ty_id_none from "types.a"
 import UnifyStorage, UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
@@ -103,6 +104,13 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
             len := u32_digits(lhs) + 5
             if 22 > len {
                 print_spaces(22 - len)
+            }
+        } else if kind == k.ident {
+            if lhs == hir_none() {
+                print_str_padded(Str_from("None"), 22)
+            } else {
+                name := Interner_get(&(*db).interner, lhs)
+                print_str_padded(name, 22)
             }
         } else if kind == k.block {
             Str_print(Str_from("["))
