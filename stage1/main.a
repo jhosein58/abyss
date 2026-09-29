@@ -22,6 +22,9 @@ import TypeStorage_new, TypeStorage_alloc_int, TypeStorage_name from "compiler/t
 
 import UnifyStorage_get_slot, UnifyStorage_resolve_type, slot_none from "compiler/unify.a"
 
+
+import Engine_new, Engine_add_file, Engine_get_symbol_id, Engine_parse, Engine_type_check from "compiler/engine.a"
+
 print_u32 :: (s u32) unit
 print_u64 :: (s u64) unit
 print_u8 :: (s u8) unit
@@ -29,35 +32,19 @@ print_char :: (s u8) unit
 print :: (s &u8) unit
 
 main :: () {
-
     arena := Arena_new(1024)
-  
     source := read_file(&arena, "tmp/main.a")
 
+    eng := Engine_new()
 
-    -- init Database
-    nexus := Nexus_new()
+    fid := Engine_add_file(&eng, Str_from("tmp/main.a"), source)
 
-    -- Lex
-    tks := TokenStream_new()
-    lex(&tks, source)
-    tk_count := TokenStream_count(&tks)
+    sym_id := Engine_get_symbol_id(&eng, fid, Str_from("main"))
 
-    -- Parse
-    hir_tbl := HirTable_new()
-    parser := Parser_new(&nexus, &tks, &hir_tbl, 0, tk_count as u32)
-    parse_expr(&parser, 0)
+    Engine_parse(&eng, sym_id)
+    Engine_type_check(&eng, sym_id)
 
-    -- Type Check
-    hir_len := HirTable_len(&hir_tbl)
-    type_check(&nexus, &hir_tbl,  0, hir_len as u32)
-
-
-    dump_hir(&nexus, &hir_tbl, &arena)
-   
-    TokenStream_destroy(&tks)
-
-
+    dump_hir(&eng.nexus, &eng.nexus.hir, &arena)
 
 }
 
