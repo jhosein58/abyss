@@ -83,7 +83,7 @@ impl Parser<'_> {
             return id;
         }
 
-        if self.is_function_header() {
+        if self.is_function_header() && self.allow_fn {
             let mark = self.env.mark();
             let mut args = Vec::new();
             let mut pending_names = Vec::new();

@@ -27,7 +27,7 @@ fn main() -> color_eyre::Result<()> {
 
     eng.compile(sym_id);
     //println!("{:?}", t.elapsed());
-    
+
     let c_code = eng.ccg.finish();
 
     let mut f_hanlde = File::create("tmp/main.c").unwrap();
