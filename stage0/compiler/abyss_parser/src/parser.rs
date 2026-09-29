@@ -15,6 +15,7 @@ pub struct Parser<'db> {
     pub file_id: FileId,
     pub env: ScopeEnv,
     pub toplv_sym: SymbolId,
+    pub allow_fn: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -29,6 +30,7 @@ impl<'a> Parser<'a> {
             file_id,
             env: ScopeEnv::new(),
             toplv_sym: SymbolId::none(),
+            allow_fn: true,
         }
     }
 
