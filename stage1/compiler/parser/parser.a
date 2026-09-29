@@ -61,6 +61,10 @@ dispatch_prefix :: (p &Parser) u32 {
 dispatch_infix :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
     t := token()
 
+    if op == t.colon_colon { ret parse_binding(p, lhs, right_bp) }
+    if op == t.colon       { ret parse_var_decl(p, lhs, right_bp) }
+    if op == t.eq          { ret parse_assign(p, lhs, right_bp) }
+
     if op == t.plus or op == t.minus or op == t.star or op == t.slash or op == t.percent {
         ret parse_binary(p, op, lhs, right_bp)
     }
@@ -176,4 +180,28 @@ parse_binary :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
     if op == t.percent { op_kind = k.binary_mod }
 
     HirTable_push((*p).hir, op_kind, lhs, rhs, hir_none())
+}
+
+parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
+    k := hir_kind()
+    rhs := parse_expr(p, right_bp)
+    HirTable_push((*p).hir, k.binding, lhs, hir_none(), rhs)
+}
+
+parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
+    t := token()
+    k := hir_kind()
+
+    if optional(p, t.eq) {
+        val := parse_expr(p, 0 as u8)
+        ret HirTable_push((*p).hir, k.var, lhs, hir_none(), val)
+    }
+
+    HirTable_push((*p).hir, k.error, hir_none(), hir_none(), hir_none())
+}
+
+parse_assign :: (p &Parser, lhs u32, right_bp u8) u32 {
+    k := hir_kind()
+    rhs := parse_expr(p, right_bp)
+    HirTable_push((*p).hir, k.binary_assign, lhs, rhs, hir_none())
 }
