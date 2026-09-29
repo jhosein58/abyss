@@ -1,0 +1,68 @@
+import Nexus, Nexus_new, Nexus_find_symbol from "nexus/nexus.a"
+import TokenStream_count from "token.a"
+import lex from "lexer.a"
+import index_file from "indexer.a"
+import Parser_new from "parser/core.a"
+import parse_expr from "parser/parser.a"
+import type_check from "typer/tyck.a"
+import HirTable_len from "hir.a"
+import PoolU32_get, PoolU32_set from "nexus/pool.a"
+import Interner_intern from "../../std/interner.a"
+import Str from "../../std/string.a"
+
+Engine :: struct {
+    nexus      : Nexus,
+    file_count : u32
+}
+
+Engine_new :: () Engine {
+    .{
+        nexus      : Nexus_new(),
+        file_count : 0
+    }
+}
+
+Engine_add_file :: (self &Engine, path Str, source Str) u32 {
+    file_id := (*self).file_count
+    (*self).file_count = file_id + 1
+    tok_start := TokenStream_count(&((*self).nexus).tokens)
+    lex(&((*self).nexus).tokens, source)
+    tok_end := TokenStream_count(&((*self).nexus).tokens)
+    index_file(&(*self).nexus, file_id, tok_start as u32, tok_end as u32)
+    file_id
+}
+
+Engine_get_symbol_id :: (self &Engine, file_id u32, sym_name Str) u32 {
+    name_id := Interner_intern(&((*self).nexus).interner, sym_name)
+    Nexus_find_symbol(&(*self).nexus, file_id, name_id)
+}
+
+Engine_parse :: (self &Engine, sym_id u32) {
+    tok_start := PoolU32_get(&(*self).nexus.sym_tok_start, sym_id)
+    tok_end   := PoolU32_get(&(*self).nexus.sym_tok_end, sym_id)
+    count     := tok_end - tok_start
+
+    hir_start := HirTable_len(&(*self).nexus.hir)
+
+    parser := Parser_new(
+        &(*self).nexus,
+        &(*self).nexus.tokens,
+        &(*self).nexus.hir,
+        tok_start,
+        count
+    )
+
+    parse_expr(&parser, 0)
+
+    hir_end := HirTable_len(&(*self).nexus.hir)
+
+    PoolU32_set(&(*self).nexus.sym_hir_start, sym_id, hir_start)
+    PoolU32_set(&(*self).nexus.sym_hir_end, sym_id, hir_end)
+}
+
+Engine_type_check :: (self &Engine, sym_id u32) {
+    hir_start := PoolU32_get(&(*self).nexus.sym_hir_start, sym_id)
+    hir_end   := PoolU32_get(&(*self).nexus.sym_hir_end, sym_id)
+
+    type_check(&(*self).nexus, &(*self).nexus.hir, hir_start, hir_end)
+}
