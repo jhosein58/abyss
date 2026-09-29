@@ -29,11 +29,17 @@ pub fn synth_if(db: &mut Nexus, id: HirId) {
     let thenb_id = db.hir.rhs(id);
     let thenb_slot = db.unify.get_slot(thenb_id);
 
-    db.unify
+    if db
+        .unify
         .union(&mut db.types, elseb_slot, thenb_slot)
-        .unwrap();
-
-    db.unify.union(&mut db.types, thenb_slot, slot).unwrap();
+        .is_ok()
+    {
+        db.unify.union(&mut db.types, thenb_slot, slot).unwrap();
+    } else {
+        db.unify
+            .bind_type(&mut db.types, slot, TypeId::UNIT)
+            .unwrap();
+    }
 }
 
 #[inline(always)]
