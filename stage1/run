@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -e 
+
+CURRENT_DIR="$(pwd)"
+
+cd ../stage0
+cargo build --release
+
+cd "$CURRENT_DIR"
+
+cp ../stage0/target/release/abyss abyssc
+chmod +x abyssc
+
+./abyssc "$@"
