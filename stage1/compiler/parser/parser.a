@@ -21,12 +21,12 @@ parse_expr :: (p &Parser, min_bp u8) u32 {
     while not is_eof(p) {
         tk := peek(p)
 
-        if (peek_preceded_by_newline(p) and (not is_soft(tk))) or false {
+        if peek_preceded_by_newline(p) and (not is_soft(tk)) {
             break
         }
 
         bp := bp_from_infix(tk)
-        if ((not bp.is_some) or (bp.left < min_bp)) or false {
+        if (not bp.is_some) or (bp.left < min_bp) {
             break
         }
 
