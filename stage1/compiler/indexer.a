@@ -1,0 +1,47 @@
+import token, TokenStream_kind, TokenStream_text from "token.a"
+import Nexus, Nexus_alloc_symbol from "nexus/nexus.a"
+import Interner_intern from "../../std/interner.a"
+
+index_file :: (db &Nexus, file_id u32, start_tok u32, end_tok u32) {
+    t := token()
+    cursor := start_tok
+    depth: u32 = 0
+
+    has_sym := false
+    curr_sym_name: u32 = 0
+    curr_sym_tok:  u32 = 0
+
+    while cursor < end_tok {
+        tk := TokenStream_kind(&(*db).tokens, cursor)
+
+        if (tk == t.o_brace) or (tk == t.o_paren) {
+            depth = depth + 1
+        } else if (tk == t.c_brace) or (tk == t.c_paren) {
+            if depth > 0 {
+                depth = depth - 1
+            }
+        } else if (depth == 0) and (tk == t.ident) {
+            if (cursor + 1) < end_tok {
+                next_tk := TokenStream_kind(&(*db).tokens, cursor + 1)
+                if next_tk == t.colon_colon {
+                    if has_sym {
+                        Nexus_alloc_symbol(db, file_id, curr_sym_name, curr_sym_tok, cursor)
+                    }
+
+                    text := TokenStream_text(&(*db).tokens, cursor)
+                    curr_sym_name = Interner_intern(&(*db).interner, text)
+                    curr_sym_tok  = cursor
+                    has_sym = true
+
+                    cursor = cursor + 1
+                }
+            }
+        }
+
+        cursor = cursor + 1
+    }
+
+    if has_sym {
+        Nexus_alloc_symbol(db, file_id, curr_sym_name, curr_sym_tok, end_tok)
+    }
+}
