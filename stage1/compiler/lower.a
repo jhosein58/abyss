@@ -1,0 +1,93 @@
+import Nexus, Nexus_get_list from "nexus/nexus.a"
+import HirTable, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind from "hir.a"
+import PoolU32_get from "nexus/pool.a"
+import CCodeGen, CCodeGen_start_function, CCodeGen_end_function, CCodeGen_expr, CCodeGen_gen_return from "codegen.a"
+import Str, Str_from, Str_empty, String, String_new, String_push_str, String_push_u32, String_as_str from "../../std/string.a"
+import Arena from "../../std/allocator.a"
+
+lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32) Str {
+    k := hir_kind()
+    kind := HirTable_kind(&(*db).hir, id)
+
+    if kind == k.lit_int {
+        val := HirTable_lhs(&(*db).hir, id)
+        s := String_new(arena)
+        String_push_u32(&s, val)
+        ret String_as_str(&s)
+    }
+
+    if kind == k.binary_add {
+        lhs_id := HirTable_lhs(&(*db).hir, id)
+        rhs_id := HirTable_rhs(&(*db).hir, id)
+
+        lhs_val := lower_expr(db, ccg, arena, lhs_id)
+        rhs_val := lower_expr(db, ccg, arena, rhs_id)
+
+        s := String_new(arena)
+        String_push_str(&s, Str_from("("))
+        String_push_str(&s, lhs_val)
+        String_push_str(&s, Str_from(" + "))
+        String_push_str(&s, rhs_val)
+        String_push_str(&s, Str_from(")"))
+        ret String_as_str(&s)
+    }
+
+    if kind == k.block {
+        list_id := HirTable_lhs(&(*db).hir, id)
+        items := Nexus_get_list(db, list_id)
+        count := items.len
+        last_val := Str_empty()
+
+        i: u64 = 0
+        while i < count {
+            node_id := *(items.ptr + i)
+            is_last := (i + 1) == count
+            val := lower_expr(db, ccg, arena, node_id)
+
+            if not is_last {
+                CCodeGen_expr(ccg, val)
+            } else {
+                last_val = val
+            }
+            i = i + 1
+        }
+
+        ret last_val
+    }
+
+    Str_empty()
+}
+
+lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32) {
+    hir_end := PoolU32_get(&(*db).sym_hir_end, sym_id)
+    if hir_end == 0 { ret }
+
+    binding_id := hir_end - 1
+    k := hir_kind()
+
+    if HirTable_kind(&(*db).hir, binding_id) != k.binding {
+        ret
+    }
+
+    func_id := HirTable_extra(&(*db).hir, binding_id)
+    if HirTable_kind(&(*db).hir, func_id) != k.function {
+        ret
+    }
+
+    fn_name_s := String_new(arena)
+    String_push_str(&fn_name_s, Str_from("sym_"))
+    String_push_u32(&fn_name_s, sym_id)
+    fn_name := String_as_str(&fn_name_s)
+
+    CCodeGen_start_function(ccg, fn_name, Str_from("void"))
+
+    body_id := HirTable_extra(&(*db).hir, func_id)
+    body_val := lower_expr(db, ccg, arena, body_id)
+
+    if body_val.len > 0 {
+        CCodeGen_expr(ccg, body_val)
+    }
+
+    CCodeGen_gen_return(ccg, Str_empty(), false)
+    CCodeGen_end_function(ccg)
+}
