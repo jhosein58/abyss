@@ -53,12 +53,12 @@ main :: () {
     Engine_compile(&eng, &arena, sym_id)
 
     c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, "prelude.c"))
-    --write_file("tmp/stg1_out.c", c_code)
-    Str_println(c_code)
+    write_file("tmp/stg1_out.c", c_code)
+    --Str_println(c_code)
 
-    --compile_and_run("tmp/stg1_out.c")
+    compile_and_run("tmp/stg1_out.c")
 
-    dump_hir(&eng.nexus, &eng.nexus.hir, &arena)
+    --dump_hir(&eng.nexus, &eng.nexus.hir, &arena)
 
 }
 
