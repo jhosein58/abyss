@@ -78,16 +78,24 @@ CCodeGen_abyss_main :: (self &CCodeGen, sym_id u32) {
     (*self).has_main = true
 }
 
-CCodeGen_start_function :: (self &CCodeGen, fn_name Str, ret_type Str) {
+CCodeGen_declare_function :: (self &CCodeGen, fn_name Str, ret_type Str, params Str) {
     vec_push_str(&(*self).func_decls, ret_type)
     vec_push_char(&(*self).func_decls, 32 as u8)
     vec_push_str(&(*self).func_decls, fn_name)
-    vec_push_str(&(*self).func_decls, Str_from("(void);\n"))
+    vec_push_char(&(*self).func_decls, 40 as u8) -- '('
+    vec_push_str(&(*self).func_decls, params)
+    vec_push_str(&(*self).func_decls, Str_from(");\n"))
+}
+
+CCodeGen_start_function :: (self &CCodeGen, fn_name Str, ret_type Str, params Str) {
+    CCodeGen_declare_function(self, fn_name, ret_type, params)
 
     vec_push_str(&(*self).code, ret_type)
     vec_push_char(&(*self).code, 32 as u8)
     vec_push_str(&(*self).code, fn_name)
-    vec_push_str(&(*self).code, Str_from("(void) {\n"))
+    vec_push_char(&(*self).code, 40 as u8) -- '('
+    vec_push_str(&(*self).code, params)
+    vec_push_str(&(*self).code, Str_from(") {\n"))
     (*self).indent = (*self).indent + 1
 }
 
@@ -96,6 +104,18 @@ CCodeGen_end_function :: (self &CCodeGen) {
         (*self).indent = (*self).indent - 1
     }
     vec_push_str(&(*self).code, Str_from("}\n\n"))
+}
+
+CCodeGen_create_variable :: (self &CCodeGen, name Str, ty Str, init_val Str, has_init bool) {
+    CCodeGen_indent(self)
+    vec_push_str(&(*self).code, ty)
+    vec_push_char(&(*self).code, 32 as u8)
+    vec_push_str(&(*self).code, name)
+    if has_init {
+        vec_push_str(&(*self).code, Str_from(" = "))
+        vec_push_str(&(*self).code, init_val)
+    }
+    vec_push_str(&(*self).code, Str_from(";\n"))
 }
 
 CCodeGen_expr :: (self &CCodeGen, expr Str) {
@@ -133,6 +153,5 @@ CCodeGen_finish :: (self &CCodeGen) Str {
     }
 
     vec_push_char(&out, 0 as u8)
-
     vec_as_str(&out)
 }

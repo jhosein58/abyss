@@ -1,11 +1,93 @@
-import Nexus, Nexus_get_list from "nexus/nexus.a"
-import HirTable, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind from "hir.a"
-import PoolU32_get from "nexus/pool.a"
-import CCodeGen, CCodeGen_start_function, CCodeGen_end_function, CCodeGen_expr, CCodeGen_gen_return from "codegen.a"
+import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir from "nexus/nexus.a"
+import HirTable, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind, hir_none, HirExprKind from "hir.a"
+import PoolU32_get, id_none from "nexus/pool.a"
+import CCodeGen, CCodeGen_declare_function, CCodeGen_start_function, CCodeGen_end_function,
+       CCodeGen_create_variable, CCodeGen_expr, CCodeGen_gen_return from "codegen.a"
 import Str, Str_from, Str_empty, String, String_new, String_push_str, String_push_u32, String_as_str from "../../std/string.a"
 import Arena from "../../std/allocator.a"
+import VecU32, VecU32_push, VecU32_get from "../../std/vec/u32.a"
 
-lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32) Str {
+import TypeStorage, ty_kind, ty_id_none, TypeStorage_kind, TypeStorage_payload,
+       TypeStorage_func_return, TypeStorage_func_params, TypeStorage_func_is_extern from "types.a"
+import UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
+import Interner_get from "../../std/interner.a"
+
+c_type_str :: (types &TypeStorage, ty_id u32) Str {
+    if ty_id == ty_id_none() { ret Str_from("void") }
+    k := ty_kind()
+    kind := TypeStorage_kind(types, ty_id)
+    payload := TypeStorage_payload(types, ty_id)
+
+    if kind == k.unit { ret Str_from("void") }
+    if kind == k.bool { ret Str_from("bool") }
+
+    if kind == k.int {
+        if payload == 8   { ret Str_from("int8_t") }
+        if payload == 16  { ret Str_from("int16_t") }
+        if payload == 32  { ret Str_from("int32_t") }
+        if payload == 64  { ret Str_from("int64_t") }
+        if payload == 128 { ret Str_from("__int128") }
+        ret Str_from("int32_t")
+    }
+
+    if kind == k.uint {
+        if payload == 8   { ret Str_from("uint8_t") }
+        if payload == 16  { ret Str_from("uint16_t") }
+        if payload == 32  { ret Str_from("uint32_t") }
+        if payload == 64  { ret Str_from("uint64_t") }
+        if payload == 128 { ret Str_from("unsigned __int128") }
+        ret Str_from("uint32_t")
+    }
+
+    if kind == k.float {
+        if payload == 32 { ret Str_from("float") }
+        if payload == 64 { ret Str_from("double") }
+        ret Str_from("double")
+    }
+
+    if kind == k.untyped_int   { ret Str_from("int32_t") }
+    if kind == k.untyped_float { ret Str_from("double") }
+
+    Str_from("void")
+}
+
+get_node_type :: (db &Nexus, id u32) u32 {
+    if id == hir_none() { ret ty_id_none() }
+    slot := UnifyStorage_get_slot(&(*db).unify, id)
+    if slot == slot_none() { ret ty_id_none() }
+    UnifyStorage_resolve_type_deep(&(*db).unify, &(*db).types, slot)
+}
+
+vec_contains :: (v &VecU32, val u32) bool {
+    i: u64 = 0
+    while i < (*v).len {
+        if VecU32_get(v, i) == val { ret true }
+        i = i + 1
+    }
+    false
+}
+
+binary_op_symbol :: (k HirExprKind, kind u8) Str {
+    if kind == k.binary_add     { ret Str_from(" + ") }
+    if kind == k.binary_sub     { ret Str_from(" - ") }
+    if kind == k.binary_mul     { ret Str_from(" * ") }
+    if kind == k.binary_div     { ret Str_from(" / ") }
+    if kind == k.binary_mod     { ret Str_from(" % ") }
+    if kind == k.binary_eq_eq   { ret Str_from(" == ") }
+    if kind == k.binary_neq     { ret Str_from(" != ") }
+    if kind == k.binary_lt      { ret Str_from(" < ") }
+    if kind == k.binary_gt      { ret Str_from(" > ") }
+    if kind == k.binary_lt_eq   { ret Str_from(" <= ") }
+    if kind == k.binary_gt_eq   { ret Str_from(" >= ") }
+    if kind == k.binary_bit_and { ret Str_from(" & ") }
+    if kind == k.binary_bit_or  { ret Str_from(" | ") }
+    if kind == k.binary_bit_xor { ret Str_from(" ^ ") }
+    if kind == k.binary_shl     { ret Str_from(" << ") }
+    if kind == k.binary_shr     { ret Str_from(" >> ") }
+    Str_from(" ")
+}
+
+lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32) Str {
     k := hir_kind()
     kind := HirTable_kind(&(*db).hir, id)
 
@@ -16,18 +98,127 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32) Str {
         ret String_as_str(&s)
     }
 
-    if kind == k.binary_add {
+    if kind == k.ident {
+        ty := get_node_type(db, id)
+        sym_id := Nexus_get_hir_symbol(db, id)
+
+        if TypeStorage_kind(&(*db).types, ty) == ty_kind().func {
+            if sym_id != id_none() {
+                lower_function(db, ccg, arena, sym_id, visited)
+            }
+
+            if TypeStorage_func_is_extern(&(*db).types, ty) {
+                name_id := HirTable_lhs(&(*db).hir, id)
+                ret Interner_get(&(*db).interner, name_id)
+            }
+
+            s := String_new(arena)
+            String_push_str(&s, Str_from("sym_"))
+            String_push_u32(&s, sym_id)
+            ret String_as_str(&s)
+        }
+
+        if sym_id != id_none() {
+            s := String_new(arena)
+            String_push_str(&s, Str_from("sym_"))
+            String_push_u32(&s, sym_id)
+            ret String_as_str(&s)
+        }
+
+        name_id := HirTable_lhs(&(*db).hir, id)
+        ret Interner_get(&(*db).interner, name_id)
+    }
+
+    if kind == k.var {
+        ident_id := HirTable_lhs(&(*db).hir, id)
+        val_id   := HirTable_extra(&(*db).hir, id)
+
+        sym_id := Nexus_get_hir_symbol(db, ident_id)
+        var_ty := get_node_type(db, ident_id)
+        ty_str := c_type_str(&(*db).types, var_ty)
+
+        var_name_s := String_new(arena)
+        String_push_str(&var_name_s, Str_from("sym_"))
+        String_push_u32(&var_name_s, sym_id)
+        var_name := String_as_str(&var_name_s)
+
+        if val_id != hir_none() {
+            val_str := lower_expr(db, ccg, arena, val_id, visited)
+            CCodeGen_create_variable(ccg, var_name, ty_str, val_str, true)
+        } else {
+            CCodeGen_create_variable(ccg, var_name, ty_str, Str_empty(), false)
+        }
+
+        ret var_name
+    }
+
+    if kind == k.binary_assign {
         lhs_id := HirTable_lhs(&(*db).hir, id)
         rhs_id := HirTable_rhs(&(*db).hir, id)
 
-        lhs_val := lower_expr(db, ccg, arena, lhs_id)
-        rhs_val := lower_expr(db, ccg, arena, rhs_id)
+        lhs_str := lower_expr(db, ccg, arena, lhs_id, visited)
+        rhs_str := lower_expr(db, ccg, arena, rhs_id, visited)
+
+        s := String_new(arena)
+        String_push_str(&s, lhs_str)
+        String_push_str(&s, Str_from(" = "))
+        String_push_str(&s, rhs_str)
+        ret String_as_str(&s)
+    }
+
+    if (kind == k.binary_add) or (kind == k.binary_sub) or (kind == k.binary_mul) or
+       (kind == k.binary_div) or (kind == k.binary_mod) or (kind == k.binary_eq_eq) or
+       (kind == k.binary_neq) or (kind == k.binary_lt) or (kind == k.binary_gt) or
+       (kind == k.binary_lt_eq) or (kind == k.binary_gt_eq) or (kind == k.binary_bit_and) or
+       (kind == k.binary_bit_or) or (kind == k.binary_bit_xor) or (kind == k.binary_shl) or
+       (kind == k.binary_shr) {
+
+        lhs_id := HirTable_lhs(&(*db).hir, id)
+        rhs_id := HirTable_rhs(&(*db).hir, id)
+
+        lhs_val := lower_expr(db, ccg, arena, lhs_id, visited)
+        rhs_val := lower_expr(db, ccg, arena, rhs_id, visited)
+        op_str  := binary_op_symbol(k, kind)
 
         s := String_new(arena)
         String_push_str(&s, Str_from("("))
         String_push_str(&s, lhs_val)
-        String_push_str(&s, Str_from(" + "))
+        String_push_str(&s, op_str)
         String_push_str(&s, rhs_val)
+        String_push_str(&s, Str_from(")"))
+        ret String_as_str(&s)
+    }
+
+    if kind == k.call {
+        callee_id := HirTable_lhs(&(*db).hir, id)
+        args_list := HirTable_rhs(&(*db).hir, id)
+
+        callee_sym := Nexus_get_hir_symbol(db, callee_id)
+        if callee_sym != id_none() {
+            lower_function(db, ccg, arena, callee_sym, visited)
+        }
+
+        callee_str := lower_expr(db, ccg, arena, callee_id, visited)
+
+        s := String_new(arena)
+        String_push_str(&s, callee_str)
+        String_push_str(&s, Str_from("("))
+
+        if args_list != hir_none() {
+            args := Nexus_get_list(db, args_list)
+            i: u64 = 0
+            while i < args.len {
+                arg_node := *(args.ptr + i)
+                arg_val := lower_expr(db, ccg, arena, arg_node, visited)
+                String_push_str(&s, arg_val)
+
+                if (i + 1) < args.len {
+                    String_push_str(&s, Str_from(", "))
+                }
+                i = i + 1
+            }
+        }
+
         String_push_str(&s, Str_from(")"))
         ret String_as_str(&s)
     }
@@ -42,7 +233,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32) Str {
         while i < count {
             node_id := *(items.ptr + i)
             is_last := (i + 1) == count
-            val := lower_expr(db, ccg, arena, node_id)
+            val := lower_expr(db, ccg, arena, node_id, visited)
 
             if not is_last {
                 CCodeGen_expr(ccg, val)
@@ -52,13 +243,26 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32) Str {
             i = i + 1
         }
 
+        block_ty := get_node_type(db, id)
+        if TypeStorage_kind(&(*db).types, block_ty) == ty_kind().unit {
+            if last_val.len > 0 {
+                CCodeGen_expr(ccg, last_val)
+            }
+            ret Str_empty()
+        }
+
         ret last_val
     }
 
     Str_empty()
 }
 
-lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32) {
+lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &VecU32) {
+    if vec_contains(visited, sym_id) {
+        ret
+    }
+    VecU32_push(visited, sym_id)
+
     hir_end := PoolU32_get(&(*db).sym_hir_end, sym_id)
     if hir_end == 0 { ret }
 
@@ -74,20 +278,77 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32) {
         ret
     }
 
-    fn_name_s := String_new(arena)
-    String_push_str(&fn_name_s, Str_from("sym_"))
-    String_push_u32(&fn_name_s, sym_id)
-    fn_name := String_as_str(&fn_name_s)
+    func_ty := get_node_type(db, func_id)
+    ret_ty  := TypeStorage_func_return(&(*db).types, func_ty)
+    ret_str := c_type_str(&(*db).types, ret_ty)
 
-    CCodeGen_start_function(ccg, fn_name, Str_from("void"))
+    body_id   := HirTable_extra(&(*db).hir, func_id)
+    is_extern := (body_id == hir_none()) or TypeStorage_func_is_extern(&(*db).types, func_ty)
 
-    body_id := HirTable_extra(&(*db).hir, func_id)
-    body_val := lower_expr(db, ccg, arena, body_id)
-
-    if body_val.len > 0 {
-        CCodeGen_expr(ccg, body_val)
+    fn_name := Str_empty()
+    if is_extern {
+        name_hir := HirTable_lhs(&(*db).hir, binding_id)
+        name_id  := HirTable_lhs(&(*db).hir, name_hir)
+        fn_name   = Interner_get(&(*db).interner, name_id)
+    } else {
+        fn_name_s := String_new(arena)
+        String_push_str(&fn_name_s, Str_from("sym_"))
+        String_push_u32(&fn_name_s, sym_id)
+        fn_name = String_as_str(&fn_name_s)
     }
 
-    CCodeGen_gen_return(ccg, Str_empty(), false)
+    params_slice := TypeStorage_func_params(&(*db).types, func_ty)
+    params_str   := Str_from("void")
+
+    if params_slice.len > 0 {
+        p_buf := String_new(arena)
+        i: u64 = 0
+        while i < params_slice.len {
+            p_ty     := *(params_slice.ptr + i)
+            p_ty_str := c_type_str(&(*db).types, p_ty)
+            String_push_str(&p_buf, p_ty_str)
+            String_push_str(&p_buf, Str_from(" "))
+
+            if is_extern {
+                String_push_str(&p_buf, Str_from("_a"))
+                String_push_u32(&p_buf, i as u32)
+            } else {
+                args_list_id := HirTable_lhs(&(*db).hir, func_id)
+                if args_list_id != hir_none() {
+                    args := Nexus_get_list(db, args_list_id)
+                    arg_node := *(args.ptr + i)
+                    arg_ident := HirTable_lhs(&(*db).hir, arg_node)
+                    arg_sym := Nexus_get_hir_symbol(db, arg_ident)
+
+                    String_push_str(&p_buf, Str_from("sym_"))
+                    String_push_u32(&p_buf, arg_sym)
+                }
+            }
+
+            if (i + 1) < params_slice.len {
+                String_push_str(&p_buf, Str_from(", "))
+            }
+            i = i + 1
+        }
+        params_str = String_as_str(&p_buf)
+    }
+
+    if is_extern {
+        CCodeGen_declare_function(ccg, fn_name, ret_str, params_str)
+        ret
+    }
+
+    CCodeGen_start_function(ccg, fn_name, ret_str, params_str)
+    body_val := lower_expr(db, ccg, arena, body_id, visited)
+
+    if TypeStorage_kind(&(*db).types, ret_ty) == ty_kind().unit {
+        if body_val.len > 0 {
+            CCodeGen_expr(ccg, body_val)
+        }
+        CCodeGen_gen_return(ccg, Str_empty(), false)
+    } else {
+        CCodeGen_gen_return(ccg, body_val, true)
+    }
+
     CCodeGen_end_function(ccg)
 }
