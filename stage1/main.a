@@ -47,12 +47,12 @@ main :: () {
     Engine_parse(&eng, sym_id)
     Engine_type_check(&eng, sym_id)
 
-    Engine_abyss_main(&eng, sym_id)
-    Engine_compile(&eng, &arena, sym_id)
+    -- Engine_abyss_main(&eng, sym_id)
+    -- Engine_compile(&eng, &arena, sym_id)
 
-    c_code := CCodeGen_finish(&eng.ccg)
-    print("\n--- Generated C Code ---\n")
-    Str_println(c_code)
+    -- c_code := CCodeGen_finish(&eng.ccg)
+    -- print("\n--- Generated C Code ---\n")
+    -- Str_println(c_code)
 
     dump_hir(&eng.nexus, &eng.nexus.hir, &arena)
 

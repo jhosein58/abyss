@@ -1,4 +1,5 @@
-import Nexus, Nexus_new, Nexus_find_symbol from "nexus/nexus.a"
+import Nexus, Nexus_new, Nexus_find_symbol, Nexus_get_sym_hir,
+       Nexus_is_sym_resolving, Nexus_set_sym_resolving from "nexus/nexus.a"
 import TokenStream_count from "token.a"
 import lex from "lexer.a"
 import index_file from "indexer.a"
@@ -7,13 +8,17 @@ import parse_expr from "parser/parser.a"
 import ScopeEnv_destroy from "parser/env.a"
 import type_check from "typer/tyck.a"
 import HirTable_len from "hir.a"
-import PoolU32_get, PoolU32_set from "nexus/pool.a"
+import PoolU32_get, PoolU32_set, id_none from "nexus/pool.a"
+import UnifyStorage_get_slot, UnifyStorage_resolve_type, slot_none from "unify.a"
+import ty_id_none from "types.a"
 import Interner_intern from "../../std/interner.a"
 import Str from "../../std/string.a"
 import Arena from "../../std/allocator.a"
 
 import CCodeGen, CCodeGen_new, CCodeGen_destroy, CCodeGen_abyss_main, CCodeGen_finish from "codegen.a"
 import lower_function from "lower.a"
+
+print :: (s &u8) unit
 
 Engine :: struct {
     nexus      : Nexus,
@@ -79,7 +84,51 @@ Engine_type_check :: (self &Engine, sym_id u32) {
     hir_start := PoolU32_get(&(*self).nexus.sym_hir_start, sym_id)
     hir_end   := PoolU32_get(&(*self).nexus.sym_hir_end, sym_id)
 
-    type_check(&(*self).nexus, &(*self).nexus.hir, hir_start, hir_end)
+    type_check(self, hir_start, hir_end)
+}
+
+Engine_ensure_resolved :: (self &Engine, sym_id u32) {
+    db := &(*self).nexus
+
+    if Nexus_is_sym_resolving(db, sym_id) {
+        print("Error: Cycle detected during symbol resolution!\n")
+        ret
+    }
+
+    hir_start := PoolU32_get(&(*db).sym_hir_start, sym_id)
+    if hir_start == id_none() {
+        Nexus_set_sym_resolving(db, sym_id, true)
+        Engine_parse(self, sym_id)
+    }
+
+    decl_hir := Nexus_get_sym_hir(db, sym_id)
+    needs_tyck := true
+    if decl_hir != id_none() {
+        s := UnifyStorage_get_slot(&(*db).unify, decl_hir)
+        if s != slot_none() {
+            needs_tyck = false
+        }
+    }
+
+    if needs_tyck {
+        Nexus_set_sym_resolving(db, sym_id, true)
+        Engine_type_check(self, sym_id)
+    }
+
+    Nexus_set_sym_resolving(db, sym_id, false)
+}
+
+Engine_slot_of :: (self &Engine, sym_id u32) u32 {
+    Engine_ensure_resolved(self, sym_id)
+    decl_hir := Nexus_get_sym_hir(&(*self).nexus, sym_id)
+    if decl_hir == id_none() { ret slot_none() }
+    UnifyStorage_get_slot(&(*self).nexus.unify, decl_hir)
+}
+
+Engine_type_of :: (self &Engine, sym_id u32) u32 {
+    slot := Engine_slot_of(self, sym_id)
+    if slot == slot_none() { ret ty_id_none() }
+    UnifyStorage_resolve_type(&(*self).nexus.unify, slot)
 }
 
 Engine_abyss_main :: (self &Engine, sym_id u32) {
