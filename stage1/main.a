@@ -25,6 +25,9 @@ import UnifyStorage_get_slot, UnifyStorage_resolve_type, slot_none from "compile
 
 import Engine_new, Engine_add_file, Engine_get_symbol_id, Engine_parse, Engine_type_check from "compiler/engine.a"
 
+import CCodeGen_finish from "compiler/codegen.a"
+import Engine_new, Engine_add_file, Engine_get_symbol_id, Engine_parse, Engine_type_check, Engine_abyss_main, Engine_compile from "compiler/engine.a"
+
 print_u32 :: (s u32) unit
 print_u64 :: (s u64) unit
 print_u8 :: (s u8) unit
@@ -43,6 +46,13 @@ main :: () {
 
     Engine_parse(&eng, sym_id)
     Engine_type_check(&eng, sym_id)
+
+    Engine_abyss_main(&eng, sym_id)
+    Engine_compile(&eng, &arena, sym_id)
+
+    c_code := CCodeGen_finish(&eng.ccg)
+    print("\n--- Generated C Code ---\n")
+    Str_println(c_code)
 
     dump_hir(&eng.nexus, &eng.nexus.hir, &arena)
 

@@ -9,17 +9,27 @@ import HirTable_len from "hir.a"
 import PoolU32_get, PoolU32_set from "nexus/pool.a"
 import Interner_intern from "../../std/interner.a"
 import Str from "../../std/string.a"
+import Arena from "../../std/allocator.a"
+
+import CCodeGen, CCodeGen_new, CCodeGen_destroy, CCodeGen_abyss_main, CCodeGen_finish from "codegen.a"
+import lower_function from "lower.a"
 
 Engine :: struct {
     nexus      : Nexus,
-    file_count : u32
+    file_count : u32,
+    ccg        : CCodeGen
 }
 
 Engine_new :: () Engine {
     .{
         nexus      : Nexus_new(),
-        file_count : 0
+        file_count : 0,
+        ccg        : CCodeGen_new()
     }
+}
+
+Engine_destroy :: (self &Engine) {
+    CCodeGen_destroy(&(*self).ccg)
 }
 
 Engine_add_file :: (self &Engine, path Str, source Str) u32 {
@@ -65,4 +75,12 @@ Engine_type_check :: (self &Engine, sym_id u32) {
     hir_end   := PoolU32_get(&(*self).nexus.sym_hir_end, sym_id)
 
     type_check(&(*self).nexus, &(*self).nexus.hir, hir_start, hir_end)
+}
+
+Engine_abyss_main :: (self &Engine, sym_id u32) {
+    CCodeGen_abyss_main(&((*self).ccg), sym_id)
+}
+
+Engine_compile :: (self &Engine, arena &Arena, sym_id u32) {
+    lower_function(&((*self).nexus), &((*self).ccg), arena, sym_id)
 }
