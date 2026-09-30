@@ -66,6 +66,7 @@ dispatch_prefix :: (p &Parser) u32 {
     if tk == t.kw_while   { ret parse_while(p) }
     if tk == t.kw_break   { ret parse_break(p) }
     if tk == t.kw_cont    { ret parse_cont(p) }
+    if tk == t.kw_ret     { ret parse_return(p) }
 
     if (tk == t.minus) or (tk == t.kw_not) or (tk == t.tilde) or (tk == t.amp) or (tk == t.star) {
         ret parse_unary(p, tk)
@@ -121,6 +122,7 @@ parse_while :: (p &Parser) u32 {
 
     HirTable_push((*p).hir, k.k_while, cond, body, hir_none())
 }
+
 
 --- Function Parsing Helpers ---------------------------------------------------------------------
 
@@ -360,6 +362,19 @@ parse_unary :: (p &Parser, op u8) u32 {
     if op == t.star   { op_kind = k.unary_deref }
 
     HirTable_push((*p).hir, op_kind, body, hir_none(), hir_none())
+}
+
+parse_return :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    bump(p) 
+
+    val := hir_none()
+    if (not peek_preceded_by_newline(p)) and (peek(p) != t.c_brace) and (peek(p) != t.eof) {
+        val = parse_expr(p, 0 as u8)
+    }
+
+    HirTable_push((*p).hir, k.k_ret, val, hir_none(), hir_none())
 }
 
 --- Infix Handlers -------------------------------------------------------------------------------
