@@ -4,6 +4,7 @@ import lex from "lexer.a"
 import index_file from "indexer.a"
 import Parser_new from "parser/core.a"
 import parse_expr from "parser/parser.a"
+import ScopeEnv_destroy from "parser/env.a"
 import type_check from "typer/tyck.a"
 import HirTable_len from "hir.a"
 import PoolU32_get, PoolU32_set from "nexus/pool.a"
@@ -48,6 +49,7 @@ Engine_get_symbol_id :: (self &Engine, file_id u32, sym_name Str) u32 {
 }
 
 Engine_parse :: (self &Engine, sym_id u32) {
+    file_id   := PoolU32_get(&(*self).nexus.sym_files, sym_id)
     tok_start := PoolU32_get(&(*self).nexus.sym_tok_start, sym_id)
     tok_end   := PoolU32_get(&(*self).nexus.sym_tok_end, sym_id)
     count     := tok_end - tok_start
@@ -58,11 +60,14 @@ Engine_parse :: (self &Engine, sym_id u32) {
         &(*self).nexus,
         &(*self).nexus.tokens,
         &(*self).nexus.hir,
+        file_id,
+        sym_id,
         tok_start,
         count
     )
 
     parse_expr(&parser, 0)
+    ScopeEnv_destroy(&parser.env)
 
     hir_end := HirTable_len(&(*self).nexus.hir)
 

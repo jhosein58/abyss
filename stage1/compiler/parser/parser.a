@@ -1,16 +1,18 @@
 import token from "../token.a"
-import hir_kind, HirTable, HirTable_push, hir_none from "../hir.a"
+import hir_kind, HirTable, HirTable_push, HirTable_lhs, HirTable_rhs, hir_none from "../hir.a"
 
 import Parser, Parser_new, is_eof, peek, bump, expect, optional,
-       peek_preceded_by_newline, curr_text, prev_text, str_to_u32 from "core.a"
+       peek_preceded_by_newline, curr_text, prev_text, str_to_u32, lookup_sym from "core.a"
+import ScopeEnv_mark, ScopeEnv_reset, ScopeEnv_define from "env.a"
 import is_soft, bp_from_infix, prec from "prec.a"
 
 import VecU32_mark, VecU32_reset, VecU32_push, VecU32_new, VecU32_as_slice, VecU32_ptr_at, VecU32_len from "../../../std/vec/u32.a"
 import SliceU32 from "../../../std/slice/u32.a"
 import Interner_intern from "../../../std/interner.a"
 
-import Nexus_add_list, Nexus_get_list from "../nexus/nexus.a"
-
+import Nexus_add_list, Nexus_get_list, Nexus_alloc_local_symbol,
+       Nexus_set_sym_hir, Nexus_get_sym_hir, Nexus_set_hir_symbol from "../nexus/nexus.a"
+import id_none from "../nexus/pool.a"
 
 print :: (s &u8) unit
 print_u32 :: (v u32) unit
@@ -72,7 +74,6 @@ dispatch_infix :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
     HirTable_push((*p).hir, hir_kind().error, hir_none(), hir_none(), hir_none())
 }
 
-
 --- Prefix Handlers ------------------------------------------------------------------------------
 
 parse_lit_int :: (p &Parser) u32 {
@@ -87,7 +88,15 @@ parse_ident :: (p &Parser) u32 {
     name := curr_text(p)
     name_id := Interner_intern(&(*(*p).db).interner, name)
     bump(p)
-    HirTable_push((*p).hir, k.ident, name_id, hir_none(), hir_none())
+
+    ident_hir := HirTable_push((*p).hir, k.ident, name_id, hir_none(), hir_none())
+
+    sym_id := lookup_sym(p, name_id)
+    if sym_id != id_none() {
+        Nexus_set_hir_symbol((*p).db, ident_hir, sym_id)
+    }
+
+    ident_hir
 }
 
 parse_paren :: (p &Parser) u32 {
@@ -112,11 +121,11 @@ parse_block :: (p &Parser) u32 {
     k := hir_kind()
     t := token()
 
-    db := &(*(*p).db);
+    db := &(*(*p).db)
     glob_stack := &(*db).glob_stack
 
     mark := VecU32_mark(glob_stack)
-
+    env_mark := ScopeEnv_mark(&(*p).env) 
 
     bump(p) -- {
 
@@ -133,7 +142,6 @@ parse_block :: (p &Parser) u32 {
         }
 
         VecU32_push(glob_stack, parse_expr(p, 0))
-
     }
 
     slice: SliceU32 = .{
@@ -144,7 +152,7 @@ parse_block :: (p &Parser) u32 {
     list_id := Nexus_add_list(db, slice)
 
     VecU32_reset(glob_stack, mark)
-
+    ScopeEnv_reset(&(*p).env, env_mark) 
 
     HirTable_push((*p).hir, k.block, list_id, hir_none(), hir_none())
 }
@@ -184,8 +192,26 @@ parse_binary :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
 
 parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind()
+
+    name_id := HirTable_lhs((*p).hir, lhs)
+    sym_id := lookup_sym(p, name_id)
+
+    if sym_id != id_none() {
+        curr_hir := Nexus_get_sym_hir((*p).db, sym_id)
+        if curr_hir == id_none() {
+            Nexus_set_sym_hir((*p).db, sym_id, lhs)
+        }
+        Nexus_set_hir_symbol((*p).db, lhs, sym_id)
+    }
+
     rhs := parse_expr(p, right_bp)
-    HirTable_push((*p).hir, k.binding, lhs, hir_none(), rhs)
+    binding_id := HirTable_push((*p).hir, k.binding, lhs, hir_none(), rhs)
+
+    if sym_id != id_none() {
+        Nexus_set_hir_symbol((*p).db, binding_id, sym_id)
+    }
+
+    binding_id
 }
 
 parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
@@ -193,8 +219,17 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind()
 
     if optional(p, t.eq) {
+        name_id := HirTable_lhs((*p).hir, lhs)
+
+        sym_id := Nexus_alloc_local_symbol((*p).db, (*p).file_id, name_id, lhs)
+
+        ScopeEnv_define(&(*p).env, name_id, sym_id)
+
         val := parse_expr(p, 0 as u8)
-        ret HirTable_push((*p).hir, k.var, lhs, hir_none(), val)
+        var_id := HirTable_push((*p).hir, k.var, lhs, hir_none(), val)
+
+        Nexus_set_hir_symbol((*p).db, var_id, sym_id)
+        ret var_id
     }
 
     HirTable_push((*p).hir, k.error, hir_none(), hir_none(), hir_none())

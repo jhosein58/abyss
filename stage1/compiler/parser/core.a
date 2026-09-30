@@ -1,7 +1,7 @@
 import token, TokenType, TokenStream, TokenStream_kind, TokenStream_text, TokenStream_newline_before from "../token.a"
 import HirTable from "../hir.a"
 import Str, Str_empty from "../../../std/string.a"
-import Nexus from "../nexus/nexus.a"
+import Nexus, Nexus_find_symbol from "../nexus/nexus.a"
 import ScopeEnv, ScopeEnv_new, ScopeEnv_destroy, ScopeEnv_lookup from "env.a"
 import id_none from "../nexus/pool.a"
 
@@ -11,6 +11,7 @@ Parser :: struct {
     hir       : &HirTable,
     cursor    : u32,
     end       : u32,
+    file_id   : u32,
     toplv_sym : u32,
     env       : ScopeEnv,
 }
