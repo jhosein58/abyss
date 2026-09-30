@@ -481,12 +481,8 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
             CCodeGen_expr(ccg, body_val)
         }
         CCodeGen_gen_return(ccg, Str_empty(), false)
-    } else {
-        if body_val.len > 0 {
-            CCodeGen_gen_return(ccg, body_val, true)
-        } else {
-            CCodeGen_gen_return(ccg, Str_empty(), false)
-        }
+    } else if body_val.len > 0 {
+        CCodeGen_gen_return(ccg, body_val, true)
     }
 
     CCodeGen_end_function(ccg)
