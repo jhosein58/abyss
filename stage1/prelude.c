@@ -108,3 +108,7 @@ uint64_t file_read(uint8_t *handle, uint8_t *ptr, uint64_t size, uint64_t count)
 int32_t file_close(uint8_t *handle) {
     return fclose((FILE*)handle);
 }
+
+uint64_t file_write(uint8_t *handle, const uint8_t *ptr, uint64_t size, uint64_t count) {
+    return fwrite(ptr, size, count, (FILE*)handle);
+}
