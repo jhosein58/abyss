@@ -112,3 +112,52 @@ int32_t file_close(uint8_t *handle) {
 uint64_t file_write(uint8_t *handle, const uint8_t *ptr, uint64_t size, uint64_t count) {
     return fwrite(ptr, size, count, (FILE*)handle);
 }
+
+// ------> Process
+
+
+int32_t compile_and_run(const uint8_t *path) {
+    if (!path) return -1;
+
+    const char *p = (const char *)path;
+    char out_path[1024];
+
+    const char *last_slash = strrchr(p, '/');
+    if (last_slash) {
+        size_t dir_len = (size_t)(last_slash - p + 1);
+        if (dir_len + sizeof("stg1_out") >= sizeof(out_path)) return -1;
+
+        memcpy(out_path, p, dir_len);
+        strcpy(out_path + dir_len, "stg1_out");
+    } else {
+        snprintf(out_path, sizeof(out_path), "./stg1_out");
+    }
+
+    char compile_cmd[2048];
+    snprintf(compile_cmd, sizeof(compile_cmd), "gcc \"%s\" -o \"%s\" 2>&1", p, out_path);
+
+    FILE *fp = popen(compile_cmd, "r");
+    if (!fp) {
+        fprintf(stderr, "Failed to run gcc\n");
+        return -1;
+    }
+
+    char buffer[256];
+    int has_compiler_output = 0;
+    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        if (!has_compiler_output) {
+            fprintf(stderr, "\n--- GCC Output ---\n");
+            has_compiler_output = 1;
+        }
+        fputs(buffer, stderr);
+    }
+
+    int compile_status = pclose(fp);
+    if (compile_status != 0) {
+        return compile_status;
+    }
+
+    char run_cmd[1050];
+    snprintf(run_cmd, sizeof(run_cmd), "\"%s\"", out_path);
+    return (int32_t)system(run_cmd);
+}
