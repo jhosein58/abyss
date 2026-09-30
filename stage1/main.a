@@ -49,11 +49,12 @@ main :: () {
     Engine_parse(&eng, sym_id)
     Engine_type_check(&eng, sym_id)
 
-    -- Engine_abyss_main(&eng, sym_id)
-    -- Engine_compile(&eng, &arena, sym_id)
+    Engine_abyss_main(&eng, sym_id)
+    Engine_compile(&eng, &arena, sym_id)
 
-    -- c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, "prelude.c"))
-    -- write_file("tmp/stg1_out.c", c_code)
+    c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, "prelude.c"))
+    write_file("tmp/stg1_out.c", c_code)
+    Str_println(c_code)
 
     -- compile_and_run("tmp/stg1_out.c")
 
