@@ -11,14 +11,16 @@ import HirTable_len from "hir.a"
 import PoolU32_get, PoolU32_set, id_none from "nexus/pool.a"
 import UnifyStorage_get_slot, UnifyStorage_resolve_type, slot_none from "unify.a"
 import ty_id_none from "types.a"
-import Interner_intern from "../../std/interner.a"
-import Str from "../../std/string.a"
+import Interner_intern, Interner_get from "../../std/interner.a"
+import Str, Str_print from "../../std/string.a"
 import Arena from "../../std/allocator.a"
+import HirTable_lhs from "hir.a"
 
 import CCodeGen, CCodeGen_new, CCodeGen_destroy, CCodeGen_abyss_main, CCodeGen_finish from "codegen.a"
 import lower_function from "lower.a"
 
 print :: (s &u8) unit
+print_u32 :: (v u32) unit 
 
 Engine :: struct {
     nexus      : Nexus,
@@ -88,6 +90,7 @@ Engine_type_check :: (self &Engine, sym_id u32) {
 }
 
 Engine_ensure_resolved :: (self &Engine, sym_id u32) {
+    
     db := &(*self).nexus
 
     if Nexus_is_sym_resolving(db, sym_id) {

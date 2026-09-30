@@ -15,6 +15,8 @@ import Nexus_add_list, Nexus_get_list, Nexus_alloc_local_symbol,
        Nexus_set_sym_hir, Nexus_get_sym_hir, Nexus_set_hir_symbol from "../nexus/nexus.a"
 import id_none from "../nexus/pool.a"
 
+import Str_print from "../../../std/string.a"
+
 print :: (s &u8) unit
 print_u32 :: (v u32) unit
 
@@ -48,6 +50,8 @@ dispatch_prefix :: (p &Parser) u32 {
     t := token()
     tk := peek(p)
 
+    if tk == t.eof      { ret hir_none() }
+
     if tk == t.lit_int  { ret parse_lit_int(p) }
     if tk == t.ident    { ret parse_ident(p) }
     if tk == t.o_paren  { ret parse_paren(p) }
@@ -60,6 +64,12 @@ dispatch_prefix :: (p &Parser) u32 {
         ret parse_unary(p, tk)
     }
 
+    print("[Parser] Unexpected Prefix Token: ")
+    Str_print(curr_text(p))
+    print(" (Kind: ")
+    print_u32(tk as u32)
+    print(")\n")
+
     bump(p)
     HirTable_push((*p).hir, hir_kind().error, hir_none(), hir_none(), hir_none())
 }
@@ -70,10 +80,17 @@ dispatch_infix :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
     if op == t.colon_colon { ret parse_binding(p, lhs, right_bp) }
     if op == t.colon       { ret parse_var_decl(p, lhs, right_bp) }
     if op == t.eq          { ret parse_assign(p, lhs, right_bp) }
+    if op == t.o_paren     { ret parse_call(p, lhs, right_bp) }
 
     if op == t.plus or op == t.minus or op == t.star or op == t.slash or op == t.percent {
         ret parse_binary(p, op, lhs, right_bp)
     }
+
+    print("[Parser] Unhandled Infix Token Kind: ")
+    print_u32(op as u32)
+    print(" on LHS Node: ")
+    print_u32(lhs)
+    print("\n")
 
     HirTable_push((*p).hir, hir_kind().error, hir_none(), hir_none(), hir_none())
 }
@@ -438,4 +455,32 @@ parse_assign :: (p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind()
     rhs := parse_expr(p, right_bp)
     HirTable_push((*p).hir, k.binary_assign, lhs, rhs, hir_none())
+}
+
+parse_call :: (p &Parser, lhs u32, right_bp u8) u32 {
+    t := token()
+    k := hir_kind()
+
+    args := VecU32_new()
+
+    if not optional(p, t.c_paren) {
+        while true {
+            arg := parse_expr(p, 0 as u8)
+            VecU32_push(&args, arg)
+
+            if not optional(p, t.comma) {
+                break
+            }
+        }
+        expect(p, t.c_paren)
+    }
+
+    slice: SliceU32 = .{
+        ptr: VecU32_ptr_at(&args, 0),
+        len: args.len
+    }
+    args_list := Nexus_add_list((*p).db, slice)
+    VecU32_destroy(&args)
+
+    HirTable_push((*p).hir, k.call, lhs, args_list, hir_none())
 }
