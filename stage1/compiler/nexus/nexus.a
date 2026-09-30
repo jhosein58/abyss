@@ -24,6 +24,9 @@ Nexus :: struct {
     sym_tok_end    : PoolU32,
     sym_hir_start  : PoolU32,
     sym_hir_end    : PoolU32,
+
+    sym_nodes      : PoolU32, -- SymbolId -> HirId
+    hir_to_symbol  : PoolU32, -- HirId    -> SymbolId
 }
 
 Nexus_new :: () Nexus {
@@ -43,7 +46,10 @@ Nexus_new :: () Nexus {
         sym_tok_start  : PoolU32_new(),
         sym_tok_end    : PoolU32_new(),
         sym_hir_start  : PoolU32_new(),
-        sym_hir_end    : PoolU32_new()
+        sym_hir_end    : PoolU32_new(),
+
+        sym_nodes      : PoolU32_new(),
+        hir_to_symbol  : PoolU32_new(),
     }
 }
 
@@ -75,6 +81,19 @@ Nexus_alloc_symbol :: (self &Nexus, file_id u32, name_id u32, tok_start u32, tok
     sym_id
 }
 
+Nexus_alloc_local_symbol :: (self &Nexus, file_id u32, name_id u32, hir_id u32) u32 {
+    sym_id := PoolU32_alloc(&(*self).sym_names, name_id)
+    PoolU32_alloc(&(*self).sym_files, file_id)
+    PoolU32_alloc(&(*self).sym_tok_start, id_none())
+    PoolU32_alloc(&(*self).sym_tok_end, id_none())
+    PoolU32_alloc(&(*self).sym_hir_start, id_none())
+    PoolU32_alloc(&(*self).sym_hir_end, id_none())
+    PoolU32_alloc(&(*self).sym_nodes, hir_id)
+
+    Nexus_set_hir_symbol(self, hir_id, sym_id)
+    sym_id
+}
+
 Nexus_find_symbol :: (self &Nexus, file_id u32, name_id u32) u32 {
     count := PoolU32_count(&(*self).sym_names)
     i: u32 = 0
@@ -87,4 +106,24 @@ Nexus_find_symbol :: (self &Nexus, file_id u32, name_id u32) u32 {
         i = i + 1
     }
     id_none()
+}
+
+Nexus_set_sym_hir :: (self &Nexus, sym_id u32, hir_id u32) {
+    PoolU32_set(&(*self).sym_nodes, sym_id, hir_id)
+}
+
+Nexus_get_sym_hir :: (self &Nexus, sym_id u32) u32 {
+    if sym_id == id_none() { ret id_none() }
+    if sym_id >= PoolU32_count(&(*self).sym_nodes) { ret id_none() }
+    PoolU32_get(&(*self).sym_nodes, sym_id)
+}
+
+Nexus_set_hir_symbol :: (self &Nexus, hir_id u32, sym_id u32) {
+    PoolU32_set_safe(&(*self).hir_to_symbol, hir_id, sym_id, id_none())
+}
+
+Nexus_get_hir_symbol :: (self &Nexus, hir_id u32) u32 {
+    if hir_id == id_none() { ret id_none() }
+    if hir_id >= PoolU32_count(&(*self).hir_to_symbol) { ret id_none() }
+    PoolU32_get(&(*self).hir_to_symbol, hir_id)
 }
