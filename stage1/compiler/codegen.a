@@ -135,10 +135,10 @@ CCodeGen_gen_return :: (self &CCodeGen, val Str, has_val bool) {
     vec_push_str(&(*self).code, Str_from(";\n"))
 }
 
-CCodeGen_finish :: (self &CCodeGen) Str {
+CCodeGen_finish :: (self &CCodeGen, pre Str) Str {
     out := VecU8_new()
 
-    vec_push_str(&out, Str_from("#include <stdint.h>\n#include <stdbool.h>\n\n"))
+    vec_push_str(&out, pre)
 
     vec_push_str(&out, Str_from("// Forward Declarations\n"))
     vec_push_str(&out, vec_as_str(&(*self).func_decls))

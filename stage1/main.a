@@ -4,7 +4,7 @@ import lex   from "compiler/lexer.a"
 import Str_from, Str_println from "../std/string.a"
 
 import Arena_new from "../std/allocator.a"
-import read_file from "../std/fs.a"
+import read_file, write_file from "../std/fs.a"
 
 import HirTable_new, HirTable_len from "compiler/hir.a"
 import Parser_new from "compiler/parser/core.a"
@@ -34,6 +34,8 @@ print_u8 :: (s u8) unit
 print_char :: (s u8) unit
 print :: (s &u8) unit
 
+compile_and_run :: (path &u8) i32
+
 main :: () {
     arena := Arena_new(1024)
     source := read_file(&arena, "tmp/main.a")
@@ -47,12 +49,13 @@ main :: () {
     Engine_parse(&eng, sym_id)
     Engine_type_check(&eng, sym_id)
 
-    Engine_abyss_main(&eng, sym_id)
-    Engine_compile(&eng, &arena, sym_id)
+    -- Engine_abyss_main(&eng, sym_id)
+    -- Engine_compile(&eng, &arena, sym_id)
 
-    c_code := CCodeGen_finish(&eng.ccg)
-    print("\n--- Generated C Code ---\n")
-    Str_println(c_code)
+    -- c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, "prelude.c"))
+    -- write_file("tmp/stg1_out.c", c_code)
+
+    -- compile_and_run("tmp/stg1_out.c")
 
     dump_hir(&eng.nexus, &eng.nexus.hir, &arena)
 

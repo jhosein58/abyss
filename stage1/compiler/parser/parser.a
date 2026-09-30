@@ -52,23 +52,24 @@ dispatch_prefix :: (p &Parser) u32 {
 
     if tk == t.eof      { ret hir_none() }
 
-    if tk == t.lit_int  { ret parse_lit_int(p) }
-    if tk == t.ident    { ret parse_ident(p) }
-    if tk == t.o_paren  { ret parse_paren(p) }
-    if tk == t.o_brace  { ret parse_block(p) }
+    if tk == t.lit_int    { ret parse_lit_int(p) }
+    if tk == t.lit_float  { ret parse_float(p) }
+    if tk == t.lit_str    { ret parse_str(p) }
+    if tk == t.kw_true    { ret parse_true(p) }
+    if tk == t.kw_false   { ret parse_false(p) }
 
-    if tk == t.kw_if    { ret parse_if(p) }
-    if tk == t.kw_while { ret parse_while(p) }
+    if tk == t.ident      { ret parse_ident(p) }
+    if tk == t.o_paren    { ret parse_paren(p) }
+    if tk == t.o_brace    { ret parse_block(p) }
 
-    if tk == t.minus or tk == t.kw_not or tk == t.tilde {
+    if tk == t.kw_if      { ret parse_if(p) }
+    if tk == t.kw_while   { ret parse_while(p) }
+    if tk == t.kw_break   { ret parse_break(p) }
+    if tk == t.kw_cont    { ret parse_cont(p) }
+
+    if (tk == t.minus) or (tk == t.kw_not) or (tk == t.tilde) or (tk == t.amp) or (tk == t.star) {
         ret parse_unary(p, tk)
     }
-
-    print("[Parser] Unexpected Prefix Token: ")
-    Str_print(curr_text(p))
-    print(" (Kind: ")
-    print_u32(tk as u32)
-    print(")\n")
 
     bump(p)
     HirTable_push((*p).hir, hir_kind().error, hir_none(), hir_none(), hir_none())
@@ -82,17 +83,7 @@ dispatch_infix :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
     if op == t.eq          { ret parse_assign(p, lhs, right_bp) }
     if op == t.o_paren     { ret parse_call(p, lhs, right_bp) }
 
-    if op == t.plus or op == t.minus or op == t.star or op == t.slash or op == t.percent {
-        ret parse_binary(p, op, lhs, right_bp)
-    }
-
-    print("[Parser] Unhandled Infix Token Kind: ")
-    print_u32(op as u32)
-    print(" on LHS Node: ")
-    print_u32(lhs)
-    print("\n")
-
-    HirTable_push((*p).hir, hir_kind().error, hir_none(), hir_none(), hir_none())
+    parse_binary(p, op, lhs, right_bp)
 }
 
 --- Control Flow Handlers ------------------------------------------------------------------------
@@ -483,4 +474,44 @@ parse_call :: (p &Parser, lhs u32, right_bp u8) u32 {
     VecU32_destroy(&args)
 
     HirTable_push((*p).hir, k.call, lhs, args_list, hir_none())
+}
+
+parse_float :: (p &Parser) u32 {
+    k := hir_kind()
+    name := curr_text(p)
+    name_id := Interner_intern(&(*(*p).db).interner, name)
+    bump(p)
+    HirTable_push((*p).hir, k.lit_float, name_id, hir_none(), hir_none())
+}
+
+parse_str :: (p &Parser) u32 {
+    k := hir_kind()
+    raw := curr_text(p)
+    bump(p)
+    name_id := Interner_intern(&(*(*p).db).interner, raw)
+    HirTable_push((*p).hir, k.lit_str, name_id, hir_none(), hir_none())
+}
+
+parse_true :: (p &Parser) u32 {
+    k := hir_kind()
+    bump(p)
+    HirTable_push((*p).hir, k.lit_bool_true, hir_none(), hir_none(), hir_none())
+}
+
+parse_false :: (p &Parser) u32 {
+    k := hir_kind()
+    bump(p)
+    HirTable_push((*p).hir, k.lit_bool_false, hir_none(), hir_none(), hir_none())
+}
+
+parse_break :: (p &Parser) u32 {
+    k := hir_kind()
+    bump(p)
+    HirTable_push((*p).hir, k.k_break, hir_none(), hir_none(), hir_none())
+}
+
+parse_cont :: (p &Parser) u32 {
+    k := hir_kind()
+    bump(p)
+    HirTable_push((*p).hir, k.k_cont, hir_none(), hir_none(), hir_none())
 }
