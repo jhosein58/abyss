@@ -12,7 +12,7 @@ import TypeStorage, ty_kind, ty_id_none, TypeStorage_kind, TypeStorage_payload,
 import UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
 import Interner_get from "../../std/interner.a"
 
-c_type_str :: (types &TypeStorage, ty_id u32) Str {
+c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
     if ty_id == ty_id_none() { ret Str_from("void") }
     k := ty_kind()
     kind := TypeStorage_kind(types, ty_id)
@@ -47,6 +47,15 @@ c_type_str :: (types &TypeStorage, ty_id u32) Str {
 
     if kind == k.untyped_int   { ret Str_from("int32_t") }
     if kind == k.untyped_float { ret Str_from("double") }
+
+    if kind == k.ptr {
+        inner_ty := TypeStorage_payload(types, ty_id)
+        inner_str := c_type_str(types, arena, inner_ty)
+        s := String_new(arena)
+        String_push_str(&s, inner_str)
+        String_push_str(&s, Str_from("*"))
+        ret String_as_str(&s)
+    }
 
     Str_from("void")
 }
