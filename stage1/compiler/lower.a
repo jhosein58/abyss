@@ -93,6 +93,19 @@ binary_op_symbol :: (k HirExprKind, kind u8) Str {
     if kind == k.binary_bit_xor { ret Str_from(" ^ ") }
     if kind == k.binary_shl     { ret Str_from(" << ") }
     if kind == k.binary_shr     { ret Str_from(" >> ") }
+    if kind == k.binary_eq_eq   { ret Str_from(" == ") }
+    if kind == k.binary_neq     { ret Str_from(" != ") }
+    if kind == k.binary_lt      { ret Str_from(" < ") }
+    if kind == k.binary_gt      { ret Str_from(" > ") }
+    if kind == k.binary_lt_eq   { ret Str_from(" <= ") }
+    if kind == k.binary_gt_eq   { ret Str_from(" >= ") }
+    if kind == k.binary_bit_and { ret Str_from(" & ") }
+    if kind == k.binary_bit_or  { ret Str_from(" | ") }
+    if kind == k.binary_bit_xor { ret Str_from(" ^ ") }
+    if kind == k.binary_shl     { ret Str_from(" << ") }
+    if kind == k.binary_shr     { ret Str_from(" >> ") }
+    if kind == k.binary_and     { ret Str_from(" && ") }
+    if kind == k.binary_or      { ret Str_from(" || ") }
     Str_from(" ")
 }
 
