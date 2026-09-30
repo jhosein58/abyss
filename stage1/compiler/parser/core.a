@@ -2,23 +2,39 @@ import token, TokenType, TokenStream, TokenStream_kind, TokenStream_text, TokenS
 import HirTable from "../hir.a"
 import Str, Str_empty from "../../../std/string.a"
 import Nexus from "../nexus/nexus.a"
+import ScopeEnv, ScopeEnv_new, ScopeEnv_destroy, ScopeEnv_lookup from "env.a"
+import id_none from "../nexus/pool.a"
 
 Parser :: struct {
-    db     : &Nexus,
-    tokens : &TokenStream,
-    hir    : &HirTable,
-    cursor : u32,
-    end    : u32
+    db        : &Nexus,
+    tokens    : &TokenStream,
+    hir       : &HirTable,
+    cursor    : u32,
+    end       : u32,
+    toplv_sym : u32,
+    env       : ScopeEnv,
 }
 
-Parser_new :: (db &Nexus, tokens &TokenStream, hir &HirTable, start u32, count u32) Parser {
+Parser_new :: (db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv_sym u32, start u32, count u32) Parser {
     .{
-        db     : db,
-        tokens : tokens,
-        hir    : hir,
-        cursor : start,
-        end    : start + count
+        db        : db,
+        tokens    : tokens,
+        hir       : hir,
+        cursor    : start,
+        end       : start + count,
+        file_id   : file_id,
+        toplv_sym : toplv_sym,
+        env       : ScopeEnv_new()
     }
+}
+
+lookup_sym :: (p &Parser, name_id u32) u32 {
+    sym := ScopeEnv_lookup(&(*p).env, name_id)
+    if sym != id_none() {
+        ret sym
+    }
+
+    Nexus_find_symbol((*p).db, (*p).file_id, name_id)
 }
 
 is_eof :: (p &Parser) bool {
