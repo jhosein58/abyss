@@ -155,3 +155,36 @@ CCodeGen_finish :: (self &CCodeGen, pre Str) Str {
     vec_push_char(&out, 0 as u8)
     vec_as_str(&out)
 }
+
+CCodeGen_start_if :: (self &CCodeGen, cond Str) {
+    CCodeGen_indent(self)
+    vec_push_str(&(*self).code, Str_from("if ("))
+    vec_push_str(&(*self).code, cond)
+    vec_push_str(&(*self).code, Str_from(") {\n"))
+    (*self).indent = (*self).indent + 1
+}
+
+CCodeGen_else :: (self &CCodeGen) {
+    if (*self).indent > 0 {
+        (*self).indent = (*self).indent - 1
+    }
+    CCodeGen_indent(self)
+    vec_push_str(&(*self).code, Str_from("} else {\n"))
+    (*self).indent = (*self).indent + 1
+}
+
+CCodeGen_start_while :: (self &CCodeGen, cond Str) {
+    CCodeGen_indent(self)
+    vec_push_str(&(*self).code, Str_from("while ("))
+    vec_push_str(&(*self).code, cond)
+    vec_push_str(&(*self).code, Str_from(") {\n"))
+    (*self).indent = (*self).indent + 1
+}
+
+CCodeGen_end_block :: (self &CCodeGen) {
+    if (*self).indent > 0 {
+        (*self).indent = (*self).indent - 1
+    }
+    CCodeGen_indent(self)
+    vec_push_str(&(*self).code, Str_from("}\n"))
+}
