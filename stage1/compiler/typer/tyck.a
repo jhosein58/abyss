@@ -62,31 +62,10 @@ parse_builtin_type :: (types &TypeStorage, name Str) u32 {
 }
 
 type_check :: (eng &Engine, start u32, len u32) {
-   
-
     db := &(*eng).nexus
     tbl := &(*db).hir
-    k := hir_kind()
 
-    fn_ret_slot := slot_none()
-    if len > 0 {
-        last_id := len - 1
-        if HirTable_kind(tbl, last_id) == k.binding {
-            func_id := HirTable_extra(tbl, last_id)
-            if (func_id != hir_none()) and (HirTable_kind(tbl, func_id) == k.function) {
-                fn_ret_slot = UnifyStorage_tmp_slot(&(*db).unify)
-                ret_hir_id := HirTable_rhs(tbl, func_id)
-                if ret_hir_id != hir_none() {
-                    ret_val := Nexus_get_const_type(db, ret_hir_id)
-                    if ret_val != ty_id_none() {
-                        UnifyStorage_bind_type(&(*db).unify, &(*db).types, fn_ret_slot, ret_val)
-                    }
-                } else {
-                    UnifyStorage_bind_type(&(*db).unify, &(*db).types, fn_ret_slot, ty_id_unit())
-                }
-            }
-        }
-    }
+    fn_ret_slot := UnifyStorage_tmp_slot(&(*db).unify)
 
     i := start
     while i < len {
@@ -267,16 +246,15 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32) {
     is_extern := body_id == hir_none()
 
     ret_ty := ty_id_unit()
-    if fn_ret_slot != slot_none() {
-        resolved := UnifyStorage_resolve_type(unify_ptr, fn_ret_slot)
-        if resolved != ty_id_none() {
-            ret_ty = resolved
-        }
-    } else if ret_hir_id != hir_none() {
+    if ret_hir_id != hir_none() {
         val := Nexus_get_const_type(db, ret_hir_id)
         if val != ty_id_none() {
             ret_ty = val
         }
+    }
+
+    if fn_ret_slot != slot_none() {
+        UnifyStorage_bind_type(unify_ptr, types_ptr, fn_ret_slot, ret_ty)
     }
 
     params_vec := VecU32_new()
@@ -319,7 +297,9 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32) {
     if (not is_extern) and (body_id != hir_none()) {
         body_slot := UnifyStorage_get_slot(unify_ptr, body_id)
         if body_slot != slot_none() {
-            UnifyStorage_bind_type(unify_ptr, types_ptr, body_slot, ret_ty)
+            if fn_ret_slot != slot_none() {
+                UnifyStorage_union(unify_ptr, types_ptr, body_slot, fn_ret_slot)
+            }
         }
     }
 }
