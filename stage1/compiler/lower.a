@@ -382,6 +382,17 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32) 
         ret Str_empty()
     }
 
+    if kind == k.k_ret {
+        val_id := HirTable_lhs(&(*db).hir, id)
+        if val_id != hir_none() {
+            val_str := lower_expr(db, ccg, arena, val_id, visited)
+            CCodeGen_gen_return(ccg, val_str, true)
+        } else {
+            CCodeGen_gen_return(ccg, Str_empty(), false)
+        }
+        ret Str_empty()
+    }
+
     Str_empty()
 }
 
@@ -474,7 +485,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
             CCodeGen_expr(ccg, body_val)
         }
         CCodeGen_gen_return(ccg, Str_empty(), false)
-    } else {
+    } else if body_val.len > 0 {
         CCodeGen_gen_return(ccg, body_val, true)
     }
 
