@@ -1,0 +1,138 @@
+import VecU8, VecU8_new, VecU8_destroy, VecU8_push from "../../std/vec/u8.a"
+import Str, Str_from from "../../std/string.a"
+
+vec_push_str :: (v &VecU8, s Str) {
+    i: u64 = 0
+    while i < s.len {
+        VecU8_push(v, *(s.ptr + i))
+        i = i + 1
+    }
+}
+
+vec_push_char :: (v &VecU8, c u8) {
+    VecU8_push(v, c)
+}
+
+vec_push_u32 :: (v &VecU8, n u32) {
+    if n == 0 {
+        VecU8_push(v, 48 as u8)
+        ret
+    }
+
+    div: u32 = 1
+    temp := n
+    while temp >= 10 {
+        div = div * 10
+        temp = temp / 10
+    }
+
+    rem := n
+    while div > 0 {
+        d := (rem / div) as u8
+        VecU8_push(v, 48 as u8 + d)
+        rem = rem % div
+        div = div / 10
+    }
+}
+
+vec_as_str :: (v &VecU8) Str {
+    .{
+        ptr: (*v).ptr,
+        len: (*v).len
+    }
+}
+
+CCodeGen :: struct {
+    func_decls : VecU8,
+    code       : VecU8,
+    main_sym   : u32,
+    has_main   : bool,
+    indent     : u32
+}
+
+CCodeGen_new :: () CCodeGen {
+    .{
+        func_decls : VecU8_new(),
+        code       : VecU8_new(),
+        main_sym   : 0,
+        has_main   : false,
+        indent     : 0
+    }
+}
+
+CCodeGen_destroy :: (self &CCodeGen) {
+    VecU8_destroy(&(*self).func_decls)
+    VecU8_destroy(&(*self).code)
+}
+
+CCodeGen_indent :: (self &CCodeGen) {
+    i: u32 = 0
+    while i < (*self).indent {
+        vec_push_str(&(*self).code, Str_from("    "))
+        i = i + 1
+    }
+}
+
+CCodeGen_abyss_main :: (self &CCodeGen, sym_id u32) {
+    (*self).main_sym = sym_id
+    (*self).has_main = true
+}
+
+CCodeGen_start_function :: (self &CCodeGen, fn_name Str, ret_type Str) {
+    vec_push_str(&(*self).func_decls, ret_type)
+    vec_push_char(&(*self).func_decls, 32 as u8)
+    vec_push_str(&(*self).func_decls, fn_name)
+    vec_push_str(&(*self).func_decls, Str_from("(void);\n"))
+
+    vec_push_str(&(*self).code, ret_type)
+    vec_push_char(&(*self).code, 32 as u8)
+    vec_push_str(&(*self).code, fn_name)
+    vec_push_str(&(*self).code, Str_from("(void) {\n"))
+    (*self).indent = (*self).indent + 1
+}
+
+CCodeGen_end_function :: (self &CCodeGen) {
+    if (*self).indent > 0 {
+        (*self).indent = (*self).indent - 1
+    }
+    vec_push_str(&(*self).code, Str_from("}\n\n"))
+}
+
+CCodeGen_expr :: (self &CCodeGen, expr Str) {
+    if expr.len == 0 { ret }
+    CCodeGen_indent(self)
+    vec_push_str(&(*self).code, expr)
+    vec_push_str(&(*self).code, Str_from(";\n"))
+}
+
+CCodeGen_gen_return :: (self &CCodeGen, val Str, has_val bool) {
+    CCodeGen_indent(self)
+    vec_push_str(&(*self).code, Str_from("return"))
+    if has_val and (val.len > 0) {
+        vec_push_char(&(*self).code, 32 as u8)
+        vec_push_str(&(*self).code, val)
+    }
+    vec_push_str(&(*self).code, Str_from(";\n"))
+}
+
+CCodeGen_finish :: (self &CCodeGen) Str {
+    out := VecU8_new()
+
+    vec_push_str(&out, Str_from("#include <stdint.h>\n#include <stdbool.h>\n\n"))
+
+    vec_push_str(&out, Str_from("// Forward Declarations\n"))
+    vec_push_str(&out, vec_as_str(&(*self).func_decls))
+    vec_push_str(&out, Str_from("\n// Implementations\n"))
+
+    vec_push_str(&out, vec_as_str(&(*self).code))
+
+    if (*self).has_main {
+        vec_push_str(&out, Str_from("int main(void) {\n    sym_"))
+        vec_push_u32(&out, (*self).main_sym)
+        vec_push_str(&out, Str_from("();\n    return 0;\n}\n"))
+    }
+
+    vec_push_char(&out, 0 as u8)
+
+    vec_as_str(&out)
+}
