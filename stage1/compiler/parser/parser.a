@@ -218,13 +218,12 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
     t := token()
     k := hir_kind()
 
+    name_id := HirTable_lhs((*p).hir, lhs)
+
+    sym_id := Nexus_alloc_local_symbol((*p).db, (*p).file_id, name_id, lhs)
+    ScopeEnv_define(&(*p).env, name_id, sym_id)
+
     if optional(p, t.eq) {
-        name_id := HirTable_lhs((*p).hir, lhs)
-
-        sym_id := Nexus_alloc_local_symbol((*p).db, (*p).file_id, name_id, lhs)
-
-        ScopeEnv_define(&(*p).env, name_id, sym_id)
-
         val := parse_expr(p, 0 as u8)
         var_id := HirTable_push((*p).hir, k.var, lhs, hir_none(), val)
 
@@ -232,7 +231,27 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
         ret var_id
     }
 
-    HirTable_push((*p).hir, k.error, hir_none(), hir_none(), hir_none())
+    ty := parse_expr(p, prec().var_def + (1 as u8))
+
+    if optional(p, t.eq) {
+        val := parse_expr(p, 0 as u8)
+        var_id := HirTable_push((*p).hir, k.var, lhs, ty, val)
+
+        Nexus_set_hir_symbol((*p).db, var_id, sym_id)
+        ret var_id
+    }
+
+    if optional(p, t.colon) {
+        val := parse_expr(p, 0 as u8)
+        binding_id := HirTable_push((*p).hir, k.binding, lhs, ty, val)
+
+        Nexus_set_hir_symbol((*p).db, binding_id, sym_id)
+        ret binding_id
+    }
+
+    var_id := HirTable_push((*p).hir, k.var, lhs, ty, hir_none())
+    Nexus_set_hir_symbol((*p).db, var_id, sym_id)
+    var_id
 }
 
 parse_assign :: (p &Parser, lhs u32, right_bp u8) u32 {
