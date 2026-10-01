@@ -234,7 +234,7 @@ UnifyStorage_unify_types :: (self &UnifyStorage, types &TypeStorage, a u32, b u3
         }
         ret TypeStorage_alloc_array(types, unified_inner, len_a)
     }
-
+    
     if (kind_a == k.struct_) and (kind_b == k.struct_) {
         fields_a := TypeStorage_get_struct_fields(types, a)
         fields_b := TypeStorage_get_struct_fields(types, b)
@@ -334,6 +334,7 @@ UnifyStorage_resolve_type_deep :: (self &UnifyStorage, types &TypeStorage, slot 
     if kind == k.struct_ {
         fields := TypeStorage_get_struct_fields(types, tyid)
         count := fields.len / 2
+
         local_scratch := VecU32_new()
         changed := false
         i: u64 = 0
