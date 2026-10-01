@@ -443,8 +443,8 @@ synth_assign :: (db &Nexus, tbl &HirTable, id u32) {
 
     if (lhs_slot != slot_none()) and (rhs_slot != slot_none()) {
         UnifyStorage_union(unify_ptr, types_ptr, lhs_slot, rhs_slot)
+        UnifyStorage_union(unify_ptr, types_ptr, slot, lhs_slot)
     }
-    UnifyStorage_bind_type(unify_ptr, types_ptr, slot, ty_id_unit())
 }
 
 synth_lit_float :: (db &Nexus, tbl &HirTable, id u32) {
