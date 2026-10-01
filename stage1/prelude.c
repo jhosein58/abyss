@@ -76,6 +76,8 @@ bool str_eq(uint8_t *a, uint8_t *b) {
 
 // ------> mem
 void mem_copy(uint8_t *dest, uint8_t *src, uint64_t n) {
+    if (!dest || !src || n == 0) return;
+    if (n > 100 * 1024 * 1024) return; 
     memcpy(dest, src, (size_t)n);
 }
 
@@ -111,7 +113,6 @@ uint64_t file_write(uint8_t *handle, uint8_t *ptr, uint64_t size, uint64_t count
 
 // ------> Process
 
-
 int32_t compile_and_run(uint8_t *path) {
     if (!path) return -1;
 
@@ -132,9 +133,13 @@ int32_t compile_and_run(uint8_t *path) {
     char compile_cmd[2048];
     snprintf(compile_cmd, sizeof(compile_cmd), "gcc \"%s\" -o \"%s\" 2>&1", p, out_path);
 
+    fprintf(stderr, "[CMD] %s\n", compile_cmd);
+    fflush(stderr);
+
     FILE *fp = popen(compile_cmd, "r");
     if (!fp) {
-        fprintf(stderr, "Failed to run gcc\n");
+        fprintf(stderr, "Failed to run popen for gcc\n");
+        fflush(stderr);
         return -1;
     }
 
@@ -146,10 +151,13 @@ int32_t compile_and_run(uint8_t *path) {
             has_compiler_output = 1;
         }
         fputs(buffer, stderr);
+        fflush(stderr); 
     }
 
     int compile_status = pclose(fp);
     if (compile_status != 0) {
+        fprintf(stderr, "\n[GCC Exit Code]: %d\n", compile_status);
+        fflush(stderr);
         return compile_status;
     }
 
