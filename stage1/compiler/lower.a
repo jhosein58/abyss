@@ -3,7 +3,7 @@ import HirTable, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_
 import PoolU32_get, id_none from "nexus/pool.a"
 import CCodeGen, CCodeGen_declare_function, CCodeGen_start_function, CCodeGen_end_function, CCodeGen_start_if, CCodeGen_end_block,
        CCodeGen_create_variable, CCodeGen_expr, CCodeGen_gen_return, CCodeGen_else, CCodeGen_start_while, CCodeGen_def_struct from "codegen.a"
-import Str, Str_from, Str_empty, String, String_new, String_push_str, String_push_u32, String_as_str from "../../std/string.a"
+import Str, Str_from, Str_print, Str_empty, String, String_new, String_push_str, String_push_u32, String_as_str from "../../std/string.a"
 import Arena from "../../std/allocator.a"
 import VecU32, VecU32_push, VecU32_get,VecU32_new, VecU32_destroy from "../../std/vec/u32.a"
 
@@ -12,6 +12,9 @@ import TypeStorage, ty_kind, ty_id_none, TypeStorage_kind, TypeStorage_payload, 
 import UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
 import Interner_get from "../../std/interner.a"
 import topo_sort from "topo_sort.a"
+
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
 
 c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
     if ty_id == ty_id_none() { ret Str_from("void") }
@@ -62,6 +65,9 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
         ret TypeStorage_name(types, arena, ty_id)
     }
 
+    if (kind == k.infer) or (kind == k.unknown) {
+        ret Str_from("uint64_t")
+    }
     Str_from("void")
 }
 
@@ -188,6 +194,8 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         sym_id := Nexus_get_hir_symbol(db, ident_id)
         var_ty := get_node_type(db, ident_id)
         ty_str := c_type_str(&(*db).types, arena, var_ty)
+
+
 
         var_name_s := String_new(arena)
         String_push_str(&var_name_s, Str_from("sym_"))
@@ -560,7 +568,6 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     }
 
     if is_extern {
-        CCodeGen_declare_function(ccg, fn_name, ret_str, params_str)
         ret
     }
 

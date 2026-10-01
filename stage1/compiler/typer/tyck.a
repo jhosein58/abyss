@@ -351,7 +351,8 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
     callee_slot := UnifyStorage_get_slot(unify_ptr, callee)
 
     if callee_slot != slot_none() {
-        callee_ty := UnifyStorage_resolve_type(unify_ptr, callee_slot)
+        callee_ty := UnifyStorage_resolve_type_deep(unify_ptr, types_ptr, callee_slot)
+
         if TypeStorage_kind(types_ptr, callee_ty) == ty_kind().func {
             ret_ty := TypeStorage_func_return(types_ptr, callee_ty)
             UnifyStorage_bind_type(unify_ptr, types_ptr, slot, ret_ty)
@@ -408,6 +409,21 @@ synth_binary :: (db &Nexus, tbl &HirTable, id u32) {
     rhs_slot := UnifyStorage_get_slot(unify_ptr, rhs)
 
     if (lhs_slot != slot_none()) and (rhs_slot != slot_none()) {
+        lhs_ty := UnifyStorage_resolve_type_deep(unify_ptr, types_ptr, lhs_slot)
+        rhs_ty := UnifyStorage_resolve_type_deep(unify_ptr, types_ptr, rhs_slot)
+
+        lhs_k := TypeStorage_kind(types_ptr, lhs_ty)
+        rhs_k := TypeStorage_kind(types_ptr, rhs_ty)
+
+        if lhs_k == ty_kind().ptr {
+            UnifyStorage_bind_type(unify_ptr, types_ptr, slot, lhs_ty)
+            ret
+        }
+        if rhs_k == ty_kind().ptr {
+            UnifyStorage_bind_type(unify_ptr, types_ptr, slot, rhs_ty)
+            ret
+        }
+
         UnifyStorage_union(unify_ptr, types_ptr, lhs_slot, rhs_slot)
         UnifyStorage_union(unify_ptr, types_ptr, slot, lhs_slot)
     }
@@ -694,7 +710,12 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
                 fn_name := *(fields.ptr + (i * 2))
                 fn_ty   := *(fields.ptr + (i * 2) + 1)
                 if fn_name == name_id {
-                    UnifyStorage_bind_type(unify_ptr, types_ptr, slot, fn_ty)
+                    if TypeStorage_kind(types_ptr, fn_ty) == ty_kind().infer {
+                        infer_slot := TypeStorage_payload(types_ptr, fn_ty)
+                        UnifyStorage_union(unify_ptr, types_ptr, slot, infer_slot)
+                    } else {
+                        UnifyStorage_bind_type(unify_ptr, types_ptr, slot, fn_ty)
+                    }
                     ret
                 }
                 i = i + 1
