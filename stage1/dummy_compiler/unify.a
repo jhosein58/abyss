@@ -1,0 +1,375 @@
+import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get,  VecU8_set  from "../../std/vec/u8.a"
+import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set, VecU32_mark, VecU32_reset, VecU32_ptr_at from "../../std/vec/u32.a"
+import SliceU32 from "../../std/slice/u32.a"
+import U32_MAX from "../../std/primitive/u32.a"
+
+import ty_kind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error,
+       TypeStorage, TypeStorage_kind, TypeStorage_payload, TypeStorage_infer_slot,
+       TypeStorage_alloc_infer, TypeStorage_alloc_ptr, TypeStorage_alloc_array,
+       TypeStorage_get_array_len, TypeStorage_get_array_type,
+       TypeStorage_get_struct_fields, TypeStorage_alloc_struct from "types.a"
+
+slot_none :: () u32 {
+    U32_MAX()
+}
+
+
+UnifyStorage :: struct {
+    parents     : VecU32,
+    ranks       : VecU8,
+    types       : VecU32,
+    origins     : VecU32,
+    hir_to_slot : VecU32,
+    scratch     : VecU32
+}
+
+UnifyStorage_new :: () UnifyStorage {
+    .{
+        parents     : VecU32_new(),
+        ranks       : VecU8_new(),
+        types       : VecU32_new(),
+        origins     : VecU32_new(),
+        hir_to_slot : VecU32_new(),
+        scratch     : VecU32_new()
+    }
+}
+
+UnifyStorage_destroy :: (self &UnifyStorage) {
+    VecU32_destroy(&(*self).parents)
+    VecU8_destroy(&(*self).ranks)
+    VecU32_destroy(&(*self).types)
+    VecU32_destroy(&(*self).origins)
+    VecU32_destroy(&(*self).hir_to_slot)
+    VecU32_destroy(&(*self).scratch)
+}
+
+
+UnifyStorage_set_hir_slot :: (self &UnifyStorage, hir_id u32, slot u32) {
+    idx := hir_id as u64
+    while (idx >= (*self).hir_to_slot.len) {
+        VecU32_push(&(*self).hir_to_slot, slot_none())
+    }
+    VecU32_set(&(*self).hir_to_slot, idx, slot)
+}
+
+UnifyStorage_new_slot :: (self &UnifyStorage, origin u32) u32 {
+    slot := (*self).parents.len as u32
+
+    VecU32_push(&(*self).parents, slot)
+    VecU8_push(&(*self).ranks, 0 as u8)
+    VecU32_push(&(*self).types, ty_id_none())
+    VecU32_push(&(*self).origins, origin)
+
+    UnifyStorage_set_hir_slot(self, origin, slot)
+
+    slot
+}
+
+UnifyStorage_tmp_slot :: (self &UnifyStorage) u32 {
+    slot := (*self).parents.len as u32
+
+    VecU32_push(&(*self).parents, slot)
+    VecU8_push(&(*self).ranks, 0 as u8)
+    VecU32_push(&(*self).types, ty_id_none())
+    VecU32_push(&(*self).origins, slot_none())
+
+    slot
+}
+
+UnifyStorage_get_slot :: (self &UnifyStorage, id u32) u32 {
+    idx := id as u64
+    if idx >= (*self).hir_to_slot.len {
+        ret slot_none()
+    }
+    VecU32_get(&(*self).hir_to_slot, idx)
+}
+
+UnifyStorage_find :: (self &UnifyStorage, slot u32) u32 {
+    curr := slot
+    while true {
+        parent := VecU32_get(&(*self).parents, curr as u64)
+        if parent == curr {
+            ret curr
+        }
+        grand := VecU32_get(&(*self).parents, parent as u64)
+        VecU32_set(&(*self).parents, curr as u64, grand)
+        curr = grand
+    }
+    curr
+}
+
+UnifyStorage_union :: (self &UnifyStorage, types &TypeStorage, a u32, b u32) u32 {
+    root_a := UnifyStorage_find(self, a)
+    root_b := UnifyStorage_find(self, b)
+
+    if root_a == root_b {
+        ret root_a
+    }
+
+    type_a := VecU32_get(&(*self).types, root_a as u64)
+    type_b := VecU32_get(&(*self).types, root_b as u64)
+
+
+    if type_a == ty_id_never() or type_b == ty_id_never() {
+        ret root_a
+    }
+
+    final_type := ty_id_none()
+    has_a := type_a != ty_id_none()
+    has_b := type_b != ty_id_none()
+
+    if has_a and has_b {
+        final_type = UnifyStorage_unify_types(self, types, type_a, type_b)
+    } else if has_a {
+        final_type = type_a
+    } else if has_b {
+        final_type = type_b
+    }
+
+    rank_a := VecU8_get(&(*self).ranks, root_a as u64)
+    rank_b := VecU8_get(&(*self).ranks, root_b as u64)
+
+    new_root: u32 = root_a
+    old_root: u32 = root_b
+
+    if rank_a > rank_b {
+        new_root = root_a
+        old_root = root_b
+    } else if rank_a < rank_b {
+        new_root = root_b
+        old_root = root_a
+    } else {
+        VecU8_set(&(*self).ranks, root_a as u64, rank_a + (1 as u8))
+        new_root = root_a
+        old_root = root_b
+    }
+
+    VecU32_set(&(*self).parents, old_root as u64, new_root)
+
+    if final_type != ty_id_none() {
+        VecU32_set(&(*self).types, new_root as u64, final_type)
+    }
+
+    new_root
+}
+
+UnifyStorage_bind_type :: (self &UnifyStorage, types &TypeStorage, slot u32, ty u32) u32 {
+    root := UnifyStorage_find(self, slot)
+    existing := VecU32_get(&(*self).types, root as u64)
+
+    unified := ty
+    if existing != ty_id_none() {
+        unified = UnifyStorage_unify_types(self, types, existing, ty)
+    }
+
+    VecU32_set(&(*self).types, root as u64, unified)
+    unified
+}
+
+
+UnifyStorage_unify_types :: (self &UnifyStorage, types &TypeStorage, a u32, b u32) u32 {
+    if a == b {
+        ret a
+    }
+
+    k := ty_kind()
+    kind_a := TypeStorage_kind(types, a)
+    kind_b := TypeStorage_kind(types, b)
+
+    if kind_a == k.infer and kind_b == k.infer {
+        slot_a := TypeStorage_infer_slot(types, a)
+        slot_b := TypeStorage_infer_slot(types, b)
+        new_slot := UnifyStorage_union(self, types, slot_a, slot_b)
+        ret TypeStorage_alloc_infer(types, new_slot)
+    } else if kind_a == k.infer {
+        slot_a := TypeStorage_infer_slot(types, a)
+        UnifyStorage_bind_type(self, types, slot_a, b)
+        ret b
+    } else if kind_b == k.infer {
+        slot_b := TypeStorage_infer_slot(types, b)
+        UnifyStorage_bind_type(self, types, slot_b, a)
+        ret a
+    }
+
+    if kind_a == k.never { ret b }
+    if kind_b == k.never { ret a }
+    if kind_a == k.unknown { ret b }
+    if kind_b == k.unknown { ret a }
+
+    is_num_b := (kind_b == k.int) or (kind_b == k.uint) or (kind_b == k.float) or (kind_b == k.untyped_float)
+    if (kind_a == k.untyped_int) and is_num_b {
+        ret b
+    }
+
+    is_num_a := (kind_a == k.int) or (kind_a == k.uint) or (kind_a == k.float) or (kind_a == k.untyped_float)
+    if is_num_a and (kind_b == k.untyped_int) {
+        ret a
+    }
+
+    if (kind_a == k.untyped_float) and (kind_b == k.float) { ret b }
+    if (kind_a == k.float) and (kind_b == k.untyped_float) { ret a }
+
+    if (kind_a == k.ptr) and (kind_b == k.ptr) {
+        inner_a := TypeStorage_payload(types, a)
+        inner_b := TypeStorage_payload(types, b)
+        unified_inner := UnifyStorage_unify_types(self, types, inner_a, inner_b)
+        if unified_inner == ty_id_error() {
+            ret ty_id_error()
+        }
+        ret TypeStorage_alloc_ptr(types, unified_inner)
+    }
+
+    if (kind_a == k.array) and (kind_b == k.array) {
+        len_a := TypeStorage_get_array_len(types, a)
+        len_b := TypeStorage_get_array_len(types, b)
+        if len_a != len_b {
+            ret ty_id_error()
+        }
+
+        inner_a := TypeStorage_get_array_type(types, a)
+        inner_b := TypeStorage_get_array_type(types, b)
+        unified_inner := UnifyStorage_unify_types(self, types, inner_a, inner_b)
+        if unified_inner == ty_id_error() {
+            ret ty_id_error()
+        }
+        ret TypeStorage_alloc_array(types, unified_inner, len_a)
+    }
+
+    if (kind_a == k.struct_) and (kind_b == k.struct_) {
+        fields_a := TypeStorage_get_struct_fields(types, a)
+        fields_b := TypeStorage_get_struct_fields(types, b)
+
+        if fields_a.len != fields_b.len {
+            ret ty_id_error()
+        }
+
+        local_scratch := VecU32_new()
+        has_err := false
+        count := fields_a.len / 2
+        i: u64 = 0
+
+        while (i < count) {
+            idx := i * 2
+            na := *(fields_a.ptr + idx)
+            ta := *(fields_a.ptr + idx + 1)
+            nb := *(fields_b.ptr + idx)
+            tb := *(fields_b.ptr + idx + 1)
+
+            if na != nb {
+                has_err = true
+                break
+            }
+
+            unified_t := UnifyStorage_unify_types(self, types, ta, tb)
+            if unified_t == ty_id_error() {
+                has_err = true
+                break
+            }
+
+            VecU32_push(&local_scratch, na)
+            VecU32_push(&local_scratch, unified_t)
+            i = i + 1
+        }
+
+        if has_err {
+            VecU32_destroy(&local_scratch)
+            ret ty_id_error()
+        }
+
+        slice: SliceU32 = .{
+            ptr: VecU32_ptr_at(&local_scratch, 0),
+            len: fields_a.len
+        }
+
+        res := TypeStorage_alloc_struct(types, slice)
+        VecU32_destroy(&local_scratch)
+        ret res
+    }
+
+    ty_id_error()
+}
+
+
+UnifyStorage_resolve_type :: (self &UnifyStorage, slot u32) u32 {
+    root := UnifyStorage_find(self, slot)
+    VecU32_get(&(*self).types, root as u64)
+}
+
+UnifyStorage_resolve_type_deep :: (self &UnifyStorage, types &TypeStorage, slot u32) u32 {
+    tyid := UnifyStorage_resolve_type(self, slot)
+    if tyid == ty_id_none() {
+        ret ty_id_none()
+    }
+
+    k := ty_kind()
+    kind := TypeStorage_kind(types, tyid)
+
+    if kind == k.infer {
+        inner_slot := TypeStorage_infer_slot(types, tyid)
+        ret UnifyStorage_resolve_type_deep(self, types, inner_slot)
+    }
+
+    if kind == k.ptr {
+        inner_ty := TypeStorage_payload(types, tyid)
+        if TypeStorage_kind(types, inner_ty) == k.infer {
+            inner_slot := TypeStorage_infer_slot(types, inner_ty)
+            resolved := UnifyStorage_resolve_type_deep(self, types, inner_slot)
+            ret TypeStorage_alloc_ptr(types, resolved)
+        }
+        ret tyid
+    }
+
+    if kind == k.array {
+        len := TypeStorage_get_array_len(types, tyid)
+        inner_ty := TypeStorage_get_array_type(types, tyid)
+
+        if TypeStorage_kind(types, inner_ty) == k.infer {
+            infer_slot := TypeStorage_infer_slot(types, inner_ty)
+            resolved := UnifyStorage_resolve_type_deep(self, types, infer_slot)
+            ret TypeStorage_alloc_array(types, resolved, len)
+        }
+        ret tyid
+    }
+
+    if kind == k.struct_ {
+        fields := TypeStorage_get_struct_fields(types, tyid)
+        count := fields.len / 2
+        local_scratch := VecU32_new()
+        changed := false
+        i: u64 = 0
+
+        while i < count {
+            idx := i * 2
+            name := *(fields.ptr + idx)
+            field_ty := *(fields.ptr + idx + 1)
+
+            if TypeStorage_kind(types, field_ty) == k.infer {
+                field_slot := TypeStorage_infer_slot(types, field_ty)
+                resolved := UnifyStorage_resolve_type_deep(self, types, field_slot)
+                VecU32_push(&local_scratch, name)
+                VecU32_push(&local_scratch, resolved)
+                changed = true
+            } else {
+                VecU32_push(&local_scratch, name)
+                VecU32_push(&local_scratch, field_ty)
+            }
+            i = i + 1
+        }
+
+        res := tyid
+        if changed {
+            slice: SliceU32 = .{
+                ptr: VecU32_ptr_at(&local_scratch, 0),
+                len: fields.len
+            }
+
+            res = TypeStorage_alloc_struct(types, slice)
+        }
+
+        VecU32_destroy(&local_scratch)
+        ret res
+    }
+
+
+    tyid
+}

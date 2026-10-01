@@ -1,0 +1,694 @@
+import token, TokenStream_kind, TokenStream_newline_before from "../token.a"
+import hir_kind, HirTable, HirTable_push, HirTable_lhs, HirTable_rhs, HirTable_kind, hir_none from "../hir.a"
+
+import Parser, Parser_new, is_eof, peek, bump, expect, optional, peek_n,
+       peek_preceded_by_newline, curr_text, prev_text, str_to_u32, lookup_sym from "core.a"
+import ScopeEnv_mark, ScopeEnv_reset, ScopeEnv_define from "env.a"
+import is_soft, bp_from_infix, prec from "prec.a"
+
+import VecU32, VecU32_mark, VecU32_reset, VecU32_push, VecU32_new, VecU32_destroy,
+       VecU32_get, VecU32_as_slice, VecU32_ptr_at, VecU32_len from "../../../std/vec/u32.a"
+import SliceU32 from "../../../std/slice/u32.a"
+import Interner_intern from "../../../std/interner.a"
+
+import Nexus_add_list, Nexus_get_list, Nexus_alloc_local_symbol,
+       Nexus_set_sym_hir, Nexus_get_sym_hir, Nexus_set_hir_symbol from "../nexus/nexus.a"
+import id_none from "../nexus/pool.a"
+
+import Str_print from "../../../std/string.a"
+
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
+
+--- Pratt Engine ---------------------------------------------------------------------------------
+
+parse_expr :: (p &Parser, min_bp u8) u32 {
+    lhs := dispatch_prefix(p)
+
+    while not is_eof(p) {
+        tk := peek(p)
+
+        if peek_preceded_by_newline(p) and (not is_soft(tk)) {
+            break
+        }
+
+        bp := bp_from_infix(tk)
+        if (not bp.is_some) or (bp.left < min_bp) {
+            break
+        }
+
+        bump(p) 
+        lhs = dispatch_infix(p, tk, lhs, bp.right)
+    }
+
+    lhs
+}
+
+--- Dispatch Layer -------------------------------------------------------------------------------
+
+dispatch_prefix :: (p &Parser) u32 {
+    t := token()
+    tk := peek(p)
+
+    if tk == t.eof      { ret hir_none() }
+
+    if tk == t.lit_int    { ret parse_lit_int(p) }
+    if tk == t.lit_float  { ret parse_float(p) }
+    if tk == t.lit_str    { ret parse_str(p) }
+    if tk == t.kw_true    { ret parse_true(p) }
+    if tk == t.kw_false   { ret parse_false(p) }
+
+    if tk == t.ident      { ret parse_ident(p) }
+    if tk == t.o_paren    { ret parse_paren(p) }
+    if tk == t.o_brace    { ret parse_block(p) }
+
+    if tk == t.kw_if      { ret parse_if(p) }
+    if tk == t.kw_while   { ret parse_while(p) }
+    if tk == t.kw_break   { ret parse_break(p) }
+    if tk == t.kw_cont    { ret parse_cont(p) }
+    if tk == t.kw_ret     { ret parse_return(p) }
+
+    if tk == t.kw_struct { ret parse_struct(p) }
+    if (tk == t.dot) and (peek_n(p, 1) == t.o_brace) { ret parse_struct_init(p) }
+
+    if (tk == t.minus) or (tk == t.kw_not) or (tk == t.tilde) or (tk == t.amp) or (tk == t.star) {
+        ret parse_unary(p, tk)
+    }
+
+    bump(p)
+    HirTable_push((*p).hir, hir_kind().error, hir_none(), hir_none(), hir_none())
+}
+
+dispatch_infix :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
+    t := token()
+
+    if op == t.colon_colon { ret parse_binding(p, lhs, right_bp) }
+    if op == t.colon       { ret parse_var_decl(p, lhs, right_bp) }
+    if op == t.eq          { ret parse_assign(p, lhs, right_bp) }
+    if op == t.o_paren     { ret parse_call(p, lhs, right_bp) }
+    if op == t.dot { ret parse_member(p, lhs, right_bp) }
+
+    parse_binary(p, op, lhs, right_bp)
+}
+
+--- Control Flow Handlers ------------------------------------------------------------------------
+
+parse_if :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    bump(p) 
+
+    prev_allow_fn := (*p).allow_fn
+    (*p).allow_fn = false
+    cond := parse_expr(p, 0 as u8)
+    (*p).allow_fn = prev_allow_fn
+
+    thenb := parse_expr(p, 0 as u8)
+
+    elseb := hir_none()
+    if optional(p, t.kw_else) {
+        elseb = parse_expr(p, 0 as u8)
+    }
+
+    HirTable_push((*p).hir, k.k_if, cond, thenb, elseb)
+}
+
+parse_while :: (p &Parser) u32 {
+    k := hir_kind()
+    bump(p) 
+
+    prev_allow_fn := (*p).allow_fn
+    (*p).allow_fn = false
+    cond := parse_expr(p, 0 as u8)
+    (*p).allow_fn = prev_allow_fn
+
+    body := parse_expr(p, 0 as u8)
+
+    HirTable_push((*p).hir, k.k_while, cond, body, hir_none())
+}
+
+
+--- Function Parsing Helpers ---------------------------------------------------------------------
+
+define_param :: (p &Parser, name_hir u32) {
+    k := hir_kind()
+    if HirTable_kind((*p).hir, name_hir) == k.ident {
+        name_id := HirTable_lhs((*p).hir, name_hir)
+        sym_id := Nexus_alloc_local_symbol((*p).db, (*p).file_id, name_id, name_hir)
+        ScopeEnv_define(&(*p).env, name_id, sym_id)
+    }
+}
+
+is_function_header :: (p &Parser) bool {
+    t := token()
+
+    if peek(p) != t.ident {
+        ret false
+    }
+
+    depth: u32 = 1
+    i := (*p).cursor
+    has_comma := false
+
+    while i < (*p).end {
+        tk := TokenStream_kind((*p).tokens, i)
+        if tk == t.o_paren {
+            depth = depth + 1
+        } else if tk == t.c_paren {
+            depth = depth - 1
+            if depth == 0 {
+                break
+            }
+        } else if (tk == t.comma) and (depth == 1) {
+            has_comma = true
+        }
+        i = i + 1
+    }
+
+    if depth != 0 {
+        ret false
+    }
+
+    if has_comma {
+        ret true
+    }
+
+    after_cp := t.eof
+    if (i + 1) < (*p).end {
+        after_cp = TokenStream_kind((*p).tokens, i + 1)
+    }
+
+    if after_cp == t.o_brace {
+        ret true
+    }
+
+    if after_cp == t.ident {
+        if not TokenStream_newline_before((*p).tokens, i + 1) {
+            ret true
+        }
+    }
+
+    if (after_cp == t.amp) or (after_cp == t.star) or (after_cp == t.o_bracket) {
+        if (*p).toplv_sym != id_none() {
+            ret true
+        }
+    }
+
+    false
+}
+
+parse_fn_tail :: (p &Parser, params u32) u32 {
+    (*p).toplv_sym = id_none()
+    t := token()
+    k := hir_kind()
+
+    ret_ty := hir_none()
+    if peek(p) != t.o_brace {
+        ret_ty = parse_expr(p, 0 as u8)
+    }
+
+    body := hir_none()
+    if peek(p) == t.o_brace {
+        body = parse_block(p)
+    }
+
+    HirTable_push((*p).hir, k.function, params, ret_ty, body)
+}
+
+--- Prefix Handlers ------------------------------------------------------------------------------
+
+parse_lit_int :: (p &Parser) u32 {
+    k := hir_kind()
+    val := str_to_u32(curr_text(p))
+    bump(p)
+    HirTable_push((*p).hir, k.lit_int, val, hir_none(), hir_none())
+}
+
+parse_ident :: (p &Parser) u32 {
+    k := hir_kind()
+    t := token()
+
+    if peek(p) != t.ident {
+        bump(p)
+        ret HirTable_push((*p).hir, k.error, hir_none(), hir_none(), hir_none())
+    }
+
+    name := curr_text(p)
+    name_id := Interner_intern(&(*(*p).db).interner, name)
+    bump(p)
+
+    ident_hir := HirTable_push((*p).hir, k.ident, name_id, hir_none(), hir_none())
+
+    sym_id := lookup_sym(p, name_id)
+    if sym_id != id_none() {
+        Nexus_set_hir_symbol((*p).db, ident_hir, sym_id)
+    }
+
+    ident_hir
+}
+
+parse_paren :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    bump(p) 
+
+    if (*p).allow_fn and optional(p, t.c_paren) {
+        env_mark := ScopeEnv_mark(&(*p).env)
+        fn_id := parse_fn_tail(p, hir_none())
+        ScopeEnv_reset(&(*p).env, env_mark)
+        ret fn_id
+    }
+
+    if (*p).allow_fn and is_function_header(p) {
+        env_mark := ScopeEnv_mark(&(*p).env)
+        args := VecU32_new()
+        pending_names := VecU32_new()
+
+      while (peek(p) != t.c_paren) and (not is_eof(p)) {
+            name := parse_ident(p)
+            define_param(p, name)
+            VecU32_push(&pending_names, name)
+
+            if optional(p, t.comma) {
+                cont
+
+            }
+
+            if (peek(p) != t.c_paren) and (peek(p) != t.eof) {
+                ty := parse_expr(p, 0 as u8)
+
+                p_i: u64 = 0
+                while p_i < pending_names.len {
+                    p_name := VecU32_get(&pending_names, p_i)
+                    arg_id := HirTable_push((*p).hir, k.arg, p_name, ty, hir_none())
+                    VecU32_push(&args, arg_id)
+                    p_i = p_i + 1
+                }
+                VecU32_reset(&pending_names, 0)
+
+                optional(p, t.comma)
+            }
+        }
+
+        p_i: u64 = 0
+        while p_i < pending_names.len {
+            p_name := VecU32_get(&pending_names, p_i)
+            arg_id := HirTable_push((*p).hir, k.arg, p_name, hir_none(), hir_none())
+            VecU32_push(&args, arg_id)
+            p_i = p_i + 1
+        }
+
+        expect(p, t.c_paren)
+
+        slice: SliceU32 = .{
+            ptr: VecU32_ptr_at(&args, 0),
+            len: args.len
+        }
+        params := Nexus_add_list((*p).db, slice)
+
+        VecU32_destroy(&pending_names)
+        VecU32_destroy(&args)
+
+        fn_id := parse_fn_tail(p, params)
+        ScopeEnv_reset(&(*p).env, env_mark)
+        ret fn_id
+    }
+
+    expr := parse_expr(p, 0 as u8)
+    expect(p, t.c_paren)
+    expr
+}
+
+parse_block :: (p &Parser) u32 {
+    k := hir_kind()
+    t := token()
+
+    db := &(*(*p).db)
+    glob_stack := &(*db).glob_stack
+
+    mark := VecU32_mark(glob_stack)
+    env_mark := ScopeEnv_mark(&(*p).env) 
+
+    bump(p)
+
+    while true {
+        peek_tk := peek(p)
+
+        if peek_tk == t.c_brace {
+            bump(p)
+            break
+        }
+
+        if peek_tk == t.eof {
+            break
+        }
+
+        VecU32_push(glob_stack, parse_expr(p, 0))
+    }
+
+    slice: SliceU32 = .{
+        ptr: VecU32_ptr_at(glob_stack, mark),
+        len: VecU32_len(glob_stack) - mark
+    }
+
+    list_id := Nexus_add_list(db, slice)
+
+    VecU32_reset(glob_stack, mark)
+    ScopeEnv_reset(&(*p).env, env_mark) 
+
+    HirTable_push((*p).hir, k.block, list_id, hir_none(), hir_none())
+}
+
+parse_unary :: (p &Parser, op u8) u32 {
+    t := token()
+    k := hir_kind()
+    bump(p)
+
+    body := parse_expr(p, prec().unary)
+
+    op_kind := k.empty
+    if op == t.minus  { op_kind = k.unary_neg }
+    if op == t.kw_not { op_kind = k.unary_not }
+    if op == t.tilde  { op_kind = k.unary_bit_not }
+    if op == t.amp    { op_kind = k.unary_addr_of }
+    if op == t.star   { op_kind = k.unary_deref }
+
+    HirTable_push((*p).hir, op_kind, body, hir_none(), hir_none())
+}
+
+parse_return :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    bump(p) 
+
+    val := hir_none()
+    if (not peek_preceded_by_newline(p)) and (peek(p) != t.c_brace) and (peek(p) != t.eof) {
+        val = parse_expr(p, 0 as u8)
+    }
+
+    HirTable_push((*p).hir, k.k_ret, val, hir_none(), hir_none())
+}
+
+--- Infix Handlers -------------------------------------------------------------------------------
+
+parse_binary :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
+    t := token()
+    k := hir_kind()
+
+    rhs := parse_expr(p, right_bp)
+
+    op_kind := k.empty
+    if op == t.plus    { op_kind = k.binary_add }
+    if op == t.minus   { op_kind = k.binary_sub }
+    if op == t.star    { op_kind = k.binary_mul }
+    if op == t.slash   { op_kind = k.binary_div }
+    if op == t.percent { op_kind = k.binary_mod }
+
+    -- bitwise
+    if op == t.amp         { op_kind = k.binary_bit_and }
+    if op == t.pipe        { op_kind = k.binary_bit_or }
+    if op == t.caret       { op_kind = k.binary_bit_xor }
+    if op == t.left_shift  { op_kind = k.binary_shl }
+    if op == t.right_shift { op_kind = k.binary_shr }
+
+    -- cmp
+    if op == t.eq_eq       { op_kind = k.binary_eq_eq }
+    if op == t.bang_eq     { op_kind = k.binary_neq }
+    if op == t.lt          { op_kind = k.binary_lt }
+    if op == t.lt_eq       { op_kind = k.binary_lt_eq }
+    if op == t.gt          { op_kind = k.binary_gt }
+    if op == t.gt_eq       { op_kind = k.binary_gt_eq }
+
+    -- logical
+    if op == t.kw_and      { op_kind = k.binary_and }
+    if op == t.kw_or       { op_kind = k.binary_or }
+
+    -- cast
+    if op == t.kw_as       { op_kind = k.cast }
+
+    if op_kind == k.empty {
+        ret HirTable_push((*p).hir, k.error, hir_none(), hir_none(), hir_none())
+    }
+
+    HirTable_push((*p).hir, op_kind, lhs, rhs, hir_none())
+}
+
+parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
+    k := hir_kind()
+
+    name_id := HirTable_lhs((*p).hir, lhs)
+    sym_id := lookup_sym(p, name_id)
+
+    if sym_id != id_none() {
+        curr_hir := Nexus_get_sym_hir((*p).db, sym_id)
+        if curr_hir == id_none() {
+            Nexus_set_sym_hir((*p).db, sym_id, lhs)
+        }
+        Nexus_set_hir_symbol((*p).db, lhs, sym_id)
+    }
+
+    rhs := parse_expr(p, right_bp)
+    binding_id := HirTable_push((*p).hir, k.binding, lhs, hir_none(), rhs)
+
+    if sym_id != id_none() {
+        Nexus_set_hir_symbol((*p).db, binding_id, sym_id)
+    }
+
+    binding_id
+}
+
+parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
+    t := token()
+    k := hir_kind()
+
+    name_id := HirTable_lhs((*p).hir, lhs)
+
+    sym_id := Nexus_alloc_local_symbol((*p).db, (*p).file_id, name_id, lhs)
+    ScopeEnv_define(&(*p).env, name_id, sym_id)
+
+    if optional(p, t.eq) {
+        val := parse_expr(p, 0 as u8)
+        var_id := HirTable_push((*p).hir, k.var, lhs, hir_none(), val)
+
+        Nexus_set_hir_symbol((*p).db, var_id, sym_id)
+        ret var_id
+    }
+
+    ty := parse_expr(p, prec().var_def + (1 as u8))
+
+    if optional(p, t.eq) {
+        val := parse_expr(p, 0 as u8)
+        var_id := HirTable_push((*p).hir, k.var, lhs, ty, val)
+
+        Nexus_set_hir_symbol((*p).db, var_id, sym_id)
+        ret var_id
+    }
+
+    if optional(p, t.colon) {
+        val := parse_expr(p, 0 as u8)
+        binding_id := HirTable_push((*p).hir, k.binding, lhs, ty, val)
+
+        Nexus_set_hir_symbol((*p).db, binding_id, sym_id)
+        ret binding_id
+    }
+
+    var_id := HirTable_push((*p).hir, k.var, lhs, ty, hir_none())
+    Nexus_set_hir_symbol((*p).db, var_id, sym_id)
+    var_id
+}
+
+parse_assign :: (p &Parser, lhs u32, right_bp u8) u32 {
+    k := hir_kind()
+    rhs := parse_expr(p, right_bp)
+    HirTable_push((*p).hir, k.binary_assign, lhs, rhs, hir_none())
+}
+
+parse_call :: (p &Parser, lhs u32, right_bp u8) u32 {
+    t := token()
+    k := hir_kind()
+
+    args := VecU32_new()
+
+    if not optional(p, t.c_paren) {
+        while true {
+            arg := parse_expr(p, 0 as u8)
+            VecU32_push(&args, arg)
+
+            if not optional(p, t.comma) {
+                break
+            }
+        }
+        expect(p, t.c_paren)
+    }
+
+    slice: SliceU32 = .{
+        ptr: VecU32_ptr_at(&args, 0),
+        len: args.len
+    }
+    args_list := Nexus_add_list((*p).db, slice)
+    VecU32_destroy(&args)
+
+    HirTable_push((*p).hir, k.call, lhs, args_list, hir_none())
+}
+
+parse_float :: (p &Parser) u32 {
+    k := hir_kind()
+    name := curr_text(p)
+    name_id := Interner_intern(&(*(*p).db).interner, name)
+    bump(p)
+    HirTable_push((*p).hir, k.lit_float, name_id, hir_none(), hir_none())
+}
+
+parse_str :: (p &Parser) u32 {
+    k := hir_kind()
+    raw := curr_text(p)
+    bump(p)
+    name_id := Interner_intern(&(*(*p).db).interner, raw)
+    HirTable_push((*p).hir, k.lit_str, name_id, hir_none(), hir_none())
+}
+
+parse_true :: (p &Parser) u32 {
+    k := hir_kind()
+    bump(p)
+    HirTable_push((*p).hir, k.lit_bool_true, hir_none(), hir_none(), hir_none())
+}
+
+parse_false :: (p &Parser) u32 {
+    k := hir_kind()
+    bump(p)
+    HirTable_push((*p).hir, k.lit_bool_false, hir_none(), hir_none(), hir_none())
+}
+
+parse_break :: (p &Parser) u32 {
+    k := hir_kind()
+    bump(p)
+    HirTable_push((*p).hir, k.k_break, hir_none(), hir_none(), hir_none())
+}
+
+parse_cont :: (p &Parser) u32 {
+    k := hir_kind()
+    bump(p)
+    HirTable_push((*p).hir, k.k_cont, hir_none(), hir_none(), hir_none())
+}
+
+parse_struct :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    bump(p) -- 'struct'
+    expect(p, t.o_brace)
+
+    names := VecU32_new()
+    types := VecU32_new()
+
+    while true {
+        peek_tk := peek(p)
+        if (peek_tk == t.c_brace) or (peek_tk == t.eof) {
+            break
+        }
+
+        if peek(p) == t.comma {
+            bump(p)
+        }
+        if (peek(p) == t.c_brace) or (peek(p) == t.eof) {
+            break
+        }
+
+        name := parse_ident(p)
+        expect(p, t.colon)
+        ty := parse_expr(p, prec().var_def + (1 as u8))
+
+        VecU32_push(&names, name)
+        VecU32_push(&types, ty)
+
+        peek_after := peek(p)
+        if (peek_after == t.c_brace) or (peek_after == t.eof) {
+            break
+        }
+
+        if peek(p) == t.comma {
+            bump(p)
+        }
+    }
+
+    expect(p, t.c_brace)
+
+    ptr_n := 0 as &u32
+    if names.len > 0 { ptr_n = VecU32_ptr_at(&names, 0) }
+    slice_n: SliceU32 = .{ ptr: ptr_n, len: names.len }
+
+    ptr_t := 0 as &u32
+    if types.len > 0 { ptr_t = VecU32_ptr_at(&types, 0) }
+    slice_t: SliceU32 = .{ ptr: ptr_t, len: types.len }
+
+    names_id := Nexus_add_list((*p).db, slice_n)
+    types_id := Nexus_add_list((*p).db, slice_t)
+
+    VecU32_destroy(&names)
+    VecU32_destroy(&types)
+
+    HirTable_push((*p).hir, k.struct_, names_id, types_id, hir_none())
+}
+
+parse_struct_init :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    bump(p) -- '.'
+    expect(p, t.o_brace)
+
+    fields := VecU32_new()
+    values := VecU32_new()
+
+    while true {
+        peek_tk := peek(p)
+        if (peek_tk == t.c_brace) or (peek_tk == t.eof) {
+            break
+        }
+
+        if peek(p) == t.comma {
+            bump(p)
+        }
+        if (peek(p) == t.c_brace) or (peek(p) == t.eof) {
+            break
+        }
+
+        f := parse_ident(p)
+        expect(p, t.colon)
+        v := parse_expr(p, prec().var_def + (1 as u8))
+
+        VecU32_push(&fields, f)
+        VecU32_push(&values, v)
+
+        peek_after := peek(p)
+        if (peek_after == t.c_brace) or (peek_after == t.eof) {
+            break
+        }
+
+        if peek(p) == t.comma {
+            bump(p)
+        }
+    }
+
+    expect(p, t.c_brace)
+
+    ptr_f := 0 as &u32
+    if fields.len > 0 { ptr_f = VecU32_ptr_at(&fields, 0) }
+    slice_f: SliceU32 = .{ ptr: ptr_f, len: fields.len }
+
+    ptr_v := 0 as &u32
+    if values.len > 0 { ptr_v = VecU32_ptr_at(&values, 0) }
+    slice_v: SliceU32 = .{ ptr: ptr_v, len: values.len }
+
+    fids := Nexus_add_list((*p).db, slice_f)
+    vids := Nexus_add_list((*p).db, slice_v)
+
+    VecU32_destroy(&fields)
+    VecU32_destroy(&values)
+
+    HirTable_push((*p).hir, k.struct_init, fids, vids, hir_none())
+}
+
+parse_member :: (p &Parser, lhs u32, right_bp u8) u32 {
+    k := hir_kind()
+    rhs := parse_expr(p, right_bp)
+    HirTable_push((*p).hir, k.member, lhs, rhs, hir_none())
+}
