@@ -1,0 +1,181 @@
+import VecU32, VecU32_new, VecU32_extend, VecU32_len, VecU32_push, VecU32_get, VecU32_ptr_at from "../../../std/vec/u32.a"
+import SliceU32, SliceU32_new from "../../../std/slice/u32.a"
+import Interner, Interner_new from "../../../std/interner.a"
+
+import TypeStorage, TypeStorage_new, ty_id_none from "../types.a"
+import UnifyStorage, UnifyStorage_new from "../unify.a"
+import TokenStream, TokenStream_new, TokenStream_destroy from "../token.a"
+import HirTable, HirTable_new, HirTable_destroy from "../hir.a"
+import PoolU32, PoolU32_new, PoolU32_alloc, PoolU32_get, PoolU32_set, PoolU32_count, PoolU32_set_safe, id_none from "pool.a"
+
+Nexus :: struct {
+    tokens         : TokenStream,
+    hir            : HirTable,
+
+    glob_stack     : VecU32,
+    u32_items      : VecU32,
+    interner       : Interner,
+    types          : TypeStorage,
+    unify          : UnifyStorage,
+
+    sym_names      : PoolU32,
+    sym_files      : PoolU32,
+    sym_tok_start  : PoolU32,
+    sym_tok_end    : PoolU32,
+    sym_hir_start  : PoolU32,
+    sym_hir_end    : PoolU32,
+    sym_target     : PoolU32,
+
+    sym_nodes      : PoolU32, -- SymbolId -> HirId
+    hir_to_symbol  : PoolU32, -- HirId    -> SymbolId
+
+    const_types    : PoolU32, -- HirId    -> TypeId 
+    sym_resolving  : PoolU32  -- SymbolId -> 0 or 1
+}
+
+Nexus_new :: () Nexus {
+    .{
+        tokens         : TokenStream_new(),
+        hir            : HirTable_new(),
+
+        glob_stack     : VecU32_new(),
+        u32_items      : VecU32_new(),
+        interner       : Interner_new(),
+        types          : TypeStorage_new(),
+        unify          : UnifyStorage_new(),
+
+        sym_names      : PoolU32_new(),
+        sym_files      : PoolU32_new(),
+        sym_tok_start  : PoolU32_new(),
+        sym_tok_end    : PoolU32_new(),
+        sym_hir_start  : PoolU32_new(),
+        sym_hir_end    : PoolU32_new(),
+        sym_target     : PoolU32_new(),
+        sym_nodes      : PoolU32_new(),
+        hir_to_symbol  : PoolU32_new(),
+
+        const_types    : PoolU32_new(),
+        sym_resolving  : PoolU32_new()
+    }
+}
+
+Nexus_add_list :: (self &Nexus, items SliceU32) u32 {
+    list := &(*self).u32_items
+    start := VecU32_len(list) as u32
+    VecU32_push(list, items.len as u32)
+    VecU32_extend(list, items.ptr, items.len)
+    start
+}
+
+Nexus_get_list :: (self &Nexus, start u32) SliceU32 {
+    list := &(*self).u32_items 
+    len := VecU32_get(list, start as u64)
+
+    .{
+        ptr: VecU32_ptr_at(list, (start as u64) + 1),
+        len: len as u64
+    }
+}
+
+Nexus_alloc_symbol :: (self &Nexus, file_id u32, name_id u32, tok_start u32, tok_end u32) u32 {
+    sym_id := PoolU32_alloc(&(*self).sym_names, name_id)
+    PoolU32_alloc(&(*self).sym_files, file_id)
+    PoolU32_alloc(&(*self).sym_tok_start, tok_start)
+    PoolU32_alloc(&(*self).sym_tok_end, tok_end)
+    PoolU32_alloc(&(*self).sym_hir_start, id_none())
+    PoolU32_alloc(&(*self).sym_hir_end, id_none())
+    PoolU32_alloc(&(*self).sym_nodes, id_none())
+    PoolU32_alloc(&(*self).sym_resolving, 0)
+    PoolU32_alloc(&(*self).sym_target, id_none())
+    sym_id
+}
+
+Nexus_alloc_local_symbol :: (self &Nexus, file_id u32, name_id u32, hir_id u32) u32 {
+    sym_id := PoolU32_alloc(&(*self).sym_names, name_id)
+    PoolU32_alloc(&(*self).sym_files, file_id)
+    PoolU32_alloc(&(*self).sym_tok_start, id_none())
+    PoolU32_alloc(&(*self).sym_tok_end, id_none())
+    PoolU32_alloc(&(*self).sym_hir_start, id_none())
+    PoolU32_alloc(&(*self).sym_hir_end, id_none())
+    PoolU32_alloc(&(*self).sym_nodes, hir_id)
+    PoolU32_alloc(&(*self).sym_resolving, 0)
+    PoolU32_alloc(&(*self).sym_target, id_none())
+
+    Nexus_set_hir_symbol(self, hir_id, sym_id)
+    sym_id
+}
+
+Nexus_alloc_symbol_alias :: (self &Nexus, file_id u32, name_id u32, target_sym u32) u32 {
+    sym_id := PoolU32_alloc(&(*self).sym_names, name_id)
+    PoolU32_alloc(&(*self).sym_files, file_id)
+    PoolU32_alloc(&(*self).sym_tok_start, id_none())
+    PoolU32_alloc(&(*self).sym_tok_end, id_none())
+    PoolU32_alloc(&(*self).sym_hir_start, id_none())
+    PoolU32_alloc(&(*self).sym_hir_end, id_none())
+    PoolU32_alloc(&(*self).sym_nodes, id_none())
+    PoolU32_alloc(&(*self).sym_resolving, 0)
+    PoolU32_alloc(&(*self).sym_target, target_sym)
+    sym_id
+}
+
+Nexus_find_symbol :: (self &Nexus, file_id u32, name_id u32) u32 {
+    count := PoolU32_count(&(*self).sym_names)
+    i: u32 = 0
+    while i < count {
+        f := PoolU32_get(&(*self).sym_files, i)
+        n := PoolU32_get(&(*self).sym_names, i)
+        if (f == file_id) and (n == name_id) {
+            curr := i
+            while curr != id_none() {
+                target := PoolU32_get(&(*self).sym_target, curr)
+                if target == id_none() {
+                    ret curr
+                }
+                curr = target
+            }
+            ret i
+        }
+        i = i + 1
+    }
+    id_none()
+}
+
+Nexus_set_sym_hir :: (self &Nexus, sym_id u32, hir_id u32) {
+    PoolU32_set(&(*self).sym_nodes, sym_id, hir_id)
+}
+
+Nexus_get_sym_hir :: (self &Nexus, sym_id u32) u32 {
+    if sym_id == id_none() { ret id_none() }
+    if sym_id >= PoolU32_count(&(*self).sym_nodes) { ret id_none() }
+    PoolU32_get(&(*self).sym_nodes, sym_id)
+}
+
+Nexus_set_hir_symbol :: (self &Nexus, hir_id u32, sym_id u32) {
+    PoolU32_set_safe(&(*self).hir_to_symbol, hir_id, sym_id, id_none())
+}
+
+Nexus_get_hir_symbol :: (self &Nexus, hir_id u32) u32 {
+    if hir_id == id_none() { ret id_none() }
+    if hir_id >= PoolU32_count(&(*self).hir_to_symbol) { ret id_none() }
+    PoolU32_get(&(*self).hir_to_symbol, hir_id)
+}
+
+Nexus_set_const_type :: (self &Nexus, hir_id u32, ty_id u32) {
+    PoolU32_set_safe(&(*self).const_types, hir_id, ty_id, ty_id_none())
+}
+
+Nexus_get_const_type :: (self &Nexus, hir_id u32) u32 {
+    if hir_id >= PoolU32_count(&(*self).const_types) { ret ty_id_none() }
+    PoolU32_get(&(*self).const_types, hir_id)
+}
+
+Nexus_set_sym_resolving :: (self &Nexus, sym_id u32, resolving bool) {
+    val: u32 = 0
+    if resolving { val = 1 }
+    PoolU32_set_safe(&(*self).sym_resolving, sym_id, val, 0)
+}
+
+Nexus_is_sym_resolving :: (self &Nexus, sym_id u32) bool {
+    if sym_id >= PoolU32_count(&(*self).sym_resolving) { ret false }
+    PoolU32_get(&(*self).sym_resolving, sym_id) == 1
+}
