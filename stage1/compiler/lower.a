@@ -68,7 +68,7 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
     if (kind == k.infer) or (kind == k.unknown) or (kind == k.error) {
         ret Str_from("uint64_t")
     }
-    
+
     Str_from("void")
 }
 
@@ -470,6 +470,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     if kind == k.member {
         lhs_id := HirTable_lhs(&(*db).hir, id)
         rhs_id := HirTable_rhs(&(*db).hir, id)
+
+        if (lhs_id == hir_none()) or (rhs_id == hir_none()) {
+            ret Str_empty()
+        }
 
         lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
         field_name_id := HirTable_lhs(&(*db).hir, rhs_id)
