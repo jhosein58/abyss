@@ -243,7 +243,7 @@ UnifyStorage_unify_types :: (self &UnifyStorage, types &TypeStorage, a u32, b u3
             ret ty_id_error()
         }
 
-        mark := VecU32_mark(&(*self).scratch)
+        local_scratch := VecU32_new()
         has_err := false
         count := fields_a.len / 2
         i: u64 = 0
@@ -266,23 +266,23 @@ UnifyStorage_unify_types :: (self &UnifyStorage, types &TypeStorage, a u32, b u3
                 break
             }
 
-            VecU32_push(&(*self).scratch, na)
-            VecU32_push(&(*self).scratch, unified_t)
+            VecU32_push(&local_scratch, na)
+            VecU32_push(&local_scratch, unified_t)
             i = i + 1
         }
 
         if has_err {
-            VecU32_reset(&(*self).scratch, mark)
+            VecU32_destroy(&local_scratch)
             ret ty_id_error()
         }
 
         slice: SliceU32 = .{
-            ptr: VecU32_ptr_at(&(*self).scratch, mark),
+            ptr: VecU32_ptr_at(&local_scratch, 0),
             len: fields_a.len
         }
 
         res := TypeStorage_alloc_struct(types, slice)
-        VecU32_reset(&(*self).scratch, mark)
+        VecU32_destroy(&local_scratch)
         ret res
     }
 
