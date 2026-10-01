@@ -16,6 +16,7 @@ import topo_sort from "topo_sort.a"
 print :: (s &u8) unit
 print_u32 :: (v u32) unit
 
+
 c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
     if ty_id == ty_id_none() { ret Str_from("void") }
     k := ty_kind()
@@ -149,349 +150,351 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     k := hir_kind()
     kind := HirTable_kind(&(*db).hir, id)
 
-    if kind == k.lit_int {
-        val := HirTable_lhs(&(*db).hir, id)
-        s := String_new(arena)
-        String_push_u32(&s, val)
-        ret String_as_str(&s)
-    }
+--     if kind == k.lit_int {
+--         val := HirTable_lhs(&(*db).hir, id)
+--         s := String_new(arena)
+--         String_push_u32(&s, val)
+--         ret String_as_str(&s)
+--     }
 
-    if kind == k.ident {
-        ty := get_node_type(db, id)
-        sym_id := Nexus_get_hir_symbol(db, id)
+--     if kind == k.ident {
+--         ty := get_node_type(db, id)
+--         sym_id := Nexus_get_hir_symbol(db, id)
 
-        if TypeStorage_kind(&(*db).types, ty) == ty_kind().func {
-            if sym_id != id_none() {
-                if not vec_contains(queue, sym_id) {
-                    VecU32_push(queue, sym_id)
-                }
-            }
+--         if TypeStorage_kind(&(*db).types, ty) == ty_kind().func {
+--             if sym_id != id_none() {
+--                 if not vec_contains(queue, sym_id) {
+--                     VecU32_push(queue, sym_id)
+--                 }
+--             }
 
-            if TypeStorage_func_is_extern(&(*db).types, ty) {
-                name_id := HirTable_lhs(&(*db).hir, id)
-                ret Interner_get(&(*db).interner, name_id)
-            }
+--             if TypeStorage_func_is_extern(&(*db).types, ty) {
+--                 name_id := HirTable_lhs(&(*db).hir, id)
+--                 ret Interner_get(&(*db).interner, name_id)
+--             }
 
-            s := String_new(arena)
-            String_push_str(&s, Str_from("sym_"))
-            String_push_u32(&s, sym_id)
-            ret String_as_str(&s)
-        }
+--             s := String_new(arena)
+--             String_push_str(&s, Str_from("sym_"))
+--             String_push_u32(&s, sym_id)
+--             ret String_as_str(&s)
+--         }
 
-        if sym_id != id_none() {
-            s := String_new(arena)
-            String_push_str(&s, Str_from("sym_"))
-            String_push_u32(&s, sym_id)
-            ret String_as_str(&s)
-        }
+--         if sym_id != id_none() {
+--             s := String_new(arena)
+--             String_push_str(&s, Str_from("sym_"))
+--             String_push_u32(&s, sym_id)
+--             ret String_as_str(&s)
+--         }
 
-        name_id := HirTable_lhs(&(*db).hir, id)
-        ret Interner_get(&(*db).interner, name_id)
-    }
-    if kind == k.var {
-        ident_id := HirTable_lhs(&(*db).hir, id)
-        val_id   := HirTable_extra(&(*db).hir, id)
+--         name_id := HirTable_lhs(&(*db).hir, id)
+--         ret Interner_get(&(*db).interner, name_id)
+--     }
+--     if kind == k.var {
+--         ident_id := HirTable_lhs(&(*db).hir, id)
+--         val_id   := HirTable_extra(&(*db).hir, id)
 
-        sym_id := Nexus_get_hir_symbol(db, ident_id)
-        var_ty := get_node_type(db, ident_id)
-        ty_str := c_type_str(&(*db).types, arena, var_ty)
-
-
-
-        var_name_s := String_new(arena)
-        String_push_str(&var_name_s, Str_from("sym_"))
-        String_push_u32(&var_name_s, sym_id)
-        var_name := String_as_str(&var_name_s)
-
-        if val_id != hir_none() {
-            val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
-            CCodeGen_create_variable(ccg, var_name, ty_str, val_str, true)
-        } else {
-            CCodeGen_create_variable(ccg, var_name, ty_str, Str_empty(), false)
-        }
-
-        add_type_to_queue(db, var_ty, type_queue)
-
-        ret var_name
-    }
-
-    if kind == k.binary_assign {
-        lhs_id := HirTable_lhs(&(*db).hir, id)
-        rhs_id := HirTable_rhs(&(*db).hir, id)
-
-        lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
-        rhs_str := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
-
-        s := String_new(arena)
-        String_push_str(&s, lhs_str)
-        String_push_str(&s, Str_from(" = "))
-        String_push_str(&s, rhs_str)
-        ret String_as_str(&s)
-    }
-
-    if (kind == k.binary_add) or (kind == k.binary_sub) or (kind == k.binary_mul) or
-       (kind == k.binary_div) or (kind == k.binary_mod) or (kind == k.binary_eq_eq) or
-       (kind == k.binary_neq) or (kind == k.binary_lt) or (kind == k.binary_gt) or
-       (kind == k.binary_lt_eq) or (kind == k.binary_gt_eq) or (kind == k.binary_bit_and) or
-       (kind == k.binary_bit_or) or (kind == k.binary_bit_xor) or (kind == k.binary_shl) or
-       (kind == k.binary_shr) or (kind == k.binary_and) or (kind == k.binary_or) {
-
-        lhs_id := HirTable_lhs(&(*db).hir, id)
-        rhs_id := HirTable_rhs(&(*db).hir, id)
-
-        lhs_val := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
-        rhs_val := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
-        op_str  := binary_op_symbol(k, kind)
-
-        s := String_new(arena)
-        String_push_str(&s, Str_from("("))
-        String_push_str(&s, lhs_val)
-        String_push_str(&s, op_str)
-        String_push_str(&s, rhs_val)
-        String_push_str(&s, Str_from(")"))
-        ret String_as_str(&s)
-    }
-
-    if kind == k.call {
-        callee_id := HirTable_lhs(&(*db).hir, id)
-        args_list := HirTable_rhs(&(*db).hir, id)
-
-        callee_sym := Nexus_get_hir_symbol(db, callee_id)
-        if callee_sym != id_none() {
-            if not vec_contains(queue, callee_sym) {
-                VecU32_push(queue, callee_sym)
-            }
-        }
-        callee_str := lower_expr(db, ccg, arena, callee_id, visited, queue, type_queue)
-
-        s := String_new(arena)
-        String_push_str(&s, callee_str)
-        String_push_str(&s, Str_from("("))
-
-        if args_list != hir_none() {
-            args := Nexus_get_list(db, args_list)
-            i: u64 = 0
-            while i < args.len {
-                arg_node := *(args.ptr + i)
-                arg_val := lower_expr(db, ccg, arena, arg_node, visited, queue, type_queue)
-                String_push_str(&s, arg_val)
-
-                if (i + 1) < args.len {
-                    String_push_str(&s, Str_from(", "))
-                }
-                i = i + 1
-            }
-        }
-
-        String_push_str(&s, Str_from(")"))
-        ret String_as_str(&s)
-    }
-
-   if kind == k.block {
-        list_id := HirTable_lhs(&(*db).hir, id)
-        items := Nexus_get_list(db, list_id)
-        count := items.len
-        last_val := Str_empty()
-
-        i: u64 = 0
-        while i < count {
-            node_id := *(items.ptr + i)
-            is_last := (i + 1) == count
-            val := lower_expr(db, ccg, arena, node_id, visited, queue, type_queue)
-
-            if not is_last {
-                CCodeGen_expr(ccg, val)
-            } else {
-                last_val = val
-            }
-            i = i + 1
-        }
-
-        ret last_val
-    }
-
-    if kind == k.lit_float {
-        name_id := HirTable_lhs(&(*db).hir, id)
-        ret Interner_get(&(*db).interner, name_id)
-    }
-    if kind == k.lit_bool_true  { ret Str_from("true") }
-    if kind == k.lit_bool_false { ret Str_from("false") }
-    if kind == k.lit_str {
-        name_id := HirTable_lhs(&(*db).hir, id)
-        raw := Interner_get(&(*db).interner, name_id)
-        s := String_new(arena)
-        String_push_str(&s, Str_from("((uint8_t*)"))
-        String_push_str(&s, raw)
-        String_push_str(&s, Str_from(")"))
-        ret String_as_str(&s)
-    }
+--         sym_id := Nexus_get_hir_symbol(db, ident_id)
+--         var_ty := get_node_type(db, ident_id)
+--         ty_str := c_type_str(&(*db).types, arena, var_ty)
 
 
-    if kind == k.unary_neg {
-        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        s := String_new(arena)
-        String_push_str(&s, Str_from("(-("))
-        String_push_str(&s, child_v)
-        String_push_str(&s, Str_from("))"))
-        ret String_as_str(&s)
-    }
-    if kind == k.unary_not {
-        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        s := String_new(arena)
-        String_push_str(&s, Str_from("(!("))
-        String_push_str(&s, child_v)
-        String_push_str(&s, Str_from("))"))
-        ret String_as_str(&s)
-    }
-    if kind == k.unary_bit_not {
-        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        s := String_new(arena)
-        String_push_str(&s, Str_from("(~("))
-        String_push_str(&s, child_v)
-        String_push_str(&s, Str_from("))"))
-        ret String_as_str(&s)
-    }
-    if kind == k.unary_addr_of {
-        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        s := String_new(arena)
-        String_push_str(&s, Str_from("(&("))
-        String_push_str(&s, child_v)
-        String_push_str(&s, Str_from("))"))
-        ret String_as_str(&s)
-    }
-    if kind == k.unary_deref {
-        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        s := String_new(arena)
-        String_push_str(&s, Str_from("(*("))
-        String_push_str(&s, child_v)
-        String_push_str(&s, Str_from("))"))
-        ret String_as_str(&s)
-    }
-    if kind == k.k_break {
-        CCodeGen_expr(ccg, Str_from("break"))
-        ret Str_empty()
-    }
-    if kind == k.k_cont {
-        CCodeGen_expr(ccg, Str_from("continue"))
-        ret Str_empty()
-    }
 
-    if kind == k.cast {
-        lhs_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        ty_str := c_type_str(&(*db).types, arena, get_node_type(db, id))
-        s := String_new(arena)
-        String_push_str(&s, Str_from("(("))
-        String_push_str(&s, ty_str)
-        String_push_str(&s, Str_from(")"))
-        String_push_str(&s, lhs_v)
-        String_push_str(&s, Str_from(")"))
-        ret String_as_str(&s)
-    }
+--         var_name_s := String_new(arena)
+--         String_push_str(&var_name_s, Str_from("sym_"))
+--         String_push_u32(&var_name_s, sym_id)
+--         var_name := String_as_str(&var_name_s)
 
-    if kind == k.k_if {
-        cond_str := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        CCodeGen_start_if(ccg, cond_str)
+--         if val_id != hir_none() {
+--             val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
+--             CCodeGen_create_variable(ccg, var_name, ty_str, val_str, true)
+--         } else {
+--             CCodeGen_create_variable(ccg, var_name, ty_str, Str_empty(), false)
+--         }
 
-        then_val := lower_expr(db, ccg, arena, HirTable_rhs(&(*db).hir, id), visited, queue, type_queue)
-        if then_val.len > 0 { CCodeGen_expr(ccg, then_val) }
+--         add_type_to_queue(db, var_ty, type_queue)
 
-        elseb_id := HirTable_extra(&(*db).hir, id)
-        if elseb_id != hir_none() {
-            CCodeGen_else(ccg)
-            else_val := lower_expr(db, ccg, arena, elseb_id, visited, queue, type_queue)
-            if else_val.len > 0 { CCodeGen_expr(ccg, else_val) }
-        }
-        CCodeGen_end_block(ccg)
-        ret Str_empty()
-    }
+--         ret var_name
+--     }
 
-    if kind == k.k_while {
-        cond_str := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        CCodeGen_start_while(ccg, cond_str)
+--     if kind == k.binary_assign {
+--         lhs_id := HirTable_lhs(&(*db).hir, id)
+--         rhs_id := HirTable_rhs(&(*db).hir, id)
 
-        body_val := lower_expr(db, ccg, arena, HirTable_rhs(&(*db).hir, id), visited, queue, type_queue)
-        if body_val.len > 0 { CCodeGen_expr(ccg, body_val) }
+--         lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
+--         rhs_str := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
 
-        CCodeGen_end_block(ccg)
-        ret Str_empty()
-    }
+--         s := String_new(arena)
+--         String_push_str(&s, lhs_str)
+--         String_push_str(&s, Str_from(" = "))
+--         String_push_str(&s, rhs_str)
+--         ret String_as_str(&s)
+--     }
 
-    if kind == k.k_ret {
-        val_id := HirTable_lhs(&(*db).hir, id)
-        if val_id != hir_none() {
-            val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
-            CCodeGen_gen_return(ccg, val_str, true)
-        } else {
-            CCodeGen_gen_return(ccg, Str_empty(), false)
-        }
-        ret Str_empty()
-    }
+--     if (kind == k.binary_add) or (kind == k.binary_sub) or (kind == k.binary_mul) or
+--        (kind == k.binary_div) or (kind == k.binary_mod) or (kind == k.binary_eq_eq) or
+--        (kind == k.binary_neq) or (kind == k.binary_lt) or (kind == k.binary_gt) or
+--        (kind == k.binary_lt_eq) or (kind == k.binary_gt_eq) or (kind == k.binary_bit_and) or
+--        (kind == k.binary_bit_or) or (kind == k.binary_bit_xor) or (kind == k.binary_shl) or
+--        (kind == k.binary_shr) or (kind == k.binary_and) or (kind == k.binary_or) {
+
+--         lhs_id := HirTable_lhs(&(*db).hir, id)
+--         rhs_id := HirTable_rhs(&(*db).hir, id)
+
+--         lhs_val := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
+--         rhs_val := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
+--         op_str  := binary_op_symbol(k, kind)
+
+--         s := String_new(arena)
+--         String_push_str(&s, Str_from("("))
+--         String_push_str(&s, lhs_val)
+--         String_push_str(&s, op_str)
+--         String_push_str(&s, rhs_val)
+--         String_push_str(&s, Str_from(")"))
+--         ret String_as_str(&s)
+--     }
+
+--     if kind == k.call {
+--         callee_id := HirTable_lhs(&(*db).hir, id)
+--         args_list := HirTable_rhs(&(*db).hir, id)
+
+--         callee_sym := Nexus_get_hir_symbol(db, callee_id)
+--         if callee_sym != id_none() {
+--             if not vec_contains(queue, callee_sym) {
+--                 VecU32_push(queue, callee_sym)
+--             }
+--         }
+--         callee_str := lower_expr(db, ccg, arena, callee_id, visited, queue, type_queue)
+
+--         s := String_new(arena)
+--         String_push_str(&s, callee_str)
+--         String_push_str(&s, Str_from("("))
+
+--         if args_list != hir_none() {
+--             args := Nexus_get_list(db, args_list)
+--             i: u64 = 0
+--             while i < args.len {
+--                 arg_node := *(args.ptr + i)
+--                 arg_val := lower_expr(db, ccg, arena, arg_node, visited, queue, type_queue)
+--                 String_push_str(&s, arg_val)
+
+--                 if (i + 1) < args.len {
+--                     String_push_str(&s, Str_from(", "))
+--                 }
+--                 i = i + 1
+--             }
+--         }
+
+--         String_push_str(&s, Str_from(")"))
+--         ret String_as_str(&s)
+--     }
+
+--    if kind == k.block {
+--         list_id := HirTable_lhs(&(*db).hir, id)
+--         items := Nexus_get_list(db, list_id)
+--         count := items.len
+--         last_val := Str_empty()
+
+--         i: u64 = 0
+--         while i < count {
+--             node_id := *(items.ptr + i)
+--             is_last := (i + 1) == count
+--             val := lower_expr(db, ccg, arena, node_id, visited, queue, type_queue)
+
+--             if not is_last {
+--                 CCodeGen_expr(ccg, val)
+--                 print("")
+--             } else {
+--                 last_val = val
+--                 print("")
+--             }
+--             i = i + 1
+--         }
+
+--         ret last_val
+--     }
+
+--     if kind == k.lit_float {
+--         name_id := HirTable_lhs(&(*db).hir, id)
+--         ret Interner_get(&(*db).interner, name_id)
+--     }
+--     if kind == k.lit_bool_true  { ret Str_from("true") }
+--     if kind == k.lit_bool_false { ret Str_from("false") }
+--     if kind == k.lit_str {
+--         name_id := HirTable_lhs(&(*db).hir, id)
+--         raw := Interner_get(&(*db).interner, name_id)
+--         s := String_new(arena)
+--         String_push_str(&s, Str_from("((uint8_t*)"))
+--         String_push_str(&s, raw)
+--         String_push_str(&s, Str_from(")"))
+--         ret String_as_str(&s)
+--     }
 
 
-    if kind == k.struct_init {
-        ty_id := get_node_type(db, id)
-        add_type_to_queue(db, ty_id, type_queue)
-        struct_name := c_type_str(&(*db).types, arena, ty_id)
+--     if kind == k.unary_neg {
+--         child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
+--         s := String_new(arena)
+--         String_push_str(&s, Str_from("(-("))
+--         String_push_str(&s, child_v)
+--         String_push_str(&s, Str_from("))"))
+--         ret String_as_str(&s)
+--     }
+--     if kind == k.unary_not {
+--         child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
+--         s := String_new(arena)
+--         String_push_str(&s, Str_from("(!("))
+--         String_push_str(&s, child_v)
+--         String_push_str(&s, Str_from("))"))
+--         ret String_as_str(&s)
+--     }
+--     if kind == k.unary_bit_not {
+--         child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
+--         s := String_new(arena)
+--         String_push_str(&s, Str_from("(~("))
+--         String_push_str(&s, child_v)
+--         String_push_str(&s, Str_from("))"))
+--         ret String_as_str(&s)
+--     }
+--     if kind == k.unary_addr_of {
+--         child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
+--         s := String_new(arena)
+--         String_push_str(&s, Str_from("(&("))
+--         String_push_str(&s, child_v)
+--         String_push_str(&s, Str_from("))"))
+--         ret String_as_str(&s)
+--     }
+--     if kind == k.unary_deref {
+--         child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
+--         s := String_new(arena)
+--         String_push_str(&s, Str_from("(*("))
+--         String_push_str(&s, child_v)
+--         String_push_str(&s, Str_from("))"))
+--         ret String_as_str(&s)
+--     }
+--     if kind == k.k_break {
+--         CCodeGen_expr(ccg, Str_from("break"))
+--         ret Str_empty()
+--     }
+--     if kind == k.k_cont {
+--         CCodeGen_expr(ccg, Str_from("continue"))
+--         ret Str_empty()
+--     }
 
-        fields_list := HirTable_lhs(&(*db).hir, id)
-        vals_list   := HirTable_rhs(&(*db).hir, id)
+--     if kind == k.cast {
+--         lhs_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
+--         ty_str := c_type_str(&(*db).types, arena, get_node_type(db, id))
+--         s := String_new(arena)
+--         String_push_str(&s, Str_from("(("))
+--         String_push_str(&s, ty_str)
+--         String_push_str(&s, Str_from(")"))
+--         String_push_str(&s, lhs_v)
+--         String_push_str(&s, Str_from(")"))
+--         ret String_as_str(&s)
+--     }
 
-        fields := Nexus_get_list(db, fields_list)
-        vals   := Nexus_get_list(db, vals_list)
+--     if kind == k.k_if {
+--         cond_str := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
+--         CCodeGen_start_if(ccg, cond_str)
 
-        s := String_new(arena)
-        String_push_str(&s, Str_from("(("))
-        String_push_str(&s, struct_name)
-        String_push_str(&s, Str_from("){"))
+--         then_val := lower_expr(db, ccg, arena, HirTable_rhs(&(*db).hir, id), visited, queue, type_queue)
+--         if then_val.len > 0 { CCodeGen_expr(ccg, then_val) }
 
-        i: u64 = 0
-        while (i < fields.len) and (i < vals.len) {
-            f_node := *(fields.ptr + i)
-            v_node := *(vals.ptr + i)
+--         elseb_id := HirTable_extra(&(*db).hir, id)
+--         if elseb_id != hir_none() {
+--             CCodeGen_else(ccg)
+--             else_val := lower_expr(db, ccg, arena, elseb_id, visited, queue, type_queue)
+--             if else_val.len > 0 { CCodeGen_expr(ccg, else_val) }
+--         }
+--         CCodeGen_end_block(ccg)
+--         ret Str_empty()
+--     }
 
-            f_name_id := HirTable_lhs(&(*db).hir, f_node)
-            v_str := lower_expr(db, ccg, arena, v_node, visited, queue, type_queue)
+--     if kind == k.k_while {
+--         cond_str: Str = lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
+--         CCodeGen_start_while(ccg, cond_str)
 
-            String_push_str(&s, Str_from("._f"))
-            String_push_u32(&s, f_name_id)
-            String_push_str(&s, Str_from(" = "))
-            String_push_str(&s, v_str)
+--         body_val := lower_expr(db, ccg, arena, HirTable_rhs(&(*db).hir, id), visited, queue, type_queue)
+--         if body_val.len > 0 { CCodeGen_expr(ccg, body_val) }
 
-            if (i + 1) < fields.len {
-                String_push_str(&s, Str_from(", "))
-            }
-            i = i + 1
-        }
+--         CCodeGen_end_block(ccg)
+--         ret Str_empty()
+--     }
 
-        String_push_str(&s, Str_from("})"))
-        ret String_as_str(&s)
-    }
+--     if kind == k.k_ret {
+--         val_id := HirTable_lhs(&(*db).hir, id)
+--         if val_id != hir_none() {
+--             val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
+--             CCodeGen_gen_return(ccg, val_str, true)
+--         } else {
+--             CCodeGen_gen_return(ccg, Str_empty(), false)
+--         }
+--         ret Str_empty()
+--     }
 
-    if kind == k.member {
-        lhs_id := HirTable_lhs(&(*db).hir, id)
-        rhs_id := HirTable_rhs(&(*db).hir, id)
 
-        if (lhs_id == hir_none()) or (rhs_id == hir_none()) {
-            ret Str_empty()
-        }
+--     if kind == k.struct_init {
+--         ty_id := get_node_type(db, id)
+--         add_type_to_queue(db, ty_id, type_queue)
+--         struct_name := c_type_str(&(*db).types, arena, ty_id)
 
-        lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
-        field_name_id := HirTable_lhs(&(*db).hir, rhs_id)
+--         fields_list := HirTable_lhs(&(*db).hir, id)
+--         vals_list   := HirTable_rhs(&(*db).hir, id)
 
-        lhs_ty := get_node_type(db, lhs_id)
-        is_ptr := TypeStorage_kind(&(*db).types, lhs_ty) == ty_kind().ptr
+--         fields := Nexus_get_list(db, fields_list)
+--         vals   := Nexus_get_list(db, vals_list)
 
-        s := String_new(arena)
-        String_push_str(&s, Str_from("("))
-        String_push_str(&s, lhs_str)
-        if is_ptr {
-            String_push_str(&s, Str_from(")->_f"))
-        } else {
-            String_push_str(&s, Str_from(")._f"))
-        }
-        String_push_u32(&s, field_name_id)
-        ret String_as_str(&s)
-    }
+--         s := String_new(arena)
+--         String_push_str(&s, Str_from("(("))
+--         String_push_str(&s, struct_name)
+--         String_push_str(&s, Str_from("){"))
+
+--         i: u64 = 0
+--         while (i < fields.len) and (i < vals.len) {
+--             f_node := *(fields.ptr + i)
+--             v_node := *(vals.ptr + i)
+
+--             f_name_id := HirTable_lhs(&(*db).hir, f_node)
+--             v_str := lower_expr(db, ccg, arena, v_node, visited, queue, type_queue)
+
+--             String_push_str(&s, Str_from("._f"))
+--             String_push_u32(&s, f_name_id)
+--             String_push_str(&s, Str_from(" = "))
+--             String_push_str(&s, v_str)
+
+--             if (i + 1) < fields.len {
+--                 String_push_str(&s, Str_from(", "))
+--             }
+--             i = i + 1
+--         }
+
+--         String_push_str(&s, Str_from("})"))
+--         ret String_as_str(&s)
+--     }
+
+--     if kind == k.member {
+--         lhs_id := HirTable_lhs(&(*db).hir, id)
+--         rhs_id := HirTable_rhs(&(*db).hir, id)
+
+--         if (lhs_id == hir_none()) or (rhs_id == hir_none()) {
+--             ret Str_empty()
+--         }
+
+--         lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
+--         field_name_id := HirTable_lhs(&(*db).hir, rhs_id)
+
+--         lhs_ty := get_node_type(db, lhs_id)
+--         is_ptr := TypeStorage_kind(&(*db).types, lhs_ty) == ty_kind().ptr
+
+--         s := String_new(arena)
+--         String_push_str(&s, Str_from("("))
+--         String_push_str(&s, lhs_str)
+--         if is_ptr {
+--             String_push_str(&s, Str_from(")->_f"))
+--         } else {
+--             String_push_str(&s, Str_from(")._f"))
+--         }
+--         String_push_u32(&s, field_name_id)
+--         ret String_as_str(&s)
+--     }
 
     Str_empty()
 }
