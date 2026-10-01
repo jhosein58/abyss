@@ -65,9 +65,10 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
         ret TypeStorage_name(types, arena, ty_id)
     }
 
-    if (kind == k.infer) or (kind == k.unknown) {
+    if (kind == k.infer) or (kind == k.unknown) or (kind == k.error) {
         ret Str_from("uint64_t")
     }
+    
     Str_from("void")
 }
 
