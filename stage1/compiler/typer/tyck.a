@@ -112,6 +112,15 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32) {
     if curr == k.member         { synth_member(db, tbl, id) }
 
     if (curr == k.binary_and) or (curr == k.binary_or) { synth_logic_and_or(db, tbl, id) }
+
+    if (curr == k.binary_add) or (curr == k.binary_sub) or
+        (curr == k.binary_mul) or (curr == k.binary_div) or
+        (curr == k.binary_mod) or (curr == k.binary_bit_and) or
+        (curr == k.binary_bit_or) or (curr == k.binary_bit_xor) or
+        (curr == k.binary_shl) or (curr == k.binary_shr) {
+        synth_binary(db, tbl, id)
+    }
+
     if (curr == k.binary_eq_eq) or (curr == k.binary_neq) or
        (curr == k.binary_lt) or (curr == k.binary_lt_eq) or
        (curr == k.binary_gt) or (curr == k.binary_gt_eq) {
@@ -463,7 +472,7 @@ synth_unary_addr_of :: (db &Nexus, tbl &HirTable, id u32) {
     child_slot := UnifyStorage_get_slot(&(*db).unify, child)
 
     if child_slot != slot_none() {
-        child_ty := UnifyStorage_resolve_type(&(*db).unify, child_slot)
+        child_ty := UnifyStorage_resolve_type_deep(&(*db).unify, &(*db).types, child_slot)
         if TypeStorage_kind(&(*db).types, child_ty) == ty_kind().type_ {
             UnifyStorage_bind_type(&(*db).unify, &(*db).types, slot, ty_id_type())
             val := Nexus_get_const_type(db, child)

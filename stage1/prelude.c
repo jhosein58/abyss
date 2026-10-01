@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-void print(const uint8_t *s) {
+void print(uint8_t *s) {
     printf("%s", (const char *)s);
 }
 
@@ -61,25 +61,21 @@ void print_bool(bool b) {
     printf("%s", b ? "true" : "false");
 }
 
-void print_ptr(const void *p) {
-    printf("%p", p);
-}
-
 // ------> String
 
-uint64_t str_len(const uint8_t *s) {
+uint64_t str_len(uint8_t *s) {
     if (!s) return 0;
-    return (uint64_t)strlen((const char *)s);
+    return (uint64_t)strlen((char *)s);
 }
 
-bool str_eq(const uint8_t *a, const uint8_t *b) {
+bool str_eq(uint8_t *a, uint8_t *b) {
     if (a == b) return true;
     if (!a || !b) return false;
     return strcmp((const char *)a, (const char *)b) == 0;
 }
 
 // ------> mem
-void mem_copy(uint8_t *dest, const uint8_t *src, uint64_t n) {
+void mem_copy(uint8_t *dest, uint8_t *src, uint64_t n) {
     memcpy(dest, src, (size_t)n);
 }
 
@@ -89,7 +85,7 @@ void mem_set(uint8_t *dest, uint8_t val, uint64_t n) {
 
 // ------> File Stream
 
-uint8_t *file_open(const uint8_t *path, const uint8_t *mode) {
+uint8_t *file_open(uint8_t *path, uint8_t *mode) {
     return (uint8_t*)(fopen(path, mode));
 }
 
@@ -109,14 +105,14 @@ int32_t file_close(uint8_t *handle) {
     return fclose((FILE*)handle);
 }
 
-uint64_t file_write(uint8_t *handle, const uint8_t *ptr, uint64_t size, uint64_t count) {
+uint64_t file_write(uint8_t *handle, uint8_t *ptr, uint64_t size, uint64_t count) {
     return fwrite(ptr, size, count, (FILE*)handle);
 }
 
 // ------> Process
 
 
-int32_t compile_and_run(const uint8_t *path) {
+int32_t compile_and_run(uint8_t *path) {
     if (!path) return -1;
 
     const char *p = (const char *)path;

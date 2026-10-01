@@ -198,6 +198,7 @@ is_function_header :: (p &Parser) bool {
 }
 
 parse_fn_tail :: (p &Parser, params u32) u32 {
+    (*p).toplv_sym = id_none()
     t := token()
     k := hir_kind()
 
@@ -225,6 +226,13 @@ parse_lit_int :: (p &Parser) u32 {
 
 parse_ident :: (p &Parser) u32 {
     k := hir_kind()
+    t := token()
+
+    if peek(p) != t.ident {
+        bump(p)
+        ret HirTable_push((*p).hir, k.error, hir_none(), hir_none(), hir_none())
+    }
+
     name := curr_text(p)
     name_id := Interner_intern(&(*(*p).db).interner, name)
     bump(p)
@@ -578,9 +586,16 @@ parse_struct :: (p &Parser) u32 {
             break
         }
 
-        name := parse_expr(p, prec().var_def + (1 as u8))
+        if peek(p) == t.comma {
+            bump(p)
+        }
+        if (peek(p) == t.c_brace) or (peek(p) == t.eof) {
+            break
+        }
+
+        name := parse_ident(p)
         expect(p, t.colon)
-        ty := parse_expr(p, 0 as u8)
+        ty := parse_expr(p, prec().var_def + (1 as u8))
 
         VecU32_push(&names, name)
         VecU32_push(&types, ty)
@@ -590,7 +605,9 @@ parse_struct :: (p &Parser) u32 {
             break
         }
 
-        optional(p, t.comma)
+        if peek(p) == t.comma {
+            bump(p)
+        }
     }
 
     expect(p, t.c_brace)
@@ -627,9 +644,16 @@ parse_struct_init :: (p &Parser) u32 {
             break
         }
 
-        f := parse_expr(p, prec().var_def + (1 as u8))
+        if peek(p) == t.comma {
+            bump(p)
+        }
+        if (peek(p) == t.c_brace) or (peek(p) == t.eof) {
+            break
+        }
+
+        f := parse_ident(p)
         expect(p, t.colon)
-        v := parse_expr(p, 0 as u8)
+        v := parse_expr(p, prec().var_def + (1 as u8))
 
         VecU32_push(&fields, f)
         VecU32_push(&values, v)
@@ -639,7 +663,9 @@ parse_struct_init :: (p &Parser) u32 {
             break
         }
 
-        optional(p, t.comma)
+        if peek(p) == t.comma {
+            bump(p)
+        }
     }
 
     expect(p, t.c_brace)

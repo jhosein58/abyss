@@ -225,7 +225,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
        (kind == k.binary_neq) or (kind == k.binary_lt) or (kind == k.binary_gt) or
        (kind == k.binary_lt_eq) or (kind == k.binary_gt_eq) or (kind == k.binary_bit_and) or
        (kind == k.binary_bit_or) or (kind == k.binary_bit_xor) or (kind == k.binary_shl) or
-       (kind == k.binary_shr) {
+       (kind == k.binary_shr) or (kind == k.binary_and) or (kind == k.binary_or) {
 
         lhs_id := HirTable_lhs(&(*db).hir, id)
         rhs_id := HirTable_rhs(&(*db).hir, id)

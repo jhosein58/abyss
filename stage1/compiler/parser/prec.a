@@ -102,12 +102,12 @@ bp_from_infix :: (kind u8) BindingPower {
 is_soft :: (kind u8) bool {
     t := token()
 
-    if kind == t.plus or kind == t.minus or kind == t.star or kind == t.slash or kind == t.percent { ret true }
+    if kind == t.plus or kind == t.minus or kind == t.slash or kind == t.percent { ret true }
     if kind == t.colon or kind == t.colon_colon { ret true }
     if kind == t.eq_eq or kind == t.bang_eq { ret true }
     if kind == t.lt or kind == t.gt or kind == t.lt_eq or kind == t.gt_eq { ret true }
     if kind == t.kw_and or kind == t.kw_or { ret true }
-    if kind == t.pipe or kind == t.caret or kind == t.amp or kind == t.left_shift or kind == t.right_shift { ret true }
+    if kind == t.pipe or kind == t.caret or kind == t.left_shift or kind == t.right_shift { ret true }
     if kind == t.eq or kind == t.plus_eq or kind == t.minus_eq or kind == t.star_eq or kind == t.slash_eq or kind == t.percent_eq { ret true }
     if kind == t.amp_eq or kind == t.pipe_eq or kind == t.caret_eq or kind == t.left_shift_eq or kind == t.right_shift_eq { ret true }
     if kind == t.kw_as { ret true }
