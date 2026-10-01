@@ -37,12 +37,12 @@ print :: (s &u8) unit
 compile_and_run :: (path &u8) i32
 
 main :: () {
-    arena := Arena_new(1024)
-    source := read_file(&arena, "tmp/main.a")
+    arena := Arena_new(1024 * 1024 * 16)
+    source := read_file(&arena, "main.a")
 
     eng := Engine_new()
 
-    fid := Engine_add_file(&eng, Str_from("tmp/main.a"), source)
+    fid := Engine_add_file(&eng, &arena, Str_from("main.a"), source)
 
     sym_id := Engine_get_symbol_id(&eng, fid, Str_from("main"))
 
@@ -54,11 +54,6 @@ main :: () {
 
     c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, "prelude.c"))
     write_file("tmp/stg1_out.c", c_code)
-    --Str_println(c_code)
 
     compile_and_run("tmp/stg1_out.c")
-
-    --dump_hir(&eng.nexus, &eng.nexus.hir, &arena)
-
 }
-
