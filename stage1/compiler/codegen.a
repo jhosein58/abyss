@@ -166,7 +166,6 @@ CCodeGen_finish :: (self &CCodeGen, pre Str) Str {
         vec_push_str(&out, Str_from("();\n    return 0;\n}\n"))
     }
 
-    vec_push_char(&out, 0 as u8)
     vec_as_str(&out)
 }
 
