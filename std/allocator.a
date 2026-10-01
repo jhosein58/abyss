@@ -73,34 +73,31 @@ Arena_reset :: (a &Arena) {
     }
 }
 
-
 Arena_realloc :: (a &Arena, old_ptr &u8, old_size u64, new_size u64) &u8 {
     if new_size <= old_size {
-        old_ptr
-    } else {
-        aligned_old := align_up(old_size)
-        aligned_new := align_up(new_size)
-        curr := (*a).current
+        ret old_ptr
+    }
 
+    aligned_old := align_up(old_size)
+    aligned_new := align_up(new_size)
+    curr := (*a).current
+
+    if (curr != (0 as &ArenaChunk)) and ((*curr).offset >= aligned_old) {
         last_alloc_ptr := (*curr).memory + ((*curr).offset - aligned_old)
-
         if old_ptr == last_alloc_ptr {
             diff := aligned_new - aligned_old
-
             if (*curr).offset + diff <= (*curr).cap {
                 (*curr).offset = (*curr).offset + diff
-                old_ptr
-            } else {
-                new_ptr := Arena_alloc(a, new_size)
-                mem_copy(new_ptr, old_ptr, old_size)
-                new_ptr
+                ret old_ptr
             }
-        } else {
-            new_ptr := Arena_alloc(a, new_size)
-            mem_copy(new_ptr, old_ptr, old_size)
-            new_ptr
         }
     }
+
+    new_ptr := Arena_alloc(a, new_size)
+    if (old_ptr != (0 as &u8)) and (old_size > 0) {
+        mem_copy(new_ptr, old_ptr, old_size)
+    }
+    new_ptr
 }
 
 Arena_destroy :: (a &Arena) {
