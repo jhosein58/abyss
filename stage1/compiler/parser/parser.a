@@ -1,7 +1,7 @@
 import token, TokenStream_kind, TokenStream_newline_before from "../token.a"
 import hir_kind, HirTable, HirTable_push, HirTable_lhs, HirTable_rhs, HirTable_kind, hir_none from "../hir.a"
 
-import Parser, Parser_new, is_eof, peek, bump, expect, optional,
+import Parser, Parser_new, is_eof, peek, bump, expect, optional, peek_n,
        peek_preceded_by_newline, curr_text, prev_text, str_to_u32, lookup_sym from "core.a"
 import ScopeEnv_mark, ScopeEnv_reset, ScopeEnv_define from "env.a"
 import is_soft, bp_from_infix, prec from "prec.a"
@@ -68,6 +68,9 @@ dispatch_prefix :: (p &Parser) u32 {
     if tk == t.kw_cont    { ret parse_cont(p) }
     if tk == t.kw_ret     { ret parse_return(p) }
 
+    if tk == t.kw_struct { ret parse_struct(p) }
+    if (tk == t.dot) and (peek_n(p, 1) == t.o_brace) { ret parse_struct_init(p) }
+
     if (tk == t.minus) or (tk == t.kw_not) or (tk == t.tilde) or (tk == t.amp) or (tk == t.star) {
         ret parse_unary(p, tk)
     }
@@ -83,6 +86,7 @@ dispatch_infix :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
     if op == t.colon       { ret parse_var_decl(p, lhs, right_bp) }
     if op == t.eq          { ret parse_assign(p, lhs, right_bp) }
     if op == t.o_paren     { ret parse_call(p, lhs, right_bp) }
+    if op == t.dot { ret parse_member(p, lhs, right_bp) }
 
     parse_binary(p, op, lhs, right_bp)
 }
@@ -557,4 +561,108 @@ parse_cont :: (p &Parser) u32 {
     k := hir_kind()
     bump(p)
     HirTable_push((*p).hir, k.k_cont, hir_none(), hir_none(), hir_none())
+}
+
+parse_struct :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    bump(p) -- 'struct'
+    expect(p, t.o_brace)
+
+    names := VecU32_new()
+    types := VecU32_new()
+
+    while true {
+        peek_tk := peek(p)
+        if (peek_tk == t.c_brace) or (peek_tk == t.eof) {
+            break
+        }
+
+        name := parse_expr(p, prec().var_def + (1 as u8))
+        expect(p, t.colon)
+        ty := parse_expr(p, 0 as u8)
+
+        VecU32_push(&names, name)
+        VecU32_push(&types, ty)
+
+        peek_after := peek(p)
+        if (peek_after == t.c_brace) or (peek_after == t.eof) {
+            break
+        }
+
+        optional(p, t.comma)
+    }
+
+    expect(p, t.c_brace)
+
+    ptr_n := 0 as &u32
+    if names.len > 0 { ptr_n = VecU32_ptr_at(&names, 0) }
+    slice_n: SliceU32 = .{ ptr: ptr_n, len: names.len }
+
+    ptr_t := 0 as &u32
+    if types.len > 0 { ptr_t = VecU32_ptr_at(&types, 0) }
+    slice_t: SliceU32 = .{ ptr: ptr_t, len: types.len }
+
+    names_id := Nexus_add_list((*p).db, slice_n)
+    types_id := Nexus_add_list((*p).db, slice_t)
+
+    VecU32_destroy(&names)
+    VecU32_destroy(&types)
+
+    HirTable_push((*p).hir, k.struct_, names_id, types_id, hir_none())
+}
+
+parse_struct_init :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    bump(p) -- '.'
+    expect(p, t.o_brace)
+
+    fields := VecU32_new()
+    values := VecU32_new()
+
+    while true {
+        peek_tk := peek(p)
+        if (peek_tk == t.c_brace) or (peek_tk == t.eof) {
+            break
+        }
+
+        f := parse_expr(p, prec().var_def + (1 as u8))
+        expect(p, t.colon)
+        v := parse_expr(p, 0 as u8)
+
+        VecU32_push(&fields, f)
+        VecU32_push(&values, v)
+
+        peek_after := peek(p)
+        if (peek_after == t.c_brace) or (peek_after == t.eof) {
+            break
+        }
+
+        optional(p, t.comma)
+    }
+
+    expect(p, t.c_brace)
+
+    ptr_f := 0 as &u32
+    if fields.len > 0 { ptr_f = VecU32_ptr_at(&fields, 0) }
+    slice_f: SliceU32 = .{ ptr: ptr_f, len: fields.len }
+
+    ptr_v := 0 as &u32
+    if values.len > 0 { ptr_v = VecU32_ptr_at(&values, 0) }
+    slice_v: SliceU32 = .{ ptr: ptr_v, len: values.len }
+
+    fids := Nexus_add_list((*p).db, slice_f)
+    vids := Nexus_add_list((*p).db, slice_v)
+
+    VecU32_destroy(&fields)
+    VecU32_destroy(&values)
+
+    HirTable_push((*p).hir, k.struct_init, fids, vids, hir_none())
+}
+
+parse_member :: (p &Parser, lhs u32, right_bp u8) u32 {
+    k := hir_kind()
+    rhs := parse_expr(p, right_bp)
+    HirTable_push((*p).hir, k.member, lhs, rhs, hir_none())
 }

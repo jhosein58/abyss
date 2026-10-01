@@ -73,7 +73,7 @@ HirExprKind :: struct {
 
     -- Types & Access
     cast                  : u8,
-    k_struct              : u8,
+    struct_              : u8,
     struct_init           : u8,
     array                 : u8,
     array_init            : u8,
@@ -147,7 +147,7 @@ hir_kind :: () HirExprKind {
         k_cont                : 53,
 
         cast                  : 54,
-        k_struct              : 55,
+        struct_              : 55,
         struct_init           : 56,
         array                 : 57,
         array_init            : 58,
@@ -222,7 +222,7 @@ hir_kind_name :: (kind u8) Str {
     if kind == k.k_cont                { ret Str_from("Cont")          }
 
     if kind == k.cast                  { ret Str_from("Cast")          }
-    if kind == k.k_struct              { ret Str_from("Struct")        }
+    if kind == k.struct_              { ret Str_from("Struct")        }
     if kind == k.struct_init           { ret Str_from("StructInit")    }
     if kind == k.array                 { ret Str_from("Array")         }
     if kind == k.array_init            { ret Str_from("ArrayInit")     }
