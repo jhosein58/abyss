@@ -1,7 +1,7 @@
 import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir,
        Nexus_set_const_type, Nexus_get_const_type from "../nexus/nexus.a"
 import HirTable, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind, hir_none from "../hir.a"
-import Str, Str_from, Str_print from "../../../std/string.a"
+import Str, Str_from, Str_print, Str_println from "../../../std/string.a"
 import SliceU32 from "../../../std/slice/u32.a"
 import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_ptr_at from "../../../std/vec/u32.a"
 
@@ -159,6 +159,12 @@ synth_ident :: (eng &Engine, id u32) {
     }
 
     sym_id := Nexus_get_hir_symbol(db, id)
+
+    print("[IDENT] hir=") print_u32(id)
+    print(" name=") Str_println(name)
+    print(" sym=") print_u32(sym_id)
+    print("\n")
+
     if sym_id != id_none() {
         origin_hir := Nexus_get_sym_hir(db, sym_id)
         if origin_hir == id {
@@ -168,6 +174,12 @@ synth_ident :: (eng &Engine, id u32) {
         origin_slot := Engine_slot_of(eng, sym_id)
         if origin_slot != slot_none() {
             UnifyStorage_union(unify_ptr, types_ptr, slot, origin_slot)
+            res_ty := UnifyStorage_resolve_type(unify_ptr, slot)
+            print("   -> unioned with origin_slot=") print_u32(origin_slot)
+            print(" res_ty=") print_u32(res_ty)
+            print("\n")
+        } else {
+            print("   -> ORIGIN_SLOT IS NONE!\n")
         }
 
         resolved_hir := Nexus_get_sym_hir(db, sym_id)
@@ -177,6 +189,8 @@ synth_ident :: (eng &Engine, id u32) {
                 Nexus_set_const_type(db, id, const_val)
             }
         }
+    } else {
+        print("   -> SYM_ID IS NONE!\n")
     }
 }
 
@@ -443,7 +457,10 @@ synth_assign :: (db &Nexus, tbl &HirTable, id u32) {
 
     if (lhs_slot != slot_none()) and (rhs_slot != slot_none()) {
         UnifyStorage_union(unify_ptr, types_ptr, lhs_slot, rhs_slot)
-        UnifyStorage_union(unify_ptr, types_ptr, slot, lhs_slot)
+        rhs_ty := UnifyStorage_resolve_type_deep(unify_ptr, types_ptr, lhs_slot)
+        if rhs_ty != ty_id_none() {
+            UnifyStorage_bind_type(unify_ptr, types_ptr, slot, rhs_ty)
+        }
     }
 }
 
@@ -508,12 +525,25 @@ synth_unary_deref :: (db &Nexus, tbl &HirTable, id u32) {
     child := HirTable_lhs(tbl, id)
     child_slot := UnifyStorage_get_slot(&(*db).unify, child)
 
+    print("[DEREF] id=") print_u32(id)
+    print(" child_hir=") print_u32(child)
+    print(" child_slot=") print_u32(child_slot)
+
     if child_slot != slot_none() {
         child_ty := UnifyStorage_resolve_type_deep(&(*db).unify, &(*db).types, child_slot)
-        if TypeStorage_kind(&(*db).types, child_ty) == ty_kind().ptr {
+        k := TypeStorage_kind(&(*db).types, child_ty)
+        print(" child_ty=") print_u32(child_ty)
+        print(" kind=") print_u32(k as u32)
+        print("\n")
+
+        if k == ty_kind().ptr {
             inner_ty := TypeStorage_payload(&(*db).types, child_ty)
             UnifyStorage_bind_type(&(*db).unify, &(*db).types, slot, inner_ty)
+        } else {
+            print("   -> DEREF FAILED: CHILD IS NOT PTR!\n")
         }
+    } else {
+        print("   -> DEREF FAILED: CHILD_SLOT IS NONE!\n")
     }
 }
 
@@ -533,13 +563,12 @@ synth_if :: (db &Nexus, tbl &HirTable, id u32) {
         UnifyStorage_bind_type(&(*db).unify, &(*db).types, cond_slot, ty_id_bool())
     }
 
-    then_slot := UnifyStorage_get_slot(&(*db).unify, thenb)
-    if then_slot != slot_none() {
-        UnifyStorage_union(&(*db).unify, &(*db).types, slot, then_slot)
-    }
-
     if elseb != hir_none() {
+        then_slot := UnifyStorage_get_slot(&(*db).unify, thenb)
         else_slot := UnifyStorage_get_slot(&(*db).unify, elseb)
+        if then_slot != slot_none() {
+            UnifyStorage_union(&(*db).unify, &(*db).types, slot, then_slot)
+        }
         if else_slot != slot_none() {
             UnifyStorage_union(&(*db).unify, &(*db).types, slot, else_slot)
         }
