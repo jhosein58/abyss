@@ -2,15 +2,16 @@ import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir from "nexu
 import HirTable, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind, hir_none, HirExprKind from "hir.a"
 import PoolU32_get, id_none from "nexus/pool.a"
 import CCodeGen, CCodeGen_declare_function, CCodeGen_start_function, CCodeGen_end_function, CCodeGen_start_if, CCodeGen_end_block,
-       CCodeGen_create_variable, CCodeGen_expr, CCodeGen_gen_return, CCodeGen_else, CCodeGen_start_while from "codegen.a"
+       CCodeGen_create_variable, CCodeGen_expr, CCodeGen_gen_return, CCodeGen_else, CCodeGen_start_while, CCodeGen_def_struct from "codegen.a"
 import Str, Str_from, Str_empty, String, String_new, String_push_str, String_push_u32, String_as_str from "../../std/string.a"
 import Arena from "../../std/allocator.a"
 import VecU32, VecU32_push, VecU32_get,VecU32_new, VecU32_destroy from "../../std/vec/u32.a"
 
-import TypeStorage, ty_kind, ty_id_none, TypeStorage_kind, TypeStorage_payload, TypeStorage_name,
+import TypeStorage, ty_kind, ty_id_none, TypeStorage_kind, TypeStorage_payload, TypeStorage_name, TypeStorage_get_struct_fields,
        TypeStorage_func_return, TypeStorage_func_params, TypeStorage_func_is_extern from "types.a"
 import UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
 import Interner_get from "../../std/interner.a"
+import topo_sort from "topo_sort.a"
 
 c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
     if ty_id == ty_id_none() { ret Str_from("void") }
@@ -55,6 +56,10 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
         String_push_str(&s, inner_str)
         String_push_str(&s, Str_from("*"))
         ret String_as_str(&s)
+    }
+
+    if kind == k.struct_ {
+        ret TypeStorage_name(types, arena, ty_id)
     }
 
     Str_from("void")
@@ -133,7 +138,7 @@ add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
     }
 }
 
-lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32) Str {
+lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
     k := hir_kind()
     kind := HirTable_kind(&(*db).hir, id)
 
@@ -190,11 +195,13 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         var_name := String_as_str(&var_name_s)
 
         if val_id != hir_none() {
-            val_str := lower_expr(db, ccg, arena, val_id, visited, queue)
+            val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
             CCodeGen_create_variable(ccg, var_name, ty_str, val_str, true)
         } else {
             CCodeGen_create_variable(ccg, var_name, ty_str, Str_empty(), false)
         }
+
+        add_type_to_queue(db, var_ty, type_queue)
 
         ret var_name
     }
@@ -203,8 +210,8 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         lhs_id := HirTable_lhs(&(*db).hir, id)
         rhs_id := HirTable_rhs(&(*db).hir, id)
 
-        lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue)
-        rhs_str := lower_expr(db, ccg, arena, rhs_id, visited, queue)
+        lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
+        rhs_str := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
 
         s := String_new(arena)
         String_push_str(&s, lhs_str)
@@ -223,8 +230,8 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         lhs_id := HirTable_lhs(&(*db).hir, id)
         rhs_id := HirTable_rhs(&(*db).hir, id)
 
-        lhs_val := lower_expr(db, ccg, arena, lhs_id, visited, queue)
-        rhs_val := lower_expr(db, ccg, arena, rhs_id, visited, queue)
+        lhs_val := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
+        rhs_val := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
         op_str  := binary_op_symbol(k, kind)
 
         s := String_new(arena)
@@ -246,7 +253,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                 VecU32_push(queue, callee_sym)
             }
         }
-        callee_str := lower_expr(db, ccg, arena, callee_id, visited, queue)
+        callee_str := lower_expr(db, ccg, arena, callee_id, visited, queue, type_queue)
 
         s := String_new(arena)
         String_push_str(&s, callee_str)
@@ -257,7 +264,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             i: u64 = 0
             while i < args.len {
                 arg_node := *(args.ptr + i)
-                arg_val := lower_expr(db, ccg, arena, arg_node, visited, queue)
+                arg_val := lower_expr(db, ccg, arena, arg_node, visited, queue, type_queue)
                 String_push_str(&s, arg_val)
 
                 if (i + 1) < args.len {
@@ -281,7 +288,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         while i < count {
             node_id := *(items.ptr + i)
             is_last := (i + 1) == count
-            val := lower_expr(db, ccg, arena, node_id, visited, queue)
+            val := lower_expr(db, ccg, arena, node_id, visited, queue, type_queue)
 
             if not is_last {
                 CCodeGen_expr(ccg, val)
@@ -312,7 +319,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
 
     if kind == k.unary_neg {
-        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue)
+        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
         s := String_new(arena)
         String_push_str(&s, Str_from("(-("))
         String_push_str(&s, child_v)
@@ -320,7 +327,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         ret String_as_str(&s)
     }
     if kind == k.unary_not {
-        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue)
+        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
         s := String_new(arena)
         String_push_str(&s, Str_from("(!("))
         String_push_str(&s, child_v)
@@ -328,7 +335,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         ret String_as_str(&s)
     }
     if kind == k.unary_bit_not {
-        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue)
+        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
         s := String_new(arena)
         String_push_str(&s, Str_from("(~("))
         String_push_str(&s, child_v)
@@ -336,7 +343,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         ret String_as_str(&s)
     }
     if kind == k.unary_addr_of {
-        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue)
+        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
         s := String_new(arena)
         String_push_str(&s, Str_from("(&("))
         String_push_str(&s, child_v)
@@ -344,7 +351,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         ret String_as_str(&s)
     }
     if kind == k.unary_deref {
-        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue)
+        child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
         s := String_new(arena)
         String_push_str(&s, Str_from("(*("))
         String_push_str(&s, child_v)
@@ -361,7 +368,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     }
 
     if kind == k.cast {
-        lhs_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue)
+        lhs_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
         ty_str := c_type_str(&(*db).types, arena, get_node_type(db, id))
         s := String_new(arena)
         String_push_str(&s, Str_from("(("))
@@ -373,16 +380,16 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     }
 
     if kind == k.k_if {
-        cond_str := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue)
+        cond_str := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
         CCodeGen_start_if(ccg, cond_str)
 
-        then_val := lower_expr(db, ccg, arena, HirTable_rhs(&(*db).hir, id), visited, queue)
+        then_val := lower_expr(db, ccg, arena, HirTable_rhs(&(*db).hir, id), visited, queue, type_queue)
         if then_val.len > 0 { CCodeGen_expr(ccg, then_val) }
 
         elseb_id := HirTable_extra(&(*db).hir, id)
         if elseb_id != hir_none() {
             CCodeGen_else(ccg)
-            else_val := lower_expr(db, ccg, arena, elseb_id, visited, queue)
+            else_val := lower_expr(db, ccg, arena, elseb_id, visited, queue, type_queue)
             if else_val.len > 0 { CCodeGen_expr(ccg, else_val) }
         }
         CCodeGen_end_block(ccg)
@@ -390,10 +397,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     }
 
     if kind == k.k_while {
-        cond_str := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue)
+        cond_str := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
         CCodeGen_start_while(ccg, cond_str)
 
-        body_val := lower_expr(db, ccg, arena, HirTable_rhs(&(*db).hir, id), visited, queue)
+        body_val := lower_expr(db, ccg, arena, HirTable_rhs(&(*db).hir, id), visited, queue, type_queue)
         if body_val.len > 0 { CCodeGen_expr(ccg, body_val) }
 
         CCodeGen_end_block(ccg)
@@ -403,7 +410,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     if kind == k.k_ret {
         val_id := HirTable_lhs(&(*db).hir, id)
         if val_id != hir_none() {
-            val_str := lower_expr(db, ccg, arena, val_id, visited, queue)
+            val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
             CCodeGen_gen_return(ccg, val_str, true)
         } else {
             CCodeGen_gen_return(ccg, Str_empty(), false)
@@ -411,8 +418,66 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         ret Str_empty()
     }
 
-    if kind == k.struct_ {
-        ret TypeStorage_name(types, arena, ty_id)
+
+    if kind == k.struct_init {
+        ty_id := get_node_type(db, id)
+        add_type_to_queue(db, ty_id, type_queue)
+        struct_name := c_type_str(&(*db).types, arena, ty_id)
+
+        fields_list := HirTable_lhs(&(*db).hir, id)
+        vals_list   := HirTable_rhs(&(*db).hir, id)
+
+        fields := Nexus_get_list(db, fields_list)
+        vals   := Nexus_get_list(db, vals_list)
+
+        s := String_new(arena)
+        String_push_str(&s, Str_from("(("))
+        String_push_str(&s, struct_name)
+        String_push_str(&s, Str_from("){"))
+
+        i: u64 = 0
+        while (i < fields.len) and (i < vals.len) {
+            f_node := *(fields.ptr + i)
+            v_node := *(vals.ptr + i)
+
+            f_name_id := HirTable_lhs(&(*db).hir, f_node)
+            v_str := lower_expr(db, ccg, arena, v_node, visited, queue, type_queue)
+
+            String_push_str(&s, Str_from("._f"))
+            String_push_u32(&s, f_name_id)
+            String_push_str(&s, Str_from(" = "))
+            String_push_str(&s, v_str)
+
+            if (i + 1) < fields.len {
+                String_push_str(&s, Str_from(", "))
+            }
+            i = i + 1
+        }
+
+        String_push_str(&s, Str_from("})"))
+        ret String_as_str(&s)
+    }
+
+    if kind == k.member {
+        lhs_id := HirTable_lhs(&(*db).hir, id)
+        rhs_id := HirTable_rhs(&(*db).hir, id)
+
+        lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
+        field_name_id := HirTable_lhs(&(*db).hir, rhs_id)
+
+        lhs_ty := get_node_type(db, lhs_id)
+        is_ptr := TypeStorage_kind(&(*db).types, lhs_ty) == ty_kind().ptr
+
+        s := String_new(arena)
+        String_push_str(&s, Str_from("("))
+        String_push_str(&s, lhs_str)
+        if is_ptr {
+            String_push_str(&s, Str_from(")->_f"))
+        } else {
+            String_push_str(&s, Str_from(")._f"))
+        }
+        String_push_u32(&s, field_name_id)
+        ret String_as_str(&s)
     }
 
     Str_empty()
@@ -500,9 +565,10 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     }
 
     queue := VecU32_new()
+    type_queue := VecU32_new()
 
     CCodeGen_start_function(ccg, fn_name, ret_str, params_str)
-    body_val := lower_expr(db, ccg, arena, body_id, visited, &queue)
+    body_val := lower_expr(db, ccg, arena, body_id, visited, &queue, &type_queue)
 
     if TypeStorage_kind(&(*db).types, ret_ty) == ty_kind().unit {
         if body_val.len > 0 {
@@ -521,5 +587,36 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         lower_function(db, ccg, arena, q_sym, visited)
         q_i = q_i + 1
     }
-    VecU32_destroy(&queue)
+
+    sorted := topo_sort(&(*db).types, &type_queue)
+    s_i: u64 = 0
+    while s_i < sorted.len {
+        t := VecU32_get(&sorted, s_i)
+        if TypeStorage_kind(&(*db).types, t) == ty_kind().struct_ {
+            s_name := TypeStorage_name(&(*db).types, arena, t)
+            body_buf := String_new(arena)
+            s_fields := TypeStorage_get_struct_fields(&(*db).types, t)
+            f_count := s_fields.len / 2
+
+            f_i: u64 = 0
+            while f_i < f_count {
+                fn_name := *(s_fields.ptr + (f_i * 2))
+                fn_ty   := *(s_fields.ptr + (f_i * 2) + 1)
+                fn_ty_str := c_type_str(&(*db).types, arena, fn_ty)
+
+                String_push_str(&body_buf, Str_from("    "))
+                String_push_str(&body_buf, fn_ty_str)
+                String_push_str(&body_buf, Str_from(" _f"))
+                String_push_u32(&body_buf, fn_name)
+                String_push_str(&body_buf, Str_from(";\n"))
+                f_i = f_i + 1
+            }
+
+            CCodeGen_def_struct(ccg, t, s_name, String_as_str(&body_buf))
+        }
+        s_i = s_i + 1
+        
+    }
+    VecU32_destroy(&sorted)
+    VecU32_destroy(&type_queue)
 }
