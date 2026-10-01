@@ -161,8 +161,9 @@ synth_ident :: (eng &Engine, id u32) {
             UnifyStorage_union(unify_ptr, types_ptr, slot, origin_slot)
         }
 
-        if origin_hir != id_none() {
-            const_val := Nexus_get_const_type(db, origin_hir)
+        resolved_hir := Nexus_get_sym_hir(db, sym_id)
+        if resolved_hir != id_none() {
+            const_val := Nexus_get_const_type(db, resolved_hir)
             if const_val != ty_id_none() {
                 Nexus_set_const_type(db, id, const_val)
             }

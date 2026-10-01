@@ -1,4 +1,5 @@
 import VecU8, VecU8_new, VecU8_destroy, VecU8_push from "../../std/vec/u8.a"
+import VecU32_get, VecU32, VecU32_push, VecU32_new from "../../std/vec/u32.a"
 import Str, Str_from from "../../std/string.a"
 
 vec_push_str :: (v &VecU8, s Str) {
@@ -43,24 +44,26 @@ vec_as_str :: (v &VecU8) Str {
 }
 
 CCodeGen :: struct {
-    struct_decls : VecU8,
-    struct_defs  : VecU8,
-    func_decls   : VecU8,
-    code         : VecU8,
-    main_sym     : u32,
-    has_main     : bool,
-    indent       : u32
+    struct_decls    : VecU8,
+    struct_defs     : VecU8,
+    func_decls      : VecU8,
+    code            : VecU8,
+    emitted_structs : VecU32,
+    main_sym        : u32,
+    has_main        : bool,
+    indent          : u32
 }
 
 CCodeGen_new :: () CCodeGen {
     .{
-        struct_decls : VecU8_new(),
-        struct_defs  : VecU8_new(),
-        func_decls   : VecU8_new(),
-        code         : VecU8_new(),
-        main_sym     : 0,
-        has_main     : false,
-        indent       : 0
+        struct_decls    : VecU8_new(),
+        struct_defs     : VecU8_new(),
+        func_decls      : VecU8_new(),
+        code            : VecU8_new(),
+        emitted_structs : VecU32_new(),
+        main_sym        : 0,
+        has_main        : false,
+        indent          : 0
     }
 }
 
@@ -69,6 +72,7 @@ CCodeGen_destroy :: (self &CCodeGen) {
     VecU8_destroy(&(*self).code)
     VecU8_destroy(&(*self).struct_decls)
     VecU8_destroy(&(*self).struct_defs)
+    VecU32_destroy(&(*self).emitted_structs)
 }
 
 CCodeGen_indent :: (self &CCodeGen) {
@@ -207,7 +211,16 @@ CCodeGen_decl_struct :: (self &CCodeGen, name Str) {
     vec_push_str(&(*self).struct_decls, Str_from(";\n"))
 }
 
-CCodeGen_def_struct :: (self &CCodeGen, name Str, body Str) {
+CCodeGen_def_struct :: (self &CCodeGen, ty_id u32, name Str, body Str) {
+    i: u64 = 0
+    while i < (*self).emitted_structs.len {
+        if VecU32_get(&(*self).emitted_structs, i) == ty_id {
+            ret
+        }
+        i = i + 1
+    }
+    VecU32_push(&(*self).emitted_structs, ty_id)
+
     CCodeGen_decl_struct(self, name)
 
     vec_push_str(&(*self).struct_defs, Str_from("struct "))
