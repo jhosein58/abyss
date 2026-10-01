@@ -368,7 +368,9 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
                     param_ty := *(params.ptr + i)
 
                     if arg_slot != slot_none() {
-                        UnifyStorage_bind_type(unify_ptr, types_ptr, arg_slot, param_ty)
+                        param_slot := UnifyStorage_tmp_slot(unify_ptr)
+                        UnifyStorage_bind_type(unify_ptr, types_ptr, param_slot, param_ty)
+                        UnifyStorage_union(unify_ptr, types_ptr, arg_slot, param_slot)
                     }
                     i = i + 1
                 }
