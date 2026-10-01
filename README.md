@@ -1,4 +1,3 @@
-```markdown
 # Abyss
 
 **High-level Syntax. Low-level Soul.**
