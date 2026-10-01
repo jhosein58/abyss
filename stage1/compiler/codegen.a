@@ -43,26 +43,32 @@ vec_as_str :: (v &VecU8) Str {
 }
 
 CCodeGen :: struct {
-    func_decls : VecU8,
-    code       : VecU8,
-    main_sym   : u32,
-    has_main   : bool,
-    indent     : u32
+    struct_decls : VecU8,
+    struct_defs  : VecU8,
+    func_decls   : VecU8,
+    code         : VecU8,
+    main_sym     : u32,
+    has_main     : bool,
+    indent       : u32
 }
 
 CCodeGen_new :: () CCodeGen {
     .{
-        func_decls : VecU8_new(),
-        code       : VecU8_new(),
-        main_sym   : 0,
-        has_main   : false,
-        indent     : 0
+        struct_decls : VecU8_new(),
+        struct_defs  : VecU8_new(),
+        func_decls   : VecU8_new(),
+        code         : VecU8_new(),
+        main_sym     : 0,
+        has_main     : false,
+        indent       : 0
     }
 }
 
 CCodeGen_destroy :: (self &CCodeGen) {
     VecU8_destroy(&(*self).func_decls)
     VecU8_destroy(&(*self).code)
+    VecU8_destroy(&(*self).struct_decls)
+    VecU8_destroy(&(*self).struct_defs)
 }
 
 CCodeGen_indent :: (self &CCodeGen) {
@@ -140,7 +146,11 @@ CCodeGen_finish :: (self &CCodeGen, pre Str) Str {
 
     vec_push_str(&out, pre)
 
-    vec_push_str(&out, Str_from("// Forward Declarations\n"))
+    vec_push_str(&out, Str_from("// Struct Declarations\n"))
+    vec_push_str(&out, vec_as_str(&(*self).struct_decls))
+    vec_push_str(&out, Str_from("\n// Struct Definitions\n"))
+    vec_push_str(&out, vec_as_str(&(*self).struct_defs))
+    vec_push_str(&out, Str_from("\n// Forward Declarations\n"))
     vec_push_str(&out, vec_as_str(&(*self).func_decls))
     vec_push_str(&out, Str_from("\n// Implementations\n"))
 
@@ -187,4 +197,22 @@ CCodeGen_end_block :: (self &CCodeGen) {
     }
     CCodeGen_indent(self)
     vec_push_str(&(*self).code, Str_from("}\n"))
+}
+
+CCodeGen_decl_struct :: (self &CCodeGen, name Str) {
+    vec_push_str(&(*self).struct_decls, Str_from("typedef struct "))
+    vec_push_str(&(*self).struct_decls, name)
+    vec_push_char(&(*self).struct_decls, 32 as u8)
+    vec_push_str(&(*self).struct_decls, name)
+    vec_push_str(&(*self).struct_decls, Str_from(";\n"))
+}
+
+CCodeGen_def_struct :: (self &CCodeGen, name Str, body Str) {
+    CCodeGen_decl_struct(self, name)
+
+    vec_push_str(&(*self).struct_defs, Str_from("struct "))
+    vec_push_str(&(*self).struct_defs, name)
+    vec_push_str(&(*self).struct_defs, Str_from(" {\n"))
+    vec_push_str(&(*self).struct_defs, body)
+    vec_push_str(&(*self).struct_defs, Str_from("};\n\n"))
 }
