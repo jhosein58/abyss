@@ -31,7 +31,7 @@ vec_push_u32 :: (v &VecU8, n u32) {
     while div > 0 {
         d := (rem / div) as u8
         VecU8_push(v, 48 as u8 + d)
-        rem = rem % div
+        rem = rem - ((d as u32) * div)
         div = div / 10
     }
 }
