@@ -771,6 +771,7 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
 
 TypeStorage_name :: (self &TypeStorage, a &Arena, id u32) Str {
     s := String_new(a)
-    TypeStorage_name_to_buf(self, &s, id)
+    String_push_str(&s, Str_from("S_"))
+    String_push_u32(&s, id)
     String_as_str(&s)
 }
