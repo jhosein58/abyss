@@ -24,6 +24,7 @@ Nexus :: struct {
     sym_tok_end    : PoolU32,
     sym_hir_start  : PoolU32,
     sym_hir_end    : PoolU32,
+    sym_target     : PoolU32,
 
     sym_nodes      : PoolU32, -- SymbolId -> HirId
     hir_to_symbol  : PoolU32, -- HirId    -> SymbolId
@@ -49,7 +50,7 @@ Nexus_new :: () Nexus {
         sym_tok_end    : PoolU32_new(),
         sym_hir_start  : PoolU32_new(),
         sym_hir_end    : PoolU32_new(),
-
+        sym_target     : PoolU32_new(),
         sym_nodes      : PoolU32_new(),
         hir_to_symbol  : PoolU32_new(),
 
@@ -85,6 +86,7 @@ Nexus_alloc_symbol :: (self &Nexus, file_id u32, name_id u32, tok_start u32, tok
     PoolU32_alloc(&(*self).sym_hir_end, id_none())
     PoolU32_alloc(&(*self).sym_nodes, id_none())
     PoolU32_alloc(&(*self).sym_resolving, 0)
+    PoolU32_alloc(&(*self).sym_target, id_none())
     sym_id
 }
 
@@ -97,8 +99,22 @@ Nexus_alloc_local_symbol :: (self &Nexus, file_id u32, name_id u32, hir_id u32) 
     PoolU32_alloc(&(*self).sym_hir_end, id_none())
     PoolU32_alloc(&(*self).sym_nodes, hir_id)
     PoolU32_alloc(&(*self).sym_resolving, 0)
+    PoolU32_alloc(&(*self).sym_target, id_none())
 
     Nexus_set_hir_symbol(self, hir_id, sym_id)
+    sym_id
+}
+
+Nexus_alloc_symbol_alias :: (self &Nexus, file_id u32, name_id u32, target_sym u32) u32 {
+    sym_id := PoolU32_alloc(&(*self).sym_names, name_id)
+    PoolU32_alloc(&(*self).sym_files, file_id)
+    PoolU32_alloc(&(*self).sym_tok_start, id_none())
+    PoolU32_alloc(&(*self).sym_tok_end, id_none())
+    PoolU32_alloc(&(*self).sym_hir_start, id_none())
+    PoolU32_alloc(&(*self).sym_hir_end, id_none())
+    PoolU32_alloc(&(*self).sym_nodes, id_none())
+    PoolU32_alloc(&(*self).sym_resolving, 0)
+    PoolU32_alloc(&(*self).sym_target, target_sym)
     sym_id
 }
 
@@ -109,6 +125,14 @@ Nexus_find_symbol :: (self &Nexus, file_id u32, name_id u32) u32 {
         f := PoolU32_get(&(*self).sym_files, i)
         n := PoolU32_get(&(*self).sym_names, i)
         if (f == file_id) and (n == name_id) {
+            curr := i
+            while curr != id_none() {
+                target := PoolU32_get(&(*self).sym_target, curr)
+                if target == id_none() {
+                    ret curr
+                }
+                curr = target
+            }
             ret i
         }
         i = i + 1
