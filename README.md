@@ -1,17 +1,27 @@
+```markdown
 # Abyss
 
 **High-level Syntax. Low-level Soul.**
 
-Abyss is a statically typed, compiled systems programming language engineered for mechanical sympathy, predictability, and uncompromising performance. It combines modern syntactic ergonomics (inspired by Odin and Jai) with the raw control and transparency of C.
+Abyss is a statically typed, compiled systems programming language designed for mechanical sympathy, predictability, and raw performance. It pairs clean, modern ergonomics inspired by Odin and Jai with the explicit transparency of C.
 
-> **Status: Stage 0 is Operational & Self-Hosting Has Begun**  
-> The architectural rewrite is complete. The core compiler pipeline—including the data-oriented Nexus store, Pratt parser, unification-based type checker, and C code generator—is fully functional. Implementation of the standard library (`std`) and the Stage 1 self-hosted compiler is currently in progress.
+> **Status: 100% Self-Hosted**  
+> The Abyss compiler is written in Abyss and emits deterministic, portable C99.
+
+---
+
+## Features
+
+* **Ergonomic Syntax:** Clean declaration-first grammar without header files or preprocessor baggage.
+* **Unification Type System:** Bidirectional Hindley-Milner-style type inference with strict numeric sizing.
+* **Portable C99 Target:** Compiles directly to readable C99, leveraging GCC/Clang for optimizations and vectorization.
+* **Zero-Cost Interop:** Native binding and direct execution of any C library without runtime wrappers.
+* **Data-Oriented Compiler:** Built around flat arena tables and dense numeric IDs (`HirId`, `TypeId`) instead of pointer-heavy AST trees.
+* **Minimal Core `std`:** Lightweight baseline modules covering Arena allocation, dynamic vectors, strings, and basic file I/O.
 
 ---
 
 ## Code at a Glance
-
-Abyss compiles directly to portable C99 with seamless libc interoperability and explicit memory management:
 
 ```rust
 print :: (s &u8) unit
@@ -19,29 +29,39 @@ print :: (s &u8) unit
 main :: () {
     print("Hello, Abyss!")
 }
+
 ```
 
 ---
 
-## Architectural Highlights
+## Quick Start
 
-* **Data-Oriented (DOD) Nexus Engine:** Replaces heavy pointer-chasing AST nodes with cache-aligned arenas, flat storage tables, and dense numeric IDs (`HirId`, `SymbolId`, `TypeId`).
-* **Unification-Based Type Inference:** Type checking driven by union-find logic, resolving nested structs, pointer indirection, and literal coercions bidirectionally.
-* **C as Intermediate Representation:** Emits clean, portable C99 code, leveraging GCC and Clang for backend code optimization, instruction scheduling, and architecture-specific vectorization.
-* **Zero-Cost Interop:** Native binding and direct execution of any C library without runtime wrappers or marshaling overhead.
+Abyss bootstraps directly via emitted C:
 
----
+```sh
+# 1. Build the compiler binary from the bootstrap seed
+gcc -std=gnu11 -O2 out.c -o abyssc
 
-## Roadmap & Progress
+# 2. Compile an Abyss source file
+./abyssc main.a
 
-* [x] Data-oriented storage architecture (`abyss_nexus`)
-* [x] Pratt parser with lookahead header resolution (`abyss_parser`)
-* [x] Hindley-Milner / Unification type system (`abyss_typer`)
-* [x] C code generator with topological struct resolution (`abyss_lower`)
-* [x] Zero-overhead C FFI and minimal runtime (`prelude.c`)
-* [x] Dynamic collections (`Vec`) with direct pointer arithmetic (`std/vec`)
-* [ ] Core standard library (File I/O, Arena Allocator, String Utilities)
-* [ ] Self-hosting bootstrap (Stage 1 compiler written in Abyss)
+# 3. Compile the generated C output
+gcc out.c -o bin
+./bin
+
+```
+
+
+
+## Next Steps
+
+With self-hosting stabilized, active development focuses on:
+
+* [x] Self-hosted Stage 1 compiler
+* [x] Primitives for memory (`Arena`), collections (`Vec`), and strings
+* [ ] Standard library expansion (formatting, math, system calls)
+* [ ] Comptime evaluation & constant folding
+* [ ] Module packaging & test runner
 
 ---
 
