@@ -706,21 +706,38 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
 
             fields := TypeStorage_get_struct_fields(types_ptr, lhs_ty)
             count := fields.len / 2
+            found := false
             i: u64 = 0
             while i < count {
                 fn_name := *(fields.ptr + (i * 2))
                 fn_ty   := *(fields.ptr + (i * 2) + 1)
                 if fn_name == name_id {
+                    found = true
                     if TypeStorage_kind(types_ptr, fn_ty) == ty_kind().infer {
                         infer_slot := TypeStorage_payload(types_ptr, fn_ty)
                         UnifyStorage_union(unify_ptr, types_ptr, slot, infer_slot)
                     } else {
                         UnifyStorage_bind_type(unify_ptr, types_ptr, slot, fn_ty)
                     }
+                    resolved_f := UnifyStorage_resolve_type_deep(unify_ptr, types_ptr, slot)
+                    print("[MEMBER MATCH] field=") print_u32(fn_name)
+                    print(" ty=") print_u32(resolved_f)
+                    print(" kind=") print_u32(TypeStorage_kind(types_ptr, resolved_f) as u32)
+                    print("\n")
                     ret
                 }
                 i = i + 1
             }
+
+            if not found {
+                print("[MEMBER NOT FOUND!] target_name=") print_u32(name_id)
+                print(" struct_ty=") print_u32(lhs_ty)
+                print("\n")
+            }
+        } else {
+            print("[MEMBER LHS NOT STRUCT!] lhs_ty=") print_u32(lhs_ty)
+            print(" kind=") print_u32(TypeStorage_kind(types_ptr, lhs_ty) as u32)
+            print("\n")
         }
     }
 }
