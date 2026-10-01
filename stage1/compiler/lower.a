@@ -7,7 +7,7 @@ import Str, Str_from, Str_empty, String, String_new, String_push_str, String_pus
 import Arena from "../../std/allocator.a"
 import VecU32, VecU32_push, VecU32_get,VecU32_new, VecU32_destroy from "../../std/vec/u32.a"
 
-import TypeStorage, ty_kind, ty_id_none, TypeStorage_kind, TypeStorage_payload,
+import TypeStorage, ty_kind, ty_id_none, TypeStorage_kind, TypeStorage_payload, TypeStorage_name,
        TypeStorage_func_return, TypeStorage_func_params, TypeStorage_func_is_extern from "types.a"
 import UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
 import Interner_get from "../../std/interner.a"
@@ -107,6 +107,30 @@ binary_op_symbol :: (k HirExprKind, kind u8) Str {
     if kind == k.binary_and     { ret Str_from(" && ") }
     if kind == k.binary_or      { ret Str_from(" || ") }
     Str_from(" ")
+}
+
+
+add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
+    if ty_id == ty_id_none() { ret }
+    k := ty_kind()
+    kind := TypeStorage_kind(&(*db).types, ty_id)
+
+    if kind == k.struct_ {
+        if not vec_contains(queue, ty_id) {
+            VecU32_push(queue, ty_id)
+            fields := TypeStorage_get_struct_fields(&(*db).types, ty_id)
+            count := fields.len / 2
+            i: u64 = 0
+            while i < count {
+                f_ty := *(fields.ptr + (i * 2) + 1)
+                add_type_to_queue(db, f_ty, queue)
+                i = i + 1
+            }
+        }
+    } else if kind == k.ptr {
+        inner := TypeStorage_payload(&(*db).types, ty_id)
+        add_type_to_queue(db, inner, queue)
+    }
 }
 
 lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32) Str {
@@ -385,6 +409,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             CCodeGen_gen_return(ccg, Str_empty(), false)
         }
         ret Str_empty()
+    }
+
+    if kind == k.struct_ {
+        ret TypeStorage_name(types, arena, ty_id)
     }
 
     Str_empty()
