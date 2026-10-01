@@ -91,9 +91,24 @@ Engine_type_check :: (self &Engine, sym_id u32) {
 }
 
 Engine_ensure_resolved :: (self &Engine, sym_id u32) {
+    if sym_id == id_none() { ret }
     db := &(*self).nexus
 
-    decl_hir := Nexus_get_sym_hir(db, sym_id)
+    real_sym := sym_id
+    while true {
+        tgt := PoolU32_get(&(*db).sym_target, real_sym)
+        if (tgt == id_none()) or (tgt == real_sym) {
+            break
+        }
+        real_sym = tgt
+    }
+
+    tok_start := PoolU32_get(&(*db).sym_tok_start, real_sym)
+    if tok_start == id_none() {
+        ret
+    }
+
+    decl_hir := Nexus_get_sym_hir(db, real_sym)
     if decl_hir != id_none() {
         s := UnifyStorage_get_slot(&(*db).unify, decl_hir)
         if s != slot_none() {
@@ -104,19 +119,18 @@ Engine_ensure_resolved :: (self &Engine, sym_id u32) {
         }
     }
 
-    if Nexus_is_sym_resolving(db, sym_id) {
+    if Nexus_is_sym_resolving(db, real_sym) {
         ret
     }
 
-    hir_start := PoolU32_get(&(*db).sym_hir_start, sym_id)
+    hir_start := PoolU32_get(&(*db).sym_hir_start, real_sym)
     if hir_start == id_none() {
-        Nexus_set_sym_resolving(db, sym_id, true)
-        Engine_parse(self, sym_id)
-        Nexus_set_sym_resolving(db, sym_id, false)
+        Nexus_set_sym_resolving(db, real_sym, true)
+        Engine_parse(self, real_sym)
+        Nexus_set_sym_resolving(db, real_sym, false)
     }
 
-    decl_hir = Nexus_get_sym_hir(db, sym_id)
-
+    decl_hir = Nexus_get_sym_hir(db, real_sym)
     if decl_hir != id_none() {
         s := UnifyStorage_get_slot(&(*db).unify, decl_hir)
         if s == slot_none() {
@@ -124,16 +138,35 @@ Engine_ensure_resolved :: (self &Engine, sym_id u32) {
         }
     }
 
-    Nexus_set_sym_resolving(db, sym_id, true)
-    Engine_type_check(self, sym_id)
-    Nexus_set_sym_resolving(db, sym_id, false)
+    Nexus_set_sym_resolving(db, real_sym, true)
+    Engine_type_check(self, real_sym)
+    Nexus_set_sym_resolving(db, real_sym, false)
 }
 
 Engine_slot_of :: (self &Engine, sym_id u32) u32 {
-    Engine_ensure_resolved(self, sym_id)
-    decl_hir := Nexus_get_sym_hir(&(*self).nexus, sym_id)
+    if sym_id == id_none() { ret slot_none() }
+    db := &(*self).nexus
+
+    real_sym := sym_id
+    while true {
+        tgt := PoolU32_get(&(*db).sym_target, real_sym)
+        if (tgt == id_none()) or (tgt == real_sym) {
+            break
+        }
+        real_sym = tgt
+    }
+
+    tok_start := PoolU32_get(&(*db).sym_tok_start, real_sym)
+    if tok_start == id_none() {
+        decl_hir := Nexus_get_sym_hir(db, real_sym)
+        if decl_hir == id_none() { ret slot_none() }
+        ret UnifyStorage_get_slot(&(*db).unify, decl_hir)
+    }
+
+    Engine_ensure_resolved(self, real_sym)
+    decl_hir := Nexus_get_sym_hir(db, real_sym)
     if decl_hir == id_none() { ret slot_none() }
-    UnifyStorage_get_slot(&(*self).nexus.unify, decl_hir)
+    UnifyStorage_get_slot(&(*db).unify, decl_hir)
 }
 
 Engine_type_of :: (self &Engine, sym_id u32) u32 {

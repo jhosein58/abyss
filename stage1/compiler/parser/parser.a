@@ -15,11 +15,6 @@ import Nexus_add_list, Nexus_get_list, Nexus_alloc_local_symbol,
        Nexus_set_sym_hir, Nexus_get_sym_hir, Nexus_set_hir_symbol from "../nexus/nexus.a"
 import id_none from "../nexus/pool.a"
 
-import Str_print from "../../../std/string.a"
-
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
-
 --- Pratt Engine ---------------------------------------------------------------------------------
 
 parse_expr :: (p &Parser, min_bp u8) u32 {
