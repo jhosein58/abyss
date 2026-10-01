@@ -6,8 +6,8 @@ import SliceU32 from "../../../std/slice/u32.a"
 import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_ptr_at from "../../../std/vec/u32.a"
 
 import TypeStorage, ty_kind, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_int, ty_id_unknown,ty_id_never, ty_id_untyped_float, ty_id_bool,
-       TypeStorage_alloc_bool, TypeStorage_alloc_unit, TypeStorage_alloc_int,
-       TypeStorage_alloc_uint, TypeStorage_alloc_float, TypeStorage_alloc_func, TypeStorage_payload,
+       TypeStorage_alloc_bool, TypeStorage_alloc_unit, TypeStorage_alloc_int, TypeStorage_alloc_struct, TypeStorage_alloc_infer,
+       TypeStorage_alloc_uint, TypeStorage_alloc_float, TypeStorage_alloc_func, TypeStorage_payload, TypeStorage_get_struct_fields,
        TypeStorage_func_return, TypeStorage_func_params, TypeStorage_kind, TypeStorage_alloc_ptr from "../types.a"
 
 import UnifyStorage, UnifyStorage_new_slot, UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, UnifyStorage_tmp_slot,
@@ -106,6 +106,11 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32) {
     if curr == k.k_while        { synth_while(db, tbl, id) }
 
     if curr == k.cast           { synth_cast(db, tbl, id) }
+
+    if curr == k.struct_        { synth_struct(db, tbl, id) }
+    if curr == k.struct_init    { synth_struct_init(db, tbl, id) }
+    if curr == k.member         { synth_member(db, tbl, id) }
+
     if (curr == k.binary_and) or (curr == k.binary_or) { synth_logic_and_or(db, tbl, id) }
     if (curr == k.binary_eq_eq) or (curr == k.binary_neq) or
        (curr == k.binary_lt) or (curr == k.binary_lt_eq) or
@@ -563,5 +568,127 @@ synth_cast :: (db &Nexus, tbl &HirTable, id u32) {
     rhs_type := Nexus_get_const_type(db, rhs)
     if rhs_type != ty_id_none() {
         UnifyStorage_bind_type(&(*db).unify, &(*db).types, slot, rhs_type)
+    }
+}
+
+synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := UnifyStorage_new_slot(unify_ptr, id)
+
+    names_list := HirTable_lhs(tbl, id)
+    types_list := HirTable_rhs(tbl, id)
+
+    names := Nexus_get_list(db, names_list)
+    types := Nexus_get_list(db, types_list)
+
+    fields_vec := VecU32_new()
+
+    i: u64 = 0
+    while (i < names.len) and (i < types.len) {
+        name_node := *(names.ptr + i)
+        type_node := *(types.ptr + i)
+
+        name_id := HirTable_lhs(tbl, name_node)
+
+        ty_val := Nexus_get_const_type(db, type_node)
+        if ty_val == ty_id_none() {
+            s := UnifyStorage_get_slot(unify_ptr, type_node)
+            if s != slot_none() {
+                ty_val = UnifyStorage_resolve_type_deep(unify_ptr, types_ptr, s)
+            }
+        }
+
+        VecU32_push(&fields_vec, name_id)
+        VecU32_push(&fields_vec, ty_val)
+        i = i + 1
+    }
+
+    ptr := 0 as &u32
+    if fields_vec.len > 0 { ptr = VecU32_ptr_at(&fields_vec, 0) }
+    slice: SliceU32 = .{ ptr: ptr, len: fields_vec.len }
+
+    tyid := TypeStorage_alloc_struct(types_ptr, slice)
+    VecU32_destroy(&fields_vec)
+
+    Nexus_set_const_type(db, id, tyid)
+    UnifyStorage_bind_type(unify_ptr, types_ptr, slot, ty_id_type())
+}
+
+synth_struct_init :: (db &Nexus, tbl &HirTable, id u32) {
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := UnifyStorage_new_slot(unify_ptr, id)
+
+    fields_list := HirTable_lhs(tbl, id)
+    vals_list   := HirTable_rhs(tbl, id)
+
+    fields := Nexus_get_list(db, fields_list)
+    vals   := Nexus_get_list(db, vals_list)
+
+    fields_vec := VecU32_new()
+
+    i: u64 = 0
+    while (i < fields.len) and (i < vals.len) {
+        f_node := *(fields.ptr + i)
+        v_node := *(vals.ptr + i)
+
+        name_id := HirTable_lhs(tbl, f_node)
+
+        v_slot := UnifyStorage_get_slot(unify_ptr, v_node)
+        if v_slot == slot_none() {
+            v_slot = UnifyStorage_new_slot(unify_ptr, v_node)
+        }
+        infer_ty := TypeStorage_alloc_infer(types_ptr, v_slot)
+
+        VecU32_push(&fields_vec, name_id)
+        VecU32_push(&fields_vec, infer_ty)
+        i = i + 1
+    }
+
+    ptr := 0 as &u32
+    if fields_vec.len > 0 { ptr = VecU32_ptr_at(&fields_vec, 0) }
+    slice: SliceU32 = .{ ptr: ptr, len: fields_vec.len }
+
+    tyid := TypeStorage_alloc_struct(types_ptr, slice)
+    VecU32_destroy(&fields_vec)
+
+    UnifyStorage_bind_type(unify_ptr, types_ptr, slot, tyid)
+}
+
+synth_member :: (db &Nexus, tbl &HirTable, id u32) {
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := UnifyStorage_new_slot(unify_ptr, id)
+
+    lhs_id := HirTable_lhs(tbl, id)
+    lhs_slot := UnifyStorage_get_slot(unify_ptr, lhs_id)
+
+    if lhs_slot != slot_none() {
+        lhs_ty := UnifyStorage_resolve_type_deep(unify_ptr, types_ptr, lhs_slot)
+        if TypeStorage_kind(types_ptr, lhs_ty) == ty_kind().ptr {
+            lhs_ty = TypeStorage_payload(types_ptr, lhs_ty)
+        }
+
+        if TypeStorage_kind(types_ptr, lhs_ty) == ty_kind().struct_ {
+            rhs_id := HirTable_rhs(tbl, id)
+            name_id := HirTable_lhs(tbl, rhs_id)
+
+            fields := TypeStorage_get_struct_fields(types_ptr, lhs_ty)
+            count := fields.len / 2
+            i: u64 = 0
+            while i < count {
+                fn_name := *(fields.ptr + (i * 2))
+                fn_ty   := *(fields.ptr + (i * 2) + 1)
+                if fn_name == name_id {
+                    UnifyStorage_bind_type(unify_ptr, types_ptr, slot, fn_ty)
+                    ret
+                }
+                i = i + 1
+            }
+        }
     }
 }
