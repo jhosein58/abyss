@@ -334,7 +334,7 @@ UnifyStorage_resolve_type_deep :: (self &UnifyStorage, types &TypeStorage, slot 
     if kind == k.struct_ {
         fields := TypeStorage_get_struct_fields(types, tyid)
         count := fields.len / 2
-        mark := VecU32_mark(&(*self).scratch)
+        local_scratch := VecU32_new()
         changed := false
         i: u64 = 0
 
@@ -346,12 +346,12 @@ UnifyStorage_resolve_type_deep :: (self &UnifyStorage, types &TypeStorage, slot 
             if TypeStorage_kind(types, field_ty) == k.infer {
                 field_slot := TypeStorage_infer_slot(types, field_ty)
                 resolved := UnifyStorage_resolve_type_deep(self, types, field_slot)
-                VecU32_push(&(*self).scratch, name)
-                VecU32_push(&(*self).scratch, resolved)
+                VecU32_push(&local_scratch, name)
+                VecU32_push(&local_scratch, resolved)
                 changed = true
             } else {
-                VecU32_push(&(*self).scratch, name)
-                VecU32_push(&(*self).scratch, field_ty)
+                VecU32_push(&local_scratch, name)
+                VecU32_push(&local_scratch, field_ty)
             }
             i = i + 1
         }
@@ -359,16 +359,17 @@ UnifyStorage_resolve_type_deep :: (self &UnifyStorage, types &TypeStorage, slot 
         res := tyid
         if changed {
             slice: SliceU32 = .{
-                ptr: VecU32_ptr_at(&(*self).scratch, mark),
+                ptr: VecU32_ptr_at(&local_scratch, 0),
                 len: fields.len
             }
 
             res = TypeStorage_alloc_struct(types, slice)
         }
 
-        VecU32_reset(&(*self).scratch, mark)
+        VecU32_destroy(&local_scratch)
         ret res
     }
+
 
     tyid
 }
