@@ -39,7 +39,7 @@ compile_and_run :: (path &u8) i32
 main :: () {
     arena := Arena_new(1024 * 1024 * 16)
 
-    main_path := "fake_main.a"
+    main_path := "dummy_main.a"
 
     source := read_file(&arena, main_path)
 
@@ -60,7 +60,7 @@ main :: () {
 
     --compile_and_run("tmp/stg1_out.c")
 
-    dump_hir(&eng.nexus, &eng.nexus.hir, &arena) {
+    --dump_hir(&eng.nexus, &eng.nexus.hir, &arena) {
 
     
 }
