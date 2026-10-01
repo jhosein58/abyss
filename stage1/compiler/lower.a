@@ -3,7 +3,7 @@ import HirTable, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_
 import PoolU32_get, id_none from "nexus/pool.a"
 import CCodeGen, CCodeGen_declare_function, CCodeGen_start_function, CCodeGen_end_function, CCodeGen_start_if, CCodeGen_end_block,
        CCodeGen_create_variable, CCodeGen_expr, CCodeGen_gen_return, CCodeGen_else, CCodeGen_start_while, CCodeGen_def_struct from "codegen.a"
-import Str, Str_from, Str_print, Str_empty, String, String_new, String_push_str, String_push_u32, String_as_str from "../../std/string.a"
+import Str, Str_from, Str_empty, String, String_new, String_push_str, String_push_u32, String_as_str from "../../std/string.a"
 import Arena from "../../std/allocator.a"
 import VecU32, VecU32_push, VecU32_get,VecU32_new, VecU32_destroy from "../../std/vec/u32.a"
 
@@ -12,9 +12,6 @@ import TypeStorage, ty_kind, ty_id_none, TypeStorage_kind, TypeStorage_payload, 
 import UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
 import Interner_get from "../../std/interner.a"
 import topo_sort from "topo_sort.a"
-
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
 
 
 c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
@@ -161,7 +158,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         ty := get_node_type(db, id)
         sym_id := Nexus_get_hir_symbol(db, id)
 
-    if TypeStorage_kind(&(*db).types, ty) == ty_kind().func {
+        if TypeStorage_kind(&(*db).types, ty) == ty_kind().func {
             if sym_id != id_none() {
                 real_sym := sym_id
                 while true {
@@ -208,12 +205,6 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         String_push_u32(&var_name_s, sym_id)
         var_name := String_as_str(&var_name_s)
 
-
-        if (var_ty == ty_id_none()) or (TypeStorage_kind(&(*db).types, var_ty) == ty_kind().unknown) {
-            print("[LOWER VAR UNKNOWN!] sym=") print_u32(sym_id)
-            print(" hir=") print_u32(id)
-            print("\n")
-        }
 
         if val_id != hir_none() {
             val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
@@ -313,10 +304,8 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
             if not is_last {
                 CCodeGen_expr(ccg, val)
-                print("")
             } else {
                 last_val = val
-                print("")
             }
             i = i + 1
         }
@@ -530,8 +519,8 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     VecU32_push(visited, real_sym)
 
     hir_end := PoolU32_get(&(*db).sym_hir_end, real_sym)
-    if (hir_end == 0) or (hir_end == id_none()) { 
-        ret 
+    if (hir_end == 0) or (hir_end == id_none()) {
+        ret
     }
 
     binding_id := hir_end - 1
