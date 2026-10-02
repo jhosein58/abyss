@@ -10,6 +10,8 @@ import TokenStream, TokenStream_new, TokenStream_destroy from "../token.a"
 import HirTable, HirTable_new, HirTable_destroy from "../hir.a"
 import PoolU32, PoolU32_new, PoolU32_alloc, PoolU32_get, PoolU32_set, PoolU32_count, PoolU32_set_safe, id_none from "pool.a"
 
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
 
 Span :: struct {
     start : u32,
@@ -85,6 +87,7 @@ Nexus :: struct {
     sym_resolving  : PoolU32  -- SymbolId -> 0 or 1
 
     file_sources   : VecStr,
+    file_paths     : VecStr,
     hir_files      : PoolU32, -- HirId    -> FileId
     hir_span_start : PoolU32, -- HirId    -> Span start offset
     hir_span_end   : PoolU32, -- HirId    -> Span end
@@ -116,6 +119,7 @@ Nexus_new :: () Nexus {
 
 
         file_sources   : VecStr_new(),
+        file_paths     : VecStr,
         hir_files      : PoolU32_new(),
         hir_span_start : PoolU32_new(),
         hir_span_end   : PoolU32_new(),
@@ -243,3 +247,84 @@ Nexus_is_sym_resolving :: (self &Nexus, sym_id u32) bool {
     PoolU32_get(&(*self).sym_resolving, sym_id) == 1
 }
 
+Nexus_add_file_source :: (self &Nexus, source Str) u32 {
+    id := (*self).file_sources.len as u32
+    VecStr_push(&(*self).file_sources, source)
+    id
+}
+
+Nexus_set_hir_span :: (self &Nexus, hir_id u32, start u32, end u32) {
+    PoolU32_set_safe(&(*self).hir_span_start, hir_id, start, 0)
+    PoolU32_set_safe(&(*self).hir_span_end, hir_id, end, 0)
+}
+
+Nexus_set_hir_file :: (self &Nexus, hir_id u32, file_id u32) {
+    PoolU32_set_safe(&(*self).hir_files, hir_id, file_id, id_none())
+}
+
+Nexus_get_hir_file :: (self &Nexus, hir_id u32) u32 {
+    if hir_id >= PoolU32_count(&(*self).hir_files) { ret id_none() }
+    PoolU32_get(&(*self).hir_files, hir_id)
+}
+
+Nexus_get_hir_span :: (self &Nexus, hir_id u32) Span {
+    if hir_id >= PoolU32_count(&(*self).hir_span_start) {
+        ret .{ start: 0, end: 0 }
+    }
+    start := PoolU32_get(&(*self).hir_span_start, hir_id)
+    end   := PoolU32_get(&(*self).hir_span_end, hir_id)
+    .{ start: start, end: end }
+}
+
+Nexus_get_pos :: (self &Nexus, hir_id u32) Pos {
+    fid := Nexus_get_hir_file(self, hir_id)
+    span := Nexus_get_hir_span(self, hir_id)
+
+    if (fid == id_none()) or ((fid as u64) >= (*self).file_sources.len) {
+        ret .{ line: 1, col: 1 }
+    }
+
+    src := VecStr_get(&(*self).file_sources, fid as u64)
+    calc_pos(src, span.start)
+}
+
+Nexus_add_file :: (self &Nexus, path Str, source Str) u32 {
+    id := (*self).file_sources.len as u32
+    VecStr_push(&(*self).file_paths, path)
+    VecStr_push(&(*self).file_sources, source)
+    id
+}
+
+Nexus_get_file_path :: (self &Nexus, file_id u32) Str {
+    if (file_id as u64) >= (*self).file_paths.len { ret Str_from("unknown") }
+    VecStr_get(&(*self).file_paths, file_id as u64)
+}
+
+Nexus_get_file_source :: (self &Nexus, file_id u32) Str {
+    if (file_id as u64) >= (*self).file_sources.len { ret Str_from("") }
+    VecStr_get(&(*self).file_sources, file_id as u64)
+}
+
+Nexus_get_pos :: (self &Nexus, hir_id u32) Pos {
+    fid := Nexus_get_hir_file(self, hir_id)
+    span := Nexus_get_hir_span(self, hir_id)
+
+    if (fid == id_none()) or ((fid as u64) >= (*self).file_sources.len) {
+        ret .{ line: 1, col: 1 }
+    }
+
+    src := VecStr_get(&(*self).file_sources, fid as u64)
+    calc_pos(src, span.start)
+}
+
+Nexus_print_loc :: (self &Nexus, hir_id u32) {
+    fid := Nexus_get_hir_file(self, hir_id)
+    path := Nexus_get_file_path(self, fid)
+    pos := Nexus_get_pos(self, hir_id)
+
+    print(path.ptr)
+    print(":")
+    print_u32(pos.line)
+    print(":")
+    print_u32(pos.col)
+}
