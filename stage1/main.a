@@ -28,6 +28,9 @@ import Engine_new, Engine_add_file, Engine_get_symbol_id, Engine_parse, Engine_t
 import CCodeGen_finish from "compiler/codegen.a"
 import Engine_new, Engine_add_file, Engine_get_symbol_id, Engine_parse, Engine_type_check, Engine_abyss_main, Engine_compile from "compiler/engine.a"
 
+
+import fall from "../std/sys.a"
+
 print_u32 :: (s u32) unit
 print_u64 :: (s u64) unit
 print_u8 :: (s u8) unit
@@ -41,7 +44,7 @@ main :: () {
 
     arena := Arena_new(1024 * 1024 * 16)
 
-    main_path := "main.a"
+    main_path := "maind.a"
 
     source := read_file(&arena, main_path)
 
