@@ -44,7 +44,7 @@ main :: () {
 
     arena := Arena_new(1024 * 1024 * 16)
 
-    main_path := "maind.a"
+    main_path := "main.a"
 
     source := read_file(&arena, main_path)
 
