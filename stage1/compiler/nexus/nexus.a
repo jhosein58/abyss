@@ -1,12 +1,63 @@
 import VecU32, VecU32_new, VecU32_extend, VecU32_len, VecU32_push, VecU32_get, VecU32_ptr_at from "../../../std/vec/u32.a"
 import SliceU32, SliceU32_new from "../../../std/slice/u32.a"
 import Interner, Interner_new from "../../../std/interner.a"
+import Str from "../../../std/string.a"
 
 import TypeStorage, TypeStorage_new, ty_id_none from "../types.a"
 import UnifyStorage, UnifyStorage_new from "../unify.a"
 import TokenStream, TokenStream_new, TokenStream_destroy from "../token.a"
 import HirTable, HirTable_new, HirTable_destroy from "../hir.a"
 import PoolU32, PoolU32_new, PoolU32_alloc, PoolU32_get, PoolU32_set, PoolU32_count, PoolU32_set_safe, id_none from "pool.a"
+
+
+Span :: struct {
+    start : u32,
+    end   : u32
+}
+
+Pos :: struct {
+    line : u32,
+    col  : u32
+}
+
+span_new :: (start u32, end u32) Span {
+    .{ start: start, end: end }
+}
+
+span_merge :: (a Span, b Span) Span {
+    s := a.start
+    if b.start < s { s = b.start }
+    
+    e := a.end
+    if b.end > e { e = b.end }
+
+    .{ start: s, end: e }
+}
+
+calc_pos :: (source Str, offset u32) Pos {
+    line: u32 = 1
+    col:  u32 = 1
+    i:    u64 = 0
+
+    limit := offset as u64
+    if limit > source.len {
+        limit = source.len
+    }
+
+    while i < limit {
+        c := *(source.ptr + i)
+        if c == *"\n" {
+            line = line + 1
+            col  = 1
+        } else {
+            col = col + 1
+        }
+        i = i + 1
+    }
+
+    .{ line: line, col: col }
+}
+
 
 Nexus :: struct {
     tokens         : TokenStream,
@@ -188,3 +239,4 @@ Nexus_is_sym_resolving :: (self &Nexus, sym_id u32) bool {
     if sym_id >= PoolU32_count(&(*self).sym_resolving) { ret false }
     PoolU32_get(&(*self).sym_resolving, sym_id) == 1
 }
+
