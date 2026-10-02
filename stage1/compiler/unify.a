@@ -122,7 +122,9 @@ UnifyStorage_find :: (self &UnifyStorage, slot u32) u32 {
     curr
 }
 
-UnifyStorage_union :: (self &UnifyStorage, types &TypeStorage, a u32, b u32) u32 {
+UnifyStorage_union :: (db &Nexus, a u32, b u32) u32 {
+    self := &(*db).unify
+    types := &(*db).types
     root_a := UnifyStorage_find(self, a)
     root_b := UnifyStorage_find(self, b)
 
@@ -132,7 +134,6 @@ UnifyStorage_union :: (self &UnifyStorage, types &TypeStorage, a u32, b u32) u32
 
     type_a := VecU32_get(&(*self).types, root_a as u64)
     type_b := VecU32_get(&(*self).types, root_b as u64)
-
 
     if type_a == ty_id_never() or type_b == ty_id_never() {
         ret root_a
@@ -144,6 +145,14 @@ UnifyStorage_union :: (self &UnifyStorage, types &TypeStorage, a u32, b u32) u32
 
     if has_a and has_b {
         final_type = UnifyStorage_unify_types(self, types, type_a, type_b)
+        
+        if final_type == ty_id_error() {
+            orig_a := VecU32_get(&(*self).origins, root_a as u64)
+            orig_b := VecU32_get(&(*self).origins, root_b as u64)
+            loc := orig_b
+            if (loc == id_none()) or (loc == slot_none()) { loc = orig_a }
+            report_type_mismatch(db, loc, type_a, type_b)
+        }
     } else if has_a {
         final_type = type_a
     } else if has_b {
@@ -177,13 +186,19 @@ UnifyStorage_union :: (self &UnifyStorage, types &TypeStorage, a u32, b u32) u32
     new_root
 }
 
-UnifyStorage_bind_type :: (self &UnifyStorage, types &TypeStorage, slot u32, ty u32) u32 {
+UnifyStorage_bind_type :: (db &Nexus, slot u32, ty u32) u32 {
+    self := &(*db).unify
+    types := &(*db).types
     root := UnifyStorage_find(self, slot)
     existing := VecU32_get(&(*self).types, root as u64)
 
     unified := ty
     if existing != ty_id_none() {
         unified = UnifyStorage_unify_types(self, types, existing, ty)
+        if unified == ty_id_error() {
+            orig := VecU32_get(&(*self).origins, root as u64)
+            report_type_mismatch(db, orig, existing, ty)
+        }
     }
 
     VecU32_set(&(*self).types, root as u64, unified)
