@@ -31,6 +31,10 @@ Nexus :: struct {
 
     const_types    : PoolU32, -- HirId    -> TypeId 
     sym_resolving  : PoolU32  -- SymbolId -> 0 or 1
+
+    hir_files      : PoolU32, -- HirId    -> FileId
+    hir_span_start : PoolU32, -- HirId    -> Span start offset
+    hir_span_end   : PoolU32, -- HirId    -> Span end
 }
 
 Nexus_new :: () Nexus {
@@ -55,7 +59,12 @@ Nexus_new :: () Nexus {
         hir_to_symbol  : PoolU32_new(),
 
         const_types    : PoolU32_new(),
-        sym_resolving  : PoolU32_new()
+        sym_resolving  : PoolU32_new(),
+
+
+        hir_files      : PoolU32_new(),
+        hir_span_start : PoolU32_new(),
+        hir_span_end   : PoolU32_new(),
     }
 }
 
