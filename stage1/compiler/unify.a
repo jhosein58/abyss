@@ -9,6 +9,13 @@ import ty_kind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error,
        TypeStorage_get_array_len, TypeStorage_get_array_type,
        TypeStorage_get_struct_fields, TypeStorage_alloc_struct from "types.a"
 
+import Nexus, Nexus_print_loc from "nexus/nexus.a"
+import id_none from "nexus/pool.a"
+import TypeStorage_print_type from "types.a"
+import fall from "../../std/sys.a"
+
+print :: (s &u8) unit
+
 slot_none :: () u32 {
     U32_MAX()
 }
@@ -82,6 +89,23 @@ UnifyStorage_get_slot :: (self &UnifyStorage, id u32) u32 {
         ret slot_none()
     }
     VecU32_get(&(*self).hir_to_slot, idx)
+}
+
+report_type_mismatch :: (db &Nexus, hir_id u32, expected u32, actual u32) {
+    types := &(*db).types
+    print("\n\033[1;31m[type error]\033[0m type mismatch: cannot unify '")
+    TypeStorage_print_type(types, expected)
+    print("' with '")
+    TypeStorage_print_type(types, actual)
+    print("'\n")
+
+    if (hir_id != id_none()) and (hir_id != slot_none()) {
+        print("       --> ")
+        Nexus_print_loc(db, hir_id)
+        print("\n")
+    }
+    print("\n")
+    fall()
 }
 
 UnifyStorage_find :: (self &UnifyStorage, slot u32) u32 {
