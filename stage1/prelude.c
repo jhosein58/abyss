@@ -165,3 +165,12 @@ int32_t compile_and_run(uint8_t *path) {
     snprintf(run_cmd, sizeof(run_cmd), "\"%s\"", out_path);
     return (int32_t)system(run_cmd);
 }
+
+// ------> System
+
+void abyss_fall(void) {
+    fflush(stdout);
+    fprintf(stderr, "\n\033[1;35m[fall]\033[0m unfathomable.\n\n");
+    fflush(stderr);
+    exit(1);
+}
