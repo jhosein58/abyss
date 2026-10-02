@@ -1,4 +1,5 @@
 import VecU32, VecU32_new, VecU32_extend, VecU32_len, VecU32_push, VecU32_get, VecU32_ptr_at from "../../../std/vec/u32.a"
+import VecStr, VecStr_new, VecStr_len, VecStr_push, VecStr_get from "../../../std/vec/str.a"
 import SliceU32, SliceU32_new from "../../../std/slice/u32.a"
 import Interner, Interner_new from "../../../std/interner.a"
 import Str from "../../../std/string.a"
@@ -83,6 +84,7 @@ Nexus :: struct {
     const_types    : PoolU32, -- HirId    -> TypeId 
     sym_resolving  : PoolU32  -- SymbolId -> 0 or 1
 
+    file_sources   : VecStr,
     hir_files      : PoolU32, -- HirId    -> FileId
     hir_span_start : PoolU32, -- HirId    -> Span start offset
     hir_span_end   : PoolU32, -- HirId    -> Span end
@@ -113,6 +115,7 @@ Nexus_new :: () Nexus {
         sym_resolving  : PoolU32_new(),
 
 
+        file_sources   : VecStr_new(),
         hir_files      : PoolU32_new(),
         hir_span_start : PoolU32_new(),
         hir_span_end   : PoolU32_new(),
