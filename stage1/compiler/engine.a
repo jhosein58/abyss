@@ -1,5 +1,6 @@
 import Nexus, Nexus_new, Nexus_find_symbol, Nexus_get_sym_hir,
-       Nexus_is_sym_resolving, Nexus_set_sym_resolving from "nexus/nexus.a"
+       Nexus_is_sym_resolving, Nexus_set_sym_resolving, Nexus_add_file from "nexus/nexus.a"
+
 import TokenStream_count from "token.a"
 import lex from "lexer.a"
 import index_file from "indexer.a"
@@ -42,11 +43,14 @@ Engine_destroy :: (self &Engine) {
 }
 
 Engine_add_file :: (self &Engine, arena &Arena, path Str, source Str) u32 {
-    file_id := (*self).file_count
+
+    file_id := Nexus_add_file(&((*self).nexus), path, source)
     (*self).file_count = file_id + 1
+
     tok_start := TokenStream_count(&((*self).nexus).tokens)
     lex(&((*self).nexus).tokens, source)
     tok_end := TokenStream_count(&((*self).nexus).tokens)
+
     index_file(&(*self).nexus, arena, file_id, path, tok_start as u32, tok_end as u32)
     file_id
 }

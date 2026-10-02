@@ -1,9 +1,16 @@
-import token, TokenType, TokenStream, TokenStream_kind, TokenStream_text, TokenStream_newline_before from "../token.a"
+import token, token_name, TokenType, TokenStream, TokenStream_kind, TokenStream_text,
+       TokenStream_start, TokenStream_len, TokenStream_newline_before from "../token.a"
 import HirTable from "../hir.a"
-import Str, Str_empty from "../../../std/string.a"
-import Nexus, Nexus_find_symbol from "../nexus/nexus.a"
+import Str, Str_empty, Str_print from "../../../std/string.a"
+import Nexus, Nexus_find_symbol, Nexus_get_file_path, Nexus_get_file_source,
+       calc_pos, Span, Pos, span_new, span_merge from "../nexus/nexus.a"
 import ScopeEnv, ScopeEnv_new, ScopeEnv_destroy, ScopeEnv_lookup from "env.a"
 import id_none from "../nexus/pool.a"
+import fall from "../../../std/sys.a"
+
+
+print     :: (s &u8) unit
+print_u32 :: (v u32) unit
 
 Parser :: struct {
     db        : &Nexus,
@@ -115,4 +122,80 @@ str_to_u32 :: (s Str) u32 {
         i = i + 1
     }
     res
+}
+
+tok_span :: (p &Parser, idx u32) Span {
+    if idx >= (*p).end {
+        if (*p).end > 0 {
+            last := (*p).end - 1
+            st := TokenStream_start((*p).tokens, last)
+            ln := TokenStream_len((*p).tokens, last)
+            ret span_new(st + ln, st + ln)
+        }
+        ret span_new(0, 0)
+    }
+    st := TokenStream_start((*p).tokens, idx)
+    ln := TokenStream_len((*p).tokens, idx)
+    span_new(st, st + ln)
+}
+
+curr_span :: (p &Parser) Span {
+    tok_span(p, (*p).cursor)
+}
+
+prev_span :: (p &Parser) Span {
+    if (*p).cursor == 0 { ret span_new(0, 0) }
+    tok_span(p, (*p).cursor - 1)
+}
+
+parse_error_at :: (p &Parser, msg &u8, sp Span) {
+    path := Nexus_get_file_path((*p).db, (*p).file_id)
+    src := Nexus_get_file_source((*p).db, (*p).file_id)
+    pos := calc_pos(src, sp.start)
+
+    print("\n\033[1;31m[syntax error]\033[0m ")
+    print(msg)
+    print("\n       --> ")
+    print(path.ptr)
+    print(":")
+    print_u32(pos.line)
+    print(":")
+    print_u32(pos.col)
+    print("\n\n")
+    fall()
+}
+
+expect :: (p &Parser, kind u8) {
+    if peek(p) == kind {
+        bump(p)
+        ret
+    }
+
+    sp := curr_span(p)
+    path := Nexus_get_file_path((*p).db, (*p).file_id)
+    src := Nexus_get_file_source((*p).db, (*p).file_id)
+    pos := calc_pos(src, sp.start)
+
+    print("\n\033[1;31m[syntax error]\033[0m expected '")
+    exp_name := token_name(kind)
+    Str_print(exp_name)
+    print("', but found '")
+    got_name := token_name(peek(p))
+    Str_print(got_name)
+    if peek(p) != token().eof {
+        print("' (")
+        txt := curr_text(p)
+        Str_print(txt)
+        print(")")
+    } else {
+        print("'")
+    }
+    print("\n       --> ")
+    print(path.ptr)
+    print(":")
+    print_u32(pos.line)
+    print(":")
+    print_u32(pos.col)
+    print("\n\n")
+    fall()
 }
