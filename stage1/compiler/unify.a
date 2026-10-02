@@ -144,7 +144,7 @@ UnifyStorage_union :: (db &Nexus, a u32, b u32) u32 {
     has_b := type_b != ty_id_none()
 
     if has_a and has_b {
-        final_type = UnifyStorage_unify_types(self, types, type_a, type_b)
+        final_type = UnifyStorage_unify_types(db, type_a, type_b)
         
         if final_type == ty_id_error() {
             orig_a := VecU32_get(&(*self).origins, root_a as u64)
@@ -194,7 +194,7 @@ UnifyStorage_bind_type :: (db &Nexus, slot u32, ty u32) u32 {
 
     unified := ty
     if existing != ty_id_none() {
-        unified = UnifyStorage_unify_types(self, types, existing, ty)
+        unified = UnifyStorage_unify_types(db, existing, ty)
         if unified == ty_id_error() {
             orig := VecU32_get(&(*self).origins, root as u64)
             report_type_mismatch(db, orig, existing, ty)
@@ -206,7 +206,7 @@ UnifyStorage_bind_type :: (db &Nexus, slot u32, ty u32) u32 {
 }
 
 
-UnifyStorage_unify_types :: (self &UnifyStorage, types &TypeStorage, a u32, b u32) u32 {
+UnifyStorage_unify_types :: (db &Nexus, a u32, b u32) u32 {
     if a == b {
         ret a
     }
@@ -218,15 +218,15 @@ UnifyStorage_unify_types :: (self &UnifyStorage, types &TypeStorage, a u32, b u3
     if kind_a == k.infer and kind_b == k.infer {
         slot_a := TypeStorage_infer_slot(types, a)
         slot_b := TypeStorage_infer_slot(types, b)
-        new_slot := UnifyStorage_union(self, types, slot_a, slot_b)
+        new_slot := UnifyStorage_union(db, slot_a, slot_b)
         ret TypeStorage_alloc_infer(types, new_slot)
     } else if kind_a == k.infer {
         slot_a := TypeStorage_infer_slot(types, a)
-        UnifyStorage_bind_type(self, types, slot_a, b)
+        UnifyStorage_bind_type(db, slot_a, b)
         ret b
     } else if kind_b == k.infer {
         slot_b := TypeStorage_infer_slot(types, b)
-        UnifyStorage_bind_type(self, types, slot_b, a)
+        UnifyStorage_bind_type(db, slot_b, a)
         ret a
     }
 
@@ -251,7 +251,7 @@ UnifyStorage_unify_types :: (self &UnifyStorage, types &TypeStorage, a u32, b u3
     if (kind_a == k.ptr) and (kind_b == k.ptr) {
         inner_a := TypeStorage_payload(types, a)
         inner_b := TypeStorage_payload(types, b)
-        unified_inner := UnifyStorage_unify_types(self, types, inner_a, inner_b)
+        unified_inner := UnifyStorage_unify_types(db, inner_a, inner_b)
         if unified_inner == ty_id_error() {
             ret ty_id_error()
         }
@@ -267,7 +267,7 @@ UnifyStorage_unify_types :: (self &UnifyStorage, types &TypeStorage, a u32, b u3
 
         inner_a := TypeStorage_get_array_type(types, a)
         inner_b := TypeStorage_get_array_type(types, b)
-        unified_inner := UnifyStorage_unify_types(self, types, inner_a, inner_b)
+        unified_inner := UnifyStorage_unify_types(db, inner_a, inner_b)
         if unified_inner == ty_id_error() {
             ret ty_id_error()
         }
@@ -299,7 +299,7 @@ UnifyStorage_unify_types :: (self &UnifyStorage, types &TypeStorage, a u32, b u3
                 break
             }
 
-            unified_t := UnifyStorage_unify_types(self, types, ta, tb)
+            unified_t := UnifyStorage_unify_types(db, ta, tb)
             if unified_t == ty_id_error() {
                 has_err = true
                 break
