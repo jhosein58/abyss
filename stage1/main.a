@@ -38,27 +38,26 @@ compile_and_run :: (path &u8) i32
 
 main :: () {
 
-    print("hello world")
-    -- arena := Arena_new(1024 * 1024 * 16)
+    arena := Arena_new(1024 * 1024 * 16)
 
-    -- main_path := "main.a"
+    main_path := "main.a"
 
-    -- source := read_file(&arena, main_path)
+    source := read_file(&arena, main_path)
 
-    -- eng := Engine_new()
+    eng := Engine_new()
 
-    -- fid := Engine_add_file(&eng, &arena, Str_from(main_path), source)
+    fid := Engine_add_file(&eng, &arena, Str_from(main_path), source)
 
-    -- sym_id := Engine_get_symbol_id(&eng, fid, Str_from("main"))
+    sym_id := Engine_get_symbol_id(&eng, fid, Str_from("main"))
 
-    -- Engine_parse(&eng, sym_id)
-    -- Engine_type_check(&eng, sym_id)
+    Engine_parse(&eng, sym_id)
+    Engine_type_check(&eng, sym_id)
 
-    -- Engine_abyss_main(&eng, sym_id)
-    -- Engine_compile(&eng, &arena, sym_id)
+    Engine_abyss_main(&eng, sym_id)
+    Engine_compile(&eng, &arena, sym_id)
 
-    -- c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, "prelude.c"))
-    -- write_file("tmp/out.c", c_code)
+    c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, "prelude.c"))
+    write_file("tmp/out.c", c_code)
 
     --compile_and_run("tmp/stg1_out.c")
 
