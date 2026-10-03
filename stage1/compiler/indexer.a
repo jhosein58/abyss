@@ -1,12 +1,24 @@
 import token, TokenStream_kind, TokenStream_text, TokenStream_count from "token.a"
 import lex from "lexer.a"
-import Nexus, Nexus_alloc_symbol, Nexus_alloc_symbol_alias, Nexus_find_symbol from "nexus/nexus.a"
+import Nexus, Nexus_add_file, Nexus_alloc_symbol, Nexus_alloc_symbol_alias, Nexus_find_symbol from "nexus/nexus.a"
 import Interner_intern, Interner_get from "../../std/interner.a"
 import Str, Str_from, Str_print from "../../std/string.a"
 import Arena, Arena_alloc from "../../std/allocator.a"
 import read_file from "../../std/fs.a"
 import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set from "../../std/vec/u32.a"
 import id_none from "nexus/pool.a"
+import fall from "../../std/sys.a"
+
+print :: (s &u8) unit
+
+index_error :: (path Str, msg &u8) {
+    print("\n[import error] ")
+    print(msg)
+    print(" in ")
+    Str_print(path)
+    print("\n")
+    fall()
+}
 
 str_eq :: (a Str, b Str) bool {
     if a.len != b.len { ret false }
@@ -176,12 +188,14 @@ resolve_and_load_file :: (
         i = i + 1
     }
 
-    fid := (*loaded_paths).len as u32
-    VecU32_push(loaded_paths, path_id)
-
     source := read_file(arena, target_path.ptr)
+    fid := Nexus_add_file(db, target_path, source)
+    while (*loaded_paths).len < (fid as u64) {
+        VecU32_push(loaded_paths, id_none())
+    }
+    VecU32_push(loaded_paths, path_id)
     tok_start := TokenStream_count(&(*db).tokens) as u32
-    lex(&(*db).tokens, source)
+    lex(&(*db).tokens, source, target_path)
     tok_end := TokenStream_count(&(*db).tokens) as u32
 
     VecU32_push(queue_fids, fid)
@@ -237,13 +251,23 @@ scan_file_symbols :: (
                     scan = scan + 1
                     break
                 }
-                if not str_eq(stk_text, Str_from(",")) {
+                if (TokenStream_kind(&(*db).tokens, scan) != t.ident) and
+                   (TokenStream_kind(&(*db).tokens, scan) != t.comma) {
+                    index_error(curr_path, "invalid import name")
+                }
+                if TokenStream_kind(&(*db).tokens, scan) == t.ident {
                     name_id := Interner_intern(&(*db).interner, stk_text)
                     VecU32_push(&imported_names, name_id)
                 }
                 scan = scan + 1
             }
 
+            if (scan >= end_tok) or (imported_names.len == 0) {
+                index_error(curr_path, "expected names, 'from', and a quoted path")
+            }
+            if TokenStream_kind(&(*db).tokens, scan) != t.lit_str {
+                index_error(curr_path, "expected quoted import path")
+            }
             if scan < end_tok {
                 raw_path := TokenStream_text(&(*db).tokens, scan)
                 path_str := trim_quotes(raw_path)
@@ -274,6 +298,12 @@ scan_file_symbols :: (
                     if (cursor + 2) < end_tok {
                         c2_text := TokenStream_text(&(*db).tokens, cursor + 2)
                         if str_eq(c2_text, Str_from("import")) {
+                            if (cursor + 5 >= end_tok) or
+                               (TokenStream_kind(&(*db).tokens, cursor + 3) != t.ident) or
+                               (not str_eq(TokenStream_text(&(*db).tokens, cursor + 4), Str_from("from"))) or
+                               (TokenStream_kind(&(*db).tokens, cursor + 5) != t.lit_str) {
+                                index_error(curr_path, "malformed symbol import")
+                            }
                             if has_sym {
                                 Nexus_alloc_symbol(db, file_id, curr_sym_name, curr_sym_tok, cursor)
                                 has_sym = false
@@ -333,6 +363,9 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
     pending_imports := VecU32_new()
 
     root_path_id := Interner_intern(&(*db).interner, root_path)
+    while loaded_paths.len < (root_fid as u64) {
+        VecU32_push(&loaded_paths, id_none())
+    }
     VecU32_push(&loaded_paths, root_path_id)
 
     VecU32_push(&queue_fids, root_fid)
@@ -377,6 +410,19 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
             }
             p_i = p_i + 4
         }
+    }
+
+    p_i: u64 = 0
+    while p_i < pending_imports.len {
+        src_fid := VecU32_get(&pending_imports, p_i)
+        if src_fid != id_none() {
+            name_id := VecU32_get(&pending_imports, p_i + 2)
+            print("\n[import error] symbol not found: ")
+            Str_print(Interner_get(&(*db).interner, name_id))
+            print("\n")
+            fall()
+        }
+        p_i = p_i + 4
     }
 
     VecU32_destroy(&loaded_paths)
