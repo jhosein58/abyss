@@ -207,6 +207,14 @@ UnifyStorage_bind_type :: (db &Nexus, slot u32, ty u32) u32 {
 
 
 UnifyStorage_unify_types :: (db &Nexus, a u32, b u32) u32 {
+
+    types := &(*db).types
+
+    if (a == ty_id_none()) or (b == ty_id_none()) or
+       (a == ty_id_unknown()) or (b == ty_id_unknown()) {
+        ret ty_id_error()
+    }
+
     if a == b {
         ret a
     }
@@ -232,8 +240,6 @@ UnifyStorage_unify_types :: (db &Nexus, a u32, b u32) u32 {
 
     if kind_a == k.never { ret b }
     if kind_b == k.never { ret a }
-    if kind_a == k.unknown { ret b }
-    if kind_b == k.unknown { ret a }
 
     is_num_b := (kind_b == k.int) or (kind_b == k.uint) or (kind_b == k.float) or (kind_b == k.untyped_float)
     if (kind_a == k.untyped_int) and is_num_b {
