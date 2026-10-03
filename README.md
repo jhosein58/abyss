@@ -39,13 +39,13 @@ Abyss bootstraps directly via emitted C:
 
 ```sh
 # 1. Build the compiler binary from the bootstrap seed
-gcc -std=gnu11 -O2 out.c -o abyssc
+gcc bootstrap.c -o abyssc
 
 # 2. Compile an Abyss source file
-./abyssc main.a
+./abyssc
 
 # 3. Compile the generated C output
-gcc out.c -o bin
+gcc tmp/out.c -o bin
 ./bin
 
 ```
