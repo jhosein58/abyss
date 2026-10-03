@@ -1,21 +1,22 @@
 import Nexus, Nexus_new, Nexus_find_symbol, Nexus_get_sym_hir,
        Nexus_is_sym_resolving, Nexus_set_sym_resolving, Nexus_add_file from "nexus/nexus.a"
 
-import TokenStream_count from "token.a"
+import token, TokenStream_count from "token.a"
 import lex from "lexer.a"
 import index_file from "indexer.a"
-import Parser_new from "parser/core.a"
+import Parser_new, peek, curr_span, parse_error_at from "parser/core.a"
 import parse_expr from "parser/parser.a"
 import ScopeEnv_destroy from "parser/env.a"
-import type_check from "typer/tyck.a"
+import type_check, type_check_calls from "typer/tyck.a"
 import HirTable_len from "hir.a"
 import PoolU32_get, PoolU32_set, id_none from "nexus/pool.a"
 import UnifyStorage_get_slot, UnifyStorage_resolve_type,UnifyStorage_new_slot, slot_none from "unify.a"
-import ty_id_none from "types.a"
+import ty_id_none, ty_kind, TypeStorage_kind, TypeStorage_func_params_len, TypeStorage_func_is_extern from "types.a"
 import Interner_intern, Interner_get from "../../std/interner.a"
 import Str, Str_print from "../../std/string.a"
-import VecU32_new, VecU32_destroy from "../../std/vec/u32.a"
+import VecU32, VecU32_new, VecU32_destroy from "../../std/vec/u32.a"
 import Arena from "../../std/allocator.a"
+import fall from "../../std/sys.a"
 import HirTable_lhs from "hir.a"
 
 import CCodeGen, CCodeGen_new, CCodeGen_destroy, CCodeGen_abyss_main, CCodeGen_finish from "codegen.a"
@@ -27,19 +28,24 @@ print_u32 :: (v u32) unit
 Engine :: struct {
     nexus      : Nexus,
     file_count : u32,
-    ccg        : CCodeGen
+    ccg        : CCodeGen,
+    pending_calls : VecU32,
+    check_depth : u32
 }
 
 Engine_new :: () Engine {
     .{
         nexus      : Nexus_new(),
         file_count : 0,
-        ccg        : CCodeGen_new()
+        ccg        : CCodeGen_new(),
+        pending_calls : VecU32_new(),
+        check_depth : 0
     }
 }
 
 Engine_destroy :: (self &Engine) {
     CCodeGen_destroy(&(*self).ccg)
+    VecU32_destroy(&(*self).pending_calls)
 }
 
 Engine_add_file :: (self &Engine, arena &Arena, path Str, source Str) u32 {
@@ -48,7 +54,7 @@ Engine_add_file :: (self &Engine, arena &Arena, path Str, source Str) u32 {
     (*self).file_count = file_id + 1
 
     tok_start := TokenStream_count(&((*self).nexus).tokens)
-    lex(&((*self).nexus).tokens, source)
+    lex(&((*self).nexus).tokens, source, path)
     tok_end := TokenStream_count(&((*self).nexus).tokens)
 
     index_file(&(*self).nexus, arena, file_id, path, tok_start as u32, tok_end as u32)
@@ -61,6 +67,10 @@ Engine_get_symbol_id :: (self &Engine, file_id u32, sym_name Str) u32 {
 }
 
 Engine_parse :: (self &Engine, sym_id u32) {
+    if sym_id == id_none() {
+        print("\n[syntax error] symbol not found\n")
+        fall()
+    }
     file_id   := PoolU32_get(&(*self).nexus.sym_files, sym_id)
     tok_start := PoolU32_get(&(*self).nexus.sym_tok_start, sym_id)
     tok_end   := PoolU32_get(&(*self).nexus.sym_tok_end, sym_id)
@@ -79,6 +89,9 @@ Engine_parse :: (self &Engine, sym_id u32) {
     )
 
     parse_expr(&parser, 0)
+    if peek(&parser) != token().eof {
+        parse_error_at(&parser, "unexpected token after declaration", curr_span(&parser))
+    }
     ScopeEnv_destroy(&parser.env)
 
     hir_end := HirTable_len(&(*self).nexus.hir)
@@ -91,7 +104,12 @@ Engine_type_check :: (self &Engine, sym_id u32) {
     hir_start := PoolU32_get(&(*self).nexus.sym_hir_start, sym_id)
     hir_end   := PoolU32_get(&(*self).nexus.sym_hir_end, sym_id)
 
+    (*self).check_depth = (*self).check_depth + 1
     type_check(self, hir_start, hir_end)
+    (*self).check_depth = (*self).check_depth - 1
+    if (*self).check_depth == 0 {
+        type_check_calls(self)
+    }
 }
 
 Engine_ensure_resolved :: (self &Engine, sym_id u32) {
@@ -180,6 +198,16 @@ Engine_type_of :: (self &Engine, sym_id u32) u32 {
 }
 
 Engine_abyss_main :: (self &Engine, sym_id u32) {
+    ty := Engine_type_of(self, sym_id)
+    types := &(*self).nexus.types
+    if TypeStorage_kind(types, ty) != ty_kind().func {
+        print("\n[type error] main must be a function\n")
+        fall()
+    }
+    if (TypeStorage_func_params_len(types, ty) != 0) or TypeStorage_func_is_extern(types, ty) {
+        print("\n[type error] main must be a defined function with no arguments\n")
+        fall()
+    }
     CCodeGen_abyss_main(&((*self).ccg), sym_id)
 }
 
