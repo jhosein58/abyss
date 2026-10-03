@@ -111,14 +111,49 @@ prev_text :: (p &Parser) Str {
     TokenStream_text((*p).tokens, (*p).cursor - 1)
 }
 
-str_to_u32 :: (s Str) u32 {
+str_to_u32 :: (p &Parser, s Str) u32 {
     res: u32 = 0
     i: u64 = 0
+    base: u32 = 10
+    if s.len == 0 {
+        parse_error_at(p, "empty integer literal", curr_span(p))
+    }
+    if s.len >= 2 {
+        if (*(s.ptr) == 48) and ((*(s.ptr + 1) == 120) or (*(s.ptr + 1) == 88)) {
+            base = 16
+            i = 2
+        }
+    }
+    if i == s.len {
+        parse_error_at(p, "missing hexadecimal digits", curr_span(p))
+    }
+    seen_digit := false
+    after_sep := false
     while i < s.len {
         c := *(s.ptr + i)
-        if c >= 48 and c <= 57 {
-            res = (res * 10) + ((c - 48) as u32)
+        if c == 95 {
+            if (not seen_digit) or after_sep or ((i + 1) == s.len) {
+                parse_error_at(p, "misplaced integer separator", curr_span(p))
+            }
+            after_sep = true
+            i = i + 1
+            cont
         }
+
+        digit: u32 = 16
+        if (c >= 48) and (c <= 57) { digit = (c - 48) as u32 }
+        if (c >= 65) and (c <= 70) { digit = (c - 65) as u32 + 10 }
+        if (c >= 97) and (c <= 102) { digit = (c - 97) as u32 + 10 }
+        if digit >= base {
+            parse_error_at(p, "invalid integer digit", curr_span(p))
+        }
+        if ((base == 10) and ((res > 429496729) or ((res == 429496729) and (digit > 5)))) or
+           ((base == 16) and (res > 268435455)) {
+            parse_error_at(p, "integer literal exceeds u32", curr_span(p))
+        }
+        res = (res * base) + digit
+        seen_digit = true
+        after_sep = false
         i = i + 1
     }
     res
