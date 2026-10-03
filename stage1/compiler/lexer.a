@@ -1,18 +1,39 @@
-import Str, Str_new, Str_from, Str_eq, Str_empty from "../../std/string.a"
+import Str, Str_new, Str_from, Str_eq, Str_empty, Str_print from "../../std/string.a"
 import token, TokenType, TokenStream, TokenStream_push from "token.a"
+import calc_pos from "nexus/nexus.a"
+import fall from "../../std/sys.a"
+
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
 
 Lexer :: struct {
     source: Str,
+    path: Str,
     cursor: u64,
     had_newline: bool
 }
 
-Lexer_new :: (source Str) Lexer {
+Lexer_new :: (source Str, path Str) Lexer {
     .{
         source: source,
+        path: path,
         cursor: 0,
         had_newline: true
     }
+}
+
+lexer_error :: (l &Lexer, msg &u8, offset u64) {
+    print("\n[lex error] ")
+    print(msg)
+    print("\n       --> ")
+    Str_print((*l).path)
+    print(":")
+    pos := calc_pos((*l).source, offset as u32)
+    print_u32(pos.line)
+    print(":")
+    print_u32(pos.col)
+    print("\n")
+    fall()
 }
 
 is_eof :: (l &Lexer) bool {
@@ -49,6 +70,14 @@ is_digit :: (c u8) bool {
 
 is_hex_digit :: (c u8) bool {
     (c >= 48 and c <= 57) or (c >= 65 and c <= 70) or (c >= 97 and c <= 102)
+}
+
+valid_escape :: (l &Lexer) bool {
+    c := current(l)
+    if c == 120 { ret is_hex_digit(peek(l)) }
+    if (c >= 48) and (c <= 55) { ret true }
+    (c == 97) or (c == 98) or (c == 102) or (c == 110) or (c == 114) or
+    (c == 116) or (c == 118) or (c == 92) or (c == 39) or (c == 34) or (c == 63)
 }
 
 is_alpha :: (c u8) bool {
@@ -126,6 +155,15 @@ scan_number :: (l &Lexer, stream &TokenStream) {
 
     len := ((*l).cursor - offset) as u32
     text := Str_new((*l).source.ptr + offset, len as u64)
+    if is_float {
+        check: u64 = 0
+        while check < text.len {
+            if *(text.ptr + check) == 95 {
+                lexer_error(l, "separators in float literals are unsupported", offset)
+            }
+            check = check + 1
+        }
+    }
     
     tk_kind := token().lit_int
     if is_float {
@@ -141,15 +179,22 @@ scan_string :: (l &Lexer, stream &TokenStream) {
     bump(l) -- '"'
 
     while (not is_eof(l)) and current(l) != 34 {
+        if is_newline(current(l)) {
+            lexer_error(l, "newline in string literal", offset)
+        }
         if current(l) == 92 { -- '\\'
             bump(l)
+            if is_eof(l) or (not valid_escape(l)) {
+                lexer_error(l, "invalid string escape", offset)
+            }
         }
         bump(l)
     }
 
-    if not is_eof(l) {
-        bump(l) -- '"'
+    if is_eof(l) {
+        lexer_error(l, "unterminated string", offset)
     }
+    bump(l)
 
     len := ((*l).cursor - offset) as u32
     text := Str_new((*l).source.ptr + offset, len as u64)
@@ -163,12 +208,19 @@ scan_char :: (l &Lexer, stream &TokenStream) {
 
     if current(l) == 92 { -- '\\'
         bump(l)
+        if is_eof(l) or (not valid_escape(l)) {
+            lexer_error(l, "invalid character escape", offset)
+        }
+    }
+    if is_eof(l) or (current(l) == 39) {
+        lexer_error(l, "invalid character literal", offset)
     }
     bump(l)
 
-    if current(l) == 39 { -- '\''
-        bump(l)
+    if current(l) != 39 {
+        lexer_error(l, "unterminated or oversized character literal", offset)
     }
+    bump(l)
 
     len := ((*l).cursor - offset) as u32
     text := Str_new((*l).source.ptr + offset, len as u64)
@@ -313,8 +365,8 @@ scan_symbol :: (l &Lexer) u8 {
     t.unknown
 }
 
-lex :: (stream &TokenStream, source Str) {
-    lexer := Lexer_new(source)
+lex :: (stream &TokenStream, source Str, path Str) {
+    lexer := Lexer_new(source, path)
 
     while not is_eof(&lexer) {
         c := current(&lexer)
@@ -357,6 +409,9 @@ lex :: (stream &TokenStream, source Str) {
         offset := lexer.cursor
         had_nl := lexer.had_newline
         kind := scan_symbol(&lexer)
+        if kind == token().unknown {
+            lexer_error(&lexer, "unknown character", offset)
+        }
         len := (lexer.cursor - offset) as u32
         text := Str_new(lexer.source.ptr + offset, len as u64)
 
