@@ -1,4 +1,4 @@
-import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir from "nexus/nexus.a"
+import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir, Nexus_print_loc from "nexus/nexus.a"
 import HirTable, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind, hir_none, HirExprKind from "hir.a"
 import PoolU32_get, id_none from "nexus/pool.a"
 import CCodeGen, CCodeGen_declare_function, CCodeGen_start_function, CCodeGen_end_function, CCodeGen_start_if, CCodeGen_end_block,
@@ -12,10 +12,16 @@ import TypeStorage, ty_kind, ty_id_none, TypeStorage_kind, TypeStorage_payload, 
 import UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
 import Interner_get from "../../std/interner.a"
 import topo_sort from "topo_sort.a"
+import fall from "../../std/sys.a"
+
+print :: (s &u8) unit
 
 
 c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
-    if ty_id == ty_id_none() { ret Str_from("void") }
+    if ty_id == ty_id_none() {
+        print("\n[codegen error] missing type\n")
+        fall()
+    }
     k := ty_kind()
     kind := TypeStorage_kind(types, ty_id)
     payload := TypeStorage_payload(types, ty_id)
@@ -29,7 +35,9 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
         if payload == 32  { ret Str_from("int32_t") }
         if payload == 64  { ret Str_from("int64_t") }
         if payload == 128 { ret Str_from("__int128") }
-        ret Str_from("int32_t")
+        print("\n[codegen error] unsupported integer width\n")
+        fall()
+        ret Str_empty()
     }
 
     if kind == k.uint {
@@ -38,13 +46,17 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
         if payload == 32  { ret Str_from("uint32_t") }
         if payload == 64  { ret Str_from("uint64_t") }
         if payload == 128 { ret Str_from("unsigned __int128") }
-        ret Str_from("uint32_t")
+        print("\n[codegen error] unsupported integer width\n")
+        fall()
+        ret Str_empty()
     }
 
     if kind == k.float {
         if payload == 32 { ret Str_from("float") }
         if payload == 64 { ret Str_from("double") }
-        ret Str_from("double")
+        print("\n[codegen error] unsupported float width\n")
+        fall()
+        ret Str_empty()
     }
 
     if kind == k.untyped_int   { ret Str_from("int32_t") }
@@ -64,10 +76,13 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
     }
 
     if (kind == k.infer) or (kind == k.unknown) or (kind == k.error) {
-        ret Str_from("uint64_t")
+        print("\n[codegen error] unresolved type\n")
+        fall()
     }
 
-    Str_from("void")
+    print("\n[codegen error] unsupported type\n")
+    fall()
+    Str_empty()
 }
 
 get_node_type :: (db &Nexus, id u32) u32 {
@@ -181,14 +196,29 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         }
 
         if sym_id != id_none() {
+            real_sym := sym_id
+            while true {
+                target := PoolU32_get(&(*db).sym_target, real_sym)
+                if (target == id_none()) or (target == real_sym) { break }
+                real_sym = target
+            }
+            if PoolU32_get(&(*db).sym_tok_start, real_sym) != id_none() {
+                print("\n[codegen error] unsupported global value\n       --> ")
+                Nexus_print_loc(db, id)
+                print("\n")
+                fall()
+            }
             s := String_new(arena)
             String_push_str(&s, Str_from("sym_"))
             String_push_u32(&s, sym_id)
             ret String_as_str(&s)
         }
 
-        name_id := HirTable_lhs(&(*db).hir, id)
-        ret Interner_get(&(*db).interner, name_id)
+        print("\n[codegen error] undefined identifier\n       --> ")
+        Nexus_print_loc(db, id)
+        print("\n")
+        fall()
+        ret Str_empty()
     }
     if kind == k.var {
         ident_id := HirTable_lhs(&(*db).hir, id)
@@ -196,6 +226,12 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
         sym_id := Nexus_get_hir_symbol(db, ident_id)
         var_ty := get_node_type(db, ident_id)
+        if TypeStorage_kind(&(*db).types, var_ty) == ty_kind().unit {
+            print("\n[type error] variable cannot have unit type\n       --> ")
+            Nexus_print_loc(db, id)
+            print("\n")
+            fall()
+        }
         ty_str := c_type_str(&(*db).types, arena, var_ty)
 
 
@@ -208,6 +244,12 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
         if val_id != hir_none() {
             val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
+            if val_str.len == 0 {
+                print("\n[codegen error] initializer does not produce a value\n       --> ")
+                Nexus_print_loc(db, id)
+                print("\n")
+                fall()
+            }
             CCodeGen_create_variable(ccg, var_name, ty_str, val_str, true)
         } else {
             CCodeGen_create_variable(ccg, var_name, ty_str, Str_empty(), false)
@@ -496,6 +538,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         ret String_as_str(&s)
     }
 
+    print("\n[codegen error] unsupported expression\n       --> ")
+    Nexus_print_loc(db, id)
+    print("\n")
+    fall()
     Str_empty()
 }
 
