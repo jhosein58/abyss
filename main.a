@@ -60,8 +60,8 @@ main :: () {
     Engine_abyss_main(&eng, sym_id)
     Engine_compile(&eng, &arena, sym_id)
 
-    -- c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, "prelude.c"))
-    -- write_file("tmp/out.c", c_code)
+    c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, "prelude.c"))
+    write_file("tmp/out.c", c_code)
 
     --compile_and_run("tmp/stg1_out.c")
 
