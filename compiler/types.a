@@ -1,6 +1,7 @@
 import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get  from "../std/vec/u8.a"
 import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set, VecU32_with_cap, VecU32_ptr_at from "../std/vec/u32.a"
 import SliceU32 from "../std/slice/u32.a"
+import VecStr, VecStr_new, VecStr_destroy, VecStr_push, VecStr_get from "../std/vec/str.a"
 import U32_MAX from "../std/primitive/u32.a"
 import Str, Str_from, Str_print, String, String_new, String_push_str, String_push_char, String_push_u32, String_as_str from "../std/string.a"
 import Arena from "../std/allocator.a"
@@ -26,7 +27,8 @@ TyKind :: struct {
     never         : u8,
     struct_       : u8,
     array         : u8,
-    error         : u8
+    error         : u8,
+    nominal       : u8
 }
 
 ty_kind :: () TyKind {
@@ -46,7 +48,8 @@ ty_kind :: () TyKind {
         never         : 12,
         struct_       : 13,
         array         : 14,
-        error         : 15
+        error         : 15,
+        nominal       : 16
     }
 }
 
@@ -68,6 +71,7 @@ ty_kind_name :: (k u8) Str {
     if k == t.struct_       { ret Str_from("Struct")       }
     if k == t.array         { ret Str_from("Array")        }
     if k == t.error         { ret Str_from("Error")        }
+    if k == t.nominal       { ret Str_from("Nominal")      }
     Str_from("Unknown")
 }
 
@@ -171,7 +175,9 @@ TypeStorage :: struct {
     store     : TyStore,
     table     : VecU32,
     table_cap : u32,
-    table_len : u32
+    table_len : u32,
+    nominal_names : VecStr,
+    nominal_by_origin : VecU32
 }
 
 TypeStorage_new :: () TypeStorage {
@@ -199,13 +205,17 @@ TypeStorage_new :: () TypeStorage {
         store     : store,
         table     : tbl,
         table_cap : init_cap,
-        table_len : 0
+        table_len : 0,
+        nominal_names : VecStr_new(),
+        nominal_by_origin : VecU32_new()
     }
 }
 
 TypeStorage_destroy :: (self &TypeStorage) {
     TyStore_destroy(&(*self).store)
     VecU32_destroy(&(*self).table)
+    VecStr_destroy(&(*self).nominal_names)
+    VecU32_destroy(&(*self).nominal_by_origin)
 }
 
 TypeStorage_len :: (self &TypeStorage) u32 {
@@ -291,6 +301,10 @@ TypeStorage_grow_table :: (self &TypeStorage) {
     id: u32 = ty_builtin_count()
 
     while id < total_types {
+        if TypeStorage_kind(self, id) == ty_kind().nominal {
+            id = id + 1
+            cont
+        }
         h := TypeStorage_hash_of(self, id)
         idx := h & mask
 
@@ -487,6 +501,34 @@ sort_struct_fields :: (fields SliceU32) {
     }
 }
 
+TypeStorage_alloc_nominal :: (self &TypeStorage, base u32, name Str, origin u32) u32 {
+    while (*self).nominal_by_origin.len <= origin as u64 {
+        VecU32_push(&(*self).nominal_by_origin, ty_id_none())
+    }
+    existing := VecU32_get(&(*self).nominal_by_origin, origin as u64)
+    if existing != ty_id_none() { ret existing }
+
+    extra_idx := (*self).store.extra.len as u32
+    name_idx := (*self).nominal_names.len as u32
+    VecStr_push(&(*self).nominal_names, name)
+    VecU32_push(&(*self).store.extra, base)
+    VecU32_push(&(*self).store.extra, name_idx)
+    VecU32_push(&(*self).store.extra, origin)
+    nominal := TyStore_push(&(*self).store, ty_kind().nominal, extra_idx)
+    VecU32_set(&(*self).nominal_by_origin, origin as u64, nominal)
+    nominal
+}
+
+TypeStorage_nominal_base :: (self &TypeStorage, id u32) u32 {
+    idx := TypeStorage_payload(self, id) as u64
+    VecU32_get(&(*self).store.extra, idx)
+}
+
+TypeStorage_nominal_origin :: (self &TypeStorage, id u32) u32 {
+    idx := TypeStorage_payload(self, id) as u64
+    VecU32_get(&(*self).store.extra, idx + 2)
+}
+
 TypeStorage_alloc_struct :: (self &TypeStorage, fields SliceU32) u32 {
 
     sort_struct_fields(fields)
@@ -581,11 +623,17 @@ TypeStorage_func_params :: (self &TypeStorage, func u32) SliceU32 {
 }
 
 TypeStorage_get_struct_fields_len :: (self &TypeStorage, id u32) u32 {
+    if TypeStorage_kind(self, id) == ty_kind().nominal {
+        ret TypeStorage_get_struct_fields_len(self, TypeStorage_nominal_base(self, id))
+    }
     extra_idx := TypeStorage_payload(self, id) as u64
     VecU32_get(&(*self).store.extra, extra_idx)
 }
 
 TypeStorage_get_struct_fields :: (self &TypeStorage, id u32) SliceU32 {
+    if TypeStorage_kind(self, id) == ty_kind().nominal {
+        ret TypeStorage_get_struct_fields(self, TypeStorage_nominal_base(self, id))
+    }
     extra_idx := TypeStorage_payload(self, id) as u64
     fields_count := VecU32_get(&(*self).store.extra, extra_idx)
     start_ptr := VecU32_ptr_at(&(*self).store.extra, extra_idx + 1)
@@ -619,6 +667,12 @@ TypeStorage_print_type :: (self &TypeStorage, id u32) {
     if kind == k.unit          { print("unit")      ret }
     if kind == k.never         { print("!")         ret }
     if kind == k.error         { print("Err!")      ret }
+    if kind == k.nominal {
+        idx := payload as u64
+        name_idx := VecU32_get(&(*self).store.extra, idx + 1)
+        Str_print(VecStr_get(&(*self).nominal_names, name_idx as u64))
+        ret
+    }
 
     if kind == k.ptr {
         print("&")
@@ -704,6 +758,12 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
     if kind == k.unit  { String_push_str(s, Str_from("unit")) ret }
     if kind == k.never { String_push_str(s, Str_from("!"))    ret }
     if kind == k.error { String_push_str(s, Str_from("Err!")) ret }
+    if kind == k.nominal {
+        idx := payload as u64
+        name_idx := VecU32_get(&(*self).store.extra, idx + 1)
+        String_push_str(s, VecStr_get(&(*self).nominal_names, name_idx as u64))
+        ret
+    }
 
     if kind == k.ptr {
         String_push_str(s, Str_from("R_"))
