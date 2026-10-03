@@ -1,6 +1,6 @@
-import VecU8, VecU8_new, VecU8_destroy, VecU8_push from "../../std/vec/u8.a"
-import VecU32_get, VecU32, VecU32_push, VecU32_new from "../../std/vec/u32.a"
-import Str, Str_from from "../../std/string.a"
+import VecU8, VecU8_new, VecU8_destroy, VecU8_push from "../std/vec/u8.a"
+import VecU32_get, VecU32, VecU32_push, VecU32_new from "../std/vec/u32.a"
+import Str, Str_from from "../std/string.a"
 
 vec_push_str :: (v &VecU8, s Str) {
     i: u64 = 0

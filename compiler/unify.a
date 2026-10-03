@@ -1,7 +1,7 @@
-import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get,  VecU8_set  from "../../std/vec/u8.a"
-import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set, VecU32_mark, VecU32_reset, VecU32_ptr_at from "../../std/vec/u32.a"
-import SliceU32 from "../../std/slice/u32.a"
-import U32_MAX from "../../std/primitive/u32.a"
+import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get,  VecU8_set  from "../std/vec/u8.a"
+import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set, VecU32_mark, VecU32_reset, VecU32_ptr_at from "../std/vec/u32.a"
+import SliceU32 from "../std/slice/u32.a"
+import U32_MAX from "../std/primitive/u32.a"
 
 import ty_kind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error,
        TypeStorage, TypeStorage_kind, TypeStorage_payload, TypeStorage_infer_slot,
@@ -12,7 +12,7 @@ import ty_kind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error,
 import Nexus, Nexus_print_loc from "nexus/nexus.a"
 import id_none from "nexus/pool.a"
 import TypeStorage_print_type from "types.a"
-import fall from "../../std/sys.a"
+import fall from "../std/sys.a"
 
 print :: (s &u8) unit
 

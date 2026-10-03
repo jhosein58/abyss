@@ -1,8 +1,8 @@
-import VecU32, VecU32_new, VecU32_extend, VecU32_len, VecU32_push, VecU32_get, VecU32_ptr_at from "../../../std/vec/u32.a"
-import VecStr, VecStr_new, VecStr_len, VecStr_push, VecStr_get from "../../../std/vec/str.a"
-import SliceU32, SliceU32_new from "../../../std/slice/u32.a"
-import Interner, Interner_new from "../../../std/interner.a"
-import Str, Str_from from "../../../std/string.a"
+import VecU32, VecU32_new, VecU32_extend, VecU32_len, VecU32_push, VecU32_get, VecU32_ptr_at from "../../std/vec/u32.a"
+import VecStr, VecStr_new, VecStr_len, VecStr_push, VecStr_get from "../../std/vec/str.a"
+import SliceU32, SliceU32_new from "../../std/slice/u32.a"
+import Interner, Interner_new from "../../std/interner.a"
+import Str, Str_from from "../../std/string.a"
 
 import TypeStorage, TypeStorage_new, ty_id_none from "../types.a"
 import UnifyStorage, UnifyStorage_new from "../unify.a"

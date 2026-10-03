@@ -3,16 +3,16 @@ import HirTable, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_
 import PoolU32_get, id_none from "nexus/pool.a"
 import CCodeGen, CCodeGen_declare_function, CCodeGen_start_function, CCodeGen_end_function, CCodeGen_start_if, CCodeGen_end_block,
        CCodeGen_create_variable, CCodeGen_expr, CCodeGen_gen_return, CCodeGen_else, CCodeGen_start_while, CCodeGen_def_struct from "codegen.a"
-import Str, Str_from, Str_empty, String, String_new, String_push_str, String_push_u32, String_as_str from "../../std/string.a"
-import Arena from "../../std/allocator.a"
-import VecU32, VecU32_push, VecU32_get,VecU32_new, VecU32_destroy from "../../std/vec/u32.a"
+import Str, Str_from, Str_empty, String, String_new, String_push_str, String_push_u32, String_as_str from "../std/string.a"
+import Arena from "../std/allocator.a"
+import VecU32, VecU32_push, VecU32_get,VecU32_new, VecU32_destroy from "../std/vec/u32.a"
 
 import TypeStorage, ty_kind, ty_id_none, TypeStorage_kind, TypeStorage_payload, TypeStorage_name, TypeStorage_get_struct_fields,
        TypeStorage_func_return, TypeStorage_func_params, TypeStorage_func_is_extern from "types.a"
 import UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
-import Interner_get from "../../std/interner.a"
+import Interner_get from "../std/interner.a"
 import topo_sort from "topo_sort.a"
-import fall from "../../std/sys.a"
+import fall from "../std/sys.a"
 
 print :: (s &u8) unit
 

@@ -1,8 +1,8 @@
 import HirTable, HirTable_len, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind_name, hir_kind, hir_none from "hir.a"
-import Str, Str_from, Str_print, Str_println from "../../std/string.a"
+import Str, Str_from, Str_print, Str_println from "../std/string.a"
 import Nexus, Nexus_get_list from "nexus/nexus.a"
-import Arena from "../../std/allocator.a"
-import Interner_get from "../../std/interner.a"
+import Arena from "../std/allocator.a"
+import Interner_get from "../std/interner.a"
 
 import TypeStorage, TypeStorage_name, ty_id_none from "types.a"
 import UnifyStorage, UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
