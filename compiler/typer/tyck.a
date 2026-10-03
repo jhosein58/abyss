@@ -1,18 +1,19 @@
 import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir,
        Nexus_set_const_type, Nexus_get_const_type, Nexus_print_loc from "../nexus/nexus.a"
 import HirTable, HirTable_len, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind, hir_none from "../hir.a"
-import Str, Str_from from "../../std/string.a"
+import Str, Str_from, Str_print from "../../std/string.a"
 import SliceU32 from "../../std/slice/u32.a"
-import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_ptr_at, VecU32_get from "../../std/vec/u32.a"
+import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_ptr_at, VecU32_get, VecU32_set, VecU32_clear from "../../std/vec/u32.a"
 import VecU8, VecU8_new, VecU8_push, VecU8_get, VecU8_set, VecU8_destroy from "../../std/vec/u8.a"
 
 import TypeStorage, ty_kind, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_int, ty_id_unknown,ty_id_never, ty_id_untyped_float, ty_id_bool,
        TypeStorage_alloc_bool, TypeStorage_alloc_unit, TypeStorage_alloc_int, TypeStorage_alloc_struct, TypeStorage_alloc_infer,
        TypeStorage_alloc_uint, TypeStorage_alloc_float, TypeStorage_alloc_func, TypeStorage_payload, TypeStorage_get_struct_fields,
-       TypeStorage_func_return, TypeStorage_func_params, TypeStorage_kind, TypeStorage_alloc_ptr, TypeStorage_print_type from "../types.a"
+       TypeStorage_func_return, TypeStorage_func_params, TypeStorage_kind, TypeStorage_alloc_ptr, TypeStorage_print_type,
+       TypeStorage_alloc_nominal from "../types.a"
 
 import UnifyStorage, UnifyStorage_new_slot, UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, UnifyStorage_tmp_slot,
-       UnifyStorage_bind_type, UnifyStorage_union, UnifyStorage_resolve_type, slot_none from "../unify.a"
+       UnifyStorage_bind_type, UnifyStorage_union, UnifyStorage_resolve_type, UnifyStorage_find, slot_none from "../unify.a"
 import Interner_get from "../../std/interner.a"
 import id_none from "../nexus/pool.a"
 
@@ -73,12 +74,14 @@ type_check :: (eng &Engine, start u32, len u32) {
     tbl := &(*db).hir
 
     fn_ret_slot := UnifyStorage_tmp_slot(&(*db).unify)
+    pending_returns := VecU32_new()
 
     i := start
     while i < len {
-        synth_node(eng, i, fn_ret_slot)
+        synth_node(eng, i, fn_ret_slot, &pending_returns)
         i = i + 1
     }
+    VecU32_destroy(&pending_returns)
 }
 
 type_check_calls :: (eng &Engine) {
@@ -130,7 +133,7 @@ type_check_calls :: (eng &Engine) {
     (*eng).pending_calls.len = 0
 }
 
-synth_node :: (eng &Engine, id u32, fn_ret_slot u32) {
+synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     k := hir_kind()
@@ -141,8 +144,8 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32) {
     if curr == k.var           { synth_var_or_binding(db, tbl, id) }
     if curr == k.binding       { synth_var_or_binding(db, tbl, id) }
     if curr == k.arg           { synth_arg(db, tbl, id) }
-    if curr == k.function      { synth_func(db, tbl, id, fn_ret_slot) }
-    if curr == k.k_ret         { synth_return(db, tbl, id, fn_ret_slot) }
+    if curr == k.function      { synth_func(db, tbl, id, fn_ret_slot, pending_returns) }
+    if curr == k.k_ret         { synth_return(db, tbl, id, fn_ret_slot, pending_returns) }
     if curr == k.call          {
         UnifyStorage_new_slot(&(*db).unify, id)
         VecU32_push(&(*eng).pending_calls, id)
@@ -266,6 +269,74 @@ synth_ident :: (eng &Engine, id u32) {
     }
 }
 
+check_value :: (db &Nexus, expr u32, expected u32) {
+    tbl := &(*db).hir
+    unify_ptr := &(*db).unify
+    types := &(*db).types
+    slot := UnifyStorage_get_slot(unify_ptr, expr)
+    if slot == slot_none() { ret }
+
+    if HirTable_kind(tbl, expr) == hir_kind().block {
+        items := Nexus_get_list(db, HirTable_lhs(tbl, expr))
+        if items.len > 0 {
+            check_value(db, *(items.ptr + items.len - 1), expected)
+            ret
+        }
+    }
+
+    kind := TypeStorage_kind(types, expected)
+    if (HirTable_kind(tbl, expr) == hir_kind().struct_init) and
+       ((kind == ty_kind().nominal) or (kind == ty_kind().struct_)) {
+        target := TypeStorage_get_struct_fields(types, expected)
+        names := Nexus_get_list(db, HirTable_lhs(tbl, expr))
+        values := Nexus_get_list(db, HirTable_rhs(tbl, expr))
+        if (names.len != target.len / 2) or (values.len != names.len) {
+            print("\n\033[1;31m[type error]\033[0m struct literal has wrong number of fields for '")
+            TypeStorage_print_type(types, expected)
+            print("'\n       --> ")
+            Nexus_print_loc(db, expr)
+            print("\n")
+            fall()
+        }
+
+        i: u64 = 0
+        while i < names.len {
+            target = TypeStorage_get_struct_fields(types, expected)
+            name_id := HirTable_lhs(tbl, *(names.ptr + i))
+            field_ty := ty_id_none()
+            j: u64 = 0
+            while j < target.len / 2 {
+                if *(target.ptr + j * 2) == name_id {
+                    field_ty = *(target.ptr + j * 2 + 1)
+                    break
+                }
+                j = j + 1
+            }
+            if field_ty == ty_id_none() {
+                print("\n\033[1;31m[type error]\033[0m unexpected field '")
+                Str_print(Interner_get(&(*db).interner, name_id))
+                print("' in struct literal for '")
+                TypeStorage_print_type(types, expected)
+                print("'\n       --> ")
+                Nexus_print_loc(db, *(names.ptr + i))
+                print("\n")
+                fall()
+            }
+            check_value(db, *(values.ptr + i), field_ty)
+            i = i + 1
+        }
+        root := UnifyStorage_find(unify_ptr, slot)
+        existing := UnifyStorage_resolve_type(unify_ptr, slot)
+        if TypeStorage_kind(types, existing) == ty_kind().nominal {
+            UnifyStorage_bind_type(db, slot, expected)
+            ret
+        }
+        VecU32_set(&(*unify_ptr).types, root as u64, expected)
+        ret
+    }
+    UnifyStorage_bind_type(db, slot, expected)
+}
+
 synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
@@ -288,23 +359,51 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
         }
 
         type_value := Nexus_get_const_type(db, type_id)
-        if type_value != ty_id_none() {
-            UnifyStorage_bind_type(db, ident_slot, type_value)
-            Nexus_set_const_type(db, ident_id, type_value)
-            Nexus_set_const_type(db, id, type_value)
+        if type_value == ty_id_none() {
+            print("\n\033[1;31m[type error]\033[0m declaration annotation is not a resolved type\n       --> ")
+            Nexus_print_loc(db, type_id)
+            print("\n")
+            fall()
         }
+        UnifyStorage_bind_type(db, ident_slot, type_value)
+        Nexus_set_const_type(db, ident_id, type_value)
+        Nexus_set_const_type(db, id, type_value)
     }
 
     if value_id != hir_none() {
+        if (HirTable_kind(tbl, id) == hir_kind().binding) and (HirTable_kind(tbl, value_id) == hir_kind().struct_) {
+            structural := Nexus_get_const_type(db, value_id)
+            if TypeStorage_kind(types_ptr, structural) != ty_kind().struct_ {
+                print("\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> ")
+                Nexus_print_loc(db, value_id)
+                print("\n")
+                fall()
+            }
+            name_id := HirTable_lhs(tbl, ident_id)
+            name := Interner_get(&(*db).interner, name_id)
+            named := TypeStorage_alloc_nominal(types_ptr, structural, name, id)
+            Nexus_set_const_type(db, value_id, named)
+            Nexus_set_const_type(db, ident_id, named)
+            Nexus_set_const_type(db, id, named)
+        }
         val_slot := UnifyStorage_get_slot(unify_ptr, value_id)
         if val_slot != slot_none() {
             val_ty := UnifyStorage_resolve_type(unify_ptr, val_slot)
             if TypeStorage_kind(types_ptr, val_ty) == ty_kind().type_ {
                 type_val := Nexus_get_const_type(db, value_id)
+                if type_val == ty_id_none() {
+                    print("\n\033[1;31m[type error]\033[0m type value cannot be resolved\n       --> ")
+                    Nexus_print_loc(db, value_id)
+                    print("\n")
+                    fall()
+                }
                 Nexus_set_const_type(db, ident_id, type_val)
                 Nexus_set_const_type(db, id, type_val)
             }
-
+            if (type_id != hir_none()) and (HirTable_kind(tbl, value_id) == hir_kind().struct_init) {
+                expected := Nexus_get_const_type(db, type_id)
+                if expected != ty_id_none() { check_value(db, value_id, expected) }
+            }
             UnifyStorage_union(db, ident_slot, val_slot)
         }
     }
@@ -333,7 +432,7 @@ synth_arg :: (db &Nexus, tbl &HirTable, id u32) {
         }
     }
 }
-synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32) {
+synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_returns &VecU32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -358,6 +457,12 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32) {
     }
 
     if fn_ret_slot != slot_none() {
+        i: u64 = 0
+        while i < (*pending_returns).len {
+            check_value(db, VecU32_get(pending_returns, i), ret_ty)
+            i = i + 1
+        }
+        VecU32_clear(pending_returns)
         UnifyStorage_bind_type(db, fn_ret_slot, ret_ty)
     }
 
@@ -411,13 +516,14 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32) {
         body_slot := UnifyStorage_get_slot(unify_ptr, body_id)
         if body_slot != slot_none() {
             if (fn_ret_slot != slot_none()) and (ret_ty != ty_id_unit()) {
+                check_value(db, body_id, ret_ty)
                 UnifyStorage_union(db, body_slot, fn_ret_slot)
             }
         }
     }
 }
 
-synth_return :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32) {
+synth_return :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_returns &VecU32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -428,6 +534,12 @@ synth_return :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32) {
     if val_id != hir_none() {
         val_slot := UnifyStorage_get_slot(unify_ptr, val_id)
         if (val_slot != slot_none()) and (fn_ret_slot != slot_none()) {
+            ret_ty := UnifyStorage_resolve_type(unify_ptr, fn_ret_slot)
+            if (ret_ty == ty_id_none()) and (HirTable_kind(tbl, val_id) == hir_kind().struct_init) {
+                VecU32_push(pending_returns, val_id)
+                ret
+            }
+            if ret_ty != ty_id_none() { check_value(db, val_id, ret_ty) }
             UnifyStorage_union(db, val_slot, fn_ret_slot)
         }
     } else {
@@ -497,6 +609,7 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
                     param_ty := *(params.ptr + i)
 
                     if arg_slot != slot_none() {
+                        check_value(db, arg_node, param_ty)
                         param_slot := UnifyStorage_tmp_slot(unify_ptr)
                         UnifyStorage_bind_type(db, param_slot, param_ty)
                         UnifyStorage_union(db, arg_slot, param_slot)
@@ -602,6 +715,8 @@ synth_assign :: (db &Nexus, tbl &HirTable, id u32) {
     rhs_slot := UnifyStorage_get_slot(unify_ptr, rhs)
 
     if (lhs_slot != slot_none()) and (rhs_slot != slot_none()) {
+        lhs_ty := UnifyStorage_resolve_type(unify_ptr, lhs_slot)
+        if lhs_ty != ty_id_none() { check_value(db, rhs, lhs_ty) }
         UnifyStorage_union(db, lhs_slot, rhs_slot)
         rhs_ty := UnifyStorage_resolve_type_deep(unify_ptr, types_ptr, lhs_slot)
         if rhs_ty != ty_id_none() {
@@ -850,10 +965,10 @@ synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
 
         ty_val := Nexus_get_const_type(db, type_node)
         if ty_val == ty_id_none() {
-            s := UnifyStorage_get_slot(unify_ptr, type_node)
-            if s != slot_none() {
-                ty_val = UnifyStorage_resolve_type_deep(unify_ptr, types_ptr, s)
-            }
+            print("\n\033[1;31m[type error]\033[0m struct field requires a resolved type\n       --> ")
+            Nexus_print_loc(db, type_node)
+            print("\n")
+            fall()
         }
 
         VecU32_push(&fields_vec, name_id)
@@ -929,7 +1044,8 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
             lhs_ty = TypeStorage_payload(types_ptr, lhs_ty)
         }
 
-        if TypeStorage_kind(types_ptr, lhs_ty) != ty_kind().struct_ {
+        if (TypeStorage_kind(types_ptr, lhs_ty) != ty_kind().struct_) and
+           (TypeStorage_kind(types_ptr, lhs_ty) != ty_kind().nominal) {
             print("\n\033[1;31m[type error]\033[0m cannot access field on non-struct type '")
             TypeStorage_print_type(types_ptr, lhs_ty)
             print("'\n       --> ")
