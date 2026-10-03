@@ -71,7 +71,7 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
         ret String_as_str(&s)
     }
 
-    if kind == k.struct_ {
+    if (kind == k.struct_) or (kind == k.nominal) {
         ret TypeStorage_name(types, arena, ty_id)
     }
 
@@ -140,7 +140,7 @@ add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
     k := ty_kind()
     kind := TypeStorage_kind(&(*db).types, ty_id)
 
-    if kind == k.struct_ {
+    if (kind == k.struct_) or (kind == k.nominal) {
         if not vec_contains(queue, ty_id) {
             VecU32_push(queue, ty_id)
             fields := TypeStorage_get_struct_fields(&(*db).types, ty_id)
@@ -668,7 +668,8 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     s_i: u64 = 0
     while s_i < sorted.len {
         t := VecU32_get(&sorted, s_i)
-        if TypeStorage_kind(&(*db).types, t) == ty_kind().struct_ {
+        if (TypeStorage_kind(&(*db).types, t) == ty_kind().struct_) or
+           (TypeStorage_kind(&(*db).types, t) == ty_kind().nominal) {
             s_name := TypeStorage_name(&(*db).types, arena, t)
             body_buf := String_new(arena)
             s_fields := TypeStorage_get_struct_fields(&(*db).types, t)

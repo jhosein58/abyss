@@ -14,14 +14,14 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
     k := ty_kind()
     kind := TypeStorage_kind(types, ty_id)
 
-    if kind == k.struct_ {
+    if (kind == k.struct_) or (kind == k.nominal) {
         fields := TypeStorage_get_struct_fields(types, ty_id)
         count := fields.len / 2
         i: u64 = 0
         while i < count {
             f_ty := *(fields.ptr + (i * 2) + 1)
             f_kind := TypeStorage_kind(types, f_ty)
-            if (f_kind == k.struct_) or (f_kind == k.array) {
+            if (f_kind == k.struct_) or (f_kind == k.nominal) or (f_kind == k.array) {
                 topo_dfs(types, sorted, states, f_ty)
             }
             i = i + 1
@@ -29,7 +29,7 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
     } else if kind == k.array {
         inner_ty := TypeStorage_get_array_type(types, ty_id)
         inner_kind := TypeStorage_kind(types, inner_ty)
-        if (inner_kind == k.struct_) or (inner_kind == k.array) {
+        if (inner_kind == k.struct_) or (inner_kind == k.nominal) or (inner_kind == k.array) {
             topo_dfs(types, sorted, states, inner_ty)
         }
     }
