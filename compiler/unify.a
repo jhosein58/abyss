@@ -99,6 +99,11 @@ report_type_mismatch :: (db &Nexus, hir_id u32, expected u32, actual u32) {
     TypeStorage_print_type(types, actual)
     print("'\n")
 
+    if (TypeStorage_kind(types, expected) == ty_kind().nominal) or
+       (TypeStorage_kind(types, actual) == ty_kind().nominal) {
+        print("       Named structs require the same declaration; only an anonymous struct literal may initialize one.\n")
+    }
+
     if (hir_id != id_none()) and (hir_id != slot_none()) {
         print("       --> ")
         Nexus_print_loc(db, hir_id)
@@ -230,11 +235,11 @@ UnifyStorage_unify_types :: (db &Nexus, a u32, b u32) u32 {
         ret TypeStorage_alloc_infer(types, new_slot)
     } else if kind_a == k.infer {
         slot_a := TypeStorage_infer_slot(types, a)
-        UnifyStorage_bind_type(db, slot_a, b)
+        if UnifyStorage_bind_type(db, slot_a, b) == ty_id_error() { ret ty_id_error() }
         ret b
     } else if kind_b == k.infer {
         slot_b := TypeStorage_infer_slot(types, b)
-        UnifyStorage_bind_type(db, slot_b, a)
+        if UnifyStorage_bind_type(db, slot_b, a) == ty_id_error() { ret ty_id_error() }
         ret a
     }
 
