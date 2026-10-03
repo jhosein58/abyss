@@ -124,6 +124,8 @@ CCodeGen_create_variable :: (self &CCodeGen, name Str, ty Str, init_val Str, has
     if has_init {
         vec_push_str(&(*self).code, Str_from(" = "))
         vec_push_str(&(*self).code, init_val)
+    } else {
+        vec_push_str(&(*self).code, Str_from(" = {0}"))
     }
     vec_push_str(&(*self).code, Str_from(";\n"))
 }
