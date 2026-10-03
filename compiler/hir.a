@@ -1,7 +1,7 @@
-import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get,  VecU8_set  from "../../std/vec/u8.a"
-import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set from "../../std/vec/u32.a"
-import U32_MAX from "../../std/primitive/u32.a"
-import Str, Str_from from "../../std/string.a"
+import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get,  VecU8_set  from "../std/vec/u8.a"
+import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set from "../std/vec/u32.a"
+import U32_MAX from "../std/primitive/u32.a"
+import Str, Str_from from "../std/string.a"
 
 hir_none :: () u32 {
     U32_MAX()

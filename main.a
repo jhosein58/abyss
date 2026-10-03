@@ -1,18 +1,18 @@
 import token, token_name, TokenStream_new, TokenStream_destroy, TokenStream_push, TokenStream_kind, TokenStream_text, TokenStream_count from "compiler/token.a"
 import lex   from "compiler/lexer.a"
 
-import Str_from, Str_println from "../std/string.a"
+import Str_from, Str_println from "std/string.a"
 
-import Arena_new from "../std/allocator.a"
-import read_file, write_file from "../std/fs.a"
+import Arena_new from "std/allocator.a"
+import read_file, write_file from "std/fs.a"
 
 import HirTable_new, HirTable_len from "compiler/hir.a"
 import Parser_new from "compiler/parser/core.a"
 import parse_expr from "compiler/parser/parser.a"
 import dump_hir from "compiler/dump.a"
 import type_check from "compiler/typer/tyck.a"
-import FastMapU32_new, FastMapU32_destroy, FastMapU32_insert, FastMapU32_get from "../std/fast_map/u32.a"
-import Interner_new, Interner_intern, Interner_get from "../std/interner.a"
+import FastMapU32_new, FastMapU32_destroy, FastMapU32_insert, FastMapU32_get from "std/fast_map/u32.a"
+import Interner_new, Interner_intern, Interner_get from "std/interner.a"
 
 
 import Nexus_new from "compiler/nexus/nexus.a"
@@ -29,7 +29,7 @@ import CCodeGen_finish from "compiler/codegen.a"
 import Engine_new, Engine_add_file, Engine_get_symbol_id, Engine_parse, Engine_type_check, Engine_abyss_main, Engine_compile from "compiler/engine.a"
 
 
-import fall from "../std/sys.a"
+import fall from "std/sys.a"
 
 print_u32 :: (s u32) unit
 print_u64 :: (s u64) unit
@@ -42,6 +42,7 @@ compile_and_run :: (path &u8) i32
 main :: () {
 
 
+    print("start\n")
     arena := Arena_new(1024 * 1024 * 16)
 
     main_path := "main.a"
@@ -65,5 +66,8 @@ main :: () {
 
     --compile_and_run("tmp/stg1_out.c")
 
-    --dump_hir(&eng.nexus, &eng.nexus.hir, &arena) {
+    --dump_hir(&eng.nexus, &eng.nexus.hir, &arena) 
+
+
+    print("done\n")
 }

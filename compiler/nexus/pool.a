@@ -1,5 +1,5 @@
-import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set from "../../../std/vec/u32.a"
-import U32_MAX from "../../../std/primitive/u32.a"
+import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set from "../../std/vec/u32.a"
+import U32_MAX from "../../std/primitive/u32.a"
 
 id_none :: () u32 {
     U32_MAX()

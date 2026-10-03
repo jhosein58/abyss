@@ -1,9 +1,9 @@
-import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get  from "../../std/vec/u8.a"
-import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set, VecU32_with_cap, VecU32_ptr_at from "../../std/vec/u32.a"
-import SliceU32 from "../../std/slice/u32.a"
-import U32_MAX from "../../std/primitive/u32.a"
-import Str, Str_from, Str_print, String, String_new, String_push_str, String_push_char, String_push_u32, String_as_str from "../../std/string.a"
-import Arena from "../../std/allocator.a"
+import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get  from "../std/vec/u8.a"
+import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set, VecU32_with_cap, VecU32_ptr_at from "../std/vec/u32.a"
+import SliceU32 from "../std/slice/u32.a"
+import U32_MAX from "../std/primitive/u32.a"
+import Str, Str_from, Str_print, String, String_new, String_push_str, String_push_char, String_push_u32, String_as_str from "../std/string.a"
+import Arena from "../std/allocator.a"
 
 print_char :: (c u8) unit
 print_u32  :: (n u32) unit

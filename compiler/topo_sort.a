@@ -1,8 +1,8 @@
 import Nexus from "nexus/nexus.a"
 import TypeStorage, ty_kind, TypeStorage_kind, TypeStorage_len,
        TypeStorage_get_struct_fields, TypeStorage_get_array_type from "types.a"
-import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get from "../../std/vec/u32.a"
-import VecU8, VecU8_new, VecU8_destroy, VecU8_push, VecU8_get, VecU8_set from "../../std/vec/u8.a"
+import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get from "../std/vec/u32.a"
+import VecU8, VecU8_new, VecU8_destroy, VecU8_push, VecU8_get, VecU8_set from "../std/vec/u8.a"
 
 topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
     if (ty_id as u64) >= (*states).len { ret }

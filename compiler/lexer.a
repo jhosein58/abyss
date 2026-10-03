@@ -1,7 +1,7 @@
-import Str, Str_new, Str_from, Str_eq, Str_empty, Str_print from "../../std/string.a"
+import Str, Str_new, Str_from, Str_eq, Str_empty, Str_print from "../std/string.a"
 import token, TokenType, TokenStream, TokenStream_push from "token.a"
 import calc_pos from "nexus/nexus.a"
-import fall from "../../std/sys.a"
+import fall from "../std/sys.a"
 
 print :: (s &u8) unit
 print_u32 :: (v u32) unit

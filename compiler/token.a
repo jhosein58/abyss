@@ -1,9 +1,9 @@
-import VecU8,   VecU8_new,   VecU8_destroy,   VecU8_push,   VecU8_get   from "../../std/vec/u8.a"
-import VecU32,  VecU32_new,  VecU32_destroy,  VecU32_push,  VecU32_get  from "../../std/vec/u32.a"
-import VecStr,  VecStr_new,  VecStr_destroy,  VecStr_push,  VecStr_get  from "../../std/vec/str.a"
-import VecBool, VecBool_new, VecBool_destroy, VecBool_push, VecBool_get from "../../std/vec/bool.a"
+import VecU8,   VecU8_new,   VecU8_destroy,   VecU8_push,   VecU8_get   from "../std/vec/u8.a"
+import VecU32,  VecU32_new,  VecU32_destroy,  VecU32_push,  VecU32_get  from "../std/vec/u32.a"
+import VecStr,  VecStr_new,  VecStr_destroy,  VecStr_push,  VecStr_get  from "../std/vec/str.a"
+import VecBool, VecBool_new, VecBool_destroy, VecBool_push, VecBool_get from "../std/vec/bool.a"
 
-import Str, Str_from, Str_empty from "../../std/string.a"
+import Str, Str_from, Str_empty from "../std/string.a"
 
 TokenType :: struct {
     eof           : u8,
