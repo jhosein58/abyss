@@ -42,7 +42,6 @@ compile_and_run :: (path &u8) i32
 main :: () {
 
 
-    print("start\n")
     arena := Arena_new(1024 * 1024 * 16)
 
     main_path := "main.a"
@@ -63,11 +62,4 @@ main :: () {
 
     c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, "prelude.c"))
     write_file("tmp/out.c", c_code)
-
-    --compile_and_run("tmp/stg1_out.c")
-
-    --dump_hir(&eng.nexus, &eng.nexus.hir, &arena) 
-
-
-    print("done\n")
 }
