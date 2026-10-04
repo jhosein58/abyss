@@ -1,5 +1,5 @@
 import token, TokenStream_kind, TokenStream_newline_before from "../token.a"
-import hir_kind, HirTable, HirTable_push, HirTable_lhs, HirTable_rhs, HirTable_kind, hir_none from "../hir.a"
+import hir_kind, HirTable, HirTable_push, HirTable_lhs, HirTable_rhs, HirTable_extra, HirTable_kind, hir_none from "../hir.a"
 
 import Parser, is_eof, peek, bump, expect, optional, peek_n,
        peek_preceded_by_newline, curr_text, prev_text, str_to_u32, lookup_sym,
@@ -15,7 +15,7 @@ import Interner_intern from "../../std/interner.a"
 import Nexus_add_list, Nexus_get_list, Nexus_alloc_local_symbol,
        Nexus_set_sym_hir, Nexus_get_sym_hir, Nexus_set_hir_symbol,
        Nexus_set_hir_span, Nexus_set_hir_file, Nexus_get_hir_span,
-       Span, span_merge from "../nexus/nexus.a"
+       Nexus_set_method_owner, Span, span_merge from "../nexus/nexus.a"
 import id_none from "../nexus/pool.a"
 
 span_of_hir :: (p &Parser, hir_id u32) Span {
@@ -78,6 +78,17 @@ dispatch_prefix :: (p &Parser) u32 {
 
     if tk == t.kw_struct  { ret parse_struct(p) }
     if (tk == t.dot) and (peek_n(p, 1) == t.o_brace) { ret parse_struct_init(p) }
+    if tk == t.dot {
+        if not (*p).inside_method {
+            parse_error_at(p, "implicit field access is only valid inside a struct method", curr_span(p))
+        }
+        sp_start := curr_span(p)
+        bump(p)
+        field := parse_ident(p)
+        Nexus_set_hir_symbol((*p).db, field, id_none())
+        node := HirTable_push((*p).hir, hir_kind().member, hir_none(), field, hir_none())
+        ret set_span(p, node, span_merge(sp_start, span_of_hir(p, field)))
+    }
 
     if (tk == t.minus) or (tk == t.kw_not) or (tk == t.tilde) or (tk == t.amp) or (tk == t.star) {
         ret parse_unary(p, tk)
@@ -198,6 +209,12 @@ is_function_header :: (p &Parser) bool {
 }
 
 parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
+    if (*p).inside_method {
+        if (*p).method_fn_depth != 0 {
+            parse_error_at(p, "nested functions inside methods are not supported", sp_start)
+        }
+        (*p).method_fn_depth = 1
+    }
     (*p).toplv_sym = id_none()
     t := token()
     k := hir_kind()
@@ -216,6 +233,7 @@ parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
     }
 
     node := HirTable_push((*p).hir, k.function, params, ret_ty, body)
+    if (*p).inside_method { (*p).method_fn_depth = 0 }
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -536,11 +554,19 @@ parse_call :: (p &Parser, lhs u32, right_bp u8) u32 {
     if not optional(p, t.c_paren) {
         while true {
             if peek(p) == t.c_paren { break }
+            if is_eof(p) {
+                parse_error_at(p, "unclosed call, expected ')'", sp_lhs)
+            }
             arg := parse_expr(p, 0 as u8)
+            if arg == hir_none() {
+                parse_error_at(p, "expected call argument", curr_span(p))
+            }
             VecU32_push(&args, arg)
 
             if peek(p) == t.c_paren { break }
-            expect(p, t.comma)
+            if not expect(p, t.comma) {
+                parse_error_at(p, "expected ',' or ')' after call argument", curr_span(p))
+            }
         }
         expect(p, t.c_paren)
     }
@@ -624,10 +650,17 @@ parse_struct :: (p &Parser) u32 {
     k := hir_kind()
     sp_start := curr_span(p)
     bump(p) -- 'struct'
-    expect(p, t.o_brace)
+    if not expect(p, t.o_brace) {
+        parse_error_at(p, "expected '{' after struct", curr_span(p))
+    }
 
     names := VecU32_new()
     types := VecU32_new()
+    methods := VecU32_new()
+    method_names := VecU32_new()
+    if (*p).inside_method {
+        parse_error_at(p, "nested struct declarations inside methods are not supported", sp_start)
+    }
 
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
         if peek(p) == t.comma { bump(p) }
@@ -635,8 +668,36 @@ parse_struct :: (p &Parser) u32 {
 
         name := parse_ident(p)
         ensure_unique_field(p, &names, name)
-        expect(p, t.colon)
+        ensure_unique_field(p, &method_names, name)
+        if peek(p) == t.colon_colon {
+            bump(p)
+            Nexus_set_hir_symbol((*p).db, name, id_none())
+            (*p).inside_method = true
+            func := parse_expr(p, prec().const_def)
+            (*p).inside_method = false
+            if func == hir_none() {
+                parse_error_at(p, "expected a method function after '::'", curr_span(p))
+            }
+            if HirTable_kind((*p).hir, func) != k.function {
+                parse_error_at(p, "struct method must be a function", span_of_hir(p, func))
+            }
+            if HirTable_extra((*p).hir, func) == hir_none() {
+                parse_error_at(p, "struct method requires a body", span_of_hir(p, func))
+            }
+            method := HirTable_push((*p).hir, k.binding, name, hir_none(), func)
+            set_span(p, method, span_merge(span_of_hir(p, name), span_of_hir(p, func)))
+            VecU32_push(&methods, method)
+            VecU32_push(&method_names, name)
+            if peek(p) == t.comma { bump(p) }
+            cont
+        }
+        if not expect(p, t.colon) {
+            parse_error_at(p, "expected ':' for a field or '::' for a method", curr_span(p))
+        }
         ty := parse_expr(p, prec().var_def + (1 as u8))
+        if ty == hir_none() {
+            parse_error_at(p, "expected a field type after ':'", curr_span(p))
+        }
 
         VecU32_push(&names, name)
         VecU32_push(&types, ty)
@@ -661,11 +722,27 @@ parse_struct :: (p &Parser) u32 {
 
     names_id := Nexus_add_list((*p).db, slice_n)
     types_id := Nexus_add_list((*p).db, slice_t)
+    methods_id := hir_none()
+    if methods.len > 0 {
+        methods_id = Nexus_add_list((*p).db, VecU32_as_slice(&methods))
+    }
 
     VecU32_destroy(&names)
     VecU32_destroy(&types)
+    VecU32_destroy(&method_names)
 
-    node := HirTable_push((*p).hir, k.struct_, names_id, types_id, hir_none())
+    node := HirTable_push((*p).hir, k.struct_, names_id, types_id, methods_id)
+    i: u64 = 0
+    while i < methods.len {
+        method := VecU32_get(&methods, i)
+        start := HirTable_lhs((*p).hir, method)
+        while start <= method {
+            Nexus_set_method_owner((*p).db, start, node)
+            start = start + 1
+        }
+        i = i + 1
+    }
+    VecU32_destroy(&methods)
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -723,6 +800,9 @@ parse_member :: (p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind()
     sp_lhs := span_of_hir(p, lhs)
     rhs := parse_expr(p, right_bp)
+    if rhs == hir_none() {
+        parse_error_at(p, "expected a member name after '.'", curr_span(p))
+    }
     sp_rhs := span_of_hir(p, rhs)
 
     if HirTable_kind((*p).hir, rhs) != k.ident {
