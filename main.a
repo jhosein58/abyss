@@ -1,7 +1,7 @@
 import token, token_name, TokenStream_new, TokenStream_destroy, TokenStream_push, TokenStream_kind, TokenStream_text, TokenStream_count from "compiler/token.a"
 import lex   from "compiler/lexer.a"
 
-import Str_from, Str_println from "std/string.a"
+import Str, Str_from, Str_println from "std/string.a"
 
 import Arena_new from "std/allocator.a"
 import read_file, write_file from "std/fs.a"
@@ -42,6 +42,8 @@ compile_and_run :: (path &u8) i32
 
 
 main :: () {
+
+    Str.of("hello").print()
 
     arena := Arena_new(1024 * 1024 * 16)
 

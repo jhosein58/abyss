@@ -11,6 +11,22 @@ print_char :: (c u8)  unit
 Str :: struct {
     ptr: &u8,
     len: u64 
+
+    of :: (s &u8) Self {
+        .{
+            ptr: s,
+            len: str_len(s)
+        }
+    }
+
+    print :: () {
+        i := 0
+
+        while i < .len {
+            print_char(*(.ptr + i))
+            i = i + 1
+        }
+    }
 }
 
 Str_size :: () u64 {
@@ -32,20 +48,12 @@ Str_empty :: () Str {
 }
 
 Str_from :: (s &u8) Str {
-    .{
-        ptr: s,
-        len: str_len(s)
-    }
+    Str.of(s)
 }
 
 
 Str_print :: (s Str) {
-    i := 0
-
-    while i < s.len {
-        print_char(*(s.ptr + i))
-        i = i + 1
-    }
+    s.print()
 }
 
 Str_println :: (s Str) {
