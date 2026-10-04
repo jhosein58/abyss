@@ -356,6 +356,25 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                 }
                 node = node + 1
             }
+            
+            if not has_receiver {
+                owner := Nexus_get_method_owner(db, method)
+                if owner != id_none() {
+                    owner_ty := Nexus_get_const_type(db, owner)
+                    m_func := HirTable_extra(&(*db).hir, method)
+                    if (m_func != hir_none()) and (HirTable_kind(&(*db).hir, m_func) == k.function) {
+                        m_ret_hir := HirTable_rhs(&(*db).hir, m_func)
+                        if m_ret_hir != hir_none() {
+                            m_ret_ty := Nexus_get_const_type(db, m_ret_hir)
+                            if (m_ret_ty != ty_id_none()) and
+                               (TypeStorage_kind(&(*db).types, m_ret_ty) == ty_kind().ptr) and
+                               (TypeStorage_payload(&(*db).types, m_ret_ty) == owner_ty) {
+                                has_receiver = true
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         if has_receiver {
