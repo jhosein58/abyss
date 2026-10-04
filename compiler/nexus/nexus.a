@@ -84,6 +84,8 @@ Nexus :: struct {
     hir_to_symbol  : PoolU32, -- HirId    -> SymbolId
 
     const_types    : PoolU32, -- HirId    -> TypeId 
+    method_owner   : PoolU32,
+    method_target  : PoolU32,
     sym_resolving  : PoolU32  -- SymbolId -> 0 or 1
 
     file_sources   : VecStr,
@@ -115,6 +117,8 @@ Nexus_new :: () Nexus {
         hir_to_symbol  : PoolU32_new(),
 
         const_types    : PoolU32_new(),
+        method_owner   : PoolU32_new(),
+        method_target  : PoolU32_new(),
         sym_resolving  : PoolU32_new(),
 
 
@@ -234,6 +238,24 @@ Nexus_set_const_type :: (self &Nexus, hir_id u32, ty_id u32) {
 Nexus_get_const_type :: (self &Nexus, hir_id u32) u32 {
     if hir_id >= PoolU32_count(&(*self).const_types) { ret ty_id_none() }
     PoolU32_get(&(*self).const_types, hir_id)
+}
+
+Nexus_set_method_owner :: (self &Nexus, hir_id u32, struct_id u32) {
+    PoolU32_set_safe(&(*self).method_owner, hir_id, struct_id, id_none())
+}
+
+Nexus_get_method_owner :: (self &Nexus, hir_id u32) u32 {
+    if hir_id >= PoolU32_count(&(*self).method_owner) { ret id_none() }
+    PoolU32_get(&(*self).method_owner, hir_id)
+}
+
+Nexus_set_method_target :: (self &Nexus, hir_id u32, method_id u32) {
+    PoolU32_set_safe(&(*self).method_target, hir_id, method_id, id_none())
+}
+
+Nexus_get_method_target :: (self &Nexus, hir_id u32) u32 {
+    if hir_id >= PoolU32_count(&(*self).method_target) { ret id_none() }
+    PoolU32_get(&(*self).method_target, hir_id)
 }
 
 Nexus_set_sym_resolving :: (self &Nexus, sym_id u32, resolving bool) {
