@@ -358,33 +358,38 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
         if has_receiver {
             lhs := HirTable_lhs(&(*db).hir, callee_id)
-            receiver_ty := get_node_type(db, lhs)
-            receiver_str := lower_expr(db, ccg, arena, lhs, visited, queue, type_queue)
-            depth: u32 = 0
-            while TypeStorage_kind(&(*db).types, receiver_ty) == ty_kind().ptr {
-                receiver_ty = TypeStorage_payload(&(*db).types, receiver_ty)
-                depth = depth + 1
-            }
-            add_type_to_queue(db, receiver_ty, type_queue)
 
-            if depth > 0 {
-                while depth > 1 {
-                    String_push_str(&s, Str_from("*"))
-                    depth = depth - 1
-                }
-                String_push_str(&s, Str_from("("))
-                String_push_str(&s, receiver_str)
-                String_push_str(&s, Str_from(")"))
-            } else if is_lvalue(db, lhs) {
-                String_push_str(&s, Str_from("&("))
-                String_push_str(&s, receiver_str)
-                String_push_str(&s, Str_from(")"))
+            if lhs == hir_none() {
+                String_push_str(&s, Str_from("_self"))
             } else {
-                String_push_str(&s, Str_from("&(("))
-                String_push_str(&s, c_type_str(&(*db).types, arena, receiver_ty))
-                String_push_str(&s, Str_from("[]){"))
-                String_push_str(&s, receiver_str)
-                String_push_str(&s, Str_from("})[0]"))
+                receiver_ty := get_node_type(db, lhs)
+                receiver_str := lower_expr(db, ccg, arena, lhs, visited, queue, type_queue)
+                depth: u32 = 0
+                while TypeStorage_kind(&(*db).types, receiver_ty) == ty_kind().ptr {
+                    receiver_ty = TypeStorage_payload(&(*db).types, receiver_ty)
+                    depth = depth + 1
+                }
+                add_type_to_queue(db, receiver_ty, type_queue)
+
+                if depth > 0 {
+                    while depth > 1 {
+                        String_push_str(&s, Str_from("*"))
+                        depth = depth - 1
+                    }
+                    String_push_str(&s, Str_from("("))
+                    String_push_str(&s, receiver_str)
+                    String_push_str(&s, Str_from(")"))
+                } else if is_lvalue(db, lhs) {
+                    String_push_str(&s, Str_from("&("))
+                    String_push_str(&s, receiver_str)
+                    String_push_str(&s, Str_from(")"))
+                } else {
+                    String_push_str(&s, Str_from("&(("))
+                    String_push_str(&s, c_type_str(&(*db).types, arena, receiver_ty))
+                    String_push_str(&s, Str_from("[]){"))
+                    String_push_str(&s, receiver_str)
+                    String_push_str(&s, Str_from("})[0]"))
+                }
             }
         }
 

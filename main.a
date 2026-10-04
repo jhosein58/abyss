@@ -40,7 +40,41 @@ print :: (s &u8) unit
 compile_and_run :: (path &u8) i32
 
 
+Test :: struct {
+    num: u32,
+
+
+    bb :: () {
+        .bump()
+        .bump()
+    }
+
+    new :: () Self {
+        .{
+            num: 10
+        }
+    }
+
+    bump :: () {
+        .num = .num + 1
+
+    }
+}
+
+
+ttt :: () u32 { 3 }
+
 main :: () {
+
+    t := Test.new()
+
+    -- t.bb()
+    -- t.bb()
+
+    -- print_u32(t.num)
+    -- print("\n")
+
+    --print("\ntesttt\n")
 
     arena := Arena_new(1024 * 1024 * 16)
 
