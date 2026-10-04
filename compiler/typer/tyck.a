@@ -613,6 +613,49 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
     }
 }
 
+find_enclosing_method :: (db &Nexus, node_id u32) u32 {
+    owner := Nexus_get_method_owner(db, node_id)
+    if owner == hir_none() { ret hir_none() }
+    methods_id := HirTable_extra(&(*db).hir, owner)
+    if methods_id == hir_none() { ret hir_none() }
+    methods := Nexus_get_list(db, methods_id)
+    i: u64 = 0
+    while i < methods.len {
+        m := *(methods.ptr + i)
+        start := HirTable_lhs(&(*db).hir, m)
+        if (node_id >= start) and (node_id <= m) {
+            ret m
+        }
+        i = i + 1
+    }
+    hir_none()
+}
+
+method_returns_ref_self :: (db &Nexus, node_id u32) bool {
+    owner := Nexus_get_method_owner(db, node_id)
+    if owner == hir_none() { ret false }
+    owner_ty := Nexus_get_const_type(db, owner)
+    if owner_ty == ty_id_none() { ret false }
+
+    method := find_enclosing_method(db, node_id)
+    if method == hir_none() { ret false }
+
+    func_id := HirTable_extra(&(*db).hir, method)
+    if (func_id == hir_none()) or (HirTable_kind(&(*db).hir, func_id) != hir_kind().function) {
+        ret false
+    }
+
+    ret_hir := HirTable_rhs(&(*db).hir, func_id)
+    if ret_hir == hir_none() { ret false }
+
+    ret_ty := Nexus_get_const_type(db, ret_hir)
+    if ret_ty == ty_id_none() { ret false }
+
+    types := &(*db).types
+    if TypeStorage_kind(types, ret_ty) != ty_kind().ptr { ret false }
+    TypeStorage_payload(types, ret_ty) == owner_ty
+}
+
 synth_return :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_returns &VecU32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
