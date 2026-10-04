@@ -694,7 +694,14 @@ synth_return :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_retu
             UnifyStorage_union(db, val_slot, fn_ret_slot)
         }
     } else {
-        if fn_ret_slot != slot_none() {
+        if method_returns_ref_self(db, id) {
+            owner := Nexus_get_method_owner(db, id)
+            owner_ty := Nexus_get_const_type(db, owner)
+            ptr_ty := TypeStorage_alloc_ptr(types_ptr, owner_ty)
+            if fn_ret_slot != slot_none() {
+                UnifyStorage_bind_type(db, fn_ret_slot, ptr_ty)
+            }
+        } else if fn_ret_slot != slot_none() {
             unit_slot := UnifyStorage_tmp_slot(unify_ptr)
             UnifyStorage_bind_type(db, unit_slot, ty_id_unit())
             UnifyStorage_union(db, unit_slot, fn_ret_slot)
