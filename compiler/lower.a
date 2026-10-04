@@ -356,7 +356,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                 }
                 node = node + 1
             }
-            
+
             if not has_receiver {
                 owner := Nexus_get_method_owner(db, method)
                 if owner != id_none() {
@@ -744,6 +744,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     receiver := false
     method_owner := id_none()
+    is_ref_self := false
     if is_method {
         method_owner = Nexus_get_method_owner(db, binding_id)
         method_node := HirTable_lhs(&(*db).hir, binding_id)
@@ -754,6 +755,15 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
                 break
             }
             method_node = method_node + 1
+        }
+        if method_owner != id_none() {
+            owner_ty := Nexus_get_const_type(db, method_owner)
+            if (owner_ty != ty_id_none()) and
+               (TypeStorage_kind(&(*db).types, ret_ty) == ty_kind().ptr) and
+               (TypeStorage_payload(&(*db).types, ret_ty) == owner_ty) {
+                receiver = true
+                is_ref_self = true
+            }
         }
     }
 
@@ -818,7 +828,12 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     body_val := lower_expr(db, ccg, arena, body_id, visited, &queue, &type_queue)
 
-    if TypeStorage_kind(&(*db).types, ret_ty) == ty_kind().unit {
+    if is_ref_self {
+        if body_val.len > 0 {
+            CCodeGen_expr(ccg, body_val)
+        }
+        CCodeGen_gen_return(ccg, Str_from("_self"), true)
+    } else if TypeStorage_kind(&(*db).types, ret_ty) == ty_kind().unit {
         if body_val.len > 0 {
             CCodeGen_expr(ccg, body_val)
         }
