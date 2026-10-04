@@ -202,7 +202,7 @@ is_function_header :: (p &Parser) bool {
     }
 
     if (after_cp == t.amp) or (after_cp == t.star) or (after_cp == t.o_bracket) {
-        if (*p).toplv_sym != id_none() { ret true }
+        if ((*p).toplv_sym != id_none()) or (*p).inside_method { ret true }
     }
 
     false

@@ -14,6 +14,7 @@ import UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "un
 import Interner_get from "../std/interner.a"
 import topo_sort from "topo_sort.a"
 import fall from "../std/sys.a"
+import method_returns_ref_self from "typer/tyck.a"
 
 print :: (s &u8) unit
 print_u32 :: (v u32) unit
