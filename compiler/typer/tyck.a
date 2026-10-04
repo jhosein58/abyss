@@ -1210,7 +1210,7 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
                         print("\n")
                         fall()
                     }
-                    if (not is_type) and (not receiver) {
+                    if (lhs_id != hir_none()) and (not is_type) and (not receiver) {
                         print("\n\033[1;31m[type error]\033[0m static method requires the named struct type\n       --> ")
                         Nexus_print_loc(db, id)
                         print("\n")
