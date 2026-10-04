@@ -623,9 +623,22 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
     if (not is_extern) and (body_id != hir_none()) {
         body_slot := UnifyStorage_get_slot(unify_ptr, body_id)
         if body_slot != slot_none() {
-            if (fn_ret_slot != slot_none()) and (ret_ty != ty_id_unit()) {
-                check_value(db, body_id, ret_ty)
-                UnifyStorage_union(db, body_slot, fn_ret_slot)
+            is_ref_self := false
+            owner := Nexus_get_method_owner(db, id)
+            if owner != hir_none() {
+                owner_ty := Nexus_get_const_type(db, owner)
+                if (owner_ty != ty_id_none()) and
+                   (TypeStorage_kind(types_ptr, ret_ty) == ty_kind().ptr) and
+                   (TypeStorage_payload(types_ptr, ret_ty) == owner_ty) {
+                    is_ref_self = true
+                }
+            }
+
+            if not is_ref_self {
+                if (fn_ret_slot != slot_none()) and (ret_ty != ty_id_unit()) {
+                    check_value(db, body_id, ret_ty)
+                    UnifyStorage_union(db, body_slot, fn_ret_slot)
+                }
             }
         }
     }
