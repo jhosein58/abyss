@@ -21,7 +21,9 @@ Parser :: struct {
     file_id   : u32,
     toplv_sym : u32,
     env       : ScopeEnv,
-    allow_fn  : bool
+    allow_fn  : bool,
+    inside_method : bool,
+    method_fn_depth : u32
 }
 
 Parser_new :: (db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv_sym u32, start u32, count u32) Parser {
@@ -34,7 +36,9 @@ Parser_new :: (db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv
         file_id   : file_id,
         toplv_sym : toplv_sym,
         env       : ScopeEnv_new(),
-        allow_fn  : true
+        allow_fn  : true,
+        inside_method : false,
+        method_fn_depth : 0
     }
 }
 
