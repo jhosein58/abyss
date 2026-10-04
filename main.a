@@ -39,8 +39,8 @@ print :: (s &u8) unit
 
 compile_and_run :: (path &u8) i32
 
-main :: () {
 
+main :: () {
 
     arena := Arena_new(1024 * 1024 * 16)
 
