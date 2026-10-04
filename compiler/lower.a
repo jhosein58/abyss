@@ -545,6 +545,8 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         if val_id != hir_none() {
             val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
             CCodeGen_gen_return(ccg, val_str, true)
+        } else if method_returns_ref_self(db, id) {
+            CCodeGen_gen_return(ccg, Str_from("_self"), true)
         } else {
             CCodeGen_gen_return(ccg, Str_empty(), false)
         }
