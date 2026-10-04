@@ -16,6 +16,7 @@ import topo_sort from "topo_sort.a"
 import fall from "../std/sys.a"
 
 print :: (s &u8) unit
+print_u32 :: (v u32) unit
 
 
 c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
@@ -319,6 +320,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         callee_id := HirTable_lhs(&(*db).hir, id)
         args_list := HirTable_rhs(&(*db).hir, id)
         method := Nexus_get_method_target(db, callee_id)
+
 
         callee_sym := Nexus_get_hir_symbol(db, callee_id)
         if callee_sym != id_none() {
@@ -656,6 +658,8 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     is_method := (sym_id & method_tag()) != 0
     real_sym := sym_id
+
+
     if not is_method {
         while true {
             tgt := PoolU32_get(&(*db).sym_target, real_sym)
@@ -790,6 +794,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     }
 
     CCodeGen_start_function(ccg, fn_name, ret_str, params_str)
+
     body_val := lower_expr(db, ccg, arena, body_id, visited, &queue, &type_queue)
 
     if TypeStorage_kind(&(*db).types, ret_ty) == ty_kind().unit {
@@ -803,6 +808,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     CCodeGen_end_function(ccg)
 
+
     q_i: u64 = 0
     while q_i < queue.len {
         q_sym := VecU32_get(&queue, q_i)
@@ -811,6 +817,8 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     }
 
     sorted := topo_sort(&(*db).types, &type_queue)
+
+
     s_i: u64 = 0
     while s_i < sorted.len {
         t := VecU32_get(&sorted, s_i)

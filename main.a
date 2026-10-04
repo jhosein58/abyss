@@ -40,41 +40,44 @@ print :: (s &u8) unit
 compile_and_run :: (path &u8) i32
 
 
-Test :: struct {
-    num: u32,
+-- Test :: struct {
+--     num: u32,
 
 
-    bb :: () {
-        .bump()
-        .bump()
-    }
+--     bb :: (n i32) {
+--         if n < 2 {
+--             ret
+--         }
 
-    new :: () Self {
-        .{
-            num: 10
-        }
-    }
+        
+--         .bump()
+--         .bb(n - 1)
+--     }
 
-    bump :: () {
-        .num = .num + 1
+--     new :: () Self {
+--         .{
+--             num: 10
+--         }
+--     }
 
-    }
-}
+--     bump :: () {
+--         .num = .num + 1
+
+--     }
+-- }
 
 
-ttt :: () u32 { 3 }
 
 main :: () {
 
-    t := Test.new()
+    -- t := Test.new()
 
-    -- t.bb()
-    -- t.bb()
+    -- t.bb(10) 
 
     -- print_u32(t.num)
-    -- print("\n")
 
-    --print("\ntesttt\n")
+    -- print("okkkk")
+
 
     arena := Arena_new(1024 * 1024 * 16)
 

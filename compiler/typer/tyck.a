@@ -142,6 +142,7 @@ type_check_calls :: (eng &Engine) {
         }
         id := i as u32
         kind := HirTable_kind(&(*db).hir, id)
+
         if kind == hir_kind().call { synth_call(db, &(*db).hir, id) }
         if kind == hir_kind().member { synth_member(db, &(*db).hir, id) }
         if kind == hir_kind().unary_deref { synth_unary_deref(db, &(*db).hir, id) }
@@ -1133,6 +1134,8 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
     types_ptr := &(*db).types
     slot := UnifyStorage_get_slot(unify_ptr, id)
     lhs_id := HirTable_lhs(tbl, id)
+
+
     is_type := false
     lhs_ty := ty_id_none()
     if lhs_id == hir_none() {
