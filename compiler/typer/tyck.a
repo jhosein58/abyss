@@ -607,7 +607,7 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
         if body_slot != slot_none() {
             is_ref_self := false
             owner := Nexus_get_method_owner(db, id)
-            if owner != hir_none() {
+            if (owner != hir_none()) and method_has_receiver(db, id) {
                 owner_ty := Nexus_get_const_type(db, owner)
                 if (owner_ty != ty_id_none()) and
                    (TypeStorage_kind(types_ptr, ret_ty) == ty_kind().ptr) and
