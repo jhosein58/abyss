@@ -2,15 +2,27 @@ malloc   :: (size u64) &u8
 free     :: (ptr &u8) unit
 mem_copy :: (dest &u8, src &u8, n u64) unit
 
-ArenaChunk_size :: () u64 {
-    32
-}
 
 ArenaChunk :: struct {
     next_chunk: &u8,
     memory: &u8,
     offset: u64,
     cap: u64
+
+    size :: () u64 { 32 }
+
+    new :: (cap u64, next_chunk &u8) &Self {
+        chunk := malloc(ArenaChunk.size()) as &Self
+        mem   := malloc(cap)
+
+        (*chunk).next_chunk = next_chunk
+        (*chunk).memory = mem
+        (*chunk).offset = 0
+        (*chunk).cap = cap
+
+        chunk
+    }
+
 }
 
 Arena :: struct {
@@ -22,20 +34,10 @@ align_up :: (n u64) u64 {
     (n + 7) & ~7
 }
 
-ArenaChunk_new :: (cap u64, next_chunk &u8) &ArenaChunk {
-    chunk := malloc(ArenaChunk_size()) as &ArenaChunk
-    mem   := malloc(cap)
 
-    (*chunk).next_chunk = next_chunk
-    (*chunk).memory = mem
-    (*chunk).offset = 0
-    (*chunk).cap = cap
-
-    chunk
-}
 
 Arena_new :: (default_chunk_size u64) Arena {
-    first_chunk := ArenaChunk_new(default_chunk_size, 0 as &u8)
+    first_chunk := ArenaChunk.new(default_chunk_size, 0 as &u8)
 
     .{
         current: first_chunk,

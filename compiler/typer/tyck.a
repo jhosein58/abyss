@@ -116,24 +116,6 @@ method_has_receiver :: (db &Nexus, method u32) bool {
         }
         node = node + 1
     }
-
-    owner := Nexus_get_method_owner(db, method)
-    if owner != hir_none() {
-        owner_ty := Nexus_get_const_type(db, owner)
-        func_id := HirTable_extra(tbl, method)
-        if (func_id != hir_none()) and (HirTable_kind(tbl, func_id) == hir_kind().function) {
-            ret_hir := HirTable_rhs(tbl, func_id)
-            if ret_hir != hir_none() {
-                ret_ty := Nexus_get_const_type(db, ret_hir)
-                if (ret_ty != ty_id_none()) and
-                   (TypeStorage_kind(&(*db).types, ret_ty) == ty_kind().ptr) and
-                   (TypeStorage_payload(&(*db).types, ret_ty) == owner_ty) {
-                    ret true
-                }
-            }
-        }
-    }
-
     false
 }
 
