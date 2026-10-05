@@ -653,6 +653,8 @@ method_returns_ref_self :: (db &Nexus, node_id u32) bool {
     method := find_enclosing_method(db, node_id)
     if method == hir_none() { ret false }
 
+    if not method_has_receiver(db, method) { ret false }
+
     func_id := HirTable_extra(&(*db).hir, method)
     if (func_id == hir_none()) or (HirTable_kind(&(*db).hir, func_id) != hir_kind().function) {
         ret false
