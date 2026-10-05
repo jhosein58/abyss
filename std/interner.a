@@ -1,6 +1,6 @@
 import Str, Str_eq from "string.a"
 import hash_str from "hash/str.a"
-import VecStr, VecStr_new, VecStr_destroy, VecStr_push, VecStr_get from "vec/str.a"
+import VecStr from "vec/str.a"
 import U32_size, U32_MAX from "primitive/u32.a"
 import malloc, free, mem_set from "mem.a"
 
@@ -32,7 +32,7 @@ Interner_with_cap :: (initial_cap u64) Interner {
     mem_set(ptr as &u8, 255 as u8, bytes)
 
     .{
-        strings : VecStr_new(),
+        strings : VecStr.new(),
         table   : ptr,
         cap     : cap,
         count   : 0
@@ -64,7 +64,7 @@ Interner_grow :: (self &Interner) {
     while i < old_cap {
         id := *(old_table + i)
         if id != empty {
-            s := VecStr_get(&(*self).strings, id as u64)
+            s := self.strings.get(id as u64)
             idx := (hash_str(s) as u64) & mask
 
             while *(new_table + idx) != empty {
@@ -96,14 +96,14 @@ Interner_intern :: (self &Interner, s Str) u32 {
 
         if id == empty {
             new_id := (*self).strings.len as u32
-            VecStr_push(&(*self).strings, s)
+            self.strings.push(s)
 
             *((*self).table + idx) = new_id
             (*self).count = (*self).count + 1
             ret new_id
         }
 
-        existing_str := VecStr_get(&(*self).strings, id as u64)
+        existing_str := self.strings.get(id as u64)
         if Str_eq(s, existing_str) {
             ret id
         }
@@ -115,7 +115,7 @@ Interner_intern :: (self &Interner, s Str) u32 {
 }
 
 Interner_get :: (self &Interner, id u32) Str {
-    VecStr_get(&(*self).strings, id as u64)
+    self.strings.get(id as u64)
 }
 
 Interner_len :: (self &Interner) u64 {

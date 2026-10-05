@@ -3,7 +3,7 @@ import lex   from "compiler/lexer.a"
 
 import Str, Str_from, Str_println from "std/string.a"
 
-import Arena_new from "std/allocator.a"
+import Arena from "std/allocator.a"
 import read_file, write_file from "std/fs.a"
 
 import HirTable_new, HirTable_len from "compiler/hir.a"
@@ -41,11 +41,9 @@ compile_and_run :: (path &u8) i32
 
 
 
+
 main :: () {
-
-    Str.of("hello").print()
-
-    arena := Arena_new(1024 * 1024 * 16)
+    arena := Arena.new(1024 * 1024 * 16)
 
     main_path := "main.a"
 

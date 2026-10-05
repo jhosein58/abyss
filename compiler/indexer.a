@@ -3,9 +3,9 @@ import lex from "lexer.a"
 import Nexus, Nexus_add_file, Nexus_alloc_symbol, Nexus_alloc_symbol_alias, Nexus_find_symbol from "nexus/nexus.a"
 import Interner_intern, Interner_get from "../std/interner.a"
 import Str, Str_from, Str_print from "../std/string.a"
-import Arena, Arena_alloc from "../std/allocator.a"
+import Arena from "../std/allocator.a"
 import read_file from "../std/fs.a"
-import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set from "../std/vec/u32.a"
+import VecU32 from "../std/vec/u32.a"
 import id_none from "nexus/pool.a"
 import fall from "../std/sys.a"
 
@@ -62,7 +62,7 @@ path_resolve :: (arena &Arena, base Str, rel Str) Str {
         combined_len = dir_len + 1 + rel.len
     }
 
-    comb_buf := Arena_alloc(arena, combined_len + 1)
+    comb_buf := arena.alloc(combined_len + 1)
     if dir_len > 0 {
         i: u64 = 0
         while i < dir_len {
@@ -85,8 +85,8 @@ path_resolve :: (arena &Arena, base Str, rel Str) Str {
 
     combined: Str = .{ ptr: comb_buf, len: combined_len }
 
-    seg_starts := VecU32_new()
-    seg_lens   := VecU32_new()
+    seg_starts := VecU32.new()
+    seg_lens   := VecU32.new()
 
     c_i: u64 = 0
     seg_start: u64 = 0
@@ -107,23 +107,23 @@ path_resolve :: (arena &Arena, base Str, rel Str) Str {
                 } else if is_dotdot {
                     if seg_starts.len > 0 {
                         last_idx := seg_starts.len - 1
-                        top_start := VecU32_get(&seg_starts, last_idx) as u64
-                        top_len   := VecU32_get(&seg_lens, last_idx) as u64
+                        top_start := seg_starts.get(last_idx) as u64
+                        top_len   := seg_lens.get(last_idx) as u64
                         top_is_dotdot := (top_len == 2) and (*(combined.ptr + top_start) == 46 as u8) and (*(combined.ptr + top_start + 1) == 46 as u8)
                         if top_is_dotdot {
-                            VecU32_push(&seg_starts, seg_start as u32)
-                            VecU32_push(&seg_lens, s_len as u32)
+                            seg_starts.push(seg_start as u32)
+                            seg_lens.push(s_len as u32)
                         } else {
                             seg_starts.len = seg_starts.len - 1
                             seg_lens.len = seg_lens.len - 1
                         }
                     } else {
-                        VecU32_push(&seg_starts, seg_start as u32)
-                        VecU32_push(&seg_lens, s_len as u32)
+                        seg_starts.push(seg_start as u32)
+                        seg_lens.push(s_len as u32)
                     }
                 } else {
-                    VecU32_push(&seg_starts, seg_start as u32)
-                    VecU32_push(&seg_lens, s_len as u32)
+                    seg_starts.push(seg_start as u32)
+                    seg_lens.push(s_len as u32)
                 }
             }
             seg_start = c_i + 1
@@ -134,19 +134,19 @@ path_resolve :: (arena &Arena, base Str, rel Str) Str {
     final_len: u64 = 0
     k_i: u64 = 0
     while k_i < seg_starts.len {
-        final_len = final_len + (VecU32_get(&seg_lens, k_i) as u64)
+        final_len = final_len + (seg_lens.get(k_i) as u64)
         if (k_i + 1) < seg_starts.len {
             final_len = final_len + 1
         }
         k_i = k_i + 1
     }
 
-    out_buf := Arena_alloc(arena, final_len + 1)
+    out_buf := arena.alloc(final_len + 1)
     write_pos: u64 = 0
     k_i = 0
     while k_i < seg_starts.len {
-        s_off := VecU32_get(&seg_starts, k_i) as u64
-        s_len := VecU32_get(&seg_lens, k_i) as u64
+        s_off := seg_starts.get(k_i) as u64
+        s_len := seg_lens.get(k_i) as u64
         cp_i: u64 = 0
         while cp_i < s_len {
             *(out_buf + write_pos) = *(combined.ptr + s_off + cp_i)
@@ -161,8 +161,8 @@ path_resolve :: (arena &Arena, base Str, rel Str) Str {
     }
     *(out_buf + write_pos) = 0 as u8
 
-    VecU32_destroy(&seg_starts)
-    VecU32_destroy(&seg_lens)
+    seg_starts.destroy()
+    seg_lens.destroy()
 
     .{ ptr: out_buf, len: final_len }
 }
@@ -182,7 +182,7 @@ resolve_and_load_file :: (
 
     i: u64 = 0
     while i < (*loaded_paths).len {
-        if VecU32_get(loaded_paths, i) == path_id {
+        if loaded_paths.get(i) == path_id {
             ret i as u32
         }
         i = i + 1
@@ -191,16 +191,16 @@ resolve_and_load_file :: (
     source := read_file(arena, target_path.ptr)
     fid := Nexus_add_file(db, target_path, source)
     while (*loaded_paths).len < (fid as u64) {
-        VecU32_push(loaded_paths, id_none())
+        loaded_paths.push(id_none())
     }
-    VecU32_push(loaded_paths, path_id)
+    loaded_paths.push(path_id)
     tok_start := TokenStream_count(&(*db).tokens) as u32
     lex(&(*db).tokens, source, target_path)
     tok_end := TokenStream_count(&(*db).tokens) as u32
 
-    VecU32_push(queue_fids, fid)
-    VecU32_push(queue_tok_start, tok_start)
-    VecU32_push(queue_tok_end, tok_end)
+    queue_fids.push(fid)
+    queue_tok_start.push(tok_start)
+    queue_tok_end.push(tok_end)
 
     fid
 }
@@ -243,7 +243,7 @@ scan_file_symbols :: (
             }
 
             scan := cursor + 1
-            imported_names := VecU32_new()
+            imported_names := VecU32.new()
 
             while scan < end_tok {
                 stk_text := TokenStream_text(&(*db).tokens, scan)
@@ -257,7 +257,7 @@ scan_file_symbols :: (
                 }
                 if TokenStream_kind(&(*db).tokens, scan) == t.ident {
                     name_id := Interner_intern(&(*db).interner, stk_text)
-                    VecU32_push(&imported_names, name_id)
+                    imported_names.push(name_id)
                 }
                 scan = scan + 1
             }
@@ -279,18 +279,18 @@ scan_file_symbols :: (
 
                 n_i: u64 = 0
                 while n_i < imported_names.len {
-                    nid := VecU32_get(&imported_names, n_i)
-                    VecU32_push(pending_imports, file_id)
-                    VecU32_push(pending_imports, nid)
-                    VecU32_push(pending_imports, nid)
-                    VecU32_push(pending_imports, target_fid)
+                    nid := imported_names.get(n_i)
+                    pending_imports.push(file_id)
+                    pending_imports.push(nid)
+                    pending_imports.push(nid)
+                    pending_imports.push(target_fid)
                     n_i = n_i + 1
                 }
-                VecU32_destroy(&imported_names)
+                imported_names.destroy()
                 cursor = scan + 1
                 cont
             }
-            VecU32_destroy(&imported_names)
+            imported_names.destroy()
         } else if (depth == 0) and (tk == t.ident) {
             if (cursor + 1) < end_tok {
                 next_tk := TokenStream_kind(&(*db).tokens, cursor + 1)
@@ -323,10 +323,10 @@ scan_file_symbols :: (
                                 loaded_paths, queue_fids, queue_tok_start, queue_tok_end
                             )
 
-                            VecU32_push(pending_imports, file_id)
-                            VecU32_push(pending_imports, loc_name)
-                            VecU32_push(pending_imports, rem_name)
-                            VecU32_push(pending_imports, target_fid)
+                            pending_imports.push(file_id)
+                            pending_imports.push(loc_name)
+                            pending_imports.push(rem_name)
+                            pending_imports.push(target_fid)
 
                             cursor = cursor + 6
                             cont
@@ -356,30 +356,30 @@ scan_file_symbols :: (
 }
 
 index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u32, end_tok u32) {
-    loaded_paths    := VecU32_new()
-    queue_fids      := VecU32_new()
-    queue_tok_start := VecU32_new()
-    queue_tok_end   := VecU32_new()
-    pending_imports := VecU32_new()
+    loaded_paths    := VecU32.new()
+    queue_fids      := VecU32.new()
+    queue_tok_start := VecU32.new()
+    queue_tok_end   := VecU32.new()
+    pending_imports := VecU32.new()
 
     root_path_id := Interner_intern(&(*db).interner, root_path)
     while loaded_paths.len < (root_fid as u64) {
-        VecU32_push(&loaded_paths, id_none())
+        loaded_paths.push(id_none())
     }
-    VecU32_push(&loaded_paths, root_path_id)
+    loaded_paths.push(root_path_id)
 
-    VecU32_push(&queue_fids, root_fid)
-    VecU32_push(&queue_tok_start, start_tok)
-    VecU32_push(&queue_tok_end, end_tok)
+    queue_fids.push(root_fid)
+    queue_tok_start.push(start_tok)
+    queue_tok_end.push(end_tok)
 
     q_head: u64 = 0
     while q_head < queue_fids.len {
-        fid   := VecU32_get(&queue_fids, q_head)
-        s_tok := VecU32_get(&queue_tok_start, q_head)
-        e_tok := VecU32_get(&queue_tok_end, q_head)
+        fid   := queue_fids.get(q_head)
+        s_tok := queue_tok_start.get(q_head)
+        e_tok := queue_tok_end.get(q_head)
 
-        path_id := VecU32_get(&loaded_paths, fid as u64)
-        c_path  := Interner_get(&(*db).interner, path_id)
+        path_id := loaded_paths.get(fid as u64)
+        c_path  := Interner_get(&db.interner, path_id)
 
         scan_file_symbols(
             db, arena, fid, c_path, s_tok, e_tok,
@@ -395,16 +395,16 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
         changed = false
         p_i: u64 = 0
         while p_i < pending_imports.len {
-            src_fid := VecU32_get(&pending_imports, p_i)
+            src_fid := pending_imports.get(p_i)
             if src_fid != id_none() {
-                loc_name := VecU32_get(&pending_imports, p_i + 1)
-                imp_name := VecU32_get(&pending_imports, p_i + 2)
-                tgt_fid  := VecU32_get(&pending_imports, p_i + 3)
+                loc_name := pending_imports.get(p_i + 1)
+                imp_name := pending_imports.get(p_i + 2)
+                tgt_fid  := pending_imports.get(p_i + 3)
 
                 target_sym := Nexus_find_symbol(db, tgt_fid, imp_name)
                 if target_sym != id_none() {
                     Nexus_alloc_symbol_alias(db, src_fid, loc_name, target_sym)
-                    VecU32_set(&pending_imports, p_i, id_none())
+                    pending_imports.set(p_i, id_none())
                     changed = true
                 }
             }
@@ -414,9 +414,9 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
 
     p_i: u64 = 0
     while p_i < pending_imports.len {
-        src_fid := VecU32_get(&pending_imports, p_i)
+        src_fid := pending_imports.get(p_i)
         if src_fid != id_none() {
-            name_id := VecU32_get(&pending_imports, p_i + 2)
+            name_id := pending_imports.get(p_i + 2)
             print("\n[import error] symbol not found: ")
             Str_print(Interner_get(&(*db).interner, name_id))
             print("\n")
@@ -425,9 +425,9 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
         p_i = p_i + 4
     }
 
-    VecU32_destroy(&loaded_paths)
-    VecU32_destroy(&queue_fids)
-    VecU32_destroy(&queue_tok_start)
-    VecU32_destroy(&queue_tok_end)
-    VecU32_destroy(&pending_imports)
+    loaded_paths.destroy()
+    queue_fids.destroy()
+    queue_tok_start.destroy()
+    queue_tok_end.destroy()
+    pending_imports.destroy()
 }

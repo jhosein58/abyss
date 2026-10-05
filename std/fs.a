@@ -1,4 +1,4 @@
-import Arena, Arena_alloc from "allocator.a"
+import Arena from "allocator.a"
 import Str, Str_empty     from "string.a"
 import fall               from "sys.a"
 
@@ -39,7 +39,7 @@ read_file :: (a &Arena, path &u8) Str {
     file_size := raw_size as u64
     file_seek(file_handle, 0, SEEK_SET())
 
-    buf := Arena_alloc(a, file_size + 1)
+    buf := a.alloc(file_size + 1)
     if buf == (0 as &u8) {
         print("\n\033[1;31merror:\033[0m out of memory allocating buffer for '")
         print(path)

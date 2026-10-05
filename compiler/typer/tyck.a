@@ -4,8 +4,8 @@ import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir,
 import HirTable, HirTable_len, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind, hir_none from "../hir.a"
 import Str, Str_from, Str_print from "../../std/string.a"
 import SliceU32 from "../../std/slice/u32.a"
-import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_ptr_at, VecU32_get, VecU32_set, VecU32_clear from "../../std/vec/u32.a"
-import VecU8, VecU8_new, VecU8_push, VecU8_get, VecU8_set, VecU8_destroy from "../../std/vec/u8.a"
+import VecU32 from "../../std/vec/u32.a"
+import VecU8 from "../../std/vec/u8.a"
 
 import TypeStorage, ty_kind, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_int, ty_id_unknown,ty_id_never, ty_id_untyped_float, ty_id_bool,
        TypeStorage_alloc_bool, TypeStorage_alloc_unit, TypeStorage_alloc_int, TypeStorage_alloc_struct, TypeStorage_alloc_infer,
@@ -79,7 +79,7 @@ type_check_range :: (eng &Engine, start u32, len u32, method_owner u32) {
     tbl := &(*db).hir
 
     fn_ret_slot := UnifyStorage_tmp_slot(&(*db).unify)
-    pending_returns := VecU32_new()
+    pending_returns := VecU32.new()
 
     i := start
     while i < len {
@@ -88,7 +88,7 @@ type_check_range :: (eng &Engine, start u32, len u32, method_owner u32) {
         }
         i = i + 1
     }
-    VecU32_destroy(&pending_returns)
+    pending_returns.destroy()
 
     if method_owner == hir_none() {
         i = start
@@ -122,21 +122,21 @@ method_has_receiver :: (db &Nexus, method u32) bool {
 type_check_calls :: (eng &Engine) {
     db := &(*eng).nexus
     count := HirTable_len(&(*db).hir) as u64
-    pending := VecU8_new()
+    pending := VecU8.new()
     i: u64 = 0
     while i < count {
-        VecU8_push(&pending, 0 as u8)
+        pending.push(0 as u8)
         i = i + 1
     }
     i = 0
     while i < (*eng).pending_calls.len {
-        id := VecU32_get(&(*eng).pending_calls, i)
-        VecU8_set(&pending, id as u64, 1 as u8)
+        id := (*eng).pending_calls.get(i)
+        pending.set(id as u64, 1 as u8)
         i = i + 1
     }
     i = 0
     while i < count {
-        if VecU8_get(&pending, i) == 0 {
+        if pending.get(i) == 0 {
             i = i + 1
             cont
         }
@@ -168,21 +168,21 @@ type_check_calls :: (eng &Engine) {
 
     i = 0
     while i < count {
-        VecU8_set(&pending, i, 0 as u8)
+        pending.set(i, 0 as u8)
         i = i + 1
     }
     i = 0
     while i < count {
         if HirTable_kind(&(*db).hir, i as u32) == hir_kind().call {
             callee := HirTable_lhs(&(*db).hir, i as u32)
-            VecU8_set(&pending, callee as u64, 1 as u8)
+            pending.set(callee as u64, 1 as u8)
         }
         i = i + 1
     }
     i = 0
     while i < count {
         if (Nexus_get_method_target(db, i as u32) != id_none()) and
-           (VecU8_get(&pending, i) == 0) {
+           (pending.get(i) == 0) {
             print("\n\033[1;31m[type error]\033[0m method values are not supported; call this method with (...)\n       --> ")
             Nexus_print_loc(db, i as u32)
             print("\n")
@@ -190,7 +190,7 @@ type_check_calls :: (eng &Engine) {
         }
         i = i + 1
     }
-    VecU8_destroy(&pending)
+    pending.destroy()
     (*eng).pending_calls.len = 0
 }
 
@@ -224,7 +224,7 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
     if curr == k.k_ret         { synth_return(db, tbl, id, fn_ret_slot, pending_returns) }
     if curr == k.call          {
         UnifyStorage_new_slot(&(*db).unify, id)
-        VecU32_push(&(*eng).pending_calls, id)
+        (*eng).pending_calls.push(id)
     }
     if curr == k.block         { synth_block(db, tbl, id) }
     if curr == k.binary_assign { synth_assign(db, tbl, id) }
@@ -235,7 +235,7 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
 
     if (curr == k.unary_neg) or (curr == k.unary_bit_not) {
         synth_unary_num(db, tbl, id)
-        VecU32_push(&(*eng).pending_calls, id)
+        (*eng).pending_calls.push(id)
     }
     if curr == k.unary_not      { synth_unary_not(db, tbl, id) }
     if curr == k.unary_addr_of {
@@ -249,12 +249,12 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
         if child_ty == ty_id_type() {
             synth_unary_addr_of(db, tbl, id)
         } else {
-            VecU32_push(&(*eng).pending_calls, id)
+            (*eng).pending_calls.push(id)
         }
     }
     if curr == k.unary_deref {
         UnifyStorage_new_slot(&(*db).unify, id)
-        VecU32_push(&(*eng).pending_calls, id)
+        (*eng).pending_calls.push(id)
     }
     if (curr == k.k_break) or (curr == k.k_cont) { synth_break_cont(db, tbl, id) }
 
@@ -263,14 +263,14 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
 
     if curr == k.cast           {
         UnifyStorage_new_slot(&(*db).unify, id)
-        VecU32_push(&(*eng).pending_calls, id)
+        (*eng).pending_calls.push(id)
     }
 
     if curr == k.struct_        { synth_struct(db, tbl, id) }
     if curr == k.struct_init    { synth_struct_init(db, tbl, id) }
     if curr == k.member         {
         UnifyStorage_new_slot(&(*db).unify, id)
-        VecU32_push(&(*eng).pending_calls, id)
+        (*eng).pending_calls.push(id)
     }
 
     if (curr == k.binary_and) or (curr == k.binary_or) { synth_logic_and_or(db, tbl, id) }
@@ -281,14 +281,14 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
         (curr == k.binary_bit_or) or (curr == k.binary_bit_xor) or
         (curr == k.binary_shl) or (curr == k.binary_shr) {
         UnifyStorage_new_slot(&(*db).unify, id)
-        VecU32_push(&(*eng).pending_calls, id)
+        (*eng).pending_calls.push(id)
     }
 
     if (curr == k.binary_eq_eq) or (curr == k.binary_neq) or
        (curr == k.binary_lt) or (curr == k.binary_lt_eq) or
        (curr == k.binary_gt) or (curr == k.binary_gt_eq) {
         synth_binary_comp(db, tbl, id)
-        VecU32_push(&(*eng).pending_calls, id)
+        (*eng).pending_calls.push(id)
     }
 
 }
@@ -421,7 +421,7 @@ check_value :: (db &Nexus, expr u32, expected u32) {
             UnifyStorage_bind_type(db, slot, expected)
             ret
         }
-        VecU32_set(&(*unify_ptr).types, root as u64, expected)
+        (*unify_ptr).types.set(root as u64, expected)
         ret
     }
     UnifyStorage_bind_type(db, slot, expected)
@@ -549,14 +549,14 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
     if fn_ret_slot != slot_none() {
         i: u64 = 0
         while i < (*pending_returns).len {
-            check_value(db, VecU32_get(pending_returns, i), ret_ty)
+            check_value(db, pending_returns.get(i), ret_ty)
             i = i + 1
         }
-        VecU32_clear(pending_returns)
+        pending_returns.clear()
         UnifyStorage_bind_type(db, fn_ret_slot, ret_ty)
     }
 
-    params_vec := VecU32_new()
+    params_vec := VecU32.new()
     if params_list_id != hir_none() {
         args := Nexus_get_list(db, params_list_id)
         i: u64 = 0
@@ -586,19 +586,19 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
                 fall()
             }
 
-            VecU32_push(&params_vec, param_ty)
+            params_vec.push(param_ty)
             i = i + 1
         }
     }
 
     slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
     if params_vec.len > 0 {
-        slice.ptr = VecU32_ptr_at(&params_vec, 0)
+        slice.ptr = params_vec.ptr_at(0)
         slice.len = params_vec.len
     }
 
     func_ty := TypeStorage_alloc_func(types_ptr, slice, ret_ty, is_extern)
-    VecU32_destroy(&params_vec)
+    params_vec.destroy()
 
     UnifyStorage_bind_type(db, slot, func_ty)
 
@@ -684,7 +684,7 @@ synth_return :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_retu
         if (val_slot != slot_none()) and (fn_ret_slot != slot_none()) {
             ret_ty := UnifyStorage_resolve_type(unify_ptr, fn_ret_slot)
             if (ret_ty == ty_id_none()) and (HirTable_kind(tbl, val_id) == hir_kind().struct_init) {
-                VecU32_push(pending_returns, val_id)
+                pending_returns.push(val_id)
                 ret
             }
             if ret_ty != ty_id_none() { check_value(db, val_id, ret_ty) }
@@ -1119,7 +1119,7 @@ synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
     names := Nexus_get_list(db, names_list)
     types := Nexus_get_list(db, types_list)
 
-    fields_vec := VecU32_new()
+    fields_vec := VecU32.new()
 
     i: u64 = 0
     while (i < names.len) and (i < types.len) {
@@ -1136,17 +1136,17 @@ synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
             fall()
         }
 
-        VecU32_push(&fields_vec, name_id)
-        VecU32_push(&fields_vec, ty_val)
+        fields_vec.push(name_id)
+        fields_vec.push(ty_val)
         i = i + 1
     }
 
     ptr := 0 as &u32
-    if fields_vec.len > 0 { ptr = VecU32_ptr_at(&fields_vec, 0) }
+    if fields_vec.len > 0 { ptr = fields_vec.ptr_at(0) }
     slice: SliceU32 = .{ ptr: ptr, len: fields_vec.len }
 
     tyid := TypeStorage_alloc_struct(types_ptr, slice)
-    VecU32_destroy(&fields_vec)
+    fields_vec.destroy()
 
     Nexus_set_const_type(db, id, tyid)
     UnifyStorage_bind_type(db, slot, ty_id_type())
@@ -1164,7 +1164,7 @@ synth_struct_init :: (db &Nexus, tbl &HirTable, id u32) {
     fields := Nexus_get_list(db, fields_list)
     vals   := Nexus_get_list(db, vals_list)
 
-    fields_vec := VecU32_new()
+    fields_vec := VecU32.new()
 
     i: u64 = 0
     while (i < fields.len) and (i < vals.len) {
@@ -1179,17 +1179,17 @@ synth_struct_init :: (db &Nexus, tbl &HirTable, id u32) {
         }
         infer_ty := TypeStorage_alloc_infer(types_ptr, v_slot)
 
-        VecU32_push(&fields_vec, name_id)
-        VecU32_push(&fields_vec, infer_ty)
+        fields_vec.push(name_id)
+        fields_vec.push(infer_ty)
         i = i + 1
     }
 
     ptr := 0 as &u32
-    if fields_vec.len > 0 { ptr = VecU32_ptr_at(&fields_vec, 0) }
+    if fields_vec.len > 0 { ptr = fields_vec.ptr_at(0) }
     slice: SliceU32 = .{ ptr: ptr, len: fields_vec.len }
 
     tyid := TypeStorage_alloc_struct(types_ptr, slice)
-    VecU32_destroy(&fields_vec)
+    fields_vec.destroy()
 
     UnifyStorage_bind_type(db, slot, tyid)
 }

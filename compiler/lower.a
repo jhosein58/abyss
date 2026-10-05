@@ -6,7 +6,7 @@ import CCodeGen, CCodeGen_declare_function, CCodeGen_start_function, CCodeGen_en
        CCodeGen_create_variable, CCodeGen_expr, CCodeGen_gen_return, CCodeGen_else, CCodeGen_start_while, CCodeGen_def_struct from "codegen.a"
 import Str, Str_from, Str_empty, String, String_new, String_push_str, String_push_u32, String_as_str from "../std/string.a"
 import Arena from "../std/allocator.a"
-import VecU32, VecU32_push, VecU32_get,VecU32_new, VecU32_destroy from "../std/vec/u32.a"
+import VecU32 from "../std/vec/u32.a"
 
 import TypeStorage, ty_kind, ty_id_none, ty_id_type, TypeStorage_kind, TypeStorage_payload, TypeStorage_name, TypeStorage_get_struct_fields,
        TypeStorage_func_return, TypeStorage_func_params, TypeStorage_func_is_extern from "types.a"
@@ -98,7 +98,7 @@ get_node_type :: (db &Nexus, id u32) u32 {
 vec_contains :: (v &VecU32, val u32) bool {
     i: u64 = 0
     while i < (*v).len {
-        if VecU32_get(v, i) == val { ret true }
+        if v.get(i) == val { ret true }
         i = i + 1
     }
     false
@@ -162,7 +162,7 @@ add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
 
     if (kind == k.struct_) or (kind == k.nominal) {
         if not vec_contains(queue, ty_id) {
-            VecU32_push(queue, ty_id)
+            queue.push(ty_id)
             fields := TypeStorage_get_struct_fields(&(*db).types, ty_id)
             count := fields.len / 2
             i: u64 = 0
@@ -202,7 +202,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                     real_sym = tgt
                 }
                 if not vec_contains(queue, real_sym) {
-                    VecU32_push(queue, real_sym)
+                    queue.push(real_sym)
                 }
                 if TypeStorage_func_is_extern(&(*db).types, ty) {
                     name_id := HirTable_lhs(&(*db).hir, id)
@@ -326,13 +326,13 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         callee_sym := Nexus_get_hir_symbol(db, callee_id)
         if callee_sym != id_none() {
             if not vec_contains(queue, callee_sym) {
-                VecU32_push(queue, callee_sym)
+                queue.push(callee_sym)
             }
         }
         callee_str := Str_empty()
         if method != id_none() {
             tagged := method | method_tag()
-            if not vec_contains(queue, tagged) { VecU32_push(queue, tagged) }
+            if not vec_contains(queue, tagged) { queue.push(tagged) }
             fn_buf := String_new(arena)
             String_push_str(&fn_buf, Str_from("method_"))
             String_push_u32(&fn_buf, method)
@@ -676,7 +676,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     if vec_contains(visited, real_sym) {
         ret
     }
-    VecU32_push(visited, real_sym)
+    visited.push(real_sym)
 
     binding_id := id_none()
     if is_method {
@@ -792,8 +792,8 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         ret
     }
 
-    queue := VecU32_new()
-    type_queue := VecU32_new()
+    queue := VecU32.new()
+    type_queue := VecU32.new()
 
     add_type_to_queue(db, ret_ty, &type_queue)
     param_index: u64 = 0
@@ -829,7 +829,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     q_i: u64 = 0
     while q_i < queue.len {
-        q_sym := VecU32_get(&queue, q_i)
+        q_sym := queue.get(q_i)
         lower_function(db, ccg, arena, q_sym, visited)
         q_i = q_i + 1
     }
@@ -839,7 +839,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     s_i: u64 = 0
     while s_i < sorted.len {
-        t := VecU32_get(&sorted, s_i)
+        t := sorted.get(s_i)
         if (TypeStorage_kind(&(*db).types, t) == ty_kind().struct_) or
            (TypeStorage_kind(&(*db).types, t) == ty_kind().nominal) {
             s_name := TypeStorage_name(&(*db).types, arena, t)
@@ -865,7 +865,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         }
         s_i = s_i + 1
     }
-    VecU32_destroy(&sorted)
-    VecU32_destroy(&type_queue)
-    VecU32_destroy(&queue)
+    sorted.destroy()
+    type_queue.destroy()
+    queue.destroy()
 }

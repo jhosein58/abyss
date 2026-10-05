@@ -1,6 +1,4 @@
 import Arena         from "../allocator.a"
-import Arena_alloc   from "../allocator.a"
-import Arena_realloc from "../allocator.a"
 import U8_size       from "../primitive/u8.a"
 
 ArenaVecType :: u8
@@ -17,7 +15,7 @@ ArenaVecU8 :: struct {
 ArenaVecU8_new :: (arena &Arena) Self {
     initial_cap: u64 = 4
     bytes := initial_cap * U8_size()
-    p := Arena_alloc(arena, bytes) as &ArenaVecType
+    p := arena.alloc(bytes) as &ArenaVecType
 
     .{
         arena: arena,
@@ -29,7 +27,7 @@ ArenaVecU8_new :: (arena &Arena) Self {
 
 ArenaVecU8_with_cap :: (arena &Arena, initial_cap u64) Self {
     bytes := initial_cap * U8_size()
-    p := Arena_alloc(arena, bytes) as &ArenaVecType
+    p := arena.alloc(bytes) as &ArenaVecType
 
     .{
         arena: arena,
@@ -45,7 +43,7 @@ ArenaVecU8_grow :: (v &Self) {
         old_bytes := (*v).cap * U8_size()
         new_bytes := new_cap * U8_size()
 
-        new_ptr := Arena_realloc((*v).arena, (*v).ptr as &u8, old_bytes, new_bytes) as &ArenaVecType
+        new_ptr := v.arena.realloc((*v).ptr as &u8, old_bytes, new_bytes) as &ArenaVecType
 
         (*v).ptr = new_ptr
         (*v).cap = new_cap

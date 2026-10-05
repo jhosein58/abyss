@@ -1,5 +1,5 @@
-import VecU32, VecU32_new, VecU32_extend, VecU32_len, VecU32_push, VecU32_get, VecU32_ptr_at from "../../std/vec/u32.a"
-import VecStr, VecStr_new, VecStr_len, VecStr_push, VecStr_get from "../../std/vec/str.a"
+import VecU32 from "../../std/vec/u32.a"
+import VecStr from "../../std/vec/str.a"
 import SliceU32, SliceU32_new from "../../std/slice/u32.a"
 import Interner, Interner_new from "../../std/interner.a"
 import Str, Str_from from "../../std/string.a"
@@ -100,8 +100,8 @@ Nexus_new :: () Nexus {
         tokens         : TokenStream_new(),
         hir            : HirTable_new(),
 
-        glob_stack     : VecU32_new(),
-        u32_items      : VecU32_new(),
+        glob_stack     : VecU32.new(),
+        u32_items      : VecU32.new(),
         interner       : Interner_new(),
         types          : TypeStorage_new(),
         unify          : UnifyStorage_new(),
@@ -122,8 +122,8 @@ Nexus_new :: () Nexus {
         sym_resolving  : PoolU32_new(),
 
 
-        file_sources   : VecStr_new(),
-        file_paths     : VecStr_new(),
+        file_sources   : VecStr.new(),
+        file_paths     : VecStr.new(),
         hir_files      : PoolU32_new(),
         hir_span_start : PoolU32_new(),
         hir_span_end   : PoolU32_new(),
@@ -132,18 +132,18 @@ Nexus_new :: () Nexus {
 
 Nexus_add_list :: (self &Nexus, items SliceU32) u32 {
     list := &(*self).u32_items
-    start := VecU32_len(list) as u32
-    VecU32_push(list, items.len as u32)
-    VecU32_extend(list, items.ptr, items.len)
+    start := list.len as u32
+    list.push(items.len as u32)
+    list.extend(items.ptr, items.len)
     start
 }
 
 Nexus_get_list :: (self &Nexus, start u32) SliceU32 {
     list := &(*self).u32_items 
-    len := VecU32_get(list, start as u64)
+    len := list.get(start as u64)
 
     .{
-        ptr: VecU32_ptr_at(list, (start as u64) + 1),
+        ptr: list.ptr_at((start as u64) + 1),
         len: len as u64
     }
 }
@@ -306,25 +306,25 @@ Nexus_get_pos :: (self &Nexus, hir_id u32) Pos {
         ret .{ line: 1, col: 1 }
     }
 
-    src := VecStr_get(&(*self).file_sources, fid as u64)
+    src := self.file_sources.get(fid as u64)
     calc_pos(src, span.start)
 }
 
 Nexus_add_file :: (self &Nexus, path Str, source Str) u32 {
     id := (*self).file_sources.len as u32
-    VecStr_push(&(*self).file_paths, path)
-    VecStr_push(&(*self).file_sources, source)
+    self.file_paths.push(path)
+    self.file_sources.push(source)
     id
 }
 
 Nexus_get_file_path :: (self &Nexus, file_id u32) Str {
     if (file_id as u64) >= (*self).file_paths.len { ret Str_from("unknown") }
-    VecStr_get(&(*self).file_paths, file_id as u64)
+    self.file_paths.get(file_id as u64)
 }
 
 Nexus_get_file_source :: (self &Nexus, file_id u32) Str {
     if (file_id as u64) >= (*self).file_sources.len { ret Str_from("") }
-    VecStr_get(&(*self).file_sources, file_id as u64)
+    self.file_sources.get(file_id as u64)
 }
 
 Nexus_get_pos :: (self &Nexus, hir_id u32) Pos {

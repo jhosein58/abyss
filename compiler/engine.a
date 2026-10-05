@@ -14,7 +14,7 @@ import UnifyStorage_get_slot, UnifyStorage_resolve_type,UnifyStorage_new_slot, s
 import ty_id_none, ty_kind, TypeStorage_kind, TypeStorage_func_params_len, TypeStorage_func_is_extern from "types.a"
 import Interner_intern, Interner_get from "../std/interner.a"
 import Str, Str_print from "../std/string.a"
-import VecU32, VecU32_new, VecU32_destroy from "../std/vec/u32.a"
+import VecU32 from "../std/vec/u32.a"
 import Arena from "../std/allocator.a"
 import fall from "../std/sys.a"
 import HirTable_lhs from "hir.a"
@@ -26,11 +26,11 @@ print :: (s &u8) unit
 print_u32 :: (v u32) unit 
 
 Engine :: struct {
-    nexus      : Nexus,
-    file_count : u32,
-    ccg        : CCodeGen,
+    nexus         : Nexus,
+    file_count    : u32,
+    ccg           : CCodeGen,
     pending_calls : VecU32,
-    check_depth : u32
+    check_depth   : u32
 }
 
 Engine_new :: () Engine {
@@ -38,14 +38,14 @@ Engine_new :: () Engine {
         nexus      : Nexus_new(),
         file_count : 0,
         ccg        : CCodeGen_new(),
-        pending_calls : VecU32_new(),
+        pending_calls : VecU32.new(),
         check_depth : 0
     }
 }
 
 Engine_destroy :: (self &Engine) {
     CCodeGen_destroy(&(*self).ccg)
-    VecU32_destroy(&(*self).pending_calls)
+    self.pending_calls.destroy()
 }
 
 Engine_add_file :: (self &Engine, arena &Arena, path Str, source Str) u32 {
@@ -212,7 +212,7 @@ Engine_abyss_main :: (self &Engine, sym_id u32) {
 }
 
 Engine_compile :: (self &Engine, arena &Arena, sym_id u32) {
-    visited := VecU32_new()
+    visited := VecU32.new()
     lower_function(&((*self).nexus), &((*self).ccg), arena, sym_id, &visited)
-    VecU32_destroy(&visited)
+    visited.destroy()
 }

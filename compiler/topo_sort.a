@@ -1,15 +1,15 @@
 import Nexus from "nexus/nexus.a"
 import TypeStorage, ty_kind, TypeStorage_kind, TypeStorage_len,
        TypeStorage_get_struct_fields, TypeStorage_get_array_type from "types.a"
-import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get from "../std/vec/u32.a"
-import VecU8, VecU8_new, VecU8_destroy, VecU8_push, VecU8_get, VecU8_set from "../std/vec/u8.a"
+import VecU32 from "../std/vec/u32.a"
+import VecU8 from "../std/vec/u8.a"
 
 topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
     if (ty_id as u64) >= (*states).len { ret }
-    st := VecU8_get(states, ty_id as u64)
+    st := states.get(ty_id as u64)
     if st != (0 as u8) { ret }
 
-    VecU8_set(states, ty_id as u64, 1 as u8) 
+    states.set(ty_id as u64, 1 as u8) 
 
     k := ty_kind()
     kind := TypeStorage_kind(types, ty_id)
@@ -34,28 +34,28 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
         }
     }
 
-    VecU32_push(sorted, ty_id)
-    VecU8_set(states, ty_id as u64, 2 as u8)
+    sorted.push(ty_id)
+    states.set(ty_id as u64, 2 as u8)
 }
 
 topo_sort :: (types &TypeStorage, type_queue &VecU32) VecU32 {
-    sorted := VecU32_new()
-    states := VecU8_new()
+    sorted := VecU32.new()
+    states := VecU8.new()
 
     total_types := TypeStorage_len(types)
     i: u32 = 0
     while i < total_types {
-        VecU8_push(&states, 0 as u8)
+        states.push(0 as u8)
         i = i + 1
     }
 
     q_i: u64 = 0
     while q_i < (*type_queue).len {
-        ty_id := VecU32_get(type_queue, q_i)
+        ty_id := type_queue.get(q_i)
         topo_dfs(types, &sorted, &states, ty_id)
         q_i = q_i + 1
     }
 
-    VecU8_destroy(&states)
+    states.destroy()
     sorted
 }

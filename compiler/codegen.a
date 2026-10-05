@@ -1,22 +1,22 @@
-import VecU8, VecU8_new, VecU8_destroy, VecU8_push from "../std/vec/u8.a"
-import VecU32_get, VecU32, VecU32_push, VecU32_new from "../std/vec/u32.a"
+import VecU8 from "../std/vec/u8.a"
+import VecU32 from "../std/vec/u32.a"
 import Str, Str_from from "../std/string.a"
 
 vec_push_str :: (v &VecU8, s Str) {
     i: u64 = 0
     while i < s.len {
-        VecU8_push(v, *(s.ptr + i))
+        v.push(*(s.ptr + i))
         i = i + 1
     }
 }
 
 vec_push_char :: (v &VecU8, c u8) {
-    VecU8_push(v, c)
+    v.push(c)
 }
 
 vec_push_u32 :: (v &VecU8, n u32) {
     if n == 0 {
-        VecU8_push(v, 48 as u8)
+        v.push(48 as u8)
         ret
     }
 
@@ -30,7 +30,7 @@ vec_push_u32 :: (v &VecU8, n u32) {
     rem := n
     while div > 0 {
         d := (rem / div) as u8
-        VecU8_push(v, 48 as u8 + d)
+        v.push(48 as u8 + d)
         rem = rem - ((d as u32) * div)
         div = div / 10
     }
@@ -56,11 +56,11 @@ CCodeGen :: struct {
 
 CCodeGen_new :: () CCodeGen {
     .{
-        struct_decls    : VecU8_new(),
-        struct_defs     : VecU8_new(),
-        func_decls      : VecU8_new(),
-        code            : VecU8_new(),
-        emitted_structs : VecU32_new(),
+        struct_decls    : VecU8.new(),
+        struct_defs     : VecU8.new(),
+        func_decls      : VecU8.new(),
+        code            : VecU8.new(),
+        emitted_structs : VecU32.new(),
         main_sym        : 0,
         has_main        : false,
         indent          : 0
@@ -68,11 +68,11 @@ CCodeGen_new :: () CCodeGen {
 }
 
 CCodeGen_destroy :: (self &CCodeGen) {
-    VecU8_destroy(&(*self).func_decls)
-    VecU8_destroy(&(*self).code)
-    VecU8_destroy(&(*self).struct_decls)
-    VecU8_destroy(&(*self).struct_defs)
-    VecU32_destroy(&(*self).emitted_structs)
+    self.func_decls.destroy()
+    self.code.destroy()
+    self.struct_decls.destroy()
+    self.struct_defs.destroy()
+    self.emitted_structs.destroy()
 }
 
 CCodeGen_indent :: (self &CCodeGen) {
@@ -148,7 +148,7 @@ CCodeGen_gen_return :: (self &CCodeGen, val Str, has_val bool) {
 }
 
 CCodeGen_finish :: (self &CCodeGen, pre Str) Str {
-    out := VecU8_new()
+    out := VecU8.new()
 
     vec_push_str(&out, pre)
 
@@ -215,12 +215,13 @@ CCodeGen_decl_struct :: (self &CCodeGen, name Str) {
 CCodeGen_def_struct :: (self &CCodeGen, ty_id u32, name Str, body Str) {
     i: u64 = 0
     while i < (*self).emitted_structs.len {
-        if VecU32_get(&(*self).emitted_structs, i) == ty_id {
+        if self.emitted_structs.get(i) == ty_id {
             ret
         }
         i = i + 1
     }
-    VecU32_push(&(*self).emitted_structs, ty_id)
+    
+    self.emitted_structs.push(ty_id)
 
     CCodeGen_decl_struct(self, name)
 

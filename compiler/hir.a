@@ -1,5 +1,5 @@
-import VecU8,  VecU8_new,  VecU8_destroy,  VecU8_push,  VecU8_get,  VecU8_set  from "../std/vec/u8.a"
-import VecU32, VecU32_new, VecU32_destroy, VecU32_push, VecU32_get, VecU32_set from "../std/vec/u32.a"
+import VecU8 from "../std/vec/u8.a"
+import VecU32 from "../std/vec/u32.a"
 import U32_MAX from "../std/primitive/u32.a"
 import Str, Str_from from "../std/string.a"
 
@@ -247,18 +247,18 @@ HirTable :: struct {
 HirTable_new :: () HirTable {
     .{
         root  : hir_none(),
-        kinds : VecU8_new(),
-        lhs   : VecU32_new(),
-        rhs   : VecU32_new(),
-        extra : VecU32_new()
+        kinds : VecU8.new(),
+        lhs   : VecU32.new(),
+        rhs   : VecU32.new(),
+        extra : VecU32.new()
     }
 }
 
 HirTable_destroy :: (self &HirTable) {
-    VecU8_destroy(&(*self).kinds)
-    VecU32_destroy(&(*self).lhs)
-    VecU32_destroy(&(*self).rhs)
-    VecU32_destroy(&(*self).extra)
+    self.kinds.destroy()
+    self.lhs.destroy()
+    self.rhs.destroy()
+    self.extra.destroy()
 }
 
 HirTable_len :: (self &HirTable) u32 {
@@ -268,40 +268,40 @@ HirTable_len :: (self &HirTable) u32 {
 HirTable_push :: (self &HirTable, kind u8, lhs, rhs, extra u32) u32 {
     id := (*self).kinds.len as u32
 
-    VecU8_push(&(*self).kinds, kind)
-    VecU32_push(&(*self).lhs, lhs)
-    VecU32_push(&(*self).rhs, rhs)
-    VecU32_push(&(*self).extra, extra)
+    self.kinds.push(kind)
+    self.lhs.push(lhs)
+    self.rhs.push(rhs)
+    self.extra.push(extra)
 
     id
 }
 
 HirTable_kind :: (self &HirTable, id u32) u8 {
-    VecU8_get(&(*self).kinds, id as u64)
+    self.kinds.get(id as u64)
 }
 
 HirTable_lhs :: (self &HirTable, id u32) u32 {
-    VecU32_get(&(*self).lhs, id as u64)
+    self.lhs.get(id as u64)
 }
 
 HirTable_rhs :: (self &HirTable, id u32) u32 {
-    VecU32_get(&(*self).rhs, id as u64)
+    self.rhs.get(id as u64)
 }
 
 HirTable_extra :: (self &HirTable, id u32) u32 {
-    VecU32_get(&(*self).extra, id as u64)
+    self.extra.get(id as u64)
 }
 
 HirTable_set_lhs :: (self &HirTable, id u32, val u32) {
-    VecU32_set(&(*self).lhs, id as u64, val)
+    self.lhs.set(id as u64, val)
 }
 
 HirTable_set_rhs :: (self &HirTable, id u32, val u32) {
-    VecU32_set(&(*self).rhs, id as u64, val)
+    self.rhs.set(id as u64, val)
 }
 
 HirTable_set_extra :: (self &HirTable, id u32, val u32) {
-    VecU32_set(&(*self).extra, id as u64, val)
+    self.extra.set(id as u64, val)
 }
 
 HirTable_set_root :: (self &HirTable, root u32) {
