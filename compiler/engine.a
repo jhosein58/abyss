@@ -112,7 +112,7 @@ Engine :: struct {
         type_check(.self(), hir_start, hir_end)
         .check_depth = .check_depth - 1
         if .check_depth == 0 {
-            type_check_calls(self)
+            type_check_calls(.self())
         }
     }
 
@@ -152,7 +152,7 @@ Engine :: struct {
         hir_start := PoolU32_get(&db.sym_hir_start, real_sym)
         if hir_start == id_none() {
             Nexus_set_sym_resolving(db, real_sym, true)
-            Engine_parse(self, real_sym)
+            .parse(real_sym)
             Nexus_set_sym_resolving(db, real_sym, false)
         }
 
@@ -165,7 +165,7 @@ Engine :: struct {
         }
 
         Nexus_set_sym_resolving(db, real_sym, true)
-        Engine_type_check(self, real_sym)
+        .type_check(real_sym)
         Nexus_set_sym_resolving(db, real_sym, false)
     }
 

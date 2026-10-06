@@ -209,9 +209,10 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
         if (value_id != hir_none()) and (HirTable_kind(tbl, value_id) == k.struct_) {
             methods_id := HirTable_extra(tbl, value_id)
             if methods_id != hir_none() {
-                methods := Nexus_get_list(db, methods_id)
+                methods_count := Nexus_get_list(db, methods_id).len
                 index: u64 = 0
-                while index < methods.len {
+                while index < methods_count {
+                    methods := Nexus_get_list(db, methods_id)
                     method := *(methods.ptr + index)
                     type_check_range(eng, HirTable_lhs(tbl, method), method + 1, value_id)
                     index = index + 1

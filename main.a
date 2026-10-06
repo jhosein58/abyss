@@ -39,6 +39,7 @@ compile_and_run :: (path &u8) i32
 
 
 main :: () {
+
     arena := Arena.new(1024 * 1024 * 16)
 
     main_path := "main.a"
@@ -49,7 +50,6 @@ main :: () {
 
     fid := eng.add_file(&arena, Str.of(main_path), source)
 
-    eng.get_symbol_id()
     sym_id := eng.get_symbol_id(fid, Str.of("main"))
 
     eng.parse(sym_id)
