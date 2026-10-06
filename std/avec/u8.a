@@ -2,74 +2,64 @@ import Arena         from "../allocator.a"
 import U8_size       from "../primitive/u8.a"
 
 ArenaVecType :: u8
-Self :: ArenaVecU8
 
 
-ArenaVecU8 :: struct {
+AVecU8 :: struct {
     arena: &Arena,
     ptr: &ArenaVecType,
     len: u64,
-    cap: u64
-}
+    cap: u64,
 
-ArenaVecU8_new :: (arena &Arena) Self {
-    initial_cap: u64 = 4
-    bytes := initial_cap * U8_size()
-    p := arena.alloc(bytes) as &ArenaVecType
-
-    .{
-        arena: arena,
-        ptr: p,
-        len: 0,
-        cap: initial_cap
+    new :: (arena &Arena) Self {
+        Self.with_cap(arena, 4)
     }
-}
 
-ArenaVecU8_with_cap :: (arena &Arena, initial_cap u64) Self {
-    bytes := initial_cap * U8_size()
-    p := arena.alloc(bytes) as &ArenaVecType
+    with_cap :: (arena &Arena, initial_cap u64) Self {
+        bytes := initial_cap * U8_size()
+        p := arena.alloc(bytes) as &ArenaVecType
 
-    .{
-        arena: arena,
-        ptr: p,
-        len: 0,
-        cap: initial_cap
+        .{
+            arena: arena,
+            ptr: p,
+            len: 0,
+            cap: initial_cap
+        }
     }
-}
 
-ArenaVecU8_grow :: (v &Self) {
-    if (*v).len == (*v).cap {
-        new_cap := (*v).cap * 2
-        old_bytes := (*v).cap * U8_size()
-        new_bytes := new_cap * U8_size()
+    grow :: () {
+        if .len == .cap {
+            new_cap := .cap * 2
+            old_bytes := .cap * U8_size()
+            new_bytes := new_cap * U8_size()
 
-        new_ptr := v.arena.realloc((*v).ptr as &u8, old_bytes, new_bytes) as &ArenaVecType
+            new_ptr := .arena.realloc(.ptr as &u8, old_bytes, new_bytes) as &ArenaVecType
 
-        (*v).ptr = new_ptr
-        (*v).cap = new_cap
+            .ptr = new_ptr
+            .cap = new_cap
+        }
     }
-}
 
-ArenaVecU8_push :: (v &Self, val ArenaVecType) {
-    ArenaVecU8_grow(v)
+    push :: (val ArenaVecType) {
+        .grow()
 
-    *((*v).ptr + (*v).len) = val
-    (*v).len = (*v).len + 1
-}
+        *(.ptr + .len) = val
+        .len = .len + 1
+    }
 
-ArenaVecU8_get :: (v &Self, idx u64) ArenaVecType {
-    *((*v).ptr + idx)
-}
+    get :: (idx u64) ArenaVecType {
+        *(.ptr + idx)
+    }
 
-ArenaVecU8_set :: (v &Self, idx u64, val ArenaVecType) {
-    *((*v).ptr + idx) = val
-}
+    set :: (idx u64, val ArenaVecType) {
+        *(.ptr + idx) = val
+    }
 
-ArenaVecU8_pop :: (v &Self) ArenaVecType {
-    (*v).len = (*v).len - 1
-    *((*v).ptr + (*v).len)
-}
+    pop :: () ArenaVecType {
+        .len = .len - 1
+        *(.ptr + .len)
+    }
 
-ArenaVecU8_clear :: (v &Self) {
-    (*v).len = 0
+    clear :: () {
+        .len = 0
+    }
 }

@@ -4,7 +4,7 @@ import HirTable, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_
 import PoolU32_get, id_none from "nexus/pool.a"
 import CCodeGen, CCodeGen_declare_function, CCodeGen_start_function, CCodeGen_end_function, CCodeGen_start_if, CCodeGen_end_block,
        CCodeGen_create_variable, CCodeGen_expr, CCodeGen_gen_return, CCodeGen_else, CCodeGen_start_while, CCodeGen_def_struct from "codegen.a"
-import Str, String, String_new, String_push_str, String_push_u32, String_as_str from "../std/string.a"
+import Str, String from "../std/string.a"
 import Arena from "../std/allocator.a"
 import VecU32 from "../std/vec/u32.a"
 
@@ -68,10 +68,10 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
     if kind == k.ptr {
         inner_ty := TypeStorage_payload(types, ty_id)
         inner_str := c_type_str(types, arena, inner_ty)
-        s := String_new(arena)
-        String_push_str(&s, inner_str)
-        String_push_str(&s, Str.of("*"))
-        ret String_as_str(&s)
+        s := String.new(arena)
+        s.push_str(inner_str)
+        s.push_str(Str.of("*"))
+        ret s.as_str()
     }
 
     if (kind == k.struct_) or (kind == k.nominal) {
@@ -184,9 +184,9 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
     if kind == k.lit_int {
         val := HirTable_lhs(&(*db).hir, id)
-        s := String_new(arena)
-        String_push_u32(&s, val)
-        ret String_as_str(&s)
+        s := String.new(arena)
+        s.push_u32(val)
+        ret s.as_str()
     }
 
     if kind == k.ident {
@@ -208,10 +208,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                     name_id := HirTable_lhs(&(*db).hir, id)
                     ret Interner_get(&(*db).interner, name_id)
                 }
-                s := String_new(arena)
-                String_push_str(&s, Str.of("sym_"))
-                String_push_u32(&s, real_sym)
-                ret String_as_str(&s)
+                s := String.new(arena)
+                s.push_str(Str.of("sym_"))
+                s.push_u32(real_sym)
+                ret s.as_str()
             }
         }
 
@@ -228,10 +228,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                 print("\n")
                 fall()
             }
-            s := String_new(arena)
-            String_push_str(&s, Str.of("sym_"))
-            String_push_u32(&s, sym_id)
-            ret String_as_str(&s)
+            s := String.new(arena)
+            s.push_str(Str.of("sym_"))
+            s.push_u32(sym_id)
+            ret s.as_str()
         }
 
         print("\n[codegen error] undefined identifier\n       --> ")
@@ -256,10 +256,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
 
 
-        var_name_s := String_new(arena)
-        String_push_str(&var_name_s, Str.of("sym_"))
-        String_push_u32(&var_name_s, sym_id)
-        var_name := String_as_str(&var_name_s)
+        var_name_s := String.new(arena)
+        var_name_s.push_str(Str.of("sym_"))
+        var_name_s.push_u32(sym_id)
+        var_name := var_name_s.as_str()
 
 
         if val_id != hir_none() {
@@ -287,11 +287,11 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
         rhs_str := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
 
-        s := String_new(arena)
-        String_push_str(&s, lhs_str)
-        String_push_str(&s, Str.of(" = "))
-        String_push_str(&s, rhs_str)
-        ret String_as_str(&s)
+        s := String.new(arena)
+        s.push_str(lhs_str)
+        s.push_str(Str.of(" = "))
+        s.push_str(rhs_str)
+        ret s.as_str()
     }
 
     if (kind == k.binary_add) or (kind == k.binary_sub) or (kind == k.binary_mul) or
@@ -308,13 +308,13 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         rhs_val := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
         op_str  := binary_op_symbol(k, kind)
 
-        s := String_new(arena)
-        String_push_str(&s, Str.of("("))
-        String_push_str(&s, lhs_val)
-        String_push_str(&s, op_str)
-        String_push_str(&s, rhs_val)
-        String_push_str(&s, Str.of(")"))
-        ret String_as_str(&s)
+        s := String.new(arena)
+        s.push_str(Str.of("("))
+        s.push_str(lhs_val)
+        s.push_str(op_str)
+        s.push_str(rhs_val)
+        s.push_str(Str.of(")"))
+        ret s.as_str()
     }
 
     if kind == k.call {
@@ -333,17 +333,17 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         if method != id_none() {
             tagged := method | method_tag()
             if not vec_contains(queue, tagged) { queue.push(tagged) }
-            fn_buf := String_new(arena)
-            String_push_str(&fn_buf, Str.of("method_"))
-            String_push_u32(&fn_buf, method)
-            callee_str = String_as_str(&fn_buf)
+            fn_buf := String.new(arena)
+            fn_buf.push_str(Str.of("method_"))
+            fn_buf.push_u32(method)
+            callee_str = fn_buf.as_str()
         } else {
             callee_str = lower_expr(db, ccg, arena, callee_id, visited, queue, type_queue)
         }
 
-        s := String_new(arena)
-        String_push_str(&s, callee_str)
-        String_push_str(&s, Str.of("("))
+        s := String.new(arena)
+        s.push_str(callee_str)
+        s.push_str(Str.of("("))
 
         has_receiver := false
         if method != id_none() {
@@ -363,7 +363,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             lhs := HirTable_lhs(&(*db).hir, callee_id)
 
             if lhs == hir_none() {
-                String_push_str(&s, Str.of("_self"))
+                s.push_str(Str.of("_self"))
             } else {
                 receiver_ty := get_node_type(db, lhs)
                 receiver_str := lower_expr(db, ccg, arena, lhs, visited, queue, type_queue)
@@ -376,22 +376,22 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
                 if depth > 0 {
                     while depth > 1 {
-                        String_push_str(&s, Str.of("*"))
+                        s.push_str(Str.of("*"))
                         depth = depth - 1
                     }
-                    String_push_str(&s, Str.of("("))
-                    String_push_str(&s, receiver_str)
-                    String_push_str(&s, Str.of(")"))
+                    s.push_str(Str.of("("))
+                    s.push_str(receiver_str)
+                    s.push_str(Str.of(")"))
                 } else if is_lvalue(db, lhs) {
-                    String_push_str(&s, Str.of("&("))
-                    String_push_str(&s, receiver_str)
-                    String_push_str(&s, Str.of(")"))
+                    s.push_str(Str.of("&("))
+                    s.push_str(receiver_str)
+                    s.push_str(Str.of(")"))
                 } else {
-                    String_push_str(&s, Str.of("&(("))
-                    String_push_str(&s, c_type_str(&(*db).types, arena, receiver_ty))
-                    String_push_str(&s, Str.of("[]){"))
-                    String_push_str(&s, receiver_str)
-                    String_push_str(&s, Str.of("})[0]"))
+                    s.push_str(Str.of("&(("))
+                    s.push_str(c_type_str(&(*db).types, arena, receiver_ty))
+                    s.push_str(Str.of("[]){"))
+                    s.push_str(receiver_str)
+                    s.push_str(Str.of("})[0]"))
                 }
             }
         }
@@ -402,14 +402,14 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             while i < args.len {
                 arg_node := *(args.ptr + i)
                 arg_val := lower_expr(db, ccg, arena, arg_node, visited, queue, type_queue)
-                if has_receiver or (i > 0) { String_push_str(&s, Str.of(", ")) }
-                String_push_str(&s, arg_val)
+                if has_receiver or (i > 0) { s.push_str(Str.of(", ")) }
+                s.push_str(arg_val)
                 i = i + 1
             }
         }
 
-        String_push_str(&s, Str.of(")"))
-        ret String_as_str(&s)
+        s.push_str(Str.of(")"))
+        ret s.as_str()
     }
 
    if kind == k.block {
@@ -444,53 +444,53 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     if kind == k.lit_str {
         name_id := HirTable_lhs(&(*db).hir, id)
         raw := Interner_get(&(*db).interner, name_id)
-        s := String_new(arena)
-        String_push_str(&s, Str.of("((uint8_t*)"))
-        String_push_str(&s, raw)
-        String_push_str(&s, Str.of(")"))
-        ret String_as_str(&s)
+        s := String.new(arena)
+        s.push_str(Str.of("((uint8_t*)"))
+        s.push_str(raw)
+        s.push_str(Str.of(")"))
+        ret s.as_str()
     }
 
 
     if kind == k.unary_neg {
         child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        s := String_new(arena)
-        String_push_str(&s, Str.of("(-("))
-        String_push_str(&s, child_v)
-        String_push_str(&s, Str.of("))"))
-        ret String_as_str(&s)
+        s := String.new(arena)
+        s.push_str(Str.of("(-("))
+        s.push_str(child_v)
+        s.push_str(Str.of("))"))
+        ret s.as_str()
     }
     if kind == k.unary_not {
         child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        s := String_new(arena)
-        String_push_str(&s, Str.of("(!("))
-        String_push_str(&s, child_v)
-        String_push_str(&s, Str.of("))"))
-        ret String_as_str(&s)
+        s := String.new(arena)
+        s.push_str(Str.of("(!("))
+        s.push_str(child_v)
+        s.push_str(Str.of("))"))
+        ret s.as_str()
     }
     if kind == k.unary_bit_not {
         child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        s := String_new(arena)
-        String_push_str(&s, Str.of("(~("))
-        String_push_str(&s, child_v)
-        String_push_str(&s, Str.of("))"))
-        ret String_as_str(&s)
+        s := String.new(arena)
+        s.push_str(Str.of("(~("))
+        s.push_str(child_v)
+        s.push_str(Str.of("))"))
+        ret s.as_str()
     }
     if kind == k.unary_addr_of {
         child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        s := String_new(arena)
-        String_push_str(&s, Str.of("(&("))
-        String_push_str(&s, child_v)
-        String_push_str(&s, Str.of("))"))
-        ret String_as_str(&s)
+        s := String.new(arena)
+        s.push_str(Str.of("(&("))
+        s.push_str(child_v)
+        s.push_str(Str.of("))"))
+        ret s.as_str()
     }
     if kind == k.unary_deref {
         child_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
-        s := String_new(arena)
-        String_push_str(&s, Str.of("(*("))
-        String_push_str(&s, child_v)
-        String_push_str(&s, Str.of("))"))
-        ret String_as_str(&s)
+        s := String.new(arena)
+        s.push_str(Str.of("(*("))
+        s.push_str(child_v)
+        s.push_str(Str.of("))"))
+        ret s.as_str()
     }
     if kind == k.k_break {
         CCodeGen_expr(ccg, Str.of("break"))
@@ -504,13 +504,13 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     if kind == k.cast {
         lhs_v := lower_expr(db, ccg, arena, HirTable_lhs(&(*db).hir, id), visited, queue, type_queue)
         ty_str := c_type_str(&(*db).types, arena, get_node_type(db, id))
-        s := String_new(arena)
-        String_push_str(&s, Str.of("(("))
-        String_push_str(&s, ty_str)
-        String_push_str(&s, Str.of(")"))
-        String_push_str(&s, lhs_v)
-        String_push_str(&s, Str.of(")"))
-        ret String_as_str(&s)
+        s := String.new(arena)
+        s.push_str(Str.of("(("))
+        s.push_str(ty_str)
+        s.push_str(Str.of(")"))
+        s.push_str(lhs_v)
+        s.push_str(Str.of(")"))
+        ret s.as_str()
     }
 
     if kind == k.k_if {
@@ -566,10 +566,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         fields := Nexus_get_list(db, fields_list)
         vals   := Nexus_get_list(db, vals_list)
 
-        s := String_new(arena)
-        String_push_str(&s, Str.of("(("))
-        String_push_str(&s, struct_name)
-        String_push_str(&s, Str.of("){"))
+        s := String.new(arena)
+        s.push_str(Str.of("(("))
+        s.push_str(struct_name)
+        s.push_str(Str.of("){"))
 
         i: u64 = 0
         while (i < fields.len) and (i < vals.len) {
@@ -579,19 +579,19 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             f_name_id := HirTable_lhs(&(*db).hir, f_node)
             v_str := lower_expr(db, ccg, arena, v_node, visited, queue, type_queue)
 
-            String_push_str(&s, Str.of("._f"))
-            String_push_u32(&s, f_name_id)
-            String_push_str(&s, Str.of(" = "))
-            String_push_str(&s, v_str)
+            s.push_str(Str.of("._f"))
+            s.push_u32(f_name_id)
+            s.push_str(Str.of(" = "))
+            s.push_str(v_str)
 
             if (i + 1) < fields.len {
-                String_push_str(&s, Str.of(", "))
+                s.push_str(Str.of(", "))
             }
             i = i + 1
         }
 
-        String_push_str(&s, Str.of("})"))
-        ret String_as_str(&s)
+        s.push_str(Str.of("})"))
+        ret s.as_str()
     }
 
     if kind == k.member {
@@ -608,11 +608,11 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
         if lhs_id == hir_none() {
             field_id := HirTable_lhs(&(*db).hir, rhs_id)
-            self_field := String_new(arena)
-            String_push_str(&self_field, Str.of("(_self->_f"))
-            String_push_u32(&self_field, field_id)
-            String_push_str(&self_field, Str.of(")"))
-            ret String_as_str(&self_field)
+            self_field := String.new(arena)
+            self_field.push_str(Str.of("(_self->_f"))
+            self_field.push_u32(field_id)
+            self_field.push_str(Str.of(")"))
+            ret self_field.as_str()
         }
 
         if (lhs_id == hir_none()) or (rhs_id == hir_none()) {
@@ -629,22 +629,22 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             depth = depth + 1
         }
 
-        s := String_new(arena)
-        String_push_str(&s, Str.of("("))
+        s := String.new(arena)
+        s.push_str(Str.of("("))
         while depth > 0 {
-            String_push_str(&s, Str.of("*("))
+            s.push_str(Str.of("*("))
             depth = depth - 1
         }
-        String_push_str(&s, lhs_str)
+        s.push_str(lhs_str)
         depth = 0
         lhs_ty = get_node_type(db, lhs_id)
         while TypeStorage_kind(&(*db).types, lhs_ty) == ty_kind().ptr {
             lhs_ty = TypeStorage_payload(&(*db).types, lhs_ty)
-            String_push_str(&s, Str.of(")"))
+            s.push_str(Str.of(")"))
         }
-        String_push_str(&s, Str.of(")._f"))
-        String_push_u32(&s, field_name_id)
-        ret String_as_str(&s)
+        s.push_str(Str.of(")._f"))
+        s.push_u32(field_name_id)
+        ret s.as_str()
     }
 
     print("\n[codegen error] unsupported expression\n       --> ")
@@ -710,15 +710,15 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         name_id  := HirTable_lhs(&(*db).hir, name_hir)
         fn_name   = Interner_get(&(*db).interner, name_id)
     } else {
-        fn_name_s := String_new(arena)
+        fn_name_s := String.new(arena)
         if is_method {
-            String_push_str(&fn_name_s, Str.of("method_"))
-            String_push_u32(&fn_name_s, binding_id)
+            fn_name_s.push_str(Str.of("method_"))
+            fn_name_s.push_u32(binding_id)
         } else {
-            String_push_str(&fn_name_s, Str.of("sym_"))
-            String_push_u32(&fn_name_s, real_sym)
+            fn_name_s.push_str(Str.of("sym_"))
+            fn_name_s.push_u32(real_sym)
         }
-        fn_name = String_as_str(&fn_name_s)
+        fn_name = fn_name_s.as_str()
     }
 
     params_slice := TypeStorage_func_params(&(*db).types, func_ty)
@@ -750,23 +750,23 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     }
 
     if (params_slice.len > 0) or receiver {
-        p_buf := String_new(arena)
+        p_buf := String.new(arena)
         if receiver {
             owner_ty := Nexus_get_const_type(db, method_owner)
-            String_push_str(&p_buf, c_type_str(&(*db).types, arena, owner_ty))
-            String_push_str(&p_buf, Str.of("* _self"))
-            if params_slice.len > 0 { String_push_str(&p_buf, Str.of(", ")) }
+            p_buf.push_str(c_type_str(&(*db).types, arena, owner_ty))
+            p_buf.push_str(Str.of("* _self"))
+            if params_slice.len > 0 { p_buf.push_str(Str.of(", ")) }
         }
         i: u64 = 0
         while i < params_slice.len {
             p_ty     := *(params_slice.ptr + i)
             p_ty_str := c_type_str(&(*db).types, arena, p_ty)
-            String_push_str(&p_buf, p_ty_str)
-            String_push_str(&p_buf, Str.of(" "))
+            p_buf.push_str(p_ty_str)
+            p_buf.push_str(Str.of(" "))
 
             if is_extern {
-                String_push_str(&p_buf, Str.of("_a"))
-                String_push_u32(&p_buf, i as u32)
+                p_buf.push_str(Str.of("_a"))
+                p_buf.push_u32(i as u32)
             } else {
                 args_list_id := HirTable_lhs(&(*db).hir, func_id)
                 if args_list_id != hir_none() {
@@ -775,17 +775,17 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
                     arg_ident := HirTable_lhs(&(*db).hir, arg_node)
                     arg_sym := Nexus_get_hir_symbol(db, arg_ident)
 
-                    String_push_str(&p_buf, Str.of("sym_"))
-                    String_push_u32(&p_buf, arg_sym)
+                    p_buf.push_str(Str.of("sym_"))
+                    p_buf.push_u32(arg_sym)
                 }
             }
 
             if (i + 1) < params_slice.len {
-                String_push_str(&p_buf, Str.of(", "))
+                p_buf.push_str(Str.of(", "))
             }
             i = i + 1
         }
-        params_str = String_as_str(&p_buf)
+        params_str = p_buf.as_str()
     }
 
     if is_extern {
@@ -843,7 +843,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         if (TypeStorage_kind(&(*db).types, t) == ty_kind().struct_) or
            (TypeStorage_kind(&(*db).types, t) == ty_kind().nominal) {
             s_name := TypeStorage_name(&(*db).types, arena, t)
-            body_buf := String_new(arena)
+            body_buf := String.new(arena)
             s_fields := TypeStorage_get_struct_fields(&(*db).types, t)
             f_count := s_fields.len / 2
 
@@ -853,15 +853,15 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
                 fn_ty   := *(s_fields.ptr + (f_i * 2) + 1)
                 fn_ty_str := c_type_str(&(*db).types, arena, fn_ty)
 
-                String_push_str(&body_buf, Str.of("    "))
-                String_push_str(&body_buf, fn_ty_str)
-                String_push_str(&body_buf, Str.of(" _f"))
-                String_push_u32(&body_buf, fn_name)
-                String_push_str(&body_buf, Str.of(";\n"))
+                body_buf.push_str(Str.of("    "))
+                body_buf.push_str(fn_ty_str)
+                body_buf.push_str(Str.of(" _f"))
+                body_buf.push_u32(fn_name)
+                body_buf.push_str(Str.of(";\n"))
                 f_i = f_i + 1
             }
 
-            CCodeGen_def_struct(ccg, t, s_name, String_as_str(&body_buf))
+            CCodeGen_def_struct(ccg, t, s_name, body_buf.as_str())
         }
         s_i = s_i + 1
     }

@@ -3,7 +3,7 @@ import VecU32 from "../std/vec/u32.a"
 import SliceU32 from "../std/slice/u32.a"
 import VecStr from "../std/vec/str.a"
 import U32_MAX from "../std/primitive/u32.a"
-import Str, String, String_new, String_push_str, String_push_char, String_push_u32, String_as_str from "../std/string.a"
+import Str, String from "../std/string.a"
 import Arena from "../std/allocator.a"
 
 print_char :: (c u8) unit
@@ -717,7 +717,7 @@ TypeStorage_print_type :: (self &TypeStorage, id u32) {
 
 TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
     if id == ty_id_none() {
-        String_push_str(s, Str.of("None"))
+        s.push_str(Str.of("None"))
         ret
     }
 
@@ -725,65 +725,65 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
     kind := TypeStorage_kind(self, id)
     payload := TypeStorage_payload(self, id)
 
-    if kind == k.unknown       { String_push_str(s, Str.of("Unknown")) ret }
+    if kind == k.unknown       { s.push_str(Str.of("Unknown")) ret }
     if kind == k.infer         {
-        String_push_str(s, Str.of("Infer("))
-        String_push_u32(s, payload)
-        String_push_char(s, *")")
+        s.push_str(Str.of("Infer("))
+        s.push_u32(payload)
+        s.push_char(*")")
         ret
     }
-    if kind == k.untyped_int   { String_push_str(s, Str.of("UtInt"))   ret }
-    if kind == k.untyped_float { String_push_str(s, Str.of("UtFloat")) ret }
+    if kind == k.untyped_int   { s.push_str(Str.of("UtInt"))   ret }
+    if kind == k.untyped_float { s.push_str(Str.of("UtFloat")) ret }
 
     if kind == k.int {
-        String_push_char(s, *"i")
-        String_push_u32(s, payload)
+        s.push_char(*"i")
+        s.push_u32(payload)
         ret
     }
 
     if kind == k.uint {
-        String_push_char(s, *"u")
-        String_push_u32(s, payload)
+        s.push_char(*"u")
+        s.push_u32(payload)
         ret
     }
 
     if kind == k.float {
-        String_push_char(s, *"f")
-        String_push_u32(s, payload)
+        s.push_char(*"f")
+        s.push_u32(payload)
         ret
     }
 
-    if kind == k.bool  { String_push_str(s, Str.of("bool")) ret }
-    if kind == k.type_ { String_push_str(s, Str.of("Type")) ret }
-    if kind == k.unit  { String_push_str(s, Str.of("unit")) ret }
-    if kind == k.never { String_push_str(s, Str.of("!"))    ret }
-    if kind == k.error { String_push_str(s, Str.of("Err!")) ret }
+    if kind == k.bool  { s.push_str(Str.of("bool")) ret }
+    if kind == k.type_ { s.push_str(Str.of("Type")) ret }
+    if kind == k.unit  { s.push_str(Str.of("unit")) ret }
+    if kind == k.never { s.push_str(Str.of("!"))    ret }
+    if kind == k.error { s.push_str(Str.of("Err!")) ret }
     if kind == k.nominal {
         idx := payload as u64
         name_idx := (*self).store.extra.get(idx + 1)
-        String_push_str(s, VecStr_get(&(*self).nominal_names, name_idx as u64))
+        s.push_str(VecStr_get(&(*self).nominal_names, name_idx as u64))
         ret
     }
 
     if kind == k.ptr {
-        String_push_str(s, Str.of("R_"))
+        s.push_str(Str.of("R_"))
         TypeStorage_name_to_buf(self, s, payload)
         ret
     }
 
     if kind == k.array {
-        String_push_str(s, Str.of("A_"))
+        s.push_str(Str.of("A_"))
         inner := TypeStorage_get_array_type(self, id)
         len := TypeStorage_get_array_len(self, id)
 
         TypeStorage_name_to_buf(self, s, inner)
-        String_push_char(s, *"_")
-        String_push_u32(s, len)
+        s.push_char(*"_")
+        s.push_u32(len)
         ret
     }
 
     if kind == k.struct_ {
-        String_push_str(s, Str.of("S_"))
+        s.push_str(Str.of("S_"))
         fields := TypeStorage_get_struct_fields(self, id)
         count := fields.len / 2
 
@@ -793,12 +793,12 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
             name_id := *(fields.ptr + idx)
             field_ty := *(fields.ptr + idx + 1)
 
-            String_push_u32(s, name_id)
-            String_push_char(s, *"_")
+            s.push_u32(name_id)
+            s.push_char(*"_")
             TypeStorage_name_to_buf(self, s, field_ty)
 
             if (i + 1 < count) or false {
-                String_push_char(s, *"_")
+                s.push_char(*"_")
             }
             i = i + 1
         }
@@ -806,7 +806,7 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
     }
 
     if kind == k.func {
-        String_push_str(s, Str.of("fn("))
+        s.push_str(Str.of("fn("))
         params := TypeStorage_func_params(self, id)
 
         i: u64 = 0
@@ -815,23 +815,23 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
             TypeStorage_name_to_buf(self, s, param_ty)
 
             if (i + 1 < params.len) or false {
-                String_push_str(s, Str.of(", "))
+                s.push_str(Str.of(", "))
             }
             i = i + 1
         }
 
-        String_push_str(s, Str.of(") "))
+        s.push_str(Str.of(") "))
         ret_ty := TypeStorage_func_return(self, id)
         TypeStorage_name_to_buf(self, s, ret_ty)
         ret
     }
 
-    String_push_str(s, ty_kind_name(kind))
+    s.push_str(ty_kind_name(kind))
 }
 
 TypeStorage_name :: (self &TypeStorage, a &Arena, id u32) Str {
-    s := String_new(a)
-    String_push_str(&s, Str.of("ty"))
-    String_push_u32(&s, id)
-    String_as_str(&s)
+    s := String.new(a)
+    s.push_str(Str.of("ty"))
+    s.push_u32(id)
+    s.as_str()
 }

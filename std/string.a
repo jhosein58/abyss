@@ -1,7 +1,5 @@
-import Arena           from "allocator.a"
-import ArenaVecU8      from "avec/u8.a"
-import ArenaVecU8_new  from "avec/u8.a"
-import ArenaVecU8_push from "avec/u8.a"
+import Arena  from "allocator.a"
+import AVecU8 from "avec/u8.a"
 
 str_len    :: (s &u8) u64
 print_char :: (c u8)  unit
@@ -84,53 +82,50 @@ Str :: struct {
 ----------------------> String
 
 String :: struct {
-    buf: ArenaVecU8,
-}
+    buf: AVecU8,
 
-String_new :: (a &Arena) String {
-    .{
-        buf: ArenaVecU8_new(a)
-    }
-}
-
-String_push_str :: (self &String, s Str) {
-    i := 0
-
-    while i < s.len {
-        ArenaVecU8_push(&(*self).buf, *(s.ptr + i))
-        i = i + 1
-    }
-}
-
-String_as_str :: (self &String) Str {
-    .{
-        ptr: (*self).buf.ptr,
-        len: (*self).buf.len
-    }
-}
-
-String_push_char :: (self &String, c u8) {
-    ArenaVecU8_push(&(*self).buf, c)
-}
-
-String_push_u32 :: (self &String, val u32) {
-    if val == 0 {
-        String_push_char(self, *"0") 
-        ret
+    new :: (a &Arena) String {
+        .{
+            buf: AVecU8.new(a)
+        }
     }
 
-    v := val
-    divisor: u32 = 1
+    push_str :: (s Str) {
+        i := 0
 
-    while (((v / divisor) >= 10) and (divisor <= 100000000)) or false {
-        divisor = divisor * 10
+        while i < s.len {
+            .buf.push(*(s.ptr + i))
+            i = i + 1
+        }
     }
 
-    while (divisor > 0) or false {
-        digit := v / divisor
-        String_push_char(self, (digit + 48) as u8)
+    as_str :: () Str {
+        Str.new(.buf.ptr, .buf.len)
+    }
+
+    push_char :: (c u8) {
+        .buf.push(c)
+    }
+
+    push_u32 :: (val u32) {
+        if val == 0 {
+            .push_char(*"0") 
+            ret
+        }
+
+        v := val
+        divisor: u32 = 1
+
+        while ((v / divisor) >= 10) and (divisor <= 100000000) {
+            divisor = divisor * 10
+        }
+
+        while divisor > 0 {
+            digit := v / divisor
+            .push_char((digit + 48) as u8)
         
-        v = v - (digit * divisor)
-        divisor = divisor / 10
+            v = v - (digit * divisor)
+            divisor = divisor / 10
+        }
     }
 }
