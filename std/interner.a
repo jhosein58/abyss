@@ -1,4 +1,4 @@
-import Str, Str_eq from "string.a"
+import Str from "string.a"
 import hash_str from "hash/str.a"
 import VecStr from "vec/str.a"
 import U32_size, U32_MAX from "primitive/u32.a"
@@ -104,7 +104,7 @@ Interner_intern :: (self &Interner, s Str) u32 {
         }
 
         existing_str := self.strings.get(id as u64)
-        if Str_eq(s, existing_str) {
+        if s.eq(existing_str) {
             ret id
         }
 

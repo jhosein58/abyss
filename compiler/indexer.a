@@ -2,7 +2,7 @@ import token, TokenStream_kind, TokenStream_text, TokenStream_count from "token.
 import lex from "lexer.a"
 import Nexus, Nexus_add_file, Nexus_alloc_symbol, Nexus_alloc_symbol_alias, Nexus_find_symbol from "nexus/nexus.a"
 import Interner_intern, Interner_get from "../std/interner.a"
-import Str, Str_from, Str_print from "../std/string.a"
+import Str from "../std/string.a"
 import Arena from "../std/allocator.a"
 import read_file from "../std/fs.a"
 import VecU32 from "../std/vec/u32.a"
@@ -15,7 +15,7 @@ index_error :: (path Str, msg &u8) {
     print("\n[import error] ")
     print(msg)
     print(" in ")
-    Str_print(path)
+    path.print()
     print("\n")
     fall()
 }
@@ -236,7 +236,7 @@ scan_file_symbols :: (
             if depth > 0 {
                 depth = depth - 1
             }
-        } else if (depth == 0) and (str_eq(tk_text, Str_from("import"))) {
+        } else if (depth == 0) and (str_eq(tk_text, Str.of("import"))) {
             if has_sym {
                 Nexus_alloc_symbol(db, file_id, curr_sym_name, curr_sym_tok, cursor)
                 has_sym = false
@@ -247,7 +247,7 @@ scan_file_symbols :: (
 
             while scan < end_tok {
                 stk_text := TokenStream_text(&(*db).tokens, scan)
-                if str_eq(stk_text, Str_from("from")) {
+                if str_eq(stk_text, Str.of("from")) {
                     scan = scan + 1
                     break
                 }
@@ -297,10 +297,10 @@ scan_file_symbols :: (
                 if next_tk == t.colon_colon {
                     if (cursor + 2) < end_tok {
                         c2_text := TokenStream_text(&(*db).tokens, cursor + 2)
-                        if str_eq(c2_text, Str_from("import")) {
+                        if str_eq(c2_text, Str.of("import")) {
                             if (cursor + 5 >= end_tok) or
                                (TokenStream_kind(&(*db).tokens, cursor + 3) != t.ident) or
-                               (not str_eq(TokenStream_text(&(*db).tokens, cursor + 4), Str_from("from"))) or
+                               (not str_eq(TokenStream_text(&(*db).tokens, cursor + 4), Str.of("from"))) or
                                (TokenStream_kind(&(*db).tokens, cursor + 5) != t.lit_str) {
                                 index_error(curr_path, "malformed symbol import")
                             }
@@ -418,7 +418,7 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
         if src_fid != id_none() {
             name_id := pending_imports.get(p_i + 2)
             print("\n[import error] symbol not found: ")
-            Str_print(Interner_get(&(*db).interner, name_id))
+            Interner_get(&(*db).interner, name_id).print()
             print("\n")
             fall()
         }

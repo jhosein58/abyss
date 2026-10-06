@@ -1,11 +1,11 @@
 import malloc, realloc, free, mem_copy from "../mem.a"
-import Str, Str_size from "../string.a"
+import Str from "../string.a"
 import SliceStr from "../slice/str.a"
 
 VecType            :: Str
 SliceType          :: SliceStr 
 
-elem_size          :: () u64 { Str_size() }
+elem_size          :: () u64 { Str.size() }
 
 VecStr :: struct {
     ptr: &VecType,

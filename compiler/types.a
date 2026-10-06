@@ -3,7 +3,7 @@ import VecU32 from "../std/vec/u32.a"
 import SliceU32 from "../std/slice/u32.a"
 import VecStr from "../std/vec/str.a"
 import U32_MAX from "../std/primitive/u32.a"
-import Str, Str_from, Str_print, String, String_new, String_push_str, String_push_char, String_push_u32, String_as_str from "../std/string.a"
+import Str, String, String_new, String_push_str, String_push_char, String_push_u32, String_as_str from "../std/string.a"
 import Arena from "../std/allocator.a"
 
 print_char :: (c u8) unit
@@ -55,24 +55,24 @@ ty_kind :: () TyKind {
 
 ty_kind_name :: (k u8) Str {
     t := ty_kind()
-    if k == t.unknown       { ret Str_from("Unknown")      }
-    if k == t.infer         { ret Str_from("Infer")        }
-    if k == t.untyped_int   { ret Str_from("UtInt")        }
-    if k == t.untyped_float { ret Str_from("UtFloat")      }
-    if k == t.int           { ret Str_from("Int")          }
-    if k == t.uint          { ret Str_from("UInt")         }
-    if k == t.float         { ret Str_from("Float")        }
-    if k == t.bool          { ret Str_from("Bool")         }
-    if k == t.ptr           { ret Str_from("Ptr")          }
-    if k == t.type_         { ret Str_from("Type")         }
-    if k == t.unit          { ret Str_from("Unit")         }
-    if k == t.func          { ret Str_from("Func")         }
-    if k == t.never         { ret Str_from("Never")        }
-    if k == t.struct_       { ret Str_from("Struct")       }
-    if k == t.array         { ret Str_from("Array")        }
-    if k == t.error         { ret Str_from("Error")        }
-    if k == t.nominal       { ret Str_from("Nominal")      }
-    Str_from("Unknown")
+    if k == t.unknown       { ret Str.of("Unknown")      }
+    if k == t.infer         { ret Str.of("Infer")        }
+    if k == t.untyped_int   { ret Str.of("UtInt")        }
+    if k == t.untyped_float { ret Str.of("UtFloat")      }
+    if k == t.int           { ret Str.of("Int")          }
+    if k == t.uint          { ret Str.of("UInt")         }
+    if k == t.float         { ret Str.of("Float")        }
+    if k == t.bool          { ret Str.of("Bool")         }
+    if k == t.ptr           { ret Str.of("Ptr")          }
+    if k == t.type_         { ret Str.of("Type")         }
+    if k == t.unit          { ret Str.of("Unit")         }
+    if k == t.func          { ret Str.of("Func")         }
+    if k == t.never         { ret Str.of("Never")        }
+    if k == t.struct_       { ret Str.of("Struct")       }
+    if k == t.array         { ret Str.of("Array")        }
+    if k == t.error         { ret Str.of("Error")        }
+    if k == t.nominal       { ret Str.of("Nominal")      }
+    Str.of("Unknown")
 }
 
 
@@ -670,7 +670,7 @@ TypeStorage_print_type :: (self &TypeStorage, id u32) {
     if kind == k.nominal {
         idx := payload as u64
         name_idx := (*self).store.extra.get(idx + 1)
-        Str_print(self.nominal_names.get(name_idx as u64))
+        self.nominal_names.get(name_idx as u64).print()
         ret
     }
 
@@ -710,14 +710,14 @@ TypeStorage_print_type :: (self &TypeStorage, id u32) {
         ret
     }
 
-    Str_print(ty_kind_name(kind))
+    ty_kind_name(kind).print()
 }
 
 
 
 TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
     if id == ty_id_none() {
-        String_push_str(s, Str_from("None"))
+        String_push_str(s, Str.of("None"))
         ret
     }
 
@@ -725,15 +725,15 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
     kind := TypeStorage_kind(self, id)
     payload := TypeStorage_payload(self, id)
 
-    if kind == k.unknown       { String_push_str(s, Str_from("Unknown")) ret }
+    if kind == k.unknown       { String_push_str(s, Str.of("Unknown")) ret }
     if kind == k.infer         {
-        String_push_str(s, Str_from("Infer("))
+        String_push_str(s, Str.of("Infer("))
         String_push_u32(s, payload)
         String_push_char(s, *")")
         ret
     }
-    if kind == k.untyped_int   { String_push_str(s, Str_from("UtInt"))   ret }
-    if kind == k.untyped_float { String_push_str(s, Str_from("UtFloat")) ret }
+    if kind == k.untyped_int   { String_push_str(s, Str.of("UtInt"))   ret }
+    if kind == k.untyped_float { String_push_str(s, Str.of("UtFloat")) ret }
 
     if kind == k.int {
         String_push_char(s, *"i")
@@ -753,11 +753,11 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
         ret
     }
 
-    if kind == k.bool  { String_push_str(s, Str_from("bool")) ret }
-    if kind == k.type_ { String_push_str(s, Str_from("Type")) ret }
-    if kind == k.unit  { String_push_str(s, Str_from("unit")) ret }
-    if kind == k.never { String_push_str(s, Str_from("!"))    ret }
-    if kind == k.error { String_push_str(s, Str_from("Err!")) ret }
+    if kind == k.bool  { String_push_str(s, Str.of("bool")) ret }
+    if kind == k.type_ { String_push_str(s, Str.of("Type")) ret }
+    if kind == k.unit  { String_push_str(s, Str.of("unit")) ret }
+    if kind == k.never { String_push_str(s, Str.of("!"))    ret }
+    if kind == k.error { String_push_str(s, Str.of("Err!")) ret }
     if kind == k.nominal {
         idx := payload as u64
         name_idx := (*self).store.extra.get(idx + 1)
@@ -766,13 +766,13 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
     }
 
     if kind == k.ptr {
-        String_push_str(s, Str_from("R_"))
+        String_push_str(s, Str.of("R_"))
         TypeStorage_name_to_buf(self, s, payload)
         ret
     }
 
     if kind == k.array {
-        String_push_str(s, Str_from("A_"))
+        String_push_str(s, Str.of("A_"))
         inner := TypeStorage_get_array_type(self, id)
         len := TypeStorage_get_array_len(self, id)
 
@@ -783,7 +783,7 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
     }
 
     if kind == k.struct_ {
-        String_push_str(s, Str_from("S_"))
+        String_push_str(s, Str.of("S_"))
         fields := TypeStorage_get_struct_fields(self, id)
         count := fields.len / 2
 
@@ -806,7 +806,7 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
     }
 
     if kind == k.func {
-        String_push_str(s, Str_from("fn("))
+        String_push_str(s, Str.of("fn("))
         params := TypeStorage_func_params(self, id)
 
         i: u64 = 0
@@ -815,12 +815,12 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
             TypeStorage_name_to_buf(self, s, param_ty)
 
             if (i + 1 < params.len) or false {
-                String_push_str(s, Str_from(", "))
+                String_push_str(s, Str.of(", "))
             }
             i = i + 1
         }
 
-        String_push_str(s, Str_from(") "))
+        String_push_str(s, Str.of(") "))
         ret_ty := TypeStorage_func_return(self, id)
         TypeStorage_name_to_buf(self, s, ret_ty)
         ret
@@ -831,7 +831,7 @@ TypeStorage_name_to_buf :: (self &TypeStorage, s &String, id u32) {
 
 TypeStorage_name :: (self &TypeStorage, a &Arena, id u32) Str {
     s := String_new(a)
-    String_push_str(&s, Str_from("ty"))
+    String_push_str(&s, Str.of("ty"))
     String_push_u32(&s, id)
     String_as_str(&s)
 }

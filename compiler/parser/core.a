@@ -1,7 +1,7 @@
 import token, token_name, TokenType, TokenStream, TokenStream_kind, TokenStream_text,
        TokenStream_start, TokenStream_len, TokenStream_newline_before from "../token.a"
 import HirTable from "../hir.a"
-import Str, Str_empty, Str_print from "../../std/string.a"
+import Str from "../../std/string.a"
 import Nexus, Nexus_find_symbol, Nexus_get_file_path, Nexus_get_file_source,
        calc_pos, Span, Pos, span_new, span_merge from "../nexus/nexus.a"
 import ScopeEnv, ScopeEnv_new, ScopeEnv_destroy, ScopeEnv_lookup from "env.a"
@@ -103,14 +103,14 @@ peek_preceded_by_newline :: (p &Parser) bool {
 
 curr_text :: (p &Parser) Str {
     if (*p).cursor >= (*p).end {
-        ret Str_empty()
+        ret Str.empty()
     }
     TokenStream_text((*p).tokens, (*p).cursor)
 }
 
 prev_text :: (p &Parser) Str {
     if (*p).cursor == 0 {
-        ret Str_empty()
+        ret Str.empty()
     }
     TokenStream_text((*p).tokens, (*p).cursor - 1)
 }
@@ -217,14 +217,14 @@ expect :: (p &Parser, kind u8) {
 
     print("\n\033[1;31m[syntax error]\033[0m expected '")
     exp_name := token_name(kind)
-    Str_print(exp_name)
+    exp_name.prin()
     print("', but found '")
     got_name := token_name(peek(p))
-    Str_print(got_name)
+    got_name.print()
     if peek(p) != token().eof {
         print("' (")
         txt := curr_text(p)
-        Str_print(txt)
+        txt.print()
         print(")")
     } else {
         print("'")

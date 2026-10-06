@@ -2,7 +2,7 @@ import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir,
        Nexus_set_const_type, Nexus_get_const_type, Nexus_print_loc,
        Nexus_get_method_owner, Nexus_set_method_target, Nexus_get_method_target from "../nexus/nexus.a"
 import HirTable, HirTable_len, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind, hir_none from "../hir.a"
-import Str, Str_from, Str_print from "../../std/string.a"
+import Str from "../../std/string.a"
 import SliceU32 from "../../std/slice/u32.a"
 import VecU32 from "../../std/vec/u32.a"
 import VecU8 from "../../std/vec/u8.a"
@@ -36,8 +36,8 @@ str_eq :: (a Str, b Str) bool {
 }
 
 parse_builtin_type :: (types &TypeStorage, name Str) u32 {
-    if str_eq(name, Str_from("bool")) { ret TypeStorage_alloc_bool() }
-    if str_eq(name, Str_from("unit")) { ret TypeStorage_alloc_unit() }
+    if str_eq(name, Str.of("bool")) { ret TypeStorage_alloc_bool() }
+    if str_eq(name, Str.of("unit")) { ret TypeStorage_alloc_unit() }
 
     if name.len < 2 { ret ty_id_none() }
 
@@ -316,7 +316,7 @@ synth_ident :: (eng &Engine, id u32) {
     }
 
     owner := Nexus_get_method_owner(db, id)
-    if (owner != hir_none()) and str_eq(name, Str_from("Self")) {
+    if (owner != hir_none()) and str_eq(name, Str.of("Self")) {
         self_ty := Nexus_get_const_type(db, owner)
         if TypeStorage_kind(types_ptr, self_ty) != ty_kind().nominal {
             print("\n\033[1;31m[type error]\033[0m Self requires a named struct method\n       --> ")
@@ -404,7 +404,7 @@ check_value :: (db &Nexus, expr u32, expected u32) {
             }
             if field_ty == ty_id_none() {
                 print("\n\033[1;31m[type error]\033[0m unexpected field '")
-                Str_print(Interner_get(&(*db).interner, name_id))
+                Interner_get(&(*db).interner, name_id).print()
                 print("' in struct literal for '")
                 TypeStorage_print_type(types, expected)
                 print("'\n       --> ")
@@ -751,7 +751,7 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
                         print("method '")
                         name_node := HirTable_lhs(tbl, method)
                         name_id := HirTable_lhs(tbl, name_node)
-                        Str_print(Interner_get(&(*db).interner, name_id))
+                        Interner_get(&(*db).interner, name_id).print()
                         print("' expected ")
                     } else {
                         print("function expected ")
@@ -1303,7 +1303,7 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
     print("\n\033[1;31m[type error]\033[0m struct '")
     TypeStorage_print_type(types_ptr, lhs_ty)
     print("' has no field or method named '")
-    Str_print(Interner_get(&(*db).interner, name_id))
+    Interner_get(&(*db).interner, name_id).print()
     print("'\n       --> ")
     Nexus_print_loc(db, id)
     print("\n")

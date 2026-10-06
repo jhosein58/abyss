@@ -12,6 +12,25 @@ Str :: struct {
     ptr: &u8,
     len: u64 
 
+
+    size :: () u64 {
+        16
+    }
+
+    new :: (ptr &u8, len u64) Str {
+        .{
+            ptr: ptr,
+            len: len,
+        }
+    }
+
+    empty :: () Str {
+        .{
+            ptr: 0 as &u8,
+            len: 0,
+        }
+    }
+
     of :: (s &u8) Self {
         .{
             ptr: s,
@@ -27,63 +46,37 @@ Str :: struct {
             i = i + 1
         }
     }
-}
 
-Str_size :: () u64 {
-    16
-}
-
-Str_new :: (ptr &u8, len u64) Str {
-    .{
-        ptr: ptr,
-        len: len,
-    }
-}
-
-Str_empty :: () Str {
-    .{
-        ptr: 0 as &u8,
-        len: 0,
-    }
-}
-
-Str_from :: (s &u8) Str {
-    Str.of(s)
-}
-
-
-Str_print :: (s Str) {
-    s.print()
-}
-
-Str_println :: (s Str) {
-    Str_print(s)
-    print_char(*"\n")
-}
-
-Str_sub :: (s Str, start u64, len u64) Str {
-    .{
-        ptr: (s.ptr + start),
-        len: len
-    }
-}
-
-Str_eq :: (a Str, b Str) bool {
-    if a.len != b.len {
-        ret false
+    println :: (s Str) {
+        s.print()
+        print_char(*"\n")
     }
 
-    i: u64 = 0
-    while i < a.len {
-        -- HACK: 'or false' Disambiguate from fn syntax
-        if (*(a.ptr + i) != *(b.ptr + i)) or false {
+    sub :: (start u64, len u64) Str {
+        .{
+            ptr: (.ptr + start),
+            len: len
+        }
+    }
+
+    eq :: (b Str) bool {
+        if .len != b.len {
             ret false
         }
-        i = i + 1
-    }
 
-    true
+        i: u64 = 0
+        while i < .len {
+            if *(.ptr + i) != *(b.ptr + i) {
+                ret false
+            }
+            i = i + 1
+        }
+
+        true
+    }
 }
+
+
 
 
 

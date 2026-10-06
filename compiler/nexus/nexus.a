@@ -2,7 +2,7 @@ import VecU32 from "../../std/vec/u32.a"
 import VecStr from "../../std/vec/str.a"
 import SliceU32, SliceU32_new from "../../std/slice/u32.a"
 import Interner, Interner_new from "../../std/interner.a"
-import Str, Str_from from "../../std/string.a"
+import Str from "../../std/string.a"
 
 import TypeStorage, TypeStorage_new, ty_id_none from "../types.a"
 import UnifyStorage, UnifyStorage_new from "../unify.a"
@@ -318,12 +318,12 @@ Nexus_add_file :: (self &Nexus, path Str, source Str) u32 {
 }
 
 Nexus_get_file_path :: (self &Nexus, file_id u32) Str {
-    if (file_id as u64) >= (*self).file_paths.len { ret Str_from("unknown") }
+    if (file_id as u64) >= (*self).file_paths.len { ret Str.of("unknown") }
     self.file_paths.get(file_id as u64)
 }
 
 Nexus_get_file_source :: (self &Nexus, file_id u32) Str {
-    if (file_id as u64) >= (*self).file_sources.len { ret Str_from("") }
+    if (file_id as u64) >= (*self).file_sources.len { ret Str.of("") }
     self.file_sources.get(file_id as u64)
 }
 

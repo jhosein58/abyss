@@ -1,5 +1,5 @@
 import HirTable, HirTable_len, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind_name, hir_kind, hir_none from "hir.a"
-import Str, Str_from, Str_print, Str_println from "../std/string.a"
+import Str from "../std/string.a"
 import Nexus, Nexus_get_list from "nexus/nexus.a"
 import Arena from "../std/allocator.a"
 import Interner_get from "../std/interner.a"
@@ -33,7 +33,7 @@ u32_digits :: (val u32) u32 {
 }
 
 print_str_padded :: (s Str, width u32) {
-    Str_print(s)
+    s.print()
     len := s.len as u32
     if width > len {
         print_spaces(width - len)
@@ -50,7 +50,7 @@ print_u32_padded :: (val u32, width u32) {
 
 print_idx_or_none :: (val u32, width u32) {
     if val == hir_none() {
-        print_str_padded(Str_from("None"), width)
+        print_str_padded(Str.of("None"), width)
     } else {
         print_u32_padded(val, width)
     }
@@ -73,12 +73,12 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
     total := HirTable_len(hir)
 
     print_divider()
-    print_str_padded(Str_from("ID"), 6)
-    print_str_padded(Str_from("| Kind"), 22)
-    print_str_padded(Str_from("| LHS (Left/Data)"), 24)
-    print_str_padded(Str_from("| RHS (Right/Data)"), 22)
-    print_str_padded(Str_from("| Extra"), 10)
-    print_str_padded(Str_from("| Type"), 20)
+    print_str_padded(Str.of("ID"), 6)
+    print_str_padded(Str.of("| Kind"), 22)
+    print_str_padded(Str.of("| LHS (Left/Data)"), 24)
+    print_str_padded(Str.of("| RHS (Right/Data)"), 22)
+    print_str_padded(Str.of("| Extra"), 10)
+    print_str_padded(Str.of("| Type"), 20)
     print_char(10 as u8)
     print_divider()
 
@@ -91,15 +91,15 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
 
         print_u32_padded(i, 6)
 
-        print_str_padded(Str_from("| "), 2)
+        print_str_padded(Str.of("| "), 2)
         print_str_padded(hir_kind_name(kind), 20)
 
-        print_str_padded(Str_from("| "), 2)
+        print_str_padded(Str.of("| "), 2)
 
         if kind == k.lit_int {
-            Str_print(Str_from("Int("))
+            Str.of("Int(").print()
             print_u32(lhs)
-            Str_print(Str_from(")"))
+            Str.of(")").print()
 
             len := u32_digits(lhs) + 5
             if 22 > len {
@@ -107,13 +107,13 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
             }
         } else if kind == k.ident {
             if lhs == hir_none() {
-                print_str_padded(Str_from("None"), 22)
+                print_str_padded(Str.of("None"), 22)
             } else {
                 name := Interner_get(&(*db).interner, lhs)
                 print_str_padded(name, 22)
             }
         } else if kind == k.block {
-            Str_print(Str_from("["))
+            Str.of("[").print()
 
             slice := Nexus_get_list(db, lhs)
 
@@ -133,7 +133,7 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
                 j = j + 1
             }
 
-            Str_print(Str_from("]"))
+            Str.of("]").print()
 
             if 22 > len {
                 print_spaces(22 - len)
@@ -142,13 +142,13 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
             print_idx_or_none(lhs, 22)
         }
 
-        print_str_padded(Str_from("| "), 2)
+        print_str_padded(Str.of("| "), 2)
         print_idx_or_none(rhs, 20)
 
-        print_str_padded(Str_from("| "), 2)
+        print_str_padded(Str.of("| "), 2)
         print_idx_or_none(extra, 8)
 
-        print_str_padded(Str_from("| "), 2)
+        print_str_padded(Str.of("| "), 2)
 
         slot := UnifyStorage_get_slot(unify, i)
         if slot != slot_none() {
@@ -158,11 +158,11 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
                 ty_name := TypeStorage_name(types, arena, tyid)
                 print_str_padded(ty_name, 18)
             } else {
-                print_str_padded(Str_from("None"), 18)
+                print_str_padded(Str.of("None"), 18)
             }
             _
         } else {
-            print_str_padded(Str_from("None"), 18)
+            print_str_padded(Str.of("None"), 18)
         }
 
         print_char(10 as u8)

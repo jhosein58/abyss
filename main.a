@@ -1,7 +1,7 @@
 import token, token_name, TokenStream_new, TokenStream_destroy, TokenStream_push, TokenStream_kind, TokenStream_text, TokenStream_count from "compiler/token.a"
 import lex   from "compiler/lexer.a"
 
-import Str, Str_from, Str_println from "std/string.a"
+import Str from "std/string.a"
 
 import Arena from "std/allocator.a"
 import read_file, write_file from "std/fs.a"
@@ -51,9 +51,9 @@ main :: () {
 
     eng := Engine_new()
 
-    fid := Engine_add_file(&eng, &arena, Str_from(main_path), source)
+    fid := Engine_add_file(&eng, &arena, Str.of(main_path), source)
 
-    sym_id := Engine_get_symbol_id(&eng, fid, Str_from("main"))
+    sym_id := Engine_get_symbol_id(&eng, fid, Str.of("main"))
 
     Engine_parse(&eng, sym_id)
     Engine_type_check(&eng, sym_id)

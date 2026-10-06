@@ -3,7 +3,7 @@ import VecU32 from "../std/vec/u32.a"
 import VecStr from "../std/vec/str.a"
 import VecBool from "../std/vec/bool.a"
 
-import Str, Str_from, Str_empty from "../std/string.a"
+import Str from "../std/string.a"
 
 TokenType :: struct {
     eof           : u8,
@@ -157,47 +157,47 @@ token :: () TokenType {
 token_name :: (tk u8) Str {
     t := token()
 
-    if tk == t.eof         { ret Str_from("eof")       }
-    if tk == t.ident       { ret Str_from("ident")     }
-    if tk == t.lit_int     { ret Str_from("lit_int")   }
-    if tk == t.lit_float   { ret Str_from("lit_float") }
-    if tk == t.lit_str     { ret Str_from("lit_str")   }
-    if tk == t.lit_char    { ret Str_from("lit_char")  }
+    if tk == t.eof         { ret Str.of("eof")       }
+    if tk == t.ident       { ret Str.of("ident")     }
+    if tk == t.lit_int     { ret Str.of("lit_int")   }
+    if tk == t.lit_float   { ret Str.of("lit_float") }
+    if tk == t.lit_str     { ret Str.of("lit_str")   }
+    if tk == t.lit_char    { ret Str.of("lit_char")  }
 
-    if tk == t.kw_ret      { ret Str_from("kw_ret")    }
-    if tk == t.kw_if       { ret Str_from("kw_if")     }
-    if tk == t.kw_else     { ret Str_from("kw_else")   }
-    if tk == t.kw_while    { ret Str_from("kw_while")  }
-    if tk == t.kw_break    { ret Str_from("kw_break")  }
-    if tk == t.kw_cont     { ret Str_from("kw_cont")   }
-    if tk == t.kw_struct   { ret Str_from("kw_struct") }
-    if tk == t.kw_import   { ret Str_from("kw_import") }
-    if tk == t.kw_from     { ret Str_from("kw_from")   }
-    if tk == t.kw_true     { ret Str_from("kw_true")   }
-    if tk == t.kw_false    { ret Str_from("kw_false")  }
+    if tk == t.kw_ret      { ret Str.of("kw_ret")    }
+    if tk == t.kw_if       { ret Str.of("kw_if")     }
+    if tk == t.kw_else     { ret Str.of("kw_else")   }
+    if tk == t.kw_while    { ret Str.of("kw_while")  }
+    if tk == t.kw_break    { ret Str.of("kw_break")  }
+    if tk == t.kw_cont     { ret Str.of("kw_cont")   }
+    if tk == t.kw_struct   { ret Str.of("kw_struct") }
+    if tk == t.kw_import   { ret Str.of("kw_import") }
+    if tk == t.kw_from     { ret Str.of("kw_from")   }
+    if tk == t.kw_true     { ret Str.of("kw_true")   }
+    if tk == t.kw_false    { ret Str.of("kw_false")  }
 
-    if tk == t.plus        { ret Str_from("+")         }
-    if tk == t.minus       { ret Str_from("-")         }
-    if tk == t.star        { ret Str_from("*")         }
-    if tk == t.slash       { ret Str_from("/")         }
-    if tk == t.eq          { ret Str_from("=")         }
-    if tk == t.eq_eq       { ret Str_from("==")        }
-    if tk == t.bang_eq     { ret Str_from("!=")        }
-    if tk == t.amp         { ret Str_from("&")         }
-    if tk == t.colon       { ret Str_from(":")         }
-    if tk == t.colon_colon { ret Str_from("::")        }
-    if tk == t.comma       { ret Str_from(",")         }
-    if tk == t.semi        { ret Str_from(";")         }
-    if tk == t.dot         { ret Str_from(".")         }
-    if tk == t.o_paren     { ret Str_from("(")         }
-    if tk == t.c_paren     { ret Str_from(")")         }
-    if tk == t.o_brace     { ret Str_from("{")         }
-    if tk == t.c_brace     { ret Str_from("}")         }
-    if tk == t.o_bracket   { ret Str_from("[")         }
-    if tk == t.c_bracket   { ret Str_from("]")         }
+    if tk == t.plus        { ret Str.of("+")         }
+    if tk == t.minus       { ret Str.of("-")         }
+    if tk == t.star        { ret Str.of("*")         }
+    if tk == t.slash       { ret Str.of("/")         }
+    if tk == t.eq          { ret Str.of("=")         }
+    if tk == t.eq_eq       { ret Str.of("==")        }
+    if tk == t.bang_eq     { ret Str.of("!=")        }
+    if tk == t.amp         { ret Str.of("&")         }
+    if tk == t.colon       { ret Str.of(":")         }
+    if tk == t.colon_colon { ret Str.of("::")        }
+    if tk == t.comma       { ret Str.of(",")         }
+    if tk == t.semi        { ret Str.of(";")         }
+    if tk == t.dot         { ret Str.of(".")         }
+    if tk == t.o_paren     { ret Str.of("(")         }
+    if tk == t.c_paren     { ret Str.of(")")         }
+    if tk == t.o_brace     { ret Str.of("{")         }
+    if tk == t.c_brace     { ret Str.of("}")         }
+    if tk == t.o_bracket   { ret Str.of("[")         }
+    if tk == t.c_bracket   { ret Str.of("]")         }
     
 
-    Str_from("Unknown")
+    Str.of("Unknown")
 }
 
 TokenStream :: struct {

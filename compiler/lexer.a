@@ -1,4 +1,4 @@
-import Str, Str_new, Str_from, Str_eq, Str_empty, Str_print from "../std/string.a"
+import Str from "../std/string.a"
 import token, TokenType, TokenStream, TokenStream_push from "token.a"
 import calc_pos from "nexus/nexus.a"
 import fall from "../std/sys.a"
@@ -26,7 +26,7 @@ lexer_error :: (l &Lexer, msg &u8, offset u64) {
     print("\n[lex error] ")
     print(msg)
     print("\n       --> ")
-    Str_print((*l).path)
+    l.path.print()
     print(":")
     pos := calc_pos((*l).source, offset as u32)
     print_u32(pos.line)
@@ -134,7 +134,7 @@ scan_number :: (l &Lexer, stream &TokenStream) {
                 bump(l)
             }
             len := ((*l).cursor - offset) as u32
-            text := Str_new((*l).source.ptr + offset, len as u64)
+            text := Str.new((*l).source.ptr + offset, len as u64)
             TokenStream_push(stream, token().lit_int, offset as u32, len, text, (*l).had_newline)
             (*l).had_newline = false
             ret
@@ -154,7 +154,7 @@ scan_number :: (l &Lexer, stream &TokenStream) {
     }
 
     len := ((*l).cursor - offset) as u32
-    text := Str_new((*l).source.ptr + offset, len as u64)
+    text := Str.new((*l).source.ptr + offset, len as u64)
     if is_float {
         check: u64 = 0
         while check < text.len {
@@ -197,7 +197,7 @@ scan_string :: (l &Lexer, stream &TokenStream) {
     bump(l)
 
     len := ((*l).cursor - offset) as u32
-    text := Str_new((*l).source.ptr + offset, len as u64)
+    text := Str.new((*l).source.ptr + offset, len as u64)
     TokenStream_push(stream, token().lit_str, offset as u32, len, text, (*l).had_newline)
     (*l).had_newline = false
 }
@@ -223,7 +223,7 @@ scan_char :: (l &Lexer, stream &TokenStream) {
     bump(l)
 
     len := ((*l).cursor - offset) as u32
-    text := Str_new((*l).source.ptr + offset, len as u64)
+    text := Str.new((*l).source.ptr + offset, len as u64)
     TokenStream_push(stream, token().lit_char, offset as u32, len, text, (*l).had_newline)
     (*l).had_newline = false
 }
@@ -232,33 +232,33 @@ match_keyword :: (text Str) u8 {
     t := token()
 
     if text.len == 2 {
-        if Str_eq(text, Str_from("if")) { ret t.kw_if }
-        if Str_eq(text, Str_from("as")) { ret t.kw_as }
-        if Str_eq(text, Str_from("or")) { ret t.kw_or }
+        if text.eq(Str.of("if")) { ret t.kw_if }
+        if text.eq(Str.of("as")) { ret t.kw_as }
+        if text.eq(Str.of("or")) { ret t.kw_or }
     }
 
     if text.len == 3 {
-        if Str_eq(text, Str_from("ret")) { ret t.kw_ret }
-        if Str_eq(text, Str_from("and")) { ret t.kw_and }
-        if Str_eq(text, Str_from("not")) { ret t.kw_not }
+        if text.eq(Str.of("ret")) { ret t.kw_ret }
+        if text.eq(Str.of("and")) { ret t.kw_and }
+        if text.eq(Str.of("not")) { ret t.kw_not }
     }
 
     if text.len == 4 {
-        if Str_eq(text, Str_from("else")) { ret t.kw_else }
-        if Str_eq(text, Str_from("cont")) { ret t.kw_cont }
-        if Str_eq(text, Str_from("true")) { ret t.kw_true }
-        if Str_eq(text, Str_from("from")) { ret t.kw_from }
+        if text.eq(Str.of("else")) { ret t.kw_else }
+        if text.eq(Str.of("cont")) { ret t.kw_cont }
+        if text.eq(Str.of("true")) { ret t.kw_true }
+        if text.eq(Str.of("from")) { ret t.kw_from }
     }
 
     if text.len == 5 {
-        if Str_eq(text, Str_from("while")) { ret t.kw_while }
-        if Str_eq(text, Str_from("break")) { ret t.kw_break }
-        if Str_eq(text, Str_from("false")) { ret t.kw_false }
+        if text.eq(Str.of("while")) { ret t.kw_while }
+        if text.eq(Str.of("break")) { ret t.kw_break }
+        if text.eq(Str.of("false")) { ret t.kw_false }
     }
 
     if text.len == 6 {
-        if Str_eq(text, Str_from("struct")) { ret t.kw_struct }
-        if Str_eq(text, Str_from("import")) { ret t.kw_import }
+        if text.eq(Str.of("struct")) { ret t.kw_struct }
+        if text.eq(Str.of("import")) { ret t.kw_import }
     }
 
     t.ident
@@ -272,7 +272,7 @@ scan_identifier :: (l &Lexer, stream &TokenStream) {
     }
 
     len := ((*l).cursor - offset) as u32
-    text := Str_new((*l).source.ptr + offset, len as u64)
+    text := Str.new((*l).source.ptr + offset, len as u64)
     kind := match_keyword(text)
 
     TokenStream_push(stream, kind, offset as u32, len, text, (*l).had_newline)
@@ -413,11 +413,11 @@ lex :: (stream &TokenStream, source Str, path Str) {
             lexer_error(&lexer, "unknown character", offset)
         }
         len := (lexer.cursor - offset) as u32
-        text := Str_new(lexer.source.ptr + offset, len as u64)
+        text := Str.new(lexer.source.ptr + offset, len as u64)
 
         TokenStream_push(stream, kind, offset as u32, len, text, had_nl)
         lexer.had_newline = false
     }
 
-    TokenStream_push(stream, token().eof, lexer.cursor as u32, 0, Str_empty(), lexer.had_newline)
+    TokenStream_push(stream, token().eof, lexer.cursor as u32, 0, Str.empty(), lexer.had_newline)
 }
