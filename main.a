@@ -29,6 +29,8 @@ import CCodeGen_finish from "compiler/codegen.a"
 
 import fall from "std/sys.a"
 
+import Fmt from "std/fmt.a"
+
 print_u32 :: (s u32) unit
 print_u64 :: (s u64) unit
 print_u8 :: (s u8) unit
@@ -41,6 +43,9 @@ compile_and_run :: (path &u8) i32
 main :: () {
 
     arena := Arena.new(1024 * 1024 * 16)
+
+
+    Fmt.new(&arena).cstr("hello world").print()
 
     main_path := "main.a"
 

@@ -1,5 +1,5 @@
 import Arena  from "allocator.a"
-import String from "string.a"
+import Str, String from "string.a"
 
 Escape :: struct {
     -- control sequences
@@ -109,5 +109,25 @@ Fmt :: struct {
 
     new :: (arena &Arena) Self {
         .{ buf: String.new(arena) }
+    }
+
+    str :: (s Str) &Self {
+        .buf.push_str(s)
+    }
+
+    cstr :: (s &u8) &Self {
+        .str(Str.of(s))
+    }
+
+    uin32 :: (v u32) &Self {
+        .buf.push_u32(v)
+    }
+
+    as_str :: () Str {
+        .buf.as_str()
+    }
+
+    print :: () {
+        .as_str().print()
     }
 }
