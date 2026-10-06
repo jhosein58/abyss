@@ -45,7 +45,9 @@ main :: () {
     arena := Arena.new(1024 * 1024 * 16)
 
 
-    Fmt.new(&arena).cstr("hello world").print()
+    Fmt.new(&arena)
+    .cstr("hello world")
+    .print()
 
     main_path := "main.a"
 

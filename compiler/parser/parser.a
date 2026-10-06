@@ -29,14 +29,50 @@ set_span :: (p &Parser, hir_id u32, sp Span) u32 {
 
 --- Pratt Engine ---------------------------------------------------------------------------------
 
+is_assign_op :: (kind u8) bool {
+    t := token()
+    if kind == t.eq or kind == t.plus_eq or kind == t.minus_eq or kind == t.star_eq or kind == t.slash_eq or kind == t.percent_eq { ret true }
+    if kind == t.amp_eq or kind == t.pipe_eq or kind == t.caret_eq or kind == t.left_shift_eq or kind == t.right_shift_eq { ret true }
+    false
+}
+
+is_dot_continuation :: (p &Parser, lhs u32) bool {
+    if lhs == hir_none() { ret false }
+
+    t := token()
+    if peek_n(p, 1) == t.o_brace { ret false }
+
+    if not (*p).inside_method { ret true }
+
+    k := hir_kind()
+    lhs_kind := HirTable_kind((*p).hir, lhs)
+    if lhs_kind != k.call { ret false }
+
+    callee := HirTable_lhs((*p).hir, lhs)
+    if callee == hir_none() { ret false }
+    if HirTable_kind((*p).hir, callee) != k.member { ret false }
+
+    next2 := peek_n(p, 2)
+    if is_assign_op(next2) { ret false }
+    if next2 != t.o_paren { ret false }
+
+    true
+}
+
 parse_expr :: (p &Parser, min_bp u8) u32 {
     lhs := dispatch_prefix(p)
 
     while not is_eof(p) {
         tk := peek(p)
 
-        if peek_preceded_by_newline(p) and (not is_soft(tk)) {
-            break
+        if peek_preceded_by_newline(p) {
+            soft := is_soft(tk)
+            if (not soft) and (tk == token().dot) {
+                soft = is_dot_continuation(p, lhs)
+            }
+            if not soft {
+                break
+            }
         }
 
         bp := bp_from_infix(tk)
