@@ -22,11 +22,9 @@ import TypeStorage_new, TypeStorage_alloc_int, TypeStorage_name from "compiler/t
 
 import UnifyStorage_get_slot, UnifyStorage_resolve_type, slot_none from "compiler/unify.a"
 
-
-import Engine_new, Engine_add_file, Engine_get_symbol_id, Engine_parse, Engine_type_check from "compiler/engine.a"
+import Engine from "compiler/engine.a"
 
 import CCodeGen_finish from "compiler/codegen.a"
-import Engine_new, Engine_add_file, Engine_get_symbol_id, Engine_parse, Engine_type_check, Engine_abyss_main, Engine_compile from "compiler/engine.a"
 
 
 import fall from "std/sys.a"
@@ -40,8 +38,6 @@ print :: (s &u8) unit
 compile_and_run :: (path &u8) i32
 
 
-
-
 main :: () {
     arena := Arena.new(1024 * 1024 * 16)
 
@@ -49,17 +45,18 @@ main :: () {
 
     source := read_file(&arena, main_path)
 
-    eng := Engine_new()
+    eng := Engine.new()
 
-    fid := Engine_add_file(&eng, &arena, Str.of(main_path), source)
+    fid := eng.add_file(&arena, Str.of(main_path), source)
 
-    sym_id := Engine_get_symbol_id(&eng, fid, Str.of("main"))
+    eng.get_symbol_id()
+    sym_id := eng.get_symbol_id(fid, Str.of("main"))
 
-    Engine_parse(&eng, sym_id)
-    Engine_type_check(&eng, sym_id)
+    eng.parse(sym_id)
+    eng.type_check(sym_id)
 
-    Engine_abyss_main(&eng, sym_id)
-    Engine_compile(&eng, &arena, sym_id)
+    eng.abyss_main(sym_id)
+    eng.compile(&arena, sym_id)
 
     c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, "prelude.c"))
     write_file("tmp/out.c", c_code)

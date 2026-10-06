@@ -18,7 +18,7 @@ import UnifyStorage, UnifyStorage_new_slot, UnifyStorage_get_slot, UnifyStorage_
 import Interner_get from "../../std/interner.a"
 import id_none from "../nexus/pool.a"
 
-import Engine, Engine_slot_of from "../engine.a"
+import Engine from "../engine.a"
 
 import fall from "../../std/sys.a"
 
@@ -344,7 +344,7 @@ synth_ident :: (eng &Engine, id u32) {
             ret
         }
 
-        origin_slot := Engine_slot_of(eng, sym_id)
+        origin_slot := eng.slot_of(sym_id)
         if origin_slot != slot_none() {
             UnifyStorage_union(db, slot, origin_slot)
         }
