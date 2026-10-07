@@ -1,7 +1,7 @@
 import Nexus, Nexus_new, Nexus_find_symbol, Nexus_get_sym_hir,
        Nexus_is_sym_resolving, Nexus_set_sym_resolving, Nexus_add_file from "nexus/nexus.a"
 
-import token, TokenStream_count from "token.a"
+import token, TokenStream from "token.a"
 import lex from "lexer.a"
 import index_file from "indexer.a"
 import Parser_new, peek, curr_span, parse_error_at from "parser/core.a"
@@ -56,9 +56,9 @@ Engine :: struct {
         file_id := Nexus_add_file(&.nexus, path, source)
         .file_count = file_id + 1
 
-        tok_start := TokenStream_count(&.nexus.tokens)
+        tok_start := .nexus.tokens.count()
         lex(&.nexus.tokens, source, path)
-        tok_end := TokenStream_count(&.nexus.tokens)
+        tok_end := .nexus.tokens.count()
 
         index_file(&.nexus, arena, file_id, path, tok_start as u32, tok_end as u32)
         file_id

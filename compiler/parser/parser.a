@@ -1,4 +1,4 @@
-import token, TokenStream_kind, TokenStream_newline_before from "../token.a"
+import token, TokenStream from "../token.a"
 import hir_kind, HirTable, HirTable_push, HirTable_lhs, HirTable_rhs, HirTable_extra, HirTable_kind, hir_none from "../hir.a"
 
 import Parser, is_eof, peek, bump, expect, optional, peek_n,
@@ -206,11 +206,11 @@ is_function_header :: (p &Parser) bool {
     if peek(p) != t.ident { ret false }
 
     depth: u32 = 1
-    i := (*p).cursor
+    i := p.cursor
     has_comma := false
 
-    while i < (*p).end {
-        tk := TokenStream_kind((*p).tokens, i)
+    while i < p.end {
+        tk := p.tokens.kind(i)
         if tk == t.o_paren {
             depth = depth + 1
         } else if tk == t.c_paren {
@@ -226,14 +226,14 @@ is_function_header :: (p &Parser) bool {
     if has_comma { ret true }
 
     after_cp := t.eof
-    if (i + 1) < (*p).end {
-        after_cp = TokenStream_kind((*p).tokens, i + 1)
+    if (i + 1) < p.end {
+        after_cp = p.tokens.kind(i + 1)
     }
 
     if after_cp == t.o_brace { ret true }
 
     if after_cp == t.ident {
-        if not TokenStream_newline_before((*p).tokens, i + 1) { ret true }
+        if not  p.tokens.newline_before(i + 1) { ret true }
     }
 
     if (after_cp == t.amp) or (after_cp == t.star) or (after_cp == t.o_bracket) {

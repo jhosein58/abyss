@@ -201,59 +201,59 @@ token_name :: (tk u8) Str {
 }
 
 TokenStream :: struct {
-    kind          : VecU8,
-    start         : VecU32,
-    len           : VecU32,
-    text          : VecStr,
-    newline_before: VecBool,
-}
+    kinds          : VecU8,
+    starts         : VecU32,
+    lens           : VecU32,
+    texts          : VecStr,
+    newline_befores: VecBool,
 
-TokenStream_new :: () TokenStream {
-    .{
-        kind          : VecU8.new(),
-        start         : VecU32.new(),
-        len           : VecU32.new(),
-        text          : VecStr.new(),
-        newline_before: VecBool.new(),
+    new :: () TokenStream {
+        .{
+            kinds          : VecU8.new(),
+            starts         : VecU32.new(),
+            lens           : VecU32.new(),
+            texts          : VecStr.new(),
+            newline_befores: VecBool.new(),
+        }
     }
-}
 
-TokenStream_destroy :: (self &TokenStream) {
-    VecU8_destroy(&(*self).kind)
-    VecU32_destroy(&(*self).start)
-    VecU32_destroy(&(*self).len)
-    VecStr_destroy(&(*self).text)
-    VecBool_destroy(&(*self).newline_before)
-}
+    destroy :: () {
+        .kinds.destroy()
+        .starts.destroy()
+        .lens.destroy()
+        .texts.destroy()
+        .newline_befores.destroy()
+    }
 
-TokenStream_push :: (self &TokenStream, kind u8, start, len u32, text Str, newline_before bool) {
-    self.kind.push(kind)
-    (*self).start.push(start)
-    (*self).len.push(len)
-    self.text.push(text)
-    self.newline_before.push(newline_before)
-}
+    push :: (kind u8, start, len u32, text Str, newline_before bool) {
+        .kinds.push(kind)
+        .starts.push(start)
+        .lens.push(len)
+        .texts.push(text)
+        .newline_befores.push(newline_before)
+    }
 
-TokenStream_count :: (self &TokenStream) u64 {
-    (*self).kind.len
-}
+    count :: () u64 {
+        .kinds.len
+    }
 
-TokenStream_kind :: (self &TokenStream, idx u32) u8 {
-    self.kind.get(idx as u64)
-}
+    kind :: (idx u32) u8 {
+        .kinds.get(idx as u64)
+    }
 
-TokenStream_start :: (self &TokenStream, idx u32) u32 {
-    (*self).start.get(idx as u64)
-}
+    start :: (idx u32) u32 {
+        .starts.get(idx as u64)
+    }
 
-TokenStream_len :: (self &TokenStream, idx u32) u32 {
-    (*self).len.get(idx as u64)
-}
+    len :: (idx u32) u32 {
+        .lens.get(idx as u64)
+    }
 
-TokenStream_text :: (self &TokenStream, idx u32) Str {
-    self.text.get(idx as u64)
-}
+    text :: (idx u32) Str {
+        .texts.get(idx as u64)
+    }
 
-TokenStream_newline_before :: (self &TokenStream, idx u32) bool {
-    self.newline_before.get(idx as u64)
+    newline_before :: (idx u32) bool {
+        .newline_befores.get(idx as u64)
+    }
 }

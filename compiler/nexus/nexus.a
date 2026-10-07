@@ -6,7 +6,7 @@ import Str from "../../std/string.a"
 
 import TypeStorage, TypeStorage_new, ty_id_none from "../types.a"
 import UnifyStorage, UnifyStorage_new from "../unify.a"
-import TokenStream, TokenStream_new, TokenStream_destroy from "../token.a"
+import TokenStream from "../token.a"
 import HirTable, HirTable_new, HirTable_destroy from "../hir.a"
 import PoolU32, PoolU32_new, PoolU32_alloc, PoolU32_get, PoolU32_set, PoolU32_count, PoolU32_set_safe, id_none from "pool.a"
 
@@ -97,7 +97,7 @@ Nexus :: struct {
 
 Nexus_new :: () Nexus {
     .{
-        tokens         : TokenStream_new(),
+        tokens         : TokenStream.new(),
         hir            : HirTable_new(),
 
         glob_stack     : VecU32.new(),

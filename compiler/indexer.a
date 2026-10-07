@@ -1,4 +1,4 @@
-import token, TokenStream_kind, TokenStream_text, TokenStream_count from "token.a"
+import token, TokenStream from "token.a"
 import lex from "lexer.a"
 import Nexus, Nexus_add_file, Nexus_alloc_symbol, Nexus_alloc_symbol_alias, Nexus_find_symbol from "nexus/nexus.a"
 import Interner_intern, Interner_get from "../std/interner.a"
@@ -194,9 +194,9 @@ resolve_and_load_file :: (
         loaded_paths.push(id_none())
     }
     loaded_paths.push(path_id)
-    tok_start := TokenStream_count(&(*db).tokens) as u32
+    tok_start := db.tokens.count() as u32
     lex(&(*db).tokens, source, target_path)
-    tok_end := TokenStream_count(&(*db).tokens) as u32
+    tok_end := db.tokens.count() as u32
 
     queue_fids.push(fid)
     queue_tok_start.push(tok_start)
@@ -227,8 +227,8 @@ scan_file_symbols :: (
     curr_sym_tok:  u32 = 0
 
     while cursor < end_tok {
-        tk := TokenStream_kind(&(*db).tokens, cursor)
-        tk_text := TokenStream_text(&(*db).tokens, cursor)
+        tk := db.tokens.kind(cursor)
+        tk_text := db.tokens.text(cursor)
 
         if (tk == t.o_brace) or (tk == t.o_paren) {
             depth = depth + 1
@@ -246,16 +246,16 @@ scan_file_symbols :: (
             imported_names := VecU32.new()
 
             while scan < end_tok {
-                stk_text := TokenStream_text(&(*db).tokens, scan)
+                stk_text := db.tokens.text(scan)
                 if str_eq(stk_text, Str.of("from")) {
                     scan = scan + 1
                     break
                 }
-                if (TokenStream_kind(&(*db).tokens, scan) != t.ident) and
-                   (TokenStream_kind(&(*db).tokens, scan) != t.comma) {
+                if (db.tokens.kind(scan) != t.ident) and
+                   (db.tokens.kind(scan) != t.comma) {
                     index_error(curr_path, "invalid import name")
                 }
-                if TokenStream_kind(&(*db).tokens, scan) == t.ident {
+                if db.tokens.kind(scan) == t.ident {
                     name_id := Interner_intern(&(*db).interner, stk_text)
                     imported_names.push(name_id)
                 }
@@ -265,11 +265,11 @@ scan_file_symbols :: (
             if (scan >= end_tok) or (imported_names.len == 0) {
                 index_error(curr_path, "expected names, 'from', and a quoted path")
             }
-            if TokenStream_kind(&(*db).tokens, scan) != t.lit_str {
+            if db.tokens.kind(scan) != t.lit_str {
                 index_error(curr_path, "expected quoted import path")
             }
             if scan < end_tok {
-                raw_path := TokenStream_text(&(*db).tokens, scan)
+                raw_path := db.tokens.text(scan)
                 path_str := trim_quotes(raw_path)
 
                 target_fid := resolve_and_load_file(
@@ -293,15 +293,15 @@ scan_file_symbols :: (
             imported_names.destroy()
         } else if (depth == 0) and (tk == t.ident) {
             if (cursor + 1) < end_tok {
-                next_tk := TokenStream_kind(&(*db).tokens, cursor + 1)
+                next_tk := db.tokens.kind(cursor + 1)
                 if next_tk == t.colon_colon {
                     if (cursor + 2) < end_tok {
-                        c2_text := TokenStream_text(&(*db).tokens, cursor + 2)
+                        c2_text := db.tokens.text(cursor + 2)
                         if str_eq(c2_text, Str.of("import")) {
                             if (cursor + 5 >= end_tok) or
-                               (TokenStream_kind(&(*db).tokens, cursor + 3) != t.ident) or
-                               (not str_eq(TokenStream_text(&(*db).tokens, cursor + 4), Str.of("from"))) or
-                               (TokenStream_kind(&(*db).tokens, cursor + 5) != t.lit_str) {
+                               (db.tokens.kind(cursor + 3) != t.ident) or
+                               (not str_eq(db.tokens.text(cursor + 4), Str.of("from"))) or
+                               (db.tokens.kind(cursor + 5) != t.lit_str) {
                                 index_error(curr_path, "malformed symbol import")
                             }
                             if has_sym {
@@ -309,13 +309,13 @@ scan_file_symbols :: (
                                 has_sym = false
                             }
 
-                            loc_str := TokenStream_text(&(*db).tokens, cursor)
+                            loc_str := db.tokens.text(cursor)
                             loc_name := Interner_intern(&(*db).interner, loc_str)
 
-                            rem_str := TokenStream_text(&(*db).tokens, cursor + 3)
+                            rem_str := db.tokens.text(cursor + 3)
                             rem_name := Interner_intern(&(*db).interner, rem_str)
 
-                            raw_path := TokenStream_text(&(*db).tokens, cursor + 5)
+                            raw_path := db.tokens.text(cursor + 5)
                             path_str := trim_quotes(raw_path)
 
                             target_fid := resolve_and_load_file(
@@ -337,7 +337,7 @@ scan_file_symbols :: (
                         Nexus_alloc_symbol(db, file_id, curr_sym_name, curr_sym_tok, cursor)
                     }
 
-                    text := TokenStream_text(&(*db).tokens, cursor)
+                    text := db.tokens.text(cursor)
                     curr_sym_name = Interner_intern(&(*db).interner, text)
                     curr_sym_tok  = cursor
                     has_sym = true

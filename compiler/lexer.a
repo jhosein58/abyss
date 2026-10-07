@@ -1,5 +1,5 @@
 import Str from "../std/string.a"
-import token, TokenType, TokenStream, TokenStream_push from "token.a"
+import token, TokenType, TokenStream from "token.a"
 import calc_pos from "nexus/nexus.a"
 import fall from "../std/sys.a"
 
@@ -135,7 +135,7 @@ scan_number :: (l &Lexer, stream &TokenStream) {
             }
             len := ((*l).cursor - offset) as u32
             text := Str.new((*l).source.ptr + offset, len as u64)
-            TokenStream_push(stream, token().lit_int, offset as u32, len, text, (*l).had_newline)
+            stream.push(token().lit_int, offset as u32, len, text, (*l).had_newline)
             (*l).had_newline = false
             ret
         }
@@ -170,7 +170,7 @@ scan_number :: (l &Lexer, stream &TokenStream) {
         tk_kind = token().lit_float
     }
 
-    TokenStream_push(stream, tk_kind, offset as u32, len, text, (*l).had_newline)
+    stream.push(tk_kind, offset as u32, len, text, (*l).had_newline)
     (*l).had_newline = false
 }
 
@@ -198,7 +198,7 @@ scan_string :: (l &Lexer, stream &TokenStream) {
 
     len := ((*l).cursor - offset) as u32
     text := Str.new((*l).source.ptr + offset, len as u64)
-    TokenStream_push(stream, token().lit_str, offset as u32, len, text, (*l).had_newline)
+    stream.push(token().lit_str, offset as u32, len, text, (*l).had_newline)
     (*l).had_newline = false
 }
 
@@ -224,7 +224,7 @@ scan_char :: (l &Lexer, stream &TokenStream) {
 
     len := ((*l).cursor - offset) as u32
     text := Str.new((*l).source.ptr + offset, len as u64)
-    TokenStream_push(stream, token().lit_char, offset as u32, len, text, (*l).had_newline)
+    stream.push(token().lit_char, offset as u32, len, text, (*l).had_newline)
     (*l).had_newline = false
 }
 
@@ -275,7 +275,7 @@ scan_identifier :: (l &Lexer, stream &TokenStream) {
     text := Str.new((*l).source.ptr + offset, len as u64)
     kind := match_keyword(text)
 
-    TokenStream_push(stream, kind, offset as u32, len, text, (*l).had_newline)
+    stream.push(kind, offset as u32, len, text, (*l).had_newline)
     (*l).had_newline = false
 }
 
@@ -415,9 +415,9 @@ lex :: (stream &TokenStream, source Str, path Str) {
         len := (lexer.cursor - offset) as u32
         text := Str.new(lexer.source.ptr + offset, len as u64)
 
-        TokenStream_push(stream, kind, offset as u32, len, text, had_nl)
+        stream.push(kind, offset as u32, len, text, had_nl)
         lexer.had_newline = false
     }
 
-    TokenStream_push(stream, token().eof, lexer.cursor as u32, 0, Str.empty(), lexer.had_newline)
+    stream.push(token().eof, lexer.cursor as u32, 0, Str.empty(), lexer.had_newline)
 }
