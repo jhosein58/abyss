@@ -8,7 +8,6 @@ import Parser_new, peek, curr_span, parse_error_at from "parser/core.a"
 import parse_expr from "parser/parser.a"
 import ScopeEnv_destroy from "parser/env.a"
 import type_check, type_check_calls from "typer/tyck.a"
-import HirTable_len from "hir.a"
 import PoolU32_get, PoolU32_set, id_none from "nexus/pool.a"
 import UnifyStorage_get_slot, UnifyStorage_resolve_type,UnifyStorage_new_slot, slot_none from "unify.a"
 import ty_id_none, ty_kind, TypeStorage_kind, TypeStorage_func_params_len, TypeStorage_func_is_extern from "types.a"
@@ -17,7 +16,6 @@ import Str from "../std/string.a"
 import VecU32 from "../std/vec/u32.a"
 import Arena from "../std/allocator.a"
 import fall from "../std/sys.a"
-import HirTable_lhs from "hir.a"
 
 import CCodeGen, CCodeGen_new, CCodeGen_destroy, CCodeGen_abyss_main, CCodeGen_finish from "codegen.a"
 import lower_function from "lower.a"
@@ -80,7 +78,7 @@ Engine :: struct {
         tok_end   := PoolU32_get(&.nexus.sym_tok_end, sym_id)
         count     := tok_end - tok_start
 
-        hir_start := HirTable_len(&.nexus.hir)
+        hir_start := .nexus.hir.len()
 
         parser := Parser_new(
             &.nexus,
@@ -98,7 +96,7 @@ Engine :: struct {
         }
         ScopeEnv_destroy(&parser.env)
 
-        hir_end := HirTable_len(&.nexus.hir)
+        hir_end := .nexus.hir.len()
 
         PoolU32_set(&.nexus.sym_hir_start, sym_id, hir_start)
         PoolU32_set(&.nexus.sym_hir_end, sym_id, hir_end)

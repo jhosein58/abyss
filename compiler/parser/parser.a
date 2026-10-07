@@ -1,5 +1,5 @@
 import token, TokenStream from "../token.a"
-import hir_kind, HirTable, HirTable_push, HirTable_lhs, HirTable_rhs, HirTable_extra, HirTable_kind, hir_none from "../hir.a"
+import hir_kind, HirTable, hir_none from "../hir.a"
 
 import Parser, is_eof, peek, bump, expect, optional, peek_n,
        peek_preceded_by_newline, curr_text, prev_text, str_to_u32, lookup_sym,
@@ -45,12 +45,12 @@ is_dot_continuation :: (p &Parser, lhs u32) bool {
     if not (*p).inside_method { ret true }
 
     k := hir_kind()
-    lhs_kind := HirTable_kind((*p).hir, lhs)
+    lhs_kind := ((*p).hir).kind(lhs)
     if lhs_kind != k.call { ret false }
 
-    callee := HirTable_lhs((*p).hir, lhs)
+    callee := ((*p).hir).lhs(lhs)
     if callee == hir_none() { ret false }
-    if HirTable_kind((*p).hir, callee) != k.member { ret false }
+    if ((*p).hir).kind(callee) != k.member { ret false }
 
     next2 := peek_n(p, 2)
     if is_assign_op(next2) { ret false }
@@ -121,7 +121,7 @@ dispatch_prefix :: (p &Parser) u32 {
         bump(p)
         field := parse_ident(p)
         Nexus_set_hir_symbol((*p).db, field, id_none())
-        node := HirTable_push((*p).hir, hir_kind().member, hir_none(), field, hir_none())
+        node := ((*p).hir).push(hir_kind().member, hir_none(), field, hir_none())
         ret set_span(p, node, span_merge(sp_start, span_of_hir(p, field)))
     }
 
@@ -167,7 +167,7 @@ parse_if :: (p &Parser) u32 {
         sp_end = span_of_hir(p, elseb)
     }
 
-    node := HirTable_push((*p).hir, k.k_if, cond, thenb, elseb)
+    node := ((*p).hir).push(k.k_if, cond, thenb, elseb)
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -184,7 +184,7 @@ parse_while :: (p &Parser) u32 {
     body := parse_expr(p, 0 as u8)
     sp_end := span_of_hir(p, body)
 
-    node := HirTable_push((*p).hir, k.k_while, cond, body, hir_none())
+    node := ((*p).hir).push(k.k_while, cond, body, hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -192,10 +192,10 @@ parse_while :: (p &Parser) u32 {
 
 define_param :: (p &Parser, name_hir u32) {
     k := hir_kind()
-    if HirTable_kind((*p).hir, name_hir) != k.ident {
+    if ((*p).hir).kind(name_hir) != k.ident {
         parse_error_at(p, "parameter name must be an identifier", span_of_hir(p, name_hir))
     }
-    name_id := HirTable_lhs((*p).hir, name_hir)
+    name_id := ((*p).hir).lhs(name_hir)
     sym_id := Nexus_alloc_local_symbol((*p).db, (*p).file_id, name_id, name_hir)
     ScopeEnv_define(&(*p).env, name_id, sym_id)
 }
@@ -267,7 +267,7 @@ parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
         sp_end = span_of_hir(p, body)
     }
 
-    node := HirTable_push((*p).hir, k.function, params, ret_ty, body)
+    node := ((*p).hir).push(k.function, params, ret_ty, body)
     if (*p).inside_method { (*p).method_fn_depth = 0 }
     set_span(p, node, span_merge(sp_start, sp_end))
 }
@@ -279,7 +279,7 @@ parse_lit_int :: (p &Parser) u32 {
     sp := curr_span(p)
     val := str_to_u32(p, curr_text(p))
     bump(p)
-    node := HirTable_push((*p).hir, k.lit_int, val, hir_none(), hir_none())
+    node := ((*p).hir).push(k.lit_int, val, hir_none(), hir_none())
     set_span(p, node, sp)
 }
 
@@ -296,7 +296,7 @@ parse_ident :: (p &Parser) u32 {
     name_id := Interner_intern(&(*(*p).db).interner, name)
     bump(p)
 
-    ident_hir := HirTable_push((*p).hir, k.ident, name_id, hir_none(), hir_none())
+    ident_hir := ((*p).hir).push(k.ident, name_id, hir_none(), hir_none())
     set_span(p, ident_hir, sp)
 
     sym_id := lookup_sym(p, name_id)
@@ -339,7 +339,7 @@ parse_paren :: (p &Parser) u32 {
                 while p_i < pending_names.len {
                     p_name := pending_names.get(p_i)
                     p_sp := span_merge(span_of_hir(p, p_name), span_of_hir(p, ty))
-                    arg_id := HirTable_push((*p).hir, hir_kind().arg, p_name, ty, hir_none())
+                    arg_id := ((*p).hir).push(hir_kind().arg, p_name, ty, hir_none())
                     set_span(p, arg_id, p_sp)
                     args.push(arg_id)
                     p_i = p_i + 1
@@ -352,7 +352,7 @@ parse_paren :: (p &Parser) u32 {
         p_i: u64 = 0
         while p_i < pending_names.len {
             p_name := pending_names.get(p_i)
-            arg_id := HirTable_push((*p).hir, hir_kind().arg, p_name, hir_none(), hir_none())
+            arg_id := ((*p).hir).push(hir_kind().arg, p_name, hir_none(), hir_none())
             set_span(p, arg_id, span_of_hir(p, p_name))
             args.push(arg_id)
             p_i = p_i + 1
@@ -412,7 +412,7 @@ parse_block :: (p &Parser) u32 {
     glob_stack.reset(mark)
     ScopeEnv_reset(&(*p).env, env_mark) 
 
-    node := HirTable_push((*p).hir, k.block, list_id, hir_none(), hir_none())
+    node := ((*p).hir).push(k.block, list_id, hir_none(), hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -432,7 +432,7 @@ parse_unary :: (p &Parser, op u8) u32 {
     if op == t.amp    { op_kind = k.unary_addr_of }
     if op == t.star   { op_kind = k.unary_deref }
 
-    node := HirTable_push((*p).hir, op_kind, body, hir_none(), hir_none())
+    node := ((*p).hir).push(op_kind, body, hir_none(), hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -449,7 +449,7 @@ parse_return :: (p &Parser) u32 {
         sp_end = span_of_hir(p, val)
     }
 
-    node := HirTable_push((*p).hir, k.k_ret, val, hir_none(), hir_none())
+    node := ((*p).hir).push(k.k_ret, val, hir_none(), hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -488,7 +488,7 @@ parse_binary :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
         parse_error_at(p, "unsupported binary operator", curr_span(p))
     }
 
-    node := HirTable_push((*p).hir, op_kind, lhs, rhs, hir_none())
+    node := ((*p).hir).push(op_kind, lhs, rhs, hir_none())
     set_span(p, node, span_merge(sp_lhs, sp_rhs))
 }
 
@@ -496,7 +496,7 @@ parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind()
     sp_lhs := span_of_hir(p, lhs)
 
-    name_id := HirTable_lhs((*p).hir, lhs)
+    name_id := ((*p).hir).lhs(lhs)
     sym_id := lookup_sym(p, name_id)
 
     if sym_id != id_none() {
@@ -510,7 +510,7 @@ parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
     rhs := parse_expr(p, right_bp)
     sp_rhs := span_of_hir(p, rhs)
 
-    binding_id := HirTable_push((*p).hir, k.binding, lhs, hir_none(), rhs)
+    binding_id := ((*p).hir).push(k.binding, lhs, hir_none(), rhs)
     set_span(p, binding_id, span_merge(sp_lhs, sp_rhs))
 
     if sym_id != id_none() {
@@ -524,20 +524,20 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
     t := token()
     k := hir_kind()
 
-    if HirTable_kind((*p).hir, lhs) != k.ident {
+    if ((*p).hir).kind(lhs) != k.ident {
         parse_error_at(p, "left-hand side of declaration must be an identifier", span_of_hir(p, lhs))
     }
 
     sp_lhs := span_of_hir(p, lhs)
 
-    name_id := HirTable_lhs((*p).hir, lhs)
+    name_id := ((*p).hir).lhs(lhs)
     sym_id := Nexus_alloc_local_symbol((*p).db, (*p).file_id, name_id, lhs)
     ScopeEnv_define(&(*p).env, name_id, sym_id)
 
     if optional(p, t.eq) {
         val := parse_expr(p, 0 as u8)
         sp_val := span_of_hir(p, val)
-        var_id := HirTable_push((*p).hir, k.var, lhs, hir_none(), val)
+        var_id := ((*p).hir).push(k.var, lhs, hir_none(), val)
         set_span(p, var_id, span_merge(sp_lhs, sp_val))
         Nexus_set_hir_symbol((*p).db, var_id, sym_id)
         ret var_id
@@ -549,7 +549,7 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
     if optional(p, t.eq) {
         val := parse_expr(p, 0 as u8)
         sp_end = span_of_hir(p, val)
-        var_id := HirTable_push((*p).hir, k.var, lhs, ty, val)
+        var_id := ((*p).hir).push(k.var, lhs, ty, val)
         set_span(p, var_id, span_merge(sp_lhs, sp_end))
         Nexus_set_hir_symbol((*p).db, var_id, sym_id)
         ret var_id
@@ -558,13 +558,13 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
     if optional(p, t.colon) {
         val := parse_expr(p, 0 as u8)
         sp_end = span_of_hir(p, val)
-        binding_id := HirTable_push((*p).hir, k.binding, lhs, ty, val)
+        binding_id := ((*p).hir).push(k.binding, lhs, ty, val)
         set_span(p, binding_id, span_merge(sp_lhs, sp_end))
         Nexus_set_hir_symbol((*p).db, binding_id, sym_id)
         ret binding_id
     }
 
-    var_id := HirTable_push((*p).hir, k.var, lhs, ty, hir_none())
+    var_id := ((*p).hir).push(k.var, lhs, ty, hir_none())
     set_span(p, var_id, span_merge(sp_lhs, sp_end))
     Nexus_set_hir_symbol((*p).db, var_id, sym_id)
     var_id
@@ -576,7 +576,7 @@ parse_assign :: (p &Parser, lhs u32, right_bp u8) u32 {
     rhs := parse_expr(p, right_bp)
     sp_rhs := span_of_hir(p, rhs)
 
-    node := HirTable_push((*p).hir, k.binary_assign, lhs, rhs, hir_none())
+    node := ((*p).hir).push(k.binary_assign, lhs, rhs, hir_none())
     set_span(p, node, span_merge(sp_lhs, sp_rhs))
 }
 
@@ -611,7 +611,7 @@ parse_call :: (p &Parser, lhs u32, right_bp u8) u32 {
     args_list := Nexus_add_list((*p).db, slice)
     args.destroy()
 
-    node := HirTable_push((*p).hir, k.call, lhs, args_list, hir_none())
+    node := ((*p).hir).push(k.call, lhs, args_list, hir_none())
     set_span(p, node, span_merge(sp_lhs, sp_end))
 }
 
@@ -621,7 +621,7 @@ parse_float :: (p &Parser) u32 {
     name := curr_text(p)
     name_id := Interner_intern(&(*(*p).db).interner, name)
     bump(p)
-    node := HirTable_push((*p).hir, k.lit_float, name_id, hir_none(), hir_none())
+    node := ((*p).hir).push(k.lit_float, name_id, hir_none(), hir_none())
     set_span(p, node, sp)
 }
 
@@ -631,7 +631,7 @@ parse_str :: (p &Parser) u32 {
     raw := curr_text(p)
     bump(p)
     name_id := Interner_intern(&(*(*p).db).interner, raw)
-    node := HirTable_push((*p).hir, k.lit_str, name_id, hir_none(), hir_none())
+    node := ((*p).hir).push(k.lit_str, name_id, hir_none(), hir_none())
     set_span(p, node, sp)
 }
 
@@ -640,7 +640,7 @@ parse_true :: (p &Parser) u32 {
     sp := curr_span(p)
     bump(p)
 
-    node := HirTable_push((*p).hir, k.lit_bool_true, hir_none(), hir_none(), hir_none())
+    node := ((*p).hir).push(k.lit_bool_true, hir_none(), hir_none(), hir_none())
     set_span(p, node, sp)
 }
 
@@ -648,7 +648,7 @@ parse_false :: (p &Parser) u32 {
     k := hir_kind()
     sp := curr_span(p)
     bump(p)
-    node := HirTable_push((*p).hir, k.lit_bool_false, hir_none(), hir_none(), hir_none())
+    node := ((*p).hir).push(k.lit_bool_false, hir_none(), hir_none(), hir_none())
     set_span(p, node, sp)
 }
 
@@ -656,7 +656,7 @@ parse_break :: (p &Parser) u32 {
     k := hir_kind()
     sp := curr_span(p)
     bump(p)
-    node := HirTable_push((*p).hir, k.k_break, hir_none(), hir_none(), hir_none())
+    node := ((*p).hir).push(k.k_break, hir_none(), hir_none(), hir_none())
     set_span(p, node, sp)
 }
 
@@ -664,16 +664,16 @@ parse_cont :: (p &Parser) u32 {
     k := hir_kind()
     sp := curr_span(p)
     bump(p)
-    node := HirTable_push((*p).hir, k.k_cont, hir_none(), hir_none(), hir_none())
+    node := ((*p).hir).push(k.k_cont, hir_none(), hir_none(), hir_none())
     set_span(p, node, sp)
 }
 
 ensure_unique_field :: (p &Parser, fields &VecU32, field u32) {
-    name_id := HirTable_lhs((*p).hir, field)
+    name_id := ((*p).hir).lhs(field)
     i: u64 = 0
     while i < (*fields).len {
         previous := fields.get(i)
-        if HirTable_lhs((*p).hir, previous) == name_id {
+        if ((*p).hir).lhs(previous) == name_id {
             parse_error_at(p, "duplicate field name", span_of_hir(p, field))
         }
         i = i + 1
@@ -713,13 +713,13 @@ parse_struct :: (p &Parser) u32 {
             if func == hir_none() {
                 parse_error_at(p, "expected a method function after '::'", curr_span(p))
             }
-            if HirTable_kind((*p).hir, func) != k.function {
+            if ((*p).hir).kind(func) != k.function {
                 parse_error_at(p, "struct method must be a function", span_of_hir(p, func))
             }
-            if HirTable_extra((*p).hir, func) == hir_none() {
+            if ((*p).hir).extra(func) == hir_none() {
                 parse_error_at(p, "struct method requires a body", span_of_hir(p, func))
             }
-            method := HirTable_push((*p).hir, k.binding, name, hir_none(), func)
+            method := ((*p).hir).push(k.binding, name, hir_none(), func)
             set_span(p, method, span_merge(span_of_hir(p, name), span_of_hir(p, func)))
             methods.push(method)
             method_names.push(name)
@@ -766,11 +766,11 @@ parse_struct :: (p &Parser) u32 {
     types.destroy()
     method_names.destroy()
 
-    node := HirTable_push((*p).hir, k.struct_, names_id, types_id, methods_id)
+    node := ((*p).hir).push(k.struct_, names_id, types_id, methods_id)
     i: u64 = 0
     while i < methods.len {
         method := methods.get(i)
-        start := HirTable_lhs((*p).hir, method)
+        start := ((*p).hir).lhs(method)
         while start <= method {
             Nexus_set_method_owner((*p).db, start, node)
             start = start + 1
@@ -827,7 +827,7 @@ parse_struct_init :: (p &Parser) u32 {
     fields.destroy()
     values.destroy()
 
-    node := HirTable_push((*p).hir, k.struct_init, fids, vids, hir_none())
+    node := ((*p).hir).push(k.struct_init, fids, vids, hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -840,10 +840,10 @@ parse_member :: (p &Parser, lhs u32, right_bp u8) u32 {
     }
     sp_rhs := span_of_hir(p, rhs)
 
-    if HirTable_kind((*p).hir, rhs) != k.ident {
+    if ((*p).hir).kind(rhs) != k.ident {
         parse_error_at(p, "member name must be an identifier", sp_rhs)
     }
 
-    node := HirTable_push((*p).hir, k.member, lhs, rhs, hir_none())
+    node := ((*p).hir).push(k.member, lhs, rhs, hir_none())
     set_span(p, node, span_merge(sp_lhs, sp_rhs))
 }

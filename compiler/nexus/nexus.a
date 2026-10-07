@@ -7,7 +7,7 @@ import Str from "../../std/string.a"
 import TypeStorage, TypeStorage_new, ty_id_none from "../types.a"
 import UnifyStorage, UnifyStorage_new from "../unify.a"
 import TokenStream from "../token.a"
-import HirTable, HirTable_destroy from "../hir.a"
+import HirTable from "../hir.a"
 import PoolU32, PoolU32_new, PoolU32_alloc, PoolU32_get, PoolU32_set, PoolU32_count, PoolU32_set_safe, id_none from "pool.a"
 
 print :: (s &u8) unit

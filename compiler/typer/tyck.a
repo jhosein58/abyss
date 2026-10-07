@@ -1,7 +1,7 @@
 import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir,
        Nexus_set_const_type, Nexus_get_const_type, Nexus_print_loc,
        Nexus_get_method_owner, Nexus_set_method_target, Nexus_get_method_target from "../nexus/nexus.a"
-import HirTable, HirTable_len, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind, hir_none from "../hir.a"
+import HirTable, hir_kind, hir_none from "../hir.a"
 import Str from "../../std/string.a"
 import SliceU32 from "../../std/slice/u32.a"
 import VecU32 from "../../std/vec/u32.a"
@@ -93,8 +93,8 @@ type_check_range :: (eng &Engine, start u32, len u32, method_owner u32) {
     if method_owner == hir_none() {
         i = start
         while i < len {
-            if (HirTable_kind(tbl, i) == hir_kind().struct_) and
-               (HirTable_extra(tbl, i) != hir_none()) and
+            if ((tbl).kind(i) == hir_kind().struct_) and
+               ((tbl).extra(i) != hir_none()) and
                (TypeStorage_kind(&(*db).types, Nexus_get_const_type(db, i)) != ty_kind().nominal) {
                 print("\n\033[1;31m[type error]\033[0m methods require a named struct binding\n       --> ")
                 Nexus_print_loc(db, i)
@@ -108,10 +108,10 @@ type_check_range :: (eng &Engine, start u32, len u32, method_owner u32) {
 
 method_has_receiver :: (db &Nexus, method u32) bool {
     tbl := &(*db).hir
-    node := HirTable_lhs(tbl, method)
+    node := (tbl).lhs(method)
     while node < method {
-        if (HirTable_kind(tbl, node) == hir_kind().member) and
-           (HirTable_lhs(tbl, node) == hir_none()) {
+        if ((tbl).kind(node) == hir_kind().member) and
+           ((tbl).lhs(node) == hir_none()) {
             ret true
         }
         node = node + 1
@@ -121,7 +121,7 @@ method_has_receiver :: (db &Nexus, method u32) bool {
 
 type_check_calls :: (eng &Engine) {
     db := &(*eng).nexus
-    count := HirTable_len(&(*db).hir) as u64
+    count := db.hir.len() as u64
     pending := VecU8.new()
     i: u64 = 0
     while i < count {
@@ -141,7 +141,7 @@ type_check_calls :: (eng &Engine) {
             cont
         }
         id := i as u32
-        kind := HirTable_kind(&(*db).hir, id)
+        kind := (&(*db).hir).kind(id)
 
         if kind == hir_kind().call { synth_call(db, &(*db).hir, id) }
         if kind == hir_kind().member { synth_member(db, &(*db).hir, id) }
@@ -173,8 +173,8 @@ type_check_calls :: (eng &Engine) {
     }
     i = 0
     while i < count {
-        if HirTable_kind(&(*db).hir, i as u32) == hir_kind().call {
-            callee := HirTable_lhs(&(*db).hir, i as u32)
+        if (&(*db).hir).kind(i as u32) == hir_kind().call {
+            callee := (&(*db).hir).lhs(i as u32)
             pending.set(callee as u64, 1 as u8)
         }
         i = i + 1
@@ -198,23 +198,23 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     k := hir_kind()
-    curr := HirTable_kind(tbl, id)
+    curr := (tbl).kind(id)
 
     if curr == k.lit_int       { synth_lit_int(db, tbl, id) }
     if curr == k.ident         { synth_ident(eng, id) }
     if curr == k.var           { synth_var_or_binding(db, tbl, id) }
     if curr == k.binding       {
         synth_var_or_binding(db, tbl, id)
-        value_id := HirTable_extra(tbl, id)
-        if (value_id != hir_none()) and (HirTable_kind(tbl, value_id) == k.struct_) {
-            methods_id := HirTable_extra(tbl, value_id)
+        value_id := (tbl).extra(id)
+        if (value_id != hir_none()) and ((tbl).kind(value_id) == k.struct_) {
+            methods_id := (tbl).extra(value_id)
             if methods_id != hir_none() {
                 methods_count := Nexus_get_list(db, methods_id).len
                 index: u64 = 0
                 while index < methods_count {
                     methods := Nexus_get_list(db, methods_id)
                     method := *(methods.ptr + index)
-                    type_check_range(eng, HirTable_lhs(tbl, method), method + 1, value_id)
+                    type_check_range(eng, (tbl).lhs(method), method + 1, value_id)
                     index = index + 1
                 }
             }
@@ -241,7 +241,7 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
     if curr == k.unary_not      { synth_unary_not(db, tbl, id) }
     if curr == k.unary_addr_of {
         UnifyStorage_new_slot(&(*db).unify, id)
-        child := HirTable_lhs(tbl, id)
+        child := (tbl).lhs(id)
         child_slot := UnifyStorage_get_slot(&(*db).unify, child)
         child_ty := ty_id_none()
         if child_slot != slot_none() {
@@ -308,7 +308,7 @@ synth_ident :: (eng &Engine, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
-    name_id := HirTable_lhs(tbl, id)
+    name_id := (tbl).lhs(id)
     name := Interner_get(&(*db).interner, name_id)
 
     slot := UnifyStorage_get_slot(unify_ptr, id)
@@ -367,8 +367,8 @@ check_value :: (db &Nexus, expr u32, expected u32) {
     slot := UnifyStorage_get_slot(unify_ptr, expr)
     if slot == slot_none() { ret }
 
-    if HirTable_kind(tbl, expr) == hir_kind().block {
-        items := Nexus_get_list(db, HirTable_lhs(tbl, expr))
+    if (tbl).kind(expr) == hir_kind().block {
+        items := Nexus_get_list(db, (tbl).lhs(expr))
         if items.len > 0 {
             check_value(db, *(items.ptr + items.len - 1), expected)
             ret
@@ -376,11 +376,11 @@ check_value :: (db &Nexus, expr u32, expected u32) {
     }
 
     kind := TypeStorage_kind(types, expected)
-    if (HirTable_kind(tbl, expr) == hir_kind().struct_init) and
+    if ((tbl).kind(expr) == hir_kind().struct_init) and
        ((kind == ty_kind().nominal) or (kind == ty_kind().struct_)) {
         target := TypeStorage_get_struct_fields(types, expected)
-        names := Nexus_get_list(db, HirTable_lhs(tbl, expr))
-        values := Nexus_get_list(db, HirTable_rhs(tbl, expr))
+        names := Nexus_get_list(db, (tbl).lhs(expr))
+        values := Nexus_get_list(db, (tbl).rhs(expr))
         if (names.len != target.len / 2) or (values.len != names.len) {
             print("\n\033[1;31m[type error]\033[0m struct literal has wrong number of fields for '")
             TypeStorage_print_type(types, expected)
@@ -393,7 +393,7 @@ check_value :: (db &Nexus, expr u32, expected u32) {
         i: u64 = 0
         while i < names.len {
             target = TypeStorage_get_struct_fields(types, expected)
-            name_id := HirTable_lhs(tbl, *(names.ptr + i))
+            name_id := (tbl).lhs(*(names.ptr + i))
             field_ty := ty_id_none()
             j: u64 = 0
             while j < target.len / 2 {
@@ -432,9 +432,9 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
-    ident_id := HirTable_lhs(tbl, id)
-    type_id  := HirTable_rhs(tbl, id)
-    value_id := HirTable_extra(tbl, id)
+    ident_id := (tbl).lhs(id)
+    type_id  := (tbl).rhs(id)
+    value_id := (tbl).extra(id)
 
     slot := UnifyStorage_new_slot(unify_ptr, id)
 
@@ -462,7 +462,7 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
     }
 
     if value_id != hir_none() {
-        if (HirTable_kind(tbl, id) == hir_kind().binding) and (HirTable_kind(tbl, value_id) == hir_kind().struct_) {
+        if ((tbl).kind(id) == hir_kind().binding) and ((tbl).kind(value_id) == hir_kind().struct_) {
             structural := Nexus_get_const_type(db, value_id)
             if TypeStorage_kind(types_ptr, structural) != ty_kind().struct_ {
                 print("\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> ")
@@ -470,7 +470,7 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
                 print("\n")
                 fall()
             }
-            name_id := HirTable_lhs(tbl, ident_id)
+            name_id := (tbl).lhs(ident_id)
             name := Interner_get(&(*db).interner, name_id)
             named := TypeStorage_alloc_nominal(types_ptr, structural, name, id)
             Nexus_set_const_type(db, value_id, named)
@@ -491,7 +491,7 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
                 Nexus_set_const_type(db, ident_id, type_val)
                 Nexus_set_const_type(db, id, type_val)
             }
-            if (type_id != hir_none()) and (HirTable_kind(tbl, value_id) == hir_kind().struct_init) {
+            if (type_id != hir_none()) and ((tbl).kind(value_id) == hir_kind().struct_init) {
                 expected := Nexus_get_const_type(db, type_id)
                 if expected != ty_id_none() { check_value(db, value_id, expected) }
             }
@@ -506,8 +506,8 @@ synth_arg :: (db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
-    ident_id := HirTable_lhs(tbl, id)
-    ty_id    := HirTable_rhs(tbl, id)
+    ident_id := (tbl).lhs(id)
+    ty_id    := (tbl).rhs(id)
 
     ident_slot := UnifyStorage_get_slot(unify_ptr, ident_id)
     if ident_slot == slot_none() {
@@ -529,9 +529,9 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
 
     slot := UnifyStorage_new_slot(unify_ptr, id)
 
-    params_list_id := HirTable_lhs(tbl, id)
-    ret_hir_id     := HirTable_rhs(tbl, id)
-    body_id        := HirTable_extra(tbl, id)
+    params_list_id := (tbl).lhs(id)
+    ret_hir_id     := (tbl).rhs(id)
+    body_id        := (tbl).extra(id)
 
     is_extern := body_id == hir_none()
 
@@ -563,11 +563,11 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
         i: u64 = 0
         while i < args.len {
             arg_id := *(args.ptr + i)
-            ty_node := HirTable_rhs(tbl, arg_id)
+            ty_node := (tbl).rhs(arg_id)
             param_ty := Nexus_get_const_type(db, ty_node)
 
             if param_ty == ty_id_none() {
-                arg_ident := HirTable_lhs(tbl, arg_id)
+                arg_ident := (tbl).lhs(arg_id)
                 arg_slot := UnifyStorage_get_slot(unify_ptr, arg_ident)
                 if arg_slot != slot_none() {
                     param_ty = UnifyStorage_resolve_type(unify_ptr, arg_slot)
@@ -630,13 +630,13 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
 find_enclosing_method :: (db &Nexus, node_id u32) u32 {
     owner := Nexus_get_method_owner(db, node_id)
     if owner == hir_none() { ret hir_none() }
-    methods_id := HirTable_extra(&(*db).hir, owner)
+    methods_id := (&(*db).hir).extra(owner)
     if methods_id == hir_none() { ret hir_none() }
     methods := Nexus_get_list(db, methods_id)
     i: u64 = 0
     while i < methods.len {
         m := *(methods.ptr + i)
-        start := HirTable_lhs(&(*db).hir, m)
+        start := (&(*db).hir).lhs(m)
         if (node_id >= start) and (node_id <= m) {
             ret m
         }
@@ -656,12 +656,12 @@ method_returns_ref_self :: (db &Nexus, node_id u32) bool {
 
     if not method_has_receiver(db, method) { ret false }
 
-    func_id := HirTable_extra(&(*db).hir, method)
-    if (func_id == hir_none()) or (HirTable_kind(&(*db).hir, func_id) != hir_kind().function) {
+    func_id := (&(*db).hir).extra(method)
+    if (func_id == hir_none()) or ((&(*db).hir).kind(func_id) != hir_kind().function) {
         ret false
     }
 
-    ret_hir := HirTable_rhs(&(*db).hir, func_id)
+    ret_hir := (&(*db).hir).rhs(func_id)
     if ret_hir == hir_none() { ret false }
 
     ret_ty := Nexus_get_const_type(db, ret_hir)
@@ -679,12 +679,12 @@ synth_return :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_retu
     slot := UnifyStorage_new_slot(unify_ptr, id)
     UnifyStorage_bind_type(db, slot, ty_id_never())
 
-    val_id := HirTable_lhs(tbl, id)
+    val_id := (tbl).lhs(id)
     if val_id != hir_none() {
         val_slot := UnifyStorage_get_slot(unify_ptr, val_id)
         if (val_slot != slot_none()) and (fn_ret_slot != slot_none()) {
             ret_ty := UnifyStorage_resolve_type(unify_ptr, fn_ret_slot)
-            if (ret_ty == ty_id_none()) and (HirTable_kind(tbl, val_id) == hir_kind().struct_init) {
+            if (ret_ty == ty_id_none()) and ((tbl).kind(val_id) == hir_kind().struct_init) {
                 pending_returns.push(val_id)
                 ret
             }
@@ -712,7 +712,7 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
     types_ptr := &(*db).types
 
     slot := UnifyStorage_get_slot(unify_ptr, id)
-    callee := HirTable_lhs(tbl, id)
+    callee := (tbl).lhs(id)
     callee_slot := UnifyStorage_get_slot(unify_ptr, callee)
 
     if callee_slot == slot_none() {
@@ -737,7 +737,7 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
             ret_ty := TypeStorage_func_return(types_ptr, callee_ty)
             UnifyStorage_bind_type(db, slot, ret_ty)
 
-            args_list_id := HirTable_rhs(tbl, id)
+            args_list_id := (tbl).rhs(id)
             params := TypeStorage_func_params(types_ptr, callee_ty)
             args_len: u64 = 0
             if args_list_id != hir_none() {
@@ -750,8 +750,8 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
                     method := Nexus_get_method_target(db, callee)
                     if method != id_none() {
                         print("method '")
-                        name_node := HirTable_lhs(tbl, method)
-                        name_id := HirTable_lhs(tbl, name_node)
+                        name_node := (tbl).lhs(method)
+                        name_id := (tbl).lhs(name_node)
                         Interner_get(&(*db).interner, name_id).print()
                         print("' expected ")
                     } else {
@@ -798,7 +798,7 @@ synth_block :: (db &Nexus, tbl &HirTable, id u32) {
     types_ptr := &(*db).types
 
     slot := UnifyStorage_new_slot(unify_ptr, id)
-    list_id := HirTable_lhs(tbl, id)
+    list_id := (tbl).lhs(id)
     items := Nexus_get_list(db, list_id)
 
     if items.len > 0 {
@@ -817,8 +817,8 @@ synth_binary :: (db &Nexus, tbl &HirTable, id u32) {
     types_ptr := &(*db).types
 
     slot := UnifyStorage_get_slot(unify_ptr, id)
-    lhs := HirTable_lhs(tbl, id)
-    rhs := HirTable_rhs(tbl, id)
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
 
     lhs_slot := UnifyStorage_get_slot(unify_ptr, lhs)
     rhs_slot := UnifyStorage_get_slot(unify_ptr, rhs)
@@ -835,7 +835,7 @@ synth_binary :: (db &Nexus, tbl &HirTable, id u32) {
         rhs_int := (rhs_k == k.int) or (rhs_k == k.uint) or (rhs_k == k.untyped_int)
         lhs_num := lhs_int or (lhs_k == k.float) or (lhs_k == k.untyped_float)
         rhs_num := rhs_int or (rhs_k == k.float) or (rhs_k == k.untyped_float)
-        op := HirTable_kind(tbl, id)
+        op := (tbl).kind(id)
 
         if (lhs_k == k.ptr) or (rhs_k == k.ptr) {
             if (lhs_k == k.ptr) and rhs_int and ((op == hir_kind().binary_add) or (op == hir_kind().binary_sub)) {
@@ -874,8 +874,8 @@ synth_assign :: (db &Nexus, tbl &HirTable, id u32) {
     types_ptr := &(*db).types
 
     slot := UnifyStorage_new_slot(unify_ptr, id)
-    lhs := HirTable_lhs(tbl, id)
-    rhs := HirTable_rhs(tbl, id)
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
 
     lhs_slot := UnifyStorage_get_slot(unify_ptr, lhs)
     rhs_slot := UnifyStorage_get_slot(unify_ptr, rhs)
@@ -910,7 +910,7 @@ synth_lit_str :: (db &Nexus, tbl &HirTable, id u32) {
 
 synth_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
     slot := UnifyStorage_new_slot(&(*db).unify, id)
-    child := HirTable_lhs(tbl, id)
+    child := (tbl).lhs(id)
     child_slot := UnifyStorage_get_slot(&(*db).unify, child)
     if child_slot != slot_none() {
         UnifyStorage_union(db, slot, child_slot)
@@ -918,7 +918,7 @@ synth_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
 }
 
 validate_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
-    child := HirTable_lhs(tbl, id)
+    child := (tbl).lhs(id)
     child_slot := UnifyStorage_get_slot(&(*db).unify, child)
     if child_slot != slot_none() {
         child_ty := UnifyStorage_resolve_type_deep(&(*db).unify, &(*db).types, child_slot)
@@ -926,7 +926,7 @@ validate_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
         k := ty_kind()
         is_int := (kind == k.int) or (kind == k.uint) or (kind == k.untyped_int)
         if is_int { ret }
-        if (HirTable_kind(tbl, id) == hir_kind().unary_neg) and
+        if ((tbl).kind(id) == hir_kind().unary_neg) and
            ((kind == k.float) or (kind == k.untyped_float)) { ret }
     }
     print("\n[type error] invalid unary operand\n       --> ")
@@ -937,7 +937,7 @@ validate_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
 
 synth_unary_not :: (db &Nexus, tbl &HirTable, id u32) {
     slot := UnifyStorage_new_slot(&(*db).unify, id)
-    child := HirTable_lhs(tbl, id)
+    child := (tbl).lhs(id)
     child_slot := UnifyStorage_get_slot(&(*db).unify, child)
     if child_slot != slot_none() {
         UnifyStorage_bind_type(db, child_slot, ty_id_bool())
@@ -947,7 +947,7 @@ synth_unary_not :: (db &Nexus, tbl &HirTable, id u32) {
 
 synth_unary_addr_of :: (db &Nexus, tbl &HirTable, id u32) {
     slot := UnifyStorage_get_slot(&(*db).unify, id)
-    child := HirTable_lhs(tbl, id)
+    child := (tbl).lhs(id)
     child_slot := UnifyStorage_get_slot(&(*db).unify, child)
 
     if child_slot != slot_none() {
@@ -967,7 +967,7 @@ synth_unary_addr_of :: (db &Nexus, tbl &HirTable, id u32) {
 
 synth_unary_deref :: (db &Nexus, tbl &HirTable, id u32) {
     slot := UnifyStorage_get_slot(&(*db).unify, id)
-    child := HirTable_lhs(tbl, id)
+    child := (tbl).lhs(id)
     child_slot := UnifyStorage_get_slot(&(*db).unify, child)
 
     if child_slot != slot_none() {
@@ -991,9 +991,9 @@ synth_break_cont :: (db &Nexus, tbl &HirTable, id u32) {
 
 synth_if :: (db &Nexus, tbl &HirTable, id u32) {
     slot := UnifyStorage_new_slot(&(*db).unify, id)
-    cond := HirTable_lhs(tbl, id)
-    thenb := HirTable_rhs(tbl, id)
-    elseb := HirTable_extra(tbl, id)
+    cond := (tbl).lhs(id)
+    thenb := (tbl).rhs(id)
+    elseb := (tbl).extra(id)
 
     cond_slot := UnifyStorage_get_slot(&(*db).unify, cond)
     if cond_slot != slot_none() {
@@ -1005,7 +1005,7 @@ synth_if :: (db &Nexus, tbl &HirTable, id u32) {
 
 synth_while :: (db &Nexus, tbl &HirTable, id u32) {
     slot := UnifyStorage_new_slot(&(*db).unify, id)
-    cond := HirTable_lhs(tbl, id)
+    cond := (tbl).lhs(id)
     cond_slot := UnifyStorage_get_slot(&(*db).unify, cond)
     if cond_slot != slot_none() {
         UnifyStorage_bind_type(db, cond_slot, ty_id_bool())
@@ -1015,8 +1015,8 @@ synth_while :: (db &Nexus, tbl &HirTable, id u32) {
 
 synth_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
     slot := UnifyStorage_new_slot(&(*db).unify, id)
-    lhs := HirTable_lhs(tbl, id)
-    rhs := HirTable_rhs(tbl, id)
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
 
     lhs_slot := UnifyStorage_get_slot(&(*db).unify, lhs)
     rhs_slot := UnifyStorage_get_slot(&(*db).unify, rhs)
@@ -1028,8 +1028,8 @@ synth_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
 }
 
 validate_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
-    lhs := HirTable_lhs(tbl, id)
-    rhs := HirTable_rhs(tbl, id)
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
     lhs_slot := UnifyStorage_get_slot(&(*db).unify, lhs)
     rhs_slot := UnifyStorage_get_slot(&(*db).unify, rhs)
     if (lhs_slot != slot_none()) and (rhs_slot != slot_none()) {
@@ -1043,7 +1043,7 @@ validate_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
         rhs_num := (rhs_kind == k.int) or (rhs_kind == k.uint) or (rhs_kind == k.float) or
                    (rhs_kind == k.untyped_int) or (rhs_kind == k.untyped_float)
         if lhs_num and rhs_num { ret }
-        op := HirTable_kind(tbl, id)
+        op := (tbl).kind(id)
         if (op == hir_kind().binary_eq_eq) or (op == hir_kind().binary_neq) {
             if (lhs_kind == k.bool) and (rhs_kind == k.bool) { ret }
             if (lhs_kind == k.ptr) and (rhs_kind == k.ptr) { ret }
@@ -1057,8 +1057,8 @@ validate_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
 
 synth_logic_and_or :: (db &Nexus, tbl &HirTable, id u32) {
     slot := UnifyStorage_new_slot(&(*db).unify, id)
-    lhs := HirTable_lhs(tbl, id)
-    rhs := HirTable_rhs(tbl, id)
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
 
     lhs_slot := UnifyStorage_get_slot(&(*db).unify, lhs)
     rhs_slot := UnifyStorage_get_slot(&(*db).unify, rhs)
@@ -1074,8 +1074,8 @@ synth_logic_and_or :: (db &Nexus, tbl &HirTable, id u32) {
 
 synth_cast :: (db &Nexus, tbl &HirTable, id u32) {
     slot := UnifyStorage_get_slot(&(*db).unify, id)
-    lhs := HirTable_lhs(tbl, id)
-    rhs := HirTable_rhs(tbl, id)
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
     rhs_type := Nexus_get_const_type(db, rhs)
     if rhs_type != ty_id_none() {
         lhs_slot := UnifyStorage_get_slot(&(*db).unify, lhs)
@@ -1114,8 +1114,8 @@ synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
 
     slot := UnifyStorage_new_slot(unify_ptr, id)
 
-    names_list := HirTable_lhs(tbl, id)
-    types_list := HirTable_rhs(tbl, id)
+    names_list := (tbl).lhs(id)
+    types_list := (tbl).rhs(id)
 
     names := Nexus_get_list(db, names_list)
     types := Nexus_get_list(db, types_list)
@@ -1127,7 +1127,7 @@ synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
         name_node := *(names.ptr + i)
         type_node := *(types.ptr + i)
 
-        name_id := HirTable_lhs(tbl, name_node)
+        name_id := (tbl).lhs(name_node)
 
         ty_val := Nexus_get_const_type(db, type_node)
         if ty_val == ty_id_none() {
@@ -1159,8 +1159,8 @@ synth_struct_init :: (db &Nexus, tbl &HirTable, id u32) {
 
     slot := UnifyStorage_new_slot(unify_ptr, id)
 
-    fields_list := HirTable_lhs(tbl, id)
-    vals_list   := HirTable_rhs(tbl, id)
+    fields_list := (tbl).lhs(id)
+    vals_list   := (tbl).rhs(id)
 
     fields := Nexus_get_list(db, fields_list)
     vals   := Nexus_get_list(db, vals_list)
@@ -1172,7 +1172,7 @@ synth_struct_init :: (db &Nexus, tbl &HirTable, id u32) {
         f_node := *(fields.ptr + i)
         v_node := *(vals.ptr + i)
 
-        name_id := HirTable_lhs(tbl, f_node)
+        name_id := (tbl).lhs(f_node)
 
         v_slot := UnifyStorage_get_slot(unify_ptr, v_node)
         if v_slot == slot_none() {
@@ -1199,7 +1199,7 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
     slot := UnifyStorage_get_slot(unify_ptr, id)
-    lhs_id := HirTable_lhs(tbl, id)
+    lhs_id := (tbl).lhs(id)
 
 
     is_type := false
@@ -1242,8 +1242,8 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
         fall()
     }
 
-    rhs_id := HirTable_rhs(tbl, id)
-    name_id := HirTable_lhs(tbl, rhs_id)
+    rhs_id := (tbl).rhs(id)
+    name_id := (tbl).lhs(rhs_id)
     if not is_type {
         fields := TypeStorage_get_struct_fields(types_ptr, lhs_ty)
         i: u64 = 0
@@ -1263,14 +1263,14 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
 
     if kind == ty_kind().nominal {
         binding := TypeStorage_nominal_origin(types_ptr, lhs_ty)
-        struct_id := HirTable_extra(tbl, binding)
-        methods_id := HirTable_extra(tbl, struct_id)
+        struct_id := (tbl).extra(binding)
+        methods_id := (tbl).extra(struct_id)
         if methods_id != hir_none() {
             methods := Nexus_get_list(db, methods_id)
             i: u64 = 0
             while i < methods.len {
                 method := *(methods.ptr + i)
-                method_name := HirTable_lhs(tbl, HirTable_lhs(tbl, method))
+                method_name := (tbl).lhs((tbl).lhs(method))
                 if method_name == name_id {
                     receiver := method_has_receiver(db, method)
                     if is_type and receiver {

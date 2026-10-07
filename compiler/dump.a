@@ -1,4 +1,4 @@
-import HirTable, HirTable_len, HirTable_kind, HirTable_lhs, HirTable_rhs, HirTable_extra, hir_kind_name, hir_kind, hir_none from "hir.a"
+import HirTable, hir_kind_name, hir_kind, hir_none from "hir.a"
 import Str from "../std/string.a"
 import Nexus, Nexus_get_list from "nexus/nexus.a"
 import Arena from "../std/allocator.a"
@@ -70,7 +70,7 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
     types := &(*db).types
 
     k := hir_kind()
-    total := HirTable_len(hir)
+    total := hir.len()
 
     print_divider()
     print_str_padded(Str.of("ID"), 6)
@@ -84,10 +84,10 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
 
     i: u32 = 0
     while (i < total) or false {
-        kind := HirTable_kind(hir, i)
-        lhs := HirTable_lhs(hir, i)
-        rhs := HirTable_rhs(hir, i)
-        extra := HirTable_extra(hir, i)
+        kind := (hir).kind(i)
+        lhs := (hir).lhs(i)
+        rhs := (hir).rhs(i)
+        extra := (hir).extra(i)
 
         print_u32_padded(i, 6)
 
