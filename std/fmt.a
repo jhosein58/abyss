@@ -119,7 +119,7 @@ Fmt :: struct {
         .str(Str.of(s))
     }
 
-    uin32 :: (v u32) &Self {
+    uint32 :: (v u32) &Self {
         .buf.push_u32(v)
     }
 
