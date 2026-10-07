@@ -15,7 +15,6 @@ import TypeStorage, ty_kind, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_i
 
 import UnifyStorage, UnifyStorage_new_slot, UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, UnifyStorage_tmp_slot,
        UnifyStorage_bind_type, UnifyStorage_union, UnifyStorage_resolve_type, UnifyStorage_find, slot_none from "../unify.a"
-import Interner_get from "../../std/interner.a"
 import id_none from "../nexus/pool.a"
 
 import Engine from "../engine.a"
@@ -309,7 +308,7 @@ synth_ident :: (eng &Engine, id u32) {
     types_ptr := &(*db).types
 
     name_id := (tbl).lhs(id)
-    name := Interner_get(&(*db).interner, name_id)
+    name := db.interner.get(name_id)
 
     slot := UnifyStorage_get_slot(unify_ptr, id)
     if slot == slot_none() {
@@ -405,7 +404,7 @@ check_value :: (db &Nexus, expr u32, expected u32) {
             }
             if field_ty == ty_id_none() {
                 print("\n\033[1;31m[type error]\033[0m unexpected field '")
-                Interner_get(&(*db).interner, name_id).print()
+                db.interner.get(name_id).print()
                 print("' in struct literal for '")
                 TypeStorage_print_type(types, expected)
                 print("'\n       --> ")
@@ -471,7 +470,7 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
                 fall()
             }
             name_id := (tbl).lhs(ident_id)
-            name := Interner_get(&(*db).interner, name_id)
+            name := db.interner.get(name_id)
             named := TypeStorage_alloc_nominal(types_ptr, structural, name, id)
             Nexus_set_const_type(db, value_id, named)
             Nexus_set_const_type(db, ident_id, named)
@@ -752,7 +751,7 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
                         print("method '")
                         name_node := (tbl).lhs(method)
                         name_id := (tbl).lhs(name_node)
-                        Interner_get(&(*db).interner, name_id).print()
+                        db.interner.get(name_id).print()
                         print("' expected ")
                     } else {
                         print("function expected ")
@@ -1304,7 +1303,7 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
     print("\n\033[1;31m[type error]\033[0m struct '")
     TypeStorage_print_type(types_ptr, lhs_ty)
     print("' has no field or method named '")
-    Interner_get(&(*db).interner, name_id).print()
+    db.interner.get(name_id).print()
     print("'\n       --> ")
     Nexus_print_loc(db, id)
     print("\n")

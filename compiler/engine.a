@@ -11,7 +11,6 @@ import type_check, type_check_calls from "typer/tyck.a"
 import PoolU32_get, PoolU32_set, id_none from "nexus/pool.a"
 import UnifyStorage_get_slot, UnifyStorage_resolve_type,UnifyStorage_new_slot, slot_none from "unify.a"
 import ty_id_none, ty_kind, TypeStorage_kind, TypeStorage_func_params_len, TypeStorage_func_is_extern from "types.a"
-import Interner_intern, Interner_get from "../std/interner.a"
 import Str from "../std/string.a"
 import VecU32 from "../std/vec/u32.a"
 import Arena from "../std/allocator.a"
@@ -63,7 +62,7 @@ Engine :: struct {
     }
 
     get_symbol_id :: (file_id u32, sym_name Str) u32 {
-        name_id := Interner_intern(&.nexus.interner, sym_name)
+        name_id := .nexus.interner.intern(sym_name)
         Nexus_find_symbol(&.nexus, file_id, name_id)
     }
 

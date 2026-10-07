@@ -1,7 +1,6 @@
 import token, TokenStream from "token.a"
 import lex from "lexer.a"
 import Nexus, Nexus_add_file, Nexus_alloc_symbol, Nexus_alloc_symbol_alias, Nexus_find_symbol from "nexus/nexus.a"
-import Interner_intern, Interner_get from "../std/interner.a"
 import Str from "../std/string.a"
 import Arena from "../std/allocator.a"
 import read_file from "../std/fs.a"
@@ -178,7 +177,7 @@ resolve_and_load_file :: (
     queue_tok_end   &VecU32
 ) u32 {
     target_path := path_resolve(arena, curr_path, import_path)
-    path_id := Interner_intern(&(*db).interner, target_path)
+    path_id := db.interner.intern(target_path)
 
     i: u64 = 0
     while i < (*loaded_paths).len {
@@ -256,7 +255,7 @@ scan_file_symbols :: (
                     index_error(curr_path, "invalid import name")
                 }
                 if db.tokens.kind(scan) == t.ident {
-                    name_id := Interner_intern(&(*db).interner, stk_text)
+                    name_id := db.interner.intern(stk_text)
                     imported_names.push(name_id)
                 }
                 scan = scan + 1
@@ -310,10 +309,10 @@ scan_file_symbols :: (
                             }
 
                             loc_str := db.tokens.text(cursor)
-                            loc_name := Interner_intern(&(*db).interner, loc_str)
+                            loc_name := db.interner.intern(loc_str)
 
                             rem_str := db.tokens.text(cursor + 3)
-                            rem_name := Interner_intern(&(*db).interner, rem_str)
+                            rem_name := db.interner.intern(rem_str)
 
                             raw_path := db.tokens.text(cursor + 5)
                             path_str := trim_quotes(raw_path)
@@ -338,7 +337,7 @@ scan_file_symbols :: (
                     }
 
                     text := db.tokens.text(cursor)
-                    curr_sym_name = Interner_intern(&(*db).interner, text)
+                    curr_sym_name = db.interner.intern(text)
                     curr_sym_tok  = cursor
                     has_sym = true
 
@@ -362,7 +361,7 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
     queue_tok_end   := VecU32.new()
     pending_imports := VecU32.new()
 
-    root_path_id := Interner_intern(&(*db).interner, root_path)
+    root_path_id := db.interner.intern(root_path)
     while loaded_paths.len < (root_fid as u64) {
         loaded_paths.push(id_none())
     }
@@ -379,7 +378,7 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
         e_tok := queue_tok_end.get(q_head)
 
         path_id := loaded_paths.get(fid as u64)
-        c_path  := Interner_get(&db.interner, path_id)
+        c_path  := db.interner.get(path_id)
 
         scan_file_symbols(
             db, arena, fid, c_path, s_tok, e_tok,
@@ -418,7 +417,7 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
         if src_fid != id_none() {
             name_id := pending_imports.get(p_i + 2)
             print("\n[import error] symbol not found: ")
-            Interner_get(&(*db).interner, name_id).print()
+            db.interner.get(name_id).print()
             print("\n")
             fall()
         }

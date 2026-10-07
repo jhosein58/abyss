@@ -16,7 +16,7 @@ Interner :: struct {
     count   : u64,
 
     new :: () Self {
-        .with_cap(64)
+        Self.with_cap(64)
     }
 
     with_cap :: (initial_cap u64) Self {
@@ -40,7 +40,7 @@ Interner :: struct {
 
     destroy :: () {
         .strings.destroy()
-        free(self.table as &u8)
+        free(.table as &u8)
 
         .table = 0 as &u32
         .cap = 0

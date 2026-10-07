@@ -1,31 +1,11 @@
 
 import Str from "std/string.a"
-
 import Arena from "std/allocator.a"
 import read_file, write_file from "std/fs.a"
-
-import Parser_new from "compiler/parser/core.a"
-import parse_expr from "compiler/parser/parser.a"
 import dump_hir from "compiler/dump.a"
-import type_check from "compiler/typer/tyck.a"
-import FastMapU32_new, FastMapU32_destroy, FastMapU32_insert, FastMapU32_get from "std/fast_map/u32.a"
-import Interner_new, Interner_intern, Interner_get from "std/interner.a"
-
-
-import Nexus_new from "compiler/nexus/nexus.a"
-
-
-import TypeStorage_new, TypeStorage_alloc_int, TypeStorage_name from "compiler/types.a"
-
-import UnifyStorage_get_slot, UnifyStorage_resolve_type, slot_none from "compiler/unify.a"
-
 import Engine from "compiler/engine.a"
-
 import CCodeGen_finish from "compiler/codegen.a"
-
-
 import fall from "std/sys.a"
-
 import Fmt from "std/fmt.a"
 
 print_u32 :: (s u32) unit

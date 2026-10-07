@@ -11,7 +11,6 @@ import VecU32 from "../std/vec/u32.a"
 import TypeStorage, ty_kind, ty_id_none, ty_id_type, TypeStorage_kind, TypeStorage_payload, TypeStorage_name, TypeStorage_get_struct_fields,
        TypeStorage_func_return, TypeStorage_func_params, TypeStorage_func_is_extern from "types.a"
 import UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
-import Interner_get from "../std/interner.a"
 import topo_sort from "topo_sort.a"
 import fall from "../std/sys.a"
 import method_returns_ref_self from "typer/tyck.a"
@@ -206,7 +205,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                 }
                 if TypeStorage_func_is_extern(&(*db).types, ty) {
                     name_id := (&(*db).hir).lhs(id)
-                    ret Interner_get(&(*db).interner, name_id)
+                    ret db.interner.get(name_id)
                 }
                 s := String.new(arena)
                 s.push_str(Str.of("sym_"))
@@ -437,13 +436,13 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
     if kind == k.lit_float {
         name_id := (&(*db).hir).lhs(id)
-        ret Interner_get(&(*db).interner, name_id)
+        ret db.interner.get(name_id)
     }
     if kind == k.lit_bool_true  { ret Str.of("true") }
     if kind == k.lit_bool_false { ret Str.of("false") }
     if kind == k.lit_str {
         name_id := (&(*db).hir).lhs(id)
-        raw := Interner_get(&(*db).interner, name_id)
+        raw := db.interner.get(name_id)
         s := String.new(arena)
         s.push_str(Str.of("((uint8_t*)"))
         s.push_str(raw)
@@ -708,7 +707,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     if is_extern and (not is_method) {
         name_hir := (&(*db).hir).lhs(binding_id)
         name_id  := (&(*db).hir).lhs(name_hir)
-        fn_name   = Interner_get(&(*db).interner, name_id)
+        fn_name   = db.interner.get(name_id)
     } else {
         fn_name_s := String.new(arena)
         if is_method {

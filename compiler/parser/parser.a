@@ -9,7 +9,6 @@ import is_soft, bp_from_infix, prec from "prec.a"
 
 import VecU32 from "../../std/vec/u32.a"
 import SliceU32 from "../../std/slice/u32.a"
-import Interner_intern from "../../std/interner.a"
 
 import Nexus_add_list, Nexus_get_list, Nexus_alloc_local_symbol,
        Nexus_set_sym_hir, Nexus_get_sym_hir, Nexus_set_hir_symbol,
@@ -201,6 +200,8 @@ define_param :: (p &Parser, name_hir u32) {
 }
 
 is_function_header :: (p &Parser) bool {
+    if (*p).inside_method and ((*p).method_fn_depth != 0) { ret false }
+
     t := token()
 
     if peek(p) != t.ident { ret false }
@@ -237,7 +238,7 @@ is_function_header :: (p &Parser) bool {
     }
 
     if (after_cp == t.amp) or (after_cp == t.star) or (after_cp == t.o_bracket) {
-        if ((*p).toplv_sym != id_none()) or (*p).inside_method { ret true }
+        if ((*p).toplv_sym != id_none()) or ((*p).inside_method and ((*p).method_fn_depth == 0)) { ret true }
     }
 
     false
@@ -293,7 +294,7 @@ parse_ident :: (p &Parser) u32 {
 
     sp := curr_span(p)
     name := curr_text(p)
-    name_id := Interner_intern(&(*(*p).db).interner, name)
+    name_id := p.db.interner.intern(name)
     bump(p)
 
     ident_hir := ((*p).hir).push(k.ident, name_id, hir_none(), hir_none())
@@ -312,7 +313,7 @@ parse_paren :: (p &Parser) u32 {
     sp_start := curr_span(p)
     bump(p) -- '('
 
-    if (*p).allow_fn and optional(p, t.c_paren) {
+    if (*p).allow_fn and ((not (*p).inside_method) or ((*p).method_fn_depth == 0)) and optional(p, t.c_paren) {
         env_mark := ScopeEnv_mark(&(*p).env)
         fn_id := parse_fn_tail(p, hir_none(), sp_start)
         ScopeEnv_reset(&(*p).env, env_mark)
@@ -619,7 +620,7 @@ parse_float :: (p &Parser) u32 {
     k := hir_kind()
     sp := curr_span(p)
     name := curr_text(p)
-    name_id := Interner_intern(&(*(*p).db).interner, name)
+    name_id := p.db.interner.intern(name)
     bump(p)
     node := ((*p).hir).push(k.lit_float, name_id, hir_none(), hir_none())
     set_span(p, node, sp)
@@ -630,7 +631,7 @@ parse_str :: (p &Parser) u32 {
     sp := curr_span(p)
     raw := curr_text(p)
     bump(p)
-    name_id := Interner_intern(&(*(*p).db).interner, raw)
+    name_id := p.db.interner.intern(raw)
     node := ((*p).hir).push(k.lit_str, name_id, hir_none(), hir_none())
     set_span(p, node, sp)
 }
