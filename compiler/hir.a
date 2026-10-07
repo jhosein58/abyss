@@ -236,74 +236,69 @@ hir_kind_name :: (kind u8) Str {
     Str.of("Unknown")
 }
 
+
 HirTable :: struct {
-    root  : u32,
-    kinds : VecU8,
-    lhs   : VecU32,
-    rhs   : VecU32,
-    extra : VecU32
-}
+    kinds      : VecU8,
+    lhs_list   : VecU32,
+    rhs_list   : VecU32,
+    extra_list : VecU32,
 
-HirTable_new :: () HirTable {
-    .{
-        root  : hir_none(),
-        kinds : VecU8.new(),
-        lhs   : VecU32.new(),
-        rhs   : VecU32.new(),
-        extra : VecU32.new()
+    new :: () HirTable {
+        .{
+            kinds : VecU8.new(),
+            lhs_list   : VecU32.new(),
+            rhs_list   : VecU32.new(),
+            extra_list : VecU32.new()
+        }
     }
-}
 
-HirTable_destroy :: (self &HirTable) {
-    self.kinds.destroy()
-    self.lhs.destroy()
-    self.rhs.destroy()
-    self.extra.destroy()
-}
+    destroy :: () {
+        .kinds.destroy()
+        .lhs_list.destroy()
+        .rhs_list.destroy()
+        .extra_list.destroy()
+    }
 
-HirTable_len :: (self &HirTable) u32 {
-    (*self).kinds.len as u32
-}
+    len :: () u32 {
+        .kinds.len as u32
+    }
 
-HirTable_push :: (self &HirTable, kind u8, lhs, rhs, extra u32) u32 {
-    id := (*self).kinds.len as u32
+    push :: (kind u8, lhs, rhs, extra u32) u32 {
+        id := .len()
 
-    self.kinds.push(kind)
-    self.lhs.push(lhs)
-    self.rhs.push(rhs)
-    self.extra.push(extra)
+        .kinds.push(kind)
+        .lhs_list.push(lhs)
+        .rhs_list.push(rhs)
+        .extra_list.push(extra)
 
-    id
-}
+        id
+    }
 
-HirTable_kind :: (self &HirTable, id u32) u8 {
-    self.kinds.get(id as u64)
-}
+    kind :: (id u32) u8 {
+        .kinds.get(id as u64)
+    }
 
-HirTable_lhs :: (self &HirTable, id u32) u32 {
-    self.lhs.get(id as u64)
-}
+    lhs :: (id u32) u32 {
+        .lhs_list.get(id as u64)
+    }
 
-HirTable_rhs :: (self &HirTable, id u32) u32 {
-    self.rhs.get(id as u64)
-}
+    rhs :: (id u32) u32 {
+        .rhs_list.get(id as u64)
+    }
 
-HirTable_extra :: (self &HirTable, id u32) u32 {
-    self.extra.get(id as u64)
-}
+    extra :: (id u32) u32 {
+        .extra_list.get(id as u64)
+    }
 
-HirTable_set_lhs :: (self &HirTable, id u32, val u32) {
-    self.lhs.set(id as u64, val)
-}
+    set_lhs :: (id u32, val u32) {
+        .lhs_list.set(id as u64, val)
+    }
 
-HirTable_set_rhs :: (self &HirTable, id u32, val u32) {
-    self.rhs.set(id as u64, val)
-}
+    set_rhs :: (id u32, val u32) {
+        .rhs_list.set(id as u64, val)
+    }
 
-HirTable_set_extra :: (self &HirTable, id u32, val u32) {
-    self.extra.set(id as u64, val)
-}
-
-HirTable_set_root :: (self &HirTable, root u32) {
-    (*self).root = root
+    set_extra :: (id u32, val u32) {
+        .extra_list.set(id as u64, val)
+    }
 }

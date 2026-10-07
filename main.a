@@ -4,7 +4,6 @@ import Str from "std/string.a"
 import Arena from "std/allocator.a"
 import read_file, write_file from "std/fs.a"
 
-import HirTable_new, HirTable_len from "compiler/hir.a"
 import Parser_new from "compiler/parser/core.a"
 import parse_expr from "compiler/parser/parser.a"
 import dump_hir from "compiler/dump.a"
