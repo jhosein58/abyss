@@ -1,7 +1,7 @@
 import token, token_name, TokenType, TokenStream from "../token.a"
 import HirTable from "../hir.a"
 import Str from "../../std/string.a"
-import Nexus, Nexus_find_symbol, Nexus_get_file_path, Nexus_get_file_source,
+import Nexus,
        calc_pos, Span, Pos, span_new, span_merge from "../nexus/nexus.a"
 import ScopeEnv, ScopeEnv_new, ScopeEnv_destroy, ScopeEnv_lookup from "env.a"
 import id_none from "../nexus/pool.a"
@@ -47,7 +47,7 @@ lookup_sym :: (p &Parser, name_id u32) u32 {
         ret sym
     }
 
-    Nexus_find_symbol((*p).db, (*p).file_id, name_id)
+    (*p).db.find_symbol((*p).file_id, name_id)
 }
 
 is_eof :: (p &Parser) bool {
@@ -187,8 +187,8 @@ prev_span :: (p &Parser) Span {
 }
 
 parse_error_at :: (p &Parser, msg &u8, sp Span) {
-    path := Nexus_get_file_path((*p).db, (*p).file_id)
-    src := Nexus_get_file_source((*p).db, (*p).file_id)
+    path := (*p).db.get_file_path((*p).file_id)
+    src := (*p).db.get_file_source((*p).file_id)
     pos := calc_pos(src, sp.start)
 
     print("\n\033[1;31m[syntax error]\033[0m ")
@@ -210,8 +210,8 @@ expect :: (p &Parser, kind u8) {
     }
 
     sp := curr_span(p)
-    path := Nexus_get_file_path((*p).db, (*p).file_id)
-    src := Nexus_get_file_source((*p).db, (*p).file_id)
+    path := (*p).db.get_file_path((*p).file_id)
+    src := (*p).db.get_file_source((*p).file_id)
     pos := calc_pos(src, sp.start)
 
     print("\n\033[1;31m[syntax error]\033[0m expected '")

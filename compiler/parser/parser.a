@@ -10,19 +10,16 @@ import is_soft, bp_from_infix, prec from "prec.a"
 import VecU32 from "../../std/vec/u32.a"
 import SliceU32 from "../../std/slice/u32.a"
 
-import Nexus_add_list, Nexus_get_list, Nexus_alloc_local_symbol,
-       Nexus_set_sym_hir, Nexus_get_sym_hir, Nexus_set_hir_symbol,
-       Nexus_set_hir_span, Nexus_set_hir_file, Nexus_get_hir_span,
-       Nexus_set_method_owner, Span, span_merge from "../nexus/nexus.a"
+import Span, span_merge from "../nexus/nexus.a"
 import id_none from "../nexus/pool.a"
 
 span_of_hir :: (p &Parser, hir_id u32) Span {
-    Nexus_get_hir_span((*p).db, hir_id)
+    (*p).db.get_hir_span(hir_id)
 }
 
 set_span :: (p &Parser, hir_id u32, sp Span) u32 {
-    Nexus_set_hir_span((*p).db, hir_id, sp.start, sp.end)
-    Nexus_set_hir_file((*p).db, hir_id, (*p).file_id)
+    (*p).db.set_hir_span(hir_id, sp.start, sp.end)
+    (*p).db.set_hir_file(hir_id, (*p).file_id)
     hir_id
 }
 
@@ -37,24 +34,8 @@ is_assign_op :: (kind u8) bool {
 
 is_dot_continuation :: (p &Parser, lhs u32) bool {
     if lhs == hir_none() { ret false }
-
-    t := token()
-    if peek_n(p, 1) == t.o_brace { ret false }
-
-    if not (*p).inside_method { ret true }
-
-    k := hir_kind()
-    lhs_kind := ((*p).hir).kind(lhs)
-    if lhs_kind != k.call { ret false }
-
-    callee := ((*p).hir).lhs(lhs)
-    if callee == hir_none() { ret false }
-    if ((*p).hir).kind(callee) != k.member { ret false }
-
-    next2 := peek_n(p, 2)
-    if is_assign_op(next2) { ret false }
-    if next2 != t.o_paren { ret false }
-
+    if peek_n(p, 1) == token().o_brace { ret false }
+    if (*p).inside_method { ret false }
     true
 }
 
@@ -119,7 +100,7 @@ dispatch_prefix :: (p &Parser) u32 {
         sp_start := curr_span(p)
         bump(p)
         field := parse_ident(p)
-        Nexus_set_hir_symbol((*p).db, field, id_none())
+        (*p).db.set_hir_symbol(field, id_none())
         node := ((*p).hir).push(hir_kind().member, hir_none(), field, hir_none())
         ret set_span(p, node, span_merge(sp_start, span_of_hir(p, field)))
     }
@@ -195,7 +176,7 @@ define_param :: (p &Parser, name_hir u32) {
         parse_error_at(p, "parameter name must be an identifier", span_of_hir(p, name_hir))
     }
     name_id := ((*p).hir).lhs(name_hir)
-    sym_id := Nexus_alloc_local_symbol((*p).db, (*p).file_id, name_id, name_hir)
+    sym_id := (*p).db.alloc_local_symbol((*p).file_id, name_id, name_hir)
     ScopeEnv_define(&(*p).env, name_id, sym_id)
 }
 
@@ -302,7 +283,7 @@ parse_ident :: (p &Parser) u32 {
 
     sym_id := lookup_sym(p, name_id)
     if sym_id != id_none() {
-        Nexus_set_hir_symbol((*p).db, ident_hir, sym_id)
+        (*p).db.set_hir_symbol(ident_hir, sym_id)
     }
 
     ident_hir
@@ -365,7 +346,7 @@ parse_paren :: (p &Parser) u32 {
             ptr: args.ptr_at(0),
             len: args.len
         }
-        params := Nexus_add_list((*p).db, slice)
+        params := (*p).db.add_list(slice)
         pending_names.destroy()
         args.destroy()
 
@@ -408,7 +389,7 @@ parse_block :: (p &Parser) u32 {
         ptr: glob_stack.ptr_at(mark),
         len: glob_stack.len - mark
     }
-    list_id := Nexus_add_list(db, slice)
+    list_id := db.add_list(slice)
 
     glob_stack.reset(mark)
     ScopeEnv_reset(&(*p).env, env_mark) 
@@ -501,11 +482,11 @@ parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
     sym_id := lookup_sym(p, name_id)
 
     if sym_id != id_none() {
-        curr_hir := Nexus_get_sym_hir((*p).db, sym_id)
+        curr_hir := (*p).db.get_sym_hir(sym_id)
         if curr_hir == id_none() {
-            Nexus_set_sym_hir((*p).db, sym_id, lhs)
+            (*p).db.set_sym_hir(sym_id, lhs)
         }
-        Nexus_set_hir_symbol((*p).db, lhs, sym_id)
+        (*p).db.set_hir_symbol(lhs, sym_id)
     }
 
     rhs := parse_expr(p, right_bp)
@@ -515,7 +496,7 @@ parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
     set_span(p, binding_id, span_merge(sp_lhs, sp_rhs))
 
     if sym_id != id_none() {
-        Nexus_set_hir_symbol((*p).db, binding_id, sym_id)
+        (*p).db.set_hir_symbol(binding_id, sym_id)
     }
 
     binding_id
@@ -532,7 +513,7 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
     sp_lhs := span_of_hir(p, lhs)
 
     name_id := ((*p).hir).lhs(lhs)
-    sym_id := Nexus_alloc_local_symbol((*p).db, (*p).file_id, name_id, lhs)
+    sym_id := (*p).db.alloc_local_symbol((*p).file_id, name_id, lhs)
     ScopeEnv_define(&(*p).env, name_id, sym_id)
 
     if optional(p, t.eq) {
@@ -540,7 +521,7 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
         sp_val := span_of_hir(p, val)
         var_id := ((*p).hir).push(k.var, lhs, hir_none(), val)
         set_span(p, var_id, span_merge(sp_lhs, sp_val))
-        Nexus_set_hir_symbol((*p).db, var_id, sym_id)
+        (*p).db.set_hir_symbol(var_id, sym_id)
         ret var_id
     }
 
@@ -552,7 +533,7 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
         sp_end = span_of_hir(p, val)
         var_id := ((*p).hir).push(k.var, lhs, ty, val)
         set_span(p, var_id, span_merge(sp_lhs, sp_end))
-        Nexus_set_hir_symbol((*p).db, var_id, sym_id)
+        (*p).db.set_hir_symbol(var_id, sym_id)
         ret var_id
     }
 
@@ -561,13 +542,13 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
         sp_end = span_of_hir(p, val)
         binding_id := ((*p).hir).push(k.binding, lhs, ty, val)
         set_span(p, binding_id, span_merge(sp_lhs, sp_end))
-        Nexus_set_hir_symbol((*p).db, binding_id, sym_id)
+        (*p).db.set_hir_symbol(binding_id, sym_id)
         ret binding_id
     }
 
     var_id := ((*p).hir).push(k.var, lhs, ty, hir_none())
     set_span(p, var_id, span_merge(sp_lhs, sp_end))
-    Nexus_set_hir_symbol((*p).db, var_id, sym_id)
+    (*p).db.set_hir_symbol(var_id, sym_id)
     var_id
 }
 
@@ -609,7 +590,7 @@ parse_call :: (p &Parser, lhs u32, right_bp u8) u32 {
 
     sp_end := prev_span(p)
     slice: SliceU32 = .{ ptr: args.ptr_at(0), len: args.len }
-    args_list := Nexus_add_list((*p).db, slice)
+    args_list := (*p).db.add_list(slice)
     args.destroy()
 
     node := ((*p).hir).push(k.call, lhs, args_list, hir_none())
@@ -707,7 +688,7 @@ parse_struct :: (p &Parser) u32 {
         ensure_unique_field(p, &method_names, name)
         if peek(p) == t.colon_colon {
             bump(p)
-            Nexus_set_hir_symbol((*p).db, name, id_none())
+            (*p).db.set_hir_symbol(name, id_none())
             (*p).inside_method = true
             func := parse_expr(p, prec().const_def)
             (*p).inside_method = false
@@ -756,11 +737,11 @@ parse_struct :: (p &Parser) u32 {
     if types.len > 0 { ptr_t = types.ptr_at(0) }
     slice_t: SliceU32 = .{ ptr: ptr_t, len: types.len }
 
-    names_id := Nexus_add_list((*p).db, slice_n)
-    types_id := Nexus_add_list((*p).db, slice_t)
+    names_id := (*p).db.add_list(slice_n)
+    types_id := (*p).db.add_list(slice_t)
     methods_id := hir_none()
     if methods.len > 0 {
-        methods_id = Nexus_add_list((*p).db, methods.as_slice())
+        methods_id = (*p).db.add_list(methods.as_slice())
     }
 
     names.destroy()
@@ -773,7 +754,7 @@ parse_struct :: (p &Parser) u32 {
         method := methods.get(i)
         start := ((*p).hir).lhs(method)
         while start <= method {
-            Nexus_set_method_owner((*p).db, start, node)
+            (*p).db.set_method_owner(start, node)
             start = start + 1
         }
         i = i + 1
@@ -822,8 +803,8 @@ parse_struct_init :: (p &Parser) u32 {
     if values.len > 0 { ptr_v = values.ptr_at(0) }
     slice_v: SliceU32 = .{ ptr: ptr_v, len: values.len }
 
-    fids := Nexus_add_list((*p).db, slice_f)
-    vids := Nexus_add_list((*p).db, slice_v)
+    fids := (*p).db.add_list(slice_f)
+    vids := (*p).db.add_list(slice_v)
 
     fields.destroy()
     values.destroy()

@@ -1,6 +1,4 @@
-import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir,
-       Nexus_set_const_type, Nexus_get_const_type, Nexus_print_loc,
-       Nexus_get_method_owner, Nexus_set_method_target, Nexus_get_method_target from "../nexus/nexus.a"
+import Nexus from "../nexus/nexus.a"
 import HirTable, hir_kind, hir_none from "../hir.a"
 import Str from "../../std/string.a"
 import SliceU32 from "../../std/slice/u32.a"
@@ -82,7 +80,7 @@ type_check_range :: (eng &Engine, start u32, len u32, method_owner u32) {
 
     i := start
     while i < len {
-        if Nexus_get_method_owner(db, i) == method_owner {
+        if db.get_method_owner(i) == method_owner {
             synth_node(eng, i, fn_ret_slot, &pending_returns)
         }
         i = i + 1
@@ -94,9 +92,9 @@ type_check_range :: (eng &Engine, start u32, len u32, method_owner u32) {
         while i < len {
             if ((tbl).kind(i) == hir_kind().struct_) and
                ((tbl).extra(i) != hir_none()) and
-               (TypeStorage_kind(&(*db).types, Nexus_get_const_type(db, i)) != ty_kind().nominal) {
+               (TypeStorage_kind(&(*db).types, db.get_const_type(i)) != ty_kind().nominal) {
                 print("\n\033[1;31m[type error]\033[0m methods require a named struct binding\n       --> ")
-                Nexus_print_loc(db, i)
+                db.print_loc(i)
                 print("\n")
                 fall()
             }
@@ -180,10 +178,10 @@ type_check_calls :: (eng &Engine) {
     }
     i = 0
     while i < count {
-        if (Nexus_get_method_target(db, i as u32) != id_none()) and
+        if (db.get_method_target(i as u32) != id_none()) and
            (pending.get(i) == 0) {
             print("\n\033[1;31m[type error]\033[0m method values are not supported; call this method with (...)\n       --> ")
-            Nexus_print_loc(db, i as u32)
+            db.print_loc(i as u32)
             print("\n")
             fall()
         }
@@ -208,10 +206,10 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
         if (value_id != hir_none()) and ((tbl).kind(value_id) == k.struct_) {
             methods_id := (tbl).extra(value_id)
             if methods_id != hir_none() {
-                methods_count := Nexus_get_list(db, methods_id).len
+                methods_count := db.get_list(methods_id).len
                 index: u64 = 0
                 while index < methods_count {
-                    methods := Nexus_get_list(db, methods_id)
+                    methods := db.get_list(methods_id)
                     method := *(methods.ptr + index)
                     type_check_range(eng, (tbl).lhs(method), method + 1, value_id)
                     index = index + 1
@@ -315,31 +313,31 @@ synth_ident :: (eng &Engine, id u32) {
         slot = UnifyStorage_new_slot(unify_ptr, id)
     }
 
-    owner := Nexus_get_method_owner(db, id)
+    owner := db.get_method_owner(id)
     if (owner != hir_none()) and str_eq(name, Str.of("Self")) {
-        self_ty := Nexus_get_const_type(db, owner)
+        self_ty := db.get_const_type(owner)
         if TypeStorage_kind(types_ptr, self_ty) != ty_kind().nominal {
             print("\n\033[1;31m[type error]\033[0m Self requires a named struct method\n       --> ")
-            Nexus_print_loc(db, id)
+            db.print_loc(id)
             print("\n")
             fall()
         }
         UnifyStorage_bind_type(db, slot, ty_id_type())
-        Nexus_set_const_type(db, id, self_ty)
+        db.set_const_type(id, self_ty)
         ret
     }
 
     builtin_ty := parse_builtin_type(types_ptr, name)
     if builtin_ty != ty_id_none() {
         UnifyStorage_bind_type(db, slot, ty_id_type())
-        Nexus_set_const_type(db, id, builtin_ty)
+        db.set_const_type(id, builtin_ty)
         ret
     }
 
-    sym_id := Nexus_get_hir_symbol(db, id)
+    sym_id := db.get_hir_symbol(id)
 
     if sym_id != id_none() {
-        origin_hir := Nexus_get_sym_hir(db, sym_id)
+        origin_hir := db.get_sym_hir(sym_id)
         if origin_hir == id {
             ret
         }
@@ -349,11 +347,11 @@ synth_ident :: (eng &Engine, id u32) {
             UnifyStorage_union(db, slot, origin_slot)
         }
 
-        resolved_hir := Nexus_get_sym_hir(db, sym_id)
+        resolved_hir := db.get_sym_hir(sym_id)
         if resolved_hir != id_none() {
-            const_val := Nexus_get_const_type(db, resolved_hir)
+            const_val := db.get_const_type(resolved_hir)
             if const_val != ty_id_none() {
-                Nexus_set_const_type(db, id, const_val)
+                db.set_const_type(id, const_val)
             }
         }
     }
@@ -367,7 +365,7 @@ check_value :: (db &Nexus, expr u32, expected u32) {
     if slot == slot_none() { ret }
 
     if (tbl).kind(expr) == hir_kind().block {
-        items := Nexus_get_list(db, (tbl).lhs(expr))
+        items := db.get_list((tbl).lhs(expr))
         if items.len > 0 {
             check_value(db, *(items.ptr + items.len - 1), expected)
             ret
@@ -378,13 +376,13 @@ check_value :: (db &Nexus, expr u32, expected u32) {
     if ((tbl).kind(expr) == hir_kind().struct_init) and
        ((kind == ty_kind().nominal) or (kind == ty_kind().struct_)) {
         target := TypeStorage_get_struct_fields(types, expected)
-        names := Nexus_get_list(db, (tbl).lhs(expr))
-        values := Nexus_get_list(db, (tbl).rhs(expr))
+        names := db.get_list((tbl).lhs(expr))
+        values := db.get_list((tbl).rhs(expr))
         if (names.len != target.len / 2) or (values.len != names.len) {
             print("\n\033[1;31m[type error]\033[0m struct literal has wrong number of fields for '")
             TypeStorage_print_type(types, expected)
             print("'\n       --> ")
-            Nexus_print_loc(db, expr)
+            db.print_loc(expr)
             print("\n")
             fall()
         }
@@ -408,7 +406,7 @@ check_value :: (db &Nexus, expr u32, expected u32) {
                 print("' in struct literal for '")
                 TypeStorage_print_type(types, expected)
                 print("'\n       --> ")
-                Nexus_print_loc(db, *(names.ptr + i))
+                db.print_loc(*(names.ptr + i))
                 print("\n")
                 fall()
             }
@@ -448,50 +446,50 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
             UnifyStorage_bind_type(db, type_slot, ty_id_type())
         }
 
-        type_value := Nexus_get_const_type(db, type_id)
+        type_value := db.get_const_type(type_id)
         if type_value == ty_id_none() {
             print("\n\033[1;31m[type error]\033[0m declaration annotation is not a resolved type\n       --> ")
-            Nexus_print_loc(db, type_id)
+            db.print_loc(type_id)
             print("\n")
             fall()
         }
         UnifyStorage_bind_type(db, ident_slot, type_value)
-        Nexus_set_const_type(db, ident_id, type_value)
-        Nexus_set_const_type(db, id, type_value)
+        db.set_const_type(ident_id, type_value)
+        db.set_const_type(id, type_value)
     }
 
     if value_id != hir_none() {
         if ((tbl).kind(id) == hir_kind().binding) and ((tbl).kind(value_id) == hir_kind().struct_) {
-            structural := Nexus_get_const_type(db, value_id)
+            structural := db.get_const_type(value_id)
             if TypeStorage_kind(types_ptr, structural) != ty_kind().struct_ {
                 print("\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> ")
-                Nexus_print_loc(db, value_id)
+                db.print_loc(value_id)
                 print("\n")
                 fall()
             }
             name_id := (tbl).lhs(ident_id)
             name := db.interner.get(name_id)
             named := TypeStorage_alloc_nominal(types_ptr, structural, name, id)
-            Nexus_set_const_type(db, value_id, named)
-            Nexus_set_const_type(db, ident_id, named)
-            Nexus_set_const_type(db, id, named)
+            db.set_const_type(value_id, named)
+            db.set_const_type(ident_id, named)
+            db.set_const_type(id, named)
         }
         val_slot := UnifyStorage_get_slot(unify_ptr, value_id)
         if val_slot != slot_none() {
             val_ty := UnifyStorage_resolve_type(unify_ptr, val_slot)
             if TypeStorage_kind(types_ptr, val_ty) == ty_kind().type_ {
-                type_val := Nexus_get_const_type(db, value_id)
+                type_val := db.get_const_type(value_id)
                 if type_val == ty_id_none() {
                     print("\n\033[1;31m[type error]\033[0m type value cannot be resolved\n       --> ")
-                    Nexus_print_loc(db, value_id)
+                    db.print_loc(value_id)
                     print("\n")
                     fall()
                 }
-                Nexus_set_const_type(db, ident_id, type_val)
-                Nexus_set_const_type(db, id, type_val)
+                db.set_const_type(ident_id, type_val)
+                db.set_const_type(id, type_val)
             }
             if (type_id != hir_none()) and ((tbl).kind(value_id) == hir_kind().struct_init) {
-                expected := Nexus_get_const_type(db, type_id)
+                expected := db.get_const_type(type_id)
                 if expected != ty_id_none() { check_value(db, value_id, expected) }
             }
             UnifyStorage_union(db, ident_slot, val_slot)
@@ -514,11 +512,11 @@ synth_arg :: (db &Nexus, tbl &HirTable, id u32) {
     }
 
     if ty_id != hir_none() {
-        type_val := Nexus_get_const_type(db, ty_id)
+        type_val := db.get_const_type(ty_id)
         if type_val != ty_id_none() {
             UnifyStorage_bind_type(db, ident_slot, type_val)
-            Nexus_set_const_type(db, ident_id, type_val)
-            Nexus_set_const_type(db, id, type_val)
+            db.set_const_type(ident_id, type_val)
+            db.set_const_type(id, type_val)
         }
     }
 }
@@ -536,10 +534,10 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
 
     ret_ty := ty_id_unit()
     if ret_hir_id != hir_none() {
-        val := Nexus_get_const_type(db, ret_hir_id)
+        val := db.get_const_type(ret_hir_id)
         if val == ty_id_none() {
             print("\n[type error] unresolved return type\n       --> ")
-            Nexus_print_loc(db, ret_hir_id)
+            db.print_loc(ret_hir_id)
             print("\n")
             fall()
         }
@@ -558,12 +556,12 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
 
     params_vec := VecU32.new()
     if params_list_id != hir_none() {
-        args := Nexus_get_list(db, params_list_id)
+        args := db.get_list(params_list_id)
         i: u64 = 0
         while i < args.len {
             arg_id := *(args.ptr + i)
             ty_node := (tbl).rhs(arg_id)
-            param_ty := Nexus_get_const_type(db, ty_node)
+            param_ty := db.get_const_type(ty_node)
 
             if param_ty == ty_id_none() {
                 arg_ident := (tbl).lhs(arg_id)
@@ -575,13 +573,13 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
 
             if param_ty == ty_id_none() {
                 print("\n[type error] unresolved parameter type\n       --> ")
-                Nexus_print_loc(db, arg_id)
+                db.print_loc(arg_id)
                 print("\n")
                 fall()
             }
             if param_ty == ty_id_unit() {
                 print("\n[type error] unit parameters have no runtime representation\n       --> ")
-                Nexus_print_loc(db, arg_id)
+                db.print_loc(arg_id)
                 print("\n")
                 fall()
             }
@@ -606,9 +604,9 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
         body_slot := UnifyStorage_get_slot(unify_ptr, body_id)
         if body_slot != slot_none() {
             is_ref_self := false
-            owner := Nexus_get_method_owner(db, id)
+            owner := db.get_method_owner(id)
             if (owner != hir_none()) and method_has_receiver(db, id) {
-                owner_ty := Nexus_get_const_type(db, owner)
+                owner_ty := db.get_const_type(owner)
                 if (owner_ty != ty_id_none()) and
                    (TypeStorage_kind(types_ptr, ret_ty) == ty_kind().ptr) and
                    (TypeStorage_payload(types_ptr, ret_ty) == owner_ty) {
@@ -627,11 +625,11 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
 }
 
 find_enclosing_method :: (db &Nexus, node_id u32) u32 {
-    owner := Nexus_get_method_owner(db, node_id)
+    owner := db.get_method_owner(node_id)
     if owner == hir_none() { ret hir_none() }
     methods_id := (&(*db).hir).extra(owner)
     if methods_id == hir_none() { ret hir_none() }
-    methods := Nexus_get_list(db, methods_id)
+    methods := db.get_list(methods_id)
     i: u64 = 0
     while i < methods.len {
         m := *(methods.ptr + i)
@@ -645,9 +643,9 @@ find_enclosing_method :: (db &Nexus, node_id u32) u32 {
 }
 
 method_returns_ref_self :: (db &Nexus, node_id u32) bool {
-    owner := Nexus_get_method_owner(db, node_id)
+    owner := db.get_method_owner(node_id)
     if owner == hir_none() { ret false }
-    owner_ty := Nexus_get_const_type(db, owner)
+    owner_ty := db.get_const_type(owner)
     if owner_ty == ty_id_none() { ret false }
 
     method := find_enclosing_method(db, node_id)
@@ -663,7 +661,7 @@ method_returns_ref_self :: (db &Nexus, node_id u32) bool {
     ret_hir := (&(*db).hir).rhs(func_id)
     if ret_hir == hir_none() { ret false }
 
-    ret_ty := Nexus_get_const_type(db, ret_hir)
+    ret_ty := db.get_const_type(ret_hir)
     if ret_ty == ty_id_none() { ret false }
 
     types := &(*db).types
@@ -692,8 +690,8 @@ synth_return :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_retu
         }
     } else {
         if method_returns_ref_self(db, id) {
-            owner := Nexus_get_method_owner(db, id)
-            owner_ty := Nexus_get_const_type(db, owner)
+            owner := db.get_method_owner(id)
+            owner_ty := db.get_const_type(owner)
             ptr_ty := TypeStorage_alloc_ptr(types_ptr, owner_ty)
             if fn_ret_slot != slot_none() {
                 UnifyStorage_bind_type(db, fn_ret_slot, ptr_ty)
@@ -716,7 +714,7 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
 
     if callee_slot == slot_none() {
         print("\n[type error] cannot resolve call target\n       --> ")
-        Nexus_print_loc(db, callee)
+        db.print_loc(callee)
         print("\n")
         fall()
     }
@@ -727,7 +725,7 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
             print("\n\033[1;31m[type error]\033[0m cannot call non-function type '")
             TypeStorage_print_type(types_ptr, callee_ty)
             print("'\n       --> ")
-            Nexus_print_loc(db, callee)
+            db.print_loc(callee)
             print("\n\n")
             fall()
         }
@@ -740,13 +738,13 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
             params := TypeStorage_func_params(types_ptr, callee_ty)
             args_len: u64 = 0
             if args_list_id != hir_none() {
-                args := Nexus_get_list(db, args_list_id)
+                args := db.get_list(args_list_id)
                 args_len = args.len
             }
 
             if args_len != params.len {
                     print("\n\033[1;31m[type error]\033[0m ")
-                    method := Nexus_get_method_target(db, callee)
+                    method := db.get_method_target(callee)
                     if method != id_none() {
                         print("method '")
                         name_node := (tbl).lhs(method)
@@ -760,13 +758,13 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
                     print(" arguments, but got ")
                     print_u32(args_len as u32)
                     print("\n       --> ")
-                    Nexus_print_loc(db, id)
+                    db.print_loc(id)
                     print("\n\n")
                     fall()
                 }
 
             if args_list_id != hir_none() {
-                args := Nexus_get_list(db, args_list_id)
+                args := db.get_list(args_list_id)
                 i: u64 = 0
                 while i < args.len {
                     arg_node := *(args.ptr + i)
@@ -781,7 +779,7 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
                     }
                     if arg_slot == slot_none() {
                         print("\n[type error] cannot resolve argument\n       --> ")
-                        Nexus_print_loc(db, arg_node)
+                        db.print_loc(arg_node)
                         print("\n")
                         fall()
                     }
@@ -798,7 +796,7 @@ synth_block :: (db &Nexus, tbl &HirTable, id u32) {
 
     slot := UnifyStorage_new_slot(unify_ptr, id)
     list_id := (tbl).lhs(id)
-    items := Nexus_get_list(db, list_id)
+    items := db.get_list(list_id)
 
     if items.len > 0 {
         last_id := *(items.ptr + items.len - 1)
@@ -857,12 +855,12 @@ synth_binary :: (db &Nexus, tbl &HirTable, id u32) {
         }
 
         print("\n[type error] invalid arithmetic operands\n       --> ")
-        Nexus_print_loc(db, id)
+        db.print_loc(id)
         print("\n")
         fall()
     } else {
         print("\n[type error] missing arithmetic operand\n       --> ")
-        Nexus_print_loc(db, id)
+        db.print_loc(id)
         print("\n")
         fall()
     }
@@ -929,7 +927,7 @@ validate_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
            ((kind == k.float) or (kind == k.untyped_float)) { ret }
     }
     print("\n[type error] invalid unary operand\n       --> ")
-    Nexus_print_loc(db, id)
+    db.print_loc(id)
     print("\n")
     fall()
 }
@@ -953,9 +951,9 @@ synth_unary_addr_of :: (db &Nexus, tbl &HirTable, id u32) {
         child_ty := UnifyStorage_resolve_type_deep(&(*db).unify, &(*db).types, child_slot)
         if TypeStorage_kind(&(*db).types, child_ty) == ty_kind().type_ {
             UnifyStorage_bind_type(db, slot, ty_id_type())
-            val := Nexus_get_const_type(db, child)
+            val := db.get_const_type(child)
             ptr_val := TypeStorage_alloc_ptr(&(*db).types, val)
-            Nexus_set_const_type(db, id, ptr_val)
+            db.set_const_type(id, ptr_val)
             ret
         }
 
@@ -976,7 +974,7 @@ synth_unary_deref :: (db &Nexus, tbl &HirTable, id u32) {
             UnifyStorage_bind_type(db, slot, inner_ty)
         } else {
             print("\n[type error] cannot dereference non-pointer\n       --> ")
-            Nexus_print_loc(db, id)
+            db.print_loc(id)
             print("\n")
             fall()
         }
@@ -1049,7 +1047,7 @@ validate_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
         }
     }
     print("\n[type error] invalid comparison operands\n       --> ")
-    Nexus_print_loc(db, id)
+    db.print_loc(id)
     print("\n")
     fall()
 }
@@ -1075,7 +1073,7 @@ synth_cast :: (db &Nexus, tbl &HirTable, id u32) {
     slot := UnifyStorage_get_slot(&(*db).unify, id)
     lhs := (tbl).lhs(id)
     rhs := (tbl).rhs(id)
-    rhs_type := Nexus_get_const_type(db, rhs)
+    rhs_type := db.get_const_type(rhs)
     if rhs_type != ty_id_none() {
         lhs_slot := UnifyStorage_get_slot(&(*db).unify, lhs)
         lhs_type := ty_id_none()
@@ -1094,14 +1092,14 @@ synth_cast :: (db &Nexus, tbl &HirTable, id u32) {
                 (src_int and (dst == k.ptr)) or ((src == k.ptr) and dst_int) or
                 ((src == k.ptr) and (dst == k.bool))) {
             print("\n[type error] invalid cast\n       --> ")
-            Nexus_print_loc(db, id)
+            db.print_loc(id)
             print("\n")
             fall()
         }
         UnifyStorage_bind_type(db, slot, rhs_type)
     } else {
         print("\n[type error] cast target is not a type\n       --> ")
-        Nexus_print_loc(db, id)
+        db.print_loc(id)
         print("\n")
         fall()
     }
@@ -1116,8 +1114,8 @@ synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
     names_list := (tbl).lhs(id)
     types_list := (tbl).rhs(id)
 
-    names := Nexus_get_list(db, names_list)
-    types := Nexus_get_list(db, types_list)
+    names := db.get_list(names_list)
+    types := db.get_list(types_list)
 
     fields_vec := VecU32.new()
 
@@ -1128,10 +1126,10 @@ synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
 
         name_id := (tbl).lhs(name_node)
 
-        ty_val := Nexus_get_const_type(db, type_node)
+        ty_val := db.get_const_type(type_node)
         if ty_val == ty_id_none() {
             print("\n\033[1;31m[type error]\033[0m struct field requires a resolved type\n       --> ")
-            Nexus_print_loc(db, type_node)
+            db.print_loc(type_node)
             print("\n")
             fall()
         }
@@ -1148,7 +1146,7 @@ synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
     tyid := TypeStorage_alloc_struct(types_ptr, slice)
     fields_vec.destroy()
 
-    Nexus_set_const_type(db, id, tyid)
+    db.set_const_type(id, tyid)
     UnifyStorage_bind_type(db, slot, ty_id_type())
 }
 
@@ -1161,8 +1159,8 @@ synth_struct_init :: (db &Nexus, tbl &HirTable, id u32) {
     fields_list := (tbl).lhs(id)
     vals_list   := (tbl).rhs(id)
 
-    fields := Nexus_get_list(db, fields_list)
-    vals   := Nexus_get_list(db, vals_list)
+    fields := db.get_list(fields_list)
+    vals   := db.get_list(vals_list)
 
     fields_vec := VecU32.new()
 
@@ -1204,25 +1202,25 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
     is_type := false
     lhs_ty := ty_id_none()
     if lhs_id == hir_none() {
-        owner := Nexus_get_method_owner(db, id)
+        owner := db.get_method_owner(id)
         if owner == hir_none() {
             print("\n\033[1;31m[type error]\033[0m implicit field access outside a method\n       --> ")
-            Nexus_print_loc(db, id)
+            db.print_loc(id)
             print("\n")
             fall()
         }
-        lhs_ty = Nexus_get_const_type(db, owner)
+        lhs_ty = db.get_const_type(owner)
     } else {
         lhs_slot := UnifyStorage_get_slot(unify_ptr, lhs_id)
         if lhs_slot == slot_none() {
             print("\n\033[1;31m[type error]\033[0m cannot resolve member receiver\n       --> ")
-            Nexus_print_loc(db, lhs_id)
+            db.print_loc(lhs_id)
             print("\n")
             fall()
         }
         lhs_ty = UnifyStorage_resolve_type_deep(unify_ptr, types_ptr, lhs_slot)
         if lhs_ty == ty_id_type() {
-            lhs_ty = Nexus_get_const_type(db, lhs_id)
+            lhs_ty = db.get_const_type(lhs_id)
             is_type = true
         } else {
             while TypeStorage_kind(types_ptr, lhs_ty) == ty_kind().ptr {
@@ -1236,7 +1234,7 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
         print("\n\033[1;31m[type error]\033[0m member receiver must be a struct value or named struct type, got '")
         TypeStorage_print_type(types_ptr, lhs_ty)
         print("'\n       --> ")
-        Nexus_print_loc(db, id)
+        db.print_loc(id)
         print("\n")
         fall()
     }
@@ -1265,7 +1263,7 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
         struct_id := (tbl).extra(binding)
         methods_id := (tbl).extra(struct_id)
         if methods_id != hir_none() {
-            methods := Nexus_get_list(db, methods_id)
+            methods := db.get_list(methods_id)
             i: u64 = 0
             while i < methods.len {
                 method := *(methods.ptr + i)
@@ -1274,24 +1272,24 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
                     receiver := method_has_receiver(db, method)
                     if is_type and receiver {
                         print("\n\033[1;31m[type error]\033[0m instance method requires a struct value; call it on an instance\n       --> ")
-                        Nexus_print_loc(db, id)
+                        db.print_loc(id)
                         print("\n")
                         fall()
                     }
                     if (lhs_id != hir_none()) and (not is_type) and (not receiver) {
                         print("\n\033[1;31m[type error]\033[0m static method requires the named struct type\n       --> ")
-                        Nexus_print_loc(db, id)
+                        db.print_loc(id)
                         print("\n")
                         fall()
                     }
                     method_slot := UnifyStorage_get_slot(unify_ptr, method)
                     if method_slot == slot_none() {
                         print("\n\033[1;31m[type error]\033[0m method declaration was not resolved\n       --> ")
-                        Nexus_print_loc(db, method)
+                        db.print_loc(method)
                         print("\n")
                         fall()
                     }
-                    Nexus_set_method_target(db, id, method)
+                    db.set_method_target(id, method)
                     UnifyStorage_union(db, slot, method_slot)
                     ret
                 }
@@ -1305,7 +1303,7 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
     print("' has no field or method named '")
     db.interner.get(name_id).print()
     print("'\n       --> ")
-    Nexus_print_loc(db, id)
+    db.print_loc(id)
     print("\n")
     fall()
 }

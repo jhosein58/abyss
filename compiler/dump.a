@@ -1,6 +1,6 @@
 import HirTable, hir_kind_name, hir_kind, hir_none from "hir.a"
 import Str from "../std/string.a"
-import Nexus, Nexus_get_list from "nexus/nexus.a"
+import Nexus from "nexus/nexus.a"
 import Arena from "../std/allocator.a"
 
 import TypeStorage, TypeStorage_name, ty_id_none from "types.a"
@@ -114,7 +114,7 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
         } else if kind == k.block {
             Str.of("[").print()
 
-            slice := Nexus_get_list(db, lhs)
+            slice := db.get_list(lhs)
 
             len: u32 = 2
             j: u64 = 0

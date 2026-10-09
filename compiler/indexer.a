@@ -1,6 +1,6 @@
 import token, TokenStream from "token.a"
 import lex from "lexer.a"
-import Nexus, Nexus_add_file, Nexus_alloc_symbol, Nexus_alloc_symbol_alias, Nexus_find_symbol from "nexus/nexus.a"
+import Nexus from "nexus/nexus.a"
 import Str from "../std/string.a"
 import Arena from "../std/allocator.a"
 import read_file from "../std/fs.a"
@@ -188,7 +188,7 @@ resolve_and_load_file :: (
     }
 
     source := read_file(arena, target_path.ptr)
-    fid := Nexus_add_file(db, target_path, source)
+    fid := db.add_file(target_path, source)
     while (*loaded_paths).len < (fid as u64) {
         loaded_paths.push(id_none())
     }
@@ -237,7 +237,7 @@ scan_file_symbols :: (
             }
         } else if (depth == 0) and (str_eq(tk_text, Str.of("import"))) {
             if has_sym {
-                Nexus_alloc_symbol(db, file_id, curr_sym_name, curr_sym_tok, cursor)
+                db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
                 has_sym = false
             }
 
@@ -304,7 +304,7 @@ scan_file_symbols :: (
                                 index_error(curr_path, "malformed symbol import")
                             }
                             if has_sym {
-                                Nexus_alloc_symbol(db, file_id, curr_sym_name, curr_sym_tok, cursor)
+                                db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
                                 has_sym = false
                             }
 
@@ -333,7 +333,7 @@ scan_file_symbols :: (
                     }
 
                     if has_sym {
-                        Nexus_alloc_symbol(db, file_id, curr_sym_name, curr_sym_tok, cursor)
+                        db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
                     }
 
                     text := db.tokens.text(cursor)
@@ -350,7 +350,7 @@ scan_file_symbols :: (
     }
 
     if has_sym {
-        Nexus_alloc_symbol(db, file_id, curr_sym_name, curr_sym_tok, end_tok)
+        db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, end_tok)
     }
 }
 
@@ -400,9 +400,9 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
                 imp_name := pending_imports.get(p_i + 2)
                 tgt_fid  := pending_imports.get(p_i + 3)
 
-                target_sym := Nexus_find_symbol(db, tgt_fid, imp_name)
+                target_sym := db.find_symbol(tgt_fid, imp_name)
                 if target_sym != id_none() {
-                    Nexus_alloc_symbol_alias(db, src_fid, loc_name, target_sym)
+                    db.alloc_symbol_alias(src_fid, loc_name, target_sym)
                     pending_imports.set(p_i, id_none())
                     changed = true
                 }

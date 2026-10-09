@@ -93,260 +93,251 @@ Nexus :: struct {
     hir_files      : PoolU32, -- HirId    -> FileId
     hir_span_start : PoolU32, -- HirId    -> Span start offset
     hir_span_end   : PoolU32, -- HirId    -> Span end
-}
+    new :: () Self {
+        .{
+            tokens         : TokenStream.new(),
+            hir            : HirTable.new(),
 
-Nexus_new :: () Nexus {
-    .{
-        tokens         : TokenStream.new(),
-        hir            : HirTable.new(),
+            glob_stack     : VecU32.new(),
+            u32_items      : VecU32.new(),
+            interner       : Interner.new(),
+            types          : TypeStorage_new(),
+            unify          : UnifyStorage_new(),
 
-        glob_stack     : VecU32.new(),
-        u32_items      : VecU32.new(),
-        interner       : Interner.new(),
-        types          : TypeStorage_new(),
-        unify          : UnifyStorage_new(),
+            sym_names      : PoolU32.new(),
+            sym_files      : PoolU32.new(),
+            sym_tok_start  : PoolU32.new(),
+            sym_tok_end    : PoolU32.new(),
+            sym_hir_start  : PoolU32.new(),
+            sym_hir_end    : PoolU32.new(),
+            sym_target     : PoolU32.new(),
+            sym_nodes      : PoolU32.new(),
+            hir_to_symbol  : PoolU32.new(),
 
-        sym_names      : PoolU32.new(),
-        sym_files      : PoolU32.new(),
-        sym_tok_start  : PoolU32.new(),
-        sym_tok_end    : PoolU32.new(),
-        sym_hir_start  : PoolU32.new(),
-        sym_hir_end    : PoolU32.new(),
-        sym_target     : PoolU32.new(),
-        sym_nodes      : PoolU32.new(),
-        hir_to_symbol  : PoolU32.new(),
+            const_types    : PoolU32.new(),
+            method_owner   : PoolU32.new(),
+            method_target  : PoolU32.new(),
+            sym_resolving  : PoolU32.new(),
 
-        const_types    : PoolU32.new(),
-        method_owner   : PoolU32.new(),
-        method_target  : PoolU32.new(),
-        sym_resolving  : PoolU32.new(),
-
-
-        file_sources   : VecStr.new(),
-        file_paths     : VecStr.new(),
-        hir_files      : PoolU32.new(),
-        hir_span_start : PoolU32.new(),
-        hir_span_end   : PoolU32.new(),
-    }
-}
-
-Nexus_add_list :: (self &Nexus, items SliceU32) u32 {
-    list := &(*self).u32_items
-    start := list.len as u32
-    list.push(items.len as u32)
-    list.extend(items.ptr, items.len)
-    start
-}
-
-Nexus_get_list :: (self &Nexus, start u32) SliceU32 {
-    list := &(*self).u32_items 
-    len := list.get(start as u64)
-
-    .{
-        ptr: list.ptr_at((start as u64) + 1),
-        len: len as u64
-    }
-}
-
-Nexus_alloc_symbol :: (self &Nexus, file_id u32, name_id u32, tok_start u32, tok_end u32) u32 {
-    sym_id := self.sym_names.alloc(name_id)
-    self.sym_files.alloc(file_id)
-    self.sym_tok_start.alloc(tok_start)
-    self.sym_tok_end.alloc(tok_end)
-    self.sym_hir_start.alloc(id_none())
-    self.sym_hir_end.alloc(id_none())
-    self.sym_nodes.alloc(id_none())
-    self.sym_resolving.alloc(0)
-    self.sym_target.alloc(id_none())
-    sym_id
-}
-
-Nexus_alloc_local_symbol :: (self &Nexus, file_id u32, name_id u32, hir_id u32) u32 {
-    sym_id := self.sym_names.alloc(name_id)
-    self.sym_files.alloc(file_id)
-    self.sym_tok_start.alloc(id_none())
-    self.sym_tok_end.alloc(id_none())
-    self.sym_hir_start.alloc(id_none())
-    self.sym_hir_end.alloc(id_none())
-    self.sym_nodes.alloc(hir_id)
-    self.sym_resolving.alloc(0)
-    self.sym_target.alloc(id_none())
-
-    Nexus_set_hir_symbol(self, hir_id, sym_id)
-    sym_id
-}
-
-Nexus_alloc_symbol_alias :: (self &Nexus, file_id u32, name_id u32, target_sym u32) u32 {
-    sym_id := self.sym_names.alloc(name_id)
-    self.sym_files.alloc(file_id)
-    self.sym_tok_start.alloc(id_none())
-    self.sym_tok_end.alloc(id_none())
-    self.sym_hir_start.alloc(id_none())
-    self.sym_hir_end.alloc(id_none())
-    self.sym_nodes.alloc(id_none())
-    self.sym_resolving.alloc(0)
-    self.sym_target.alloc(target_sym)
-    sym_id
-}
-
-Nexus_find_symbol :: (self &Nexus, file_id u32, name_id u32) u32 {
-    count := self.sym_names.count()
-    i: u32 = 0
-    while i < count {
-        f := self.sym_files.get(i)
-        n := self.sym_names.get(i)
-        if (f == file_id) and (n == name_id) {
-            curr := i
-            while curr != id_none() {
-                target := self.sym_target.get(curr)
-                if target == id_none() {
-                    ret curr
-                }
-                curr = target
-            }
-            ret i
+            file_sources   : VecStr.new(),
+            file_paths     : VecStr.new(),
+            hir_files      : PoolU32.new(),
+            hir_span_start : PoolU32.new(),
+            hir_span_end   : PoolU32.new()
         }
-        i = i + 1
-    }
-    id_none()
-}
-
-Nexus_set_sym_hir :: (self &Nexus, sym_id u32, hir_id u32) {
-    self.sym_nodes.set(sym_id, hir_id)
-}
-
-Nexus_get_sym_hir :: (self &Nexus, sym_id u32) u32 {
-    if sym_id == id_none() { ret id_none() }
-    if sym_id >= self.sym_nodes.count() { ret id_none() }
-    self.sym_nodes.get(sym_id)
-}
-
-Nexus_set_hir_symbol :: (self &Nexus, hir_id u32, sym_id u32) {
-    self.hir_to_symbol.set_safe(hir_id, sym_id, id_none())
-}
-
-Nexus_get_hir_symbol :: (self &Nexus, hir_id u32) u32 {
-    if hir_id == id_none() { ret id_none() }
-    if hir_id >= self.hir_to_symbol.count() { ret id_none() }
-    self.hir_to_symbol.get(hir_id)
-}
-
-Nexus_set_const_type :: (self &Nexus, hir_id u32, ty_id u32) {
-    self.const_types.set_safe(hir_id, ty_id, ty_id_none())
-}
-
-Nexus_get_const_type :: (self &Nexus, hir_id u32) u32 {
-    if hir_id >= self.const_types.count() { ret ty_id_none() }
-    self.const_types.get(hir_id)
-}
-
-Nexus_set_method_owner :: (self &Nexus, hir_id u32, struct_id u32) {
-    self.method_owner.set_safe(hir_id, struct_id, id_none())
-}
-
-Nexus_get_method_owner :: (self &Nexus, hir_id u32) u32 {
-    if hir_id >= self.method_owner.count() { ret id_none() }
-    self.method_owner.get(hir_id)
-}
-
-Nexus_set_method_target :: (self &Nexus, hir_id u32, method_id u32) {
-    self.method_target.set_safe(hir_id, method_id, id_none())
-}
-
-Nexus_get_method_target :: (self &Nexus, hir_id u32) u32 {
-    if hir_id >= self.method_target.count() { ret id_none() }
-    self.method_target.get(hir_id)
-}
-
-Nexus_set_sym_resolving :: (self &Nexus, sym_id u32, resolving bool) {
-    val: u32 = 0
-    if resolving { val = 1 }
-    self.sym_resolving.set_safe(sym_id, val, 0)
-}
-
-Nexus_is_sym_resolving :: (self &Nexus, sym_id u32) bool {
-    if sym_id >= self.sym_resolving.count() { ret false }
-    self.sym_resolving.get(sym_id) == 1
-}
-
-Nexus_add_file_source :: (self &Nexus, source Str) u32 {
-    id := (*self).file_sources.len as u32
-    VecStr_push(&(*self).file_sources, source)
-    id
-}
-
-Nexus_set_hir_span :: (self &Nexus, hir_id u32, start u32, end u32) {
-    self.hir_span_start.set_safe(hir_id, start, 0)
-    self.hir_span_end.set_safe(hir_id, end, 0)
-}
-
-Nexus_set_hir_file :: (self &Nexus, hir_id u32, file_id u32) {
-    self.hir_files.set_safe(hir_id, file_id, id_none())
-}
-
-Nexus_get_hir_file :: (self &Nexus, hir_id u32) u32 {
-    if hir_id >= self.hir_files.count() { ret id_none() }
-    self.hir_files.get(hir_id)
-}
-
-Nexus_get_hir_span :: (self &Nexus, hir_id u32) Span {
-    if hir_id >= self.hir_span_start.count() {
-        ret .{ start: 0, end: 0 }
-    }
-    start := self.hir_span_start.get(hir_id)
-    end   := self.hir_span_end.get(hir_id)
-    .{ start: start, end: end }
-}
-
-Nexus_get_pos :: (self &Nexus, hir_id u32) Pos {
-    fid := Nexus_get_hir_file(self, hir_id)
-    span := Nexus_get_hir_span(self, hir_id)
-
-    if (fid == id_none()) or ((fid as u64) >= (*self).file_sources.len) {
-        ret .{ line: 1, col: 1 }
     }
 
-    src := self.file_sources.get(fid as u64)
-    calc_pos(src, span.start)
-}
-
-Nexus_add_file :: (self &Nexus, path Str, source Str) u32 {
-    id := (*self).file_sources.len as u32
-    self.file_paths.push(path)
-    self.file_sources.push(source)
-    id
-}
-
-Nexus_get_file_path :: (self &Nexus, file_id u32) Str {
-    if (file_id as u64) >= (*self).file_paths.len { ret Str.of("unknown") }
-    self.file_paths.get(file_id as u64)
-}
-
-Nexus_get_file_source :: (self &Nexus, file_id u32) Str {
-    if (file_id as u64) >= (*self).file_sources.len { ret Str.of("") }
-    self.file_sources.get(file_id as u64)
-}
-
-Nexus_get_pos :: (self &Nexus, hir_id u32) Pos {
-    fid := Nexus_get_hir_file(self, hir_id)
-    span := Nexus_get_hir_span(self, hir_id)
-
-    if (fid == id_none()) or ((fid as u64) >= (*self).file_sources.len) {
-        ret .{ line: 1, col: 1 }
+    add_list :: (items SliceU32) u32 {
+        start := .u32_items.len as u32
+        .u32_items.push(items.len as u32)
+        .u32_items.extend(items.ptr, items.len)
+        start
     }
 
-    src := VecStr_get(&(*self).file_sources, fid as u64)
-    calc_pos(src, span.start)
+    get_list :: (start u32) SliceU32 {
+        len := .u32_items.get(start as u64)
+
+        .{
+            ptr: .u32_items.ptr_at((start as u64) + 1),
+            len: len as u64
+        }
+    }
+
+    alloc_symbol :: (file_id u32, name_id u32, tok_start u32, tok_end u32) u32 {
+        sym_id := .sym_names.alloc(name_id)
+
+        .sym_files.alloc(file_id)
+        .sym_tok_start.alloc(tok_start)
+        .sym_tok_end.alloc(tok_end)
+        .sym_hir_start.alloc(id_none())
+        .sym_hir_end.alloc(id_none())
+        .sym_nodes.alloc(id_none())
+        .sym_resolving.alloc(0)
+        .sym_target.alloc(id_none())
+
+        sym_id
+    }
+
+    alloc_local_symbol :: (file_id u32, name_id u32, hir_id u32) u32 {
+        sym_id := .sym_names.alloc(name_id)
+
+        .sym_files.alloc(file_id)
+        .sym_tok_start.alloc(id_none())
+        .sym_tok_end.alloc(id_none())
+        .sym_hir_start.alloc(id_none())
+        .sym_hir_end.alloc(id_none())
+        .sym_nodes.alloc(hir_id)
+        .sym_resolving.alloc(0)
+        .sym_target.alloc(id_none())
+
+        .set_hir_symbol(hir_id, sym_id)
+        sym_id
+    }
+
+    alloc_symbol_alias :: (file_id u32, name_id u32, target_sym u32) u32 {
+        sym_id := .sym_names.alloc(name_id)
+
+        .sym_files.alloc(file_id)
+        .sym_tok_start.alloc(id_none())
+        .sym_tok_end.alloc(id_none())
+        .sym_hir_start.alloc(id_none())
+        .sym_hir_end.alloc(id_none())
+        .sym_nodes.alloc(id_none())
+        .sym_resolving.alloc(0)
+        .sym_target.alloc(target_sym)
+
+        sym_id
+    }
+
+    find_symbol :: (file_id u32, name_id u32) u32 {
+        count := .sym_names.count()
+
+        i: u32 = 0
+        while i < count {
+            f := .sym_files.get(i)
+            n := .sym_names.get(i)
+            if (f == file_id) and (n == name_id) {
+                curr := i
+                while curr != id_none() {
+                    target := .sym_target.get(curr)
+                    if target == id_none() {
+                        ret curr
+                    }
+                    curr = target
+                }
+                ret i
+            }
+            i = i + 1
+        }
+        id_none()
+    }
+
+    set_sym_hir :: (sym_id u32, hir_id u32) {
+        .sym_nodes.set(sym_id, hir_id)
+    }
+
+    get_sym_hir :: (sym_id u32) u32 {
+        if sym_id == id_none() { ret id_none() }
+        if sym_id >= .sym_nodes.count() { ret id_none() }
+        .sym_nodes.get(sym_id)
+    }
+
+    set_hir_symbol :: (hir_id u32, sym_id u32) {
+        .hir_to_symbol.set_safe(hir_id, sym_id, id_none())
+    }
+
+    get_hir_symbol :: (hir_id u32) u32 {
+        if hir_id == id_none() { ret id_none() }
+        if hir_id >= .hir_to_symbol.count() { ret id_none() }
+        .hir_to_symbol.get(hir_id)
+    }
+
+    set_const_type :: (hir_id u32, ty_id u32) {
+        .const_types.set_safe(hir_id, ty_id, ty_id_none())
+    }
+
+    get_const_type :: (hir_id u32) u32 {
+        if hir_id >= .const_types.count() { ret ty_id_none() }
+        .const_types.get(hir_id)
+    }
+
+    set_method_owner :: (hir_id u32, struct_id u32) {
+        .method_owner.set_safe(hir_id, struct_id, id_none())
+    }
+
+    get_method_owner :: (hir_id u32) u32 {
+        if hir_id >= .method_owner.count() { ret id_none() }
+        .method_owner.get(hir_id)
+    }
+
+    set_method_target :: (hir_id u32, method_id u32) {
+        .method_target.set_safe(hir_id, method_id, id_none())
+    }
+
+    get_method_target :: (hir_id u32) u32 {
+        if hir_id >= .method_target.count() { ret id_none() }
+        .method_target.get(hir_id)
+    }
+
+    set_sym_resolving :: (sym_id u32, resolving bool) {
+        val: u32 = 0
+        if resolving { val = 1 }
+        .sym_resolving.set_safe(sym_id, val, 0)
+    }
+
+    is_sym_resolving :: (sym_id u32) bool {
+        if sym_id >= .sym_resolving.count() { ret false }
+        .sym_resolving.get(sym_id) == 1
+    }
+
+    add_file_source :: (source Str) u32 {
+        id := .file_sources.len as u32
+        .file_sources.push(source)
+        id
+    }
+
+    set_hir_span :: (hir_id u32, start u32, end u32) {
+        .hir_span_start.set_safe(hir_id, start, 0)
+        .hir_span_end.set_safe(hir_id, end, 0)
+    }
+
+    set_hir_file :: (hir_id u32, file_id u32) {
+        .hir_files.set_safe(hir_id, file_id, id_none())
+    }
+
+    get_hir_file :: (hir_id u32) u32 {
+        if hir_id >= .hir_files.count() { ret id_none() }
+        .hir_files.get(hir_id)
+    }
+
+    get_hir_span :: (hir_id u32) Span {
+        if hir_id >= .hir_span_start.count() {
+            ret .{ start: 0, end: 0 }
+        }
+        start := .hir_span_start.get(hir_id)
+        end   := .hir_span_end.get(hir_id)
+        .{ start: start, end: end }
+    }
+
+    add_file :: (path Str, source Str) u32 {
+        id := .file_sources.len as u32
+        .file_paths.push(path)
+        .file_sources.push(source)
+        id
+    }
+
+    get_file_path :: (file_id u32) Str {
+        if (file_id as u64) >= .file_paths.len { ret Str.of("unknown") }
+        .file_paths.get(file_id as u64)
+    }
+
+    get_file_source :: (file_id u32) Str {
+        if (file_id as u64) >= .file_sources.len { ret Str.of("") }
+        .file_sources.get(file_id as u64)
+    }
+
+    get_pos :: (hir_id u32) Pos {
+        fid := .get_hir_file(hir_id)
+        span := .get_hir_span(hir_id)
+
+        if (fid == id_none()) or ((fid as u64) >= .file_sources.len) {
+            ret .{ line: 1, col: 1 }
+        }
+
+        src := .file_sources.get(fid as u64)
+        calc_pos(src, span.start)
+    }
+
+    print_loc :: (hir_id u32) {
+        fid := .get_hir_file(hir_id)
+        path := .get_file_path(fid)
+        pos := .get_pos(hir_id)
+
+        print(path.ptr)
+        print(":")
+        print_u32(pos.line)
+        print(":")
+        print_u32(pos.col)
+    }
 }
 
-Nexus_print_loc :: (self &Nexus, hir_id u32) {
-    fid := Nexus_get_hir_file(self, hir_id)
-    path := Nexus_get_file_path(self, fid)
-    pos := Nexus_get_pos(self, hir_id)
-
-    print(path.ptr)
-    print(":")
-    print_u32(pos.line)
-    print(":")
-    print_u32(pos.col)
-}

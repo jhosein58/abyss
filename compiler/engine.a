@@ -1,5 +1,4 @@
-import Nexus, Nexus_new, Nexus_find_symbol, Nexus_get_sym_hir,
-       Nexus_is_sym_resolving, Nexus_set_sym_resolving, Nexus_add_file from "nexus/nexus.a"
+import Nexus from "nexus/nexus.a"
 
 import token, TokenStream from "token.a"
 import lex from "lexer.a"
@@ -31,7 +30,7 @@ Engine :: struct {
 
     new :: () Self {
         .{
-            nexus         : Nexus_new(),
+            nexus         : Nexus.new(),
             file_count    : 0,
             ccg           : CCodeGen_new(),
             pending_calls : VecU32.new(),
@@ -50,7 +49,7 @@ Engine :: struct {
     }
 
     add_file :: (arena &Arena, path Str, source Str) u32 {
-        file_id := Nexus_add_file(&.nexus, path, source)
+        file_id := .nexus.add_file(path, source)
         .file_count = file_id + 1
 
         tok_start := .nexus.tokens.count()
@@ -63,7 +62,7 @@ Engine :: struct {
 
     get_symbol_id :: (file_id u32, sym_name Str) u32 {
         name_id := .nexus.interner.intern(sym_name)
-        Nexus_find_symbol(&.nexus, file_id, name_id)
+        .nexus.find_symbol(file_id, name_id)
     }
 
     parse :: (sym_id u32) {
@@ -131,7 +130,7 @@ Engine :: struct {
             ret
         }
 
-        decl_hir := Nexus_get_sym_hir(db, real_sym)
+        decl_hir := db.get_sym_hir(real_sym)
         if decl_hir != id_none() {
             s := UnifyStorage_get_slot(&db.unify, decl_hir)
             if s != slot_none() {
@@ -142,18 +141,18 @@ Engine :: struct {
             }
         }
 
-        if Nexus_is_sym_resolving(db, real_sym) {
+        if db.is_sym_resolving(real_sym) {
             ret
         }
 
         hir_start := db.sym_hir_start.get(real_sym)
         if hir_start == id_none() {
-            Nexus_set_sym_resolving(db, real_sym, true)
+            db.set_sym_resolving(real_sym, true)
             .parse(real_sym)
-            Nexus_set_sym_resolving(db, real_sym, false)
+            db.set_sym_resolving(real_sym, false)
         }
 
-        decl_hir = Nexus_get_sym_hir(db, real_sym)
+        decl_hir = db.get_sym_hir(real_sym)
         if decl_hir != id_none() {
             s := UnifyStorage_get_slot(&db.unify, decl_hir)
             if s == slot_none() {
@@ -161,9 +160,9 @@ Engine :: struct {
             }
         }
 
-        Nexus_set_sym_resolving(db, real_sym, true)
+        db.set_sym_resolving(real_sym, true)
         .type_check(real_sym)
-        Nexus_set_sym_resolving(db, real_sym, false)
+        db.set_sym_resolving(real_sym, false)
     }
 
     slot_of :: (sym_id u32) u32 {
@@ -181,13 +180,13 @@ Engine :: struct {
 
         tok_start := db.sym_tok_start.get(real_sym)
         if tok_start == id_none() {
-            decl_hir := Nexus_get_sym_hir(db, real_sym)
+            decl_hir := db.get_sym_hir(real_sym)
             if decl_hir == id_none() { ret slot_none() }
             ret UnifyStorage_get_slot(&db.unify, decl_hir)
         }
 
         .ensure_resolved(real_sym)
-        decl_hir := Nexus_get_sym_hir(db, real_sym)
+        decl_hir := db.get_sym_hir(real_sym)
         if decl_hir == id_none() { ret slot_none() }
         UnifyStorage_get_slot(&db.unify, decl_hir)
     }

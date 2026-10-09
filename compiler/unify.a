@@ -9,7 +9,7 @@ import ty_kind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error,
        TypeStorage_get_array_len, TypeStorage_get_array_type,
        TypeStorage_get_struct_fields, TypeStorage_alloc_struct from "types.a"
 
-import Nexus, Nexus_print_loc from "nexus/nexus.a"
+import Nexus from "nexus/nexus.a"
 import id_none from "nexus/pool.a"
 import TypeStorage_print_type from "types.a"
 import fall from "../std/sys.a"
@@ -106,7 +106,7 @@ report_type_mismatch :: (db &Nexus, hir_id u32, expected u32, actual u32) {
 
     if (hir_id != id_none()) and (hir_id != slot_none()) {
         print("       --> ")
-        Nexus_print_loc(db, hir_id)
+        db.print_loc(hir_id)
         print("\n")
     }
     print("\n")

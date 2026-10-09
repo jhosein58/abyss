@@ -1,5 +1,4 @@
-import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir, Nexus_print_loc,
-       Nexus_get_method_owner, Nexus_get_method_target, Nexus_get_const_type from "nexus/nexus.a"
+import Nexus from "nexus/nexus.a"
 import HirTable, hir_kind, hir_none, HirExprKind from "hir.a"
 import id_none from "nexus/pool.a"
 import CCodeGen, CCodeGen_declare_function, CCodeGen_start_function, CCodeGen_end_function, CCodeGen_start_if, CCodeGen_end_block,
@@ -190,7 +189,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
     if kind == k.ident {
         ty := get_node_type(db, id)
-        sym_id := Nexus_get_hir_symbol(db, id)
+        sym_id := db.get_hir_symbol(id)
 
         if TypeStorage_kind(&(*db).types, ty) == ty_kind().func {
             if sym_id != id_none() {
@@ -223,7 +222,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             }
             if db.sym_tok_start.get(real_sym) != id_none() {
                 print("\n[codegen error] unsupported global value\n       --> ")
-                Nexus_print_loc(db, id)
+                db.print_loc(id)
                 print("\n")
                 fall()
             }
@@ -234,7 +233,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         }
 
         print("\n[codegen error] undefined identifier\n       --> ")
-        Nexus_print_loc(db, id)
+        db.print_loc(id)
         print("\n")
         fall()
         ret Str.empty()
@@ -243,11 +242,11 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         ident_id := (&(*db).hir).lhs(id)
         val_id   := (&(*db).hir).extra(id)
 
-        sym_id := Nexus_get_hir_symbol(db, ident_id)
+        sym_id := db.get_hir_symbol(ident_id)
         var_ty := get_node_type(db, ident_id)
         if TypeStorage_kind(&(*db).types, var_ty) == ty_kind().unit {
             print("\n[type error] variable cannot have unit type\n       --> ")
-            Nexus_print_loc(db, id)
+            db.print_loc(id)
             print("\n")
             fall()
         }
@@ -265,7 +264,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
             if val_str.len == 0 {
                 print("\n[codegen error] initializer does not produce a value\n       --> ")
-                Nexus_print_loc(db, id)
+                db.print_loc(id)
                 print("\n")
                 fall()
             }
@@ -319,10 +318,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     if kind == k.call {
         callee_id := (&(*db).hir).lhs(id)
         args_list := (&(*db).hir).rhs(id)
-        method := Nexus_get_method_target(db, callee_id)
+        method := db.get_method_target(callee_id)
 
 
-        callee_sym := Nexus_get_hir_symbol(db, callee_id)
+        callee_sym := db.get_hir_symbol(callee_id)
         if callee_sym != id_none() {
             if not vec_contains(queue, callee_sym) {
                 queue.push(callee_sym)
@@ -396,7 +395,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         }
 
         if args_list != hir_none() {
-            args := Nexus_get_list(db, args_list)
+            args := db.get_list(args_list)
             i: u64 = 0
             while i < args.len {
                 arg_node := *(args.ptr + i)
@@ -413,7 +412,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
    if kind == k.block {
         list_id := (&(*db).hir).lhs(id)
-        items := Nexus_get_list(db, list_id)
+        items := db.get_list(list_id)
         count := items.len
         last_val := Str.empty()
 
@@ -562,8 +561,8 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         fields_list := (&(*db).hir).lhs(id)
         vals_list   := (&(*db).hir).rhs(id)
 
-        fields := Nexus_get_list(db, fields_list)
-        vals   := Nexus_get_list(db, vals_list)
+        fields := db.get_list(fields_list)
+        vals   := db.get_list(vals_list)
 
         s := String.new(arena)
         s.push_str(Str.of("(("))
@@ -597,10 +596,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         lhs_id := (&(*db).hir).lhs(id)
         rhs_id := (&(*db).hir).rhs(id)
 
-        method := Nexus_get_method_target(db, id)
+        method := db.get_method_target(id)
         if method != id_none() {
             print("\n[type error] methods must be called directly; method values are not supported\n       --> ")
-            Nexus_print_loc(db, id)
+            db.print_loc(id)
             print("\n")
             fall()
         }
@@ -647,7 +646,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     }
 
     print("\n[codegen error] unsupported expression\n       --> ")
-    Nexus_print_loc(db, id)
+    db.print_loc(id)
     print("\n")
     fall()
     Str.empty()
@@ -727,7 +726,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     method_owner := id_none()
     is_ref_self := false
     if is_method {
-        method_owner = Nexus_get_method_owner(db, binding_id)
+        method_owner = db.get_method_owner(binding_id)
         method_node := (&(*db).hir).lhs(binding_id)
         while method_node < binding_id {
             if ((&(*db).hir).kind(method_node) == k.member) and
@@ -739,7 +738,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         }
 
         if receiver and (method_owner != id_none()) {
-            owner_ty := Nexus_get_const_type(db, method_owner)
+            owner_ty := db.get_const_type(method_owner)
             if (owner_ty != ty_id_none()) and
                (TypeStorage_kind(&(*db).types, ret_ty) == ty_kind().ptr) and
                (TypeStorage_payload(&(*db).types, ret_ty) == owner_ty) {
@@ -751,7 +750,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     if (params_slice.len > 0) or receiver {
         p_buf := String.new(arena)
         if receiver {
-            owner_ty := Nexus_get_const_type(db, method_owner)
+            owner_ty := db.get_const_type(method_owner)
             p_buf.push_str(c_type_str(&(*db).types, arena, owner_ty))
             p_buf.push_str(Str.of("* _self"))
             if params_slice.len > 0 { p_buf.push_str(Str.of(", ")) }
@@ -769,10 +768,10 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
             } else {
                 args_list_id := (&(*db).hir).lhs(func_id)
                 if args_list_id != hir_none() {
-                    args := Nexus_get_list(db, args_list_id)
+                    args := db.get_list(args_list_id)
                     arg_node := *(args.ptr + i)
                     arg_ident := (&(*db).hir).lhs(arg_node)
-                    arg_sym := Nexus_get_hir_symbol(db, arg_ident)
+                    arg_sym := db.get_hir_symbol(arg_ident)
 
                     p_buf.push_str(Str.of("sym_"))
                     p_buf.push_u32(arg_sym)
@@ -802,7 +801,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     }
 
     if receiver {
-        add_type_to_queue(db, Nexus_get_const_type(db, method_owner), &type_queue)
+        add_type_to_queue(db, db.get_const_type(method_owner), &type_queue)
     }
 
     CCodeGen_start_function(ccg, fn_name, ret_str, params_str)
