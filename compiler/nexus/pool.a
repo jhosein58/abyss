@@ -6,48 +6,48 @@ id_none :: () u32 {
 }
 
 PoolU32 :: struct {
-    data: VecU32
-}
+    data: VecU32,
 
-PoolU32_new :: () PoolU32 {
-    .{
-        data: VecU32.new()
+    new :: () Self {
+        .{
+            data: VecU32.new()
+        }
     }
-}
 
-PoolU32_destroy :: (p &PoolU32) {
-    VecU32_destroy(&(*p).data)
-}
-
-PoolU32_count :: (p &PoolU32) u32 {
-    (*p).data.len as u32
-}
-
-PoolU32_alloc :: (p &PoolU32, val u32) u32 {
-    id := (*p).data.len as u32
-    (*p).data.push(val)
-    id
-}
-
-PoolU32_get :: (p &PoolU32, id u32) u32 {
-    (*p).data.get(id as u64)
-}
-
-PoolU32_set :: (p &PoolU32, id u32, val u32) {
-    (*p).data.set(id as u64, val)
-}
-
-PoolU32_grow_to :: (p &PoolU32, new_len u32, default_val u32) {
-    target := new_len as u64
-    while (*p).data.len < target {
-        (*p).data.push(default_val)
+    destroy :: () {
+        .data.destroy()
     }
-}
 
-PoolU32_set_safe :: (p &PoolU32, id u32, val u32, default_val u32) {
-    idx := id as u64
-    if idx >= (*p).data.len {
-        PoolU32_grow_to(p, (id + 1) as u32, default_val)
+    count :: () u32 {
+        .data.len as u32
     }
-    (*p).data.set(idx, val)
+
+    alloc :: (val u32) u32 {
+        id := .count()
+        .data.push(val)
+        id
+    }
+
+    get :: (id u32) u32 {
+        .data.get(id as u64)
+    }
+
+    set :: (id u32, val u32) {
+        .data.set(id as u64, val)
+    }
+
+    grow_to :: (new_len u32, default_val u32) {
+        target := new_len as u64
+        while .data.len < target {
+            .data.push(default_val)
+        }
+    }
+
+    set_safe :: (id u32, val u32, default_val u32) {
+        idx := id as u64
+        if idx >= .data.len {
+            .grow_to((id + 1) as u32, default_val)
+        }
+        .data.set(idx, val)
+    }
 }
