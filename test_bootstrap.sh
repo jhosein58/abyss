@@ -3,6 +3,11 @@ set -euo pipefail
 
 ROUNDS=${1:-5}
 
+if [[ ! "${ROUNDS}" =~ ^[0-9]+$ ]] || [ "${ROUNDS}" -lt 3 ]; then
+    echo "[ERROR] Bootstrap testing requires at least 3 rounds."
+    exit 1
+fi
+
 GREEN='\033[1;32m'
 RED='\033[1;31m'
 CYAN='\033[1;36m'
@@ -10,7 +15,6 @@ YELLOW='\033[1;33m'
 RESET='\033[0m'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORK_DIR="${ROOT_DIR}/tmp/bootstrap_test"
 SEED_COMPILER="${ROOT_DIR}/abyssc"
 
 GCC_FLAGS="-O3 -march=native -mtune=native -fomit-frame-pointer -funroll-loops"
@@ -24,8 +28,9 @@ if [ ! -f "${SEED_COMPILER}" ]; then
     exit 1
 fi
 
-rm -rf "${WORK_DIR}"
-mkdir -p "${WORK_DIR}"
+cd "${ROOT_DIR}"
+mkdir -p "${ROOT_DIR}/tmp"
+WORK_DIR=$(mktemp -d "${ROOT_DIR}/tmp/bootstrap_test.XXXXXX")
 
 CURRENT_COMPILER="${SEED_COMPILER}"
 PREV_C_HASH=""
@@ -78,13 +83,26 @@ for i in $(seq 1 "${ROUNDS}"); do
     CURRENT_COMPILER="${GEN_BIN}"
 done
 
+if ! "${CURRENT_COMPILER}"; then
+    echo -e "${RED}[FAIL] Final compiler crashed!${RESET}"
+    exit 1
+fi
+
+if ! cmp -s "${ROOT_DIR}/tmp/out.c" "${WORK_DIR}/gen_${ROUNDS}.c"; then
+    echo -e "${RED}[FAIL] Final compiler output diverged!${RESET}"
+    exit 1
+fi
+
+bash "${ROOT_DIR}/test_compiler.sh" "${CURRENT_COMPILER}"
+
 echo -e "\n${CYAN}====================================================${RESET}"
 if [ "${FIXED_POINT_REACHED}" = true ]; then
     echo -e "${GREEN}SUCCESS: Fixed-point bootstrap verified across generations!${RESET}"
     echo -e "Artifacts kept safe inside: ${WORK_DIR}"
     echo -e "To promote the verified compiler, run:"
-    echo -e "  ${YELLOW}cp ${WORK_DIR}/abyss_gen_2 ./abyssc${RESET}"
+    echo -e "  ${YELLOW}cp ${WORK_DIR}/abyss_gen_${ROUNDS} ./abyssc${RESET}"
 else
-    echo -e "${YELLOW}WARNING: Completed rounds without reaching a stable fixed-point.${RESET}"
+    echo -e "${RED}[FAIL] Completed rounds without reaching a stable fixed-point.${RESET}"
+    exit 1
 fi
 echo -e "${CYAN}====================================================${RESET}"

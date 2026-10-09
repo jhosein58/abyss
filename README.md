@@ -35,22 +35,25 @@ main :: () {
 
 ## Quick Start
 
-Abyss bootstraps directly via emitted C:
+Abyss bootstraps from the included `abyssc` seed compiler:
 
 ```sh
-# 1. Build the compiler binary from the bootstrap seed
-gcc bootstrap.c -o abyssc
-
-# 2. Compile an Abyss source file
 ./abyssc
-
-# 3. Compile the generated C output
-gcc tmp/out.c -o bin
-./bin
+gcc -O2 tmp/out.c -o tmp/abyssc
+./tmp/abyssc
 
 ```
 
+Run the self-hosting and compiler regression tests with:
 
+```sh
+bash test_bootstrap.sh 5
+bash test_compiler.sh
+```
+
+The bootstrap test builds five compiler generations, checks identical C output,
+runs the final compiler, and tests program execution and type-error diagnostics.
+Each test run keeps its artifacts in a unique directory under `tmp/`.
 
 ## Next Steps
 
@@ -67,5 +70,4 @@ With self-hosting stabilized, active development focuses on:
 ## License
 
 [MIT License](LICENSE) — Do whatever you want with the code, just keep my name on it!
-
 

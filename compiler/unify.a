@@ -7,10 +7,9 @@ import ty_kind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error,
        TypeStorage, TypeStorage_kind, TypeStorage_payload, TypeStorage_infer_slot,
        TypeStorage_alloc_infer, TypeStorage_alloc_ptr, TypeStorage_alloc_array,
        TypeStorage_get_array_len, TypeStorage_get_array_type,
-       TypeStorage_get_struct_fields, TypeStorage_alloc_struct, TypeStorage_print_type, TypeStorage from "types.a"
+       TypeStorage_get_struct_fields, TypeStorage_alloc_struct from "types.a"
 
-import Nexus from "nexus/nexus.a"
-import id_none from "nexus/pool.a"
+import TypeStorage_print_type from "types.a"
 import fall from "../std/sys.a"
 
 print :: (s &u8) unit
@@ -37,7 +36,7 @@ UnifyStorage :: struct {
             hir_to_slot : VecU32.new(),
             scratch     : VecU32.new()
         }
-    }   
+    }
 
     destroy :: () {
         .parents.destroy()
@@ -50,8 +49,7 @@ UnifyStorage :: struct {
 
     set_hir_slot :: (hir_id u32, slot u32) {
         idx := hir_id as u64
-
-        while idx >= .hir_to_slot.len {
+        while (idx >= .hir_to_slot.len) {
             .hir_to_slot.push(slot_none())
         }
         .hir_to_slot.set(idx, slot)
@@ -89,25 +87,17 @@ UnifyStorage :: struct {
         .hir_to_slot.get(idx)
     }
 
-    type_mismatch :: (db &Nexus, hir_id u32, expected u32, actual u32) {
-        types := &(*db).types
-        print("\n\033[1;31m[type error]\033[0m type mismatch: cannot unify '")
+    type_mismatch :: (types &TypeStorage, expected u32, actual u32) {
+        print("\n\\033[1;31m[type error]\\033[0m type mismatch: cannot unify '")
         TypeStorage_print_type(types, expected)
         print("' with '")
         TypeStorage_print_type(types, actual)
-        print("'\n")
-
+        print("'\\n")
         if (TypeStorage_kind(types, expected) == ty_kind().nominal) or
-        (TypeStorage_kind(types, actual) == ty_kind().nominal) {
-            print("       Named structs require the same declaration; only an anonymous struct literal may initialize one.\n")
+           (TypeStorage_kind(types, actual) == ty_kind().nominal) {
+            print("       Named structs require the same declaration; only an anonymous struct literal may initialize one.\\n")
         }
-
-        if (hir_id != id_none()) and (hir_id != slot_none()) {
-            print("       --> ")
-            db.print_loc(hir_id)
-            print("\n")
-        }
-        print("\n")
+        print("\\n")
         fall()
     }
 
@@ -125,9 +115,7 @@ UnifyStorage :: struct {
         curr
     }
 
-    union :: (db &Nexus, a u32, b u32) u32 {
-        types := &(*db).types
-
+    union :: (types &TypeStorage, a u32, b u32) u32 {
         root_a := .find(a)
         root_b := .find(b)
 
@@ -147,14 +135,10 @@ UnifyStorage :: struct {
         has_b := type_b != ty_id_none()
 
         if has_a and has_b {
-            final_type = .unify_types(db, type_a, type_b)
-        
+            final_type = .unify_types(types, type_a, type_b)
+            
             if final_type == ty_id_error() {
-                orig_a := .origins.get(root_a as u64)
-                orig_b := .origins.get(root_b as u64)
-                loc := orig_b
-                if (loc == id_none()) or (loc == slot_none()) { loc = orig_a }
-                .report_type_mismatch(db, loc, type_a, type_b)
+                .type_mismatch(types, type_a, type_b)
             }
         } else if has_a {
             final_type = type_a
@@ -189,17 +173,15 @@ UnifyStorage :: struct {
         new_root
     }
 
-    bind_type :: (db &Nexus, slot u32, ty u32) u32 {
-        types := &db.types
+    bind_type :: (types &TypeStorage, slot u32, ty u32) u32 {
         root := .find(slot)
         existing := .types.get(root as u64)
 
         unified := ty
         if existing != ty_id_none() {
-            unified = .unify_types(db, existing, ty)
+            unified = .unify_types(types, existing, ty)
             if unified == ty_id_error() {
-                orig := .origins.get(root as u64)
-                .report_type_mismatch(db, orig, existing, ty)
+                .type_mismatch(types, existing, ty)
             }
         }
 
@@ -207,12 +189,9 @@ UnifyStorage :: struct {
         unified
     }
 
-    unify_types :: (db &Nexus, a u32, b u32) u32 {
-
-        types := &(*db).types
-
+    unify_types :: (types &TypeStorage, a u32, b u32) u32 {
         if (a == ty_id_none()) or (b == ty_id_none()) or
-            (a == ty_id_unknown()) or (b == ty_id_unknown()) {
+           (a == ty_id_unknown()) or (b == ty_id_unknown()) {
             ret ty_id_error()
         }
 
@@ -227,15 +206,15 @@ UnifyStorage :: struct {
         if kind_a == k.infer and kind_b == k.infer {
             slot_a := TypeStorage_infer_slot(types, a)
             slot_b := TypeStorage_infer_slot(types, b)
-            new_slot := .union(db, slot_a, slot_b)
+            new_slot := .union(types, slot_a, slot_b)
             ret TypeStorage_alloc_infer(types, new_slot)
         } else if kind_a == k.infer {
             slot_a := TypeStorage_infer_slot(types, a)
-            if .bind_type(db, slot_a, b) == ty_id_error() { ret ty_id_error() }
+            if .bind_type(types, slot_a, b) == ty_id_error() { ret ty_id_error() }
             ret b
         } else if kind_b == k.infer {
             slot_b := TypeStorage_infer_slot(types, b)
-            if .bind_type(db, slot_b, a) == ty_id_error() { ret ty_id_error() }
+            if .bind_type(types, slot_b, a) == ty_id_error() { ret ty_id_error() }
             ret a
         }
 
@@ -258,7 +237,7 @@ UnifyStorage :: struct {
         if (kind_a == k.ptr) and (kind_b == k.ptr) {
             inner_a := TypeStorage_payload(types, a)
             inner_b := TypeStorage_payload(types, b)
-            unified_inner := .unify_types(db, inner_a, inner_b)
+            unified_inner := .unify_types(types, inner_a, inner_b)
             if unified_inner == ty_id_error() {
                 ret ty_id_error()
             }
@@ -274,13 +253,13 @@ UnifyStorage :: struct {
 
             inner_a := TypeStorage_get_array_type(types, a)
             inner_b := TypeStorage_get_array_type(types, b)
-            unified_inner := .unify_types(db, inner_a, inner_b)
+            unified_inner := .unify_types(types, inner_a, inner_b)
             if unified_inner == ty_id_error() {
                 ret ty_id_error()
             }
             ret TypeStorage_alloc_array(types, unified_inner, len_a)
         }
-    
+        
         if (kind_a == k.struct_) and (kind_b == k.struct_) {
             fields_a := TypeStorage_get_struct_fields(types, a)
             fields_b := TypeStorage_get_struct_fields(types, b)
@@ -306,7 +285,7 @@ UnifyStorage :: struct {
                     break
                 }
 
-                unified_t := .unify_types(db, ta, tb)
+                unified_t := .unify_types(types, ta, tb)
                 if unified_t == ty_id_error() {
                     has_err = true
                     break
@@ -415,7 +394,6 @@ UnifyStorage :: struct {
             local_scratch.destroy()
             ret res
         }
-
 
         tyid
     }
