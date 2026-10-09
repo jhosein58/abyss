@@ -9,7 +9,7 @@ import VecU32 from "../std/vec/u32.a"
 
 import TypeStorage, ty_kind, ty_id_none, ty_id_type, TypeStorage_kind, TypeStorage_payload, TypeStorage_name, TypeStorage_get_struct_fields,
        TypeStorage_func_return, TypeStorage_func_params, TypeStorage_func_is_extern from "types.a"
-import UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
+import slot_none from "unify.a"
 import topo_sort from "topo_sort.a"
 import fall from "../std/sys.a"
 import method_returns_ref_self from "typer/tyck.a"
@@ -88,9 +88,9 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
 
 get_node_type :: (db &Nexus, id u32) u32 {
     if id == hir_none() { ret ty_id_none() }
-    slot := UnifyStorage_get_slot(&(*db).unify, id)
+    slot := (&(*db).unify).get_slot(id)
     if slot == slot_none() { ret ty_id_none() }
-    UnifyStorage_resolve_type_deep(&(*db).unify, &(*db).types, slot)
+    (&(*db).unify).resolve_type_deep(&(*db).types, slot)
 }
 
 vec_contains :: (v &VecU32, val u32) bool {

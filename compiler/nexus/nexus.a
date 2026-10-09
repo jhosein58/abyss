@@ -5,7 +5,7 @@ import Interner from "../../std/interner.a"
 import Str from "../../std/string.a"
 
 import TypeStorage, TypeStorage_new, ty_id_none from "../types.a"
-import UnifyStorage, UnifyStorage_new from "../unify.a"
+import UnifyStorage from "../unify.a"
 import TokenStream from "../token.a"
 import HirTable from "../hir.a"
 import PoolU32, id_none from "pool.a"
@@ -102,7 +102,7 @@ Nexus :: struct {
             u32_items      : VecU32.new(),
             interner       : Interner.new(),
             types          : TypeStorage_new(),
-            unify          : UnifyStorage_new(),
+            unify          : UnifyStorage.new(),
 
             sym_names      : PoolU32.new(),
             sym_files      : PoolU32.new(),

@@ -4,7 +4,7 @@ import Nexus from "nexus/nexus.a"
 import Arena from "../std/allocator.a"
 
 import TypeStorage, TypeStorage_name, ty_id_none from "types.a"
-import UnifyStorage, UnifyStorage_get_slot, UnifyStorage_resolve_type_deep, slot_none from "unify.a"
+import UnifyStorage, slot_none from "unify.a"
 
 print_char :: (c u8)  unit
 print_u32  :: (n u32) unit
@@ -149,9 +149,9 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
 
         print_str_padded(Str.of("| "), 2)
 
-        slot := UnifyStorage_get_slot(unify, i)
+        slot := (unify).get_slot(i)
         if slot != slot_none() {
-            tyid := UnifyStorage_resolve_type_deep(unify, types, slot)
+            tyid := (unify).resolve_type_deep(types, slot)
 
             if tyid != ty_id_none() {
                 ty_name := TypeStorage_name(types, arena, tyid)

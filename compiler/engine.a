@@ -8,7 +8,7 @@ import parse_expr from "parser/parser.a"
 import ScopeEnv_destroy from "parser/env.a"
 import type_check, type_check_calls from "typer/tyck.a"
 import id_none from "nexus/pool.a"
-import UnifyStorage_get_slot, UnifyStorage_resolve_type,UnifyStorage_new_slot, slot_none from "unify.a"
+import slot_none from "unify.a"
 import ty_id_none, ty_kind, TypeStorage_kind, TypeStorage_func_params_len, TypeStorage_func_is_extern from "types.a"
 import Str from "../std/string.a"
 import VecU32 from "../std/vec/u32.a"
@@ -132,9 +132,9 @@ Engine :: struct {
 
         decl_hir := db.get_sym_hir(real_sym)
         if decl_hir != id_none() {
-            s := UnifyStorage_get_slot(&db.unify, decl_hir)
+            s := (&db.unify).get_slot(decl_hir)
             if s != slot_none() {
-                ty := UnifyStorage_resolve_type(&db.unify, s)
+                ty := (&db.unify).resolve_type(s)
                 if ty != ty_id_none() {
                     ret
                 }
@@ -154,9 +154,9 @@ Engine :: struct {
 
         decl_hir = db.get_sym_hir(real_sym)
         if decl_hir != id_none() {
-            s := UnifyStorage_get_slot(&db.unify, decl_hir)
+            s := (&db.unify).get_slot(decl_hir)
             if s == slot_none() {
-                UnifyStorage_new_slot(&db.unify, decl_hir)
+                (&db.unify).new_slot(decl_hir)
             }
         }
 
@@ -182,19 +182,19 @@ Engine :: struct {
         if tok_start == id_none() {
             decl_hir := db.get_sym_hir(real_sym)
             if decl_hir == id_none() { ret slot_none() }
-            ret UnifyStorage_get_slot(&db.unify, decl_hir)
+            ret (&db.unify).get_slot(decl_hir)
         }
 
         .ensure_resolved(real_sym)
         decl_hir := db.get_sym_hir(real_sym)
         if decl_hir == id_none() { ret slot_none() }
-        UnifyStorage_get_slot(&db.unify, decl_hir)
+        (&db.unify).get_slot(decl_hir)
     }
 
     type_of :: (sym_id u32) u32 {
         slot := .slot_of(sym_id)
         if slot == slot_none() { ret ty_id_none() }
-        UnifyStorage_resolve_type(&.nexus.unify, slot)
+        (&.nexus.unify).resolve_type(slot)
     }
 
     abyss_main :: (sym_id u32) {
