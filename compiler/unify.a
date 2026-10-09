@@ -3,13 +3,7 @@ import VecU32 from "../std/vec/u32.a"
 import SliceU32 from "../std/slice/u32.a"
 import U32_MAX from "../std/primitive/u32.a"
 
-import ty_kind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error,
-       TypeStorage, TypeStorage_kind, TypeStorage_payload, TypeStorage_infer_slot,
-       TypeStorage_alloc_infer, TypeStorage_alloc_ptr, TypeStorage_alloc_array,
-       TypeStorage_get_array_len, TypeStorage_get_array_type,
-       TypeStorage_get_struct_fields, TypeStorage_alloc_struct from "types.a"
-
-import TypeStorage_print_type from "types.a"
+ import ty_kind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error, TypeStorage from "types.a"
 import fall from "../std/sys.a"
 
 print :: (s &u8) unit
@@ -41,7 +35,7 @@ UnifyStorage :: struct {
     destroy :: () {
         .parents.destroy()
         .ranks.destroy()
-        .types.destroy()
+         .types.destroy()
         .origins.destroy()
         .hir_to_slot.destroy()
         .scratch.destroy()
@@ -60,7 +54,7 @@ UnifyStorage :: struct {
 
         .parents.push(slot)
         .ranks.push(0 as u8)
-        .types.push(ty_id_none())
+         .types.push(ty_id_none())
         .origins.push(origin)
 
         .set_hir_slot(origin, slot)
@@ -89,12 +83,12 @@ UnifyStorage :: struct {
 
     type_mismatch :: (types &TypeStorage, expected u32, actual u32) {
         print("\n\\033[1;31m[type error]\\033[0m type mismatch: cannot unify '")
-        TypeStorage_print_type(types, expected)
+          (&(*types)).print_type( expected)
         print("' with '")
-        TypeStorage_print_type(types, actual)
+          (&(*types)).print_type( actual)
         print("'\\n")
-        if (TypeStorage_kind(types, expected) == ty_kind().nominal) or
-           (TypeStorage_kind(types, actual) == ty_kind().nominal) {
+          if ((&(*types)).kind( expected) == ty_kind().nominal) or
+             ((&(*types)).kind( actual) == ty_kind().nominal) {
             print("       Named structs require the same declaration; only an anonymous struct literal may initialize one.\\n")
         }
         print("\\n")
@@ -123,8 +117,8 @@ UnifyStorage :: struct {
             ret root_a
         }
 
-        type_a := .types.get(root_a as u64)
-        type_b := .types.get(root_b as u64)
+         type_a := .types.get(root_a as u64)
+         type_b := .types.get(root_b as u64)
 
         if type_a == ty_id_never() or type_b == ty_id_never() {
             ret root_a
@@ -167,7 +161,7 @@ UnifyStorage :: struct {
         .parents.set(old_root as u64, new_root)
 
         if final_type != ty_id_none() {
-            .types.set(new_root as u64, final_type)
+             .types.set(new_root as u64, final_type)
         }
 
         new_root
@@ -175,7 +169,7 @@ UnifyStorage :: struct {
 
     bind_type :: (types &TypeStorage, slot u32, ty u32) u32 {
         root := .find(slot)
-        existing := .types.get(root as u64)
+         existing := .types.get(root as u64)
 
         unified := ty
         if existing != ty_id_none() {
@@ -185,7 +179,7 @@ UnifyStorage :: struct {
             }
         }
 
-        .types.set(root as u64, unified)
+         .types.set(root as u64, unified)
         unified
     }
 
@@ -200,20 +194,20 @@ UnifyStorage :: struct {
         }
 
         k := ty_kind()
-        kind_a := TypeStorage_kind(types, a)
-        kind_b := TypeStorage_kind(types, b)
+          kind_a := (&(*types)).kind( a)
+          kind_b := (&(*types)).kind( b)
 
         if kind_a == k.infer and kind_b == k.infer {
-            slot_a := TypeStorage_infer_slot(types, a)
-            slot_b := TypeStorage_infer_slot(types, b)
+              slot_a := (&(*types)).infer_slot( a)
+              slot_b := (&(*types)).infer_slot( b)
             new_slot := .union(types, slot_a, slot_b)
-            ret TypeStorage_alloc_infer(types, new_slot)
+              ret (&(*types)).alloc_infer( new_slot)
         } else if kind_a == k.infer {
-            slot_a := TypeStorage_infer_slot(types, a)
+              slot_a := (&(*types)).infer_slot(a)
             if .bind_type(types, slot_a, b) == ty_id_error() { ret ty_id_error() }
             ret b
         } else if kind_b == k.infer {
-            slot_b := TypeStorage_infer_slot(types, b)
+              slot_b := (&(*types)).infer_slot(b)
             if .bind_type(types, slot_b, a) == ty_id_error() { ret ty_id_error() }
             ret a
         }
@@ -235,34 +229,34 @@ UnifyStorage :: struct {
         if (kind_a == k.float) and (kind_b == k.untyped_float) { ret a }
 
         if (kind_a == k.ptr) and (kind_b == k.ptr) {
-            inner_a := TypeStorage_payload(types, a)
-            inner_b := TypeStorage_payload(types, b)
+              inner_a := (&(*types)).payload( a)
+              inner_b := (&(*types)).payload( b)
             unified_inner := .unify_types(types, inner_a, inner_b)
             if unified_inner == ty_id_error() {
                 ret ty_id_error()
             }
-            ret TypeStorage_alloc_ptr(types, unified_inner)
+              ret (&(*types)).alloc_ptr( unified_inner)
         }
 
         if (kind_a == k.array) and (kind_b == k.array) {
-            len_a := TypeStorage_get_array_len(types, a)
-            len_b := TypeStorage_get_array_len(types, b)
+              len_a := (&(*types)).get_array_len( a)
+              len_b := (&(*types)).get_array_len( b)
             if len_a != len_b {
                 ret ty_id_error()
             }
 
-            inner_a := TypeStorage_get_array_type(types, a)
-            inner_b := TypeStorage_get_array_type(types, b)
+              inner_a := (&(*types)).get_array_type( a)
+              inner_b := (&(*types)).get_array_type( b)
             unified_inner := .unify_types(types, inner_a, inner_b)
             if unified_inner == ty_id_error() {
                 ret ty_id_error()
             }
-            ret TypeStorage_alloc_array(types, unified_inner, len_a)
+              ret (&(*types)).alloc_array( unified_inner, len_a)
         }
         
         if (kind_a == k.struct_) and (kind_b == k.struct_) {
-            fields_a := TypeStorage_get_struct_fields(types, a)
-            fields_b := TypeStorage_get_struct_fields(types, b)
+              fields_a := (&(*types)).get_struct_fields( a)
+              fields_b := (&(*types)).get_struct_fields( b)
 
             if fields_a.len != fields_b.len {
                 ret ty_id_error()
@@ -306,7 +300,7 @@ UnifyStorage :: struct {
                 len: fields_a.len
             }
 
-            res := TypeStorage_alloc_struct(types, slice)
+              res := (&(*types)).alloc_struct( slice)
             local_scratch.destroy()
             ret res
         }
@@ -316,7 +310,7 @@ UnifyStorage :: struct {
 
     resolve_type :: (slot u32) u32 {
         root := .find(slot)
-        .types.get(root as u64)
+         .types.get(root as u64)
     }
 
     resolve_type_deep :: (types &TypeStorage, slot u32) u32 {
@@ -326,37 +320,37 @@ UnifyStorage :: struct {
         }
 
         k := ty_kind()
-        kind := TypeStorage_kind(types, tyid)
+          kind := (&(*types)).kind( tyid)
 
         if kind == k.infer {
-            inner_slot := TypeStorage_infer_slot(types, tyid)
+              inner_slot := (&(*types)).infer_slot( tyid)
             ret .resolve_type_deep(types, inner_slot)
         }
 
         if kind == k.ptr {
-            inner_ty := TypeStorage_payload(types, tyid)
-            if TypeStorage_kind(types, inner_ty) == k.infer {
-                inner_slot := TypeStorage_infer_slot(types, inner_ty)
+              inner_ty := (&(*types)).payload( tyid)
+              if (&(*types)).kind( inner_ty) == k.infer {
+                  inner_slot := (&(*types)).infer_slot( inner_ty)
                 resolved := .resolve_type_deep(types, inner_slot)
-                ret TypeStorage_alloc_ptr(types, resolved)
+                  ret (&(*types)).alloc_ptr( resolved)
             }
             ret tyid
         }
 
         if kind == k.array {
-            len := TypeStorage_get_array_len(types, tyid)
-            inner_ty := TypeStorage_get_array_type(types, tyid)
+              len := (&(*types)).get_array_len( tyid)
+              inner_ty := (&(*types)).get_array_type( tyid)
 
-            if TypeStorage_kind(types, inner_ty) == k.infer {
-                infer_slot := TypeStorage_infer_slot(types, inner_ty)
+              if (&(*types)).kind(inner_ty) == k.infer {
+                  infer_slot := (&(*types)).infer_slot( inner_ty)
                 resolved := .resolve_type_deep(types, infer_slot)
-                ret TypeStorage_alloc_array(types, resolved, len)
+                  ret (&(*types)).alloc_array( resolved, len)
             }
             ret tyid
         }
 
         if kind == k.struct_ {
-            fields := TypeStorage_get_struct_fields(types, tyid)
+              fields := (&(*types)).get_struct_fields( tyid)
             count := fields.len / 2
 
             local_scratch := VecU32.new()
@@ -368,8 +362,8 @@ UnifyStorage :: struct {
                 name := *(fields.ptr + idx)
                 field_ty := *(fields.ptr + idx + 1)
 
-                if TypeStorage_kind(types, field_ty) == k.infer {
-                    field_slot := TypeStorage_infer_slot(types, field_ty)
+                  if (&(*types)).kind( field_ty) == k.infer {
+                      field_slot := (&(*types)).infer_slot( field_ty)
                     resolved := .resolve_type_deep(types, field_slot)
                     local_scratch.push(name)
                     local_scratch.push(resolved)
@@ -388,7 +382,7 @@ UnifyStorage :: struct {
                     len: fields.len
                 }
 
-                res = TypeStorage_alloc_struct(types, slice)
+                  res = (&(*types)).alloc_struct( slice)
             }
 
             local_scratch.destroy()

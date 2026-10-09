@@ -9,7 +9,7 @@ import ScopeEnv_destroy from "parser/env.a"
 import type_check, type_check_calls from "typer/tyck.a"
 import id_none from "nexus/pool.a"
 import slot_none from "unify.a"
-import ty_id_none, ty_kind, TypeStorage_kind, TypeStorage_func_params_len, TypeStorage_func_is_extern from "types.a"
+   import ty_id_none, ty_kind from "types.a"
 import Str from "../std/string.a"
 import VecU32 from "../std/vec/u32.a"
 import Arena from "../std/allocator.a"
@@ -200,11 +200,11 @@ Engine :: struct {
     abyss_main :: (sym_id u32) {
         ty := .type_of(sym_id)
         types := &.nexus.types
-        if TypeStorage_kind(types, ty) != ty_kind().func {
+          if (&(*types)).kind( ty) != ty_kind().func {
             print("\n[type error] main must be a function\n")
             fall()
         }
-        if (TypeStorage_func_params_len(types, ty) != 0) or TypeStorage_func_is_extern(types, ty) {
+          if ((&(*types)).func_params_len( ty) != 0) or (&(*types)).func_is_extern( ty) {
             print("\n[type error] main must be a defined function with no arguments\n")
             fall()
         }

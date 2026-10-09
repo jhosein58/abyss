@@ -7,8 +7,7 @@ import Str, String from "../std/string.a"
 import Arena from "../std/allocator.a"
 import VecU32 from "../std/vec/u32.a"
 
-import TypeStorage, ty_kind, ty_id_none, ty_id_type, TypeStorage_kind, TypeStorage_payload, TypeStorage_name, TypeStorage_get_struct_fields,
-       TypeStorage_func_return, TypeStorage_func_params, TypeStorage_func_is_extern from "types.a"
+ import TypeStorage, ty_kind, ty_id_none, ty_id_type from "types.a"
 import slot_none from "unify.a"
 import topo_sort from "topo_sort.a"
 import fall from "../std/sys.a"
@@ -24,8 +23,8 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
         fall()
     }
     k := ty_kind()
-    kind := TypeStorage_kind(types, ty_id)
-    payload := TypeStorage_payload(types, ty_id)
+      kind := (&(*types)).kind( ty_id)
+      payload := (&(*types)).payload( ty_id)
 
     if kind == k.unit { ret Str.of("void") }
     if kind == k.bool { ret Str.of("bool") }
@@ -64,7 +63,7 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
     if kind == k.untyped_float { ret Str.of("double") }
 
     if kind == k.ptr {
-        inner_ty := TypeStorage_payload(types, ty_id)
+          inner_ty := (&(*types)).payload( ty_id)
         inner_str := c_type_str(types, arena, inner_ty)
         s := String.new(arena)
         s.push_str(inner_str)
@@ -73,7 +72,7 @@ c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
     }
 
     if (kind == k.struct_) or (kind == k.nominal) {
-        ret TypeStorage_name(types, arena, ty_id)
+          ret TypeStorage.name(arena, ty_id)
     }
 
     if (kind == k.infer) or (kind == k.unknown) or (kind == k.error) {
@@ -113,7 +112,7 @@ is_lvalue :: (db &Nexus, id u32) bool {
     if kind == hir_kind().member {
         lhs := (tbl).lhs(id)
         if lhs == hir_none() { ret true }
-        if TypeStorage_kind(&(*db).types, get_node_type(db, lhs)) == ty_kind().ptr { ret true }
+         if (&(*db).types).kind(get_node_type(db, lhs)) == ty_kind().ptr { ret true }
         ret is_lvalue(db, lhs)
     }
     false
@@ -156,12 +155,12 @@ binary_op_symbol :: (k HirExprKind, kind u8) Str {
 add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
     if ty_id == ty_id_none() { ret }
     k := ty_kind()
-    kind := TypeStorage_kind(&(*db).types, ty_id)
+     kind := (&(*db).types).kind(ty_id)
 
     if (kind == k.struct_) or (kind == k.nominal) {
         if not vec_contains(queue, ty_id) {
             queue.push(ty_id)
-            fields := TypeStorage_get_struct_fields(&(*db).types, ty_id)
+             fields := (&(*db).types).get_struct_fields(ty_id)
             count := fields.len / 2
             i: u64 = 0
             while i < count {
@@ -171,7 +170,7 @@ add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
             }
         }
     } else if kind == k.ptr {
-        inner := TypeStorage_payload(&(*db).types, ty_id)
+         inner := (&(*db).types).payload(ty_id)
         add_type_to_queue(db, inner, queue)
     }
 }
@@ -191,7 +190,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         ty := get_node_type(db, id)
         sym_id := db.get_hir_symbol(id)
 
-        if TypeStorage_kind(&(*db).types, ty) == ty_kind().func {
+         if (&(*db).types).kind(ty) == ty_kind().func {
             if sym_id != id_none() {
                 real_sym := sym_id
                 while true {
@@ -202,7 +201,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                 if not vec_contains(queue, real_sym) {
                     queue.push(real_sym)
                 }
-                if TypeStorage_func_is_extern(&(*db).types, ty) {
+                 if (&(*db).types).func_is_extern(ty) {
                     name_id := (&(*db).hir).lhs(id)
                     ret db.interner.get(name_id)
                 }
@@ -244,7 +243,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
         sym_id := db.get_hir_symbol(ident_id)
         var_ty := get_node_type(db, ident_id)
-        if TypeStorage_kind(&(*db).types, var_ty) == ty_kind().unit {
+         if (&(*db).types).kind(var_ty) == ty_kind().unit {
             print("\n[type error] variable cannot have unit type\n       --> ")
             db.print_loc(id)
             print("\n")
@@ -366,8 +365,8 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                 receiver_ty := get_node_type(db, lhs)
                 receiver_str := lower_expr(db, ccg, arena, lhs, visited, queue, type_queue)
                 depth: u32 = 0
-                while TypeStorage_kind(&(*db).types, receiver_ty) == ty_kind().ptr {
-                    receiver_ty = TypeStorage_payload(&(*db).types, receiver_ty)
+                 while (&(*db).types).kind(receiver_ty) == ty_kind().ptr {
+                     receiver_ty = (&(*db).types).payload(receiver_ty)
                     depth = depth + 1
                 }
                 add_type_to_queue(db, receiver_ty, type_queue)
@@ -622,8 +621,8 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
         lhs_ty := get_node_type(db, lhs_id)
         depth: u32 = 0
-        while TypeStorage_kind(&(*db).types, lhs_ty) == ty_kind().ptr {
-            lhs_ty = TypeStorage_payload(&(*db).types, lhs_ty)
+         while (&(*db).types).kind(lhs_ty) == ty_kind().ptr {
+             lhs_ty = (&(*db).types).payload(lhs_ty)
             depth = depth + 1
         }
 
@@ -636,8 +635,8 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         s.push_str(lhs_str)
         depth = 0
         lhs_ty = get_node_type(db, lhs_id)
-        while TypeStorage_kind(&(*db).types, lhs_ty) == ty_kind().ptr {
-            lhs_ty = TypeStorage_payload(&(*db).types, lhs_ty)
+        while (&(*db).types).kind(lhs_ty) == ty_kind().ptr {
+            lhs_ty = (&(*db).types).payload(lhs_ty)
             s.push_str(Str.of(")"))
         }
         s.push_str(Str.of(")._f"))
@@ -696,11 +695,11 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     }
 
     func_ty := get_node_type(db, func_id)
-    ret_ty  := TypeStorage_func_return(&(*db).types, func_ty)
+     ret_ty  := (&(*db).types).func_return(func_ty)
     ret_str := c_type_str(&(*db).types, arena, ret_ty)
 
     body_id   := (&(*db).hir).extra(func_id)
-    is_extern := (body_id == hir_none()) or TypeStorage_func_is_extern(&(*db).types, func_ty)
+     is_extern := (body_id == hir_none()) or (&(*db).types).func_is_extern(func_ty)
 
     fn_name := Str.empty()
     if is_extern and (not is_method) {
@@ -719,7 +718,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         fn_name = fn_name_s.as_str()
     }
 
-    params_slice := TypeStorage_func_params(&(*db).types, func_ty)
+     params_slice := (&(*db).types).func_params(func_ty)
     params_str   := Str.of("void")
 
     receiver := false
@@ -740,8 +739,8 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         if receiver and (method_owner != id_none()) {
             owner_ty := db.get_const_type(method_owner)
             if (owner_ty != ty_id_none()) and
-               (TypeStorage_kind(&(*db).types, ret_ty) == ty_kind().ptr) and
-               (TypeStorage_payload(&(*db).types, ret_ty) == owner_ty) {
+                ((&(*db).types).kind(ret_ty) == ty_kind().ptr) and
+                ((&(*db).types).payload(ret_ty) == owner_ty) {
                 is_ref_self = true
             }
         }
@@ -813,7 +812,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
             CCodeGen_expr(ccg, body_val)
         }
         CCodeGen_gen_return(ccg, Str.of("_self"), true)
-    } else if TypeStorage_kind(&(*db).types, ret_ty) == ty_kind().unit {
+     } else if (&(*db).types).kind(ret_ty) == ty_kind().unit {
         if body_val.len > 0 {
             CCodeGen_expr(ccg, body_val)
         }
@@ -838,11 +837,11 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     s_i: u64 = 0
     while s_i < sorted.len {
         t := sorted.get(s_i)
-        if (TypeStorage_kind(&(*db).types, t) == ty_kind().struct_) or
-           (TypeStorage_kind(&(*db).types, t) == ty_kind().nominal) {
-            s_name := TypeStorage_name(&(*db).types, arena, t)
+         if ((&(*db).types).kind(t) == ty_kind().struct_) or
+            ((&(*db).types).kind(t) == ty_kind().nominal) {
+             s_name := TypeStorage.name(arena, t)
             body_buf := String.new(arena)
-            s_fields := TypeStorage_get_struct_fields(&(*db).types, t)
+             s_fields := (&(*db).types).get_struct_fields(t)
             f_count := s_fields.len / 2
 
             f_i: u64 = 0

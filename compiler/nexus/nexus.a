@@ -4,7 +4,7 @@ import SliceU32, SliceU32_new from "../../std/slice/u32.a"
 import Interner from "../../std/interner.a"
 import Str from "../../std/string.a"
 
-import TypeStorage, TypeStorage_new, ty_id_none from "../types.a"
+import TypeStorage, ty_id_none from "../types.a"
 import UnifyStorage from "../unify.a"
 import TokenStream from "../token.a"
 import HirTable from "../hir.a"
@@ -101,7 +101,7 @@ Nexus :: struct {
             glob_stack     : VecU32.new(),
             u32_items      : VecU32.new(),
             interner       : Interner.new(),
-            types          : TypeStorage_new(),
+             types          : TypeStorage.new(),
             unify          : UnifyStorage.new(),
 
             sym_names      : PoolU32.new(),
@@ -340,4 +340,3 @@ Nexus :: struct {
         print_u32(pos.col)
     }
 }
-

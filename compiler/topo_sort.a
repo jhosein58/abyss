@@ -1,6 +1,5 @@
 import Nexus from "nexus/nexus.a"
-import TypeStorage, ty_kind, TypeStorage_kind, TypeStorage_len,
-       TypeStorage_get_struct_fields, TypeStorage_get_array_type from "types.a"
+ import TypeStorage, ty_kind from "types.a"
 import VecU32 from "../std/vec/u32.a"
 import VecU8 from "../std/vec/u8.a"
 
@@ -12,23 +11,23 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
     states.set(ty_id as u64, 1 as u8) 
 
     k := ty_kind()
-    kind := TypeStorage_kind(types, ty_id)
+      kind := (&(*types)).kind( ty_id)
 
     if (kind == k.struct_) or (kind == k.nominal) {
-        fields := TypeStorage_get_struct_fields(types, ty_id)
+          fields := (&(*types)).get_struct_fields( ty_id)
         count := fields.len / 2
         i: u64 = 0
         while i < count {
             f_ty := *(fields.ptr + (i * 2) + 1)
-            f_kind := TypeStorage_kind(types, f_ty)
+              f_kind := (&(*types)).kind( f_ty)
             if (f_kind == k.struct_) or (f_kind == k.nominal) or (f_kind == k.array) {
                 topo_dfs(types, sorted, states, f_ty)
             }
             i = i + 1
         }
     } else if kind == k.array {
-        inner_ty := TypeStorage_get_array_type(types, ty_id)
-        inner_kind := TypeStorage_kind(types, inner_ty)
+          inner_ty := (&(*types)).get_array_type( ty_id)
+          inner_kind := (&(*types)).kind( inner_ty)
         if (inner_kind == k.struct_) or (inner_kind == k.nominal) or (inner_kind == k.array) {
             topo_dfs(types, sorted, states, inner_ty)
         }
@@ -42,7 +41,7 @@ topo_sort :: (types &TypeStorage, type_queue &VecU32) VecU32 {
     sorted := VecU32.new()
     states := VecU8.new()
 
-    total_types := TypeStorage_len(types)
+     total_types := (&(*types)).len()
     i: u32 = 0
     while i < total_types {
         states.push(0 as u8)
