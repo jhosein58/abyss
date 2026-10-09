@@ -8,7 +8,7 @@ import Parser_new, peek, curr_span, parse_error_at from "parser/core.a"
 import parse_expr from "parser/parser.a"
 import ScopeEnv_destroy from "parser/env.a"
 import type_check, type_check_calls from "typer/tyck.a"
-import PoolU32_get, PoolU32_set, id_none from "nexus/pool.a"
+import id_none from "nexus/pool.a"
 import UnifyStorage_get_slot, UnifyStorage_resolve_type,UnifyStorage_new_slot, slot_none from "unify.a"
 import ty_id_none, ty_kind, TypeStorage_kind, TypeStorage_func_params_len, TypeStorage_func_is_extern from "types.a"
 import Str from "../std/string.a"
@@ -72,9 +72,9 @@ Engine :: struct {
             fall()
         }
 
-        file_id   := PoolU32_get(&.nexus.sym_files, sym_id)
-        tok_start := PoolU32_get(&.nexus.sym_tok_start, sym_id)
-        tok_end   := PoolU32_get(&.nexus.sym_tok_end, sym_id)
+        file_id   := .nexus.sym_files.get(sym_id)
+        tok_start := .nexus.sym_tok_start.get(sym_id)
+        tok_end   := .nexus.sym_tok_end.get(sym_id)
         count     := tok_end - tok_start
 
         hir_start := .nexus.hir.len()
@@ -97,13 +97,13 @@ Engine :: struct {
 
         hir_end := .nexus.hir.len()
 
-        PoolU32_set(&.nexus.sym_hir_start, sym_id, hir_start)
-        PoolU32_set(&.nexus.sym_hir_end, sym_id, hir_end)
+        .nexus.sym_hir_start.set(sym_id, hir_start)
+        .nexus.sym_hir_end.set(sym_id, hir_end)
     }
 
     type_check :: (sym_id u32) {
-        hir_start := PoolU32_get(&.nexus.sym_hir_start, sym_id)
-        hir_end   := PoolU32_get(&.nexus.sym_hir_end, sym_id)
+        hir_start := .nexus.sym_hir_start.get(sym_id)
+        hir_end   := .nexus.sym_hir_end.get(sym_id)
 
         .check_depth = .check_depth + 1
         type_check(.self(), hir_start, hir_end)
@@ -119,14 +119,14 @@ Engine :: struct {
 
         real_sym := sym_id
         while true {
-            tgt := PoolU32_get(&db.sym_target, real_sym)
+            tgt := db.sym_target.get(real_sym)
             if (tgt == id_none()) or (tgt == real_sym) {
                 break
             }
             real_sym = tgt
         }
 
-        tok_start := PoolU32_get(&db.sym_tok_start, real_sym)
+        tok_start := db.sym_tok_start.get(real_sym)
         if tok_start == id_none() {
             ret
         }
@@ -146,7 +146,7 @@ Engine :: struct {
             ret
         }
 
-        hir_start := PoolU32_get(&db.sym_hir_start, real_sym)
+        hir_start := db.sym_hir_start.get(real_sym)
         if hir_start == id_none() {
             Nexus_set_sym_resolving(db, real_sym, true)
             .parse(real_sym)
@@ -172,14 +172,14 @@ Engine :: struct {
 
         real_sym := sym_id
         while true {
-            tgt := PoolU32_get(&db.sym_target, real_sym)
+            tgt := db.sym_target.get(real_sym)
             if (tgt == id_none()) or (tgt == real_sym) {
                 break
             }
             real_sym = tgt
         }
 
-        tok_start := PoolU32_get(&db.sym_tok_start, real_sym)
+        tok_start := db.sym_tok_start.get(real_sym)
         if tok_start == id_none() {
             decl_hir := Nexus_get_sym_hir(db, real_sym)
             if decl_hir == id_none() { ret slot_none() }

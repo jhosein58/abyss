@@ -1,7 +1,7 @@
 import Nexus, Nexus_get_list, Nexus_get_hir_symbol, Nexus_get_sym_hir, Nexus_print_loc,
        Nexus_get_method_owner, Nexus_get_method_target, Nexus_get_const_type from "nexus/nexus.a"
 import HirTable, hir_kind, hir_none, HirExprKind from "hir.a"
-import PoolU32_get, id_none from "nexus/pool.a"
+import id_none from "nexus/pool.a"
 import CCodeGen, CCodeGen_declare_function, CCodeGen_start_function, CCodeGen_end_function, CCodeGen_start_if, CCodeGen_end_block,
        CCodeGen_create_variable, CCodeGen_expr, CCodeGen_gen_return, CCodeGen_else, CCodeGen_start_while, CCodeGen_def_struct from "codegen.a"
 import Str, String from "../std/string.a"
@@ -196,7 +196,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             if sym_id != id_none() {
                 real_sym := sym_id
                 while true {
-                    tgt := PoolU32_get(&(*db).sym_target, real_sym)
+                    tgt := db.sym_target.get(real_sym)
                     if (tgt == id_none()) or (tgt == real_sym) { break }
                     real_sym = tgt
                 }
@@ -217,11 +217,11 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         if sym_id != id_none() {
             real_sym := sym_id
             while true {
-                target := PoolU32_get(&(*db).sym_target, real_sym)
+                target := db.sym_target.get(real_sym)
                 if (target == id_none()) or (target == real_sym) { break }
                 real_sym = target
             }
-            if PoolU32_get(&(*db).sym_tok_start, real_sym) != id_none() {
+            if db.sym_tok_start.get(real_sym) != id_none() {
                 print("\n[codegen error] unsupported global value\n       --> ")
                 Nexus_print_loc(db, id)
                 print("\n")
@@ -664,7 +664,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     if not is_method {
         while true {
-            tgt := PoolU32_get(&(*db).sym_target, real_sym)
+            tgt := db.sym_target.get(real_sym)
             if (tgt == id_none()) or (tgt == real_sym) {
                 break
             }
@@ -681,7 +681,7 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     if is_method {
         binding_id = real_sym & 2147483647
     } else {
-        hir_end := PoolU32_get(&(*db).sym_hir_end, real_sym)
+        hir_end := db.sym_hir_end.get(real_sym)
         if (hir_end == 0) or (hir_end == id_none()) { ret }
         binding_id = hir_end - 1
     }
