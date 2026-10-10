@@ -323,7 +323,7 @@ CCodeGen :: struct {
         vec_push_str(&out, vec_as_str(&.code))
 
         if .has_main {
-            vec_push_str(&out, Str.of("int main(void) {\n    sym_"))
+            vec_push_str(&out, Str.of("int main(int argc, char **argv) {\n    abyss_argc = argc;\n    abyss_argv = argv;\n    sym_"))
             vec_push_u32(&out, .main_sym)
             vec_push_str(&out, Str.of("();\n    return 0;\n}\n"))
         }

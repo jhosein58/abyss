@@ -202,7 +202,7 @@ validate_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
         lhs_num := (lhs_kind == k.int) or (lhs_kind == k.uint) or (lhs_kind == k.float) or
                    (lhs_kind == k.untyped_int) or (lhs_kind == k.untyped_float)
         rhs_num := (rhs_kind == k.int) or (rhs_kind == k.uint) or (rhs_kind == k.float) or
-                   (rhs_kind == k.untyped_float) or (rhs_kind == k.untyped_float)
+                   (rhs_kind == k.untyped_int) or (rhs_kind == k.untyped_float)
         if lhs_num and rhs_num { ret }
         op := (tbl).kind(id)
         if (op == hir_kind().binary_eq_eq) or (op == hir_kind().binary_neq) {
