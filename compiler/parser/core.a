@@ -1,6 +1,7 @@
 import token, token_name, TokenType, TokenStream from "../token.a"
 import HirTable from "../hir.a"
 import Str from "../../std/string.a"
+import VecU32 from "../../std/vec/u32.a"
 import Nexus,
        calc_pos, Span, Pos, span_new, span_merge from "../nexus/nexus.a"
 import ScopeEnv, ScopeEnv_new, ScopeEnv_destroy, ScopeEnv_lookup from "env.a"
@@ -22,7 +23,8 @@ Parser :: struct {
     env       : ScopeEnv,
     allow_fn  : bool,
     inside_method : bool,
-    method_fn_depth : u32
+    method_fn_depth : u32,
+    fn_stack  : VecU32
 }
 
 Parser_new :: (db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv_sym u32, start u32, count u32) Parser {
@@ -37,7 +39,8 @@ Parser_new :: (db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv
         env       : ScopeEnv_new(),
         allow_fn  : true,
         inside_method : false,
-        method_fn_depth : 0
+        method_fn_depth : 0,
+        fn_stack  : VecU32.new()
     }
 }
 

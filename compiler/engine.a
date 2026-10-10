@@ -6,7 +6,7 @@ import index_file from "indexer.a"
 import Parser_new, peek, curr_span, parse_error_at from "parser/core.a"
 import parse_expr from "parser/parser.a"
 import ScopeEnv_destroy from "parser/env.a"
-import type_check, type_check_calls from "typer/tyck.a"
+import type_check from "typer/tyck.a"
 import id_none from "nexus/pool.a"
 import slot_none from "unify.a"
    import ty_id_none, ty_kind from "types.a"
@@ -24,23 +24,18 @@ print_u32 :: (v u32) unit
 Engine :: struct {
     nexus         : Nexus,
     file_count    : u32,
-    ccg           : CCodeGen,
-    pending_calls : VecU32,
-    check_depth   : u32
+    ccg           : CCodeGen
 
     new :: () Self {
         .{
             nexus         : Nexus.new(),
             file_count    : 0,
-            ccg           : CCodeGen_new(),
-            pending_calls : VecU32.new(),
-            check_depth   : 0
+            ccg           : CCodeGen_new()
         }
     }
 
     destroy :: () {
         CCodeGen_destroy(&.ccg)
-        .pending_calls.destroy()
     }
 
     self :: () &Self {
@@ -93,6 +88,7 @@ Engine :: struct {
             parse_error_at(&parser, "unexpected token after declaration", curr_span(&parser))
         }
         ScopeEnv_destroy(&parser.env)
+        parser.fn_stack.destroy()
 
         hir_end := .nexus.hir.len()
 
@@ -104,12 +100,7 @@ Engine :: struct {
         hir_start := .nexus.sym_hir_start.get(sym_id)
         hir_end   := .nexus.sym_hir_end.get(sym_id)
 
-        .check_depth = .check_depth + 1
         type_check(.self(), hir_start, hir_end)
-        .check_depth = .check_depth - 1
-        if .check_depth == 0 {
-            type_check_calls(.self())
-        }
     }
 
     ensure_resolved :: (sym_id u32) {

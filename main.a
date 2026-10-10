@@ -18,7 +18,7 @@ compile_and_run :: (path &u8) i32
 
 
 main :: () {
-
+    
     arena := Arena.new(1024 * 1024 * 16)
     
     main_path := "main.a"

@@ -3,11 +3,10 @@ import HirTable, hir_kind, hir_none from "../hir.a"
 import Str from "../../std/string.a"
 import SliceU32 from "../../std/slice/u32.a"
 import VecU32 from "../../std/vec/u32.a"
-import VecU8 from "../../std/vec/u8.a"
 
- import TypeStorage, ty_kind, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_int, ty_id_unknown, ty_id_never, ty_id_untyped_float, ty_id_bool from "../types.a"
+import TypeStorage, ty_kind, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_int, ty_id_unknown, ty_id_never, ty_id_untyped_float, ty_id_bool from "../types.a"
 
- import UnifyStorage, slot_none from "../unify.a"
+import UnifyStorage, slot_none from "../unify.a"
 import id_none from "../nexus/pool.a"
 
 import Engine from "../engine.a"
@@ -28,13 +27,13 @@ str_eq :: (a Str, b Str) bool {
 }
 
 parse_builtin_type :: (types &TypeStorage, name Str) u32 {
-      if str_eq(name, Str.of("bool")) { ret TypeStorage.alloc_bool() }
-      if str_eq(name, Str.of("unit")) { ret TypeStorage.alloc_unit() }
+    if str_eq(name, Str.of("bool")) { ret TypeStorage.alloc_bool() }
+    if str_eq(name, Str.of("unit")) { ret TypeStorage.alloc_unit() }
 
     if name.len < 2 { ret ty_id_none() }
 
     first := *(name.ptr)
-    if (first != 105) and (first != 117) and (first != 102) { -- 'i', 'u', 'f'
+    if (first != 105) and (first != 117) and (first != 102) {
         ret ty_id_none()
     }
 
@@ -55,46 +54,18 @@ parse_builtin_type :: (types &TypeStorage, name Str) u32 {
         ret ty_id_none()
     }
 
-      if first == 105 { ret (&(*types)).alloc_int( bits as u16) }
-      if first == 117 { ret (&(*types)).alloc_uint( bits as u16) }
-      if first == 102 { ret (&(*types)).alloc_float( bits as u16) }
+    if first == 105 { ret (&(*types)).alloc_int(bits as u16) }
+    if first == 117 { ret (&(*types)).alloc_uint(bits as u16) }
+    if first == 102 { ret (&(*types)).alloc_float(bits as u16) }
 
     ty_id_none()
 }
 
 type_check :: (eng &Engine, start u32, len u32) {
-    type_check_range(eng, start, len, hir_none())
-}
-
-type_check_range :: (eng &Engine, start u32, len u32, method_owner u32) {
-    db := &(*eng).nexus
-    tbl := &(*db).hir
-
-     fn_ret_slot := (&(*db).unify).tmp_slot()
-    pending_returns := VecU32.new()
-
     i := start
     while i < len {
-        if db.get_method_owner(i) == method_owner {
-            synth_node(eng, i, fn_ret_slot, &pending_returns)
-        }
+        synth_node(eng, i)
         i = i + 1
-    }
-    pending_returns.destroy()
-
-    if method_owner == hir_none() {
-        i = start
-        while i < len {
-            if ((tbl).kind(i) == hir_kind().struct_) and
-               ((tbl).extra(i) != hir_none()) and
-                ((&(*db).types).kind(db.get_const_type(i)) != ty_kind().nominal) {
-                print("\n\033[1;31m[type error]\033[0m methods require a named struct binding\n       --> ")
-                db.print_loc(i)
-                print("\n")
-                fall()
-            }
-            i = i + 1
-        }
     }
 }
 
@@ -111,82 +82,7 @@ method_has_receiver :: (db &Nexus, method u32) bool {
     false
 }
 
-type_check_calls :: (eng &Engine) {
-    db := &(*eng).nexus
-    count := db.hir.len() as u64
-    pending := VecU8.new()
-    i: u64 = 0
-    while i < count {
-        pending.push(0 as u8)
-        i = i + 1
-    }
-    i = 0
-    while i < (*eng).pending_calls.len {
-        id := (*eng).pending_calls.get(i)
-        pending.set(id as u64, 1 as u8)
-        i = i + 1
-    }
-    i = 0
-    while i < count {
-        if pending.get(i) == 0 {
-            i = i + 1
-            cont
-        }
-        id := i as u32
-        kind := (&(*db).hir).kind(id)
-
-        if kind == hir_kind().call { synth_call(db, &(*db).hir, id) }
-        if kind == hir_kind().member { synth_member(db, &(*db).hir, id) }
-        if kind == hir_kind().unary_deref { synth_unary_deref(db, &(*db).hir, id) }
-        if kind == hir_kind().unary_addr_of { synth_unary_addr_of(db, &(*db).hir, id) }
-        if kind == hir_kind().cast { synth_cast(db, &(*db).hir, id) }
-        if (kind == hir_kind().unary_neg) or (kind == hir_kind().unary_bit_not) {
-            validate_unary_num(db, &(*db).hir, id)
-        }
-        if (kind == hir_kind().binary_eq_eq) or (kind == hir_kind().binary_neq) or
-            (kind == hir_kind().binary_lt) or (kind == hir_kind().binary_lt_eq) or
-            (kind == hir_kind().binary_gt) or (kind == hir_kind().binary_gt_eq) {
-            validate_binary_comp(db, &(*db).hir, id)
-        }
-        if (kind == hir_kind().binary_add) or (kind == hir_kind().binary_sub) or
-            (kind == hir_kind().binary_mul) or (kind == hir_kind().binary_div) or
-            (kind == hir_kind().binary_mod) or (kind == hir_kind().binary_bit_and) or
-            (kind == hir_kind().binary_bit_or) or (kind == hir_kind().binary_bit_xor) or
-            (kind == hir_kind().binary_shl) or (kind == hir_kind().binary_shr) {
-            synth_binary(db, &(*db).hir, id)
-        }
-        i = i + 1
-    }
-
-    i = 0
-    while i < count {
-        pending.set(i, 0 as u8)
-        i = i + 1
-    }
-    i = 0
-    while i < count {
-        if (&(*db).hir).kind(i as u32) == hir_kind().call {
-            callee := (&(*db).hir).lhs(i as u32)
-            pending.set(callee as u64, 1 as u8)
-        }
-        i = i + 1
-    }
-    i = 0
-    while i < count {
-        if (db.get_method_target(i as u32) != id_none()) and
-           (pending.get(i) == 0) {
-            print("\n\033[1;31m[type error]\033[0m method values are not supported; call this method with (...)\n       --> ")
-            db.print_loc(i as u32)
-            print("\n")
-            fall()
-        }
-        i = i + 1
-    }
-    pending.destroy()
-    (*eng).pending_calls.len = 0
-}
-
-synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
+synth_node :: (eng &Engine, id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     k := hir_kind()
@@ -195,30 +91,11 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
     if curr == k.lit_int       { synth_lit_int(db, tbl, id) }
     if curr == k.ident         { synth_ident(eng, id) }
     if curr == k.var           { synth_var_or_binding(db, tbl, id) }
-    if curr == k.binding       {
-        synth_var_or_binding(db, tbl, id)
-        value_id := (tbl).extra(id)
-        if (value_id != hir_none()) and ((tbl).kind(value_id) == k.struct_) {
-            methods_id := (tbl).extra(value_id)
-            if methods_id != hir_none() {
-                methods_count := db.get_list(methods_id).len
-                index: u64 = 0
-                while index < methods_count {
-                    methods := db.get_list(methods_id)
-                    method := *(methods.ptr + index)
-                    type_check_range(eng, (tbl).lhs(method), method + 1, value_id)
-                    index = index + 1
-                }
-            }
-        }
-    }
+    if curr == k.binding       { synth_var_or_binding(db, tbl, id) }
     if curr == k.arg           { synth_arg(db, tbl, id) }
-    if curr == k.function      { synth_func(db, tbl, id, fn_ret_slot, pending_returns) }
-    if curr == k.k_ret         { synth_return(db, tbl, id, fn_ret_slot, pending_returns) }
-    if curr == k.call          {
-        (&(*db).unify).new_slot(id)
-        (*eng).pending_calls.push(id)
-    }
+    if curr == k.function      { synth_func(eng, id) }
+    if curr == k.k_ret         { synth_return(db, tbl, id) }
+    if curr == k.call          { synth_call(db, tbl, id) }
     if curr == k.block         { synth_block(db, tbl, id) }
     if curr == k.binary_assign { synth_assign(db, tbl, id) }
 
@@ -228,43 +105,21 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
 
     if (curr == k.unary_neg) or (curr == k.unary_bit_not) {
         synth_unary_num(db, tbl, id)
-        (*eng).pending_calls.push(id)
+        validate_unary_num(db, tbl, id)
     }
     if curr == k.unary_not      { synth_unary_not(db, tbl, id) }
-    if curr == k.unary_addr_of {
-        (&(*db).unify).new_slot(id)
-        child := (tbl).lhs(id)
-        child_slot := (&(*db).unify).get_slot(child)
-        child_ty := ty_id_none()
-        if child_slot != slot_none() {
-            child_ty = (&(*db).unify).resolve_type_deep(&(*db).types, child_slot)
-        }
-        if child_ty == ty_id_type() {
-            synth_unary_addr_of(db, tbl, id)
-        } else {
-            (*eng).pending_calls.push(id)
-        }
-    }
-    if curr == k.unary_deref {
-        (&(*db).unify).new_slot(id)
-        (*eng).pending_calls.push(id)
-    }
+    if curr == k.unary_addr_of  { synth_unary_addr_of(db, tbl, id) }
+    if curr == k.unary_deref    { synth_unary_deref(db, tbl, id) }
     if (curr == k.k_break) or (curr == k.k_cont) { synth_break_cont(db, tbl, id) }
 
     if curr == k.k_if           { synth_if(db, tbl, id) }
     if curr == k.k_while        { synth_while(db, tbl, id) }
 
-    if curr == k.cast           {
-        (&(*db).unify).new_slot(id)
-        (*eng).pending_calls.push(id)
-    }
+    if curr == k.cast           { synth_cast(db, tbl, id) }
 
-    if curr == k.struct_        { synth_struct(db, tbl, id) }
+    if curr == k.struct_        { synth_struct(eng, id) }
     if curr == k.struct_init    { synth_struct_init(db, tbl, id) }
-    if curr == k.member         {
-        (&(*db).unify).new_slot(id)
-        (*eng).pending_calls.push(id)
-    }
+    if curr == k.member         { synth_member(eng, id) }
 
     if (curr == k.binary_and) or (curr == k.binary_or) { synth_logic_and_or(db, tbl, id) }
 
@@ -273,17 +128,15 @@ synth_node :: (eng &Engine, id u32, fn_ret_slot u32, pending_returns &VecU32) {
         (curr == k.binary_mod) or (curr == k.binary_bit_and) or
         (curr == k.binary_bit_or) or (curr == k.binary_bit_xor) or
         (curr == k.binary_shl) or (curr == k.binary_shr) {
-        (&(*db).unify).new_slot(id)
-        (*eng).pending_calls.push(id)
+        synth_binary(db, tbl, id)
     }
 
     if (curr == k.binary_eq_eq) or (curr == k.binary_neq) or
        (curr == k.binary_lt) or (curr == k.binary_lt_eq) or
        (curr == k.binary_gt) or (curr == k.binary_gt_eq) {
         synth_binary_comp(db, tbl, id)
-        (*eng).pending_calls.push(id)
+        validate_binary_comp(db, tbl, id)
     }
-
 }
 
 synth_lit_int :: (db &Nexus, tbl &HirTable, id u32) {
@@ -350,6 +203,40 @@ synth_ident :: (eng &Engine, id u32) {
             }
         }
     }
+}
+
+synth_type_node :: (eng &Engine, id u32) u32 {
+    if id == hir_none() { ret ty_id_none() }
+    db := &(*eng).nexus
+    existing := db.get_const_type(id)
+    if existing != ty_id_none() { ret existing }
+
+    tbl := &(*db).hir
+    k := hir_kind()
+    curr := (tbl).kind(id)
+
+    if curr == k.ident {
+        synth_ident(eng, id)
+        ret db.get_const_type(id)
+    }
+
+    if curr == k.unary_addr_of {
+        child := (tbl).lhs(id)
+        child_ty := synth_type_node(eng, child)
+        if child_ty != ty_id_none() {
+            ptr_ty := (&(*db).types).alloc_ptr(child_ty)
+            db.set_const_type(id, ptr_ty)
+            slot := (&(*db).unify).get_slot(id)
+            if slot == slot_none() {
+                slot = (&(*db).unify).new_slot(id)
+            }
+            (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+            ret ptr_ty
+        }
+    }
+
+    synth_node(eng, id)
+    db.get_const_type(id)
 }
 
 check_value :: (db &Nexus, expr u32, expected u32) {
@@ -456,16 +343,20 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
     if value_id != hir_none() {
         if ((tbl).kind(id) == hir_kind().binding) and ((tbl).kind(value_id) == hir_kind().struct_) {
             structural := db.get_const_type(value_id)
-              if (&(*types_ptr)).kind( structural) != ty_kind().struct_ {
+            kind := (&(*types_ptr)).kind(structural)
+            if (kind != ty_kind().struct_) and (kind != ty_kind().nominal) {
                 print("\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> ")
                 db.print_loc(value_id)
                 print("\n")
                 fall()
             }
-            name_id := (tbl).lhs(ident_id)
-            name := db.interner.get(name_id)
-              named := (&(*types_ptr)).alloc_nominal( structural, name, id)
-            db.set_const_type(value_id, named)
+            named := structural
+            if kind == ty_kind().struct_ {
+                name_id := (tbl).lhs(ident_id)
+                name := db.interner.get(name_id)
+                named = (&(*types_ptr)).alloc_nominal(structural, name, id)
+                db.set_const_type(value_id, named)
+            }
             db.set_const_type(ident_id, named)
             db.set_const_type(id, named)
         }
@@ -515,11 +406,20 @@ synth_arg :: (db &Nexus, tbl &HirTable, id u32) {
         }
     }
 }
-synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_returns &VecU32) {
+synth_func :: (eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
-    slot := (unify_ptr).new_slot(id)
+    if db.get_const_type(id) != ty_id_none() {
+        ret
+    }
+
+    slot := (unify_ptr).get_slot(id)
+    if slot == slot_none() {
+        slot = (unify_ptr).new_slot(id)
+    }
 
     params_list_id := (tbl).lhs(id)
     ret_hir_id     := (tbl).rhs(id)
@@ -529,7 +429,7 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
 
     ret_ty := ty_id_unit()
     if ret_hir_id != hir_none() {
-        val := db.get_const_type(ret_hir_id)
+        val := synth_type_node(eng, ret_hir_id)
         if val == ty_id_none() {
             print("\n[type error] unresolved return type\n       --> ")
             db.print_loc(ret_hir_id)
@@ -539,16 +439,6 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
         ret_ty = val
     }
 
-    if fn_ret_slot != slot_none() {
-        i: u64 = 0
-        while i < (*pending_returns).len {
-            check_value(db, pending_returns.get(i), ret_ty)
-            i = i + 1
-        }
-        pending_returns.clear()
-          (&(*db).unify).bind_type(&(*db).types, fn_ret_slot, ret_ty)
-    }
-
     params_vec := VecU32.new()
     if params_list_id != hir_none() {
         args := db.get_list(params_list_id)
@@ -556,7 +446,10 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
         while i < args.len {
             arg_id := *(args.ptr + i)
             ty_node := (tbl).rhs(arg_id)
-            param_ty := db.get_const_type(ty_node)
+            param_ty := ty_id_none()
+            if ty_node != hir_none() {
+                param_ty = synth_type_node(eng, ty_node)
+            }
 
             if param_ty == ty_id_none() {
                 arg_ident := (tbl).lhs(arg_id)
@@ -579,6 +472,15 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
                 fall()
             }
 
+            arg_ident := (tbl).lhs(arg_id)
+            ident_slot := (unify_ptr).get_slot(arg_ident)
+            if ident_slot == slot_none() {
+                ident_slot = (unify_ptr).new_slot(arg_ident)
+            }
+            (&(*db).unify).bind_type(&(*db).types, ident_slot, param_ty)
+            db.set_const_type(arg_ident, param_ty)
+            db.set_const_type(arg_id, param_ty)
+
             params_vec.push(param_ty)
             i = i + 1
         }
@@ -590,31 +492,22 @@ synth_func :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_return
         slice.len = params_vec.len
     }
 
-      func_ty := (&(*types_ptr)).alloc_func( slice, ret_ty, is_extern)
+    func_ty := (&(*types_ptr)).alloc_func(slice, ret_ty, is_extern)
     params_vec.destroy()
 
-      (&(*db).unify).bind_type(&(*db).types, slot, func_ty)
+    (&(*db).unify).bind_type(&(*db).types, slot, func_ty)
+    db.set_const_type(id, func_ty)
 
-    if (not is_extern) and (body_id != hir_none()) {
-        body_slot := (unify_ptr).get_slot(body_id)
-        if body_slot != slot_none() {
-            is_ref_self := false
-            owner := db.get_method_owner(id)
-            if (owner != hir_none()) and method_has_receiver(db, id) {
-                owner_ty := db.get_const_type(owner)
-                if (owner_ty != ty_id_none()) and
-                     ((&(*types_ptr)).kind( ret_ty) == ty_kind().ptr) and
-                     ((&(*types_ptr)).payload( ret_ty) == owner_ty) {
-                    is_ref_self = true
-                }
+    sym_id := db.get_hir_symbol(id)
+    if sym_id != id_none() {
+        sym_hir := db.get_sym_hir(sym_id)
+        if sym_hir != id_none() {
+            sym_slot := (&(*db).unify).get_slot(sym_hir)
+            if sym_slot == slot_none() {
+                sym_slot = (&(*db).unify).new_slot(sym_hir)
             }
-
-            if not is_ref_self {
-                if (fn_ret_slot != slot_none()) and (ret_ty != ty_id_unit()) {
-                    check_value(db, body_id, ret_ty)
-                      (&(*db).unify).union(&(*db).types, body_slot, fn_ret_slot)
-                }
-            }
+            (&(*db).unify).union(&(*db).types, sym_slot, slot)
+            db.set_const_type(sym_hir, func_ty)
         }
     }
 }
@@ -660,41 +553,42 @@ method_returns_ref_self :: (db &Nexus, node_id u32) bool {
     if ret_ty == ty_id_none() { ret false }
 
     types := &(*db).types
-      if (&(*types)).kind( ret_ty) != ty_kind().ptr { ret false }
-      (&(*types)).payload( ret_ty) == owner_ty
+    if (&(*types)).kind(ret_ty) != ty_kind().ptr { ret false }
+    (&(*types)).payload(ret_ty) == owner_ty
 }
 
-synth_return :: (db &Nexus, tbl &HirTable, id u32, fn_ret_slot u32, pending_returns &VecU32) {
+synth_return :: (db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
     slot := (unify_ptr).new_slot(id)
-      (&(*db).unify).bind_type(&(*db).types, slot, ty_id_never())
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_never())
+
+    fn_id := (tbl).rhs(id)
+    if fn_id == hir_none() { ret }
+
+    func_ty := db.get_const_type(fn_id)
+    ret_ty := ty_id_unit()
+    if func_ty != ty_id_none() {
+        ret_ty = (&(*types_ptr)).func_return(func_ty)
+    }
 
     val_id := (tbl).lhs(id)
     if val_id != hir_none() {
+        check_value(db, val_id, ret_ty)
         val_slot := (unify_ptr).get_slot(val_id)
-        if (val_slot != slot_none()) and (fn_ret_slot != slot_none()) {
-            ret_ty := (unify_ptr).resolve_type(fn_ret_slot)
-            if (ret_ty == ty_id_none()) and ((tbl).kind(val_id) == hir_kind().struct_init) {
-                pending_returns.push(val_id)
-                ret
-            }
-            if ret_ty != ty_id_none() { check_value(db, val_id, ret_ty) }
-              (&(*db).unify).union(&(*db).types, val_slot, fn_ret_slot)
+        if val_slot != slot_none() {
+            (&(*db).unify).bind_type(&(*db).types, val_slot, ret_ty)
         }
     } else {
         if method_returns_ref_self(db, id) {
-            owner := db.get_method_owner(id)
-            owner_ty := db.get_const_type(owner)
-              ptr_ty := (&(*types_ptr)).alloc_ptr( owner_ty)
-            if fn_ret_slot != slot_none() {
-                  (&(*db).unify).bind_type(&(*db).types, fn_ret_slot, ptr_ty)
-            }
-        } else if fn_ret_slot != slot_none() {
-            unit_slot := unify_ptr.tmp_slot()
-              (&(*db).unify).bind_type(&(*db).types, unit_slot, ty_id_unit())
-              (&(*db).unify).union(&(*db).types, unit_slot, fn_ret_slot)
+            ret
+        }
+        if ret_ty != ty_id_unit() {
+            print("\n\033[1;31m[type error]\033[0m return with no value in function returning non-unit\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
         }
     }
 }
@@ -704,6 +598,9 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
     types_ptr := &(*db).types
 
     slot := (unify_ptr).get_slot(id)
+    if slot == slot_none() {
+        slot = (unify_ptr).new_slot(id)
+    }
     callee := (tbl).lhs(id)
     callee_slot := (unify_ptr).get_slot(callee)
 
@@ -797,10 +694,25 @@ synth_block :: (db &Nexus, tbl &HirTable, id u32) {
         last_id := *(items.ptr + items.len - 1)
         last_slot := (unify_ptr).get_slot(last_id)
         if last_slot != slot_none() {
-              (&(*db).unify).union(&(*db).types, slot, last_slot)
+            (&(*db).unify).union(&(*db).types, slot, last_slot)
         }
     } else {
-          (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
+        (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
+    }
+
+    fn_id := (tbl).rhs(id)
+    if fn_id != hir_none() {
+        func_ty := db.get_const_type(fn_id)
+        if func_ty != ty_id_none() {
+            ret_ty := (&(*types_ptr)).func_return(func_ty)
+            if (ret_ty != ty_id_unit()) and (not method_returns_ref_self(db, id)) {
+                if items.len > 0 {
+                    last_id := *(items.ptr + items.len - 1)
+                    check_value(db, last_id, ret_ty)
+                }
+                (&(*db).unify).bind_type(&(*db).types, slot, ret_ty)
+            }
+        }
     }
 }
 
@@ -809,6 +721,9 @@ synth_binary :: (db &Nexus, tbl &HirTable, id u32) {
     types_ptr := &(*db).types
 
     slot := (unify_ptr).get_slot(id)
+    if slot == slot_none() {
+        slot = (unify_ptr).new_slot(id)
+    }
     lhs := (tbl).lhs(id)
     rhs := (tbl).rhs(id)
 
@@ -938,27 +853,36 @@ synth_unary_not :: (db &Nexus, tbl &HirTable, id u32) {
 }
 
 synth_unary_addr_of :: (db &Nexus, tbl &HirTable, id u32) {
+    if db.get_const_type(id) != ty_id_none() {
+        ret
+    }
     slot := (&(*db).unify).get_slot(id)
+    if slot == slot_none() {
+        slot = (&(*db).unify).new_slot(id)
+    }
     child := (tbl).lhs(id)
     child_slot := (&(*db).unify).get_slot(child)
 
     if child_slot != slot_none() {
         child_ty := (&(*db).unify).resolve_type_deep(&(*db).types, child_slot)
-         if (&(*db).types).kind(child_ty) == ty_kind().type_ {
-              (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+        if (&(*db).types).kind(child_ty) == ty_kind().type_ {
+            (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
             val := db.get_const_type(child)
-             ptr_val := (&(*db).types).alloc_ptr(val)
+            ptr_val := (&(*db).types).alloc_ptr(val)
             db.set_const_type(id, ptr_val)
             ret
         }
 
-         ptr_ty := (&(*db).types).alloc_ptr(child_ty)
-          (&(*db).unify).bind_type(&(*db).types, slot, ptr_ty)
+        ptr_ty := (&(*db).types).alloc_ptr(child_ty)
+        (&(*db).unify).bind_type(&(*db).types, slot, ptr_ty)
     }
 }
 
 synth_unary_deref :: (db &Nexus, tbl &HirTable, id u32) {
     slot := (&(*db).unify).get_slot(id)
+    if slot == slot_none() {
+        slot = (&(*db).unify).new_slot(id)
+    }
     child := (tbl).lhs(id)
     child_slot := (&(*db).unify).get_slot(child)
 
@@ -1066,6 +990,9 @@ synth_logic_and_or :: (db &Nexus, tbl &HirTable, id u32) {
 
 synth_cast :: (db &Nexus, tbl &HirTable, id u32) {
     slot := (&(*db).unify).get_slot(id)
+    if slot == slot_none() {
+        slot = (&(*db).unify).new_slot(id)
+    }
     lhs := (tbl).lhs(id)
     rhs := (tbl).rhs(id)
     rhs_type := db.get_const_type(rhs)
@@ -1076,8 +1003,8 @@ synth_cast :: (db &Nexus, tbl &HirTable, id u32) {
             lhs_type = (&(*db).unify).resolve_type_deep(&(*db).types, lhs_slot)
         }
         types := &(*db).types
-          src := (&(*types)).kind( lhs_type)
-          dst := (&(*types)).kind( rhs_type)
+        src := (&(*types)).kind(lhs_type)
+        dst := (&(*types)).kind(rhs_type)
         k := ty_kind()
         src_int := (src == k.int) or (src == k.uint) or (src == k.untyped_int)
         dst_int := (dst == k.int) or (dst == k.uint) or (dst == k.untyped_int)
@@ -1091,7 +1018,7 @@ synth_cast :: (db &Nexus, tbl &HirTable, id u32) {
             print("\n")
             fall()
         }
-          (&(*db).unify).bind_type(&(*db).types, slot, rhs_type)
+        (&(*db).unify).bind_type(&(*db).types, slot, rhs_type)
     } else {
         print("\n[type error] cast target is not a type\n       --> ")
         db.print_loc(id)
@@ -1100,7 +1027,9 @@ synth_cast :: (db &Nexus, tbl &HirTable, id u32) {
     }
 }
 
-synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
+synth_struct :: (eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -1115,13 +1044,16 @@ synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
     fields_vec := VecU32.new()
 
     i: u64 = 0
-     while (i < names.len) and (i < types.len) {
+    while (i < names.len) and (i < types.len) {
         name_node := *(names.ptr + i)
-         type_node := *(types.ptr + i)
+        type_node := *(types.ptr + i)
 
         name_id := (tbl).lhs(name_node)
 
         ty_val := db.get_const_type(type_node)
+        if ty_val == ty_id_none() {
+            ty_val = synth_type_node(eng, type_node)
+        }
         if ty_val == ty_id_none() {
             print("\n\033[1;31m[type error]\033[0m struct field requires a resolved type\n       --> ")
             db.print_loc(type_node)
@@ -1138,11 +1070,51 @@ synth_struct :: (db &Nexus, tbl &HirTable, id u32) {
     if fields_vec.len > 0 { ptr = fields_vec.ptr_at(0) }
     slice: SliceU32 = .{ ptr: ptr, len: fields_vec.len }
 
-      tyid := (&(*types_ptr)).alloc_struct( slice)
+    tyid := (&(*types_ptr)).alloc_struct(slice)
     fields_vec.destroy()
 
-    db.set_const_type(id, tyid)
-      (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+    sym_id := db.get_hir_symbol(id)
+    if sym_id != id_none() {
+        name_id := db.sym_names.get(sym_id)
+        name := db.interner.get(name_id)
+        named := (&(*types_ptr)).alloc_nominal(tyid, name, id)
+        db.set_const_type(id, named)
+        sym_hir := db.get_sym_hir(sym_id)
+        if sym_hir != id_none() {
+            db.set_const_type(sym_hir, named)
+            sym_slot := (&(*db).unify).get_slot(sym_hir)
+            if sym_slot == slot_none() {
+                sym_slot = (&(*db).unify).new_slot(sym_hir)
+            }
+            (&(*db).unify).bind_type(&(*db).types, sym_slot, ty_id_type())
+        }
+    } else {
+        db.set_const_type(id, tyid)
+    }
+
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+
+    methods_id := (tbl).extra(id)
+    if methods_id != hir_none() {
+        if sym_id == id_none() {
+            print("\n\033[1;31m[type error]\033[0m methods require a named struct binding\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
+        }
+        methods := db.get_list(methods_id)
+        m_i: u64 = 0
+        while m_i < methods.len {
+            method := *(methods.ptr + m_i)
+            func_node := (tbl).extra(method)
+            synth_func(eng, func_node)
+            method_slot := (unify_ptr).new_slot(method)
+            func_slot := (unify_ptr).get_slot(func_node)
+            func_ty := (unify_ptr).resolve_type(func_slot)
+            (&(*db).unify).bind_type(&(*db).types, method_slot, func_ty)
+            m_i = m_i + 1
+        }
+    }
 }
 
 synth_struct_init :: (db &Nexus, tbl &HirTable, id u32) {
@@ -1170,7 +1142,7 @@ synth_struct_init :: (db &Nexus, tbl &HirTable, id u32) {
         if v_slot == slot_none() {
             v_slot = (unify_ptr).new_slot(v_node)
         }
-          infer_ty := (&(*types_ptr)).alloc_infer( v_slot)
+        infer_ty := (&(*types_ptr)).alloc_infer(v_slot)
 
         fields_vec.push(name_id)
         fields_vec.push(infer_ty)
@@ -1181,18 +1153,22 @@ synth_struct_init :: (db &Nexus, tbl &HirTable, id u32) {
     if fields_vec.len > 0 { ptr = fields_vec.ptr_at(0) }
     slice: SliceU32 = .{ ptr: ptr, len: fields_vec.len }
 
-      tyid := (&(*types_ptr)).alloc_struct(slice)
+    tyid := (&(*types_ptr)).alloc_struct(slice)
     fields_vec.destroy()
 
-      (&(*db).unify).bind_type(&(*db).types, slot, tyid)
+    (&(*db).unify).bind_type(&(*db).types, slot, tyid)
 }
 
-synth_member :: (db &Nexus, tbl &HirTable, id u32) {
+synth_member :: (eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
     slot := (unify_ptr).get_slot(id)
+    if slot == slot_none() {
+        slot = (unify_ptr).new_slot(id)
+    }
     lhs_id := (tbl).lhs(id)
-
 
     is_type := false
     lhs_ty := ty_id_none()
@@ -1218,16 +1194,16 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
             lhs_ty = db.get_const_type(lhs_id)
             is_type = true
         } else {
-              while (&(*types_ptr)).kind( lhs_ty) == ty_kind().ptr {
-                  lhs_ty = (&(*types_ptr)).payload( lhs_ty)
+            while (&(*types_ptr)).kind(lhs_ty) == ty_kind().ptr {
+                lhs_ty = (&(*types_ptr)).payload(lhs_ty)
             }
         }
     }
 
-      kind := (&(*types_ptr)).kind( lhs_ty)
+    kind := (&(*types_ptr)).kind(lhs_ty)
     if (kind != ty_kind().struct_) and (kind != ty_kind().nominal) {
         print("\n\033[1;31m[type error]\033[0m member receiver must be a struct value or named struct type, got '")
-          (&(*types_ptr)).print_type( lhs_ty)
+        (&(*types_ptr)).print_type(lhs_ty)
         print("'\n       --> ")
         db.print_loc(id)
         print("\n")
@@ -1237,15 +1213,15 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
     rhs_id := (tbl).rhs(id)
     name_id := (tbl).lhs(rhs_id)
     if not is_type {
-          fields := (&(*types_ptr)).get_struct_fields( lhs_ty)
+        fields := (&(*types_ptr)).get_struct_fields(lhs_ty)
         i: u64 = 0
         while i < fields.len / 2 {
             if *(fields.ptr + i * 2) == name_id {
                 field_ty := *(fields.ptr + i * 2 + 1)
-                  if (&(*types_ptr)).kind( field_ty) == ty_kind().infer {
-                        (&(*db).unify).union(&(*db).types, slot, (&(*types_ptr)).payload( field_ty))
+                if (&(*types_ptr)).kind(field_ty) == ty_kind().infer {
+                    (&(*db).unify).union(&(*db).types, slot, (&(*types_ptr)).payload(field_ty))
                 } else {
-                      (&(*db).unify).bind_type(&(*db).types, slot, field_ty)
+                    (&(*db).unify).bind_type(&(*db).types, slot, field_ty)
                 }
                 ret
             }
@@ -1254,8 +1230,11 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
     }
 
     if kind == ty_kind().nominal {
-          binding := (&(*types_ptr)).nominal_origin( lhs_ty)
-        struct_id := (tbl).extra(binding)
+        origin := (&(*types_ptr)).nominal_origin(lhs_ty)
+        struct_id := origin
+        if (tbl).kind(origin) == hir_kind().binding {
+            struct_id = (tbl).extra(origin)
+        }
         methods_id := (tbl).extra(struct_id)
         if methods_id != hir_none() {
             methods := db.get_list(methods_id)
@@ -1279,13 +1258,15 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
                     }
                     method_slot := (unify_ptr).get_slot(method)
                     if method_slot == slot_none() {
-                        print("\n\033[1;31m[type error]\033[0m method declaration was not resolved\n       --> ")
-                        db.print_loc(method)
-                        print("\n")
-                        fall()
+                        func_node := (tbl).extra(method)
+                        synth_func(eng, func_node)
+                        method_slot = (unify_ptr).new_slot(method)
+                        func_slot := (unify_ptr).get_slot(func_node)
+                        func_ty := (unify_ptr).resolve_type(func_slot)
+                        (&(*db).unify).bind_type(&(*db).types, method_slot, func_ty)
                     }
                     db.set_method_target(id, method)
-                      (&(*db).unify).union(&(*db).types, slot, method_slot)
+                    (&(*db).unify).union(&(*db).types, slot, method_slot)
                     ret
                 }
                 i = i + 1
@@ -1294,7 +1275,7 @@ synth_member :: (db &Nexus, tbl &HirTable, id u32) {
     }
 
     print("\n\033[1;31m[type error]\033[0m struct '")
-      (&(*types_ptr)).print_type( lhs_ty)
+    (&(*types_ptr)).print_type(lhs_ty)
     print("' has no field or method named '")
     db.interner.get(name_id).print()
     print("'\n       --> ")
