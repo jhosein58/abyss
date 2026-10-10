@@ -7,19 +7,9 @@ import fall from "../../../std/sys.a"
 
 print :: (s &u8) unit
 
-str_eq :: (a Str, b Str) bool {
-    if a.len != b.len { ret false }
-    i: u64 = 0
-    while i < a.len {
-        if *(a.ptr + i) != *(b.ptr + i) { ret false }
-        i = i + 1
-    }
-    true
-}
-
 parse_builtin_type :: (types &TypeStorage, name Str) u32 {
-    if str_eq(name, Str.of("bool")) { ret TypeStorage.alloc_bool() }
-    if str_eq(name, Str.of("unit")) { ret TypeStorage.alloc_unit() }
+    if name.eq(Str.of("bool")) { ret TypeStorage.alloc_bool() }
+    if name.eq(Str.of("unit")) { ret TypeStorage.alloc_unit() }
 
     if name.len < 2 { ret ty_id_none() }
 
@@ -28,11 +18,14 @@ parse_builtin_type :: (types &TypeStorage, name Str) u32 {
         ret ty_id_none()
     }
 
-    bits: u32 = 0
-    i: u64 = 1
+    bits := 0
+    i := 1
+
     while i < name.len {
         c := *(name.ptr + i)
+
         if (c < 48) or (c > 57) { ret ty_id_none() }
+
         bits = (bits * 10) + ((c - 48) as u32)
         i = i + 1
     }
@@ -45,22 +38,23 @@ parse_builtin_type :: (types &TypeStorage, name Str) u32 {
         ret ty_id_none()
     }
 
-    if first == 105 { ret (&(*types)).alloc_int(bits as u16) }
-    if first == 117 { ret (&(*types)).alloc_uint(bits as u16) }
-    if first == 102 { ret (&(*types)).alloc_float(bits as u16) }
+    if first == 105 { ret types.alloc_int(bits as u16) }
+    if first == 117 { ret types.alloc_uint(bits as u16) }
+    if first == 102 { ret types.alloc_float(bits as u16) }
 
     ty_id_none()
 }
 
 check_value :: (db &Nexus, expr u32, expected u32) {
-    tbl := &(*db).hir
-    unify_ptr := &(*db).unify
-    types := &(*db).types
-    slot := (unify_ptr).get_slot(expr)
+    tbl := &db.hir
+    unify_ptr := &db.unify
+    types := &db.types
+
+    slot := unify_ptr.get_slot(expr)
     if slot == slot_none() { ret }
 
-    if (tbl).kind(expr) == hir_kind().block {
-        items := db.get_list((tbl).lhs(expr))
+    if tbl.kind(expr) == hir_kind().block {
+        items := db.get_list(tbl.lhs(expr))
         if items.len > 0 {
             check_value(db, *(items.ptr + items.len - 1), expected)
             ret

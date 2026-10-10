@@ -6,7 +6,7 @@ import slot_none from "../../unify.a"
 import id_none from "../../nexus/pool.a"
 import Engine from "../../engine.a"
 import fall from "../../../std/sys.a"
-import str_eq, parse_builtin_type, check_value from "common.a"
+import parse_builtin_type, check_value from "common.a"
 import synth_node from "../tyck.a"
 
 print :: (s &u8) unit
@@ -26,7 +26,7 @@ synth_ident :: (eng &Engine, id u32) {
     }
 
     owner := db.get_method_owner(id)
-    if (owner != hir_none()) and str_eq(name, Str.of("Self")) {
+    if (owner != hir_none()) and name.eq(Str.of("Self")) {
         self_ty := db.get_const_type(owner)
         if (&(*types_ptr)).kind(self_ty) != ty_kind().nominal {
             print("\n\033[1;31m[type error]\033[0m Self requires a named struct method\n       --> ")
