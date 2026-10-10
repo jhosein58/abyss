@@ -1,0 +1,52 @@
+print :: (s &u8) unit
+print_i32 :: (v i32) unit
+
+println_i32 :: (v i32) {
+    print_i32(v)
+    print("\n")
+}
+
+main :: () {
+    x: i32 = 10
+    println_i32(x)
+
+    y := 20
+    println_i32(y)
+
+    x = 15
+    y = y + 5
+    println_i32(x)
+    println_i32(y)
+
+    c := 100
+    println_i32(c)
+
+    s := 1
+    println_i32(s)
+    {
+        s := 2
+        println_i32(s)
+        {
+            s := 3
+            println_i32(s)
+        }
+        println_i32(s)
+    }
+    println_i32(s)
+
+    b1 := {
+        a := 10
+        b := 20
+        a + b
+    }
+    println_i32(b1)
+
+    b2 := {
+        k := 5
+        k + {
+            m := 15
+            m * 2
+        }
+    }
+    println_i32(b2)
+}

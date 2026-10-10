@@ -1,0 +1,38 @@
+print :: (s &u8) unit
+print_char :: (c u8) unit
+print_i32 :: (v i32) unit
+print_u32 :: (v u32) unit
+print_bool :: (b bool) unit
+
+println_i32 :: (v i32) {
+    print_i32(v)
+    print("\n")
+}
+
+println_u32 :: (v u32) {
+    print_u32(v)
+    print("\n")
+}
+
+println_bool :: (b bool) {
+    print_bool(b)
+    print("\n")
+}
+
+main :: () {
+    println_i32(0)
+    println_i32(42)
+    println_i32(-100)
+    println_i32(1_000_000)
+
+    println_u32(0x0)
+    println_u32(0xFF)
+    println_u32(0x10_20)
+
+    println_bool(true)
+    println_bool(false)
+
+    print("hello abyss\n")
+    print_char(65 as u8)
+    print_char(10 as u8)
+}

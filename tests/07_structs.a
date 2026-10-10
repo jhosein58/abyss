@@ -1,0 +1,43 @@
+print :: (s &u8) unit
+print_i32 :: (v i32) unit
+
+println_i32 :: (v i32) {
+    print_i32(v)
+    print("\n")
+}
+
+Point :: struct {
+    x: i32,
+    y: i32
+}
+
+Rect :: struct {
+    w: i32,
+    h: i32,
+
+    area :: () i32 {
+        .w * .h
+    }
+
+    scale :: (factor i32) i32 {
+        .w * factor
+    }
+}
+
+Ops :: struct {
+    op: (i32, i32) i32
+}
+
+main :: () {
+    p: Point = .{ x: 10, y: 20 }
+    println_i32(p.x)
+    println_i32(p.y)
+
+    r: Rect = .{ w: 5, h: 8 }
+    println_i32(r.area())
+    println_i32(r.scale(3))
+
+    add := (a, b i32) i32 { a + b }
+    o: Ops = .{ op: add }
+    println_i32(o.op(10, 5))
+}

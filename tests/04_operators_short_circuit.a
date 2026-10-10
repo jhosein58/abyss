@@ -1,0 +1,60 @@
+print :: (s &u8) unit
+print_i32 :: (v i32) unit
+print_bool :: (b bool) unit
+
+println_i32 :: (v i32) {
+    print_i32(v)
+    print("\n")
+}
+
+println_bool :: (b bool) {
+    print_bool(b)
+    print("\n")
+}
+
+trigger :: () bool {
+    print("SIDE_EFFECT\n")
+    true
+}
+
+main :: () {
+    a := 20
+    b := 6
+
+    println_i32(a + b)
+    println_i32(a - b)
+    println_i32(a * b)
+    println_i32(a / b)
+    println_i32(a % b)
+
+    println_i32(a & b)
+    println_i32(a | b)
+    println_i32(a ^ b)
+    println_i32(a << 2)
+    println_i32(a >> 1)
+
+    println_bool(a == 20)
+    println_bool(a != 20)
+    println_bool(a > b)
+    println_bool(a < b)
+    println_bool(a >= 20)
+    println_bool(b <= 6)
+    println_bool(not false)
+    println_bool(not true)
+
+    if false and { trigger() } {
+        print("unreachable\n")
+    }
+
+    if true or { trigger() } {
+        print("or_ok\n")
+    }
+
+    if true and { trigger() } {
+        print("and_ok\n")
+    }
+
+    if false or { trigger() } {
+        print("or_fallback_ok\n")
+    }
+}

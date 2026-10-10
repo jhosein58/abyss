@@ -1,0 +1,38 @@
+print :: (s &u8) unit
+print_i32 :: (v i32) unit
+
+println_i32 :: (v i32) {
+    print_i32(v)
+    print("\n")
+}
+
+double_it :: (x i32) i32 {
+    x * 2
+}
+
+apply :: (f (i32) i32, x i32) i32 {
+    f(x)
+}
+
+make_multiplier :: () (i32, i32) i32 {
+    (a, b i32) i32 { a * b }
+}
+
+main :: () {
+    add: (i32, i32) i32 = (a, b i32) i32 { a + b }
+    println_i32(add(15, 27))
+
+    sub := (a, b i32) i32 { a - b }
+    println_i32(sub(100, 35))
+
+    println_i32(apply(double_it, 25))
+
+    fp: (i32) i32 = double_it
+    println_i32(fp(50))
+
+    mult := make_multiplier()
+    println_i32(mult(6, 7))
+
+    v := ((x i32) i32 { x * 3 })(7)
+    println_i32(v)
+}

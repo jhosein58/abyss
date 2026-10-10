@@ -1,0 +1,193 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
+
+void print(uint8_t *s) {
+    printf("%s", (const char *)s);
+}
+
+void print_char(uint8_t c) {
+    putchar((int)c);
+}
+
+void print_i8(int8_t v) {
+    printf("%d", (int)v);
+}
+
+void print_i16(int16_t v) {
+    printf("%d", (int)v);
+}
+
+void print_i32(int32_t v) {
+    printf("%d", v);
+}
+
+void print_i64(int64_t v) {
+    printf("%lld", (long long)v);
+}
+
+void print_u8(uint8_t v) {
+    printf("%u", (unsigned int)v);
+}
+
+void print_u16(uint16_t v) {
+    printf("%u", (unsigned int)v);
+}
+
+void print_u32(uint32_t v) {
+    printf("%u", v);
+}
+
+void print_u64(uint64_t v) {
+    printf("%llu", (unsigned long long)v);
+}
+
+void print_f16(_Float16 v) {
+    printf("%f", (double)v);
+}
+
+void print_f32(float v) {
+    printf("%f", (double)v);
+}
+
+void print_f64(double v) {
+    printf("%f", v);
+}
+
+
+void print_bool(bool b) {
+    printf("%s", b ? "true" : "false");
+}
+
+// ------> String
+
+uint64_t str_len(uint8_t *s) {
+    if (!s) return 0;
+    return (uint64_t)strlen((char *)s);
+}
+
+bool str_eq(uint8_t *a, uint8_t *b) {
+    if (a == b) return true;
+    if (!a || !b) return false;
+    return strcmp((const char *)a, (const char *)b) == 0;
+}
+
+// ------> mem
+void mem_copy(uint8_t *dest, uint8_t *src, uint64_t n) {
+    if (!dest || !src || n == 0) return;
+    if (n > 100 * 1024 * 1024) return; 
+    memcpy(dest, src, (size_t)n);
+}
+
+void mem_set(uint8_t *dest, uint8_t val, uint64_t n) {
+    memset(dest, (int)val, (size_t)n);
+}
+
+// ------> File Stream
+
+uint8_t *file_open(uint8_t *path, uint8_t *mode) {
+    return (uint8_t*)(fopen(path, mode));
+}
+
+int32_t file_seek(uint8_t *handle, int64_t offset, int32_t w) {
+    return fseek((FILE*)handle, offset, w);
+}
+
+int64_t file_tell(uint8_t *handle) {
+    return ftell((FILE*)handle);
+}
+
+uint64_t file_read(uint8_t *handle, uint8_t *ptr, uint64_t size, uint64_t count) {
+    return fread(ptr, size ,count, (FILE*)handle);
+}
+
+int32_t file_close(uint8_t *handle) {
+    return fclose((FILE*)handle);
+}
+
+uint64_t file_write(uint8_t *handle, uint8_t *ptr, uint64_t size, uint64_t count) {
+    return fwrite(ptr, size, count, (FILE*)handle);
+}
+
+// ------> Process
+
+int32_t compile_and_run(uint8_t *path) {
+    if (!path) return -1;
+
+    const char *p = (const char *)path;
+    char out_path[1024];
+
+    const char *last_slash = strrchr(p, '/');
+    if (last_slash) {
+        size_t dir_len = (size_t)(last_slash - p + 1);
+        if (dir_len + sizeof("stg1_out") >= sizeof(out_path)) return -1;
+
+        memcpy(out_path, p, dir_len);
+        strcpy(out_path + dir_len, "stg1_out");
+    } else {
+        snprintf(out_path, sizeof(out_path), "./stg1_out");
+    }
+
+    char compile_cmd[2048];
+    snprintf(compile_cmd, sizeof(compile_cmd), "gcc \"%s\" -o \"%s\" 2>&1", p, out_path);
+
+    fprintf(stderr, "[CMD] %s\n", compile_cmd);
+    fflush(stderr);
+
+    FILE *fp = popen(compile_cmd, "r");
+    if (!fp) {
+        fprintf(stderr, "Failed to run popen for gcc\n");
+        fflush(stderr);
+        return -1;
+    }
+
+    char buffer[256];
+    int has_compiler_output = 0;
+    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        if (!has_compiler_output) {
+            fprintf(stderr, "\n--- GCC Output ---\n");
+            has_compiler_output = 1;
+        }
+        fputs(buffer, stderr);
+        fflush(stderr); 
+    }
+
+    int compile_status = pclose(fp);
+    if (compile_status != 0) {
+        fprintf(stderr, "\n[GCC Exit Code]: %d\n", compile_status);
+        fflush(stderr);
+        return compile_status;
+    }
+
+    char run_cmd[1050];
+    snprintf(run_cmd, sizeof(run_cmd), "\"%s\"", out_path);
+    return (int32_t)system(run_cmd);
+}
+
+// ------> System
+
+int abyss_argc = 0;
+char **abyss_argv = NULL;
+
+int32_t get_arg_count(void) {
+    return (int32_t)abyss_argc;
+}
+
+uint8_t *get_arg(int32_t idx) {
+    if (idx < 0 || idx >= abyss_argc) return NULL;
+    return (uint8_t *)abyss_argv[idx];
+}
+
+uint8_t *get_env(uint8_t *name) {
+    if (!name) return NULL;
+    return (uint8_t *)getenv((const char *)name);
+}
+
+void abyss_fall(void) {
+    fflush(stdout);
+    fprintf(stderr, "\n\033[1;35m[fall]\033[0m unfathomable.\n\n");
+    fflush(stderr);
+    exit(1);
+}

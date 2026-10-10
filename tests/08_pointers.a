@@ -1,0 +1,49 @@
+print :: (s &u8) unit
+print_i32 :: (v i32) unit
+
+println_i32 :: (v i32) {
+    print_i32(v)
+    print("\n")
+}
+
+increment :: (p &i32) {
+    *p = *p + 1
+}
+
+swap :: (a, b &i32) {
+    tmp := *a
+    *a = *b
+    *b = tmp
+}
+
+Node :: struct {
+    val: i32
+}
+
+set_node :: (n &Node, v i32) {
+    (*n).val = v
+}
+
+main :: () {
+    x := 10
+    println_i32(x)
+
+    ptr := &x
+    *ptr = 25
+    println_i32(x)
+    println_i32(*ptr)
+
+    increment(&x)
+    println_i32(x)
+
+    u := 100
+    v := 200
+    swap(&u, &v)
+    println_i32(u)
+    println_i32(v)
+
+    node: Node = .{ val: 5 }
+    println_i32(node.val)
+    set_node(&node, 42)
+    println_i32(node.val)
+}
