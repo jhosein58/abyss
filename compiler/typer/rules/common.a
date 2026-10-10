@@ -1,5 +1,5 @@
 import Nexus from "../../nexus/nexus.a"
-import HirTable, hir_kind from "../../hir.a"
+import HirTable, hir_kind, hir_none from "../../hir.a"
 import Str from "../../../std/string.a"
 import TypeStorage, ty_kind, ty_id_none, ty_id_type from "../../types.a"
 import UnifyStorage, slot_none from "../../unify.a"
@@ -52,6 +52,16 @@ check_value :: (db &Nexus, expr u32, expected u32) {
 
     slot := unify_ptr.get_slot(expr)
     if slot == slot_none() { ret }
+
+    if tbl.kind(expr) == hir_kind().k_if {
+        check_value(db, tbl.rhs(expr), expected)
+        elseb := tbl.extra(expr)
+        if elseb != hir_none() {
+            check_value(db, elseb, expected)
+        }
+        (&(*db).unify).bind_type(&(*db).types, slot, expected)
+        ret
+    }
 
     if tbl.kind(expr) == hir_kind().block {
         items := db.get_list(tbl.lhs(expr))

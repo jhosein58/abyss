@@ -217,19 +217,44 @@ validate_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
 }
 
 synth_logic_and_or :: (db &Nexus, tbl &HirTable, id u32) {
-    slot := (&(*db).unify).new_slot(id)
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := (unify_ptr).new_slot(id)
     lhs := (tbl).lhs(id)
     rhs := (tbl).rhs(id)
 
-    lhs_slot := (&(*db).unify).get_slot(lhs)
-    rhs_slot := (&(*db).unify).get_slot(rhs)
+    check_value(db, lhs, ty_id_bool())
+    check_value(db, rhs, ty_id_bool())
 
+    lhs_slot := (unify_ptr).get_slot(lhs)
     if lhs_slot != slot_none() {
+        lhs_ty := (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
+        if (lhs_ty != ty_id_none()) and (lhs_ty != ty_id_bool()) {
+            print("\n\033[1;31m[type error]\033[0m logical operator operand must be bool, got '")
+            (&(*types_ptr)).print_type(lhs_ty)
+            print("'\n       --> ")
+            db.print_loc(lhs)
+            print("\n")
+            fall()
+        }
         (&(*db).unify).bind_type(&(*db).types, lhs_slot, ty_id_bool())
     }
+
+    rhs_slot := (unify_ptr).get_slot(rhs)
     if rhs_slot != slot_none() {
+        rhs_ty := (unify_ptr).resolve_type_deep(types_ptr, rhs_slot)
+        if (rhs_ty != ty_id_none()) and (rhs_ty != ty_id_bool()) {
+            print("\n\033[1;31m[type error]\033[0m logical operator operand must be bool, got '")
+            (&(*types_ptr)).print_type(rhs_ty)
+            print("'\n       --> ")
+            db.print_loc(rhs)
+            print("\n")
+            fall()
+        }
         (&(*db).unify).bind_type(&(*db).types, rhs_slot, ty_id_bool())
     }
+
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
 }
 

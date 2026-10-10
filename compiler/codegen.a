@@ -59,6 +59,7 @@ CCodeGen :: struct {
     main_sym        : u32,
     has_main        : bool,
     indent          : u32,
+    tmp_id          : u32,
 
     new :: () Self {
         .{
@@ -69,7 +70,8 @@ CCodeGen :: struct {
             emitted_structs : VecU32.new(),
             main_sym        : 0,
             has_main        : false,
-            indent          : 0
+            indent          : 0,
+            tmp_id          : 0
         }
     }
 
@@ -113,6 +115,7 @@ CCodeGen :: struct {
         vec_push_str(&.code, params)
         vec_push_str(&.code, Str.of(") {\n"))
         .indent = .indent + 1
+        .tmp_id = 0
     }
 
     end_function :: () {
@@ -184,6 +187,32 @@ CCodeGen :: struct {
         }
         .indent_line()
         vec_push_str(&.code, Str.of("}\n"))
+    }
+
+    emit_break :: () {
+        .expr(Str.of("break"))
+    }
+
+    emit_cont :: () {
+        .expr(Str.of("continue"))
+    }
+
+    new_tmp :: () u32 {
+        t := .tmp_id
+        .tmp_id = .tmp_id + 1
+        t
+    }
+
+    tmp_var_name :: (arena &Arena, id u32) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.sym(Str.of("_t"), id)
+        fmt.as_str()
+    }
+
+    new_tmp_var :: (arena &Arena) Str {
+        t := .new_tmp()
+        .tmp_var_name(arena, t)
     }
 
     decl_struct :: (name Str) {

@@ -172,7 +172,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
        (kind == k.binary_neq) or (kind == k.binary_lt) or (kind == k.binary_gt) or
        (kind == k.binary_lt_eq) or (kind == k.binary_gt_eq) or (kind == k.binary_bit_and) or
        (kind == k.binary_bit_or) or (kind == k.binary_bit_xor) or (kind == k.binary_shl) or
-       (kind == k.binary_shr) or (kind == k.binary_and) or (kind == k.binary_or) {
+       (kind == k.binary_shr) {
 
         lhs_id := (&(*db).hir).lhs(id)
         rhs_id := (&(*db).hir).rhs(id)
@@ -182,6 +182,41 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         op_str  := ccg.binary_op(k, kind)
 
         ret ccg.expr_binary(arena, op_str, lhs_val, rhs_val)
+    }
+
+    if kind == k.binary_and {
+        lhs_id := (&(*db).hir).lhs(id)
+        rhs_id := (&(*db).hir).rhs(id)
+
+        lhs_val := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
+        tmp_name := ccg.new_tmp_var(arena)
+        ccg.create_variable(tmp_name, Str.of("bool"), Str.of("false"), true)
+
+        ccg.start_if(lhs_val)
+        rhs_val := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
+        assign_str := ccg.expr_assign(arena, tmp_name, rhs_val)
+        ccg.expr(assign_str)
+        ccg.end_block()
+
+        ret tmp_name
+    }
+
+    if kind == k.binary_or {
+        lhs_id := (&(*db).hir).lhs(id)
+        rhs_id := (&(*db).hir).rhs(id)
+
+        lhs_val := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
+        tmp_name := ccg.new_tmp_var(arena)
+        ccg.create_variable(tmp_name, Str.of("bool"), Str.of("true"), true)
+
+        not_lhs := ccg.expr_unary(arena, Str.of("!"), lhs_val)
+        ccg.start_if(not_lhs)
+        rhs_val := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
+        assign_str := ccg.expr_assign(arena, tmp_name, rhs_val)
+        ccg.expr(assign_str)
+        ccg.end_block()
+
+        ret tmp_name
     }
 
     if kind == k.call {
@@ -309,11 +344,11 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         ret ccg.expr_unary(arena, Str.of("*"), child_v)
     }
     if kind == k.k_break {
-        ccg.expr(Str.of("break"))
+        ccg.emit_break()
         ret Str.empty()
     }
     if kind == k.k_cont {
-        ccg.expr(Str.of("continue"))
+        ccg.emit_cont()
         ret Str.empty()
     }
 
@@ -324,13 +359,40 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     }
 
     if kind == k.k_if {
+        if_ty := get_node_type(db, id)
+        elseb_id := (&(*db).hir).extra(id)
+        is_expr := (elseb_id != hir_none()) and (if_ty != ty_id_none()) and
+                   ((&(*db).types).kind(if_ty) != ty_kind().unit)
+
+        if is_expr {
+            cond_str := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
+            tmp_name := ccg.new_tmp_var(arena)
+            ty_str := ccg.type_str(&(*db).types, arena, if_ty)
+            add_type_to_queue(db, if_ty, type_queue)
+            ccg.create_variable(tmp_name, ty_str, Str.empty(), false)
+
+            ccg.start_if(cond_str)
+            then_val := lower_expr(db, ccg, arena, (&(*db).hir).rhs(id), visited, queue, type_queue)
+            if then_val.len > 0 {
+                ccg.expr(ccg.expr_assign(arena, tmp_name, then_val))
+            }
+
+            ccg.else_()
+            else_val := lower_expr(db, ccg, arena, elseb_id, visited, queue, type_queue)
+            if else_val.len > 0 {
+                ccg.expr(ccg.expr_assign(arena, tmp_name, else_val))
+            }
+            ccg.end_block()
+
+            ret tmp_name
+        }
+
         cond_str := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
         ccg.start_if(cond_str)
 
         then_val := lower_expr(db, ccg, arena, (&(*db).hir).rhs(id), visited, queue, type_queue)
         if then_val.len > 0 { ccg.expr(then_val) }
 
-        elseb_id := (&(*db).hir).extra(id)
         if elseb_id != hir_none() {
             ccg.else_()
             else_val := lower_expr(db, ccg, arena, elseb_id, visited, queue, type_queue)
@@ -341,8 +403,13 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     }
 
     if kind == k.k_while {
+        ccg.start_while(Str.of("1"))
+
         cond_str := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
-        ccg.start_while(cond_str)
+        not_cond := ccg.expr_unary(arena, Str.of("!"), cond_str)
+        ccg.start_if(not_cond)
+        ccg.emit_break()
+        ccg.end_block()
 
         body_val := lower_expr(db, ccg, arena, (&(*db).hir).rhs(id), visited, queue, type_queue)
         if body_val.len > 0 { ccg.expr(body_val) }
