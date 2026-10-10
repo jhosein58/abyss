@@ -20,7 +20,7 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
         while i < count {
             f_ty := *(fields.ptr + (i * 2) + 1)
               f_kind := (&(*types)).kind( f_ty)
-            if (f_kind == k.struct_) or (f_kind == k.nominal) or (f_kind == k.array) {
+            if (f_kind == k.struct_) or (f_kind == k.nominal) or (f_kind == k.array) or (f_kind == k.func) {
                 topo_dfs(types, sorted, states, f_ty)
             }
             i = i + 1
@@ -28,8 +28,24 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
     } else if kind == k.array {
           inner_ty := (&(*types)).get_array_type( ty_id)
           inner_kind := (&(*types)).kind( inner_ty)
-        if (inner_kind == k.struct_) or (inner_kind == k.nominal) or (inner_kind == k.array) {
+        if (inner_kind == k.struct_) or (inner_kind == k.nominal) or (inner_kind == k.array) or (inner_kind == k.func) {
             topo_dfs(types, sorted, states, inner_ty)
+        }
+    } else if kind == k.func {
+        ret_ty := (&(*types)).func_return(ty_id)
+        ret_kind := (&(*types)).kind(ret_ty)
+        if (ret_kind == k.struct_) or (ret_kind == k.nominal) or (ret_kind == k.func) or (ret_kind == k.array) {
+            topo_dfs(types, sorted, states, ret_ty)
+        }
+        params := (&(*types)).func_params(ty_id)
+        i: u64 = 0
+        while i < params.len {
+            p_ty := *(params.ptr + i)
+            p_kind := (&(*types)).kind(p_ty)
+            if (p_kind == k.struct_) or (p_kind == k.nominal) or (p_kind == k.func) or (p_kind == k.array) {
+                topo_dfs(types, sorted, states, p_ty)
+            }
+            i = i + 1
         }
     }
 

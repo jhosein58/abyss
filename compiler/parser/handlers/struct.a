@@ -40,6 +40,8 @@ parse_struct :: (p &Parser) u32 {
     }
 
     struct_node := id_none()
+    struct_toplv := (*p).toplv_sym
+    (*p).toplv_sym = id_none()
 
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
         if peek(p) == t.comma { bump(p) }
@@ -62,8 +64,8 @@ parse_struct :: (p &Parser) u32 {
                 types_id := (*p).db.add_list(slice_t)
 
                 struct_node = ((*p).hir).push(k.struct_, names_id, types_id, hir_none())
-                if (*p).toplv_sym != id_none() {
-                    (*p).db.set_hir_symbol(struct_node, (*p).toplv_sym)
+                if struct_toplv != id_none() {
+                    (*p).db.set_hir_symbol(struct_node, struct_toplv)
                 }
             }
 
@@ -91,7 +93,10 @@ parse_struct :: (p &Parser) u32 {
         if not expect(p, t.colon) {
             parse_error_at(p, "expected ':' for a field or '::' for a method", curr_span(p))
         }
+        prev_in_type := (*p).in_type
+        (*p).in_type = true
         ty := parse_expr(p, prec().var_def + (1 as u8))
+        (*p).in_type = prev_in_type
         if ty == hir_none() {
             parse_error_at(p, "expected a field type after ':'", curr_span(p))
         }
@@ -122,8 +127,8 @@ parse_struct :: (p &Parser) u32 {
         types_id := (*p).db.add_list(slice_t)
 
         struct_node = ((*p).hir).push(k.struct_, names_id, types_id, hir_none())
-        if (*p).toplv_sym != id_none() {
-            (*p).db.set_hir_symbol(struct_node, (*p).toplv_sym)
+        if struct_toplv != id_none() {
+            (*p).db.set_hir_symbol(struct_node, struct_toplv)
         }
     }
 

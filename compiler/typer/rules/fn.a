@@ -2,7 +2,7 @@ import Nexus from "../../nexus/nexus.a"
 import HirTable, hir_kind, hir_none from "../../hir.a"
 import SliceU32 from "../../../std/slice/u32.a"
 import VecU32 from "../../../std/vec/u32.a"
-import TypeStorage, ty_kind, ty_id_none, ty_id_unit, ty_id_never from "../../types.a"
+import TypeStorage, ty_kind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type from "../../types.a"
 import slot_none from "../../unify.a"
 import id_none from "../../nexus/pool.a"
 import Engine from "../../engine.a"
@@ -45,7 +45,8 @@ synth_func :: (eng &Engine, id u32) {
     ret_hir_id     := (tbl).rhs(id)
     body_id        := (tbl).extra(id)
 
-    is_extern := body_id == hir_none()
+    sym_id := db.get_hir_symbol(id)
+    is_extern := (body_id == hir_none()) and (sym_id != id_none()) and (db.sym_tok_start.get(sym_id) != id_none())
 
     ret_ty := ty_id_unit()
     if ret_hir_id != hir_none() {
@@ -73,9 +74,11 @@ synth_func :: (eng &Engine, id u32) {
 
             if param_ty == ty_id_none() {
                 arg_ident := (tbl).lhs(arg_id)
-                arg_slot := (unify_ptr).get_slot(arg_ident)
-                if arg_slot != slot_none() {
-                    param_ty = (unify_ptr).resolve_type(arg_slot)
+                if arg_ident != hir_none() {
+                    arg_slot := (unify_ptr).get_slot(arg_ident)
+                    if arg_slot != slot_none() {
+                        param_ty = (unify_ptr).resolve_type(arg_slot)
+                    }
                 }
             }
 
@@ -93,12 +96,14 @@ synth_func :: (eng &Engine, id u32) {
             }
 
             arg_ident := (tbl).lhs(arg_id)
-            ident_slot := (unify_ptr).get_slot(arg_ident)
-            if ident_slot == slot_none() {
-                ident_slot = (unify_ptr).new_slot(arg_ident)
+            if arg_ident != hir_none() {
+                ident_slot := (unify_ptr).get_slot(arg_ident)
+                if ident_slot == slot_none() {
+                    ident_slot = (unify_ptr).new_slot(arg_ident)
+                }
+                (&(*db).unify).bind_type(&(*db).types, ident_slot, param_ty)
+                db.set_const_type(arg_ident, param_ty)
             }
-            (&(*db).unify).bind_type(&(*db).types, ident_slot, param_ty)
-            db.set_const_type(arg_ident, param_ty)
             db.set_const_type(arg_id, param_ty)
 
             params_vec.push(param_ty)
@@ -115,7 +120,11 @@ synth_func :: (eng &Engine, id u32) {
     func_ty := (&(*types_ptr)).alloc_func(slice, ret_ty, is_extern)
     params_vec.destroy()
 
-    (&(*db).unify).bind_type(&(*db).types, slot, func_ty)
+    if (body_id == hir_none()) and (not is_extern) {
+        (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+    } else {
+        (&(*db).unify).bind_type(&(*db).types, slot, func_ty)
+    }
     db.set_const_type(id, func_ty)
 
     sym_id := db.get_hir_symbol(id)

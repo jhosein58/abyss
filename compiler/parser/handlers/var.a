@@ -59,7 +59,10 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
         ret var_id
     }
 
+    prev_in_type := (*p).in_type
+    (*p).in_type = true
     ty := parse_expr(p, prec().var_def + (1 as u8))
+    (*p).in_type = prev_in_type
     sp_end := span_of_hir(p, ty)
 
     if optional(p, t.eq) {

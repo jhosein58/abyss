@@ -10,6 +10,7 @@ import span_of_hir, set_span from "common.a"
 import parse_ident from "ident.a"
 import parse_block from "control.a"
 import parse_expr from "../parser.a"
+import prec from "../prec.a"
 
 define_param :: (p &Parser, name_hir u32) {
     k := hir_kind()
@@ -22,15 +23,19 @@ define_param :: (p &Parser, name_hir u32) {
 }
 
 is_function_header :: (p &Parser) bool {
-    if (*p).inside_method and ((*p).method_fn_depth != 0) { ret false }
-
     t := token()
 
-    if peek(p) != t.ident { ret false }
+    first := peek(p)
+    if (first != t.ident) and (first != t.amp) and (first != t.star) and
+       (first != t.o_bracket) and (first != t.o_paren) {
+        ret false
+    }
 
     depth: u32 = 1
     i := p.cursor
     has_comma := false
+    has_two_words := false
+    prev_tk := t.eof
 
     while i < p.end {
         tk := p.tokens.kind(i)
@@ -39,71 +44,113 @@ is_function_header :: (p &Parser) bool {
         } else if tk == t.c_paren {
             depth = depth - 1
             if depth == 0 { break }
-        } else if (tk == t.comma) and (depth == 1) {
-            has_comma = true
+        } else if depth == 1 {
+            if tk == t.comma {
+                has_comma = true
+            } else if (prev_tk == t.ident) and
+                      ((tk == t.ident) or (tk == t.amp) or (tk == t.star) or
+                       (tk == t.o_bracket) or (tk == t.o_paren)) {
+                has_two_words = true
+            } else if (tk != t.ident) and (tk != t.amp) and (tk != t.star) and
+                      (tk != t.o_bracket) and (tk != t.c_bracket) and
+                      (tk != t.o_paren) and (tk != t.c_paren) {
+                ret false
+            }
         }
+        prev_tk = tk
         i = i + 1
     }
 
     if depth != 0 { ret false }
-    if has_comma { ret true }
 
     after_cp := t.eof
     if (i + 1) < p.end {
         after_cp = p.tokens.kind(i + 1)
     }
 
-    if after_cp == t.o_brace { ret true }
+    has_brace := after_cp == t.o_brace
+    has_ret_type := false
 
-    if after_cp == t.ident {
-        if not p.tokens.newline_before(i + 1) { ret true }
+    if not p.tokens.newline_before(i + 1) {
+        if after_cp == t.ident {
+            has_ret_type = true
+        } else if (after_cp == t.amp) or (after_cp == t.star) or (after_cp == t.o_bracket) or (after_cp == t.o_paren) {
+            j := i + 2
+            while j < p.end {
+                tk_j := p.tokens.kind(j)
+                if (tk_j == t.amp) or (tk_j == t.star) or (tk_j == t.o_bracket) or (tk_j == t.c_bracket) {
+                    j = j + 1
+                } else {
+                    break
+                }
+            }
+            if j < p.end {
+                if p.tokens.kind(j) == t.ident {
+                    has_ret_type = true
+                }
+            }
+        }
     }
 
-    if (after_cp == t.amp) or (after_cp == t.star) or (after_cp == t.o_bracket) {
-        if ((*p).toplv_sym != id_none()) or ((*p).inside_method and ((*p).method_fn_depth == 0)) { ret true }
+    if (not has_brace) and (not has_ret_type) {
+        ret false
     }
 
-    false
+    true
 }
 
 parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
-    if (*p).inside_method {
-        if (*p).method_fn_depth != 0 {
-            parse_error_at(p, "nested functions inside methods are not supported", sp_start)
-        }
-        (*p).method_fn_depth = 1
-    }
-    fn_sym := id_none()
-    if not (*p).inside_method {
-        fn_sym = (*p).toplv_sym
-        (*p).toplv_sym = id_none()
-    }
+    saved_toplv := (*p).toplv_sym
+    (*p).toplv_sym = id_none()
+
     t := token()
     k := hir_kind()
 
     ret_ty := hir_none()
     sp_end := sp_start
-    if peek(p) != t.o_brace {
-        ret_ty = parse_expr(p, 0 as u8)
+    if (peek(p) != t.o_brace) and (peek(p) != t.eq) and (peek(p) != t.comma) and
+       (peek(p) != t.c_paren) and (peek(p) != t.c_brace) and (not is_eof(p)) {
+        prev_in_type := (*p).in_type
+        (*p).in_type = true
+        ret_ty = parse_expr(p, prec().var_def + (1 as u8))
+        (*p).in_type = prev_in_type
         sp_end = span_of_hir(p, ret_ty)
     }
 
+    (*p).toplv_sym = saved_toplv
+    is_toplv_fn := (not (*p).inside_method) and ((*p).toplv_sym != id_none()) and (not (*p).in_type)
+    is_struct_method := (*p).inside_method and ((*p).fn_stack.len == 0)
+
+    fn_sym := id_none()
+    if is_toplv_fn {
+        fn_sym = (*p).toplv_sym
+        (*p).toplv_sym = id_none()
+    }
+
     fn_node := ((*p).hir).push(k.function, params, ret_ty, hir_none())
-    if fn_sym != id_none() {
+    if is_toplv_fn {
         (*p).db.set_hir_symbol(fn_node, fn_sym)
+    } else if (not is_struct_method) and (not (*p).in_type) {
+        fn_sym = (*p).db.alloc_local_symbol((*p).file_id, 0, fn_node)
+        (*p).db.set_hir_symbol(fn_node, fn_sym)
+    }
+
+    prev_method := (*p).inside_method
+    if (*p).fn_stack.len > 0 {
+        (*p).inside_method = false
     }
     (*p).fn_stack.push(fn_node)
 
     body := hir_none()
-    if peek(p) == t.o_brace {
+    if (not (*p).in_type) and (peek(p) == t.o_brace) {
         body = parse_block(p)
         sp_end = span_of_hir(p, body)
         ((*p).hir).set_rhs(body, fn_node)
     }
 
     (*p).fn_stack.pop()
+    (*p).inside_method = prev_method
     ((*p).hir).set_extra(fn_node, body)
-    if (*p).inside_method { (*p).method_fn_depth = 0 }
     set_span(p, fn_node, span_merge(sp_start, sp_end))
 }
 
@@ -112,7 +159,7 @@ parse_paren :: (p &Parser) u32 {
     sp_start := curr_span(p)
     bump(p)
 
-    if (*p).allow_fn and ((not (*p).inside_method) or ((*p).method_fn_depth == 0)) and optional(p, t.c_paren) {
+    if (*p).allow_fn and optional(p, t.c_paren) {
         env_mark := ScopeEnv_mark(&(*p).env)
         fn_id := parse_fn_tail(p, hir_none(), sp_start)
         ScopeEnv_reset(&(*p).env, env_mark)
@@ -120,21 +167,44 @@ parse_paren :: (p &Parser) u32 {
     }
 
     if (*p).allow_fn and is_function_header(p) {
+        saved_toplv := (*p).toplv_sym
+        (*p).toplv_sym = id_none()
+
         env_mark := ScopeEnv_mark(&(*p).env)
         args := VecU32.new()
         pending_names := VecU32.new()
 
         while (peek(p) != t.c_paren) and (not is_eof(p)) {
-            name := parse_ident(p)
-            define_param(p, name)
-            pending_names.push(name)
+            is_type_token := (peek(p) == t.amp) or (peek(p) == t.star) or
+                             (peek(p) == t.o_bracket) or (peek(p) == t.o_paren)
 
-            if optional(p, t.comma) {
+            if is_type_token {
+                prev_in_type := (*p).in_type
+                (*p).in_type = true
+                ty := parse_expr(p, 0 as u8)
+                (*p).in_type = prev_in_type
+                p_sp := span_of_hir(p, ty)
+                arg_id := ((*p).hir).push(hir_kind().arg, hir_none(), ty, hir_none())
+                set_span(p, arg_id, p_sp)
+                args.push(arg_id)
+                optional(p, t.comma)
                 cont
             }
 
-            if (peek(p) != t.c_paren) and (peek(p) != t.eof) {
+            name_or_ty := parse_ident(p)
+
+            next_tk := peek(p)
+            has_explicit_type := (next_tk == t.ident) or (next_tk == t.amp) or
+                                 (next_tk == t.star) or (next_tk == t.o_bracket) or
+                                 (next_tk == t.o_paren)
+
+            if has_explicit_type {
+                define_param(p, name_or_ty)
+                pending_names.push(name_or_ty)
+                prev_in_type := (*p).in_type
+                (*p).in_type = true
                 ty := parse_expr(p, 0 as u8)
+                (*p).in_type = prev_in_type
                 p_i: u64 = 0
                 while p_i < pending_names.len {
                     p_name := pending_names.get(p_i)
@@ -146,28 +216,61 @@ parse_paren :: (p &Parser) u32 {
                 }
                 pending_names.reset(0)
                 optional(p, t.comma)
+                cont
             }
-        }
 
-        p_i: u64 = 0
-        while p_i < pending_names.len {
-            p_name := pending_names.get(p_i)
-            arg_id := ((*p).hir).push(hir_kind().arg, p_name, hir_none(), hir_none())
-            set_span(p, arg_id, span_of_hir(p, p_name))
+            if next_tk == t.comma {
+                depth: u32 = 1
+                chk_i := p.cursor + 1
+                found_two_words := false
+                chk_prev := t.eof
+                while chk_i < p.end {
+                    chk_tk := p.tokens.kind(chk_i)
+                    if chk_tk == t.o_paren {
+                        depth = depth + 1
+                    } else if chk_tk == t.c_paren {
+                        depth = depth - 1
+                        if depth == 0 { break }
+                    } else if depth == 1 {
+                        if (chk_prev == t.ident) and
+                           ((chk_tk == t.ident) or (chk_tk == t.amp) or (chk_tk == t.star) or
+                            (chk_tk == t.o_bracket) or (chk_tk == t.o_paren)) {
+                            found_two_words = true
+                            break
+                        }
+                    }
+                    chk_prev = chk_tk
+                    chk_i = chk_i + 1
+                }
+
+                if found_two_words {
+                    define_param(p, name_or_ty)
+                    pending_names.push(name_or_ty)
+                    bump(p)
+                    cont
+                }
+            }
+
+            p_sp := span_of_hir(p, name_or_ty)
+            arg_id := ((*p).hir).push(hir_kind().arg, hir_none(), name_or_ty, hir_none())
+            set_span(p, arg_id, p_sp)
             args.push(arg_id)
-            p_i = p_i + 1
+            optional(p, t.comma)
         }
 
         expect(p, t.c_paren)
 
+        ptr_a := 0 as &u32
+        if args.len > 0 { ptr_a = args.ptr_at(0) }
         slice: SliceU32 = .{
-            ptr: args.ptr_at(0),
+            ptr: ptr_a,
             len: args.len
         }
         params := (*p).db.add_list(slice)
         pending_names.destroy()
         args.destroy()
 
+        (*p).toplv_sym = saved_toplv
         fn_id := parse_fn_tail(p, params, sp_start)
         ScopeEnv_reset(&(*p).env, env_mark)
         ret fn_id

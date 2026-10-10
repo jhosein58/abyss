@@ -99,6 +99,11 @@ synth_type_node :: (eng &Engine, id u32) u32 {
         }
     }
 
+    if curr == k.function {
+        synth_node(eng, id)
+        ret db.get_const_type(id)
+    }
+
     synth_node(eng, id)
     db.get_const_type(id)
 }
@@ -188,17 +193,26 @@ synth_arg :: (db &Nexus, tbl &HirTable, id u32) {
     ident_id := (tbl).lhs(id)
     ty_id    := (tbl).rhs(id)
 
-    ident_slot := (unify_ptr).get_slot(ident_id)
-    if ident_slot == slot_none() {
-        ident_slot = (unify_ptr).new_slot(ident_id)
-    }
+    if ident_id != hir_none() {
+        ident_slot := (unify_ptr).get_slot(ident_id)
+        if ident_slot == slot_none() {
+            ident_slot = (unify_ptr).new_slot(ident_id)
+        }
 
-    if ty_id != hir_none() {
-        type_val := db.get_const_type(ty_id)
-        if type_val != ty_id_none() {
-            (&(*db).unify).bind_type(&(*db).types, ident_slot, type_val)
-            db.set_const_type(ident_id, type_val)
-            db.set_const_type(id, type_val)
+        if ty_id != hir_none() {
+            type_val := db.get_const_type(ty_id)
+            if type_val != ty_id_none() {
+                (&(*db).unify).bind_type(&(*db).types, ident_slot, type_val)
+                db.set_const_type(ident_id, type_val)
+                db.set_const_type(id, type_val)
+            }
+        }
+    } else {
+        if ty_id != hir_none() {
+            type_val := db.get_const_type(ty_id)
+            if type_val != ty_id_none() {
+                db.set_const_type(id, type_val)
+            }
         }
     }
 }

@@ -42,6 +42,7 @@ UnifyStorage :: struct {
     }
 
     set_hir_slot :: (hir_id u32, slot u32) {
+        if hir_id == slot_none() { ret }
         idx := hir_id as u64
         while (idx >= .hir_to_slot.len) {
             .hir_to_slot.push(slot_none())
@@ -57,7 +58,9 @@ UnifyStorage :: struct {
          .types.push(ty_id_none())
         .origins.push(origin)
 
-        .set_hir_slot(origin, slot)
+        if origin != slot_none() {
+            .set_hir_slot(origin, slot)
+        }
 
         slot
     }
@@ -301,6 +304,48 @@ UnifyStorage :: struct {
             }
 
               res := (&(*types)).alloc_struct( slice)
+            local_scratch.destroy()
+            ret res
+        }
+
+        if (kind_a == k.func) and (kind_b == k.func) {
+            params_a := (&(*types)).func_params(a)
+            params_b := (&(*types)).func_params(b)
+            if params_a.len != params_b.len {
+                ret ty_id_error()
+            }
+            ret_a := (&(*types)).func_return(a)
+            ret_b := (&(*types)).func_return(b)
+            unified_ret := .unify_types(types, ret_a, ret_b)
+            if unified_ret == ty_id_error() {
+                ret ty_id_error()
+            }
+
+            local_scratch := VecU32.new()
+            has_err := false
+            i: u64 = 0
+            while i < params_a.len {
+                pa := *(params_a.ptr + i)
+                pb := *(params_b.ptr + i)
+                unified_p := .unify_types(types, pa, pb)
+                if unified_p == ty_id_error() {
+                    has_err = true
+                    break
+                }
+                local_scratch.push(unified_p)
+                i = i + 1
+            }
+
+            if has_err {
+                local_scratch.destroy()
+                ret ty_id_error()
+            }
+
+            slice: SliceU32 = .{
+                ptr: local_scratch.ptr_at(0),
+                len: params_a.len
+            }
+            res := (&(*types)).alloc_func(slice, unified_ret, false)
             local_scratch.destroy()
             ret res
         }

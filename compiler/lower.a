@@ -67,6 +67,18 @@ add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
     } else if kind == k.ptr {
         inner := (&(*db).types).payload(ty_id)
         add_type_to_queue(db, inner, queue)
+    } else if kind == k.func {
+        if not vec_contains(queue, ty_id) {
+            queue.push(ty_id)
+            ret_ty := (&(*db).types).func_return(ty_id)
+            add_type_to_queue(db, ret_ty, queue)
+            params := (&(*db).types).func_params(ty_id)
+            i: u64 = 0
+            while i < params.len {
+                add_type_to_queue(db, *(params.ptr + i), queue)
+                i = i + 1
+            }
+        }
     }
 }
 
@@ -77,6 +89,26 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     if kind == k.lit_int {
         val := (&(*db).hir).lhs(id)
         ret ccg.expr_int(arena, val)
+    }
+
+    if kind == k.function {
+        body_id := (&(*db).hir).extra(id)
+        if body_id == hir_none() {
+            ret Str.empty()
+        }
+
+        func_ty := get_node_type(db, id)
+        add_type_to_queue(db, func_ty, type_queue)
+
+        sym_id := db.get_hir_symbol(id)
+        if sym_id != id_none() {
+            if not vec_contains(queue, sym_id) {
+                queue.push(sym_id)
+            }
+            ret ccg.sym_name(arena, sym_id)
+        }
+
+        ret Str.empty()
     }
 
     if kind == k.ident {
@@ -525,21 +557,31 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     }
     visited.push(real_sym)
 
+    k := hir_kind()
+    func_id := id_none()
     binding_id := id_none()
-    if is_method {
+
+    sym_node := db.get_sym_hir(real_sym)
+    if (sym_node != id_none()) and (((&(*db).hir).kind(sym_node) == k.function)) {
+        func_id = sym_node
+    } else if is_method {
         binding_id = real_sym & 2147483647
+        if (&(*db).hir).kind(binding_id) == k.binding {
+            func_id = (&(*db).hir).extra(binding_id)
+        }
     } else {
         hir_end := db.sym_hir_end.get(real_sym)
-        if (hir_end == 0) or (hir_end == id_none()) { ret }
-        binding_id = hir_end - 1
+        if (hir_end != 0) and (hir_end != id_none()) {
+            binding_id = hir_end - 1
+            if (&(*db).hir).kind(binding_id) == k.binding {
+                func_id = (&(*db).hir).extra(binding_id)
+            }
+        }
     }
-    k := hir_kind()
 
-    if (&(*db).hir).kind(binding_id) != k.binding {
+    if func_id == id_none() {
         ret
     }
-
-    func_id := (&(*db).hir).extra(binding_id)
     if (&(*db).hir).kind(func_id) != k.function {
         ret
     }
@@ -553,9 +595,13 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     fn_name := Str.empty()
     if is_extern and (not is_method) {
-        name_hir := (&(*db).hir).lhs(binding_id)
-        name_id  := (&(*db).hir).lhs(name_hir)
-        fn_name   = db.interner.get(name_id)
+        if binding_id != id_none() {
+            name_hir := (&(*db).hir).lhs(binding_id)
+            name_id  := (&(*db).hir).lhs(name_hir)
+            fn_name   = db.interner.get(name_id)
+        } else {
+            fn_name = ccg.sym_name(arena, real_sym)
+        }
     } else if is_method {
         fn_name = ccg.method_name(arena, binding_id)
     } else {
@@ -613,8 +659,13 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
                     arg_node := *(args.ptr + i)
                     arg_ident := (&(*db).hir).lhs(arg_node)
                     arg_sym := db.get_hir_symbol(arg_ident)
-
-                    p_fmt.str(ccg.sym_name(arena, arg_sym))
+                    if arg_sym != id_none() {
+                        p_fmt.str(ccg.sym_name(arena, arg_sym))
+                    } else {
+                        p_fmt.cstr("_a").uint32(i as u32)
+                    }
+                } else {
+                    p_fmt.cstr("_a").uint32(i as u32)
                 }
             }
 
@@ -679,6 +730,8 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         if ((&(*db).types).kind(t) == ty_kind().struct_) or
            ((&(*db).types).kind(t) == ty_kind().nominal) {
             ccg.define_struct(&(*db).types, arena, t)
+        } else if (&(*db).types).kind(t) == ty_kind().func {
+            ccg.define_func_type(&(*db).types, arena, t)
         }
         s_i = s_i + 1
     }

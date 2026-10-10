@@ -269,6 +269,44 @@ CCodeGen :: struct {
         .def_struct(ty_id, s_name, fmt.as_str())
     }
 
+    define_func_type :: (types &TypeStorage, arena &Arena, ty_id u32) {
+        i: u64 = 0
+        while i < .emitted_structs.len {
+            if .emitted_structs.get(i) == ty_id {
+                ret
+            }
+            i = i + 1
+        }
+        .emitted_structs.push(ty_id)
+
+        fn_name := TypeStorage.name(arena, ty_id)
+        ret_ty := (&(*types)).func_return(ty_id)
+        ret_str := .type_str(types, arena, ret_ty)
+
+        params := (&(*types)).func_params(ty_id)
+        params_fmt := Fmt.new(arena)
+        if params.len == 0 {
+            params_fmt.cstr("void")
+        } else {
+            p_i: u64 = 0
+            while p_i < params.len {
+                p_ty := *(params.ptr + p_i)
+                p_str := .type_str(types, arena, p_ty)
+                if p_i > 0 { params_fmt.cstr(", ") }
+                params_fmt.str(p_str)
+                p_i = p_i + 1
+            }
+        }
+
+        vec_push_str(&.struct_decls, Str.of("typedef "))
+        vec_push_str(&.struct_decls, ret_str)
+        vec_push_str(&.struct_decls, Str.of(" (*"))
+        vec_push_str(&.struct_decls, fn_name)
+        vec_push_str(&.struct_decls, Str.of(")("))
+        vec_push_str(&.struct_decls, params_fmt.as_str())
+        vec_push_str(&.struct_decls, Str.of(");\n"))
+    }
+
     finish :: (pre Str) Str {
         out := VecU8.new()
 
@@ -347,7 +385,7 @@ CCodeGen :: struct {
             ret fmt.as_str()
         }
 
-        if (kind == k.struct_) or (kind == k.nominal) {
+        if (kind == k.struct_) or (kind == k.nominal) or (kind == k.func) {
             ret TypeStorage.name(arena, ty_id)
         }
 
