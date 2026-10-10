@@ -1,89 +1,18 @@
 import Nexus from "nexus/nexus.a"
 import HirTable, hir_kind, hir_none, HirExprKind from "hir.a"
 import id_none from "nexus/pool.a"
-import CCodeGen, CCodeGen_declare_function, CCodeGen_start_function, CCodeGen_end_function, CCodeGen_start_if, CCodeGen_end_block,
-       CCodeGen_create_variable, CCodeGen_expr, CCodeGen_gen_return, CCodeGen_else, CCodeGen_start_while, CCodeGen_def_struct from "codegen.a"
-import Str, String from "../std/string.a"
+import CCodeGen from "codegen.a"
+import Str from "../std/string.a"
+import Fmt from "../std/fmt.a"
 import Arena from "../std/allocator.a"
 import VecU32 from "../std/vec/u32.a"
-
- import TypeStorage, ty_kind, ty_id_none, ty_id_type from "types.a"
+import TypeStorage, ty_kind, ty_id_none, ty_id_type from "types.a"
 import slot_none from "unify.a"
 import topo_sort from "topo_sort.a"
 import fall from "../std/sys.a"
 import method_returns_ref_self from "typer/tyck.a"
 
 print :: (s &u8) unit
-print_u32 :: (v u32) unit
-
-
-c_type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
-    if ty_id == ty_id_none() {
-        print("\n[codegen error] missing type\n")
-        fall()
-    }
-    k := ty_kind()
-      kind := (&(*types)).kind( ty_id)
-      payload := (&(*types)).payload( ty_id)
-
-    if kind == k.unit { ret Str.of("void") }
-    if kind == k.bool { ret Str.of("bool") }
-
-    if kind == k.int {
-        if payload == 8   { ret Str.of("int8_t") }
-        if payload == 16  { ret Str.of("int16_t") }
-        if payload == 32  { ret Str.of("int32_t") }
-        if payload == 64  { ret Str.of("int64_t") }
-        if payload == 128 { ret Str.of("__int128") }
-        print("\n[codegen error] unsupported integer width\n")
-        fall()
-        ret Str.empty()
-    }
-
-    if kind == k.uint {
-        if payload == 8   { ret Str.of("uint8_t") }
-        if payload == 16  { ret Str.of("uint16_t") }
-        if payload == 32  { ret Str.of("uint32_t") }
-        if payload == 64  { ret Str.of("uint64_t") }
-        if payload == 128 { ret Str.of("unsigned __int128") }
-        print("\n[codegen error] unsupported integer width\n")
-        fall()
-        ret Str.empty()
-    }
-
-    if kind == k.float {
-        if payload == 32 { ret Str.of("float") }
-        if payload == 64 { ret Str.of("double") }
-        print("\n[codegen error] unsupported float width\n")
-        fall()
-        ret Str.empty()
-    }
-
-    if kind == k.untyped_int   { ret Str.of("int32_t") }
-    if kind == k.untyped_float { ret Str.of("double") }
-
-    if kind == k.ptr {
-          inner_ty := (&(*types)).payload( ty_id)
-        inner_str := c_type_str(types, arena, inner_ty)
-        s := String.new(arena)
-        s.push_str(inner_str)
-        s.push_str(Str.of("*"))
-        ret s.as_str()
-    }
-
-    if (kind == k.struct_) or (kind == k.nominal) {
-          ret TypeStorage.name(arena, ty_id)
-    }
-
-    if (kind == k.infer) or (kind == k.unknown) or (kind == k.error) {
-        print("\n[codegen error] unresolved type\n")
-        fall()
-    }
-
-    print("\n[codegen error] unsupported type\n")
-    fall()
-    Str.empty()
-}
 
 get_node_type :: (db &Nexus, id u32) u32 {
     if id == hir_none() { ret ty_id_none() }
@@ -112,55 +41,21 @@ is_lvalue :: (db &Nexus, id u32) bool {
     if kind == hir_kind().member {
         lhs := (tbl).lhs(id)
         if lhs == hir_none() { ret true }
-         if (&(*db).types).kind(get_node_type(db, lhs)) == ty_kind().ptr { ret true }
+        if (&(*db).types).kind(get_node_type(db, lhs)) == ty_kind().ptr { ret true }
         ret is_lvalue(db, lhs)
     }
     false
 }
 
-binary_op_symbol :: (k HirExprKind, kind u8) Str {
-    if kind == k.binary_add     { ret Str.of(" + ") }
-    if kind == k.binary_sub     { ret Str.of(" - ") }
-    if kind == k.binary_mul     { ret Str.of(" * ") }
-    if kind == k.binary_div     { ret Str.of(" / ") }
-    if kind == k.binary_mod     { ret Str.of(" % ") }
-    if kind == k.binary_eq_eq   { ret Str.of(" == ") }
-    if kind == k.binary_neq     { ret Str.of(" != ") }
-    if kind == k.binary_lt      { ret Str.of(" < ") }
-    if kind == k.binary_gt      { ret Str.of(" > ") }
-    if kind == k.binary_lt_eq   { ret Str.of(" <= ") }
-    if kind == k.binary_gt_eq   { ret Str.of(" >= ") }
-    if kind == k.binary_bit_and { ret Str.of(" & ") }
-    if kind == k.binary_bit_or  { ret Str.of(" | ") }
-    if kind == k.binary_bit_xor { ret Str.of(" ^ ") }
-    if kind == k.binary_shl     { ret Str.of(" << ") }
-    if kind == k.binary_shr     { ret Str.of(" >> ") }
-    if kind == k.binary_eq_eq   { ret Str.of(" == ") }
-    if kind == k.binary_neq     { ret Str.of(" != ") }
-    if kind == k.binary_lt      { ret Str.of(" < ") }
-    if kind == k.binary_gt      { ret Str.of(" > ") }
-    if kind == k.binary_lt_eq   { ret Str.of(" <= ") }
-    if kind == k.binary_gt_eq   { ret Str.of(" >= ") }
-    if kind == k.binary_bit_and { ret Str.of(" & ") }
-    if kind == k.binary_bit_or  { ret Str.of(" | ") }
-    if kind == k.binary_bit_xor { ret Str.of(" ^ ") }
-    if kind == k.binary_shl     { ret Str.of(" << ") }
-    if kind == k.binary_shr     { ret Str.of(" >> ") }
-    if kind == k.binary_and     { ret Str.of(" && ") }
-    if kind == k.binary_or      { ret Str.of(" || ") }
-    Str.of(" ")
-}
-
-
 add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
     if ty_id == ty_id_none() { ret }
     k := ty_kind()
-     kind := (&(*db).types).kind(ty_id)
+    kind := (&(*db).types).kind(ty_id)
 
     if (kind == k.struct_) or (kind == k.nominal) {
         if not vec_contains(queue, ty_id) {
             queue.push(ty_id)
-             fields := (&(*db).types).get_struct_fields(ty_id)
+            fields := (&(*db).types).get_struct_fields(ty_id)
             count := fields.len / 2
             i: u64 = 0
             while i < count {
@@ -170,7 +65,7 @@ add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
             }
         }
     } else if kind == k.ptr {
-         inner := (&(*db).types).payload(ty_id)
+        inner := (&(*db).types).payload(ty_id)
         add_type_to_queue(db, inner, queue)
     }
 }
@@ -181,16 +76,14 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
     if kind == k.lit_int {
         val := (&(*db).hir).lhs(id)
-        s := String.new(arena)
-        s.push_u32(val)
-        ret s.as_str()
+        ret ccg.expr_int(arena, val)
     }
 
     if kind == k.ident {
         ty := get_node_type(db, id)
         sym_id := db.get_hir_symbol(id)
 
-         if (&(*db).types).kind(ty) == ty_kind().func {
+        if (&(*db).types).kind(ty) == ty_kind().func {
             if sym_id != id_none() {
                 real_sym := sym_id
                 while true {
@@ -201,14 +94,11 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                 if not vec_contains(queue, real_sym) {
                     queue.push(real_sym)
                 }
-                 if (&(*db).types).func_is_extern(ty) {
+                if (&(*db).types).func_is_extern(ty) {
                     name_id := (&(*db).hir).lhs(id)
                     ret db.interner.get(name_id)
                 }
-                s := String.new(arena)
-                s.push_str(Str.of("sym_"))
-                s.push_u32(real_sym)
-                ret s.as_str()
+                ret ccg.sym_name(arena, real_sym)
             }
         }
 
@@ -225,10 +115,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                 print("\n")
                 fall()
             }
-            s := String.new(arena)
-            s.push_str(Str.of("sym_"))
-            s.push_u32(sym_id)
-            ret s.as_str()
+            ret ccg.sym_name(arena, sym_id)
         }
 
         print("\n[codegen error] undefined identifier\n       --> ")
@@ -237,27 +124,21 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         fall()
         ret Str.empty()
     }
+
     if kind == k.var {
         ident_id := (&(*db).hir).lhs(id)
         val_id   := (&(*db).hir).extra(id)
 
         sym_id := db.get_hir_symbol(ident_id)
         var_ty := get_node_type(db, ident_id)
-         if (&(*db).types).kind(var_ty) == ty_kind().unit {
+        if (&(*db).types).kind(var_ty) == ty_kind().unit {
             print("\n[type error] variable cannot have unit type\n       --> ")
             db.print_loc(id)
             print("\n")
             fall()
         }
-        ty_str := c_type_str(&(*db).types, arena, var_ty)
-
-
-
-        var_name_s := String.new(arena)
-        var_name_s.push_str(Str.of("sym_"))
-        var_name_s.push_u32(sym_id)
-        var_name := var_name_s.as_str()
-
+        ty_str := ccg.type_str(&(*db).types, arena, var_ty)
+        var_name := ccg.sym_name(arena, sym_id)
 
         if val_id != hir_none() {
             val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
@@ -267,13 +148,12 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                 print("\n")
                 fall()
             }
-            CCodeGen_create_variable(ccg, var_name, ty_str, val_str, true)
+            ccg.create_variable(var_name, ty_str, val_str, true)
         } else {
-            CCodeGen_create_variable(ccg, var_name, ty_str, Str.empty(), false)
+            ccg.create_variable(var_name, ty_str, Str.empty(), false)
         }
 
         add_type_to_queue(db, var_ty, type_queue)
-
         ret Str.empty()
     }
 
@@ -284,11 +164,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
         rhs_str := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
 
-        s := String.new(arena)
-        s.push_str(lhs_str)
-        s.push_str(Str.of(" = "))
-        s.push_str(rhs_str)
-        ret s.as_str()
+        ret ccg.expr_assign(arena, lhs_str, rhs_str)
     }
 
     if (kind == k.binary_add) or (kind == k.binary_sub) or (kind == k.binary_mul) or
@@ -303,22 +179,15 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
         lhs_val := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
         rhs_val := lower_expr(db, ccg, arena, rhs_id, visited, queue, type_queue)
-        op_str  := binary_op_symbol(k, kind)
+        op_str  := ccg.binary_op(k, kind)
 
-        s := String.new(arena)
-        s.push_str(Str.of("("))
-        s.push_str(lhs_val)
-        s.push_str(op_str)
-        s.push_str(rhs_val)
-        s.push_str(Str.of(")"))
-        ret s.as_str()
+        ret ccg.expr_binary(arena, op_str, lhs_val, rhs_val)
     }
 
     if kind == k.call {
         callee_id := (&(*db).hir).lhs(id)
         args_list := (&(*db).hir).rhs(id)
         method := db.get_method_target(callee_id)
-
 
         callee_sym := db.get_hir_symbol(callee_id)
         if callee_sym != id_none() {
@@ -330,17 +199,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         if method != id_none() {
             tagged := method | method_tag()
             if not vec_contains(queue, tagged) { queue.push(tagged) }
-            fn_buf := String.new(arena)
-            fn_buf.push_str(Str.of("method_"))
-            fn_buf.push_u32(method)
-            callee_str = fn_buf.as_str()
+            callee_str = ccg.method_name(arena, method)
         } else {
             callee_str = lower_expr(db, ccg, arena, callee_id, visited, queue, type_queue)
         }
-
-        s := String.new(arena)
-        s.push_str(callee_str)
-        s.push_str(Str.of("("))
 
         has_receiver := false
         if method != id_none() {
@@ -356,40 +218,23 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             }
         }
 
+        args_fmt := Fmt.new(arena)
         if has_receiver {
             lhs := (&(*db).hir).lhs(callee_id)
 
             if lhs == hir_none() {
-                s.push_str(Str.of("_self"))
+                args_fmt.str(Str.of("_self"))
             } else {
                 receiver_ty := get_node_type(db, lhs)
                 receiver_str := lower_expr(db, ccg, arena, lhs, visited, queue, type_queue)
                 depth: u32 = 0
-                 while (&(*db).types).kind(receiver_ty) == ty_kind().ptr {
-                     receiver_ty = (&(*db).types).payload(receiver_ty)
+                while (&(*db).types).kind(receiver_ty) == ty_kind().ptr {
+                    receiver_ty = (&(*db).types).payload(receiver_ty)
                     depth = depth + 1
                 }
                 add_type_to_queue(db, receiver_ty, type_queue)
-
-                if depth > 0 {
-                    while depth > 1 {
-                        s.push_str(Str.of("*"))
-                        depth = depth - 1
-                    }
-                    s.push_str(Str.of("("))
-                    s.push_str(receiver_str)
-                    s.push_str(Str.of(")"))
-                } else if is_lvalue(db, lhs) {
-                    s.push_str(Str.of("&("))
-                    s.push_str(receiver_str)
-                    s.push_str(Str.of(")"))
-                } else {
-                    s.push_str(Str.of("&(("))
-                    s.push_str(c_type_str(&(*db).types, arena, receiver_ty))
-                    s.push_str(Str.of("[]){"))
-                    s.push_str(receiver_str)
-                    s.push_str(Str.of("})[0]"))
-                }
+                receiver_ty_str := ccg.type_str(&(*db).types, arena, receiver_ty)
+                args_fmt.str(ccg.expr_receiver(arena, receiver_str, depth, is_lvalue(db, lhs), receiver_ty_str))
             }
         }
 
@@ -399,17 +244,16 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             while i < args.len {
                 arg_node := *(args.ptr + i)
                 arg_val := lower_expr(db, ccg, arena, arg_node, visited, queue, type_queue)
-                if has_receiver or (i > 0) { s.push_str(Str.of(", ")) }
-                s.push_str(arg_val)
+                if has_receiver or (i > 0) { args_fmt.cstr(", ") }
+                args_fmt.str(arg_val)
                 i = i + 1
             }
         }
 
-        s.push_str(Str.of(")"))
-        ret s.as_str()
+        ret ccg.expr_call(arena, callee_str, args_fmt.as_str())
     }
 
-   if kind == k.block {
+    if kind == k.block {
         list_id := (&(*db).hir).lhs(id)
         items := db.get_list(list_id)
         count := items.len
@@ -422,7 +266,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             val := lower_expr(db, ccg, arena, node_id, visited, queue, type_queue)
 
             if not is_last {
-                CCodeGen_expr(ccg, val)
+                ccg.expr(val)
             } else {
                 last_val = val
             }
@@ -436,105 +280,74 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         name_id := (&(*db).hir).lhs(id)
         ret db.interner.get(name_id)
     }
-    if kind == k.lit_bool_true  { ret Str.of("true") }
-    if kind == k.lit_bool_false { ret Str.of("false") }
+    if kind == k.lit_bool_true  { ret ccg.expr_bool(true) }
+    if kind == k.lit_bool_false { ret ccg.expr_bool(false) }
     if kind == k.lit_str {
         name_id := (&(*db).hir).lhs(id)
         raw := db.interner.get(name_id)
-        s := String.new(arena)
-        s.push_str(Str.of("((uint8_t*)"))
-        s.push_str(raw)
-        s.push_str(Str.of(")"))
-        ret s.as_str()
+        ret ccg.expr_str_lit(arena, raw)
     }
-
 
     if kind == k.unary_neg {
         child_v := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
-        s := String.new(arena)
-        s.push_str(Str.of("(-("))
-        s.push_str(child_v)
-        s.push_str(Str.of("))"))
-        ret s.as_str()
+        ret ccg.expr_unary(arena, Str.of("-"), child_v)
     }
     if kind == k.unary_not {
         child_v := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
-        s := String.new(arena)
-        s.push_str(Str.of("(!("))
-        s.push_str(child_v)
-        s.push_str(Str.of("))"))
-        ret s.as_str()
+        ret ccg.expr_unary(arena, Str.of("!"), child_v)
     }
     if kind == k.unary_bit_not {
         child_v := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
-        s := String.new(arena)
-        s.push_str(Str.of("(~("))
-        s.push_str(child_v)
-        s.push_str(Str.of("))"))
-        ret s.as_str()
+        ret ccg.expr_unary(arena, Str.of("~"), child_v)
     }
     if kind == k.unary_addr_of {
         child_v := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
-        s := String.new(arena)
-        s.push_str(Str.of("(&("))
-        s.push_str(child_v)
-        s.push_str(Str.of("))"))
-        ret s.as_str()
+        ret ccg.expr_unary(arena, Str.of("&"), child_v)
     }
     if kind == k.unary_deref {
         child_v := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
-        s := String.new(arena)
-        s.push_str(Str.of("(*("))
-        s.push_str(child_v)
-        s.push_str(Str.of("))"))
-        ret s.as_str()
+        ret ccg.expr_unary(arena, Str.of("*"), child_v)
     }
     if kind == k.k_break {
-        CCodeGen_expr(ccg, Str.of("break"))
+        ccg.expr(Str.of("break"))
         ret Str.empty()
     }
     if kind == k.k_cont {
-        CCodeGen_expr(ccg, Str.of("continue"))
+        ccg.expr(Str.of("continue"))
         ret Str.empty()
     }
 
     if kind == k.cast {
         lhs_v := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
-        ty_str := c_type_str(&(*db).types, arena, get_node_type(db, id))
-        s := String.new(arena)
-        s.push_str(Str.of("(("))
-        s.push_str(ty_str)
-        s.push_str(Str.of(")"))
-        s.push_str(lhs_v)
-        s.push_str(Str.of(")"))
-        ret s.as_str()
+        ty_str := ccg.type_str(&(*db).types, arena, get_node_type(db, id))
+        ret ccg.expr_cast(arena, ty_str, lhs_v)
     }
 
     if kind == k.k_if {
         cond_str := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
-        CCodeGen_start_if(ccg, cond_str)
+        ccg.start_if(cond_str)
 
         then_val := lower_expr(db, ccg, arena, (&(*db).hir).rhs(id), visited, queue, type_queue)
-        if then_val.len > 0 { CCodeGen_expr(ccg, then_val) }
+        if then_val.len > 0 { ccg.expr(then_val) }
 
         elseb_id := (&(*db).hir).extra(id)
         if elseb_id != hir_none() {
-            CCodeGen_else(ccg)
+            ccg.else_()
             else_val := lower_expr(db, ccg, arena, elseb_id, visited, queue, type_queue)
-            if else_val.len > 0 { CCodeGen_expr(ccg, else_val) }
+            if else_val.len > 0 { ccg.expr(else_val) }
         }
-        CCodeGen_end_block(ccg)
+        ccg.end_block()
         ret Str.empty()
     }
 
     if kind == k.k_while {
-        cond_str: Str = lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
-        CCodeGen_start_while(ccg, cond_str)
+        cond_str := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
+        ccg.start_while(cond_str)
 
         body_val := lower_expr(db, ccg, arena, (&(*db).hir).rhs(id), visited, queue, type_queue)
-        if body_val.len > 0 { CCodeGen_expr(ccg, body_val) }
+        if body_val.len > 0 { ccg.expr(body_val) }
 
-        CCodeGen_end_block(ccg)
+        ccg.end_block()
         ret Str.empty()
     }
 
@@ -542,20 +355,19 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         val_id := (&(*db).hir).lhs(id)
         if val_id != hir_none() {
             val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
-            CCodeGen_gen_return(ccg, val_str, true)
+            ccg.gen_return(val_str, true)
         } else if method_returns_ref_self(db, id) {
-            CCodeGen_gen_return(ccg, Str.of("_self"), true)
+            ccg.gen_return(Str.of("_self"), true)
         } else {
-            CCodeGen_gen_return(ccg, Str.empty(), false)
+            ccg.gen_return(Str.empty(), false)
         }
         ret Str.empty()
     }
 
-
     if kind == k.struct_init {
         ty_id := get_node_type(db, id)
         add_type_to_queue(db, ty_id, type_queue)
-        struct_name := c_type_str(&(*db).types, arena, ty_id)
+        struct_name := ccg.type_str(&(*db).types, arena, ty_id)
 
         fields_list := (&(*db).hir).lhs(id)
         vals_list   := (&(*db).hir).rhs(id)
@@ -563,11 +375,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         fields := db.get_list(fields_list)
         vals   := db.get_list(vals_list)
 
-        s := String.new(arena)
-        s.push_str(Str.of("(("))
-        s.push_str(struct_name)
-        s.push_str(Str.of("){"))
-
+        fields_fmt := Fmt.new(arena)
         i: u64 = 0
         while (i < fields.len) and (i < vals.len) {
             f_node := *(fields.ptr + i)
@@ -576,19 +384,14 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             f_name_id := (&(*db).hir).lhs(f_node)
             v_str := lower_expr(db, ccg, arena, v_node, visited, queue, type_queue)
 
-            s.push_str(Str.of("._f"))
-            s.push_u32(f_name_id)
-            s.push_str(Str.of(" = "))
-            s.push_str(v_str)
-
+            fields_fmt.str(ccg.expr_struct_init_field(arena, f_name_id, v_str))
             if (i + 1) < fields.len {
-                s.push_str(Str.of(", "))
+                fields_fmt.cstr(", ")
             }
             i = i + 1
         }
 
-        s.push_str(Str.of("})"))
-        ret s.as_str()
+        ret ccg.expr_struct_init(arena, struct_name, fields_fmt.as_str())
     }
 
     if kind == k.member {
@@ -605,11 +408,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
         if lhs_id == hir_none() {
             field_id := (&(*db).hir).lhs(rhs_id)
-            self_field := String.new(arena)
-            self_field.push_str(Str.of("(_self->_f"))
-            self_field.push_u32(field_id)
-            self_field.push_str(Str.of(")"))
-            ret self_field.as_str()
+            ret ccg.expr_self_member(arena, field_id)
         }
 
         if (lhs_id == hir_none()) or (rhs_id == hir_none()) {
@@ -621,27 +420,12 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
         lhs_ty := get_node_type(db, lhs_id)
         depth: u32 = 0
-         while (&(*db).types).kind(lhs_ty) == ty_kind().ptr {
-             lhs_ty = (&(*db).types).payload(lhs_ty)
+        while (&(*db).types).kind(lhs_ty) == ty_kind().ptr {
+            lhs_ty = (&(*db).types).payload(lhs_ty)
             depth = depth + 1
         }
 
-        s := String.new(arena)
-        s.push_str(Str.of("("))
-        while depth > 0 {
-            s.push_str(Str.of("*("))
-            depth = depth - 1
-        }
-        s.push_str(lhs_str)
-        depth = 0
-        lhs_ty = get_node_type(db, lhs_id)
-        while (&(*db).types).kind(lhs_ty) == ty_kind().ptr {
-            lhs_ty = (&(*db).types).payload(lhs_ty)
-            s.push_str(Str.of(")"))
-        }
-        s.push_str(Str.of(")._f"))
-        s.push_u32(field_name_id)
-        ret s.as_str()
+        ret ccg.expr_member(arena, lhs_str, depth, field_name_id)
     }
 
     print("\n[codegen error] unsupported expression\n       --> ")
@@ -658,7 +442,6 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     is_method := (sym_id & method_tag()) != 0
     real_sym := sym_id
-
 
     if not is_method {
         while true {
@@ -695,30 +478,24 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     }
 
     func_ty := get_node_type(db, func_id)
-     ret_ty  := (&(*db).types).func_return(func_ty)
-    ret_str := c_type_str(&(*db).types, arena, ret_ty)
+    ret_ty  := (&(*db).types).func_return(func_ty)
+    ret_str := ccg.type_str(&(*db).types, arena, ret_ty)
 
     body_id   := (&(*db).hir).extra(func_id)
-     is_extern := (body_id == hir_none()) or (&(*db).types).func_is_extern(func_ty)
+    is_extern := (body_id == hir_none()) or (&(*db).types).func_is_extern(func_ty)
 
     fn_name := Str.empty()
     if is_extern and (not is_method) {
         name_hir := (&(*db).hir).lhs(binding_id)
         name_id  := (&(*db).hir).lhs(name_hir)
         fn_name   = db.interner.get(name_id)
+    } else if is_method {
+        fn_name = ccg.method_name(arena, binding_id)
     } else {
-        fn_name_s := String.new(arena)
-        if is_method {
-            fn_name_s.push_str(Str.of("method_"))
-            fn_name_s.push_u32(binding_id)
-        } else {
-            fn_name_s.push_str(Str.of("sym_"))
-            fn_name_s.push_u32(real_sym)
-        }
-        fn_name = fn_name_s.as_str()
+        fn_name = ccg.sym_name(arena, real_sym)
     }
 
-     params_slice := (&(*db).types).func_params(func_ty)
+    params_slice := (&(*db).types).func_params(func_ty)
     params_str   := Str.of("void")
 
     receiver := false
@@ -747,23 +524,21 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     }
 
     if (params_slice.len > 0) or receiver {
-        p_buf := String.new(arena)
+        p_fmt := Fmt.new(arena)
         if receiver {
             owner_ty := db.get_const_type(method_owner)
-            p_buf.push_str(c_type_str(&(*db).types, arena, owner_ty))
-            p_buf.push_str(Str.of("* _self"))
-            if params_slice.len > 0 { p_buf.push_str(Str.of(", ")) }
+            p_fmt.str(ccg.type_str(&(*db).types, arena, owner_ty))
+            p_fmt.cstr("* _self")
+            if params_slice.len > 0 { p_fmt.cstr(", ") }
         }
         i: u64 = 0
         while i < params_slice.len {
             p_ty     := *(params_slice.ptr + i)
-            p_ty_str := c_type_str(&(*db).types, arena, p_ty)
-            p_buf.push_str(p_ty_str)
-            p_buf.push_str(Str.of(" "))
+            p_ty_str := ccg.type_str(&(*db).types, arena, p_ty)
+            p_fmt.str(p_ty_str).cstr(" ")
 
             if is_extern {
-                p_buf.push_str(Str.of("_a"))
-                p_buf.push_u32(i as u32)
+                p_fmt.cstr("_a").uint32(i as u32)
             } else {
                 args_list_id := (&(*db).hir).lhs(func_id)
                 if args_list_id != hir_none() {
@@ -772,17 +547,16 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
                     arg_ident := (&(*db).hir).lhs(arg_node)
                     arg_sym := db.get_hir_symbol(arg_ident)
 
-                    p_buf.push_str(Str.of("sym_"))
-                    p_buf.push_u32(arg_sym)
+                    p_fmt.str(ccg.sym_name(arena, arg_sym))
                 }
             }
 
             if (i + 1) < params_slice.len {
-                p_buf.push_str(Str.of(", "))
+                p_fmt.cstr(", ")
             }
             i = i + 1
         }
-        params_str = p_buf.as_str()
+        params_str = p_fmt.as_str()
     }
 
     if is_extern {
@@ -803,26 +577,25 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         add_type_to_queue(db, db.get_const_type(method_owner), &type_queue)
     }
 
-    CCodeGen_start_function(ccg, fn_name, ret_str, params_str)
+    ccg.start_function(fn_name, ret_str, params_str)
 
     body_val := lower_expr(db, ccg, arena, body_id, visited, &queue, &type_queue)
 
     if is_ref_self {
         if body_val.len > 0 {
-            CCodeGen_expr(ccg, body_val)
+            ccg.expr(body_val)
         }
-        CCodeGen_gen_return(ccg, Str.of("_self"), true)
-     } else if (&(*db).types).kind(ret_ty) == ty_kind().unit {
+        ccg.gen_return(Str.of("_self"), true)
+    } else if (&(*db).types).kind(ret_ty) == ty_kind().unit {
         if body_val.len > 0 {
-            CCodeGen_expr(ccg, body_val)
+            ccg.expr(body_val)
         }
-        CCodeGen_gen_return(ccg, Str.empty(), false)
+        ccg.gen_return(Str.empty(), false)
     } else if body_val.len > 0 {
-        CCodeGen_gen_return(ccg, body_val, true)
+        ccg.gen_return(body_val, true)
     }
 
-    CCodeGen_end_function(ccg)
-
+    ccg.end_function()
 
     q_i: u64 = 0
     while q_i < queue.len {
@@ -833,32 +606,12 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     sorted := topo_sort(&(*db).types, &type_queue)
 
-
     s_i: u64 = 0
     while s_i < sorted.len {
         t := sorted.get(s_i)
-         if ((&(*db).types).kind(t) == ty_kind().struct_) or
-            ((&(*db).types).kind(t) == ty_kind().nominal) {
-             s_name := TypeStorage.name(arena, t)
-            body_buf := String.new(arena)
-             s_fields := (&(*db).types).get_struct_fields(t)
-            f_count := s_fields.len / 2
-
-            f_i: u64 = 0
-            while f_i < f_count {
-                fn_name := *(s_fields.ptr + (f_i * 2))
-                fn_ty   := *(s_fields.ptr + (f_i * 2) + 1)
-                fn_ty_str := c_type_str(&(*db).types, arena, fn_ty)
-
-                body_buf.push_str(Str.of("    "))
-                body_buf.push_str(fn_ty_str)
-                body_buf.push_str(Str.of(" _f"))
-                body_buf.push_u32(fn_name)
-                body_buf.push_str(Str.of(";\n"))
-                f_i = f_i + 1
-            }
-
-            CCodeGen_def_struct(ccg, t, s_name, body_buf.as_str())
+        if ((&(*db).types).kind(t) == ty_kind().struct_) or
+           ((&(*db).types).kind(t) == ty_kind().nominal) {
+            ccg.define_struct(&(*db).types, arena, t)
         }
         s_i = s_i + 1
     }

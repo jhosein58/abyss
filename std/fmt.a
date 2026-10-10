@@ -119,8 +119,97 @@ Fmt :: struct {
         .str(Str.of(s))
     }
 
+    char :: (c u8) &Self {
+        .buf.push_char(c)
+    }
+
     uint32 :: (v u32) &Self {
         .buf.push_u32(v)
+    }
+
+    uint64 :: (v u64) &Self {
+        if v == 0 {
+            .buf.push_char(48 as u8)
+            ret
+        }
+        divisor: u64 = 1
+        temp := v
+        while temp >= 10 {
+            divisor = divisor * 10
+            temp = temp / 10
+        }
+        rem := v
+        while divisor > 0 {
+            d := (rem / divisor) as u8
+            .buf.push_char(48 as u8 + d)
+            rem = rem - ((d as u64) * divisor)
+            divisor = divisor / 10
+        }
+    }
+
+    int32 :: (v i32) &Self {
+        if v < 0 {
+            .buf.push_char(45 as u8)
+            .uint32((0 - v) as u32)
+        } else {
+            .uint32(v as u32)
+        }
+    }
+
+    boolean :: (v bool) &Self {
+        if v {
+            ret .str(Str.of("true"))
+        }
+        .str(Str.of("false"))
+    }
+
+    space :: () &Self {
+        .buf.push_char(32 as u8)
+    }
+
+    newline :: () &Self {
+        .buf.push_char(10 as u8)
+    }
+
+    semi :: () &Self {
+        .str(Str.of(";\n"))
+    }
+
+    comma :: () &Self {
+        .str(Str.of(", "))
+    }
+
+    paren :: (inner Str) &Self {
+        .buf.push_char(40 as u8)
+        .str(inner)
+        .buf.push_char(41 as u8)
+    }
+
+    wrap :: (left Str, inner Str, right Str) &Self {
+        .str(left)
+        .str(inner)
+        .str(right)
+    }
+
+    sym :: (prefix Str, id u32) &Self {
+        .str(prefix)
+        .uint32(id)
+    }
+
+    binary :: (op Str, lhs Str, rhs Str) &Self {
+        .buf.push_char(40 as u8)
+        .str(lhs)
+        .str(op)
+        .str(rhs)
+        .buf.push_char(41 as u8)
+    }
+
+    indent :: (level u32) &Self {
+        i: u32 = 0
+        while i < level {
+            .str(Str.of("    "))
+            i = i + 1
+        }
     }
 
     as_str :: () Str {

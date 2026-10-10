@@ -1,6 +1,13 @@
 import VecU8 from "../std/vec/u8.a"
 import VecU32 from "../std/vec/u32.a"
-import Str from "../std/string.a"
+import Str, String from "../std/string.a"
+import Arena from "../std/allocator.a"
+import Fmt from "../std/fmt.a"
+import TypeStorage, ty_kind, ty_id_none from "types.a"
+import HirExprKind from "hir.a"
+import fall from "../std/sys.a"
+
+print :: (s &u8) unit
 
 vec_push_str :: (v &VecU8, s Str) {
     i: u64 = 0
@@ -51,183 +58,452 @@ CCodeGen :: struct {
     emitted_structs : VecU32,
     main_sym        : u32,
     has_main        : bool,
-    indent          : u32
-}
+    indent          : u32,
 
-CCodeGen_new :: () CCodeGen {
-    .{
-        struct_decls    : VecU8.new(),
-        struct_defs     : VecU8.new(),
-        func_decls      : VecU8.new(),
-        code            : VecU8.new(),
-        emitted_structs : VecU32.new(),
-        main_sym        : 0,
-        has_main        : false,
-        indent          : 0
+    new :: () Self {
+        .{
+            struct_decls    : VecU8.new(),
+            struct_defs     : VecU8.new(),
+            func_decls      : VecU8.new(),
+            code            : VecU8.new(),
+            emitted_structs : VecU32.new(),
+            main_sym        : 0,
+            has_main        : false,
+            indent          : 0
+        }
     }
-}
 
-CCodeGen_destroy :: (self &CCodeGen) {
-    self.func_decls.destroy()
-    self.code.destroy()
-    self.struct_decls.destroy()
-    self.struct_defs.destroy()
-    self.emitted_structs.destroy()
-}
-
-CCodeGen_indent :: (self &CCodeGen) {
-    i: u32 = 0
-    while i < (*self).indent {
-        vec_push_str(&(*self).code, Str.of("    "))
-        i = i + 1
+    destroy :: () {
+        .func_decls.destroy()
+        .code.destroy()
+        .struct_decls.destroy()
+        .struct_defs.destroy()
+        .emitted_structs.destroy()
     }
-}
 
-CCodeGen_abyss_main :: (self &CCodeGen, sym_id u32) {
-    (*self).main_sym = sym_id
-    (*self).has_main = true
-}
-
-CCodeGen_declare_function :: (self &CCodeGen, fn_name Str, ret_type Str, params Str) {
-    vec_push_str(&(*self).func_decls, ret_type)
-    vec_push_char(&(*self).func_decls, 32 as u8)
-    vec_push_str(&(*self).func_decls, fn_name)
-    vec_push_char(&(*self).func_decls, 40 as u8) -- '('
-    vec_push_str(&(*self).func_decls, params)
-    vec_push_str(&(*self).func_decls, Str.of(");\n"))
-}
-
-CCodeGen_start_function :: (self &CCodeGen, fn_name Str, ret_type Str, params Str) {
-    CCodeGen_declare_function(self, fn_name, ret_type, params)
-
-    vec_push_str(&(*self).code, ret_type)
-    vec_push_char(&(*self).code, 32 as u8)
-    vec_push_str(&(*self).code, fn_name)
-    vec_push_char(&(*self).code, 40 as u8) -- '('
-    vec_push_str(&(*self).code, params)
-    vec_push_str(&(*self).code, Str.of(") {\n"))
-    (*self).indent = (*self).indent + 1
-}
-
-CCodeGen_end_function :: (self &CCodeGen) {
-    if (*self).indent > 0 {
-        (*self).indent = (*self).indent - 1
+    indent_line :: () {
+        i: u32 = 0
+        while i < .indent {
+            vec_push_str(&.code, Str.of("    "))
+            i = i + 1
+        }
     }
-    vec_push_str(&(*self).code, Str.of("}\n\n"))
-}
 
-CCodeGen_create_variable :: (self &CCodeGen, name Str, ty Str, init_val Str, has_init bool) {
-    CCodeGen_indent(self)
-    vec_push_str(&(*self).code, ty)
-    vec_push_char(&(*self).code, 32 as u8)
-    vec_push_str(&(*self).code, name)
-    if has_init {
-        vec_push_str(&(*self).code, Str.of(" = "))
-        vec_push_str(&(*self).code, init_val)
-    } else {
-        vec_push_str(&(*self).code, Str.of(" = {0}"))
+    abyss_main :: (sym_id u32) {
+        .main_sym = sym_id
+        .has_main = true
     }
-    vec_push_str(&(*self).code, Str.of(";\n"))
-}
 
-CCodeGen_expr :: (self &CCodeGen, expr Str) {
-    if expr.len == 0 { ret }
-    CCodeGen_indent(self)
-    vec_push_str(&(*self).code, expr)
-    vec_push_str(&(*self).code, Str.of(";\n"))
-}
-
-CCodeGen_gen_return :: (self &CCodeGen, val Str, has_val bool) {
-    CCodeGen_indent(self)
-    vec_push_str(&(*self).code, Str.of("return"))
-    if has_val and (val.len > 0) {
-        vec_push_char(&(*self).code, 32 as u8)
-        vec_push_str(&(*self).code, val)
+    declare_function :: (fn_name Str, ret_type Str, params Str) {
+        vec_push_str(&.func_decls, ret_type)
+        vec_push_char(&.func_decls, 32 as u8)
+        vec_push_str(&.func_decls, fn_name)
+        vec_push_char(&.func_decls, 40 as u8)
+        vec_push_str(&.func_decls, params)
+        vec_push_str(&.func_decls, Str.of(");\n"))
     }
-    vec_push_str(&(*self).code, Str.of(";\n"))
+
+    start_function :: (fn_name Str, ret_type Str, params Str) {
+        .declare_function(fn_name, ret_type, params)
+
+        vec_push_str(&.code, ret_type)
+        vec_push_char(&.code, 32 as u8)
+        vec_push_str(&.code, fn_name)
+        vec_push_char(&.code, 40 as u8)
+        vec_push_str(&.code, params)
+        vec_push_str(&.code, Str.of(") {\n"))
+        .indent = .indent + 1
+    }
+
+    end_function :: () {
+        if .indent > 0 {
+            .indent = .indent - 1
+        }
+        vec_push_str(&.code, Str.of("}\n\n"))
+    }
+
+    create_variable :: (name Str, ty Str, init_val Str, has_init bool) {
+        .indent_line()
+        vec_push_str(&.code, ty)
+        vec_push_char(&.code, 32 as u8)
+        vec_push_str(&.code, name)
+        if has_init {
+            vec_push_str(&.code, Str.of(" = "))
+            vec_push_str(&.code, init_val)
+        } else {
+            vec_push_str(&.code, Str.of(" = {0}"))
+        }
+        vec_push_str(&.code, Str.of(";\n"))
+    }
+
+    expr :: (e Str) {
+        if e.len == 0 { ret }
+        .indent_line()
+        vec_push_str(&.code, e)
+        vec_push_str(&.code, Str.of(";\n"))
+    }
+
+    gen_return :: (val Str, has_val bool) {
+        .indent_line()
+        vec_push_str(&.code, Str.of("return"))
+        if has_val and (val.len > 0) {
+            vec_push_char(&.code, 32 as u8)
+            vec_push_str(&.code, val)
+        }
+        vec_push_str(&.code, Str.of(";\n"))
+    }
+
+    start_if :: (cond Str) {
+        .indent_line()
+        vec_push_str(&.code, Str.of("if ("))
+        vec_push_str(&.code, cond)
+        vec_push_str(&.code, Str.of(") {\n"))
+        .indent = .indent + 1
+    }
+
+    else_ :: () {
+        if .indent > 0 {
+            .indent = .indent - 1
+        }
+        .indent_line()
+        vec_push_str(&.code, Str.of("} else {\n"))
+        .indent = .indent + 1
+    }
+
+    start_while :: (cond Str) {
+        .indent_line()
+        vec_push_str(&.code, Str.of("while ("))
+        vec_push_str(&.code, cond)
+        vec_push_str(&.code, Str.of(") {\n"))
+        .indent = .indent + 1
+    }
+
+    end_block :: () {
+        if .indent > 0 {
+            .indent = .indent - 1
+        }
+        .indent_line()
+        vec_push_str(&.code, Str.of("}\n"))
+    }
+
+    decl_struct :: (name Str) {
+        vec_push_str(&.struct_decls, Str.of("typedef struct "))
+        vec_push_str(&.struct_decls, name)
+        vec_push_char(&.struct_decls, 32 as u8)
+        vec_push_str(&.struct_decls, name)
+        vec_push_str(&.struct_decls, Str.of(";\n"))
+    }
+
+    def_struct :: (ty_id u32, name Str, body Str) {
+        i: u64 = 0
+        while i < .emitted_structs.len {
+            if .emitted_structs.get(i) == ty_id {
+                ret
+            }
+            i = i + 1
+        }
+
+        .emitted_structs.push(ty_id)
+        .decl_struct(name)
+
+        vec_push_str(&.struct_defs, Str.of("struct "))
+        vec_push_str(&.struct_defs, name)
+        vec_push_str(&.struct_defs, Str.of(" {\n"))
+        vec_push_str(&.struct_defs, body)
+        vec_push_str(&.struct_defs, Str.of("};\n\n"))
+    }
+
+    define_struct :: (types &TypeStorage, arena &Arena, ty_id u32) {
+        i: u64 = 0
+        while i < .emitted_structs.len {
+            if .emitted_structs.get(i) == ty_id {
+                ret
+            }
+            i = i + 1
+        }
+
+        s_name := TypeStorage.name(arena, ty_id)
+        fmt := Fmt.new(arena)
+        s_fields := (&(*types)).get_struct_fields(ty_id)
+        f_count := s_fields.len / 2
+
+        f_i: u64 = 0
+        while f_i < f_count {
+            fn_name := *(s_fields.ptr + (f_i * 2))
+            fn_ty   := *(s_fields.ptr + (f_i * 2) + 1)
+            fn_ty_str := .type_str(types, arena, fn_ty)
+
+            fmt.cstr("    ").str(fn_ty_str).cstr(" _f").uint32(fn_name).cstr(";\n")
+            f_i = f_i + 1
+        }
+
+        .def_struct(ty_id, s_name, fmt.as_str())
+    }
+
+    finish :: (pre Str) Str {
+        out := VecU8.new()
+
+        vec_push_str(&out, pre)
+
+        vec_push_str(&out, Str.of("// Struct Declarations\n"))
+        vec_push_str(&out, vec_as_str(&.struct_decls))
+        vec_push_str(&out, Str.of("\n// Struct Definitions\n"))
+        vec_push_str(&out, vec_as_str(&.struct_defs))
+        vec_push_str(&out, Str.of("\n// Forward Declarations\n"))
+        vec_push_str(&out, vec_as_str(&.func_decls))
+        vec_push_str(&out, Str.of("\n// Implementations\n"))
+
+        vec_push_str(&out, vec_as_str(&.code))
+
+        if .has_main {
+            vec_push_str(&out, Str.of("int main(void) {\n    sym_"))
+            vec_push_u32(&out, .main_sym)
+            vec_push_str(&out, Str.of("();\n    return 0;\n}\n"))
+        }
+
+        vec_as_str(&out)
+    }
+
+    type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
+        .indent
+        if ty_id == ty_id_none() {
+            print("\n[codegen error] missing type\n")
+            fall()
+        }
+        k := ty_kind()
+        kind := (&(*types)).kind(ty_id)
+        payload := (&(*types)).payload(ty_id)
+
+        if kind == k.unit { ret Str.of("void") }
+        if kind == k.bool { ret Str.of("bool") }
+
+        if kind == k.int {
+            if payload == 8   { ret Str.of("int8_t") }
+            if payload == 16  { ret Str.of("int16_t") }
+            if payload == 32  { ret Str.of("int32_t") }
+            if payload == 64  { ret Str.of("int64_t") }
+            if payload == 128 { ret Str.of("__int128") }
+            print("\n[codegen error] unsupported integer width\n")
+            fall()
+            ret Str.empty()
+        }
+
+        if kind == k.uint {
+            if payload == 8   { ret Str.of("uint8_t") }
+            if payload == 16  { ret Str.of("uint16_t") }
+            if payload == 32  { ret Str.of("uint32_t") }
+            if payload == 64  { ret Str.of("uint64_t") }
+            if payload == 128 { ret Str.of("unsigned __int128") }
+            print("\n[codegen error] unsupported integer width\n")
+            fall()
+            ret Str.empty()
+        }
+
+        if kind == k.float {
+            if payload == 32 { ret Str.of("float") }
+            if payload == 64 { ret Str.of("double") }
+            print("\n[codegen error] unsupported float width\n")
+            fall()
+            ret Str.empty()
+        }
+
+        if kind == k.untyped_int   { ret Str.of("int32_t") }
+        if kind == k.untyped_float { ret Str.of("double") }
+
+        if kind == k.ptr {
+            inner_ty := (&(*types)).payload(ty_id)
+            inner_str := .type_str(types, arena, inner_ty)
+            fmt := Fmt.new(arena)
+            fmt.str(inner_str).cstr("*")
+            ret fmt.as_str()
+        }
+
+        if (kind == k.struct_) or (kind == k.nominal) {
+            ret TypeStorage.name(arena, ty_id)
+        }
+
+        if (kind == k.infer) or (kind == k.unknown) or (kind == k.error) {
+            print("\n[codegen error] unresolved type\n")
+            fall()
+        }
+
+        print("\n[codegen error] unsupported type\n")
+        fall()
+        Str.empty()
+    }
+
+    sym_name :: (arena &Arena, sym_id u32) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.sym(Str.of("sym_"), sym_id)
+        fmt.as_str()
+    }
+
+    method_name :: (arena &Arena, method_id u32) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.sym(Str.of("method_"), method_id)
+        fmt.as_str()
+    }
+
+    field_name :: (arena &Arena, field_id u32) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.sym(Str.of("_f"), field_id)
+        fmt.as_str()
+    }
+
+    expr_int :: (arena &Arena, val u32) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.uint32(val)
+        fmt.as_str()
+    }
+
+    expr_str_lit :: (arena &Arena, raw Str) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.wrap(Str.of("((uint8_t*)"), raw, Str.of(")"))
+        fmt.as_str()
+    }
+
+    expr_bool :: (val bool) Str {
+        .indent
+        if val {
+            ret Str.of("true")
+        }
+        Str.of("false")
+    }
+
+    expr_assign :: (arena &Arena, lhs Str, rhs Str) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.str(lhs).cstr(" = ").str(rhs)
+        fmt.as_str()
+    }
+
+    expr_binary :: (arena &Arena, op Str, lhs Str, rhs Str) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.binary(op, lhs, rhs)
+        fmt.as_str()
+    }
+
+    expr_unary :: (arena &Arena, op Str, inner Str) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.char(40 as u8).str(op).char(40 as u8).str(inner).cstr("))")
+        fmt.as_str()
+    }
+
+    expr_cast :: (arena &Arena, ty_str Str, inner Str) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.cstr("((").str(ty_str).cstr(")").str(inner).char(41 as u8)
+        fmt.as_str()
+    }
+
+    expr_call :: (arena &Arena, callee Str, args Str) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.str(callee).char(40 as u8).str(args).char(41 as u8)
+        fmt.as_str()
+    }
+
+    expr_self_member :: (arena &Arena, field_id u32) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.cstr("(_self->_f").uint32(field_id).char(41 as u8)
+        fmt.as_str()
+    }
+
+    expr_member :: (arena &Arena, lhs Str, depth u32, field_id u32) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.char(40 as u8)
+        d := depth
+        while d > 0 {
+            fmt.cstr("*(")
+            d = d - 1
+        }
+        fmt.str(lhs)
+        d = depth
+        while d > 0 {
+            fmt.char(41 as u8)
+            d = d - 1
+        }
+        fmt.cstr(")._f").uint32(field_id)
+        fmt.as_str()
+    }
+
+    expr_receiver :: (arena &Arena, recv_str Str, depth u32, is_lval bool, ty_str Str) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        if depth > 0 {
+            d := depth
+            while d > 1 {
+                fmt.cstr("*")
+                d = d - 1
+            }
+            fmt.char(40 as u8).str(recv_str).char(41 as u8)
+        } else if is_lval {
+            fmt.cstr("&(").str(recv_str).char(41 as u8)
+        } else {
+            fmt.cstr("&((").str(ty_str).cstr("[]){").str(recv_str).cstr("})[0]")
+        }
+        fmt.as_str()
+    }
+
+    expr_struct_init_field :: (arena &Arena, field_id u32, val_str Str) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.cstr("._f").uint32(field_id).cstr(" = ").str(val_str)
+        fmt.as_str()
+    }
+
+    expr_struct_init :: (arena &Arena, struct_name Str, fields_body Str) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.cstr("((").str(struct_name).cstr("){").str(fields_body).cstr("})")
+        fmt.as_str()
+    }
+
+    binary_op :: (k HirExprKind, kind u8) Str {
+        .indent
+        if kind == k.binary_add     { ret Str.of(" + ") }
+        if kind == k.binary_sub     { ret Str.of(" - ") }
+        if kind == k.binary_mul     { ret Str.of(" * ") }
+        if kind == k.binary_div     { ret Str.of(" / ") }
+        if kind == k.binary_mod     { ret Str.of(" % ") }
+        if kind == k.binary_eq_eq   { ret Str.of(" == ") }
+        if kind == k.binary_neq     { ret Str.of(" != ") }
+        if kind == k.binary_lt      { ret Str.of(" < ") }
+        if kind == k.binary_gt      { ret Str.of(" > ") }
+        if kind == k.binary_lt_eq   { ret Str.of(" <= ") }
+        if kind == k.binary_gt_eq   { ret Str.of(" >= ") }
+        if kind == k.binary_bit_and { ret Str.of(" & ") }
+        if kind == k.binary_bit_or  { ret Str.of(" | ") }
+        if kind == k.binary_bit_xor { ret Str.of(" ^ ") }
+        if kind == k.binary_shl     { ret Str.of(" << ") }
+        if kind == k.binary_shr     { ret Str.of(" >> ") }
+        if kind == k.binary_and     { ret Str.of(" && ") }
+        if kind == k.binary_or      { ret Str.of(" || ") }
+        Str.of(" ")
+    }
 }
 
 CCodeGen_finish :: (self &CCodeGen, pre Str) Str {
-    out := VecU8.new()
-
-    vec_push_str(&out, pre)
-
-    vec_push_str(&out, Str.of("// Struct Declarations\n"))
-    vec_push_str(&out, vec_as_str(&(*self).struct_decls))
-    vec_push_str(&out, Str.of("\n// Struct Definitions\n"))
-    vec_push_str(&out, vec_as_str(&(*self).struct_defs))
-    vec_push_str(&out, Str.of("\n// Forward Declarations\n"))
-    vec_push_str(&out, vec_as_str(&(*self).func_decls))
-    vec_push_str(&out, Str.of("\n// Implementations\n"))
-
-    vec_push_str(&out, vec_as_str(&(*self).code))
-
-    if (*self).has_main {
-        vec_push_str(&out, Str.of("int main(void) {\n    sym_"))
-        vec_push_u32(&out, (*self).main_sym)
-        vec_push_str(&out, Str.of("();\n    return 0;\n}\n"))
-    }
-
-    vec_as_str(&out)
+    self.finish(pre)
 }
 
-CCodeGen_start_if :: (self &CCodeGen, cond Str) {
-    CCodeGen_indent(self)
-    vec_push_str(&(*self).code, Str.of("if ("))
-    vec_push_str(&(*self).code, cond)
-    vec_push_str(&(*self).code, Str.of(") {\n"))
-    (*self).indent = (*self).indent + 1
+CCodeGen_new :: () CCodeGen {
+    CCodeGen.new()
 }
 
-CCodeGen_else :: (self &CCodeGen) {
-    if (*self).indent > 0 {
-        (*self).indent = (*self).indent - 1
-    }
-    CCodeGen_indent(self)
-    vec_push_str(&(*self).code, Str.of("} else {\n"))
-    (*self).indent = (*self).indent + 1
+CCodeGen_destroy :: (self &CCodeGen) {
+    self.destroy()
 }
 
-CCodeGen_start_while :: (self &CCodeGen, cond Str) {
-    CCodeGen_indent(self)
-    vec_push_str(&(*self).code, Str.of("while ("))
-    vec_push_str(&(*self).code, cond)
-    vec_push_str(&(*self).code, Str.of(") {\n"))
-    (*self).indent = (*self).indent + 1
-}
-
-CCodeGen_end_block :: (self &CCodeGen) {
-    if (*self).indent > 0 {
-        (*self).indent = (*self).indent - 1
-    }
-    CCodeGen_indent(self)
-    vec_push_str(&(*self).code, Str.of("}\n"))
-}
-
-CCodeGen_decl_struct :: (self &CCodeGen, name Str) {
-    vec_push_str(&(*self).struct_decls, Str.of("typedef struct "))
-    vec_push_str(&(*self).struct_decls, name)
-    vec_push_char(&(*self).struct_decls, 32 as u8)
-    vec_push_str(&(*self).struct_decls, name)
-    vec_push_str(&(*self).struct_decls, Str.of(";\n"))
-}
-
-CCodeGen_def_struct :: (self &CCodeGen, ty_id u32, name Str, body Str) {
-    i: u64 = 0
-    while i < (*self).emitted_structs.len {
-        if self.emitted_structs.get(i) == ty_id {
-            ret
-        }
-        i = i + 1
-    }
-    
-    self.emitted_structs.push(ty_id)
-
-    CCodeGen_decl_struct(self, name)
-
-    vec_push_str(&(*self).struct_defs, Str.of("struct "))
-    vec_push_str(&(*self).struct_defs, name)
-    vec_push_str(&(*self).struct_defs, Str.of(" {\n"))
-    vec_push_str(&(*self).struct_defs, body)
-    vec_push_str(&(*self).struct_defs, Str.of("};\n\n"))
+CCodeGen_abyss_main :: (self &CCodeGen, sym_id u32) {
+    self.abyss_main(sym_id)
 }
