@@ -1,0 +1,28 @@
+import Parser, curr_span, peek_n from "../core.a"
+import Span from "../../nexus/nexus.a"
+import hir_none from "../../hir.a"
+import token from "../../token.a"
+
+span_of_hir :: (p &Parser, hir_id u32) Span {
+    (*p).db.get_hir_span(hir_id)
+}
+
+set_span :: (p &Parser, hir_id u32, sp Span) u32 {
+    (*p).db.set_hir_span(hir_id, sp.start, sp.end)
+    (*p).db.set_hir_file(hir_id, (*p).file_id)
+    hir_id
+}
+
+is_assign_op :: (kind u8) bool {
+    t := token()
+    if kind == t.eq or kind == t.plus_eq or kind == t.minus_eq or kind == t.star_eq or kind == t.slash_eq or kind == t.percent_eq { ret true }
+    if kind == t.amp_eq or kind == t.pipe_eq or kind == t.caret_eq or kind == t.left_shift_eq or kind == t.right_shift_eq { ret true }
+    false
+}
+
+is_dot_continuation :: (p &Parser, lhs u32) bool {
+    if lhs == hir_none() { ret false }
+    if peek_n(p, 1) == token().o_brace { ret false }
+    if (*p).inside_method { ret false }
+    true
+}

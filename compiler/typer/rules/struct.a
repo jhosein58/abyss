@@ -1,0 +1,270 @@
+import Nexus from "../../nexus/nexus.a"
+import HirTable, hir_kind, hir_none from "../../hir.a"
+import SliceU32 from "../../../std/slice/u32.a"
+import VecU32 from "../../../std/vec/u32.a"
+import ty_kind, ty_id_none, ty_id_type from "../../types.a"
+import slot_none from "../../unify.a"
+import id_none from "../../nexus/pool.a"
+import Engine from "../../engine.a"
+import fall from "../../../std/sys.a"
+import synth_type_node from "var.a"
+import synth_func, method_has_receiver from "fn.a"
+
+print :: (s &u8) unit
+
+synth_struct :: (eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := (unify_ptr).new_slot(id)
+
+    names_list := (tbl).lhs(id)
+    types_list := (tbl).rhs(id)
+
+    names := db.get_list(names_list)
+    types := db.get_list(types_list)
+
+    fields_vec := VecU32.new()
+
+    i: u64 = 0
+    while (i < names.len) and (i < types.len) {
+        name_node := *(names.ptr + i)
+        type_node := *(types.ptr + i)
+
+        name_id := (tbl).lhs(name_node)
+
+        ty_val := db.get_const_type(type_node)
+        if ty_val == ty_id_none() {
+            ty_val = synth_type_node(eng, type_node)
+        }
+        if ty_val == ty_id_none() {
+            print("\n\033[1;31m[type error]\033[0m struct field requires a resolved type\n       --> ")
+            db.print_loc(type_node)
+            print("\n")
+            fall()
+        }
+
+        fields_vec.push(name_id)
+        fields_vec.push(ty_val)
+        i = i + 1
+    }
+
+    ptr := 0 as &u32
+    if fields_vec.len > 0 { ptr = fields_vec.ptr_at(0) }
+    slice: SliceU32 = .{ ptr: ptr, len: fields_vec.len }
+
+    tyid := (&(*types_ptr)).alloc_struct(slice)
+    fields_vec.destroy()
+
+    sym_id := db.get_hir_symbol(id)
+    if sym_id != id_none() {
+        name_id := db.sym_names.get(sym_id)
+        name := db.interner.get(name_id)
+        named := (&(*types_ptr)).alloc_nominal(tyid, name, id)
+        db.set_const_type(id, named)
+        sym_hir := db.get_sym_hir(sym_id)
+        if sym_hir != id_none() {
+            db.set_const_type(sym_hir, named)
+            sym_slot := (&(*db).unify).get_slot(sym_hir)
+            if sym_slot == slot_none() {
+                sym_slot = (&(*db).unify).new_slot(sym_hir)
+            }
+            (&(*db).unify).bind_type(&(*db).types, sym_slot, ty_id_type())
+        }
+    } else {
+        db.set_const_type(id, tyid)
+    }
+
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+
+    methods_id := (tbl).extra(id)
+    if methods_id != hir_none() {
+        if sym_id == id_none() {
+            print("\n\033[1;31m[type error]\033[0m methods require a named struct binding\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
+        }
+        methods := db.get_list(methods_id)
+        m_i: u64 = 0
+        while m_i < methods.len {
+            method := *(methods.ptr + m_i)
+            func_node := (tbl).extra(method)
+            synth_func(eng, func_node)
+            method_slot := (unify_ptr).new_slot(method)
+            func_slot := (unify_ptr).get_slot(func_node)
+            func_ty := (unify_ptr).resolve_type(func_slot)
+            (&(*db).unify).bind_type(&(*db).types, method_slot, func_ty)
+            m_i = m_i + 1
+        }
+    }
+}
+
+synth_struct_init :: (db &Nexus, tbl &HirTable, id u32) {
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := (unify_ptr).new_slot(id)
+
+    fields_list := (tbl).lhs(id)
+    vals_list   := (tbl).rhs(id)
+
+    fields := db.get_list(fields_list)
+    vals   := db.get_list(vals_list)
+
+    fields_vec := VecU32.new()
+
+    i: u64 = 0
+    while (i < fields.len) and (i < vals.len) {
+        f_node := *(fields.ptr + i)
+        v_node := *(vals.ptr + i)
+
+        name_id := (tbl).lhs(f_node)
+
+        v_slot := (unify_ptr).get_slot(v_node)
+        if v_slot == slot_none() {
+            v_slot = (unify_ptr).new_slot(v_node)
+        }
+        infer_ty := (&(*types_ptr)).alloc_infer(v_slot)
+
+        fields_vec.push(name_id)
+        fields_vec.push(infer_ty)
+        i = i + 1
+    }
+
+    ptr := 0 as &u32
+    if fields_vec.len > 0 { ptr = fields_vec.ptr_at(0) }
+    slice: SliceU32 = .{ ptr: ptr, len: fields_vec.len }
+
+    tyid := (&(*types_ptr)).alloc_struct(slice)
+    fields_vec.destroy()
+
+    (&(*db).unify).bind_type(&(*db).types, slot, tyid)
+}
+
+synth_member :: (eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+    slot := (unify_ptr).get_slot(id)
+    if slot == slot_none() {
+        slot = (unify_ptr).new_slot(id)
+    }
+    lhs_id := (tbl).lhs(id)
+
+    is_type := false
+    lhs_ty := ty_id_none()
+    if lhs_id == hir_none() {
+        owner := db.get_method_owner(id)
+        if owner == hir_none() {
+            print("\n\033[1;31m[type error]\033[0m implicit field access outside a method\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
+        }
+        lhs_ty = db.get_const_type(owner)
+    } else {
+        lhs_slot := (unify_ptr).get_slot(lhs_id)
+        if lhs_slot == slot_none() {
+            print("\n\033[1;31m[type error]\033[0m cannot resolve member receiver\n       --> ")
+            db.print_loc(lhs_id)
+            print("\n")
+            fall()
+        }
+        lhs_ty = (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
+        if lhs_ty == ty_id_type() {
+            lhs_ty = db.get_const_type(lhs_id)
+            is_type = true
+        } else {
+            while (&(*types_ptr)).kind(lhs_ty) == ty_kind().ptr {
+                lhs_ty = (&(*types_ptr)).payload(lhs_ty)
+            }
+        }
+    }
+
+    kind := (&(*types_ptr)).kind(lhs_ty)
+    if (kind != ty_kind().struct_) and (kind != ty_kind().nominal) {
+        print("\n\033[1;31m[type error]\033[0m member receiver must be a struct value or named struct type, got '")
+        (&(*types_ptr)).print_type(lhs_ty)
+        print("'\n       --> ")
+        db.print_loc(id)
+        print("\n")
+        fall()
+    }
+
+    rhs_id := (tbl).rhs(id)
+    name_id := (tbl).lhs(rhs_id)
+    if not is_type {
+        fields := (&(*types_ptr)).get_struct_fields(lhs_ty)
+        i: u64 = 0
+        while i < fields.len / 2 {
+            if *(fields.ptr + i * 2) == name_id {
+                field_ty := *(fields.ptr + i * 2 + 1)
+                if (&(*types_ptr)).kind(field_ty) == ty_kind().infer {
+                    (&(*db).unify).union(&(*db).types, slot, (&(*types_ptr)).payload(field_ty))
+                } else {
+                    (&(*db).unify).bind_type(&(*db).types, slot, field_ty)
+                }
+                ret
+            }
+            i = i + 1
+        }
+    }
+
+    if kind == ty_kind().nominal {
+        origin := (&(*types_ptr)).nominal_origin(lhs_ty)
+        struct_id := origin
+        if (tbl).kind(origin) == hir_kind().binding {
+            struct_id = (tbl).extra(origin)
+        }
+        methods_id := (tbl).extra(struct_id)
+        if methods_id != hir_none() {
+            methods := db.get_list(methods_id)
+            i: u64 = 0
+            while i < methods.len {
+                method := *(methods.ptr + i)
+                method_name := (tbl).lhs((tbl).lhs(method))
+                if method_name == name_id {
+                    receiver := method_has_receiver(db, method)
+                    if is_type and receiver {
+                        print("\n\033[1;31m[type error]\033[0m instance method requires a struct value; call it on an instance\n       --> ")
+                        db.print_loc(id)
+                        print("\n")
+                        fall()
+                    }
+                    if (lhs_id != hir_none()) and (not is_type) and (not receiver) {
+                        print("\n\033[1;31m[type error]\033[0m static method requires the named struct type\n       --> ")
+                        db.print_loc(id)
+                        print("\n")
+                        fall()
+                    }
+                    method_slot := (unify_ptr).get_slot(method)
+                    if method_slot == slot_none() {
+                        func_node := (tbl).extra(method)
+                        synth_func(eng, func_node)
+                        method_slot = (unify_ptr).new_slot(method)
+                        func_slot := (unify_ptr).get_slot(func_node)
+                        func_ty := (unify_ptr).resolve_type(func_slot)
+                        (&(*db).unify).bind_type(&(*db).types, method_slot, func_ty)
+                    }
+                    db.set_method_target(id, method)
+                    (&(*db).unify).union(&(*db).types, slot, method_slot)
+                    ret
+                }
+                i = i + 1
+            }
+        }
+    }
+
+    print("\n\033[1;31m[type error]\033[0m struct '")
+    (&(*types_ptr)).print_type(lhs_ty)
+    print("' has no field or method named '")
+    db.interner.get(name_id).print()
+    print("'\n       --> ")
+    db.print_loc(id)
+    print("\n")
+    fall()
+}

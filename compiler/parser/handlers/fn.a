@@ -1,0 +1,215 @@
+import token from "../../token.a"
+import hir_kind, hir_none from "../../hir.a"
+import Parser, peek, bump, optional, expect, is_eof, curr_span, prev_span, parse_error_at from "../core.a"
+import ScopeEnv_mark, ScopeEnv_reset, ScopeEnv_define from "../env.a"
+import VecU32 from "../../../std/vec/u32.a"
+import SliceU32 from "../../../std/slice/u32.a"
+import Span, span_merge from "../../nexus/nexus.a"
+import id_none from "../../nexus/pool.a"
+import span_of_hir, set_span from "common.a"
+import parse_ident from "ident.a"
+import parse_block from "control.a"
+import parse_expr from "../parser.a"
+
+define_param :: (p &Parser, name_hir u32) {
+    k := hir_kind()
+    if ((*p).hir).kind(name_hir) != k.ident {
+        parse_error_at(p, "parameter name must be an identifier", span_of_hir(p, name_hir))
+    }
+    name_id := ((*p).hir).lhs(name_hir)
+    sym_id := (*p).db.alloc_local_symbol((*p).file_id, name_id, name_hir)
+    ScopeEnv_define(&(*p).env, name_id, sym_id)
+}
+
+is_function_header :: (p &Parser) bool {
+    if (*p).inside_method and ((*p).method_fn_depth != 0) { ret false }
+
+    t := token()
+
+    if peek(p) != t.ident { ret false }
+
+    depth: u32 = 1
+    i := p.cursor
+    has_comma := false
+
+    while i < p.end {
+        tk := p.tokens.kind(i)
+        if tk == t.o_paren {
+            depth = depth + 1
+        } else if tk == t.c_paren {
+            depth = depth - 1
+            if depth == 0 { break }
+        } else if (tk == t.comma) and (depth == 1) {
+            has_comma = true
+        }
+        i = i + 1
+    }
+
+    if depth != 0 { ret false }
+    if has_comma { ret true }
+
+    after_cp := t.eof
+    if (i + 1) < p.end {
+        after_cp = p.tokens.kind(i + 1)
+    }
+
+    if after_cp == t.o_brace { ret true }
+
+    if after_cp == t.ident {
+        if not p.tokens.newline_before(i + 1) { ret true }
+    }
+
+    if (after_cp == t.amp) or (after_cp == t.star) or (after_cp == t.o_bracket) {
+        if ((*p).toplv_sym != id_none()) or ((*p).inside_method and ((*p).method_fn_depth == 0)) { ret true }
+    }
+
+    false
+}
+
+parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
+    if (*p).inside_method {
+        if (*p).method_fn_depth != 0 {
+            parse_error_at(p, "nested functions inside methods are not supported", sp_start)
+        }
+        (*p).method_fn_depth = 1
+    }
+    fn_sym := id_none()
+    if not (*p).inside_method {
+        fn_sym = (*p).toplv_sym
+        (*p).toplv_sym = id_none()
+    }
+    t := token()
+    k := hir_kind()
+
+    ret_ty := hir_none()
+    sp_end := sp_start
+    if peek(p) != t.o_brace {
+        ret_ty = parse_expr(p, 0 as u8)
+        sp_end = span_of_hir(p, ret_ty)
+    }
+
+    fn_node := ((*p).hir).push(k.function, params, ret_ty, hir_none())
+    if fn_sym != id_none() {
+        (*p).db.set_hir_symbol(fn_node, fn_sym)
+    }
+    (*p).fn_stack.push(fn_node)
+
+    body := hir_none()
+    if peek(p) == t.o_brace {
+        body = parse_block(p)
+        sp_end = span_of_hir(p, body)
+        ((*p).hir).set_rhs(body, fn_node)
+    }
+
+    (*p).fn_stack.pop()
+    ((*p).hir).set_extra(fn_node, body)
+    if (*p).inside_method { (*p).method_fn_depth = 0 }
+    set_span(p, fn_node, span_merge(sp_start, sp_end))
+}
+
+parse_paren :: (p &Parser) u32 {
+    t := token()
+    sp_start := curr_span(p)
+    bump(p)
+
+    if (*p).allow_fn and ((not (*p).inside_method) or ((*p).method_fn_depth == 0)) and optional(p, t.c_paren) {
+        env_mark := ScopeEnv_mark(&(*p).env)
+        fn_id := parse_fn_tail(p, hir_none(), sp_start)
+        ScopeEnv_reset(&(*p).env, env_mark)
+        ret fn_id
+    }
+
+    if (*p).allow_fn and is_function_header(p) {
+        env_mark := ScopeEnv_mark(&(*p).env)
+        args := VecU32.new()
+        pending_names := VecU32.new()
+
+        while (peek(p) != t.c_paren) and (not is_eof(p)) {
+            name := parse_ident(p)
+            define_param(p, name)
+            pending_names.push(name)
+
+            if optional(p, t.comma) {
+                cont
+            }
+
+            if (peek(p) != t.c_paren) and (peek(p) != t.eof) {
+                ty := parse_expr(p, 0 as u8)
+                p_i: u64 = 0
+                while p_i < pending_names.len {
+                    p_name := pending_names.get(p_i)
+                    p_sp := span_merge(span_of_hir(p, p_name), span_of_hir(p, ty))
+                    arg_id := ((*p).hir).push(hir_kind().arg, p_name, ty, hir_none())
+                    set_span(p, arg_id, p_sp)
+                    args.push(arg_id)
+                    p_i = p_i + 1
+                }
+                pending_names.reset(0)
+                optional(p, t.comma)
+            }
+        }
+
+        p_i: u64 = 0
+        while p_i < pending_names.len {
+            p_name := pending_names.get(p_i)
+            arg_id := ((*p).hir).push(hir_kind().arg, p_name, hir_none(), hir_none())
+            set_span(p, arg_id, span_of_hir(p, p_name))
+            args.push(arg_id)
+            p_i = p_i + 1
+        }
+
+        expect(p, t.c_paren)
+
+        slice: SliceU32 = .{
+            ptr: args.ptr_at(0),
+            len: args.len
+        }
+        params := (*p).db.add_list(slice)
+        pending_names.destroy()
+        args.destroy()
+
+        fn_id := parse_fn_tail(p, params, sp_start)
+        ScopeEnv_reset(&(*p).env, env_mark)
+        ret fn_id
+    }
+
+    expr := parse_expr(p, 0 as u8)
+    expect(p, t.c_paren)
+    sp_end := prev_span(p)
+    set_span(p, expr, span_merge(sp_start, sp_end))
+}
+
+parse_call :: (p &Parser, lhs u32, right_bp u8) u32 {
+    t := token()
+    k := hir_kind()
+    sp_lhs := span_of_hir(p, lhs)
+
+    args := VecU32.new()
+    if not optional(p, t.c_paren) {
+        while true {
+            if peek(p) == t.c_paren { break }
+            if is_eof(p) {
+                parse_error_at(p, "unclosed call, expected ')'", sp_lhs)
+            }
+            arg := parse_expr(p, 0 as u8)
+            if arg == hir_none() {
+                parse_error_at(p, "expected call argument", curr_span(p))
+            }
+            args.push(arg)
+
+            if peek(p) == t.c_paren { break }
+            if not expect(p, t.comma) {
+                parse_error_at(p, "expected ',' or ')' after call argument", curr_span(p))
+            }
+        }
+        expect(p, t.c_paren)
+    }
+
+    sp_end := prev_span(p)
+    slice: SliceU32 = .{ ptr: args.ptr_at(0), len: args.len }
+    args_list := (*p).db.add_list(slice)
+    args.destroy()
+
+    node := ((*p).hir).push(k.call, lhs, args_list, hir_none())
+    set_span(p, node, span_merge(sp_lhs, sp_end))
+}

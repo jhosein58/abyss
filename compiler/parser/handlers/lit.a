@@ -1,0 +1,50 @@
+import token from "../../token.a"
+import hir_kind, hir_none from "../../hir.a"
+import Parser, bump, curr_text, str_to_u32, curr_span from "../core.a"
+import set_span from "common.a"
+
+parse_lit_int :: (p &Parser) u32 {
+    k := hir_kind()
+    sp := curr_span(p)
+    val := str_to_u32(p, curr_text(p))
+    bump(p)
+    node := ((*p).hir).push(k.lit_int, val, hir_none(), hir_none())
+    set_span(p, node, sp)
+}
+
+parse_float :: (p &Parser) u32 {
+    k := hir_kind()
+    sp := curr_span(p)
+    name := curr_text(p)
+    name_id := p.db.interner.intern(name)
+    bump(p)
+    node := ((*p).hir).push(k.lit_float, name_id, hir_none(), hir_none())
+    set_span(p, node, sp)
+}
+
+parse_str :: (p &Parser) u32 {
+    k := hir_kind()
+    sp := curr_span(p)
+    raw := curr_text(p)
+    bump(p)
+    name_id := p.db.interner.intern(raw)
+    node := ((*p).hir).push(k.lit_str, name_id, hir_none(), hir_none())
+    set_span(p, node, sp)
+}
+
+parse_true :: (p &Parser) u32 {
+    k := hir_kind()
+    sp := curr_span(p)
+    bump(p)
+
+    node := ((*p).hir).push(k.lit_bool_true, hir_none(), hir_none(), hir_none())
+    set_span(p, node, sp)
+}
+
+parse_false :: (p &Parser) u32 {
+    k := hir_kind()
+    sp := curr_span(p)
+    bump(p)
+    node := ((*p).hir).push(k.lit_bool_false, hir_none(), hir_none(), hir_none())
+    set_span(p, node, sp)
+}

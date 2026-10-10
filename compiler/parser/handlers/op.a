@@ -1,0 +1,74 @@
+import token from "../../token.a"
+import hir_kind, hir_none from "../../hir.a"
+import Parser, bump, curr_span, parse_error_at from "../core.a"
+import prec from "../prec.a"
+import span_merge from "../../nexus/nexus.a"
+import span_of_hir, set_span from "common.a"
+import parse_expr from "../parser.a"
+
+parse_unary :: (p &Parser, op u8) u32 {
+    t := token()
+    k := hir_kind()
+    sp_start := curr_span(p)
+    bump(p)
+
+    body := parse_expr(p, prec().unary)
+    sp_end := span_of_hir(p, body)
+
+    op_kind := k.empty
+    if op == t.minus  { op_kind = k.unary_neg }
+    if op == t.kw_not { op_kind = k.unary_not }
+    if op == t.tilde  { op_kind = k.unary_bit_not }
+    if op == t.amp    { op_kind = k.unary_addr_of }
+    if op == t.star   { op_kind = k.unary_deref }
+
+    node := ((*p).hir).push(op_kind, body, hir_none(), hir_none())
+    set_span(p, node, span_merge(sp_start, sp_end))
+}
+
+parse_binary :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
+    t := token()
+    k := hir_kind()
+
+    sp_lhs := span_of_hir(p, lhs)
+    rhs := parse_expr(p, right_bp)
+    sp_rhs := span_of_hir(p, rhs)
+
+    op_kind := k.empty
+    if op == t.plus        { op_kind = k.binary_add }
+    if op == t.minus       { op_kind = k.binary_sub }
+    if op == t.star        { op_kind = k.binary_mul }
+    if op == t.slash       { op_kind = k.binary_div }
+    if op == t.percent     { op_kind = k.binary_mod }
+    if op == t.amp         { op_kind = k.binary_bit_and }
+    if op == t.pipe        { op_kind = k.binary_bit_or }
+    if op == t.caret       { op_kind = k.binary_bit_xor }
+    if op == t.left_shift  { op_kind = k.binary_shl }
+    if op == t.right_shift { op_kind = k.binary_shr }
+    if op == t.eq_eq       { op_kind = k.binary_eq_eq }
+    if op == t.bang_eq     { op_kind = k.binary_neq }
+    if op == t.lt          { op_kind = k.binary_lt }
+    if op == t.lt_eq       { op_kind = k.binary_lt_eq }
+    if op == t.gt          { op_kind = k.binary_gt }
+    if op == t.gt_eq       { op_kind = k.binary_gt_eq }
+    if op == t.kw_and      { op_kind = k.binary_and }
+    if op == t.kw_or       { op_kind = k.binary_or }
+    if op == t.kw_as       { op_kind = k.cast }
+
+    if op_kind == k.empty {
+        parse_error_at(p, "unsupported binary operator", curr_span(p))
+    }
+
+    node := ((*p).hir).push(op_kind, lhs, rhs, hir_none())
+    set_span(p, node, span_merge(sp_lhs, sp_rhs))
+}
+
+parse_assign :: (p &Parser, lhs u32, right_bp u8) u32 {
+    k := hir_kind()
+    sp_lhs := span_of_hir(p, lhs)
+    rhs := parse_expr(p, right_bp)
+    sp_rhs := span_of_hir(p, rhs)
+
+    node := ((*p).hir).push(k.binary_assign, lhs, rhs, hir_none())
+    set_span(p, node, span_merge(sp_lhs, sp_rhs))
+}

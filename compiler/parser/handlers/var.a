@@ -1,0 +1,87 @@
+import token from "../../token.a"
+import hir_kind, hir_none from "../../hir.a"
+import Parser, optional, lookup_sym, curr_span, parse_error_at from "../core.a"
+import ScopeEnv_define from "../env.a"
+import prec from "../prec.a"
+import span_merge from "../../nexus/nexus.a"
+import id_none from "../../nexus/pool.a"
+import span_of_hir, set_span from "common.a"
+import parse_expr from "../parser.a"
+
+parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
+    k := hir_kind()
+    sp_lhs := span_of_hir(p, lhs)
+
+    name_id := ((*p).hir).lhs(lhs)
+    sym_id := lookup_sym(p, name_id)
+
+    if sym_id != id_none() {
+        curr_hir := (*p).db.get_sym_hir(sym_id)
+        if curr_hir == id_none() {
+            (*p).db.set_sym_hir(sym_id, lhs)
+        }
+        (*p).db.set_hir_symbol(lhs, sym_id)
+    }
+
+    rhs := parse_expr(p, right_bp)
+    sp_rhs := span_of_hir(p, rhs)
+
+    binding_id := ((*p).hir).push(k.binding, lhs, hir_none(), rhs)
+    set_span(p, binding_id, span_merge(sp_lhs, sp_rhs))
+
+    if sym_id != id_none() {
+        (*p).db.set_hir_symbol(binding_id, sym_id)
+    }
+
+    binding_id
+}
+
+parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
+    t := token()
+    k := hir_kind()
+
+    if ((*p).hir).kind(lhs) != k.ident {
+        parse_error_at(p, "left-hand side of declaration must be an identifier", span_of_hir(p, lhs))
+    }
+
+    sp_lhs := span_of_hir(p, lhs)
+
+    name_id := ((*p).hir).lhs(lhs)
+    sym_id := (*p).db.alloc_local_symbol((*p).file_id, name_id, lhs)
+    ScopeEnv_define(&(*p).env, name_id, sym_id)
+
+    if optional(p, t.eq) {
+        val := parse_expr(p, 0 as u8)
+        sp_val := span_of_hir(p, val)
+        var_id := ((*p).hir).push(k.var, lhs, hir_none(), val)
+        set_span(p, var_id, span_merge(sp_lhs, sp_val))
+        (*p).db.set_hir_symbol(var_id, sym_id)
+        ret var_id
+    }
+
+    ty := parse_expr(p, prec().var_def + (1 as u8))
+    sp_end := span_of_hir(p, ty)
+
+    if optional(p, t.eq) {
+        val := parse_expr(p, 0 as u8)
+        sp_end = span_of_hir(p, val)
+        var_id := ((*p).hir).push(k.var, lhs, ty, val)
+        set_span(p, var_id, span_merge(sp_lhs, sp_end))
+        (*p).db.set_hir_symbol(var_id, sym_id)
+        ret var_id
+    }
+
+    if optional(p, t.colon) {
+        val := parse_expr(p, 0 as u8)
+        sp_end = span_of_hir(p, val)
+        binding_id := ((*p).hir).push(k.binding, lhs, ty, val)
+        set_span(p, binding_id, span_merge(sp_lhs, sp_end))
+        (*p).db.set_hir_symbol(binding_id, sym_id)
+        ret binding_id
+    }
+
+    var_id := ((*p).hir).push(k.var, lhs, ty, hir_none())
+    set_span(p, var_id, span_merge(sp_lhs, sp_end))
+    (*p).db.set_hir_symbol(var_id, sym_id)
+    var_id
+}

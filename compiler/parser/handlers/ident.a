@@ -1,0 +1,29 @@
+import token from "../../token.a"
+import hir_kind, hir_none from "../../hir.a"
+import Parser, peek, bump, curr_text, curr_span, parse_error_at, lookup_sym from "../core.a"
+import id_none from "../../nexus/pool.a"
+import set_span from "common.a"
+
+parse_ident :: (p &Parser) u32 {
+    k := hir_kind()
+    t := token()
+
+    if peek(p) != t.ident {
+        parse_error_at(p, "expected identifier", curr_span(p))
+    }
+
+    sp := curr_span(p)
+    name := curr_text(p)
+    name_id := p.db.interner.intern(name)
+    bump(p)
+
+    ident_hir := ((*p).hir).push(k.ident, name_id, hir_none(), hir_none())
+    set_span(p, ident_hir, sp)
+
+    sym_id := lookup_sym(p, name_id)
+    if sym_id != id_none() {
+        (*p).db.set_hir_symbol(ident_hir, sym_id)
+    }
+
+    ident_hir
+}

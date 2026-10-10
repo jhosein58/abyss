@@ -1,0 +1,66 @@
+import Nexus from "../../nexus/nexus.a"
+import HirTable, hir_none from "../../hir.a"
+import ty_id_none, ty_id_unit, ty_id_bool from "../../types.a"
+import slot_none from "../../unify.a"
+import check_value from "common.a"
+import method_returns_ref_self from "fn.a"
+
+synth_block :: (db &Nexus, tbl &HirTable, id u32) {
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := (unify_ptr).new_slot(id)
+    list_id := (tbl).lhs(id)
+    items := db.get_list(list_id)
+
+    if items.len > 0 {
+        last_id := *(items.ptr + items.len - 1)
+        last_slot := (unify_ptr).get_slot(last_id)
+        if last_slot != slot_none() {
+            (&(*db).unify).union(&(*db).types, slot, last_slot)
+        }
+    } else {
+        (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
+    }
+
+    fn_id := (tbl).rhs(id)
+    if fn_id != hir_none() {
+        func_ty := db.get_const_type(fn_id)
+        if func_ty != ty_id_none() {
+            ret_ty := (&(*types_ptr)).func_return(func_ty)
+            if (ret_ty != ty_id_unit()) and (not method_returns_ref_self(db, id)) {
+                if items.len > 0 {
+                    last_id := *(items.ptr + items.len - 1)
+                    check_value(db, last_id, ret_ty)
+                }
+                (&(*db).unify).bind_type(&(*db).types, slot, ret_ty)
+            }
+        }
+    }
+}
+
+synth_if :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    cond := (tbl).lhs(id)
+    cond_slot := (&(*db).unify).get_slot(cond)
+    if cond_slot != slot_none() {
+        (&(*db).unify).bind_type(&(*db).types, cond_slot, ty_id_bool())
+    }
+
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
+}
+
+synth_while :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    cond := (tbl).lhs(id)
+    cond_slot := (&(*db).unify).get_slot(cond)
+    if cond_slot != slot_none() {
+        (&(*db).unify).bind_type(&(*db).types, cond_slot, ty_id_bool())
+    }
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
+}
+
+synth_break_cont :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
+}

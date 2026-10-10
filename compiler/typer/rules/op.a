@@ -1,0 +1,273 @@
+import Nexus from "../../nexus/nexus.a"
+import HirTable, hir_kind from "../../hir.a"
+import ty_kind, ty_id_none, ty_id_bool, ty_id_type from "../../types.a"
+import slot_none from "../../unify.a"
+import fall from "../../../std/sys.a"
+import check_value from "common.a"
+
+print :: (s &u8) unit
+
+synth_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    child := (tbl).lhs(id)
+    child_slot := (&(*db).unify).get_slot(child)
+    if child_slot != slot_none() {
+        (&(*db).unify).union(&(*db).types, slot, child_slot)
+    }
+}
+
+validate_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
+    child := (tbl).lhs(id)
+    child_slot := (&(*db).unify).get_slot(child)
+    if child_slot != slot_none() {
+        child_ty := (&(*db).unify).resolve_type_deep(&(*db).types, child_slot)
+        kind := (&(*db).types).kind(child_ty)
+        k := ty_kind()
+        is_int := (kind == k.int) or (kind == k.uint) or (kind == k.untyped_int)
+        if is_int { ret }
+        if ((tbl).kind(id) == hir_kind().unary_neg) and
+           ((kind == k.float) or (kind == k.untyped_float)) { ret }
+    }
+    print("\n[type error] invalid unary operand\n       --> ")
+    db.print_loc(id)
+    print("\n")
+    fall()
+}
+
+synth_unary_not :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    child := (tbl).lhs(id)
+    child_slot := (&(*db).unify).get_slot(child)
+    if child_slot != slot_none() {
+        (&(*db).unify).bind_type(&(*db).types, child_slot, ty_id_bool())
+    }
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
+}
+
+synth_unary_addr_of :: (db &Nexus, tbl &HirTable, id u32) {
+    if db.get_const_type(id) != ty_id_none() {
+        ret
+    }
+    slot := (&(*db).unify).get_slot(id)
+    if slot == slot_none() {
+        slot = (&(*db).unify).new_slot(id)
+    }
+    child := (tbl).lhs(id)
+    child_slot := (&(*db).unify).get_slot(child)
+
+    if child_slot != slot_none() {
+        child_ty := (&(*db).unify).resolve_type_deep(&(*db).types, child_slot)
+        if (&(*db).types).kind(child_ty) == ty_kind().type_ {
+            (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+            val := db.get_const_type(child)
+            ptr_val := (&(*db).types).alloc_ptr(val)
+            db.set_const_type(id, ptr_val)
+            ret
+        }
+
+        ptr_ty := (&(*db).types).alloc_ptr(child_ty)
+        (&(*db).unify).bind_type(&(*db).types, slot, ptr_ty)
+    }
+}
+
+synth_unary_deref :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).get_slot(id)
+    if slot == slot_none() {
+        slot = (&(*db).unify).new_slot(id)
+    }
+    child := (tbl).lhs(id)
+    child_slot := (&(*db).unify).get_slot(child)
+
+    if child_slot != slot_none() {
+        child_ty := (&(*db).unify).resolve_type_deep(&(*db).types, child_slot)
+        if (&(*db).types).kind(child_ty) == ty_kind().ptr {
+            inner_ty := (&(*db).types).payload(child_ty)
+            (&(*db).unify).bind_type(&(*db).types, slot, inner_ty)
+        } else {
+            print("\n[type error] cannot dereference non-pointer\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
+        }
+    }
+}
+
+synth_binary :: (db &Nexus, tbl &HirTable, id u32) {
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := (unify_ptr).get_slot(id)
+    if slot == slot_none() {
+        slot = (unify_ptr).new_slot(id)
+    }
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
+
+    lhs_slot := (unify_ptr).get_slot(lhs)
+    rhs_slot := (unify_ptr).get_slot(rhs)
+
+    if (lhs_slot != slot_none()) and (rhs_slot != slot_none()) {
+        lhs_ty := (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
+        rhs_ty := (unify_ptr).resolve_type_deep(types_ptr, rhs_slot)
+
+        lhs_k := (&(*types_ptr)).kind(lhs_ty)
+        rhs_k := (&(*types_ptr)).kind(rhs_ty)
+
+        k := ty_kind()
+        lhs_int := (lhs_k == k.int) or (lhs_k == k.uint) or (lhs_k == k.untyped_int)
+        rhs_int := (rhs_k == k.int) or (rhs_k == k.uint) or (rhs_k == k.untyped_int)
+        lhs_num := lhs_int or (lhs_k == k.float) or (lhs_k == k.untyped_float)
+        rhs_num := rhs_int or (rhs_k == k.float) or (rhs_k == k.untyped_float)
+        op := (tbl).kind(id)
+
+        if (lhs_k == k.ptr) or (rhs_k == k.ptr) {
+            if (lhs_k == k.ptr) and rhs_int and ((op == hir_kind().binary_add) or (op == hir_kind().binary_sub)) {
+                (&(*db).unify).bind_type(&(*db).types, slot, lhs_ty)
+                ret
+            }
+            if (rhs_k == k.ptr) and lhs_int and (op == hir_kind().binary_add) {
+                (&(*db).unify).bind_type(&(*db).types, slot, rhs_ty)
+                ret
+            }
+        } else if lhs_num and rhs_num {
+            bitwise := (op == hir_kind().binary_bit_and) or (op == hir_kind().binary_bit_or) or
+                       (op == hir_kind().binary_bit_xor) or (op == hir_kind().binary_shl) or
+                       (op == hir_kind().binary_shr)
+            if (not bitwise) or (lhs_int and rhs_int) {
+                (&(*db).unify).union(&(*db).types, lhs_slot, rhs_slot)
+                (&(*db).unify).union(&(*db).types, slot, lhs_slot)
+                ret
+            }
+        }
+
+        print("\n[type error] invalid arithmetic operands\n       --> ")
+        db.print_loc(id)
+        print("\n")
+        fall()
+    } else {
+        print("\n[type error] missing arithmetic operand\n       --> ")
+        db.print_loc(id)
+        print("\n")
+        fall()
+    }
+}
+
+synth_assign :: (db &Nexus, tbl &HirTable, id u32) {
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := (unify_ptr).new_slot(id)
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
+
+    lhs_slot := (unify_ptr).get_slot(lhs)
+    rhs_slot := (unify_ptr).get_slot(rhs)
+
+    if (lhs_slot != slot_none()) and (rhs_slot != slot_none()) {
+        lhs_ty := (unify_ptr).resolve_type(lhs_slot)
+        if lhs_ty != ty_id_none() { check_value(db, rhs, lhs_ty) }
+        (&(*db).unify).union(&(*db).types, lhs_slot, rhs_slot)
+        rhs_ty := (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
+        if rhs_ty != ty_id_none() {
+            (&(*db).unify).bind_type(&(*db).types, slot, rhs_ty)
+        }
+    }
+}
+
+synth_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
+
+    lhs_slot := (&(*db).unify).get_slot(lhs)
+    rhs_slot := (&(*db).unify).get_slot(rhs)
+
+    if (lhs_slot != slot_none()) and (rhs_slot != slot_none()) {
+        (&(*db).unify).union(&(*db).types, lhs_slot, rhs_slot)
+    }
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
+}
+
+validate_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
+    lhs_slot := (&(*db).unify).get_slot(lhs)
+    rhs_slot := (&(*db).unify).get_slot(rhs)
+    if (lhs_slot != slot_none()) and (rhs_slot != slot_none()) {
+        lhs_ty := (&(*db).unify).resolve_type_deep(&(*db).types, lhs_slot)
+        rhs_ty := (&(*db).unify).resolve_type_deep(&(*db).types, rhs_slot)
+        lhs_kind := (&(*db).types).kind(lhs_ty)
+        rhs_kind := (&(*db).types).kind(rhs_ty)
+        k := ty_kind()
+        lhs_num := (lhs_kind == k.int) or (lhs_kind == k.uint) or (lhs_kind == k.float) or
+                   (lhs_kind == k.untyped_int) or (lhs_kind == k.untyped_float)
+        rhs_num := (rhs_kind == k.int) or (rhs_kind == k.uint) or (rhs_kind == k.float) or
+                   (rhs_kind == k.untyped_float) or (rhs_kind == k.untyped_float)
+        if lhs_num and rhs_num { ret }
+        op := (tbl).kind(id)
+        if (op == hir_kind().binary_eq_eq) or (op == hir_kind().binary_neq) {
+            if (lhs_kind == k.bool) and (rhs_kind == k.bool) { ret }
+            if (lhs_kind == k.ptr) and (rhs_kind == k.ptr) { ret }
+        }
+    }
+    print("\n[type error] invalid comparison operands\n       --> ")
+    db.print_loc(id)
+    print("\n")
+    fall()
+}
+
+synth_logic_and_or :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
+
+    lhs_slot := (&(*db).unify).get_slot(lhs)
+    rhs_slot := (&(*db).unify).get_slot(rhs)
+
+    if lhs_slot != slot_none() {
+        (&(*db).unify).bind_type(&(*db).types, lhs_slot, ty_id_bool())
+    }
+    if rhs_slot != slot_none() {
+        (&(*db).unify).bind_type(&(*db).types, rhs_slot, ty_id_bool())
+    }
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
+}
+
+synth_cast :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).get_slot(id)
+    if slot == slot_none() {
+        slot = (&(*db).unify).new_slot(id)
+    }
+    lhs := (tbl).lhs(id)
+    rhs := (tbl).rhs(id)
+    rhs_type := db.get_const_type(rhs)
+    if rhs_type != ty_id_none() {
+        lhs_slot := (&(*db).unify).get_slot(lhs)
+        lhs_type := ty_id_none()
+        if lhs_slot != slot_none() {
+            lhs_type = (&(*db).unify).resolve_type_deep(&(*db).types, lhs_slot)
+        }
+        types := &(*db).types
+        src := (&(*types)).kind(lhs_type)
+        dst := (&(*types)).kind(rhs_type)
+        k := ty_kind()
+        src_int := (src == k.int) or (src == k.uint) or (src == k.untyped_int)
+        dst_int := (dst == k.int) or (dst == k.uint) or (dst == k.untyped_int)
+        src_num := src_int or (src == k.float) or (src == k.untyped_float) or (src == k.bool)
+        dst_num := dst_int or (dst == k.float) or (dst == k.untyped_float) or (dst == k.bool)
+        if not ((src_num and dst_num) or ((src == k.ptr) and (dst == k.ptr)) or
+                (src_int and (dst == k.ptr)) or ((src == k.ptr) and dst_int) or
+                ((src == k.ptr) and (dst == k.bool))) {
+            print("\n[type error] invalid cast\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
+        }
+        (&(*db).unify).bind_type(&(*db).types, slot, rhs_type)
+    } else {
+        print("\n[type error] cast target is not a type\n       --> ")
+        db.print_loc(id)
+        print("\n")
+        fall()
+    }
+}

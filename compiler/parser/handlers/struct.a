@@ -1,0 +1,219 @@
+import token from "../../token.a"
+import hir_kind, hir_none from "../../hir.a"
+import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core.a"
+import VecU32 from "../../../std/vec/u32.a"
+import SliceU32 from "../../../std/slice/u32.a"
+import span_merge from "../../nexus/nexus.a"
+import id_none from "../../nexus/pool.a"
+import prec from "../prec.a"
+import span_of_hir, set_span from "common.a"
+import parse_ident from "ident.a"
+import parse_expr from "../parser.a"
+
+ensure_unique_field :: (p &Parser, fields &VecU32, field u32) {
+    name_id := ((*p).hir).lhs(field)
+    i: u64 = 0
+    while i < (*fields).len {
+        previous := fields.get(i)
+        if ((*p).hir).lhs(previous) == name_id {
+            parse_error_at(p, "duplicate field name", span_of_hir(p, field))
+        }
+        i = i + 1
+    }
+}
+
+parse_struct :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    sp_start := curr_span(p)
+    bump(p)
+    if not expect(p, t.o_brace) {
+        parse_error_at(p, "expected '{' after struct", curr_span(p))
+    }
+
+    names := VecU32.new()
+    types := VecU32.new()
+    methods := VecU32.new()
+    method_names := VecU32.new()
+    if (*p).inside_method {
+        parse_error_at(p, "nested struct declarations inside methods are not supported", sp_start)
+    }
+
+    struct_node := id_none()
+
+    while (peek(p) != t.c_brace) and (not is_eof(p)) {
+        if peek(p) == t.comma { bump(p) }
+        if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
+
+        name := parse_ident(p)
+        ensure_unique_field(p, &names, name)
+        ensure_unique_field(p, &method_names, name)
+        if peek(p) == t.colon_colon {
+            if struct_node == id_none() {
+                ptr_n := 0 as &u32
+                if names.len > 0 { ptr_n = names.ptr_at(0) }
+                slice_n: SliceU32 = .{ ptr: ptr_n, len: names.len }
+
+                ptr_t := 0 as &u32
+                if types.len > 0 { ptr_t = types.ptr_at(0) }
+                slice_t: SliceU32 = .{ ptr: ptr_t, len: types.len }
+
+                names_id := (*p).db.add_list(slice_n)
+                types_id := (*p).db.add_list(slice_t)
+
+                struct_node = ((*p).hir).push(k.struct_, names_id, types_id, hir_none())
+                if (*p).toplv_sym != id_none() {
+                    (*p).db.set_hir_symbol(struct_node, (*p).toplv_sym)
+                }
+            }
+
+            bump(p)
+            (*p).db.set_hir_symbol(name, id_none())
+            (*p).inside_method = true
+            func := parse_expr(p, prec().const_def)
+            (*p).inside_method = false
+            if func == hir_none() {
+                parse_error_at(p, "expected a method function after '::'", curr_span(p))
+            }
+            if ((*p).hir).kind(func) != k.function {
+                parse_error_at(p, "struct method must be a function", span_of_hir(p, func))
+            }
+            if ((*p).hir).extra(func) == hir_none() {
+                parse_error_at(p, "struct method requires a body", span_of_hir(p, func))
+            }
+            method := ((*p).hir).push(k.binding, name, hir_none(), func)
+            set_span(p, method, span_merge(span_of_hir(p, name), span_of_hir(p, func)))
+            methods.push(method)
+            method_names.push(name)
+            if peek(p) == t.comma { bump(p) }
+            cont
+        }
+        if not expect(p, t.colon) {
+            parse_error_at(p, "expected ':' for a field or '::' for a method", curr_span(p))
+        }
+        ty := parse_expr(p, prec().var_def + (1 as u8))
+        if ty == hir_none() {
+            parse_error_at(p, "expected a field type after ':'", curr_span(p))
+        }
+
+        names.push(name)
+        types.push(ty)
+
+        if peek(p) == t.comma { bump(p) }
+    }
+
+    if is_eof(p) and (peek(p) != t.c_brace) {
+        parse_error_at(p, "unclosed struct definition, expected '}'", sp_start)
+    }
+
+    expect(p, t.c_brace)
+    sp_end := prev_span(p)
+
+    if struct_node == id_none() {
+        ptr_n := 0 as &u32
+        if names.len > 0 { ptr_n = names.ptr_at(0) }
+        slice_n: SliceU32 = .{ ptr: ptr_n, len: names.len }
+
+        ptr_t := 0 as &u32
+        if types.len > 0 { ptr_t = types.ptr_at(0) }
+        slice_t: SliceU32 = .{ ptr: ptr_t, len: types.len }
+
+        names_id := (*p).db.add_list(slice_n)
+        types_id := (*p).db.add_list(slice_t)
+
+        struct_node = ((*p).hir).push(k.struct_, names_id, types_id, hir_none())
+        if (*p).toplv_sym != id_none() {
+            (*p).db.set_hir_symbol(struct_node, (*p).toplv_sym)
+        }
+    }
+
+    methods_id := hir_none()
+    if methods.len > 0 {
+        methods_id = (*p).db.add_list(methods.as_slice())
+    }
+    ((*p).hir).set_extra(struct_node, methods_id)
+
+    names.destroy()
+    types.destroy()
+    method_names.destroy()
+
+    i: u64 = 0
+    while i < methods.len {
+        method := methods.get(i)
+        start := ((*p).hir).lhs(method)
+        while start <= method {
+            (*p).db.set_method_owner(start, struct_node)
+            start = start + 1
+        }
+        i = i + 1
+    }
+    methods.destroy()
+    set_span(p, struct_node, span_merge(sp_start, sp_end))
+}
+
+parse_struct_init :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    sp_start := curr_span(p)
+    bump(p)
+    expect(p, t.o_brace)
+
+    fields := VecU32.new()
+    values := VecU32.new()
+
+    while (peek(p) != t.c_brace) and (not is_eof(p)) {
+        if peek(p) == t.comma { bump(p) }
+        if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
+
+        f := parse_ident(p)
+        ensure_unique_field(p, &fields, f)
+        expect(p, t.colon)
+        v := parse_expr(p, prec().var_def + (1 as u8))
+
+        fields.push(f)
+        values.push(v)
+
+        if peek(p) == t.comma { bump(p) }
+    }
+
+    if is_eof(p) and (peek(p) != t.c_brace) {
+        parse_error_at(p, "unclosed struct literal, expected '}'", sp_start)
+    }
+
+    expect(p, t.c_brace)
+    sp_end := prev_span(p)
+
+    ptr_f := 0 as &u32
+    if fields.len > 0 { ptr_f = fields.ptr_at(0) }
+    slice_f: SliceU32 = .{ ptr: ptr_f, len: fields.len }
+
+    ptr_v := 0 as &u32
+    if values.len > 0 { ptr_v = values.ptr_at(0) }
+    slice_v: SliceU32 = .{ ptr: ptr_v, len: values.len }
+
+    fids := (*p).db.add_list(slice_f)
+    vids := (*p).db.add_list(slice_v)
+
+    fields.destroy()
+    values.destroy()
+
+    node := ((*p).hir).push(k.struct_init, fids, vids, hir_none())
+    set_span(p, node, span_merge(sp_start, sp_end))
+}
+
+parse_member :: (p &Parser, lhs u32, right_bp u8) u32 {
+    k := hir_kind()
+    sp_lhs := span_of_hir(p, lhs)
+    rhs := parse_expr(p, right_bp)
+    if rhs == hir_none() {
+        parse_error_at(p, "expected a member name after '.'", curr_span(p))
+    }
+    sp_rhs := span_of_hir(p, rhs)
+
+    if ((*p).hir).kind(rhs) != k.ident {
+        parse_error_at(p, "member name must be an identifier", sp_rhs)
+    }
+
+    node := ((*p).hir).push(k.member, lhs, rhs, hir_none())
+    set_span(p, node, span_merge(sp_lhs, sp_rhs))
+}

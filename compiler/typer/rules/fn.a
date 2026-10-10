@@ -1,0 +1,303 @@
+import Nexus from "../../nexus/nexus.a"
+import HirTable, hir_kind, hir_none from "../../hir.a"
+import SliceU32 from "../../../std/slice/u32.a"
+import VecU32 from "../../../std/vec/u32.a"
+import TypeStorage, ty_kind, ty_id_none, ty_id_unit, ty_id_never from "../../types.a"
+import slot_none from "../../unify.a"
+import id_none from "../../nexus/pool.a"
+import Engine from "../../engine.a"
+import fall from "../../../std/sys.a"
+import synth_type_node from "var.a"
+import check_value from "common.a"
+
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
+
+method_has_receiver :: (db &Nexus, method u32) bool {
+    tbl := &(*db).hir
+    node := (tbl).lhs(method)
+    while node < method {
+        if ((tbl).kind(node) == hir_kind().member) and
+           ((tbl).lhs(node) == hir_none()) {
+            ret true
+        }
+        node = node + 1
+    }
+    false
+}
+
+synth_func :: (eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    if db.get_const_type(id) != ty_id_none() {
+        ret
+    }
+
+    slot := (unify_ptr).get_slot(id)
+    if slot == slot_none() {
+        slot = (unify_ptr).new_slot(id)
+    }
+
+    params_list_id := (tbl).lhs(id)
+    ret_hir_id     := (tbl).rhs(id)
+    body_id        := (tbl).extra(id)
+
+    is_extern := body_id == hir_none()
+
+    ret_ty := ty_id_unit()
+    if ret_hir_id != hir_none() {
+        val := synth_type_node(eng, ret_hir_id)
+        if val == ty_id_none() {
+            print("\n[type error] unresolved return type\n       --> ")
+            db.print_loc(ret_hir_id)
+            print("\n")
+            fall()
+        }
+        ret_ty = val
+    }
+
+    params_vec := VecU32.new()
+    if params_list_id != hir_none() {
+        args := db.get_list(params_list_id)
+        i: u64 = 0
+        while i < args.len {
+            arg_id := *(args.ptr + i)
+            ty_node := (tbl).rhs(arg_id)
+            param_ty := ty_id_none()
+            if ty_node != hir_none() {
+                param_ty = synth_type_node(eng, ty_node)
+            }
+
+            if param_ty == ty_id_none() {
+                arg_ident := (tbl).lhs(arg_id)
+                arg_slot := (unify_ptr).get_slot(arg_ident)
+                if arg_slot != slot_none() {
+                    param_ty = (unify_ptr).resolve_type(arg_slot)
+                }
+            }
+
+            if param_ty == ty_id_none() {
+                print("\n[type error] unresolved parameter type\n       --> ")
+                db.print_loc(arg_id)
+                print("\n")
+                fall()
+            }
+            if param_ty == ty_id_unit() {
+                print("\n[type error] unit parameters have no runtime representation\n       --> ")
+                db.print_loc(arg_id)
+                print("\n")
+                fall()
+            }
+
+            arg_ident := (tbl).lhs(arg_id)
+            ident_slot := (unify_ptr).get_slot(arg_ident)
+            if ident_slot == slot_none() {
+                ident_slot = (unify_ptr).new_slot(arg_ident)
+            }
+            (&(*db).unify).bind_type(&(*db).types, ident_slot, param_ty)
+            db.set_const_type(arg_ident, param_ty)
+            db.set_const_type(arg_id, param_ty)
+
+            params_vec.push(param_ty)
+            i = i + 1
+        }
+    }
+
+    slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    if params_vec.len > 0 {
+        slice.ptr = params_vec.ptr_at(0)
+        slice.len = params_vec.len
+    }
+
+    func_ty := (&(*types_ptr)).alloc_func(slice, ret_ty, is_extern)
+    params_vec.destroy()
+
+    (&(*db).unify).bind_type(&(*db).types, slot, func_ty)
+    db.set_const_type(id, func_ty)
+
+    sym_id := db.get_hir_symbol(id)
+    if sym_id != id_none() {
+        sym_hir := db.get_sym_hir(sym_id)
+        if sym_hir != id_none() {
+            sym_slot := (&(*db).unify).get_slot(sym_hir)
+            if sym_slot == slot_none() {
+                sym_slot = (&(*db).unify).new_slot(sym_hir)
+            }
+            (&(*db).unify).union(&(*db).types, sym_slot, slot)
+            db.set_const_type(sym_hir, func_ty)
+        }
+    }
+}
+
+find_enclosing_method :: (db &Nexus, node_id u32) u32 {
+    owner := db.get_method_owner(node_id)
+    if owner == hir_none() { ret hir_none() }
+    methods_id := (&(*db).hir).extra(owner)
+    if methods_id == hir_none() { ret hir_none() }
+    methods := db.get_list(methods_id)
+    i: u64 = 0
+    while i < methods.len {
+        m := *(methods.ptr + i)
+        start := (&(*db).hir).lhs(m)
+        if (node_id >= start) and (node_id <= m) {
+            ret m
+        }
+        i = i + 1
+    }
+    hir_none()
+}
+
+method_returns_ref_self :: (db &Nexus, node_id u32) bool {
+    owner := db.get_method_owner(node_id)
+    if owner == hir_none() { ret false }
+    owner_ty := db.get_const_type(owner)
+    if owner_ty == ty_id_none() { ret false }
+
+    method := find_enclosing_method(db, node_id)
+    if method == hir_none() { ret false }
+
+    if not method_has_receiver(db, method) { ret false }
+
+    func_id := (&(*db).hir).extra(method)
+    if (func_id == hir_none()) or ((&(*db).hir).kind(func_id) != hir_kind().function) {
+        ret false
+    }
+
+    ret_hir := (&(*db).hir).rhs(func_id)
+    if ret_hir == hir_none() { ret false }
+
+    ret_ty := db.get_const_type(ret_hir)
+    if ret_ty == ty_id_none() { ret false }
+
+    types := &(*db).types
+    if (&(*types)).kind(ret_ty) != ty_kind().ptr { ret false }
+    (&(*types)).payload(ret_ty) == owner_ty
+}
+
+synth_return :: (db &Nexus, tbl &HirTable, id u32) {
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := (unify_ptr).new_slot(id)
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_never())
+
+    fn_id := (tbl).rhs(id)
+    if fn_id == hir_none() { ret }
+
+    func_ty := db.get_const_type(fn_id)
+    ret_ty := ty_id_unit()
+    if func_ty != ty_id_none() {
+        ret_ty = (&(*types_ptr)).func_return(func_ty)
+    }
+
+    val_id := (tbl).lhs(id)
+    if val_id != hir_none() {
+        check_value(db, val_id, ret_ty)
+        val_slot := (unify_ptr).get_slot(val_id)
+        if val_slot != slot_none() {
+            (&(*db).unify).bind_type(&(*db).types, val_slot, ret_ty)
+        }
+    } else {
+        if method_returns_ref_self(db, id) {
+            ret
+        }
+        if ret_ty != ty_id_unit() {
+            print("\n\033[1;31m[type error]\033[0m return with no value in function returning non-unit\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
+        }
+    }
+}
+
+synth_call :: (db &Nexus, tbl &HirTable, id u32) {
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := (unify_ptr).get_slot(id)
+    if slot == slot_none() {
+        slot = (unify_ptr).new_slot(id)
+    }
+    callee := (tbl).lhs(id)
+    callee_slot := (unify_ptr).get_slot(callee)
+
+    if callee_slot == slot_none() {
+        print("\n[type error] cannot resolve call target\n       --> ")
+        db.print_loc(callee)
+        print("\n")
+        fall()
+    }
+    if callee_slot != slot_none() {
+        callee_ty := (unify_ptr).resolve_type_deep(types_ptr, callee_slot)
+
+        if (&(*types_ptr)).kind(callee_ty) != ty_kind().func {
+            print("\n\033[1;31m[type error]\033[0m cannot call non-function type '")
+            (&(*types_ptr)).print_type(callee_ty)
+            print("'\n       --> ")
+            db.print_loc(callee)
+            print("\n\n")
+            fall()
+        }
+
+        if (&(*types_ptr)).kind(callee_ty) == ty_kind().func {
+            ret_ty := (&(*types_ptr)).func_return(callee_ty)
+            (&(*db).unify).bind_type(&(*db).types, slot, ret_ty)
+
+            args_list_id := (tbl).rhs(id)
+            params := (&(*types_ptr)).func_params(callee_ty)
+            args_len: u64 = 0
+            if args_list_id != hir_none() {
+                args := db.get_list(args_list_id)
+                args_len = args.len
+            }
+
+            if args_len != params.len {
+                print("\n\033[1;31m[type error]\033[0m ")
+                method := db.get_method_target(callee)
+                if method != id_none() {
+                    print("method '")
+                    name_node := (tbl).lhs(method)
+                    name_id := (tbl).lhs(name_node)
+                    db.interner.get(name_id).print()
+                    print("' expected ")
+                } else {
+                    print("function expected ")
+                }
+                print_u32(params.len as u32)
+                print(" arguments, but got ")
+                print_u32(args_len as u32)
+                print("\n       --> ")
+                db.print_loc(id)
+                print("\n\n")
+                fall()
+            }
+
+            if args_list_id != hir_none() {
+                args := db.get_list(args_list_id)
+                i: u64 = 0
+                while i < args.len {
+                    arg_node := *(args.ptr + i)
+                    arg_slot := (unify_ptr).get_slot(arg_node)
+                    param_ty := *(params.ptr + i)
+
+                    if arg_slot != slot_none() {
+                        check_value(db, arg_node, param_ty)
+                        param_slot := unify_ptr.tmp_slot()
+                        (&(*db).unify).bind_type(&(*db).types, param_slot, param_ty)
+                        (&(*db).unify).union(&(*db).types, arg_slot, param_slot)
+                    }
+                    if arg_slot == slot_none() {
+                        print("\n[type error] cannot resolve argument\n       --> ")
+                        db.print_loc(arg_node)
+                        print("\n")
+                        fall()
+                    }
+                    i = i + 1
+                }
+            }
+        }
+    }
+}

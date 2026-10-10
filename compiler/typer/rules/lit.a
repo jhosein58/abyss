@@ -1,0 +1,28 @@
+import Nexus from "../../nexus/nexus.a"
+import HirTable from "../../hir.a"
+import ty_id_untyped_int, ty_id_untyped_float, ty_id_bool from "../../types.a"
+
+synth_lit_int :: (db &Nexus, tbl &HirTable, id u32) {
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := (unify_ptr).new_slot(id)
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_untyped_int())
+}
+
+synth_lit_float :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_untyped_float())
+}
+
+synth_lit_bool :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
+}
+
+synth_lit_str :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    u8_ty := (&(*db).types).alloc_uint(8 as u16)
+    ptr_ty := (&(*db).types).alloc_ptr(u8_ty)
+    (&(*db).unify).bind_type(&(*db).types, slot, ptr_ty)
+}
