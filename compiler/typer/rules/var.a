@@ -202,9 +202,15 @@ synth_arg :: (db &Nexus, tbl &HirTable, id u32) {
         if ty_id != hir_none() {
             type_val := db.get_const_type(ty_id)
             if type_val != ty_id_none() {
-                (&(*db).unify).bind_type(&(*db).types, ident_slot, type_val)
-                db.set_const_type(ident_id, type_val)
-                db.set_const_type(id, type_val)
+                if type_val == ty_id_type() {
+                    t_infer := (&(*types_ptr)).alloc_infer(ident_slot)
+                    db.set_const_type(ident_id, t_infer)
+                    db.set_const_type(id, t_infer)
+                } else {
+                    (&(*db).unify).bind_type(&(*db).types, ident_slot, type_val)
+                    db.set_const_type(ident_id, type_val)
+                    db.set_const_type(id, type_val)
+                }
             }
         }
     } else {

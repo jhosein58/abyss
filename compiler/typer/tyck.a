@@ -1,4 +1,5 @@
-import HirTable, hir_kind from "../hir.a"
+import HirTable, hir_kind, hir_none from "../hir.a"
+import ty_id_none from "../types.a"
 import Engine from "../engine.a"
 import method_returns_ref_self, synth_func, synth_return, synth_call from "rules/fn.a"
 import synth_lit_int, synth_lit_float, synth_lit_bool, synth_lit_str from "rules/lit.a"
@@ -22,7 +23,7 @@ synth_node :: (eng &Engine, id u32) {
     if curr == k.arg           { synth_arg(db, tbl, id) }
     if curr == k.function      { synth_func(eng, id) }
     if curr == k.k_ret         { synth_return(db, tbl, id) }
-    if curr == k.call          { synth_call(db, tbl, id) }
+    if curr == k.call          { synth_call(eng, id) }
     if curr == k.block         { synth_block(db, tbl, id) }
     if curr == k.binary_assign { synth_assign(db, tbl, id) }
 
@@ -67,9 +68,23 @@ synth_node :: (eng &Engine, id u32) {
 }
 
 type_check :: (eng &Engine, start u32, len u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    k := hir_kind()
     i := start
     while i < len {
+        curr := (tbl).kind(i)
         synth_node(eng, i)
+        if curr == k.function {
+            func_ty := db.get_const_type(i)
+            if (func_ty != ty_id_none()) and (&(*db).types).func_has_type_param(func_ty) {
+                body := (tbl).extra(i)
+                if (body != hir_none()) and (body >= i) {
+                    i = body + 1
+                    cont
+                }
+            }
+        }
         i = i + 1
     }
 }

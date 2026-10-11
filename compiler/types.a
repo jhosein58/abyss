@@ -195,7 +195,10 @@ TypeStorage :: struct {
     table_cap : u32,
     table_len : u32,
     nominal_names : VecStr,
-    nominal_by_origin : VecU32
+    nominal_by_origin : VecU32,
+    nominal_creator_sym : VecU32,
+    nominal_creator_arg : VecU32,
+    nominal_creator_items : VecU32
 
     new :: () Self {
         store := TyStore.new()
@@ -224,7 +227,10 @@ TypeStorage :: struct {
             table_cap : init_cap,
             table_len : 0,
             nominal_names : VecStr.new(),
-            nominal_by_origin : VecU32.new()
+            nominal_by_origin : VecU32.new(),
+            nominal_creator_sym : VecU32.new(),
+            nominal_creator_arg : VecU32.new(),
+            nominal_creator_items : VecU32.new()
         }
     }
 
@@ -267,6 +273,9 @@ TypeStorage :: struct {
         .table.destroy()
         .nominal_names.destroy()
         .nominal_by_origin.destroy()
+        .nominal_creator_sym.destroy()
+        .nominal_creator_arg.destroy()
+        .nominal_creator_items.destroy()
     }
 
     len :: () u32 {
@@ -555,6 +564,38 @@ TypeStorage :: struct {
         .store.extra.get(idx + 2)
     }
 
+    record_nominal_creator :: (origin u32, sym u32, args SliceU32) {
+        while .nominal_creator_sym.len <= (origin as u64) {
+            .nominal_creator_sym.push(ty_id_none())
+            .nominal_creator_arg.push(ty_id_none())
+        }
+        start := .nominal_creator_items.len as u32
+        .nominal_creator_items.push(args.len as u32)
+        .nominal_creator_items.extend(args.ptr, args.len)
+        .nominal_creator_sym.set(origin as u64, sym)
+        .nominal_creator_arg.set(origin as u64, start)
+    }
+
+    get_nominal_creator_sym :: (origin u32) u32 {
+        if (origin as u64) >= .nominal_creator_sym.len { ret ty_id_none() }
+        .nominal_creator_sym.get(origin as u64)
+    }
+
+    get_nominal_creator_args :: (origin u32) SliceU32 {
+        if (origin as u64) >= .nominal_creator_arg.len {
+            ret .{ ptr: 0 as &u32, len: 0 }
+        }
+        start := .nominal_creator_arg.get(origin as u64)
+        if start == ty_id_none() {
+            ret .{ ptr: 0 as &u32, len: 0 }
+        }
+        len := .nominal_creator_items.get(start as u64)
+        .{
+            ptr: .nominal_creator_items.ptr_at((start as u64) + 1),
+            len: len as u64
+        }
+    }
+
     alloc_struct :: (fields SliceU32) u32 {
 
         .sort_struct_fields(fields)
@@ -645,6 +686,28 @@ TypeStorage :: struct {
             ptr: start_ptr,
             len: count as u64
         }
+    }
+
+    func_has_type_param :: (func u32) bool {
+        if .kind(func) != ty_kind().func { ret false }
+        params := .func_params(func)
+        i: u64 = 0
+        while i < params.len {
+            if *(params.ptr + i) == ty_id_type() { ret true }
+            i = i + 1
+        }
+        false
+    }
+
+    func_leading_type_params :: (func u32) u32 {
+        if .kind(func) != ty_kind().func { ret 0 }
+        params := .func_params(func)
+        count: u32 = 0
+        while (count as u64) < params.len {
+            if *(params.ptr + (count as u64)) != ty_id_type() { break }
+            count = count + 1
+        }
+        count
     }
 
     get_struct_fields_len :: (id u32) u32 {

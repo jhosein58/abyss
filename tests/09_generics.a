@@ -1,0 +1,87 @@
+print :: (s &u8) unit
+print_char :: (c u8) unit
+print_i32 :: (v i32) unit
+print_u32 :: (v u32) unit
+print_bool :: (b bool) unit
+
+println_i32 :: (v i32) {
+    print_i32(v)
+    print("\n")
+}
+
+println_u32 :: (v u32) {
+    print_u32(v)
+    print("\n")
+}
+
+println_bool :: (b bool) {
+    print_bool(b)
+    print("\n")
+}
+
+add :: (t type, a, b t) t {
+    a + b
+}
+
+identity :: (t type, x t) t {
+    x
+}
+
+is_equal :: (t type, a, b t) bool {
+    a == b
+}
+
+Pair :: struct {
+    first: u32,
+
+    make_same :: (t type, val t) t {
+        val
+    }
+
+    add_val :: (t type, v t) u32 {
+        .first + (v as u32)
+    }
+}
+
+main :: () {
+    v1 := add(u32, 10 as u32, 20 as u32)
+    println_u32(v1)
+
+    v2 := add(100 as u32, 200 as u32)
+    println_u32(v2)
+
+    v3 := add(i32, -50 as i32, 20 as i32)
+    println_i32(v3)
+
+    v4 := add(-15 as i32, 5 as i32)
+    println_i32(v4)
+
+    println_bool(is_equal(u32, 42 as u32, 42 as u32))
+    println_bool(is_equal(42 as u32, 99 as u32))
+
+    id1 := identity(u32, 777 as u32)
+    println_u32(id1)
+
+    id2 := identity(888 as u32)
+    println_u32(id2)
+
+    double_fn := (t type, x t) t { x + x }
+    v5 := double_fn(21 as u32)
+    println_u32(v5)
+
+    v6 := ((t type, x t) t { x + x })(50 as u32)
+    println_u32(v6)
+
+    s1 := Pair.make_same(u32, 123 as u32)
+    println_u32(s1)
+
+    s2 := Pair.make_same(456 as u32)
+    println_u32(s2)
+
+    p: Pair = .{ first: 100 }
+    v7 := p.add_val(u32, 25 as u32)
+    println_u32(v7)
+
+    v8 := p.add_val(50 as u32)
+    println_u32(v8)
+}

@@ -10,7 +10,8 @@ import TypeStorage, ty_kind, ty_id_none, ty_id_type from "types.a"
 import slot_none from "unify.a"
 import topo_sort from "topo_sort.a"
 import fall from "../std/sys.a"
-import method_returns_ref_self from "typer/tyck.a"
+import method_returns_ref_self, synth_node from "typer/tyck.a"
+import Engine from "engine.a"
 
 print :: (s &u8) unit
 
@@ -47,8 +48,29 @@ is_lvalue :: (db &Nexus, id u32) bool {
     false
 }
 
+type_has_infer :: (types &TypeStorage, ty_id u32) bool {
+    if ty_id == ty_id_none() { ret false }
+    k := ty_kind()
+    kind := (&(*types)).kind(ty_id)
+    if (kind == k.infer) or (kind == k.unknown) or (kind == k.error) { ret true }
+    if (kind == k.struct_) or (kind == k.nominal) {
+        fields := (&(*types)).get_struct_fields(ty_id)
+        count := fields.len / 2
+        i: u64 = 0
+        while i < count {
+            f_ty := *(fields.ptr + (i * 2) + 1)
+            if type_has_infer(types, f_ty) { ret true }
+            i = i + 1
+        }
+    } else if kind == k.ptr {
+        ret type_has_infer(types, (&(*types)).payload(ty_id))
+    }
+    false
+}
+
 add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
     if ty_id == ty_id_none() { ret }
+    if type_has_infer(&(*db).types, ty_id) { ret }
     k := ty_kind()
     kind := (&(*db).types).kind(ty_id)
 
@@ -102,8 +124,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
         sym_id := db.get_hir_symbol(id)
         if sym_id != id_none() {
-            if not vec_contains(queue, sym_id) {
-                queue.push(sym_id)
+            if not (&(*db).types).func_has_type_param(func_ty) {
+                if not vec_contains(queue, sym_id) {
+                    queue.push(sym_id)
+                }
             }
             ret ccg.sym_name(arena, sym_id)
         }
@@ -123,8 +147,10 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                     if (tgt == id_none()) or (tgt == real_sym) { break }
                     real_sym = tgt
                 }
-                if not vec_contains(queue, real_sym) {
-                    queue.push(real_sym)
+                if not (&(*db).types).func_has_type_param(ty) {
+                    if not vec_contains(queue, real_sym) {
+                        queue.push(real_sym)
+                    }
                 }
                 if (&(*db).types).func_is_extern(ty) {
                     name_id := (&(*db).hir).lhs(id)
@@ -163,6 +189,9 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
         sym_id := db.get_hir_symbol(ident_id)
         var_ty := get_node_type(db, ident_id)
+        if (var_ty == ty_id_type()) or (&(*db).types).func_has_type_param(var_ty) {
+            ret Str.empty()
+        }
         if (&(*db).types).kind(var_ty) == ty_kind().unit {
             print("\n[type error] variable cannot have unit type\n       --> ")
             db.print_loc(id)
@@ -253,22 +282,70 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
     if kind == k.call {
         callee_id := (&(*db).hir).lhs(id)
+        callee_name := Str.empty()
+        if (&(*db).hir).kind(callee_id) == hir_kind().ident {
+            callee_name = db.interner.get((&(*db).hir).lhs(callee_id))
+        }
+        if callee_name.eq(Str.of("sizeof")) {
+            target_ty := db.get_const_type(id)
+            if target_ty != ty_id_none() {
+                add_type_to_queue(db, target_ty, type_queue)
+                t_str := ccg.type_str(&(*db).types, arena, target_ty)
+                fmt := Fmt.new(arena)
+                fmt.cstr("((uint64_t)sizeof(").str(t_str).cstr("))")
+                ret fmt.as_str()
+            }
+        }
+        if get_node_type(db, id) == ty_id_type() {
+            ret Str.empty()
+        }
+
         args_list := (&(*db).hir).rhs(id)
         method := db.get_method_target(callee_id)
 
         callee_sym := db.get_hir_symbol(callee_id)
-        if callee_sym != id_none() {
-            if not vec_contains(queue, callee_sym) {
-                queue.push(callee_sym)
-            }
-        }
+        callee_ty := get_node_type(db, callee_id)
+        is_generic := (&(*db).types).func_has_type_param(callee_ty)
+
         callee_str := Str.empty()
-        if method != id_none() {
-            tagged := method | method_tag()
-            if not vec_contains(queue, tagged) { queue.push(tagged) }
-            callee_str = ccg.method_name(arena, method)
+        if is_generic {
+            target_sym := callee_sym
+            if (target_sym == id_none()) and ((&(*db).hir).kind(callee_id) == k.function) {
+                target_sym = db.get_hir_symbol(callee_id)
+            }
+            if method != id_none() {
+                target_sym = method | method_tag()
+            } else if target_sym != id_none() {
+                real_s := target_sym
+                while true {
+                    tgt := db.sym_target.get(real_s)
+                    if (tgt == id_none()) or (tgt == real_s) { break }
+                    real_s = tgt
+                }
+                target_sym = real_s
+            }
+            mono_func_ty := db.get_const_type(id)
+            mono_sym := db.find_mono_sym(target_sym, mono_func_ty)
+            if mono_sym == id_none() {
+                mono_sym = db.alloc_mono_sym(target_sym, mono_func_ty)
+            }
+            if not vec_contains(queue, mono_sym) {
+                queue.push(mono_sym)
+            }
+            callee_str = ccg.sym_name(arena, mono_sym)
         } else {
-            callee_str = lower_expr(db, ccg, arena, callee_id, visited, queue, type_queue)
+            if callee_sym != id_none() {
+                if not vec_contains(queue, callee_sym) {
+                    queue.push(callee_sym)
+                }
+            }
+            if method != id_none() {
+                tagged := method | method_tag()
+                if not vec_contains(queue, tagged) { queue.push(tagged) }
+                callee_str = ccg.method_name(arena, method)
+            } else {
+                callee_str = lower_expr(db, ccg, arena, callee_id, visited, queue, type_queue)
+            }
         }
 
         has_receiver := false
@@ -286,7 +363,9 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         }
 
         args_fmt := Fmt.new(arena)
+        first_arg := true
         if has_receiver {
+            first_arg = false
             lhs := (&(*db).hir).lhs(callee_id)
 
             if lhs == hir_none() {
@@ -310,9 +389,14 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             i: u64 = 0
             while i < args.len {
                 arg_node := *(args.ptr + i)
+                if is_generic and (get_node_type(db, arg_node) == ty_id_type()) {
+                    i = i + 1
+                    cont
+                }
                 arg_val := lower_expr(db, ccg, arena, arg_node, visited, queue, type_queue)
-                if has_receiver or (i > 0) { args_fmt.cstr(", ") }
+                if not first_arg { args_fmt.cstr(", ") }
                 args_fmt.str(arg_val)
+                first_arg = false
                 i = i + 1
             }
         }
@@ -534,13 +618,29 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     Str.empty()
 }
 
-lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &VecU32) {
+lower_function :: (eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
     if sym_id == id_none() {
         ret
     }
 
-    is_method := (sym_id & method_tag()) != 0
-    real_sym := sym_id
+    if vec_contains(visited, sym_id) {
+        ret
+    }
+    visited.push(sym_id)
+
+    db := &(*eng).nexus
+    ccg := &(*eng).ccg
+
+    is_mono := db.is_mono_sym(sym_id)
+    orig_sym := sym_id
+    mono_func_ty := ty_id_none()
+    if is_mono {
+        orig_sym = db.get_mono_orig_sym(sym_id)
+        mono_func_ty = db.get_mono_type(sym_id)
+    }
+
+    is_method := (orig_sym & method_tag()) != 0
+    real_sym := orig_sym
 
     if not is_method {
         while true {
@@ -551,11 +651,6 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
             real_sym = tgt
         }
     }
-
-    if vec_contains(visited, real_sym) {
-        ret
-    }
-    visited.push(real_sym)
 
     k := hir_kind()
     func_id := id_none()
@@ -579,6 +674,25 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         }
     }
 
+    if (func_id == id_none()) and (sym_node != id_none()) {
+        scan_i := sym_node + 1
+        tbl_len := (&(*db).hir).len()
+        while scan_i < tbl_len {
+            sk := (&(*db).hir).kind(scan_i)
+            if (sk == k.var) or (sk == k.binding) {
+                if (&(*db).hir).lhs(scan_i) == sym_node {
+                    cand := (&(*db).hir).extra(scan_i)
+                    if (cand != hir_none()) and (((&(*db).hir).kind(cand) == k.function)) {
+                        func_id = cand
+                        break
+                    }
+                }
+            }
+            if scan_i > (sym_node + 50) { break }
+            scan_i = scan_i + 1
+        }
+    }
+
     if func_id == id_none() {
         ret
     }
@@ -586,7 +700,56 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
         ret
     }
 
+    orig_func_ty := db.get_const_type(func_id)
+    if (not is_mono) and (&(*db).types).func_has_type_param(orig_func_ty) {
+        ret
+    }
+    if (&(*db).types).func_return(orig_func_ty) == ty_id_type() {
+        ret
+    }
+
+    if is_mono {
+        orig_params := (&(*db).types).func_params(orig_func_ty)
+        mono_params := (&(*db).types).func_params(mono_func_ty)
+        args_list_id := (&(*db).hir).lhs(func_id)
+        fn_args := db.get_list(args_list_id)
+
+        p_idx: u64 = 0
+        while p_idx < orig_params.len {
+            arg_node := *(fn_args.ptr + p_idx)
+            arg_ident := (&(*db).hir).lhs(arg_node)
+            concrete_p_ty := *(mono_params.ptr + p_idx)
+            if *(orig_params.ptr + p_idx) == ty_id_type() {
+                db.set_const_type(arg_ident, concrete_p_ty)
+                arg_sym := db.get_hir_symbol(arg_ident)
+                if arg_sym != id_none() { db.set_const_type(arg_sym, concrete_p_ty) }
+            } else {
+                p_slot := (&(*db).unify).new_slot(arg_ident)
+                (&(*db).unify).bind_type(&(*db).types, p_slot, concrete_p_ty)
+                db.set_const_type(arg_ident, concrete_p_ty)
+                arg_sym := db.get_hir_symbol(arg_ident)
+                if arg_sym != id_none() { db.set_const_type(arg_sym, concrete_p_ty) }
+            }
+            p_idx = p_idx + 1
+        }
+
+        db.set_const_type(func_id, mono_func_ty)
+
+        body_id := (&(*db).hir).extra(func_id)
+        if body_id != hir_none() {
+            n := func_id + 1
+            while n <= body_id {
+                (&(*db).unify).new_slot(n)
+                synth_node(eng, n)
+                n = n + 1
+            }
+        }
+    }
+
     func_ty := get_node_type(db, func_id)
+    if is_mono {
+        func_ty = mono_func_ty
+    }
     ret_ty  := (&(*db).types).func_return(func_ty)
     ret_str := ccg.type_str(&(*db).types, arena, ret_ty)
 
@@ -594,7 +757,9 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
     is_extern := (body_id == hir_none()) or (&(*db).types).func_is_extern(func_ty)
 
     fn_name := Str.empty()
-    if is_extern and (not is_method) {
+    if is_mono {
+        fn_name = ccg.sym_name(arena, sym_id)
+    } else if is_extern and (not is_method) {
         if binding_id != id_none() {
             name_hir := (&(*db).hir).lhs(binding_id)
             name_id  := (&(*db).hir).lhs(name_hir)
@@ -638,16 +803,23 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     if (params_slice.len > 0) or receiver {
         p_fmt := Fmt.new(arena)
+        first_p := true
         if receiver {
             owner_ty := db.get_const_type(method_owner)
             p_fmt.str(ccg.type_str(&(*db).types, arena, owner_ty))
             p_fmt.cstr("* _self")
-            if params_slice.len > 0 { p_fmt.cstr(", ") }
+            first_p = false
         }
+        orig_params := (&(*db).types).func_params(orig_func_ty)
         i: u64 = 0
         while i < params_slice.len {
+            if is_mono and (*(orig_params.ptr + i) == ty_id_type()) {
+                i = i + 1
+                cont
+            }
             p_ty     := *(params_slice.ptr + i)
             p_ty_str := ccg.type_str(&(*db).types, arena, p_ty)
+            if not first_p { p_fmt.cstr(", ") }
             p_fmt.str(p_ty_str).cstr(" ")
 
             if is_extern {
@@ -668,13 +840,11 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
                     p_fmt.cstr("_a").uint32(i as u32)
                 }
             }
-
-            if (i + 1) < params_slice.len {
-                p_fmt.cstr(", ")
-            }
+            first_p = false
             i = i + 1
         }
         params_str = p_fmt.as_str()
+        if params_str.len == 0 { params_str = Str.of("void") }
     }
 
     if is_extern {
@@ -715,10 +885,14 @@ lower_function :: (db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, visited &
 
     ccg.end_function()
 
+    if is_mono {
+        db.set_const_type(func_id, orig_func_ty)
+    }
+
     q_i: u64 = 0
     while q_i < queue.len {
         q_sym := queue.get(q_i)
-        lower_function(db, ccg, arena, q_sym, visited)
+        lower_function(eng, arena, q_sym, visited)
         q_i = q_i + 1
     }
 

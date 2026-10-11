@@ -10,6 +10,7 @@ print :: (s &u8) unit
 parse_builtin_type :: (types &TypeStorage, name Str) u32 {
     if name.eq(Str.of("bool")) { ret TypeStorage.alloc_bool() }
     if name.eq(Str.of("unit")) { ret TypeStorage.alloc_unit() }
+    if name.eq(Str.of("type")) { ret TypeStorage.alloc_type() }
 
     if name.len < 2 { ret ty_id_none() }
 

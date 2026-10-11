@@ -350,6 +350,46 @@ UnifyStorage :: struct {
             ret res
         }
 
+        if (kind_a == k.nominal) and (kind_b == k.nominal) {
+            orig_a := (&(*types)).nominal_origin(a)
+            orig_b := (&(*types)).nominal_origin(b)
+            if orig_a == orig_b { ret a }
+
+            sym_a := (&(*types)).get_nominal_creator_sym(orig_a)
+            sym_b := (&(*types)).get_nominal_creator_sym(orig_b)
+
+            if (sym_a != ty_id_none()) and (sym_a == sym_b) {
+                args_a := (&(*types)).get_nominal_creator_args(orig_a)
+                args_b := (&(*types)).get_nominal_creator_args(orig_b)
+                if args_a.len == args_b.len {
+                    has_err := false
+                    i: u64 = 0
+                    while i < args_a.len {
+                        u_arg := .unify_types(types, *(args_a.ptr + i), *(args_b.ptr + i))
+                        if u_arg == ty_id_error() {
+                            has_err = true
+                            break
+                        }
+                        i = i + 1
+                    }
+                    if not has_err {
+                        a_has_inf := false
+                        chk_i: u64 = 0
+                        while chk_i < args_a.len {
+                            if (&(*types)).kind(*(args_a.ptr + chk_i)) == k.infer {
+                                a_has_inf = true
+                                break
+                            }
+                            chk_i = chk_i + 1
+                        }
+                        if a_has_inf { ret b }
+                        ret a
+                    }
+                }
+            }
+            ret ty_id_error()
+        }
+
         ty_id_error()
     }
 

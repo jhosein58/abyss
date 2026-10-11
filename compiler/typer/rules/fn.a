@@ -2,13 +2,15 @@ import Nexus from "../../nexus/nexus.a"
 import HirTable, hir_kind, hir_none from "../../hir.a"
 import SliceU32 from "../../../std/slice/u32.a"
 import VecU32 from "../../../std/vec/u32.a"
-import TypeStorage, ty_kind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type from "../../types.a"
-import slot_none from "../../unify.a"
+import Str from "../../../std/string.a"
+import TypeStorage, ty_kind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float from "../../types.a"
+import UnifyStorage, slot_none from "../../unify.a"
 import id_none from "../../nexus/pool.a"
 import Engine from "../../engine.a"
 import fall from "../../../std/sys.a"
 import synth_type_node from "var.a"
 import check_value from "common.a"
+import synth_node from "../tyck.a"
 
 print :: (s &u8) unit
 print_u32 :: (v u32) unit
@@ -48,18 +50,6 @@ synth_func :: (eng &Engine, id u32) {
     sym_id := db.get_hir_symbol(id)
     is_extern := (body_id == hir_none()) and (sym_id != id_none()) and (db.sym_tok_start.get(sym_id) != id_none())
 
-    ret_ty := ty_id_unit()
-    if ret_hir_id != hir_none() {
-        val := synth_type_node(eng, ret_hir_id)
-        if val == ty_id_none() {
-            print("\n[type error] unresolved return type\n       --> ")
-            db.print_loc(ret_hir_id)
-            print("\n")
-            fall()
-        }
-        ret_ty = val
-    }
-
     params_vec := VecU32.new()
     if params_list_id != hir_none() {
         args := db.get_list(params_list_id)
@@ -96,19 +86,43 @@ synth_func :: (eng &Engine, id u32) {
             }
 
             arg_ident := (tbl).lhs(arg_id)
-            if arg_ident != hir_none() {
-                ident_slot := (unify_ptr).get_slot(arg_ident)
-                if ident_slot == slot_none() {
-                    ident_slot = (unify_ptr).new_slot(arg_ident)
+            if param_ty == ty_id_type() {
+                t_slot := (unify_ptr).get_slot(arg_ident)
+                if t_slot == slot_none() {
+                    t_slot = (unify_ptr).new_slot(arg_ident)
                 }
-                (&(*db).unify).bind_type(&(*db).types, ident_slot, param_ty)
-                db.set_const_type(arg_ident, param_ty)
+                t_infer := (&(*types_ptr)).alloc_infer(t_slot)
+                if arg_ident != hir_none() {
+                    db.set_const_type(arg_ident, t_infer)
+                }
+                db.set_const_type(arg_id, t_infer)
+            } else {
+                if arg_ident != hir_none() {
+                    ident_slot := (unify_ptr).get_slot(arg_ident)
+                    if ident_slot == slot_none() {
+                        ident_slot = (unify_ptr).new_slot(arg_ident)
+                    }
+                    (&(*db).unify).bind_type(&(*db).types, ident_slot, param_ty)
+                    db.set_const_type(arg_ident, param_ty)
+                }
+                db.set_const_type(arg_id, param_ty)
             }
-            db.set_const_type(arg_id, param_ty)
 
             params_vec.push(param_ty)
             i = i + 1
         }
+    }
+
+    ret_ty := ty_id_unit()
+    if ret_hir_id != hir_none() {
+        val := synth_type_node(eng, ret_hir_id)
+        if val == ty_id_none() {
+            print("\n[type error] unresolved return type\n       --> ")
+            db.print_loc(ret_hir_id)
+            print("\n")
+            fall()
+        }
+        ret_ty = val
     }
 
     slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
@@ -222,7 +236,353 @@ synth_return :: (db &Nexus, tbl &HirTable, id u32) {
     }
 }
 
-synth_call :: (db &Nexus, tbl &HirTable, id u32) {
+specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &VecU32) u32 {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    types_ptr := &(*db).types
+
+    cached := db.find_mono_nominal(callee_sym, concrete_args.as_slice())
+    if cached != ty_id_none() { ret cached }
+
+    func_node := id_none()
+    if (callee_sym & 2147483648) != 0 {
+        binding_id := callee_sym & 2147483647
+        if (tbl).kind(binding_id) == hir_kind().binding {
+            func_node = (tbl).extra(binding_id)
+        } else if (tbl).kind(binding_id) == hir_kind().function {
+            func_node = binding_id
+        }
+    } else {
+        func_node = db.get_sym_hir(callee_sym)
+        if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind().function) {
+            hir_end := db.sym_hir_end.get(callee_sym)
+            if (hir_end != 0) and (hir_end != id_none()) {
+                b_id := hir_end - 1
+                if (tbl).kind(b_id) == hir_kind().binding {
+                    func_node = (tbl).extra(b_id)
+                }
+            }
+            if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind().function) {
+                scan_i := func_node + 1
+                tbl_len := (tbl).len()
+                while scan_i < tbl_len {
+                    sk := (tbl).kind(scan_i)
+                    if (sk == hir_kind().var) or (sk == hir_kind().binding) {
+                        if (tbl).lhs(scan_i) == func_node {
+                            cand := (tbl).extra(scan_i)
+                            if (cand != hir_none()) and ((tbl).kind(cand) == hir_kind().function) {
+                                func_node = cand
+                                break
+                            }
+                        }
+                    }
+                    if scan_i > (func_node + 50) { break }
+                    scan_i = scan_i + 1
+                }
+            }
+        }
+    }
+    if func_node == id_none() { ret ty_id_none() }
+
+    fn_params_list := (tbl).lhs(func_node)
+    fn_params_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    if fn_params_list != hir_none() {
+        fn_params_slice = db.get_list(fn_params_list)
+    }
+
+    body_id := (tbl).extra(func_node)
+    struct_node := hir_none()
+    if body_id != hir_none() {
+        b_kind := (tbl).kind(body_id)
+        if b_kind == hir_kind().struct_ {
+            struct_node = body_id
+        } else if b_kind == hir_kind().block {
+            items_list := (tbl).lhs(body_id)
+            if items_list != hir_none() {
+                items := db.get_list(items_list)
+                if items.len > 0 {
+                    last_item := *(items.ptr + items.len - 1)
+                    if (tbl).kind(last_item) == hir_kind().k_ret {
+                        struct_node = (tbl).lhs(last_item)
+                    } else {
+                        struct_node = last_item
+                    }
+                }
+            }
+        }
+    }
+
+    if (struct_node != hir_none()) and ((tbl).kind(struct_node) == hir_kind().struct_) {
+        names_list := (tbl).lhs(struct_node)
+        types_list := (tbl).rhs(struct_node)
+        names := db.get_list(names_list)
+        types_nodes := db.get_list(types_list)
+
+        fields_vec := VecU32.new()
+        f_i: u64 = 0
+        while (f_i < names.len) and (f_i < types_nodes.len) {
+            f_name_node := *(names.ptr + f_i)
+            f_name_id := (tbl).lhs(f_name_node)
+            f_ty_node := *(types_nodes.ptr + f_i)
+            f_ty := specialize_type_node(eng, f_ty_node, fn_params_slice, concrete_args)
+            fields_vec.push(f_name_id)
+            fields_vec.push(f_ty)
+            f_i = f_i + 1
+        }
+
+        f_ptr := 0 as &u32
+        if fields_vec.len > 0 { f_ptr = fields_vec.ptr_at(0) }
+        f_slice: SliceU32 = .{ ptr: f_ptr, len: fields_vec.len }
+        structural_ty := (&(*types_ptr)).alloc_struct(f_slice)
+        fields_vec.destroy()
+
+        nom_origin := (&(*types_ptr)).nominal_by_origin.len as u32
+        nom_name := Str.of("struct")
+        if (callee_sym & 2147483648) != 0 {
+            binding_id := callee_sym & 2147483647
+            if (tbl).kind(binding_id) == hir_kind().binding {
+                name_hir := (tbl).lhs(binding_id)
+                nom_name = db.interner.get((tbl).lhs(name_hir))
+            }
+        } else {
+            nom_name = db.interner.get(db.sym_names.get(callee_sym))
+        }
+
+        nom_ty := (&(*types_ptr)).alloc_nominal(structural_ty, nom_name, nom_origin)
+        db.add_mono_nominal(callee_sym, concrete_args.as_slice(), nom_ty)
+        (&(*types_ptr)).record_nominal_creator(nom_origin, callee_sym, concrete_args.as_slice())
+        ret nom_ty
+    }
+
+    if struct_node != hir_none() {
+        res_ty := specialize_type_node(eng, struct_node, fn_params_slice, concrete_args)
+        db.add_mono_nominal(callee_sym, concrete_args.as_slice(), res_ty)
+        ret res_ty
+    }
+
+    ty_id_none()
+}
+
+specialize_type_node :: (eng &Engine, ty_node u32, fn_params SliceU32, concrete_args &VecU32) u32 {
+    if ty_node == hir_none() { ret ty_id_none() }
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    k := hir_kind()
+    curr := (tbl).kind(ty_node)
+
+    if curr == k.ident {
+        ty_name_id := (tbl).lhs(ty_node)
+        p_i: u64 = 0
+        while p_i < fn_params.len {
+            param_arg := *(fn_params.ptr + p_i)
+            param_ident := (tbl).lhs(param_arg)
+            if param_ident != hir_none() {
+                param_name_id := (tbl).lhs(param_ident)
+                if param_name_id == ty_name_id {
+                    if p_i < concrete_args.len {
+                        ret concrete_args.get(p_i)
+                    }
+                }
+            }
+            p_i = p_i + 1
+        }
+        ret synth_type_node(eng, ty_node)
+    }
+
+    if curr == k.unary_addr_of {
+        child := (tbl).lhs(ty_node)
+        child_ty := specialize_type_node(eng, child, fn_params, concrete_args)
+        if child_ty != ty_id_none() {
+            ret (&(*db).types).alloc_ptr(child_ty)
+        }
+    }
+
+    if curr == k.call {
+        callee := (tbl).lhs(ty_node)
+        args_list_id := (tbl).rhs(ty_node)
+        sub_concrete := VecU32.new()
+        if args_list_id != hir_none() {
+            args := db.get_list(args_list_id)
+            i: u64 = 0
+            while i < args.len {
+                sub_arg := *(args.ptr + i)
+                sub_ty := specialize_type_node(eng, sub_arg, fn_params, concrete_args)
+                sub_concrete.push(sub_ty)
+                i = i + 1
+            }
+        }
+        callee_sym := id_none()
+        if (tbl).kind(callee) == k.ident {
+            sym := db.get_hir_symbol(callee)
+            if sym != id_none() {
+                real_s := sym
+                while true {
+                    tgt := db.sym_target.get(real_s)
+                    if (tgt == id_none()) or (tgt == real_s) { break }
+                    real_s = tgt
+                }
+                callee_sym = real_s
+            }
+        }
+        if callee_sym != id_none() {
+            cached := db.find_mono_nominal(callee_sym, sub_concrete.as_slice())
+            if cached != ty_id_none() {
+                sub_concrete.destroy()
+                ret cached
+            }
+            spec := specialize_nominal_from_creator(eng, callee_sym, &sub_concrete)
+            sub_concrete.destroy()
+            if spec != ty_id_none() {
+                ret spec
+            }
+        } else {
+            sub_concrete.destroy()
+        }
+        ret synth_type_node(eng, ty_node)
+    }
+
+    synth_type_node(eng, ty_node)
+}
+
+instantiate_type :: (eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU32) u32 {
+    if ty == ty_id_none() { ret ty_id_none() }
+    db := &(*eng).nexus
+    types := &(*db).types
+    k := ty_kind()
+    kind := (&(*types)).kind(ty)
+
+    if kind == k.infer {
+        slot := (&(*types)).infer_slot(ty)
+        i: u64 = 0
+        while i < tmpl_slots.len {
+            if tmpl_slots.get(i) == slot {
+                ret (&(*types)).alloc_infer(fresh_slots.get(i))
+            }
+            i = i + 1
+        }
+        ret ty
+    }
+
+    if kind == k.ptr {
+        inner := (&(*types)).payload(ty)
+        inst_inner := instantiate_type(eng, inner, tmpl_slots, fresh_slots)
+        ret (&(*types)).alloc_ptr(inst_inner)
+    }
+
+    if kind == k.array {
+        inner := (&(*types)).get_array_type(ty)
+        len := (&(*types)).get_array_len(ty)
+        inst_inner := instantiate_type(eng, inner, tmpl_slots, fresh_slots)
+        ret (&(*types)).alloc_array(inst_inner, len)
+    }
+
+    if kind == k.func {
+        params := (&(*types)).func_params(ty)
+        ret_ty := (&(*types)).func_return(ty)
+        is_ext := (&(*types)).func_is_extern(ty)
+
+        inst_ret := instantiate_type(eng, ret_ty, tmpl_slots, fresh_slots)
+        p_vec := VecU32.new()
+        p_i: u64 = 0
+        while p_i < params.len {
+            p_vec.push(instantiate_type(eng, *(params.ptr + p_i), tmpl_slots, fresh_slots))
+            p_i = p_i + 1
+        }
+        ptr_p := 0 as &u32
+        if p_vec.len > 0 { ptr_p = p_vec.ptr_at(0) }
+        slice: SliceU32 = .{ ptr: ptr_p, len: p_vec.len }
+        new_fn := (&(*types)).alloc_func(slice, inst_ret, is_ext)
+        p_vec.destroy()
+        ret new_fn
+    }
+
+    if kind == k.nominal {
+        orig := (&(*types)).nominal_origin(ty)
+        creator_sym := (&(*types)).get_nominal_creator_sym(orig)
+        if creator_sym != ty_id_none() {
+            creator_args := (&(*types)).get_nominal_creator_args(orig)
+            new_args := VecU32.new()
+            changed := false
+            c_i: u64 = 0
+            while c_i < creator_args.len {
+                c_arg := *(creator_args.ptr + c_i)
+                new_arg := instantiate_type(eng, c_arg, tmpl_slots, fresh_slots)
+                if new_arg != c_arg { changed = true }
+                new_args.push(new_arg)
+                c_i = c_i + 1
+            }
+            if changed {
+                cached := db.find_mono_nominal(creator_sym, new_args.as_slice())
+                if cached != ty_id_none() {
+                    new_args.destroy()
+                    ret cached
+                }
+                spec_ty := specialize_nominal_from_creator(eng, creator_sym, &new_args)
+                new_args.destroy()
+                ret spec_ty
+            }
+            new_args.destroy()
+        }
+        ret ty
+    }
+
+    ty
+}
+
+resolve_ty_id :: (eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty u32) u32 {
+    db := &(*eng).nexus
+    k := ty_kind()
+    kind := (&(*types)).kind(ty)
+    if kind == k.infer {
+        s := (&(*types)).infer_slot(ty)
+        ret (unify_ptr).resolve_type_deep(types, s)
+    }
+    if kind == k.ptr {
+        inner := (&(*types)).payload(ty)
+        res_inner := resolve_ty_id(eng, unify_ptr, types, inner)
+        ret (&(*types)).alloc_ptr(res_inner)
+    }
+    if kind == k.array {
+        inner := (&(*types)).get_array_type(ty)
+        len := (&(*types)).get_array_len(ty)
+        res_inner := resolve_ty_id(eng, unify_ptr, types, inner)
+        ret (&(*types)).alloc_array(res_inner, len)
+    }
+    if kind == k.nominal {
+        orig := (&(*types)).nominal_origin(ty)
+        creator_sym := (&(*types)).get_nominal_creator_sym(orig)
+        if creator_sym != ty_id_none() {
+            creator_args := (&(*types)).get_nominal_creator_args(orig)
+            res_args := VecU32.new()
+            changed := false
+            c_i: u64 = 0
+            while c_i < creator_args.len {
+                c_arg := *(creator_args.ptr + c_i)
+                new_arg := resolve_ty_id(eng, unify_ptr, types, c_arg)
+                if new_arg != c_arg { changed = true }
+                res_args.push(new_arg)
+                c_i = c_i + 1
+            }
+            if changed {
+                cached := db.find_mono_nominal(creator_sym, res_args.as_slice())
+                if cached != ty_id_none() {
+                    res_args.destroy()
+                    ret cached
+                }
+                spec_ty := specialize_nominal_from_creator(eng, creator_sym, &res_args)
+                res_args.destroy()
+                ret spec_ty
+            }
+            res_args.destroy()
+        }
+        ret ty
+    }
+    ty
+}
+
+synth_call :: (eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -231,6 +591,58 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
         slot = (unify_ptr).new_slot(id)
     }
     callee := (tbl).lhs(id)
+    callee_kind := (tbl).kind(callee)
+
+    if callee_kind == hir_kind().ident {
+        name_id := (tbl).lhs(callee)
+        name := db.interner.get(name_id)
+        if name.eq(Str.of("sizeof")) {
+            args_list_id := (tbl).rhs(id)
+            if args_list_id != hir_none() {
+                args := db.get_list(args_list_id)
+                if args.len > 0 {
+                    arg_node := *(args.ptr + 0)
+                    target_ty := synth_type_node(eng, arg_node)
+                    if target_ty == ty_id_none() {
+                        synth_node(eng, arg_node)
+                        s := (unify_ptr).get_slot(arg_node)
+                        if s != slot_none() {
+                            target_ty = (unify_ptr).resolve_type_deep(types_ptr, s)
+                        }
+                    }
+                    if target_ty == ty_id_none() {
+                        target_ty = db.get_const_type(arg_node)
+                    }
+                    u64_ty := (&(*types_ptr)).alloc_uint(64)
+                    (&(*db).unify).bind_type(&(*db).types, slot, u64_ty)
+                    db.set_const_type(id, target_ty)
+                    ret
+                }
+            }
+        }
+        if name.eq(Str.of("typeof")) {
+            args_list_id := (tbl).rhs(id)
+            if args_list_id != hir_none() {
+                args := db.get_list(args_list_id)
+                if args.len > 0 {
+                    arg_node := *(args.ptr + 0)
+                    synth_node(eng, arg_node)
+                    s := (unify_ptr).get_slot(arg_node)
+                    arg_ty := ty_id_none()
+                    if s != slot_none() {
+                        arg_ty = (unify_ptr).resolve_type_deep(types_ptr, s)
+                    }
+                    if arg_ty == ty_id_none() {
+                        arg_ty = db.get_const_type(arg_node)
+                    }
+                    db.set_const_type(id, arg_ty)
+                    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+                    ret
+                }
+            }
+        }
+    }
+
     callee_slot := (unify_ptr).get_slot(callee)
 
     if callee_slot == slot_none() {
@@ -252,9 +664,6 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
         }
 
         if (&(*types_ptr)).kind(callee_ty) == ty_kind().func {
-            ret_ty := (&(*types_ptr)).func_return(callee_ty)
-            (&(*db).unify).bind_type(&(*db).types, slot, ret_ty)
-
             args_list_id := (tbl).rhs(id)
             params := (&(*types_ptr)).func_params(callee_ty)
             args_len: u64 = 0
@@ -263,48 +672,292 @@ synth_call :: (db &Nexus, tbl &HirTable, id u32) {
                 args_len = args.len
             }
 
-            if args_len != params.len {
-                print("\n\033[1;31m[type error]\033[0m ")
-                method := db.get_method_target(callee)
-                if method != id_none() {
-                    print("method '")
-                    name_node := (tbl).lhs(method)
-                    name_id := (tbl).lhs(name_node)
-                    db.interner.get(name_id).print()
-                    print("' expected ")
-                } else {
-                    print("function expected ")
+            ret_ty_check := (&(*types_ptr)).func_return(callee_ty)
+            if ret_ty_check == ty_id_type() {
+                concrete_args := VecU32.new()
+                if args_list_id != hir_none() {
+                    args := db.get_list(args_list_id)
+                    i: u64 = 0
+                    while i < args.len {
+                        arg_node := *(args.ptr + i)
+                        arg_ty := synth_type_node(eng, arg_node)
+                        concrete_args.push(arg_ty)
+                        i = i + 1
+                    }
                 }
-                print_u32(params.len as u32)
-                print(" arguments, but got ")
-                print_u32(args_len as u32)
-                print("\n       --> ")
-                db.print_loc(id)
-                print("\n\n")
-                fall()
+                callee_sym := id_none()
+                if callee_kind == hir_kind().ident {
+                    sym := db.get_hir_symbol(callee)
+                    if sym != id_none() {
+                        real_s := sym
+                        while true {
+                            tgt := db.sym_target.get(real_s)
+                            if (tgt == id_none()) or (tgt == real_s) { break }
+                            real_s = tgt
+                        }
+                        callee_sym = real_s
+                    }
+                }
+                if callee_sym == id_none() {
+                    callee_sym = callee | 2147483648
+                }
+                cached := db.find_mono_nominal(callee_sym, concrete_args.as_slice())
+                if cached != ty_id_none() {
+                    concrete_args.destroy()
+                    db.set_const_type(id, cached)
+                    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+                    ret
+                }
+                spec_ty := specialize_nominal_from_creator(eng, callee_sym, &concrete_args)
+                concrete_args.destroy()
+                db.set_const_type(id, spec_ty)
+                (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+                ret
             }
 
-            if args_list_id != hir_none() {
-                args := db.get_list(args_list_id)
-                i: u64 = 0
-                while i < args.len {
-                    arg_node := *(args.ptr + i)
-                    arg_slot := (unify_ptr).get_slot(arg_node)
-                    param_ty := *(params.ptr + i)
+            is_generic := (&(*types_ptr)).func_has_type_param(callee_ty)
+            leading_tp := (&(*types_ptr)).func_leading_type_params(callee_ty)
 
-                    if arg_slot != slot_none() {
-                        check_value(db, arg_node, param_ty)
-                        param_slot := unify_ptr.tmp_slot()
-                        (&(*db).unify).bind_type(&(*db).types, param_slot, param_ty)
-                        (&(*db).unify).union(&(*db).types, arg_slot, param_slot)
+            is_explicit := args_len == params.len
+            is_omitted := is_generic and (leading_tp > 0) and (args_len == (params.len - (leading_tp as u64)))
+
+            if is_generic {
+                if (not is_explicit) and (not is_omitted) {
+                    print("\n\033[1;31m[type error]\033[0m function expected ")
+                    print_u32(params.len as u32)
+                    print(" (or ")
+                    print_u32((params.len - (leading_tp as u64)) as u32)
+                    print(") arguments, but got ")
+                    print_u32(args_len as u32)
+                    print("\n       --> ")
+                    db.print_loc(id)
+                    print("\n\n")
+                    fall()
+                }
+
+                func_node := id_none()
+                if callee_kind == hir_kind().ident {
+                    sym := db.get_hir_symbol(callee)
+                    if sym != id_none() {
+                        real_s := sym
+                        while true {
+                            tgt := db.sym_target.get(real_s)
+                            if (tgt == id_none()) or (tgt == real_s) { break }
+                            real_s = tgt
+                        }
+                        func_node = db.get_sym_hir(real_s)
+                        if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind().function) {
+                            hir_end := db.sym_hir_end.get(real_s)
+                            if (hir_end != 0) and (hir_end != id_none()) {
+                                b_id := hir_end - 1
+                                if (tbl).kind(b_id) == hir_kind().binding {
+                                    func_node = (tbl).extra(b_id)
+                                }
+                            }
+                            if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind().function) {
+                                scan_i := func_node + 1
+                                tbl_len := (tbl).len()
+                                while scan_i < tbl_len {
+                                    sk := (tbl).kind(scan_i)
+                                    if (sk == hir_kind().var) or (sk == hir_kind().binding) {
+                                        if (tbl).lhs(scan_i) == func_node {
+                                            cand := (tbl).extra(scan_i)
+                                            if (cand != hir_none()) and ((tbl).kind(cand) == hir_kind().function) {
+                                                func_node = cand
+                                                break
+                                            }
+                                        }
+                                    }
+                                    if scan_i > (func_node + 50) { break }
+                                    scan_i = scan_i + 1
+                                }
+                            }
+                        }
                     }
-                    if arg_slot == slot_none() {
-                        print("\n[type error] cannot resolve argument\n       --> ")
-                        db.print_loc(arg_node)
-                        print("\n")
-                        fall()
+                } else if callee_kind == hir_kind().function {
+                    func_node = callee
+                } else if callee_kind == hir_kind().member {
+                    m := db.get_method_target(callee)
+                    if m != id_none() {
+                        func_node = (tbl).extra(m)
                     }
-                    i = i + 1
+                }
+
+                tmpl_slots := VecU32.new()
+                fresh_slots := VecU32.new()
+
+                fn_args_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+                if func_node != id_none() {
+                    fn_params_list := (tbl).lhs(func_node)
+                    if fn_params_list != hir_none() {
+                        fn_args_slice = db.get_list(fn_params_list)
+                    }
+                }
+
+                tp_i: u64 = 0
+                while tp_i < (leading_tp as u64) {
+                    t_slot := slot_none()
+                    if tp_i < fn_args_slice.len {
+                        p_arg := *(fn_args_slice.ptr + tp_i)
+                        t_inf := db.get_const_type(p_arg)
+                        if t_inf != ty_id_none() {
+                            t_slot = (&(*types_ptr)).infer_slot(t_inf)
+                        }
+                    }
+                    if t_slot == slot_none() {
+                        p_i: u64 = tp_i
+                        while p_i < params.len {
+                            p_t := *(params.ptr + p_i)
+                            if (&(*types_ptr)).kind(p_t) == ty_kind().infer {
+                                cand := (&(*types_ptr)).infer_slot(p_t)
+                                found := false
+                                chk_i: u64 = 0
+                                while chk_i < tmpl_slots.len {
+                                    if tmpl_slots.get(chk_i) == cand { found = true break }
+                                    chk_i = chk_i + 1
+                                }
+                                if not found {
+                                    t_slot = cand
+                                    break
+                                }
+                            }
+                            p_i = p_i + 1
+                        }
+                    }
+                    f_slot := unify_ptr.tmp_slot()
+                    tmpl_slots.push(t_slot)
+                    fresh_slots.push(f_slot)
+                    tp_i = tp_i + 1
+                }
+
+                ret_ty := (&(*types_ptr)).func_return(callee_ty)
+                inst_ret := instantiate_type(eng, ret_ty, &tmpl_slots, &fresh_slots)
+                (&(*db).unify).bind_type(&(*db).types, slot, inst_ret)
+
+                args := db.get_list(args_list_id)
+                if is_explicit {
+                    i: u64 = 0
+                    while i < args.len {
+                        arg_node := *(args.ptr + i)
+                        if i < (leading_tp as u64) {
+                            arg_val := db.get_const_type(arg_node)
+                            if arg_val != ty_id_none() {
+                                t_target := fresh_slots.get(i)
+                                (&(*db).unify).bind_type(&(*db).types, t_target, arg_val)
+                            }
+                        } else {
+                            inst_param := instantiate_type(eng, *(params.ptr + i), &tmpl_slots, &fresh_slots)
+                            arg_slot := (unify_ptr).get_slot(arg_node)
+                            if arg_slot != slot_none() {
+                                check_value(db, arg_node, inst_param)
+                                p_tmp := unify_ptr.tmp_slot()
+                                (&(*db).unify).bind_type(&(*db).types, p_tmp, inst_param)
+                                (&(*db).unify).union(&(*db).types, arg_slot, p_tmp)
+                            }
+                        }
+                        i = i + 1
+                    }
+                } else {
+                    i: u64 = 0
+                    while i < args.len {
+                        arg_node := *(args.ptr + i)
+                        p_idx := (leading_tp as u64) + i
+                        inst_param := instantiate_type(eng, *(params.ptr + p_idx), &tmpl_slots, &fresh_slots)
+                        arg_slot := (unify_ptr).get_slot(arg_node)
+                        if arg_slot != slot_none() {
+                            check_value(db, arg_node, inst_param)
+                            p_tmp := unify_ptr.tmp_slot()
+                            (&(*db).unify).bind_type(&(*db).types, p_tmp, inst_param)
+                            (&(*db).unify).union(&(*db).types, arg_slot, p_tmp)
+                        }
+                        i = i + 1
+                    }
+                }
+
+                tp_i = 0
+                while tp_i < fresh_slots.len {
+                    f_s := fresh_slots.get(tp_i)
+                    r_ty := (unify_ptr).resolve_type_deep(types_ptr, f_s)
+                    if r_ty == ty_id_untyped_int() {
+                        r_ty = (&(*types_ptr)).alloc_int(32)
+                        (&(*db).unify).bind_type(&(*db).types, f_s, r_ty)
+                    } else if r_ty == ty_id_untyped_float() {
+                        r_ty = (&(*types_ptr)).alloc_float(64)
+                        (&(*db).unify).bind_type(&(*db).types, f_s, r_ty)
+                    }
+                    tp_i = tp_i + 1
+                }
+
+                mono_p_vec := VecU32.new()
+                p_i: u64 = 0
+                while p_i < params.len {
+                    if p_i < (leading_tp as u64) {
+                        mono_p_vec.push((unify_ptr).resolve_type_deep(types_ptr, fresh_slots.get(p_i)))
+                    } else {
+                        p_inst := instantiate_type(eng, *(params.ptr + p_i), &tmpl_slots, &fresh_slots)
+                        mono_p_vec.push(resolve_ty_id(eng, unify_ptr, types_ptr, p_inst))
+                    }
+                    p_i = p_i + 1
+                }
+                final_ret := resolve_ty_id(eng, unify_ptr, types_ptr, inst_ret)
+                ptr_m := 0 as &u32
+                if mono_p_vec.len > 0 { ptr_m = mono_p_vec.ptr_at(0) }
+                m_slice: SliceU32 = .{ ptr: ptr_m, len: mono_p_vec.len }
+                mono_func_ty := (&(*types_ptr)).alloc_func(m_slice, final_ret, false)
+                mono_p_vec.destroy()
+                tmpl_slots.destroy()
+                fresh_slots.destroy()
+                root := (unify_ptr).find(slot)
+                (*unify_ptr).types.set(root as u64, final_ret)
+
+                db.set_const_type(id, mono_func_ty)
+            } else {
+                ret_ty := (&(*types_ptr)).func_return(callee_ty)
+                (&(*db).unify).bind_type(&(*db).types, slot, ret_ty)
+
+                if args_len != params.len {
+                    print("\n\033[1;31m[type error]\033[0m ")
+                    method := db.get_method_target(callee)
+                    if method != id_none() {
+                        print("method '")
+                        name_node := (tbl).lhs(method)
+                        name_id := (tbl).lhs(name_node)
+                        db.interner.get(name_id).print()
+                        print("' expected ")
+                    } else {
+                        print("function expected ")
+                    }
+                    print_u32(params.len as u32)
+                    print(" arguments, but got ")
+                    print_u32(args_len as u32)
+                    print("\n       --> ")
+                    db.print_loc(id)
+                    print("\n\n")
+                    fall()
+                }
+
+                if args_list_id != hir_none() {
+                    args := db.get_list(args_list_id)
+                    i: u64 = 0
+                    while i < args.len {
+                        arg_node := *(args.ptr + i)
+                        arg_slot := (unify_ptr).get_slot(arg_node)
+                        param_ty := *(params.ptr + i)
+
+                        if arg_slot != slot_none() {
+                            check_value(db, arg_node, param_ty)
+                            param_slot := unify_ptr.tmp_slot()
+                            (&(*db).unify).bind_type(&(*db).types, param_slot, param_ty)
+                            (&(*db).unify).union(&(*db).types, arg_slot, param_slot)
+                        }
+                        if arg_slot == slot_none() {
+                            print("\n[type error] cannot resolve argument\n       --> ")
+                            db.print_loc(arg_node)
+                            print("\n")
+                            fall()
+                        }
+                        i = i + 1
+                    }
                 }
             }
         }

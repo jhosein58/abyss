@@ -93,6 +93,13 @@ Nexus :: struct {
     hir_files      : PoolU32, -- HirId    -> FileId
     hir_span_start : PoolU32, -- HirId    -> Span start offset
     hir_span_end   : PoolU32, -- HirId    -> Span end
+    mono_orig_sym  : VecU32,
+    mono_type      : VecU32,
+    mono_sym       : VecU32,
+    mono_nom_sym   : VecU32,
+    mono_nom_arg   : VecU32,
+    mono_nom_res   : VecU32
+
     new :: () Self {
         .{
             tokens         : TokenStream.new(),
@@ -123,7 +130,13 @@ Nexus :: struct {
             file_paths     : VecStr.new(),
             hir_files      : PoolU32.new(),
             hir_span_start : PoolU32.new(),
-            hir_span_end   : PoolU32.new()
+            hir_span_end   : PoolU32.new(),
+            mono_orig_sym  : VecU32.new(),
+            mono_type      : VecU32.new(),
+            mono_sym       : VecU32.new(),
+            mono_nom_sym   : VecU32.new(),
+            mono_nom_arg   : VecU32.new(),
+            mono_nom_res   : VecU32.new()
         }
     }
 
@@ -200,7 +213,7 @@ Nexus :: struct {
                 curr := i
                 while curr != id_none() {
                     target := .sym_target.get(curr)
-                    if target == id_none() {
+                    if (target == id_none()) or (target == curr) {
                         ret curr
                     }
                     curr = target
@@ -338,5 +351,102 @@ Nexus :: struct {
         print_u32(pos.line)
         print(":")
         print_u32(pos.col)
+    }
+
+    find_mono_sym :: (orig_sym u32, mono_ty u32) u32 {
+        i: u64 = 0
+        while i < .mono_orig_sym.len {
+            if (.mono_orig_sym.get(i) == orig_sym) and (.mono_type.get(i) == mono_ty) {
+                ret .mono_sym.get(i)
+            }
+            i = i + 1
+        }
+        id_none()
+    }
+
+    alloc_mono_sym :: (orig_sym u32, mono_ty u32) u32 {
+        file_id: u32 = 0
+        name_id: u32 = 0
+        if (orig_sym & 2147483648) != 0 {
+            binding_id := orig_sym & 2147483647
+            file_id = .get_hir_file(binding_id)
+            name_hir := .hir.lhs(binding_id)
+            name_id = .hir.lhs(name_hir)
+        } else {
+            file_id = .sym_files.get(orig_sym)
+            name_id = .sym_names.get(orig_sym)
+        }
+        sym_id := .sym_names.alloc(name_id)
+        .sym_files.alloc(file_id)
+        .sym_tok_start.alloc(id_none())
+        .sym_tok_end.alloc(id_none())
+        .sym_hir_start.alloc(id_none())
+        .sym_hir_end.alloc(id_none())
+        .sym_nodes.alloc(id_none())
+        .sym_resolving.alloc(0)
+        .sym_target.alloc(id_none())
+
+        .mono_orig_sym.push(orig_sym)
+        .mono_type.push(mono_ty)
+        .mono_sym.push(sym_id)
+        sym_id
+    }
+
+    get_mono_orig_sym :: (sym u32) u32 {
+        i: u64 = 0
+        while i < .mono_sym.len {
+            if .mono_sym.get(i) == sym {
+                ret .mono_orig_sym.get(i)
+            }
+            i = i + 1
+        }
+        id_none()
+    }
+
+    get_mono_type :: (sym u32) u32 {
+        i: u64 = 0
+        while i < .mono_sym.len {
+            if .mono_sym.get(i) == sym {
+                ret .mono_type.get(i)
+            }
+            i = i + 1
+        }
+        ty_id_none()
+    }
+
+    is_mono_sym :: (sym u32) bool {
+        .get_mono_orig_sym(sym) != id_none()
+    }
+
+    find_mono_nominal :: (sym u32, args SliceU32) u32 {
+        i: u64 = 0
+        while i < .mono_nom_sym.len {
+            if .mono_nom_sym.get(i) == sym {
+                stored_list := .get_list(.mono_nom_arg.get(i))
+                if stored_list.len == args.len {
+                    matched := true
+                    j: u64 = 0
+                    while j < args.len {
+                        if *(stored_list.ptr + j) != *(args.ptr + j) {
+                            matched = false
+                            break
+                        }
+                        j = j + 1
+                    }
+                    if matched {
+                        ret .mono_nom_res.get(i)
+                    }
+                }
+            }
+            i = i + 1
+        }
+        ty_id_none()
+    }
+
+    add_mono_nominal :: (sym u32, args SliceU32, res_ty u32) {
+        list_id := .add_list(args)
+        .mono_nom_sym.push(sym)
+        .mono_nom_arg.push(list_id)
+        .mono_nom_res.push(res_ty)
     }
 }
