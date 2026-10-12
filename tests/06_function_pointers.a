@@ -3,7 +3,7 @@ print_i32 :: (v i32) unit
 
 println_i32 :: (v i32) {
     print_i32(v)
-    print("\n")
+    print(c"\n")
 }
 
 double_it :: (x i32) i32 {

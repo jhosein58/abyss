@@ -20,7 +20,7 @@ main :: () {
     forward(true)
     forward(false)
     forward("text")
-    forward(Str.new("slice-extra", 5))
+    forward(Str.new(c"slice-extra", 5))
     forward(Str.empty())
     forward(42)
     forward(3.25)

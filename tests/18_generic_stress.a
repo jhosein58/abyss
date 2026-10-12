@@ -209,5 +209,5 @@ main :: () {
     total = total + identity(v39.get(0)).value
     v39.destroy()
     print_u32(total)
-    print("\n")
+    print(c"\n")
 }

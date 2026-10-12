@@ -8,22 +8,22 @@ print_bool :: (b bool) unit
 
 println_u32 :: (v u32) {
     print_u32(v)
-    print("\n")
+    print(c"\n")
 }
 
 println_u64 :: (v u64) {
     print_u64(v)
-    print("\n")
+    print(c"\n")
 }
 
 println_i32 :: (v i32) {
     print_i32(v)
-    print("\n")
+    print(c"\n")
 }
 
 println_bool :: (b bool) {
     print_bool(b)
-    print("\n")
+    print(c"\n")
 }
 
 main :: () {

@@ -1,0 +1,39 @@
+import Str from "core/string.a"
+
+print :: (s &u8) unit
+print_char :: (c u8) unit
+print_u32 :: (v u32) unit
+print_u64 :: (v u64) unit
+print_bool :: (v bool) unit
+
+main :: () {
+    s := "hello world"
+    print_u64(s.len)
+    print(c"\n")
+    s.print()
+    print(c"\n")
+
+    sub := s.sub(6, 5)
+    sub.print()
+    print(c"\n")
+
+    print_bool(s.eq("hello world"))
+    print(c"\n")
+    print_bool(s.eq("hello"))
+    print(c"\n")
+
+    c: u8 = 'A'
+    print_u32(c as u32)
+    print(c"\n")
+    print_char('Z')
+    print(c"\n")
+    print_char('\n')
+
+    cs := c"c-string content"
+    print(cs)
+    print(c"\n")
+
+    ch := 'x'
+    print_char(ch)
+    print(c"\n")
+}

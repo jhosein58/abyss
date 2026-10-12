@@ -4,12 +4,12 @@ print_bool :: (b bool) unit
 
 println_u32 :: (v u32) {
     print_u32(v)
-    print("\n")
+    print(c"\n")
 }
 
 println_bool :: (b bool) {
     print_bool(b)
-    print("\n")
+    print(c"\n")
 }
 
 main :: () {
