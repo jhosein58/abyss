@@ -1,0 +1,58 @@
+import print as print_cstr from "prelude.a"
+
+Printable :: () type {
+    i8 | i16 | i32 | i64 | u8 | u16 | u32 | u64 | f32 | f64 | bool | &u8 | Str
+}
+
+print :: (T type, v T) {
+    value: Printable() = v
+    if @is(value, i8) {
+        print_i8(value as i8)
+        ret
+    }
+    if @is(value, i16) {
+        print_i16(value as i16)
+        ret
+    }
+    if @is(value, i32) {
+        print_i32(value as i32)
+        ret
+    }
+    if @is(value, i64) {
+        print_i64(value as i64)
+        ret
+    }
+    if @is(value, u8) {
+        print_u8(value as u8)
+        ret
+    }
+    if @is(value, u16) {
+        print_u16(value as u16)
+        ret
+    }
+    if @is(value, u32) {
+        print_u32(value as u32)
+        ret
+    }
+    if @is(value, u64) {
+        print_u64(value as u64)
+        ret
+    }
+    if @is(value, f32) {
+        print_f32(value as f32)
+        ret
+    }
+    if @is(value, f64) {
+        print_f64(value as f64)
+        ret
+    }
+    if @is(value, bool) {
+        print_bool(value as bool)
+        ret
+    }
+    if @is(value, &u8) {
+        print_cstr(value as &u8)
+        ret
+    }
+    (value as Str).print()
+}

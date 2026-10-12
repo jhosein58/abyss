@@ -11,12 +11,13 @@ mkdir -p "${WORK_DIR}/scripts"
 cp "${ROOT_DIR}/scripts/embed_sources.py" "${WORK_DIR}/scripts/"
 (
     cd "${WORK_DIR}"
-    printf 'main :: () { print("automatic embedding\\n") }\n' > program.a
+    printf 'import print, embedding_probe from "std/io.a"\nmain :: () { print("automatic embedding\\n") print(embedding_probe()) print(" ") print(true) print("\\n") }\n' > program.a
+    printf '\nembedding_probe :: () i32 { 7 }\n' >> std/io.a
     printf '\n#define ABYSS_CLI_EMBED_TEST 1\n' >> runtime/prelude.c
     timeout 120s ./abyss b program.a
     rg -q '^#define ABYSS_CLI_EMBED_TEST 1$' tmp/out.c
     ./tmp/out > actual.out
-    printf 'automatic embedding\n' > expected.out
+    printf 'automatic embedding\n7 true\n' > expected.out
     diff -u expected.out actual.out
     BEFORE=$(stat -c '%y' abyssc compiler/embedded.a)
     timeout 30s ./abyss r program.a > actual.out

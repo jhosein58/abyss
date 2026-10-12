@@ -1,0 +1,8 @@
+import print from "std/io.a"
+
+Record :: struct { value: i32 }
+
+main :: () {
+    value: Record = .{ value: 7 }
+    print(value)
+}

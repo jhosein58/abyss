@@ -61,6 +61,17 @@ The runner requires a nonzero compiler exit for rejected programs and checks
 that no C file was emitted. Set `ABYSS_COMPILER` to test another compiler binary.
 
 
+Import `print` from `std/io.a` to print signed and unsigned integers up to
+64 bits, `f32`, `f64`, booleans, C strings, and `Str` values. Its generic type
+argument is inferred, so calls such as `print(42)` and `print("hello")` work.
+Unsupported types are rejected during compilation.
+
+`./abyss r file.a` builds and runs that program. Without a file argument,
+it builds and runs `main.a`, which is the compiler itself. Changes to `core`,
+`std`, or the C runtime automatically refresh the embedded sources and rebuild
+`abyssc` in two stages. The temporary stage uses `-O0`; the final compiler uses
+`-O2`. Unchanged embedded sources skip this rebuild.
+
 ## Next Steps
 
 With self-hosting stabilized, active development focuses on:

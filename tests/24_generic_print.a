@@ -1,0 +1,38 @@
+import print as emit from "std/io.a"
+import Vec from "std/collections/vec.a"
+
+forward :: (T type, value T) {
+    emit(value)
+    emit("\n")
+}
+
+main :: () {
+    forward(-128 as i8)
+    forward(-32768 as i16)
+    forward(-2147483647 as i32)
+    forward(0 as i64 - (2147483648 as i64 * 4294967295 as i64 + 2147483647 as i64))
+    forward(255 as u8)
+    forward(65535 as u16)
+    forward(4294967295 as u32)
+    forward(4294967295 as u64 * 4294967295 as u64 + 4294967295 as u64 * 2 as u64)
+    forward(1.5 as f32)
+    forward(-2.25 as f64)
+    forward(true)
+    forward(false)
+    forward("text")
+    forward(Str.new("slice-extra", 5))
+    forward(Str.empty())
+    forward(42)
+    forward(3.25)
+    emit(i16, -12)
+    emit("\n")
+    values := Vec(i32).new()
+    i: i32 = 0
+    while i < 1000 {
+        values.push(i)
+        i = i + 1
+    }
+    forward(values.get(999))
+    forward(values.get(0))
+    values.destroy()
+}
