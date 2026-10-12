@@ -1,0 +1,31 @@
+Slice :: (T type) type {
+    struct {
+        ptr: &T,
+        len: u64,
+
+        new :: (ptr &T, len u64) Self {
+            .{
+                ptr: ptr,
+                len: len
+            }
+        }
+
+        empty :: () Self {
+            .{
+                ptr: 0 as &T,
+                len: 0
+            }
+        }
+
+        get :: (idx u64) T {
+            *(.ptr + idx)
+        }
+
+        sub :: (start u64, len u64) Self {
+            .{
+                ptr: (.ptr + start),
+                len: len
+            }
+        }
+    }
+}

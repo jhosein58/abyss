@@ -1,0 +1,27 @@
+Choice :: (T type, E type) type {
+    struct {
+        is_ok: bool,
+        val: T | E,
+
+        ok :: (v T) Self {
+            .{
+                is_ok: true,
+                val: v
+            }
+        }
+
+        err :: (e E) Self {
+            .{
+                is_ok: false,
+                val: e
+            }
+        }
+
+        is_success :: () bool { .is_ok }
+        is_error :: () bool { not .is_ok }
+
+        unwrap_or :: (fallback T) T {
+            if .is_ok { .val as T } else { fallback }
+        }
+    }
+}
