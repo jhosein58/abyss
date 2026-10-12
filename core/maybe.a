@@ -1,0 +1,18 @@
+Maybe :: (T type) type {
+    struct {
+        present: bool,
+        value: T
+
+        some :: (value T) Self { .{ present: true, value: value } }
+        none :: () Self {
+            result: Self
+            result.present = false
+            result
+        }
+        is_some :: () bool { .present }
+        is_none :: () bool { not .present }
+        unwrap_or :: (fallback T) T {
+            if .present { .value } else { fallback }
+        }
+    }
+}

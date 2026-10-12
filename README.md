@@ -38,9 +38,10 @@ main :: () {
 Abyss bootstraps from the included `abyssc` seed compiler:
 
 ```sh
-./abyssc
+mkdir -p tmp
+./abyssc main.a tmp/out.c
 gcc -O2 tmp/out.c -o tmp/abyssc
-./tmp/abyssc
+./tmp/abyssc main.a tmp/out.c
 
 ```
 
@@ -59,21 +60,6 @@ Successful programs use checked-in `.out` files; rejected programs under
 The runner requires a nonzero compiler exit for rejected programs and checks
 that no C file was emitted. Set `ABYSS_COMPILER` to test another compiler binary.
 
-## Generic Type Inference
-
-Leading generic type arguments can be omitted and inferred from later uses:
-
-```rust
-v := Vec().new()
-v.push(10 as u32)
-v.destroy()
-```
-
-The compiler resolves the element type before generating code. An annotation,
-constructor argument, method argument, or another use can constrain it. Each
-omitted argument gets its own inference variable. Conflicting constraints and
-arguments that remain unconstrained produce type errors with source locations.
-Use an explicit type, such as `Vec(u32)`, when there is no constraining use.
 
 ## Next Steps
 
@@ -81,10 +67,9 @@ With self-hosting stabilized, active development focuses on:
 
 * [x] Self-hosted Stage 1 compiler
 * [x] Primitives for memory (`Arena`), collections (`Vec`), and strings
-* [ ] Standard library expansion (formatting, math, system calls)
+* [x] Standard library expansion (formatting, math, system calls)
+* [x] Module packaging & test runner
 * [ ] Comptime evaluation & constant folding
-* [ ] Module packaging & test runner
-
 ---
 
 ## License

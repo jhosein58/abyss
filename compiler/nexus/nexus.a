@@ -88,6 +88,8 @@ Nexus :: struct {
     method_target  : PoolU32,
     sym_resolving  : PoolU32  -- SymbolId -> 0 or 1
 
+    core_prelude   : u32,
+    std_prelude    : u32,
     file_sources   : VecStr,
     file_paths     : VecStr,
     hir_files      : PoolU32, -- HirId    -> FileId
@@ -130,6 +132,8 @@ Nexus :: struct {
             method_target  : PoolU32.new(),
             sym_resolving  : PoolU32.new(),
 
+            core_prelude   : id_none(),
+            std_prelude    : id_none(),
             file_sources   : VecStr.new(),
             file_paths     : VecStr.new(),
             hir_files      : PoolU32.new(),
@@ -211,6 +215,19 @@ Nexus :: struct {
     }
 
     find_symbol :: (file_id u32, name_id u32) u32 {
+        sym := .find_local_symbol(file_id, name_id)
+        if sym != id_none() { ret sym }
+        if .core_prelude != id_none() {
+            sym = .find_local_symbol(.core_prelude, name_id)
+            if sym != id_none() { ret sym }
+        }
+        if .std_prelude != id_none() {
+            ret .find_local_symbol(.std_prelude, name_id)
+        }
+        id_none()
+    }
+
+    find_local_symbol :: (file_id u32, name_id u32) u32 {
         count := .sym_names.count()
 
         i: u32 = 0

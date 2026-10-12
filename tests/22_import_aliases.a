@@ -1,0 +1,40 @@
+import Vec as Buffer from "std/collections/vec.a"
+import Forwarded as OtherBuffer, Choice as Option, forwarded_value as renamed, text from "modules/reexport.a"
+import Str as Text from "core/string.a"
+import Str as SameText from "std/string.a"
+import print_u32 as output_number from "std/prelude.a"
+import Vec as Buffer from "std/collections/vec.a"
+import Arena as Memory from "std/allocator.a"
+import String as Builder from "std/string.a"
+
+Vec :: () u32 { 5 }
+value :: () u32 { 6 }
+
+main :: () {
+    first := Buffer(u32).new()
+    second := OtherBuffer(u32).new()
+    first.push(renamed())
+    second.push(Vec() + value())
+    output_number(first.get(0))
+    print("\n")
+    print_u32(second.get(0))
+    print("\n")
+    present := Option(u32).some(first.get(0))
+    print_u32(present.unwrap_or(99))
+    print("\n")
+    s: Text = text()
+    same: SameText = s
+    same.print()
+    print("\n")
+    arena := Memory.new(4096)
+    builder := Builder.new(&arena)
+    builder.push_str(s)
+    builder.push_char(*"!")
+    builder.as_str().print()
+    print("\n")
+    callback := output_number
+    callback(7)
+    print("\n")
+    first.destroy()
+    second.destroy()
+}

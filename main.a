@@ -4,6 +4,7 @@ import read_file, write_file from "std/fs.a"
 import dump_hir from "compiler/dump.a"
 import Engine from "compiler/engine.a"
 import CCodeGen_finish from "compiler/codegen.a"
+import embedded_runtime from "compiler/embedded.a"
 import fall from "std/sys.a"
 import Fmt from "std/fmt.a"
 import Vec from "std/collections/vec.a"
@@ -20,11 +21,6 @@ get_arg         :: (idx i32) &u8
 get_env         :: (name &u8) &u8
 
 main :: () {
-    v := Vec().new()
-
-    v.push(10 as u32)
-
-    v.destroy()
     arena := Arena.new(1024 * 1024 * 16)
 
     main_path := "main.a"
@@ -37,7 +33,7 @@ main :: () {
         }
     }
 
-    out_path := "tmp/out.c"
+    out_path := "out.c"
     if get_arg_count() > 2 {
         out_path = get_arg(2)
     } else {
@@ -61,12 +57,6 @@ main :: () {
     eng.abyss_main(sym_id)
     eng.compile(&arena, sym_id)
 
-    prelude_path := "runtime/prelude.c"
-    env_prelude := get_env("ABYSS_PRELUDE")
-    if env_prelude != (0 as &u8) {
-        prelude_path = env_prelude
-    }
-
-    c_code := CCodeGen_finish(&eng.ccg, read_file(&arena, prelude_path))
+    c_code := CCodeGen_finish(&eng.ccg, embedded_runtime())
     write_file(out_path, c_code)
 }

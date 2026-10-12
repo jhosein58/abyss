@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPILER="${1:-${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}}"
 FILTER="${2:-}"
 cd "${ROOT_DIR}"
+python3 "${ROOT_DIR}/scripts/embed_sources.py" --check
 mkdir -p tmp
 WORK_DIR=$(mktemp -d "${ROOT_DIR}/tmp/compiler_test.XXXXXX")
 PASSED=0
@@ -103,3 +104,6 @@ fi
 echo "${PASSED} passed, ${FAILED} failed (${TOTAL} total)"
 echo "Artifacts: ${WORK_DIR}"
 [[ ${FAILED} -eq 0 ]]
+if [[ -z "${FILTER}" ]]; then
+    bash "${ROOT_DIR}/scripts/test_standalone.sh" "${COMPILER}"
+fi

@@ -1,0 +1,65 @@
+import Vec as List from "std/collections/vec.a"
+import Arena as EmbeddedArena from "std/allocator.a"
+import Fmt as EmbeddedFmt from "std/fmt.a"
+import read_file as Embeddedread_file from "std/fs.a"
+import Interner as EmbeddedInterner from "std/interner.a"
+import String as EmbeddedString from "std/string.a"
+import fall as Embeddedfall from "std/sys.a"
+import VecBool as EmbeddedVecBool from "std/vec/bool.a"
+import VecI32 as EmbeddedVecI32 from "std/vec/i32.a"
+import VecU8 as EmbeddedVecU8 from "std/vec/u8.a"
+import VecU32 as EmbeddedVecU32 from "std/vec/u32.a"
+import VecStr as EmbeddedVecStr from "std/vec/str.a"
+import FastMapU32 as EmbeddedFastMapU32 from "std/fast_map/u32.a"
+
+Box :: (T type) type { struct { value: T } }
+
+main :: () {
+    inferred := Maybe().some(42 as u32)
+    contextual: Maybe(u32) = Maybe().none()
+    print_u32(inferred.unwrap_or(contextual.unwrap_or(9)))
+    print("\n")
+    some := Maybe(u32).some(42)
+    none := Maybe(u32).none()
+    print_bool(some.is_some())
+    print("\n")
+    print_bool(none.is_none())
+    print("\n")
+    print_u32(some.unwrap_or(9))
+    print("\n")
+    print_u32(none.unwrap_or(9))
+    print("\n")
+    yes := Maybe(bool).some(false)
+    absent := Maybe(bool).none()
+    print_bool(yes.is_some())
+    print("\n")
+    print_bool(yes.unwrap_or(true))
+    print("\n")
+    print_bool(absent.unwrap_or(true))
+    print("\n")
+    string := Maybe(Str).some(Str.of("embedded"))
+    string.unwrap_or(Str.empty()).print()
+    print("\n")
+    nested := Maybe(Maybe(u32)).some(some)
+    print_u32(nested.unwrap_or(none).unwrap_or(0))
+    print("\n")
+    record := Maybe(Box(u32)).some(.{ value: 77 })
+    print_u32(record.unwrap_or(.{ value: 0 }).value)
+    print("\n")
+    list := List(Maybe(u32)).new()
+    i: u32 = 0
+    while i < 1000 {
+        if (i % 2) == 0 { list.push(Maybe(u32).some(i)) }
+        else { list.push(Maybe(u32).none()) }
+        i = i + 1
+    }
+    total: u32 = 0
+    j: u64 = 0
+    while j < list.len {
+        total = total + list.get(j).unwrap_or(0)
+        j = j + 1
+    }
+    print_u32(total)
+    print("\n")
+    list.destroy()
+}

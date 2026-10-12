@@ -29,6 +29,7 @@ if [ ! -f "${SEED_COMPILER}" ]; then
 fi
 
 cd "${ROOT_DIR}"
+python3 "${ROOT_DIR}/scripts/embed_sources.py"
 mkdir -p "${ROOT_DIR}/tmp"
 WORK_DIR=$(mktemp -d "${ROOT_DIR}/tmp/bootstrap_test.XXXXXX")
 

@@ -1,85 +1,10 @@
+import Str from "../core/string.a"
 import Arena  from "allocator.a"
 import AVecU8 from "avec/u8.a"
 
 str_len    :: (s &u8) u64
 print_char :: (c u8)  unit
 
-----------------------> Str
-
-Str :: struct {
-    ptr: &u8,
-    len: u64 
-
-
-    size :: () u64 {
-        16
-    }
-
-    new :: (ptr &u8, len u64) Str {
-        .{
-            ptr: ptr,
-            len: len,
-        }
-    }
-
-    empty :: () Str {
-        .{
-            ptr: 0 as &u8,
-            len: 0,
-        }
-    }
-
-    of :: (s &u8) Self {
-        .{
-            ptr: s,
-            len: str_len(s)
-        }
-    }
-
-    print :: () {
-        i := 0
-
-        while i < .len {
-            print_char(*(.ptr + i))
-            i = i + 1
-        }
-    }
-
-    println :: (s Str) {
-        s.print()
-        print_char(*"\n")
-    }
-
-    sub :: (start u64, len u64) Str {
-        .{
-            ptr: (.ptr + start),
-            len: len
-        }
-    }
-
-    eq :: (b Str) bool {
-        if .len != b.len {
-            ret false
-        }
-
-        i: u64 = 0
-        while i < .len {
-            if *(.ptr + i) != *(b.ptr + i) {
-                ret false
-            }
-            i = i + 1
-        }
-
-        true
-    }
-}
-
-
-
-
-
-
-----------------------> String
 
 String :: struct {
     buf: AVecU8,

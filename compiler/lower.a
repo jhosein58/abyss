@@ -335,9 +335,8 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
                         queue.push(real_sym)
                     }
                 }
-                if (&(*db).types).func_is_extern(ty) {
-                    name_id := (&(*db).hir).lhs(id)
-                    ret db.interner.get(name_id)
+                if (&(*db).types).func_is_extern(ty) and (db.sym_tok_start.get(real_sym) != id_none()) {
+                    ret db.interner.get(db.sym_names.get(real_sym))
                 }
                 ret ccg.sym_name(arena, real_sym)
             }
