@@ -487,6 +487,24 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
+    expr_char_lit :: (arena &Arena, raw Str) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.wrap(Str.of("((uint8_t)"), raw, Str.of(")"))
+        fmt.as_str()
+    }
+
+    expr_cstr_lit :: (arena &Arena, raw Str) Str {
+        .indent
+        c_raw := raw
+        if (raw.len >= 2) and (*(raw.ptr) == 99) {
+            c_raw = raw.sub(1, raw.len - 1)
+        }
+        fmt := Fmt.new(arena)
+        fmt.wrap(Str.of("((uint8_t*)"), c_raw, Str.of(")"))
+        fmt.as_str()
+    }
+
     expr_bool :: (val bool) Str {
         .indent
         if val {

@@ -2,7 +2,7 @@ import HirTable, hir_kind, hir_none from "../hir.a"
 import ty_id_none from "../types.a"
 import Engine from "../engine.a"
 import resolve_ty_id, method_returns_ref_self, method_has_explicit_self, synth_func, synth_return, synth_call, specialize_type_node from "rules/fn.a"
-import synth_lit_int, synth_lit_float, synth_lit_bool, synth_lit_str from "rules/lit.a"
+import synth_lit_int, synth_lit_float, synth_lit_bool, synth_lit_str, synth_lit_char, synth_lit_cstr from "rules/lit.a"
 import synth_ident, synth_var_or_binding, synth_arg from "rules/var.a"
 import synth_unary_num, validate_unary_num, synth_unary_not, synth_unary_addr_of, synth_unary_deref,
        synth_binary, synth_assign, synth_binary_comp, validate_binary_comp,
@@ -34,6 +34,8 @@ synth_node :: (eng &Engine, id u32) {
     if curr == k.lit_float      { synth_lit_float(db, tbl, id) }
     if (curr == k.lit_bool_true) or (curr == k.lit_bool_false) { synth_lit_bool(db, tbl, id) }
     if curr == k.lit_str        { synth_lit_str(db, tbl, id) }
+    if curr == k.lit_char       { synth_lit_char(db, tbl, id) }
+    if curr == k.lit_cstr       { synth_lit_cstr(db, tbl, id) }
 
     if (curr == k.unary_neg) or (curr == k.unary_bit_not) {
         synth_unary_num(db, tbl, id)

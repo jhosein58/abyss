@@ -32,6 +32,26 @@ parse_str :: (p &Parser) u32 {
     set_span(p, node, sp)
 }
 
+parse_char :: (p &Parser) u32 {
+    k := hir_kind()
+    sp := curr_span(p)
+    raw := curr_text(p)
+    bump(p)
+    name_id := p.db.interner.intern(raw)
+    node := ((*p).hir).push(k.lit_char, name_id, hir_none(), hir_none())
+    set_span(p, node, sp)
+}
+
+parse_cstr :: (p &Parser) u32 {
+    k := hir_kind()
+    sp := curr_span(p)
+    raw := curr_text(p)
+    bump(p)
+    name_id := p.db.interner.intern(raw)
+    node := ((*p).hir).push(k.lit_cstr, name_id, hir_none(), hir_none())
+    set_span(p, node, sp)
+}
+
 parse_true :: (p &Parser) u32 {
     k := hir_kind()
     sp := curr_span(p)

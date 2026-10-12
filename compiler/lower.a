@@ -697,6 +697,16 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
         raw := db.interner.get(name_id)
         ret ccg.expr_str_lit(arena, raw)
     }
+    if kind == k.lit_char {
+        name_id := (&(*db).hir).lhs(id)
+        raw := db.interner.get(name_id)
+        ret ccg.expr_char_lit(arena, raw)
+    }
+    if kind == k.lit_cstr {
+        name_id := (&(*db).hir).lhs(id)
+        raw := db.interner.get(name_id)
+        ret ccg.expr_cstr_lit(arena, raw)
+    }
 
     if kind == k.unary_neg {
         child_v := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)

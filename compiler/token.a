@@ -78,6 +78,7 @@ TokenType :: struct {
     c_brace       : u8,
     o_bracket     : u8,
     c_bracket     : u8,
+    lit_cstr      : u8
 }
 
 token :: () TokenType {
@@ -154,7 +155,8 @@ token :: () TokenType {
         o_bracket     : 60,
         c_bracket     : 61,
         kw_enum       : 62,
-        at            : 63
+        at            : 63,
+        lit_cstr      : 64
     }
 }
 
@@ -167,6 +169,7 @@ token_name :: (tk u8) Str {
     if tk == t.lit_float   { ret Str.of("lit_float") }
     if tk == t.lit_str     { ret Str.of("lit_str")   }
     if tk == t.lit_char    { ret Str.of("lit_char")  }
+    if tk == t.lit_cstr    { ret Str.of("lit_cstr")  }
 
     if tk == t.kw_ret      { ret Str.of("kw_ret")    }
     if tk == t.kw_if       { ret Str.of("kw_if")     }

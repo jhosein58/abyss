@@ -26,3 +26,18 @@ synth_lit_str :: (db &Nexus, tbl &HirTable, id u32) {
     ptr_ty := (&(*db).types).alloc_ptr(u8_ty)
     (&(*db).unify).bind_type(&(*db).types, slot, ptr_ty)
 }
+
+synth_lit_char :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    u8_ty := (&(*db).types).alloc_uint(8 as u16)
+    (&(*db).unify).bind_type(&(*db).types, slot, u8_ty)
+    db.set_const_type(id, u8_ty)
+}
+
+synth_lit_cstr :: (db &Nexus, tbl &HirTable, id u32) {
+    slot := (&(*db).unify).new_slot(id)
+    u8_ty := (&(*db).types).alloc_uint(8 as u16)
+    ptr_ty := (&(*db).types).alloc_ptr(u8_ty)
+    (&(*db).unify).bind_type(&(*db).types, slot, ptr_ty)
+    db.set_const_type(id, ptr_ty)
+}

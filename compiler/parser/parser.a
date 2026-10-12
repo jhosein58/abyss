@@ -6,7 +6,7 @@ import span_merge from "../nexus/nexus.a"
 import id_none from "../nexus/pool.a"
 
 import span_of_hir, set_span, is_dot_continuation from "handlers/common.a"
-import parse_lit_int, parse_float, parse_str, parse_true, parse_false from "handlers/lit.a"
+import parse_lit_int, parse_float, parse_str, parse_char, parse_cstr, parse_true, parse_false from "handlers/lit.a"
 import parse_ident from "handlers/ident.a"
 import parse_if, parse_while, parse_block, parse_return, parse_break, parse_cont from "handlers/control.a"
 import parse_unary, parse_binary, parse_assign from "handlers/op.a"
@@ -53,6 +53,8 @@ dispatch_prefix :: (p &Parser) u32 {
     if tk == t.lit_int    { ret parse_lit_int(p) }
     if tk == t.lit_float  { ret parse_float(p) }
     if tk == t.lit_str    { ret parse_str(p) }
+    if tk == t.lit_char   { ret parse_char(p) }
+    if tk == t.lit_cstr   { ret parse_cstr(p) }
     if tk == t.kw_true    { ret parse_true(p) }
     if tk == t.kw_false   { ret parse_false(p) }
 

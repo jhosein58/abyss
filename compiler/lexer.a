@@ -202,20 +202,58 @@ scan_string :: (l &Lexer, stream &TokenStream) {
     (*l).had_newline = false
 }
 
+scan_c_string :: (l &Lexer, stream &TokenStream) {
+    offset := (*l).cursor
+    bump(l)
+    bump(l)
+
+    while (not is_eof(l)) and current(l) != 34 {
+        if is_newline(current(l)) {
+            lexer_error(l, "newline in string literal", offset)
+        }
+        if current(l) == 92 {
+            bump(l)
+            if is_eof(l) or (not valid_escape(l)) {
+                lexer_error(l, "invalid string escape", offset)
+            }
+        }
+        bump(l)
+    }
+
+    if is_eof(l) {
+        lexer_error(l, "unterminated string", offset)
+    }
+    bump(l)
+
+    len := ((*l).cursor - offset) as u32
+    text := Str.new((*l).source.ptr + offset, len as u64)
+    stream.push(token().lit_cstr, offset as u32, len, text, (*l).had_newline)
+    (*l).had_newline = false
+}
+
 scan_char :: (l &Lexer, stream &TokenStream) {
     offset := (*l).cursor
-    bump(l) -- '\''
+    bump(l)
 
-    if current(l) == 92 { -- '\\'
+    if current(l) == 92 {
         bump(l)
         if is_eof(l) or (not valid_escape(l)) {
             lexer_error(l, "invalid character escape", offset)
         }
+        if current(l) == 120 {
+            bump(l)
+            while is_hex_digit(current(l)) {
+                bump(l)
+            }
+        } else {
+            bump(l)
+        }
+    } else {
+        if is_eof(l) or (current(l) == 39) {
+            lexer_error(l, "invalid character literal", offset)
+        }
+        bump(l)
     }
-    if is_eof(l) or (current(l) == 39) {
-        lexer_error(l, "invalid character literal", offset)
-    }
-    bump(l)
 
     if current(l) != 39 {
         lexer_error(l, "unterminated or oversized character literal", offset)
@@ -393,12 +431,17 @@ lex :: (stream &TokenStream, source Str, path Str) {
             cont
         }
 
-        if c == 34 { -- '"'
+        if c == 99 and peek(&lexer) == 34 {
+            scan_c_string(&lexer, stream)
+            cont
+        }
+
+        if c == 34 {
             scan_string(&lexer, stream)
             cont
         }
 
-        if c == 39 { -- '\''
+        if c == 39 {
             scan_char(&lexer, stream)
             cont
         }

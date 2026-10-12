@@ -84,7 +84,8 @@ HirExprKind :: struct {
     error                 : u8,
     marker_fn_start       : u8,
     builtin_call          : u8,
-    enum_                 : u8
+    enum_                 : u8,
+    lit_cstr              : u8
 }
 
 hir_kind :: () HirExprKind {
@@ -160,7 +161,8 @@ hir_kind :: () HirExprKind {
         error                 : 62,
         marker_fn_start       : 63,
         builtin_call          : 64,
-        enum_                 : 65
+        enum_                 : 65,
+        lit_cstr              : 66
     }
 }
 
@@ -174,6 +176,7 @@ hir_kind_name :: (kind u8) Str {
     if kind == k.lit_bool_false        { ret Str.of("LitBoolFalse")  }
     if kind == k.lit_str               { ret Str.of("LitStr")        }
     if kind == k.lit_char              { ret Str.of("LitChar")       }
+    if kind == k.lit_cstr              { ret Str.of("LitCStr")       }
     if kind == k.ident                 { ret Str.of("Ident")         }
 
     if kind == k.binary_assign         { ret Str.of("=")             }
