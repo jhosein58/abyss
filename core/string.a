@@ -24,10 +24,14 @@ Str :: struct {
         }
     }
 
-    of :: (s &u8) Self {
+    of :: (s &u8 | Str) Self {
+        if @is(s, Str) {
+            ret s as Str
+        }
+        raw := s as &u8
         .{
-            ptr: s,
-            len: str_len(s)
+            ptr: raw,
+            len: str_len(raw)
         }
     }
 
@@ -42,7 +46,7 @@ Str :: struct {
 
     println :: (s Str) {
         s.print()
-        print_char(*"\n")
+        print_char('\n')
     }
 
     sub :: (start u64, len u64) Str {

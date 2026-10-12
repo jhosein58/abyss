@@ -16,12 +16,12 @@ SEEK_SET :: () i32 { 0 }
 SEEK_END :: () i32 { 2 }
 
 read_file :: (a &Arena, path &u8) Str {
-    file_handle := file_open(path, "rb")
+    file_handle := file_open(path, c"rb")
 
     if file_handle == (0 as &u8) {
-        print("\n\033[1;31merror:\033[0m cannot open file '")
+        print(c"\n\033[1;31merror:\033[0m cannot open file '")
         print(path)
-        print("': file not found or permission denied\n")
+        print(c"': file not found or permission denied\n")
         fall()
     }
 
@@ -29,9 +29,9 @@ read_file :: (a &Arena, path &u8) Str {
     raw_size := file_tell(file_handle)
 
     if raw_size < 0 {
-        print("\n\033[1;31merror:\033[0m failed to determine size of file '")
+        print(c"\n\033[1;31merror:\033[0m failed to determine size of file '")
         print(path)
-        print("'\n")
+        print(c"'\n")
         file_close(file_handle)
         fall()
     }
@@ -41,9 +41,9 @@ read_file :: (a &Arena, path &u8) Str {
 
     buf := a.alloc(file_size + 1)
     if buf == (0 as &u8) {
-        print("\n\033[1;31merror:\033[0m out of memory allocating buffer for '")
+        print(c"\n\033[1;31merror:\033[0m out of memory allocating buffer for '")
         print(path)
-        print("'\n")
+        print(c"'\n")
         file_close(file_handle)
         fall()
     }
@@ -60,12 +60,12 @@ read_file :: (a &Arena, path &u8) Str {
 }
 
 write_file :: (path &u8, content Str) bool {
-    file_handle := file_open(path, "wb")
+    file_handle := file_open(path, c"wb")
 
     if file_handle == (0 as &u8) {
-        print("\n\033[1;31merror:\033[0m failed to open file for writing: '")
+        print(c"\n\033[1;31merror:\033[0m failed to open file for writing: '")
         print(path)
-        print("'\n")
+        print(c"'\n")
         fall()
     }
 
@@ -73,9 +73,9 @@ write_file :: (path &u8, content Str) bool {
     file_close(file_handle)
 
     if written != content.len {
-        print("\n\033[1;31merror:\033[0m incomplete write to file '")
+        print(c"\n\033[1;31merror:\033[0m incomplete write to file '")
         print(path)
-        print("'\n")
+        print(c"'\n")
         fall()
     }
 
@@ -83,12 +83,12 @@ write_file :: (path &u8, content Str) bool {
 }
 
 append_file :: (path &u8, content Str) bool {
-    file_handle := file_open(path, "ab")
+    file_handle := file_open(path, c"ab")
 
     if file_handle == (0 as &u8) {
-        print("\n\033[1;31merror:\033[0m failed to open file for appending: '")
+        print(c"\n\033[1;31merror:\033[0m failed to open file for appending: '")
         print(path)
-        print("'\n")
+        print(c"'\n")
         fall()
     }
 
@@ -96,9 +96,9 @@ append_file :: (path &u8, content Str) bool {
     file_close(file_handle)
 
     if written != content.len {
-        print("\n\033[1;31merror:\033[0m incomplete append to file '")
+        print(c"\n\033[1;31merror:\033[0m incomplete append to file '")
         print(path)
-        print("'\n")
+        print(c"'\n")
         fall()
     }
 

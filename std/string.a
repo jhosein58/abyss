@@ -34,7 +34,7 @@ String :: struct {
 
     push_u32 :: (val u32) {
         if val == 0 {
-            .push_char(*"0") 
+            .push_char('0') 
             ret
         }
 
