@@ -106,4 +106,5 @@ echo "Artifacts: ${WORK_DIR}"
 [[ ${FAILED} -eq 0 ]]
 if [[ -z "${FILTER}" ]]; then
     bash "${ROOT_DIR}/scripts/test_standalone.sh" "${COMPILER}"
+    bash "${ROOT_DIR}/scripts/test_cli_embedding.sh" "${COMPILER}"
 fi

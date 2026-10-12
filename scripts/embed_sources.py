@@ -17,5 +17,5 @@ destination = root / 'compiler/embedded.a'
 if '--check' in sys.argv:
     if not destination.exists() or destination.read_text() != content:
         raise SystemExit('Embedded sources are stale; run python3 scripts/embed_sources.py')
-else:
+elif not destination.exists() or destination.read_text() != content:
     destination.write_text(content)

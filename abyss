@@ -9,8 +9,21 @@ export ABYSS_OUT="${ROOT_DIR}/tmp/out.c"
 CMD="${1:-help}"
 shift || true
 
+prepare_compiler() {
+    python3 "${ROOT_DIR}/scripts/embed_sources.py"
+    if [[ "${ROOT_DIR}/compiler/embedded.a" -nt "${ROOT_DIR}/abyssc" ]]; then
+        BUILD_DIR=$(mktemp -d "${ROOT_DIR}/tmp/embed_build.XXXXXX")
+        "${ROOT_DIR}/abyssc" "${ROOT_DIR}/main.a" "${BUILD_DIR}/stage1.c"
+        gcc -std=c99 -D_POSIX_C_SOURCE=200809L -O2 "${BUILD_DIR}/stage1.c" -o "${BUILD_DIR}/stage1"
+        "${BUILD_DIR}/stage1" "${ROOT_DIR}/main.a" "${BUILD_DIR}/stage2.c"
+        gcc -std=c99 -D_POSIX_C_SOURCE=200809L -O2 "${BUILD_DIR}/stage2.c" -o "${BUILD_DIR}/abyssc"
+        mv "${BUILD_DIR}/abyssc" "${ROOT_DIR}/abyssc"
+    fi
+}
+
 case "${CMD}" in
     r)
+        prepare_compiler
         TARGET="${1:-}"
         if [ -n "${TARGET}" ]; then
             "${ROOT_DIR}/abyssc" "${TARGET}" "${ROOT_DIR}/tmp/out.c"
@@ -21,6 +34,7 @@ case "${CMD}" in
         "${ROOT_DIR}/tmp/out"
         ;;
     b)
+        prepare_compiler
         TARGET="${1:-}"
         if [ -n "${TARGET}" ]; then
             "${ROOT_DIR}/abyssc" "${TARGET}" "${ROOT_DIR}/tmp/out.c"
@@ -30,6 +44,7 @@ case "${CMD}" in
         gcc -O3 -march=native -mtune=native -fomit-frame-pointer -funroll-loops "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/tmp/out"
         ;;
     br)
+        prepare_compiler
         TARGET="${1:-}"
         if [ -n "${TARGET}" ]; then
             "${ROOT_DIR}/abyssc" "${TARGET}" "${ROOT_DIR}/tmp/out.c"
