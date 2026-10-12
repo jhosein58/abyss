@@ -1022,7 +1022,7 @@ TypeStorage :: struct {
 
     print_type :: (id u32) {
         if id == ty_id_none() {
-            print("None")
+            print(c"None")
             ret
         }
 
@@ -1030,18 +1030,18 @@ TypeStorage :: struct {
         kind := .kind(id)
         payload := .payload(id)
 
-        if kind == k.unknown       { print("Unknown")   ret }
-        if kind == k.infer         { print("Infer(") print_u32(payload) print(")") ret }
-        if kind == k.untyped_int   { print("UtInt")     ret }
-        if kind == k.untyped_float { print("UtFloat")   ret }
-        if kind == k.int           { print("i") print_u32(payload) ret }
-        if kind == k.uint          { print("u") print_u32(payload) ret }
-        if kind == k.float         { print("f") print_u32(payload) ret }
-        if kind == k.bool          { print("bool")      ret }
-        if kind == k.type_         { print("Type")      ret }
-        if kind == k.unit          { print("unit")      ret }
-        if kind == k.never         { print("!")         ret }
-        if kind == k.error         { print("Err!")      ret }
+        if kind == k.unknown       { print(c"Unknown")   ret }
+        if kind == k.infer         { print(c"Infer(") print_u32(payload) print(c")") ret }
+        if kind == k.untyped_int   { print(c"UtInt")     ret }
+        if kind == k.untyped_float { print(c"UtFloat")   ret }
+        if kind == k.int           { print(c"i") print_u32(payload) ret }
+        if kind == k.uint          { print(c"u") print_u32(payload) ret }
+        if kind == k.float         { print(c"f") print_u32(payload) ret }
+        if kind == k.bool          { print(c"bool")      ret }
+        if kind == k.type_         { print(c"Type")      ret }
+        if kind == k.unit          { print(c"unit")      ret }
+        if kind == k.never         { print(c"!")         ret }
+        if kind == k.error         { print(c"Err!")      ret }
         if kind == k.nominal {
             idx := payload as u64
             name_idx := .store.extra.get(idx + 1)
@@ -1059,45 +1059,45 @@ TypeStorage :: struct {
             i: u64 = 0
             while i < members.len {
                 .print_type(*(members.ptr + i))
-                if (i + 1) < members.len { print(" | ") }
+                if (i + 1) < members.len { print(c" | ") }
                 i = i + 1
             }
             ret
         }
 
         if kind == k.ptr {
-            print("&")
+            print(c"&")
             .print_type(payload)
             ret
         }
 
         if kind == k.array {
-            print("[")
+            print(c"[")
             .print_type(.get_array_type(id))
-            print("; ")
+            print(c"; ")
             print_u32(.get_array_len(id))
-            print("]")
+            print(c"]")
             ret
         }
 
         if kind == k.func {
-            print("fn(")
+            print(c"fn(")
             params := .func_params(id)
             i: u64 = 0
             while i < params.len {
                 .print_type(*(params.ptr + i))
-                if i + 1 < params.len { print(", ") }
+                if i + 1 < params.len { print(c", ") }
                 i = i + 1
             }
-            print(") ")
+            print(c") ")
             .print_type(.func_return(id))
             ret
         }
 
         if kind == k.struct_ {
-            print("struct { count: ")
+            print(c"struct { count: ")
             print_u32(.get_struct_fields_len(id))
-            print(" }")
+            print(c" }")
             ret
         }
 

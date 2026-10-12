@@ -11,18 +11,18 @@ topo_dfs :: (db &Nexus, types &TypeStorage, sorted &VecU32, states &VecU8, ty_id
     if (ty_id as u64) >= (*states).len { ret }
     st := states.get(ty_id as u64)
     if st == (1 as u8) {
-        print("\n[type error] recursive value type has infinite size: '")
+        print(c"\n[type error] recursive value type has infinite size: '")
         (&(*types)).print_type(ty_id)
-        print("'; use a pointer for the recursive field\n")
+        print(c"'; use a pointer for the recursive field\n")
         if (&(*types)).kind(ty_id) == ty_kind().nominal {
             origin := (&(*types)).nominal_origin(ty_id)
             node := origin
             if (origin & 2147483648) != 0 {
                 node = (&(*types)).get_nominal_struct_node(origin)
             }
-            print("       --> ")
+            print(c"       --> ")
             db.print_loc(node)
-            print("\n")
+            print(c"\n")
         }
         fall()
     }

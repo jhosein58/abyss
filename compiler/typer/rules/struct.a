@@ -40,9 +40,9 @@ synth_struct :: (eng &Engine, id u32) {
             ty_val = synth_type_node(eng, type_node)
         }
         if ty_val == ty_id_none() {
-            print("\n\033[1;31m[type error]\033[0m struct field requires a resolved type\n       --> ")
+            print(c"\n\033[1;31m[type error]\033[0m struct field requires a resolved type\n       --> ")
             db.print_loc(type_node)
-            print("\n")
+            print(c"\n")
             fall()
         }
 
@@ -82,9 +82,9 @@ synth_struct :: (eng &Engine, id u32) {
     methods_id := (tbl).extra(id)
     if methods_id != hir_none() {
         if sym_id == id_none() {
-            print("\n\033[1;31m[type error]\033[0m methods require a named struct binding\n       --> ")
+            print(c"\n\033[1;31m[type error]\033[0m methods require a named struct binding\n       --> ")
             db.print_loc(id)
-            print("\n")
+            print(c"\n")
             fall()
         }
         methods := db.get_list(methods_id)
@@ -160,18 +160,18 @@ synth_member :: (eng &Engine, id u32) {
     if lhs_id == hir_none() {
         owner := db.get_method_owner(id)
         if owner == hir_none() {
-            print("\n\033[1;31m[type error]\033[0m implicit field access outside a method\n       --> ")
+            print(c"\n\033[1;31m[type error]\033[0m implicit field access outside a method\n       --> ")
             db.print_loc(id)
-            print("\n")
+            print(c"\n")
             fall()
         }
         lhs_ty = db.get_const_type(owner)
     } else {
         lhs_slot := (unify_ptr).get_slot(lhs_id)
         if lhs_slot == slot_none() {
-            print("\n\033[1;31m[type error]\033[0m cannot resolve member receiver\n       --> ")
+            print(c"\n\033[1;31m[type error]\033[0m cannot resolve member receiver\n       --> ")
             db.print_loc(lhs_id)
-            print("\n")
+            print(c"\n")
             fall()
         }
         lhs_ty = (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
@@ -187,11 +187,11 @@ synth_member :: (eng &Engine, id u32) {
 
     kind := (&(*types_ptr)).kind(lhs_ty)
     if (kind != ty_kind().struct_) and (kind != ty_kind().nominal) and (kind != ty_kind().enum_) {
-        print("\n\033[1;31m[type error]\033[0m member receiver must be a struct or enum, got '")
+        print(c"\n\033[1;31m[type error]\033[0m member receiver must be a struct or enum, got '")
         (&(*types_ptr)).print_type(lhs_ty)
-        print("'\n       --> ")
+        print(c"'\n       --> ")
         db.print_loc(id)
-        print("\n")
+        print(c"\n")
         fall()
     }
 
@@ -251,15 +251,15 @@ synth_member :: (eng &Engine, id u32) {
                 if method_name == name_id {
                     receiver := method_has_receiver(db, method)
                     if is_type and receiver {
-                        print("\n\033[1;31m[type error]\033[0m instance method requires a value; call it on an instance\n       --> ")
+                        print(c"\n\033[1;31m[type error]\033[0m instance method requires a value; call it on an instance\n       --> ")
                         db.print_loc(id)
-                        print("\n")
+                        print(c"\n")
                         fall()
                     }
                     if (lhs_id != hir_none()) and (not is_type) and (not receiver) {
-                        print("\n\033[1;31m[type error]\033[0m static method requires the type\n       --> ")
+                        print(c"\n\033[1;31m[type error]\033[0m static method requires the type\n       --> ")
                         db.print_loc(id)
-                        print("\n")
+                        print(c"\n")
                         fall()
                     }
                     creator_sym := (&(*types_ptr)).get_nominal_creator_sym(origin)
@@ -349,9 +349,9 @@ synth_member :: (eng &Engine, id u32) {
                                 m_ty_node := (tbl).rhs(m_arg)
                                 if synth_type_node(eng, m_ty_node) == ty_id_type() {
                                     if runtime_seen {
-                                        print("\n[type error] generic type parameters must precede runtime parameters\n       --> ")
+                                        print(c"\n[type error] generic type parameters must precede runtime parameters\n       --> ")
                                         db.print_loc(m_arg)
-                                        print("\n")
+                                        print(c"\n")
                                         fall()
                                     }
                                     m_ident := (tbl).lhs(m_arg)
@@ -420,12 +420,12 @@ synth_member :: (eng &Engine, id u32) {
         }
     }
 
-    print("\n\033[1;31m[type error]\033[0m type '")
+    print(c"\n\033[1;31m[type error]\033[0m type '")
     (&(*types_ptr)).print_type(lhs_ty)
-    print("' has no field or method named '")
+    print(c"' has no field or method named '")
     db.interner.get(name_id).print()
-    print("'\n       --> ")
+    print(c"'\n       --> ")
     db.print_loc(id)
-    print("\n")
+    print(c"\n")
     fall()
 }

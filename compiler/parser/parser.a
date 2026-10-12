@@ -74,7 +74,7 @@ dispatch_prefix :: (p &Parser) u32 {
     if (tk == t.dot) and (peek_n(p, 1) == t.o_brace) { ret parse_struct_init(p) }
     if tk == t.dot {
         if not (*p).inside_method {
-            parse_error_at(p, "implicit field access is only valid inside a struct method", curr_span(p))
+            parse_error_at(p, c"implicit field access is only valid inside a struct method", curr_span(p))
         }
         sp_start := curr_span(p)
         bump(p)
@@ -88,7 +88,7 @@ dispatch_prefix :: (p &Parser) u32 {
         ret parse_unary(p, tk)
     }
 
-    parse_error_at(p, "unexpected token in expression", curr_span(p))
+    parse_error_at(p, c"unexpected token in expression", curr_span(p))
     hir_none()
 }
 

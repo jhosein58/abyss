@@ -262,7 +262,7 @@ CCodeGen :: struct {
             fn_ty   := *(s_fields.ptr + (f_i * 2) + 1)
             fn_ty_str := .type_str(types, arena, fn_ty)
 
-            fmt.cstr("    ").str(fn_ty_str).cstr(" _f").uint32(fn_name).cstr(";\n")
+            fmt.cstr(c"    ").str(fn_ty_str).cstr(c" _f").uint32(fn_name).cstr(c";\n")
             f_i = f_i + 1
         }
 
@@ -286,13 +286,13 @@ CCodeGen :: struct {
         params := (&(*types)).func_params(ty_id)
         params_fmt := Fmt.new(arena)
         if params.len == 0 {
-            params_fmt.cstr("void")
+            params_fmt.cstr(c"void")
         } else {
             p_i: u64 = 0
             while p_i < params.len {
                 p_ty := *(params.ptr + p_i)
                 p_str := .type_str(types, arena, p_ty)
-                if p_i > 0 { params_fmt.cstr(", ") }
+                if p_i > 0 { params_fmt.cstr(c", ") }
                 params_fmt.str(p_str)
                 p_i = p_i + 1
             }
@@ -343,15 +343,15 @@ CCodeGen :: struct {
 
         members := (&(*types)).union_members(ty_id)
         fmt := Fmt.new(arena)
-        fmt.cstr("    uint32_t tag;\n    union {\n")
+        fmt.cstr(c"    uint32_t tag;\n    union {\n")
         m_i: u64 = 0
         while m_i < members.len {
             m_ty := *(members.ptr + m_i)
             m_str := .type_str(types, arena, m_ty)
-            fmt.cstr("        ").str(m_str).cstr(" _v").uint32(m_i as u32).cstr(";\n")
+            fmt.cstr(c"        ").str(m_str).cstr(c" _v").uint32(m_i as u32).cstr(c";\n")
             m_i = m_i + 1
         }
-        fmt.cstr("    } val;\n")
+        fmt.cstr(c"    } val;\n")
 
         vec_push_str(&.struct_defs, Str.of("struct "))
         vec_push_str(&.struct_defs, u_name)
@@ -387,7 +387,7 @@ CCodeGen :: struct {
     type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
         .indent
         if ty_id == ty_id_none() {
-            print("\n[codegen error] missing type\n")
+            print(c"\n[codegen error] missing type\n")
             fall()
         }
         k := ty_kind()
@@ -403,7 +403,7 @@ CCodeGen :: struct {
             if payload == 32  { ret Str.of("int32_t") }
             if payload == 64  { ret Str.of("int64_t") }
             if payload == 128 { ret Str.of("__int128") }
-            print("\n[codegen error] unsupported integer width\n")
+            print(c"\n[codegen error] unsupported integer width\n")
             fall()
             ret Str.empty()
         }
@@ -414,7 +414,7 @@ CCodeGen :: struct {
             if payload == 32  { ret Str.of("uint32_t") }
             if payload == 64  { ret Str.of("uint64_t") }
             if payload == 128 { ret Str.of("unsigned __int128") }
-            print("\n[codegen error] unsupported integer width\n")
+            print(c"\n[codegen error] unsupported integer width\n")
             fall()
             ret Str.empty()
         }
@@ -422,7 +422,7 @@ CCodeGen :: struct {
         if kind == k.float {
             if payload == 32 { ret Str.of("float") }
             if payload == 64 { ret Str.of("double") }
-            print("\n[codegen error] unsupported float width\n")
+            print(c"\n[codegen error] unsupported float width\n")
             fall()
             ret Str.empty()
         }
@@ -434,7 +434,7 @@ CCodeGen :: struct {
             inner_ty := (&(*types)).payload(ty_id)
             inner_str := .type_str(types, arena, inner_ty)
             fmt := Fmt.new(arena)
-            fmt.str(inner_str).cstr("*")
+            fmt.str(inner_str).cstr(c"*")
             ret fmt.as_str()
         }
 
@@ -443,11 +443,11 @@ CCodeGen :: struct {
         }
 
         if (kind == k.infer) or (kind == k.unknown) or (kind == k.error) {
-            print("\n[codegen error] unresolved type\n")
+            print(c"\n[codegen error] unresolved type\n")
             fall()
         }
 
-        print("\n[codegen error] unsupported type\n")
+        print(c"\n[codegen error] unsupported type\n")
         fall()
         Str.empty()
     }
@@ -480,10 +480,14 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
-    expr_str_lit :: (arena &Arena, raw Str) Str {
+    expr_str_lit :: (arena &Arena, struct_name Str, ptr_id u32, len_id u32, raw Str) Str {
         .indent
         fmt := Fmt.new(arena)
-        fmt.wrap(Str.of("((uint8_t*)"), raw, Str.of(")"))
+        if struct_name.len == 0 {
+            fmt.wrap(Str.of("((uint8_t*)"), raw, Str.of(")"))
+            ret fmt.as_str()
+        }
+        fmt.cstr(c"((").str(struct_name).cstr(c"){._f").uint32(ptr_id).cstr(c" = ((uint8_t*)").str(raw).cstr(c"), ._f").uint32(len_id).cstr(c" = (sizeof(").str(raw).cstr(c") - 1)})")
         fmt.as_str()
     }
 
@@ -516,7 +520,7 @@ CCodeGen :: struct {
     expr_assign :: (arena &Arena, lhs Str, rhs Str) Str {
         .indent
         fmt := Fmt.new(arena)
-        fmt.str(lhs).cstr(" = ").str(rhs)
+        fmt.str(lhs).cstr(c" = ").str(rhs)
         fmt.as_str()
     }
 
@@ -530,14 +534,21 @@ CCodeGen :: struct {
     expr_unary :: (arena &Arena, op Str, inner Str) Str {
         .indent
         fmt := Fmt.new(arena)
-        fmt.char(40 as u8).str(op).char(40 as u8).str(inner).cstr("))")
+        fmt.char(40 as u8).str(op).char(40 as u8).str(inner).cstr(c"))")
+        fmt.as_str()
+    }
+
+    expr_str_deref :: (arena &Arena, inner Str, ptr_id u32) Str {
+        .indent
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"(*(").str(inner).cstr(c"._f").uint32(ptr_id).cstr(c"))")
         fmt.as_str()
     }
 
     expr_cast :: (arena &Arena, ty_str Str, inner Str) Str {
         .indent
         fmt := Fmt.new(arena)
-        fmt.cstr("((").str(ty_str).cstr(")").str(inner).char(41 as u8)
+        fmt.cstr(c"((").str(ty_str).cstr(c")").str(inner).char(41 as u8)
         fmt.as_str()
     }
 
@@ -551,7 +562,7 @@ CCodeGen :: struct {
     expr_self_member :: (arena &Arena, field_id u32) Str {
         .indent
         fmt := Fmt.new(arena)
-        fmt.cstr("(_self->_f").uint32(field_id).char(41 as u8)
+        fmt.cstr(c"(_self->_f").uint32(field_id).char(41 as u8)
         fmt.as_str()
     }
 
@@ -561,7 +572,7 @@ CCodeGen :: struct {
         fmt.char(40 as u8)
         d := depth
         while d > 0 {
-            fmt.cstr("*(")
+            fmt.cstr(c"*(")
             d = d - 1
         }
         fmt.str(lhs)
@@ -570,7 +581,7 @@ CCodeGen :: struct {
             fmt.char(41 as u8)
             d = d - 1
         }
-        fmt.cstr(")._f").uint32(field_id)
+        fmt.cstr(c")._f").uint32(field_id)
         fmt.as_str()
     }
 
@@ -580,14 +591,14 @@ CCodeGen :: struct {
         if depth > 0 {
             d := depth
             while d > 1 {
-                fmt.cstr("*")
+                fmt.cstr(c"*")
                 d = d - 1
             }
             fmt.char(40 as u8).str(recv_str).char(41 as u8)
         } else if is_lval {
-            fmt.cstr("&(").str(recv_str).char(41 as u8)
+            fmt.cstr(c"&(").str(recv_str).char(41 as u8)
         } else {
-            fmt.cstr("&((").str(ty_str).cstr("[]){").str(recv_str).cstr("})[0]")
+            fmt.cstr(c"&((").str(ty_str).cstr(c"[]){").str(recv_str).cstr(c"})[0]")
         }
         fmt.as_str()
     }
@@ -595,14 +606,14 @@ CCodeGen :: struct {
     expr_struct_init_field :: (arena &Arena, field_id u32, val_str Str) Str {
         .indent
         fmt := Fmt.new(arena)
-        fmt.cstr("._f").uint32(field_id).cstr(" = ").str(val_str)
+        fmt.cstr(c"._f").uint32(field_id).cstr(c" = ").str(val_str)
         fmt.as_str()
     }
 
     expr_struct_init :: (arena &Arena, struct_name Str, fields_body Str) Str {
         .indent
         fmt := Fmt.new(arena)
-        fmt.cstr("((").str(struct_name).cstr("){").str(fields_body).cstr("})")
+        fmt.cstr(c"((").str(struct_name).cstr(c"){").str(fields_body).cstr(c"})")
         fmt.as_str()
     }
 

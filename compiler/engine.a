@@ -62,7 +62,7 @@ Engine :: struct {
 
     parse :: (sym_id u32) {
         if sym_id == id_none() {
-            print("\n[syntax error] symbol not found\n")
+            print(c"\n[syntax error] symbol not found\n")
             fall()
         }
 
@@ -85,7 +85,7 @@ Engine :: struct {
 
         parse_expr(&parser, 0)
         if peek(&parser) != token().eof {
-            parse_error_at(&parser, "unexpected token after declaration", curr_span(&parser))
+            parse_error_at(&parser, c"unexpected token after declaration", curr_span(&parser))
         }
         ScopeEnv_destroy(&parser.env)
         parser.fn_stack.destroy()
@@ -188,15 +188,46 @@ Engine :: struct {
         (&.nexus.unify).resolve_type(slot)
     }
 
+    get_str_type :: () u32 {
+        db := &.nexus
+        if (*db).str_type != ty_id_none() {
+            ret (*db).str_type
+        }
+        if (*db).core_prelude == id_none() {
+            ret ty_id_none()
+        }
+        name_id := (*db).interner.intern(Str.of("Str"))
+        sym_str := (*db).find_symbol((*db).core_prelude, name_id)
+        if sym_str == id_none() {
+            ret ty_id_none()
+        }
+        .ensure_resolved(sym_str)
+        real_sym := sym_str
+        while true {
+            tgt := (*db).sym_target.get(real_sym)
+            if (tgt == id_none()) or (tgt == real_sym) {
+                break
+            }
+            real_sym = tgt
+        }
+        decl_hir := (*db).get_sym_hir(real_sym)
+        if decl_hir != id_none() {
+            str_ty := (*db).get_const_type(decl_hir)
+            (*db).str_type = str_ty
+            ret str_ty
+        }
+        ty_id_none()
+    }
+
     abyss_main :: (sym_id u32) {
         ty := .type_of(sym_id)
         types := &.nexus.types
           if (&(*types)).kind( ty) != ty_kind().func {
-            print("\n[type error] main must be a function\n")
+            print(c"\n[type error] main must be a function\n")
             fall()
         }
           if ((&(*types)).func_params_len( ty) != 0) or (&(*types)).func_is_extern( ty) {
-            print("\n[type error] main must be a defined function with no arguments\n")
+            print(c"\n[type error] main must be a defined function with no arguments\n")
             fall()
         }
         CCodeGen_abyss_main(&.ccg, sym_id)

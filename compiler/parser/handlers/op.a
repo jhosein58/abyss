@@ -56,7 +56,7 @@ parse_binary :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
     if op == t.kw_as       { op_kind = k.cast }
 
     if op_kind == k.empty {
-        parse_error_at(p, "unsupported binary operator", curr_span(p))
+        parse_error_at(p, c"unsupported binary operator", curr_span(p))
     }
 
     node := ((*p).hir).push(op_kind, lhs, rhs, hir_none())

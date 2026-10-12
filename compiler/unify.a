@@ -96,13 +96,13 @@ UnifyStorage :: struct {
     print_error_location :: () {
         if .error_path.len == 0 { ret }
         pos := calc_pos(.error_source, .error_offset)
-        print("       --> ")
+        print(c"       --> ")
         .error_path.print()
-        print(":")
+        print(c":")
         print_u32(pos.line)
-        print(":")
+        print(c":")
         print_u32(pos.col)
-        print("\n")
+        print(c"\n")
     }
 
     type_contains_slot :: (types &TypeStorage, ty u32, target u32, seen &VecU32) bool {
@@ -156,17 +156,17 @@ UnifyStorage :: struct {
     }
 
     type_mismatch :: (types &TypeStorage, expected u32, actual u32) {
-        print("\n\033[1;31m[type error]\033[0m type mismatch: cannot unify '")
+        print(c"\n\033[1;31m[type error]\033[0m type mismatch: cannot unify '")
           (&(*types)).print_type( expected)
-        print("' with '")
+        print(c"' with '")
           (&(*types)).print_type( actual)
-        print("'\n")
+        print(c"'\n")
           if ((&(*types)).kind( expected) == ty_kind().nominal) or
              ((&(*types)).kind( actual) == ty_kind().nominal) {
-            print("       Named structs require the same declaration; only an anonymous struct literal may initialize one.\n")
+            print(c"       Named structs require the same declaration; only an anonymous struct literal may initialize one.\n")
         }
         .print_error_location()
-        print("\n")
+        print(c"\n")
         fall()
     }
 
@@ -252,7 +252,7 @@ UnifyStorage :: struct {
         recursive := .type_contains_slot(types, ty, root, &seen)
         seen.destroy()
         if recursive {
-            print("\n[type error] recursive generic inference would create an infinite type\n")
+            print(c"\n[type error] recursive generic inference would create an infinite type\n")
             .print_error_location()
             fall()
         }

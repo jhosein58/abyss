@@ -12,11 +12,11 @@ import embedded_source from "embedded.a"
 print :: (s &u8) unit
 
 index_error :: (path Str, msg &u8) {
-    print("\n[import error] ")
+    print(c"\n[import error] ")
     print(msg)
-    print(" in ")
+    print(c" in ")
     path.print()
-    print("\n")
+    print(c"\n")
     fall()
 }
 
@@ -187,7 +187,7 @@ module_path :: (arena &Arena, base Str, path Str) Str {
         target = path_resolve(arena, base, path)
     }
     if embedded and (not is_embedded_path(target)) {
-        index_error(path, "embedded import escapes library root")
+        index_error(path, c"embedded import escapes library root")
     }
     target
 }
@@ -217,7 +217,7 @@ resolve_and_load_file :: (
     if is_embedded_path(target_path) {
         source = embedded_source(target_path)
         if source.ptr == (0 as &u8) {
-            index_error(target_path, "embedded module not found")
+            index_error(target_path, c"embedded module not found")
         }
     } else {
         source = read_file(arena, target_path.ptr)
@@ -281,7 +281,7 @@ scan_file_symbols :: (
 
             while scan < end_tok {
                 if db.tokens.kind(scan) != t.ident {
-                    index_error(curr_path, "expected import name")
+                    index_error(curr_path, c"expected import name")
                 }
                 name_id := db.interner.intern(db.tokens.text(scan))
                 imported_names.push(name_id)
@@ -290,7 +290,7 @@ scan_file_symbols :: (
                 if (scan < end_tok) and (db.tokens.kind(scan) == t.kw_as) {
                     scan = scan + 1
                     if (scan >= end_tok) or (db.tokens.kind(scan) != t.ident) {
-                        index_error(curr_path, "expected import alias after 'as'")
+                        index_error(curr_path, c"expected import alias after 'as'")
                     }
                     local_id = db.interner.intern(db.tokens.text(scan))
                     scan = scan + 1
@@ -301,16 +301,16 @@ scan_file_symbols :: (
                     break
                 }
                 if (scan >= end_tok) or (db.tokens.kind(scan) != t.comma) {
-                    index_error(curr_path, "expected ',' or 'from' after import name")
+                    index_error(curr_path, c"expected ',' or 'from' after import name")
                 }
                 scan = scan + 1
             }
 
             if (scan >= end_tok) or (imported_names.len == 0) {
-                index_error(curr_path, "expected names, 'from', and a quoted path")
+                index_error(curr_path, c"expected names, 'from', and a quoted path")
             }
             if db.tokens.kind(scan) != t.lit_str {
-                index_error(curr_path, "expected quoted import path")
+                index_error(curr_path, c"expected quoted import path")
             }
             if scan < end_tok {
                 raw_path := db.tokens.text(scan)
@@ -348,7 +348,7 @@ scan_file_symbols :: (
                                (db.tokens.kind(cursor + 3) != t.ident) or
                                (not db.tokens.text(cursor + 4).eq(Str.of("from"))) or
                                (db.tokens.kind(cursor + 5) != t.lit_str) {
-                                index_error(curr_path, "malformed symbol import")
+                                index_error(curr_path, c"malformed symbol import")
                             }
                             if has_sym {
                                 db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
@@ -460,7 +460,7 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
                 if target_sym != id_none() {
                     existing := db.find_local_symbol(src_fid, loc_name)
                     if (existing != id_none()) and (existing != target_sym) {
-                        index_error(db.get_file_path(src_fid), "import name conflicts with an existing symbol")
+                        index_error(db.get_file_path(src_fid), c"import name conflicts with an existing symbol")
                     }
                     if existing == id_none() {
                         db.alloc_symbol_alias(src_fid, loc_name, target_sym)
@@ -478,9 +478,9 @@ index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u
         src_fid := pending_imports.get(p_i)
         if src_fid != id_none() {
             name_id := pending_imports.get(p_i + 2)
-            print("\n[import error] symbol not found: ")
+            print(c"\n[import error] symbol not found: ")
             db.interner.get(name_id).print()
-            print("\n")
+            print(c"\n")
             fall()
         }
         p_i = p_i + 4

@@ -92,15 +92,15 @@ synth_func :: (eng &Engine, id u32) {
             }
 
             if param_ty == ty_id_none() {
-                print("\n[type error] unresolved parameter type\n       --> ")
+                print(c"\n[type error] unresolved parameter type\n       --> ")
                 db.print_loc(arg_id)
-                print("\n")
+                print(c"\n")
                 fall()
             }
             if param_ty == ty_id_unit() {
-                print("\n[type error] unit parameters have no runtime representation\n       --> ")
+                print(c"\n[type error] unit parameters have no runtime representation\n       --> ")
                 db.print_loc(arg_id)
-                print("\n")
+                print(c"\n")
                 fall()
             }
 
@@ -130,9 +130,9 @@ synth_func :: (eng &Engine, id u32) {
             if (param_ty == ty_id_type()) and (params_vec.len > 0) {
                 previous := params_vec.get(params_vec.len - 1)
                 if previous != ty_id_type() {
-                    print("\n[type error] generic type parameters must precede runtime parameters\n       --> ")
+                    print(c"\n[type error] generic type parameters must precede runtime parameters\n       --> ")
                     db.print_loc(arg_id)
-                    print("\n")
+                    print(c"\n")
                     fall()
                 }
             }
@@ -145,9 +145,9 @@ synth_func :: (eng &Engine, id u32) {
     if ret_hir_id != hir_none() {
         val := synth_type_node(eng, ret_hir_id)
         if val == ty_id_none() {
-            print("\n[type error] unresolved return type\n       --> ")
+            print(c"\n[type error] unresolved return type\n       --> ")
             db.print_loc(ret_hir_id)
-            print("\n")
+            print(c"\n")
             fall()
         }
         ret_ty = val
@@ -262,9 +262,9 @@ synth_return :: (db &Nexus, tbl &HirTable, id u32) {
             ret
         }
         if ret_ty != ty_id_unit() {
-            print("\n\033[1;31m[type error]\033[0m return with no value in function returning non-unit\n       --> ")
+            print(c"\n\033[1;31m[type error]\033[0m return with no value in function returning non-unit\n       --> ")
             db.print_loc(id)
-            print("\n")
+            print(c"\n")
             fall()
         }
     }
@@ -318,9 +318,9 @@ specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &
     }
     if func_node == id_none() { ret ty_id_none() }
     if (*db).type_specialization_depth >= 128 {
-        print("\n[type error] generic type specialization exceeded recursion limit\n       --> ")
+        print(c"\n[type error] generic type specialization exceeded recursion limit\n       --> ")
         db.print_loc(func_node)
-        print("\n")
+        print(c"\n")
         fall()
     }
     (*db).type_specialization_depth = (*db).type_specialization_depth + 1
@@ -390,9 +390,9 @@ specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &
             f_ty_node := *(types_nodes.ptr + f_i)
             f_ty := specialize_type_node(eng, f_ty_node, fn_params_slice, concrete_args)
             if (f_ty == ty_id_none()) or (f_ty == ty_id_unit()) or (f_ty == ty_id_type()) {
-                print("\n[type error] generic struct field requires a runtime value type\n       --> ")
+                print(c"\n[type error] generic struct field requires a runtime value type\n       --> ")
                 db.print_loc(f_ty_node)
-                print("\n")
+                print(c"\n")
                 fall()
             }
             fields_vec.push(f_name_id)
@@ -789,20 +789,20 @@ synth_call :: (eng &Engine, id u32) {
     callee_slot := (unify_ptr).get_slot(callee)
 
     if callee_slot == slot_none() {
-        print("\n[type error] cannot resolve call target\n       --> ")
+        print(c"\n[type error] cannot resolve call target\n       --> ")
         db.print_loc(callee)
-        print("\n")
+        print(c"\n")
         fall()
     }
     if callee_slot != slot_none() {
         callee_ty := (unify_ptr).resolve_type_deep(types_ptr, callee_slot)
 
         if (&(*types_ptr)).kind(callee_ty) != ty_kind().func {
-            print("\n\033[1;31m[type error]\033[0m cannot call non-function type '")
+            print(c"\n\033[1;31m[type error]\033[0m cannot call non-function type '")
             (&(*types_ptr)).print_type(callee_ty)
-            print("'\n       --> ")
+            print(c"'\n       --> ")
             db.print_loc(callee)
-            print("\n\n")
+            print(c"\n\n")
             fall()
         }
 
@@ -829,13 +829,13 @@ synth_call :: (eng &Engine, id u32) {
                 omitted_types := (leading_types > 0) and
                     (args_len == params.len - (leading_types as u64))
                 if (args_len != params.len) and (not omitted_types) {
-                    print("\n[type error] type function expected ")
+                    print(c"\n[type error] type function expected ")
                     print_u32(params.len as u32)
-                    print(" arguments, but got ")
+                    print(c" arguments, but got ")
                     print_u32(args_len as u32)
-                    print("\n       --> ")
+                    print(c"\n       --> ")
                     db.print_loc(id)
-                    print("\n")
+                    print(c"\n")
                     fall()
                 }
                 concrete_args := VecU32.new()
@@ -855,16 +855,16 @@ synth_call :: (eng &Engine, id u32) {
                         arg_ty := synth_type_node(eng, arg_node)
                         arg_slot := unify_ptr.get_slot(arg_node)
                         if (arg_ty == ty_id_none()) or (arg_slot == slot_none()) {
-                            print("\n[type error] type function argument must be a type\n       --> ")
+                            print(c"\n[type error] type function argument must be a type\n       --> ")
                             db.print_loc(arg_node)
-                            print("\n")
+                            print(c"\n")
                             fall()
                         }
                         if (unify_ptr.resolve_type(arg_slot) != ty_id_type()) and
                            ((&(*types_ptr)).kind(arg_ty) != ty_kind().infer) {
-                            print("\n[type error] type function argument must be a type\n       --> ")
+                            print(c"\n[type error] type function argument must be a type\n       --> ")
                             db.print_loc(arg_node)
-                            print("\n")
+                            print(c"\n")
                             fall()
                         }
                         concrete_args.push(arg_ty)
@@ -899,9 +899,9 @@ synth_call :: (eng &Engine, id u32) {
                 spec_ty := specialize_nominal_from_creator(eng, callee_sym, &concrete_args)
                 concrete_args.destroy()
                 if spec_ty == ty_id_none() {
-                    print("\n[type error] type function did not produce a type\n       --> ")
+                    print(c"\n[type error] type function did not produce a type\n       --> ")
                     db.print_loc(id)
-                    print("\n")
+                    print(c"\n")
                     fall()
                 }
                 db.set_const_type(id, spec_ty)
@@ -919,15 +919,15 @@ synth_call :: (eng &Engine, id u32) {
 
             if is_generic {
                 if (not is_explicit) and (not is_omitted) {
-                    print("\n\033[1;31m[type error]\033[0m function expected ")
+                    print(c"\n\033[1;31m[type error]\033[0m function expected ")
                     print_u32(params.len as u32)
-                    print(" (or ")
+                    print(c" (or ")
                     print_u32((params.len - (leading_tp as u64)) as u32)
-                    print(") arguments, but got ")
+                    print(c") arguments, but got ")
                     print_u32(args_len as u32)
-                    print("\n       --> ")
+                    print(c"\n       --> ")
                     db.print_loc(id)
-                    print("\n\n")
+                    print(c"\n\n")
                     fall()
                 }
 
@@ -1042,15 +1042,15 @@ synth_call :: (eng &Engine, id u32) {
                             arg_val := db.get_const_type(arg_node)
                             type_slot := unify_ptr.get_slot(arg_node)
                             if (arg_val == ty_id_none()) or (type_slot == slot_none()) {
-                                print("\n[type error] generic type argument must be a type\n       --> ")
+                                print(c"\n[type error] generic type argument must be a type\n       --> ")
                                 db.print_loc(arg_node)
-                                print("\n")
+                                print(c"\n")
                                 fall()
                             }
                             if unify_ptr.resolve_type(type_slot) != ty_id_type() {
-                                print("\n[type error] generic type argument must be a type\n       --> ")
+                                print(c"\n[type error] generic type argument must be a type\n       --> ")
                                 db.print_loc(arg_node)
-                                print("\n")
+                                print(c"\n")
                                 fall()
                             }
                             if arg_val != ty_id_none() {
@@ -1188,22 +1188,22 @@ synth_call :: (eng &Engine, id u32) {
                 }
 
                 if args_len != expected_len {
-                    print("\n\033[1;31m[type error]\033[0m ")
+                    print(c"\n\033[1;31m[type error]\033[0m ")
                     if method != id_none() {
-                        print("method '")
+                        print(c"method '")
                         name_node := (tbl).lhs(method)
                         name_id := (tbl).lhs(name_node)
                         db.interner.get(name_id).print()
-                        print("' expected ")
+                        print(c"' expected ")
                     } else {
-                        print("function expected ")
+                        print(c"function expected ")
                     }
                     print_u32(expected_len as u32)
-                    print(" arguments, but got ")
+                    print(c" arguments, but got ")
                     print_u32(args_len as u32)
-                    print("\n       --> ")
+                    print(c"\n       --> ")
                     db.print_loc(id)
-                    print("\n\n")
+                    print(c"\n\n")
                     fall()
                 }
 
@@ -1223,9 +1223,9 @@ synth_call :: (eng &Engine, id u32) {
                             (&(*db).unify).union(&(*db).types, arg_slot, param_slot)
                         }
                         if arg_slot == slot_none() {
-                            print("\n[type error] cannot resolve argument\n       --> ")
+                            print(c"\n[type error] cannot resolve argument\n       --> ")
                             db.print_loc(arg_node)
-                            print("\n")
+                            print(c"\n")
                             fall()
                         }
                         i = i + 1

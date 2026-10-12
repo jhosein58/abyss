@@ -15,14 +15,14 @@ parse_builtin :: (p &Parser) u32 {
     bump(p)
 
     if peek(p) != t.ident {
-        parse_error_at(p, "expected identifier after '@'", curr_span(p))
+        parse_error_at(p, c"expected identifier after '@'", curr_span(p))
     }
 
     name_node := parse_ident(p)
     name_id := ((*p).hir).lhs(name_node)
 
     if not expect(p, t.o_paren) {
-        parse_error_at(p, "expected '(' after builtin name", curr_span(p))
+        parse_error_at(p, c"expected '(' after builtin name", curr_span(p))
     }
 
     args := VecU32.new()
@@ -30,17 +30,17 @@ parse_builtin :: (p &Parser) u32 {
         while true {
             if peek(p) == t.c_paren { break }
             if is_eof(p) {
-                parse_error_at(p, "unclosed builtin call, expected ')'", sp_start)
+                parse_error_at(p, c"unclosed builtin call, expected ')'", sp_start)
             }
             arg := parse_expr(p, 0 as u8)
             if arg == hir_none() {
-                parse_error_at(p, "expected argument in builtin call", curr_span(p))
+                parse_error_at(p, c"expected argument in builtin call", curr_span(p))
             }
             args.push(arg)
 
             if peek(p) == t.c_paren { break }
             if not expect(p, t.comma) {
-                parse_error_at(p, "expected ',' or ')' after argument", curr_span(p))
+                parse_error_at(p, c"expected ',' or ')' after argument", curr_span(p))
             }
         }
         expect(p, t.c_paren)

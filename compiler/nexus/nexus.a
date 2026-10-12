@@ -104,7 +104,8 @@ Nexus :: struct {
     mono_nom_arg   : VecU32,
     mono_nom_res   : VecU32,
     union_coerce_ty : PoolU32,
-    union_coerce_idx : PoolU32
+    union_coerce_idx : PoolU32,
+    str_type       : u32,
 
     new :: () Self {
         .{
@@ -148,7 +149,8 @@ Nexus :: struct {
             mono_nom_arg   : VecU32.new(),
             mono_nom_res   : VecU32.new(),
             union_coerce_ty : PoolU32.new(),
-            union_coerce_idx : PoolU32.new()
+            union_coerce_idx : PoolU32.new(),
+            str_type       : ty_id_none()
         }
     }
 
@@ -379,9 +381,9 @@ Nexus :: struct {
         pos := .get_pos(hir_id)
 
         print(path.ptr)
-        print(":")
+        print(c":")
         print_u32(pos.line)
-        print(":")
+        print(c":")
         print_u32(pos.col)
     }
 

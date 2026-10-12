@@ -125,7 +125,7 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
                 len = len + u32_digits(node_id)
 
                 if (j + 1) < slice.len {
-                    print(", ")
+                    print(c", ")
                     len = len + 2
                 }
 

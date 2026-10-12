@@ -33,7 +33,7 @@ synth_node :: (eng &Engine, id u32) {
 
     if curr == k.lit_float      { synth_lit_float(db, tbl, id) }
     if (curr == k.lit_bool_true) or (curr == k.lit_bool_false) { synth_lit_bool(db, tbl, id) }
-    if curr == k.lit_str        { synth_lit_str(db, tbl, id) }
+    if curr == k.lit_str        { synth_lit_str(eng, id) }
     if curr == k.lit_char       { synth_lit_char(db, tbl, id) }
     if curr == k.lit_cstr       { synth_lit_cstr(db, tbl, id) }
 

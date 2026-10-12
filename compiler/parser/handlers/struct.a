@@ -16,7 +16,7 @@ ensure_unique_field :: (p &Parser, fields &VecU32, field u32) {
     while i < (*fields).len {
         previous := fields.get(i)
         if ((*p).hir).lhs(previous) == name_id {
-            parse_error_at(p, "duplicate field name", span_of_hir(p, field))
+            parse_error_at(p, c"duplicate field name", span_of_hir(p, field))
         }
         i = i + 1
     }
@@ -28,7 +28,7 @@ parse_struct :: (p &Parser) u32 {
     sp_start := curr_span(p)
     bump(p)
     if not expect(p, t.o_brace) {
-        parse_error_at(p, "expected '{' after struct", curr_span(p))
+        parse_error_at(p, c"expected '{' after struct", curr_span(p))
     }
 
     names := VecU32.new()
@@ -36,7 +36,7 @@ parse_struct :: (p &Parser) u32 {
     methods := VecU32.new()
     method_names := VecU32.new()
     if (*p).inside_method {
-        parse_error_at(p, "nested struct declarations inside methods are not supported", sp_start)
+        parse_error_at(p, c"nested struct declarations inside methods are not supported", sp_start)
     }
 
     struct_node := id_none()
@@ -77,13 +77,13 @@ parse_struct :: (p &Parser) u32 {
             (*p).inside_method = false
             (*p).method_fn_depth = 0 as u64
             if func == hir_none() {
-                parse_error_at(p, "expected a method function after '::'", curr_span(p))
+                parse_error_at(p, c"expected a method function after '::'", curr_span(p))
             }
             if ((*p).hir).kind(func) != k.function {
-                parse_error_at(p, "struct method must be a function", span_of_hir(p, func))
+                parse_error_at(p, c"struct method must be a function", span_of_hir(p, func))
             }
             if ((*p).hir).extra(func) == hir_none() {
-                parse_error_at(p, "struct method requires a body", span_of_hir(p, func))
+                parse_error_at(p, c"struct method requires a body", span_of_hir(p, func))
             }
             method := ((*p).hir).push(k.binding, name, hir_none(), func)
             set_span(p, method, span_merge(span_of_hir(p, name), span_of_hir(p, func)))
@@ -93,14 +93,14 @@ parse_struct :: (p &Parser) u32 {
             cont
         }
         if not expect(p, t.colon) {
-            parse_error_at(p, "expected ':' for a field or '::' for a method", curr_span(p))
+            parse_error_at(p, c"expected ':' for a field or '::' for a method", curr_span(p))
         }
         prev_in_type := (*p).in_type
         (*p).in_type = true
         ty := parse_expr(p, prec().var_def + (1 as u8))
         (*p).in_type = prev_in_type
         if ty == hir_none() {
-            parse_error_at(p, "expected a field type after ':'", curr_span(p))
+            parse_error_at(p, c"expected a field type after ':'", curr_span(p))
         }
 
         names.push(name)
@@ -110,7 +110,7 @@ parse_struct :: (p &Parser) u32 {
     }
 
     if is_eof(p) and (peek(p) != t.c_brace) {
-        parse_error_at(p, "unclosed struct definition, expected '}'", sp_start)
+        parse_error_at(p, c"unclosed struct definition, expected '}'", sp_start)
     }
 
     expect(p, t.c_brace)
@@ -189,7 +189,7 @@ parse_struct_init :: (p &Parser) u32 {
     }
 
     if is_eof(p) and (peek(p) != t.c_brace) {
-        parse_error_at(p, "unclosed struct literal, expected '}'", sp_start)
+        parse_error_at(p, c"unclosed struct literal, expected '}'", sp_start)
     }
 
     expect(p, t.c_brace)
@@ -218,12 +218,12 @@ parse_member :: (p &Parser, lhs u32, right_bp u8) u32 {
     sp_lhs := span_of_hir(p, lhs)
     rhs := parse_expr(p, right_bp)
     if rhs == hir_none() {
-        parse_error_at(p, "expected a member name after '.'", curr_span(p))
+        parse_error_at(p, c"expected a member name after '.'", curr_span(p))
     }
     sp_rhs := span_of_hir(p, rhs)
 
     if ((*p).hir).kind(rhs) != k.ident {
-        parse_error_at(p, "member name must be an identifier", sp_rhs)
+        parse_error_at(p, c"member name must be an identifier", sp_rhs)
     }
 
     node := ((*p).hir).push(k.member, lhs, rhs, hir_none())

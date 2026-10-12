@@ -25,21 +25,21 @@ main :: () {
 
     arena := Arena.new(1024 * 1024 * 16)
 
-    main_path := "main.a"
+    main_path := c"main.a"
     if get_arg_count() > 1 {
         main_path = get_arg(1)
     } else {
-        env_src := get_env("ABYSS_SRC")
+        env_src := get_env(c"ABYSS_SRC")
         if env_src != (0 as &u8) {
             main_path = env_src
         }
     }
 
-    out_path := "out.c"
+    out_path := c"out.c"
     if get_arg_count() > 2 {
         out_path = get_arg(2)
     } else {
-        env_out := get_env("ABYSS_OUT")
+        env_out := get_env(c"ABYSS_OUT")
         if env_out != (0 as &u8) {
             out_path = env_out
         }

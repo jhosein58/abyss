@@ -44,7 +44,7 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind()
 
     if ((*p).hir).kind(lhs) != k.ident {
-        parse_error_at(p, "left-hand side of declaration must be an identifier", span_of_hir(p, lhs))
+        parse_error_at(p, c"left-hand side of declaration must be an identifier", span_of_hir(p, lhs))
     }
 
     sp_lhs := span_of_hir(p, lhs)

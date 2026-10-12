@@ -147,21 +147,21 @@ check_value :: (db &Nexus, expr u32, expected u32) {
         }
 
         if match_count > 1 {
-            print("\n\033[1;31m[type error]\033[0m ambiguous coercion into union '")
+            print(c"\n\033[1;31m[type error]\033[0m ambiguous coercion into union '")
             (&(*types)).print_type(expected)
-            print("'\n       --> ")
+            print(c"'\n       --> ")
             db.print_loc(expr)
-            print("\n")
+            print(c"\n")
             fall()
         }
 
-        print("\n\033[1;31m[type error]\033[0m type '")
+        print(c"\n\033[1;31m[type error]\033[0m type '")
         (&(*types)).print_type(val_ty)
-        print("' is not a member of union '")
+        print(c"' is not a member of union '")
         (&(*types)).print_type(expected)
-        print("'\n       --> ")
+        print(c"'\n       --> ")
         db.print_loc(expr)
-        print("\n")
+        print(c"\n")
         fall()
     }
 
@@ -171,11 +171,11 @@ check_value :: (db &Nexus, expr u32, expected u32) {
         names := db.get_list((tbl).lhs(expr))
         values := db.get_list((tbl).rhs(expr))
         if (names.len != target.len / 2) or (values.len != names.len) {
-            print("\n\033[1;31m[type error]\033[0m struct literal has wrong number of fields for '")
+            print(c"\n\033[1;31m[type error]\033[0m struct literal has wrong number of fields for '")
             (&(*types)).print_type(expected)
-            print("'\n       --> ")
+            print(c"'\n       --> ")
             db.print_loc(expr)
-            print("\n")
+            print(c"\n")
             fall()
         }
 
@@ -193,13 +193,13 @@ check_value :: (db &Nexus, expr u32, expected u32) {
                 j = j + 1
             }
             if field_ty == ty_id_none() {
-                print("\n\033[1;31m[type error]\033[0m unexpected field '")
+                print(c"\n\033[1;31m[type error]\033[0m unexpected field '")
                 db.interner.get(name_id).print()
-                print("' in struct literal for '")
+                print(c"' in struct literal for '")
                 (&(*types)).print_type(expected)
-                print("'\n       --> ")
+                print(c"'\n       --> ")
                 db.print_loc(*(names.ptr + i))
-                print("\n")
+                print(c"\n")
                 fall()
             }
             check_value(db, *(values.ptr + i), field_ty)

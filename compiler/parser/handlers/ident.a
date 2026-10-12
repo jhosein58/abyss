@@ -9,7 +9,7 @@ parse_ident :: (p &Parser) u32 {
     t := token()
 
     if peek(p) != t.ident {
-        parse_error_at(p, "expected identifier", curr_span(p))
+        parse_error_at(p, c"expected identifier", curr_span(p))
     }
 
     sp := curr_span(p)

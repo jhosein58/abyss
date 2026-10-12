@@ -29,9 +29,9 @@ synth_ident :: (eng &Engine, id u32) {
     if (owner != hir_none()) and name.eq(Str.of("Self")) {
         self_ty := db.get_const_type(owner)
         if ((&(*types_ptr)).kind(self_ty) != ty_kind().nominal) and ((&(*types_ptr)).kind(self_ty) != ty_kind().enum_) {
-            print("\n\033[1;31m[type error]\033[0m Self requires a named struct or enum method\n       --> ")
+            print(c"\n\033[1;31m[type error]\033[0m Self requires a named struct or enum method\n       --> ")
             db.print_loc(id)
-            print("\n")
+            print(c"\n")
             fall()
         }
         (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
@@ -148,9 +148,9 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
 
         type_value := db.get_const_type(type_id)
         if type_value == ty_id_none() {
-            print("\n\033[1;31m[type error]\033[0m declaration annotation is not a resolved type\n       --> ")
+            print(c"\n\033[1;31m[type error]\033[0m declaration annotation is not a resolved type\n       --> ")
             db.print_loc(type_id)
-            print("\n")
+            print(c"\n")
             fall()
         }
         (&(*db).unify).bind_type(&(*db).types, ident_slot, type_value)
@@ -163,9 +163,9 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
             structural := db.get_const_type(value_id)
             kind := (&(*types_ptr)).kind(structural)
             if (kind != ty_kind().struct_) and (kind != ty_kind().nominal) {
-                print("\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> ")
+                print(c"\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> ")
                 db.print_loc(value_id)
-                print("\n")
+                print(c"\n")
                 fall()
             }
             named := structural
@@ -184,9 +184,9 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
             if (&(*types_ptr)).kind(val_ty) == ty_kind().type_ {
                 type_val := db.get_const_type(value_id)
                 if type_val == ty_id_none() {
-                    print("\n\033[1;31m[type error]\033[0m type value cannot be resolved\n       --> ")
+                    print(c"\n\033[1;31m[type error]\033[0m type value cannot be resolved\n       --> ")
                     db.print_loc(value_id)
-                    print("\n")
+                    print(c"\n")
                     fall()
                 }
                 db.set_const_type(ident_id, type_val)

@@ -144,9 +144,9 @@ finalize_inferred_types :: (eng &Engine, func_id u32) {
             if (ty != ty_id_none()) and (not (&(*db).types).func_has_type_param(ty)) {
                 resolved := resolve_ty_id(eng, &(*db).unify, &(*db).types, ty)
                 if type_has_infer(&(*db).types, resolved) {
-                    print("\n[type error] cannot infer generic type argument; pass the type explicitly\n       --> ")
+                    print(c"\n[type error] cannot infer generic type argument; pass the type explicitly\n       --> ")
                     db.print_loc(node)
-                    print("\n")
+                    print(c"\n")
                     fall()
                 }
                 root := (&(*db).unify).find(slot)
@@ -157,9 +157,9 @@ finalize_inferred_types :: (eng &Engine, func_id u32) {
         if (value_ty != ty_id_none()) and (not (&(*db).types).func_has_type_param(value_ty)) {
             resolved := resolve_ty_id(eng, &(*db).unify, &(*db).types, value_ty)
             if type_has_infer(&(*db).types, resolved) {
-                print("\n[type error] cannot infer generic type argument; pass the type explicitly\n       --> ")
+                print(c"\n[type error] cannot infer generic type argument; pass the type explicitly\n       --> ")
                 db.print_loc(node)
-                print("\n")
+                print(c"\n")
                 fall()
             }
             db.set_const_type(node, resolved)
@@ -249,7 +249,7 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
             add_type_to_queue(db, target_ty, type_queue)
             t_str := ccg.type_str(&(*db).types, arena, target_ty)
             fmt := Fmt.new(arena)
-            fmt.cstr("((uint64_t)sizeof(").str(t_str).cstr("))")
+            fmt.cstr(c"((uint64_t)sizeof(").str(t_str).cstr(c"))")
             ret fmt.as_str()
         }
 
@@ -268,7 +268,7 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
                 tag_idx := (&(*db).types).union_member_index(val_ty, target_ty)
                 val_str := lower_expr(db, ccg, arena, val_node, visited, queue, type_queue)
                 fmt := Fmt.new(arena)
-                fmt.cstr("(((").str(val_str).cstr(").tag == ").uint32(tag_idx).cstr("))")
+                fmt.cstr(c"(((").str(val_str).cstr(c").tag == ").uint32(tag_idx).cstr(c"))")
                 ret fmt.as_str()
             }
             if val_ty == target_ty {
@@ -281,7 +281,7 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
             val_node := *(args.ptr + 0)
             val_str := lower_expr(db, ccg, arena, val_node, visited, queue, type_queue)
             fmt := Fmt.new(arena)
-            fmt.cstr("(((").str(val_str).cstr(").tag))")
+            fmt.cstr(c"(((").str(val_str).cstr(c").tag))")
             ret fmt.as_str()
         }
 
@@ -350,17 +350,17 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
                 real_sym = target
             }
             if db.sym_tok_start.get(real_sym) != id_none() {
-                print("\n[codegen error] unsupported global value\n       --> ")
+                print(c"\n[codegen error] unsupported global value\n       --> ")
                 db.print_loc(id)
-                print("\n")
+                print(c"\n")
                 fall()
             }
             ret ccg.sym_name(arena, sym_id)
         }
 
-        print("\n[codegen error] undefined identifier\n       --> ")
+        print(c"\n[codegen error] undefined identifier\n       --> ")
         db.print_loc(id)
-        print("\n")
+        print(c"\n")
         fall()
         ret Str.empty()
     }
@@ -375,9 +375,9 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
             ret Str.empty()
         }
         if (&(*db).types).kind(var_ty) == ty_kind().unit {
-            print("\n[type error] variable cannot have unit type\n       --> ")
+            print(c"\n[type error] variable cannot have unit type\n       --> ")
             db.print_loc(id)
-            print("\n")
+            print(c"\n")
             fall()
         }
         ty_str := ccg.type_str(&(*db).types, arena, var_ty)
@@ -386,9 +386,9 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
         if val_id != hir_none() {
             val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
             if val_str.len == 0 {
-                print("\n[codegen error] initializer does not produce a value\n       --> ")
+                print(c"\n[codegen error] initializer does not produce a value\n       --> ")
                 db.print_loc(id)
-                print("\n")
+                print(c"\n")
                 fall()
             }
             ccg.create_variable(var_name, ty_str, val_str, true)
@@ -632,11 +632,11 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
                 if (&(*db).types).kind(receiver_ty) == ty_kind().ptr {
                     args_fmt.str(receiver_str)
                 } else {
-                    args_fmt.cstr("&(").str(receiver_str).char(41 as u8)
+                    args_fmt.cstr(c"&(").str(receiver_str).char(41 as u8)
                 }
             } else {
                 if (&(*db).types).kind(receiver_ty) == ty_kind().ptr {
-                    args_fmt.cstr("(*").str(receiver_str).char(41 as u8)
+                    args_fmt.cstr(c"(*").str(receiver_str).char(41 as u8)
                 } else {
                     args_fmt.str(receiver_str)
                 }
@@ -653,7 +653,7 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
                     cont
                 }
                 arg_val := lower_expr(db, ccg, arena, arg_node, visited, queue, type_queue)
-                if not first_arg { args_fmt.cstr(", ") }
+                if not first_arg { args_fmt.cstr(c", ") }
                 args_fmt.str(arg_val)
                 first_arg = false
                 i = i + 1
@@ -695,7 +695,20 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
     if kind == k.lit_str {
         name_id := (&(*db).hir).lhs(id)
         raw := db.interner.get(name_id)
-        ret ccg.expr_str_lit(arena, raw)
+        str_ty := (*db).str_type
+        if str_ty == ty_id_none() {
+            str_ty = get_node_type(db, id)
+        }
+        struct_name := Str.empty()
+        ptr_id: u32 = 0
+        len_id: u32 = 0
+        if str_ty != ty_id_none() {
+            add_type_to_queue(db, str_ty, type_queue)
+            struct_name = ccg.type_str(&(*db).types, arena, str_ty)
+            ptr_id = (*db).interner.intern(Str.of("ptr"))
+            len_id = (*db).interner.intern(Str.of("len"))
+        }
+        ret ccg.expr_str_lit(arena, struct_name, ptr_id, len_id, raw)
     }
     if kind == k.lit_char {
         name_id := (&(*db).hir).lhs(id)
@@ -725,7 +738,13 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
         ret ccg.expr_unary(arena, Str.of("&"), child_v)
     }
     if kind == k.unary_deref {
-        child_v := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
+        lhs_node := (&(*db).hir).lhs(id)
+        child_v := lower_expr(db, ccg, arena, lhs_node, visited, queue, type_queue)
+        child_ty := get_node_type(db, lhs_node)
+        if (child_ty != ty_id_none()) and (child_ty == (*db).str_type) {
+            ptr_id := (*db).interner.intern(Str.of("ptr"))
+            ret ccg.expr_str_deref(arena, child_v, ptr_id)
+        }
         ret ccg.expr_unary(arena, Str.of("*"), child_v)
     }
     if kind == k.k_break {
@@ -745,7 +764,7 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
             member_idx := (&(*db).types).union_member_index(lhs_ty, target_ty)
             lhs_v := lower_expr(db, ccg, arena, lhs_node, visited, queue, type_queue)
             fmt := Fmt.new(arena)
-            fmt.cstr("(((").str(lhs_v).cstr(").val._v").uint32(member_idx).cstr("))")
+            fmt.cstr(c"(((").str(lhs_v).cstr(c").val._v").uint32(member_idx).cstr(c"))")
             ret fmt.as_str()
         }
         lhs_v := lower_expr(db, ccg, arena, lhs_node, visited, queue, type_queue)
@@ -852,7 +871,7 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
 
             fields_fmt.str(ccg.expr_struct_init_field(arena, f_name_id, v_str))
             if (i + 1) < fields.len {
-                fields_fmt.cstr(", ")
+                fields_fmt.cstr(c", ")
             }
             i = i + 1
         }
@@ -866,9 +885,9 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
 
         method := db.get_method_target(id)
         if method != id_none() {
-            print("\n[type error] methods must be called directly; method values are not supported\n       --> ")
+            print(c"\n[type error] methods must be called directly; method values are not supported\n       --> ")
             db.print_loc(id)
-            print("\n")
+            print(c"\n")
             fall()
         }
 
@@ -891,7 +910,7 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
                     add_type_to_queue(db, actual_ty, type_queue)
                     enum_name := ccg.type_str(&(*db).types, arena, actual_ty)
                     fmt := Fmt.new(arena)
-                    fmt.cstr("((").str(enum_name).cstr(")").uint32(var_val).cstr(")")
+                    fmt.cstr(c"((").str(enum_name).cstr(c")").uint32(var_val).cstr(c")")
                     ret fmt.as_str()
                 }
             }
@@ -908,9 +927,9 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
         ret ccg.expr_member(arena, lhs_str, depth, field_name_id)
     }
 
-    print("\n[codegen error] unsupported expression\n       --> ")
+    print(c"\n[codegen error] unsupported expression\n       --> ")
     db.print_loc(id)
-    print("\n")
+    print(c"\n")
     fall()
     Str.empty()
 }
@@ -924,7 +943,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         add_type_to_queue(db, target_union, type_queue)
         union_name := ccg.type_str(&(*db).types, arena, target_union)
         fmt := Fmt.new(arena)
-        fmt.cstr("((").str(union_name).cstr("){ .tag = ").uint32(k_idx).cstr(", .val = { ._v").uint32(k_idx).cstr(" = ").str(val_str).cstr(" } })")
+        fmt.cstr(c"((").str(union_name).cstr(c"){ .tag = ").uint32(k_idx).cstr(c", .val = { ._v").uint32(k_idx).cstr(c" = ").str(val_str).cstr(c" } })")
         ret fmt.as_str()
     }
     val_str
@@ -1282,7 +1301,7 @@ lower_function :: (eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
         if receiver {
             owner_ty := db.get_const_type(method_owner)
             p_fmt.str(ccg.type_str(&(*db).types, arena, owner_ty))
-            p_fmt.cstr("* _self")
+            p_fmt.cstr(c"* _self")
             first_p = false
         }
         orig_params: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
@@ -1297,11 +1316,11 @@ lower_function :: (eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
             }
             p_ty     := *(params_slice.ptr + i)
             p_ty_str := ccg.type_str(&(*db).types, arena, p_ty)
-            if not first_p { p_fmt.cstr(", ") }
-            p_fmt.str(p_ty_str).cstr(" ")
+            if not first_p { p_fmt.cstr(c", ") }
+            p_fmt.str(p_ty_str).cstr(c" ")
 
             if is_extern {
-                p_fmt.cstr("_a").uint32(i as u32)
+                p_fmt.cstr(c"_a").uint32(i as u32)
             } else {
                 args_list_id := (&(*db).hir).lhs(func_id)
                 if args_list_id != hir_none() {
@@ -1312,10 +1331,10 @@ lower_function :: (eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
                     if arg_sym != id_none() {
                         p_fmt.str(ccg.sym_name(arena, arg_sym))
                     } else {
-                        p_fmt.cstr("_a").uint32(i as u32)
+                        p_fmt.cstr(c"_a").uint32(i as u32)
                     }
                 } else {
-                    p_fmt.cstr("_a").uint32(i as u32)
+                    p_fmt.cstr(c"_a").uint32(i as u32)
                 }
             }
             first_p = false

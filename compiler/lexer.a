@@ -23,16 +23,16 @@ Lexer_new :: (source Str, path Str) Lexer {
 }
 
 lexer_error :: (l &Lexer, msg &u8, offset u64) {
-    print("\n[lex error] ")
+    print(c"\n[lex error] ")
     print(msg)
-    print("\n       --> ")
+    print(c"\n       --> ")
     l.path.print()
-    print(":")
+    print(c":")
     pos := calc_pos((*l).source, offset as u32)
     print_u32(pos.line)
-    print(":")
+    print(c":")
     print_u32(pos.col)
-    print("\n")
+    print(c"\n")
     fall()
 }
 
@@ -159,7 +159,7 @@ scan_number :: (l &Lexer, stream &TokenStream) {
         check: u64 = 0
         while check < text.len {
             if *(text.ptr + check) == 95 {
-                lexer_error(l, "separators in float literals are unsupported", offset)
+                lexer_error(l, c"separators in float literals are unsupported", offset)
             }
             check = check + 1
         }
@@ -180,19 +180,19 @@ scan_string :: (l &Lexer, stream &TokenStream) {
 
     while (not is_eof(l)) and current(l) != 34 {
         if is_newline(current(l)) {
-            lexer_error(l, "newline in string literal", offset)
+            lexer_error(l, c"newline in string literal", offset)
         }
         if current(l) == 92 { -- '\\'
             bump(l)
             if is_eof(l) or (not valid_escape(l)) {
-                lexer_error(l, "invalid string escape", offset)
+                lexer_error(l, c"invalid string escape", offset)
             }
         }
         bump(l)
     }
 
     if is_eof(l) {
-        lexer_error(l, "unterminated string", offset)
+        lexer_error(l, c"unterminated string", offset)
     }
     bump(l)
 
@@ -209,19 +209,19 @@ scan_c_string :: (l &Lexer, stream &TokenStream) {
 
     while (not is_eof(l)) and current(l) != 34 {
         if is_newline(current(l)) {
-            lexer_error(l, "newline in string literal", offset)
+            lexer_error(l, c"newline in string literal", offset)
         }
         if current(l) == 92 {
             bump(l)
             if is_eof(l) or (not valid_escape(l)) {
-                lexer_error(l, "invalid string escape", offset)
+                lexer_error(l, c"invalid string escape", offset)
             }
         }
         bump(l)
     }
 
     if is_eof(l) {
-        lexer_error(l, "unterminated string", offset)
+        lexer_error(l, c"unterminated string", offset)
     }
     bump(l)
 
@@ -238,7 +238,7 @@ scan_char :: (l &Lexer, stream &TokenStream) {
     if current(l) == 92 {
         bump(l)
         if is_eof(l) or (not valid_escape(l)) {
-            lexer_error(l, "invalid character escape", offset)
+            lexer_error(l, c"invalid character escape", offset)
         }
         if current(l) == 120 {
             bump(l)
@@ -250,13 +250,13 @@ scan_char :: (l &Lexer, stream &TokenStream) {
         }
     } else {
         if is_eof(l) or (current(l) == 39) {
-            lexer_error(l, "invalid character literal", offset)
+            lexer_error(l, c"invalid character literal", offset)
         }
         bump(l)
     }
 
     if current(l) != 39 {
-        lexer_error(l, "unterminated or oversized character literal", offset)
+        lexer_error(l, c"unterminated or oversized character literal", offset)
     }
     bump(l)
 
@@ -455,7 +455,7 @@ lex :: (stream &TokenStream, source Str, path Str) {
         had_nl := lexer.had_newline
         kind := scan_symbol(&lexer)
         if kind == token().unknown {
-            lexer_error(&lexer, "unknown character", offset)
+            lexer_error(&lexer, c"unknown character", offset)
         }
         len := (lexer.cursor - offset) as u32
         text := Str.new(lexer.source.ptr + offset, len as u64)

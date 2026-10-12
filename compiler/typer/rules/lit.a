@@ -1,6 +1,7 @@
 import Nexus from "../../nexus/nexus.a"
 import HirTable from "../../hir.a"
-import ty_id_untyped_int, ty_id_untyped_float, ty_id_bool from "../../types.a"
+import ty_id_untyped_int, ty_id_untyped_float, ty_id_bool, ty_id_none from "../../types.a"
+import Engine from "../../engine.a"
 
 synth_lit_int :: (db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
@@ -20,11 +21,14 @@ synth_lit_bool :: (db &Nexus, tbl &HirTable, id u32) {
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
 }
 
-synth_lit_str :: (db &Nexus, tbl &HirTable, id u32) {
+synth_lit_str :: (eng &Engine, id u32) {
+    db := &(*eng).nexus
     slot := (&(*db).unify).new_slot(id)
-    u8_ty := (&(*db).types).alloc_uint(8 as u16)
-    ptr_ty := (&(*db).types).alloc_ptr(u8_ty)
-    (&(*db).unify).bind_type(&(*db).types, slot, ptr_ty)
+    str_ty := eng.get_str_type()
+    if str_ty != ty_id_none() {
+        (&(*db).unify).bind_type(&(*db).types, slot, str_ty)
+        db.set_const_type(id, str_ty)
+    }
 }
 
 synth_lit_char :: (db &Nexus, tbl &HirTable, id u32) {

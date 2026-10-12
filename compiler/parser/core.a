@@ -124,7 +124,7 @@ str_to_u32 :: (p &Parser, s Str) u32 {
     i: u64 = 0
     base: u32 = 10
     if s.len == 0 {
-        parse_error_at(p, "empty integer literal", curr_span(p))
+        parse_error_at(p, c"empty integer literal", curr_span(p))
     }
     if s.len >= 2 {
         if (*(s.ptr) == 48) and ((*(s.ptr + 1) == 120) or (*(s.ptr + 1) == 88)) {
@@ -133,7 +133,7 @@ str_to_u32 :: (p &Parser, s Str) u32 {
         }
     }
     if i == s.len {
-        parse_error_at(p, "missing hexadecimal digits", curr_span(p))
+        parse_error_at(p, c"missing hexadecimal digits", curr_span(p))
     }
     seen_digit := false
     after_sep := false
@@ -141,7 +141,7 @@ str_to_u32 :: (p &Parser, s Str) u32 {
         c := *(s.ptr + i)
         if c == 95 {
             if (not seen_digit) or after_sep or ((i + 1) == s.len) {
-                parse_error_at(p, "misplaced integer separator", curr_span(p))
+                parse_error_at(p, c"misplaced integer separator", curr_span(p))
             }
             after_sep = true
             i = i + 1
@@ -153,11 +153,11 @@ str_to_u32 :: (p &Parser, s Str) u32 {
         if (c >= 65) and (c <= 70) { digit = (c - 65) as u32 + 10 }
         if (c >= 97) and (c <= 102) { digit = (c - 97) as u32 + 10 }
         if digit >= base {
-            parse_error_at(p, "invalid integer digit", curr_span(p))
+            parse_error_at(p, c"invalid integer digit", curr_span(p))
         }
         if ((base == 10) and ((res > 429496729) or ((res == 429496729) and (digit > 5)))) or
            ((base == 16) and (res > 268435455)) {
-            parse_error_at(p, "integer literal exceeds u32", curr_span(p))
+            parse_error_at(p, c"integer literal exceeds u32", curr_span(p))
         }
         res = (res * base) + digit
         seen_digit = true
@@ -196,15 +196,15 @@ parse_error_at :: (p &Parser, msg &u8, sp Span) {
     src := (*p).db.get_file_source((*p).file_id)
     pos := calc_pos(src, sp.start)
 
-    print("\n\033[1;31m[syntax error]\033[0m ")
+    print(c"\n\033[1;31m[syntax error]\033[0m ")
     print(msg)
-    print("\n       --> ")
+    print(c"\n       --> ")
     print(path.ptr)
-    print(":")
+    print(c":")
     print_u32(pos.line)
-    print(":")
+    print(c":")
     print_u32(pos.col)
-    print("\n\n")
+    print(c"\n\n")
     fall()
 }
 
@@ -219,26 +219,26 @@ expect :: (p &Parser, kind u8) {
     src := (*p).db.get_file_source((*p).file_id)
     pos := calc_pos(src, sp.start)
 
-    print("\n\033[1;31m[syntax error]\033[0m expected '")
+    print(c"\n\033[1;31m[syntax error]\033[0m expected '")
     exp_name := token_name(kind)
     exp_name.prin()
-    print("', but found '")
+    print(c"', but found '")
     got_name := token_name(peek(p))
     got_name.print()
     if peek(p) != token().eof {
-        print("' (")
+        print(c"' (")
         txt := curr_text(p)
         txt.print()
-        print(")")
+        print(c")")
     } else {
-        print("'")
+        print(c"'")
     }
-    print("\n       --> ")
+    print(c"\n       --> ")
     print(path.ptr)
-    print(":")
+    print(c":")
     print_u32(pos.line)
-    print(":")
+    print(c":")
     print_u32(pos.col)
-    print("\n\n")
+    print(c"\n\n")
     fall()
 }

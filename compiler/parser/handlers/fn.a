@@ -15,7 +15,7 @@ import prec from "../prec.a"
 define_param :: (p &Parser, name_hir u32) {
     k := hir_kind()
     if ((*p).hir).kind(name_hir) != k.ident {
-        parse_error_at(p, "parameter name must be an identifier", span_of_hir(p, name_hir))
+        parse_error_at(p, c"parameter name must be an identifier", span_of_hir(p, name_hir))
     }
     name_id := ((*p).hir).lhs(name_hir)
     sym_id := (*p).db.alloc_local_symbol((*p).file_id, name_id, name_hir)
@@ -295,17 +295,17 @@ parse_call :: (p &Parser, lhs u32, right_bp u8) u32 {
         while true {
             if peek(p) == t.c_paren { break }
             if is_eof(p) {
-                parse_error_at(p, "unclosed call, expected ')'", sp_lhs)
+                parse_error_at(p, c"unclosed call, expected ')'", sp_lhs)
             }
             arg := parse_expr(p, 0 as u8)
             if arg == hir_none() {
-                parse_error_at(p, "expected call argument", curr_span(p))
+                parse_error_at(p, c"expected call argument", curr_span(p))
             }
             args.push(arg)
 
             if peek(p) == t.c_paren { break }
             if not expect(p, t.comma) {
-                parse_error_at(p, "expected ',' or ')' after call argument", curr_span(p))
+                parse_error_at(p, c"expected ',' or ')' after call argument", curr_span(p))
             }
         }
         expect(p, t.c_paren)
