@@ -1,11 +1,31 @@
 import Nexus from "nexus/nexus.a"
  import TypeStorage, ty_kind from "types.a"
 import VecU32 from "../std/vec/u32.a"
+import fall from "../std/sys.a"
+
+print :: (s &u8) unit
+
 import VecU8 from "../std/vec/u8.a"
 
-topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
+topo_dfs :: (db &Nexus, types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
     if (ty_id as u64) >= (*states).len { ret }
     st := states.get(ty_id as u64)
+    if st == (1 as u8) {
+        print("\n[type error] recursive value type has infinite size: '")
+        (&(*types)).print_type(ty_id)
+        print("'; use a pointer for the recursive field\n")
+        if (&(*types)).kind(ty_id) == ty_kind().nominal {
+            origin := (&(*types)).nominal_origin(ty_id)
+            node := origin
+            if (origin & 2147483648) != 0 {
+                node = (&(*types)).get_nominal_struct_node(origin)
+            }
+            print("       --> ")
+            db.print_loc(node)
+            print("\n")
+        }
+        fall()
+    }
     if st != (0 as u8) { ret }
 
     states.set(ty_id as u64, 1 as u8) 
@@ -21,7 +41,7 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
             f_ty := *(fields.ptr + (i * 2) + 1)
               f_kind := (&(*types)).kind( f_ty)
             if (f_kind == k.struct_) or (f_kind == k.nominal) or (f_kind == k.array) or (f_kind == k.func) or (f_kind == k.union_) or (f_kind == k.enum_) {
-                topo_dfs(types, sorted, states, f_ty)
+                topo_dfs(db, types, sorted, states, f_ty)
             }
             i = i + 1
         }
@@ -29,13 +49,13 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
         inner_ty := (&(*types)).get_array_type(ty_id)
         inner_kind := (&(*types)).kind(inner_ty)
         if (inner_kind == k.struct_) or (inner_kind == k.nominal) or (inner_kind == k.array) or (inner_kind == k.func) or (inner_kind == k.union_) or (inner_kind == k.enum_) {
-            topo_dfs(types, sorted, states, inner_ty)
+            topo_dfs(db, types, sorted, states, inner_ty)
         }
     } else if kind == k.func {
         ret_ty := (&(*types)).func_return(ty_id)
         ret_kind := (&(*types)).kind(ret_ty)
         if (ret_kind == k.struct_) or (ret_kind == k.nominal) or (ret_kind == k.func) or (ret_kind == k.array) or (ret_kind == k.union_) or (ret_kind == k.enum_) {
-            topo_dfs(types, sorted, states, ret_ty)
+            topo_dfs(db, types, sorted, states, ret_ty)
         }
         params := (&(*types)).func_params(ty_id)
         i: u64 = 0
@@ -43,7 +63,7 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
             p_ty := *(params.ptr + i)
             p_kind := (&(*types)).kind(p_ty)
             if (p_kind == k.struct_) or (p_kind == k.nominal) or (p_kind == k.func) or (p_kind == k.array) or (p_kind == k.union_) or (p_kind == k.enum_) {
-                topo_dfs(types, sorted, states, p_ty)
+                topo_dfs(db, types, sorted, states, p_ty)
             }
             i = i + 1
         }
@@ -54,7 +74,7 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
             m_ty := *(members.ptr + i)
             m_kind := (&(*types)).kind(m_ty)
             if (m_kind == k.struct_) or (m_kind == k.nominal) or (m_kind == k.func) or (m_kind == k.array) or (m_kind == k.union_) or (m_kind == k.enum_) {
-                topo_dfs(types, sorted, states, m_ty)
+                topo_dfs(db, types, sorted, states, m_ty)
             }
             i = i + 1
         }
@@ -62,7 +82,7 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
         b_ty := (&(*types)).enum_backing(ty_id)
         b_kind := (&(*types)).kind(b_ty)
         if (b_kind == k.struct_) or (b_kind == k.nominal) or (b_kind == k.func) or (b_kind == k.array) or (b_kind == k.union_) or (b_kind == k.enum_) {
-            topo_dfs(types, sorted, states, b_ty)
+            topo_dfs(db, types, sorted, states, b_ty)
         }
     }
 
@@ -70,7 +90,8 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
     states.set(ty_id as u64, 2 as u8)
 }
 
-topo_sort :: (types &TypeStorage, type_queue &VecU32) VecU32 {
+topo_sort :: (db &Nexus, type_queue &VecU32) VecU32 {
+    types := &(*db).types
     sorted := VecU32.new()
     states := VecU8.new()
 
@@ -84,7 +105,7 @@ topo_sort :: (types &TypeStorage, type_queue &VecU32) VecU32 {
     q_i: u64 = 0
     while q_i < (*type_queue).len {
         ty_id := type_queue.get(q_i)
-        topo_dfs(types, &sorted, &states, ty_id)
+        topo_dfs(db, types, &sorted, &states, ty_id)
         q_i = q_i + 1
     }
 

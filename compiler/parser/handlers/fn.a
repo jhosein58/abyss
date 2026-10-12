@@ -118,8 +118,8 @@ parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
     }
 
     (*p).toplv_sym = saved_toplv
-    is_toplv_fn := (not (*p).inside_method) and ((*p).toplv_sym != id_none()) and (not (*p).in_type)
-    is_struct_method := (*p).inside_method and ((*p).fn_stack.len == 0)
+    is_struct_method := (*p).method_fn_depth == ((*p).fn_stack.len + 1)
+    is_toplv_fn := (not is_struct_method) and (not (*p).inside_method) and ((*p).toplv_sym != id_none()) and (not (*p).in_type)
 
     fn_sym := id_none()
     if is_toplv_fn {
@@ -136,7 +136,10 @@ parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
     }
 
     prev_method := (*p).inside_method
-    if (*p).fn_stack.len > 0 {
+    if is_struct_method {
+        (*p).inside_method = true
+        (*p).method_fn_depth = 0 as u64
+    } else {
         (*p).inside_method = false
     }
     (*p).fn_stack.push(fn_node)

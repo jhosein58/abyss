@@ -1,0 +1,45 @@
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
+print_i32 :: (v i32) unit
+
+Box :: (T type) type {
+    struct {
+        value: T
+
+        new :: (x T) Self { .{ value: x } }
+        convert :: (U type, x U) U { .value x }
+    }
+}
+
+invoke :: (T type, U type, b Box(T), x U) U { b.convert(U, x) }
+identity :: (T type, x T) T { x }
+forward :: (T type, x T) T { identity(T, x) }
+
+nested :: (T type, x T) T {
+    local := (U type, value U) U { value }
+    local(T, x)
+}
+
+sum :: (T type, x T) T {
+    if x == 0 { x } else { x + sum(T, x - 1) }
+}
+
+main :: () {
+    b := Box(u32).new(7 as u32)
+    print_u32(invoke(u32, u32, b, 13 as u32))
+    print("\n")
+    print_i32(invoke(u32, i32, b, -13 as i32))
+    print("\n")
+    print_u32(forward(42 as u32))
+    print("\n")
+    print_i32(forward(-42 as i32))
+    print("\n")
+    print_u32(nested(99 as u32))
+    print("\n")
+    print_i32(nested(-99 as i32))
+    print("\n")
+    print_u32(sum(10 as u32))
+    print("\n")
+    print_i32(sum(5 as i32))
+    print("\n")
+}

@@ -127,6 +127,15 @@ synth_func :: (eng &Engine, id u32) {
                 db.set_const_type(arg_id, param_ty)
             }
 
+            if (param_ty == ty_id_type()) and (params_vec.len > 0) {
+                previous := params_vec.get(params_vec.len - 1)
+                if previous != ty_id_type() {
+                    print("\n[type error] generic type parameters must precede runtime parameters\n       --> ")
+                    db.print_loc(arg_id)
+                    print("\n")
+                    fall()
+                }
+            }
             params_vec.push(param_ty)
             i = i + 1
         }
@@ -308,12 +317,21 @@ specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &
         }
     }
     if func_node == id_none() { ret ty_id_none() }
+    if (*db).type_specialization_depth >= 128 {
+        print("\n[type error] generic type specialization exceeded recursion limit\n       --> ")
+        db.print_loc(func_node)
+        print("\n")
+        fall()
+    }
+    (*db).type_specialization_depth = (*db).type_specialization_depth + 1
 
     fn_params_list := (tbl).lhs(func_node)
-    fn_params_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    fn_params_vec := VecU32.new()
     if fn_params_list != hir_none() {
-        fn_params_slice = db.get_list(fn_params_list)
+        fn_params := db.get_list(fn_params_list)
+        fn_params_vec.extend(fn_params.ptr, fn_params.len)
     }
+    fn_params_slice := fn_params_vec.as_slice()
 
     body_id := (tbl).extra(func_node)
     struct_node := hir_none()
@@ -338,30 +356,7 @@ specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &
     }
 
     if (struct_node != hir_none()) and ((tbl).kind(struct_node) == hir_kind().struct_) {
-        names_list := (tbl).lhs(struct_node)
-        types_list := (tbl).rhs(struct_node)
-        names := db.get_list(names_list)
-        types_nodes := db.get_list(types_list)
-
-        fields_vec := VecU32.new()
-        f_i: u64 = 0
-        while (f_i < names.len) and (f_i < types_nodes.len) {
-            f_name_node := *(names.ptr + f_i)
-            f_name_id := (tbl).lhs(f_name_node)
-            f_ty_node := *(types_nodes.ptr + f_i)
-            f_ty := specialize_type_node(eng, f_ty_node, fn_params_slice, concrete_args)
-            fields_vec.push(f_name_id)
-            fields_vec.push(f_ty)
-            f_i = f_i + 1
-        }
-
-        f_ptr := 0 as &u32
-        if fields_vec.len > 0 { f_ptr = fields_vec.ptr_at(0) }
-        f_slice: SliceU32 = .{ ptr: f_ptr, len: fields_vec.len }
-        structural_ty := (&(*types_ptr)).alloc_struct(f_slice)
-        fields_vec.destroy()
-
-        nom_origin := (&(*types_ptr)).nominal_by_origin.len as u32
+        nom_origin := (&(*types_ptr)).len() | 2147483648
         nom_name := Str.of("struct")
         if (callee_sym & 2147483648) != 0 {
             binding_id := callee_sym & 2147483647
@@ -373,22 +368,89 @@ specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &
             nom_name = db.interner.get(db.sym_names.get(callee_sym))
         }
 
-        nom_ty := (&(*types_ptr)).alloc_nominal(structural_ty, nom_name, nom_origin)
+        nom_ty := (&(*types_ptr)).alloc_nominal(ty_id_none(), nom_name, nom_origin)
+        db.set_const_type(struct_node, nom_ty)
+        (&(*types_ptr)).record_nominal_struct_node(nom_origin, struct_node)
         db.add_mono_nominal(callee_sym, concrete_args.as_slice(), nom_ty)
         (&(*types_ptr)).record_nominal_creator(nom_origin, callee_sym, concrete_args.as_slice())
+
+
+        names_list := (tbl).lhs(struct_node)
+        types_list := (tbl).rhs(struct_node)
+        names := db.get_list(names_list)
+        types_nodes := db.get_list(types_list)
+
+        fields_vec := VecU32.new()
+        f_i: u64 = 0
+        while (f_i < names.len) and (f_i < types_nodes.len) {
+            names = db.get_list(names_list)
+            types_nodes = db.get_list(types_list)
+            f_name_node := *(names.ptr + f_i)
+            f_name_id := (tbl).lhs(f_name_node)
+            f_ty_node := *(types_nodes.ptr + f_i)
+            f_ty := specialize_type_node(eng, f_ty_node, fn_params_slice, concrete_args)
+            if (f_ty == ty_id_none()) or (f_ty == ty_id_unit()) or (f_ty == ty_id_type()) {
+                print("\n[type error] generic struct field requires a runtime value type\n       --> ")
+                db.print_loc(f_ty_node)
+                print("\n")
+                fall()
+            }
+            fields_vec.push(f_name_id)
+            fields_vec.push(f_ty)
+            f_i = f_i + 1
+        }
+
+        f_ptr := 0 as &u32
+        if fields_vec.len > 0 { f_ptr = fields_vec.ptr_at(0) }
+        f_slice: SliceU32 = .{ ptr: f_ptr, len: fields_vec.len }
+        structural_ty := (&(*types_ptr)).alloc_struct(f_slice)
+        fields_vec.destroy()
+
+        base_idx := (&(*types_ptr)).payload(nom_ty)
+        (*types_ptr).store.extra.set(base_idx as u64, structural_ty)
+
+        p_i: u64 = 0
+        while p_i < fn_params_slice.len {
+            if p_i < concrete_args.len {
+                p_arg := *(fn_params_slice.ptr + p_i)
+                p_ident := (tbl).lhs(p_arg)
+                arg_val := concrete_args.get(p_i)
+                if p_ident != hir_none() {
+                    type_slot := (&(*db).unify).new_slot(p_ident)
+                    (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
+                    db.set_const_type(p_ident, arg_val)
+                }
+                db.set_const_type(p_arg, arg_val)
+            }
+            p_i = p_i + 1
+        }
+        fn_params_vec.destroy()
+        (*db).type_specialization_depth = (*db).type_specialization_depth - 1
         ret nom_ty
     }
 
     if struct_node != hir_none() {
         res_ty := specialize_type_node(eng, struct_node, fn_params_slice, concrete_args)
         db.add_mono_nominal(callee_sym, concrete_args.as_slice(), res_ty)
+        fn_params_vec.destroy()
+        (*db).type_specialization_depth = (*db).type_specialization_depth - 1
         ret res_ty
     }
 
+    fn_params_vec.destroy()
+    (*db).type_specialization_depth = (*db).type_specialization_depth - 1
     ty_id_none()
 }
 
 specialize_type_node :: (eng &Engine, ty_node u32, fn_params SliceU32, concrete_args &VecU32) u32 {
+    params_vec := VecU32.new()
+    params_vec.extend(fn_params.ptr, fn_params.len)
+    result := specialize_type_node_inner(eng, ty_node, params_vec.as_slice(), concrete_args)
+    params_vec.destroy()
+    result
+}
+
+specialize_type_node_inner :: (eng &Engine, ty_node u32, fn_params SliceU32, concrete_args &VecU32) u32 {
     if ty_node == hir_none() { ret ty_id_none() }
     db := &(*eng).nexus
     tbl := &(*db).hir
@@ -397,13 +459,20 @@ specialize_type_node :: (eng &Engine, ty_node u32, fn_params SliceU32, concrete_
 
     if curr == k.ident {
         ty_name_id := (tbl).lhs(ty_node)
+        ty_name := db.interner.get(ty_name_id)
+        if ty_name.eq(Str.of("Self")) {
+            owner := db.get_method_owner(ty_node)
+            if owner != hir_none() {
+                ret db.get_const_type(owner)
+            }
+        }
         p_i: u64 = 0
         while p_i < fn_params.len {
             param_arg := *(fn_params.ptr + p_i)
             param_ident := (tbl).lhs(param_arg)
             if param_ident != hir_none() {
-                param_name_id := (tbl).lhs(param_ident)
-                if param_name_id == ty_name_id {
+                if (db.get_hir_symbol(param_ident) != id_none()) and
+                   (db.get_hir_symbol(param_ident) == db.get_hir_symbol(ty_node)) {
                     if p_i < concrete_args.len {
                         ret concrete_args.get(p_i)
                     }
@@ -412,6 +481,38 @@ specialize_type_node :: (eng &Engine, ty_node u32, fn_params SliceU32, concrete_
             p_i = p_i + 1
         }
         ret synth_type_node(eng, ty_node)
+    }
+
+    if curr == k.binary_bit_or {
+        lhs_ty := specialize_type_node(eng, (tbl).lhs(ty_node), fn_params, concrete_args)
+        rhs_ty := specialize_type_node(eng, (tbl).rhs(ty_node), fn_params, concrete_args)
+        if (lhs_ty != ty_id_none()) and (rhs_ty != ty_id_none()) {
+            ret (&(*db).types).make_union_2(lhs_ty, rhs_ty)
+        }
+    }
+
+    if curr == k.function {
+        params_vec := VecU32.new()
+        params_list := (tbl).lhs(ty_node)
+        if params_list != hir_none() {
+            count := db.get_list(params_list).len
+            i: u64 = 0
+            while i < count {
+                args := db.get_list(params_list)
+                arg := *(args.ptr + i)
+                param_ty := specialize_type_node(eng, (tbl).rhs(arg), fn_params, concrete_args)
+                params_vec.push(param_ty)
+                i = i + 1
+            }
+        }
+        ret_ty := ty_id_unit()
+        ret_node := (tbl).rhs(ty_node)
+        if ret_node != hir_none() {
+            ret_ty = specialize_type_node(eng, ret_node, fn_params, concrete_args)
+        }
+        result := (&(*db).types).alloc_func(params_vec.as_slice(), ret_ty, false)
+        params_vec.destroy()
+        ret result
     }
 
     if curr == k.unary_addr_of {
@@ -481,7 +582,10 @@ instantiate_type :: (eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU3
         i: u64 = 0
         while i < tmpl_slots.len {
             if tmpl_slots.get(i) == slot {
-                ret (&(*types)).alloc_infer(fresh_slots.get(i))
+                fresh := fresh_slots.get(i)
+                resolved := (&(*db).unify).resolve_type_deep(types, fresh)
+                if resolved != ty_id_none() { ret resolved }
+                ret (&(*types)).alloc_infer(fresh)
             }
             i = i + 1
         }
@@ -506,6 +610,9 @@ instantiate_type :: (eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU3
         ret_ty := (&(*types)).func_return(ty)
         is_ext := (&(*types)).func_is_extern(ty)
 
+        source_params := VecU32.new()
+        source_params.extend(params.ptr, params.len)
+        params = source_params.as_slice()
         inst_ret := instantiate_type(eng, ret_ty, tmpl_slots, fresh_slots)
         p_vec := VecU32.new()
         p_i: u64 = 0
@@ -518,7 +625,25 @@ instantiate_type :: (eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU3
         slice: SliceU32 = .{ ptr: ptr_p, len: p_vec.len }
         new_fn := (&(*types)).alloc_func(slice, inst_ret, is_ext)
         p_vec.destroy()
+        source_params.destroy()
         ret new_fn
+    }
+
+    if kind == k.union_ {
+        count := (&(*types)).union_members(ty).len
+        result := ty_id_none()
+        i: u64 = 0
+        while i < count {
+            members := (&(*types)).union_members(ty)
+            member := instantiate_type(eng, *(members.ptr + i), tmpl_slots, fresh_slots)
+            if result == ty_id_none() {
+                result = member
+            } else {
+                result = (&(*types)).make_union_2(result, member)
+            }
+            i = i + 1
+        }
+        ret result
     }
 
     if kind == k.nominal {
@@ -530,6 +655,7 @@ instantiate_type :: (eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU3
             changed := false
             c_i: u64 = 0
             while c_i < creator_args.len {
+                creator_args = (&(*types)).get_nominal_creator_args(orig)
                 c_arg := *(creator_args.ptr + c_i)
                 new_arg := instantiate_type(eng, c_arg, tmpl_slots, fresh_slots)
                 if new_arg != c_arg { changed = true }
@@ -560,7 +686,16 @@ resolve_ty_id :: (eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty u
     kind := (&(*types)).kind(ty)
     if kind == k.infer {
         s := (&(*types)).infer_slot(ty)
-        ret (unify_ptr).resolve_type_deep(types, s)
+        resolved := (unify_ptr).resolve_type_deep(types, s)
+        if resolved == ty_id_none() { ret ty }
+        if resolved == ty_id_untyped_int() {
+            resolved = (&(*types)).alloc_int(32)
+            unify_ptr.bind_type(types, s, resolved)
+        } else if resolved == ty_id_untyped_float() {
+            resolved = (&(*types)).alloc_float(64)
+            unify_ptr.bind_type(types, s, resolved)
+        }
+        ret resolve_ty_id(eng, unify_ptr, types, resolved)
     }
     if kind == k.ptr {
         inner := (&(*types)).payload(ty)
@@ -573,6 +708,36 @@ resolve_ty_id :: (eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty u
         res_inner := resolve_ty_id(eng, unify_ptr, types, inner)
         ret (&(*types)).alloc_array(res_inner, len)
     }
+    if kind == k.union_ {
+        count := (&(*types)).union_members(ty).len
+        result := ty_id_none()
+        i: u64 = 0
+        while i < count {
+            members := (&(*types)).union_members(ty)
+            member := resolve_ty_id(eng, unify_ptr, types, *(members.ptr + i))
+            if result == ty_id_none() {
+                result = member
+            } else {
+                result = (&(*types)).make_union_2(result, member)
+            }
+            i = i + 1
+        }
+        ret result
+    }
+    if kind == k.func {
+        count := (&(*types)).func_params(ty).len
+        ret_ty := resolve_ty_id(eng, unify_ptr, types, (&(*types)).func_return(ty))
+        params_vec := VecU32.new()
+        i: u64 = 0
+        while i < count {
+            params := (&(*types)).func_params(ty)
+            params_vec.push(resolve_ty_id(eng, unify_ptr, types, *(params.ptr + i)))
+            i = i + 1
+        }
+        result := (&(*types)).alloc_func(params_vec.as_slice(), ret_ty, (&(*types)).func_is_extern(ty))
+        params_vec.destroy()
+        ret result
+    }
     if kind == k.nominal {
         orig := (&(*types)).nominal_origin(ty)
         creator_sym := (&(*types)).get_nominal_creator_sym(orig)
@@ -582,6 +747,7 @@ resolve_ty_id :: (eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty u
             changed := false
             c_i: u64 = 0
             while c_i < creator_args.len {
+                creator_args = (&(*types)).get_nominal_creator_args(orig)
                 c_arg := *(creator_args.ptr + c_i)
                 new_arg := resolve_ty_id(eng, unify_ptr, types, c_arg)
                 if new_arg != c_arg { changed = true }
@@ -643,21 +809,64 @@ synth_call :: (eng &Engine, id u32) {
         if (&(*types_ptr)).kind(callee_ty) == ty_kind().func {
             args_list_id := (tbl).rhs(id)
             params := (&(*types_ptr)).func_params(callee_ty)
+            params_vec := VecU32.new()
+            params_vec.extend(params.ptr, params.len)
+            params = params_vec.as_slice()
+            args_vec := VecU32.new()
+            if args_list_id != hir_none() {
+                source_args := db.get_list(args_list_id)
+                args_vec.extend(source_args.ptr, source_args.len)
+            }
             args_len: u64 = 0
             if args_list_id != hir_none() {
-                args := db.get_list(args_list_id)
+                args := args_vec.as_slice()
                 args_len = args.len
             }
 
             ret_ty_check := (&(*types_ptr)).func_return(callee_ty)
             if ret_ty_check == ty_id_type() {
+                leading_types := (&(*types_ptr)).func_leading_type_params(callee_ty)
+                omitted_types := (leading_types > 0) and
+                    (args_len == params.len - (leading_types as u64))
+                if (args_len != params.len) and (not omitted_types) {
+                    print("\n[type error] type function expected ")
+                    print_u32(params.len as u32)
+                    print(" arguments, but got ")
+                    print_u32(args_len as u32)
+                    print("\n       --> ")
+                    db.print_loc(id)
+                    print("\n")
+                    fall()
+                }
                 concrete_args := VecU32.new()
+                if omitted_types {
+                    type_i: u32 = 0
+                    while type_i < leading_types {
+                        infer_slot := unify_ptr.tmp_slot()
+                        concrete_args.push((&(*types_ptr)).alloc_infer(infer_slot))
+                        type_i = type_i + 1
+                    }
+                }
                 if args_list_id != hir_none() {
-                    args := db.get_list(args_list_id)
+                    args := args_vec.as_slice()
                     i: u64 = 0
                     while i < args.len {
                         arg_node := *(args.ptr + i)
                         arg_ty := synth_type_node(eng, arg_node)
+                        arg_slot := unify_ptr.get_slot(arg_node)
+                        if (arg_ty == ty_id_none()) or (arg_slot == slot_none()) {
+                            print("\n[type error] type function argument must be a type\n       --> ")
+                            db.print_loc(arg_node)
+                            print("\n")
+                            fall()
+                        }
+                        if (unify_ptr.resolve_type(arg_slot) != ty_id_type()) and
+                           ((&(*types_ptr)).kind(arg_ty) != ty_kind().infer) {
+                            print("\n[type error] type function argument must be a type\n       --> ")
+                            db.print_loc(arg_node)
+                            print("\n")
+                            fall()
+                        }
                         concrete_args.push(arg_ty)
                         i = i + 1
                     }
@@ -683,12 +892,22 @@ synth_call :: (eng &Engine, id u32) {
                     concrete_args.destroy()
                     db.set_const_type(id, cached)
                     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+                    args_vec.destroy()
+                    params_vec.destroy()
                     ret
                 }
                 spec_ty := specialize_nominal_from_creator(eng, callee_sym, &concrete_args)
                 concrete_args.destroy()
+                if spec_ty == ty_id_none() {
+                    print("\n[type error] type function did not produce a type\n       --> ")
+                    db.print_loc(id)
+                    print("\n")
+                    fall()
+                }
                 db.set_const_type(id, spec_ty)
                 (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+                args_vec.destroy()
+                params_vec.destroy()
                 ret
             }
 
@@ -763,11 +982,14 @@ synth_call :: (eng &Engine, id u32) {
                 tmpl_slots := VecU32.new()
                 fresh_slots := VecU32.new()
 
+                fn_args_vec := VecU32.new()
                 fn_args_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
                 if func_node != id_none() {
                     fn_params_list := (tbl).lhs(func_node)
                     if fn_params_list != hir_none() {
-                        fn_args_slice = db.get_list(fn_params_list)
+                        fn_args := db.get_list(fn_params_list)
+                        fn_args_vec.extend(fn_args.ptr, fn_args.len)
+                        fn_args_slice = fn_args_vec.as_slice()
                     }
                 }
 
@@ -811,13 +1033,26 @@ synth_call :: (eng &Engine, id u32) {
                 inst_ret := instantiate_type(eng, ret_ty, &tmpl_slots, &fresh_slots)
                 (&(*db).unify).bind_type(&(*db).types, slot, inst_ret)
 
-                args := db.get_list(args_list_id)
+                args := args_vec.as_slice()
                 if is_explicit {
                     i: u64 = 0
                     while i < args.len {
                         arg_node := *(args.ptr + i)
                         if i < (leading_tp as u64) {
                             arg_val := db.get_const_type(arg_node)
+                            type_slot := unify_ptr.get_slot(arg_node)
+                            if (arg_val == ty_id_none()) or (type_slot == slot_none()) {
+                                print("\n[type error] generic type argument must be a type\n       --> ")
+                                db.print_loc(arg_node)
+                                print("\n")
+                                fall()
+                            }
+                            if unify_ptr.resolve_type(type_slot) != ty_id_type() {
+                                print("\n[type error] generic type argument must be a type\n       --> ")
+                                db.print_loc(arg_node)
+                                print("\n")
+                                fall()
+                            }
                             if arg_val != ty_id_none() {
                                 t_target := fresh_slots.get(i)
                                 (&(*db).unify).bind_type(&(*db).types, t_target, arg_val)
@@ -827,6 +1062,7 @@ synth_call :: (eng &Engine, id u32) {
                             arg_slot := (unify_ptr).get_slot(arg_node)
                             if arg_slot != slot_none() {
                                 check_value(db, arg_node, inst_param)
+                                arg_slot = (unify_ptr).get_slot(arg_node)
                                 p_tmp := unify_ptr.tmp_slot()
                                 (&(*db).unify).bind_type(&(*db).types, p_tmp, inst_param)
                                 (&(*db).unify).union(&(*db).types, arg_slot, p_tmp)
@@ -843,6 +1079,7 @@ synth_call :: (eng &Engine, id u32) {
                         arg_slot := (unify_ptr).get_slot(arg_node)
                         if arg_slot != slot_none() {
                             check_value(db, arg_node, inst_param)
+                            arg_slot = (unify_ptr).get_slot(arg_node)
                             p_tmp := unify_ptr.tmp_slot()
                             (&(*db).unify).bind_type(&(*db).types, p_tmp, inst_param)
                             (&(*db).unify).union(&(*db).types, arg_slot, p_tmp)
@@ -869,7 +1106,10 @@ synth_call :: (eng &Engine, id u32) {
                 p_i: u64 = 0
                 while p_i < params.len {
                     if p_i < (leading_tp as u64) {
-                        mono_p_vec.push((unify_ptr).resolve_type_deep(types_ptr, fresh_slots.get(p_i)))
+                        param_slot := fresh_slots.get(p_i)
+                        param_ty := (unify_ptr).resolve_type_deep(types_ptr, param_slot)
+                        if param_ty == ty_id_none() { param_ty = (&(*types_ptr)).alloc_infer(param_slot) }
+                        mono_p_vec.push(param_ty)
                     } else {
                         p_inst := instantiate_type(eng, *(params.ptr + p_i), &tmpl_slots, &fresh_slots)
                         mono_p_vec.push(resolve_ty_id(eng, unify_ptr, types_ptr, p_inst))
@@ -881,7 +1121,32 @@ synth_call :: (eng &Engine, id u32) {
                 if mono_p_vec.len > 0 { ptr_m = mono_p_vec.ptr_at(0) }
                 m_slice: SliceU32 = .{ ptr: ptr_m, len: mono_p_vec.len }
                 mono_func_ty := (&(*types_ptr)).alloc_func(m_slice, final_ret, false)
+                i: u64 = 0
+                while i < args.len {
+                    arg_node := *(args.ptr + i)
+                    if db.has_union_coerce(arg_node) {
+                        source_union := db.get_union_coerce_ty(arg_node)
+                        source_idx := db.get_union_coerce_idx(arg_node)
+                        source_members := (&(*types_ptr)).union_members(source_union)
+                        source_ty := resolve_ty_id(eng, unify_ptr, types_ptr, *(source_members.ptr + (source_idx as u64)))
+                        param_idx := i
+                        if is_omitted { param_idx = param_idx + (leading_tp as u64) }
+                        final_params := (&(*types_ptr)).func_params(mono_func_ty)
+                        target_ty := *(final_params.ptr + param_idx)
+                        if (&(*types_ptr)).kind(target_ty) == ty_kind().union_ {
+                            target_idx := (&(*types_ptr)).union_member_index(target_ty, source_ty)
+                            db.set_union_coerce(arg_node, target_ty, target_idx)
+                        } else {
+                            db.set_union_coerce(arg_node, ty_id_none(), 0)
+                        }
+                        arg_slot := unify_ptr.get_slot(arg_node)
+                        arg_root := unify_ptr.find(arg_slot)
+                        (*unify_ptr).types.set(arg_root as u64, target_ty)
+                    }
+                    i = i + 1
+                }
                 mono_p_vec.destroy()
+                fn_args_vec.destroy()
                 tmpl_slots.destroy()
                 fresh_slots.destroy()
                 root := (unify_ptr).find(slot)
@@ -943,7 +1208,7 @@ synth_call :: (eng &Engine, id u32) {
                 }
 
                 if args_list_id != hir_none() {
-                    args := db.get_list(args_list_id)
+                    args := args_vec.as_slice()
                     i: u64 = 0
                     while i < args.len {
                         arg_node := *(args.ptr + i)
@@ -952,6 +1217,7 @@ synth_call :: (eng &Engine, id u32) {
 
                         if arg_slot != slot_none() {
                             check_value(db, arg_node, param_ty)
+                            arg_slot = (unify_ptr).get_slot(arg_node)
                             param_slot := unify_ptr.tmp_slot()
                             (&(*db).unify).bind_type(&(*db).types, param_slot, param_ty)
                             (&(*db).unify).union(&(*db).types, arg_slot, param_slot)
@@ -966,6 +1232,8 @@ synth_call :: (eng &Engine, id u32) {
                     }
                 }
             }
+            args_vec.destroy()
+            params_vec.destroy()
         }
     }
 }

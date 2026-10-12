@@ -1,0 +1,2 @@
+Box :: (T type) type { struct { value: T get :: () T { .value } } }
+main :: () { x := Box(u32).get() }

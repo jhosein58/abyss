@@ -1,0 +1,70 @@
+import Vec from "std/collections/vec.a"
+
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
+print_i32 :: (v i32) unit
+print_bool :: (v bool) unit
+
+Maybe :: (T type) type { T | bool }
+Choice :: (T type) type {
+    struct {
+        value: T | bool
+
+        new :: (value T | bool) Self { .{ value: value } }
+        get :: () T | bool { .value }
+    }
+}
+
+roundtrip :: (T type, x T) T {
+    v := Vec().new()
+    v.push(x)
+    result := v.get(0)
+    v.destroy()
+    result
+}
+
+inc :: (x u32) u32 { x + 1 }
+Color :: enum { red, green, blue }
+
+main :: () {
+    V := Vec()
+    v := V.new()
+    v.push(42 as u32)
+    print_u32(v.get(0))
+    print("\n")
+    v.destroy()
+    x: Maybe() = 11 as u32
+    print_u32(x as u32)
+    print("\n")
+    print_bool(@is(x, u32))
+    print("\n")
+    literal: Maybe() = 13
+    print_i32(literal as i32)
+    print("\n")
+    print_u32(roundtrip(7 as u32))
+    print("\n")
+    print_bool(roundtrip(true))
+    print("\n")
+    boxed := Choice().new(19 as u32)
+    print_u32(boxed.get() as u32)
+    print("\n")
+    mixed: Vec(u32 | bool) = Vec().new()
+    mixed.push(23 as u32)
+    mixed.push(false)
+    print_u32(mixed.get(0) as u32)
+    print("\n")
+    print_bool(mixed.get(1) as bool)
+    print("\n")
+    mixed.destroy()
+    callbacks := Vec().new()
+    callbacks.push(inc)
+    fn := callbacks.get(0)
+    print_u32(fn(31 as u32))
+    print("\n")
+    callbacks.destroy()
+    colors := Vec().new()
+    colors.push(Color.green)
+    print_u32(colors.get(0) as u32)
+    print("\n")
+    colors.destroy()
+}

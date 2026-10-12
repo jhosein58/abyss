@@ -47,6 +47,7 @@ parse_builtin_type :: (types &TypeStorage, name Str) u32 {
 }
 
 check_value :: (db &Nexus, expr u32, expected u32) {
+    db.set_type_error_origin(expr)
     tbl := &db.hir
     unify_ptr := &db.unify
     types := &db.types
@@ -60,8 +61,8 @@ check_value :: (db &Nexus, expr u32, expected u32) {
         if elseb != hir_none() {
             check_value(db, elseb, expected)
         }
-        root := unify_ptr.find(slot)
-        (*unify_ptr).types.set(root as u64, expected)
+        result_slot := unify_ptr.new_slot(expr)
+        unify_ptr.bind_type(types, result_slot, expected)
         ret
     }
 
@@ -69,8 +70,8 @@ check_value :: (db &Nexus, expr u32, expected u32) {
         items := db.get_list(tbl.lhs(expr))
         if items.len > 0 {
             check_value(db, *(items.ptr + items.len - 1), expected)
-            root := unify_ptr.find(slot)
-            (*unify_ptr).types.set(root as u64, expected)
+            result_slot := unify_ptr.new_slot(expr)
+            unify_ptr.bind_type(types, result_slot, expected)
             ret
         }
     }
@@ -85,12 +86,27 @@ check_value :: (db &Nexus, expr u32, expected u32) {
         match_idx: u32 = 0
         match_member_ty := ty_id_none()
         val_k := (&(*types)).kind(val_ty)
+        infer_count: u32 = 0
+        infer_idx: u32 = 0
+        infer_member := ty_id_none()
         k := ty_kind()
 
         m_i: u64 = 0
         while m_i < members.len {
+            members = (&(*types)).union_members(expected)
             m_ty := *(members.ptr + m_i)
             m_k := (&(*types)).kind(m_ty)
+            if m_k == ty_kind().infer {
+                resolved := unify_ptr.resolve_type_deep(types, (&(*types)).infer_slot(m_ty))
+                if resolved == ty_id_none() {
+                    infer_count = infer_count + 1
+                    infer_idx = m_i as u32
+                    infer_member = m_ty
+                } else {
+                    m_ty = resolved
+                    m_k = (&(*types)).kind(m_ty)
+                }
+            }
             matches := false
             if val_ty == m_ty {
                 matches = true
@@ -111,12 +127,21 @@ check_value :: (db &Nexus, expr u32, expected u32) {
             m_i = m_i + 1
         }
 
+        if (match_count == 0) and (infer_count == 1) {
+            unify_ptr.bind_type(types, (&(*types)).infer_slot(infer_member), val_ty)
+            match_count = 1
+            match_idx = infer_idx
+            match_member_ty = val_ty
+        } else if (match_count == 0) and (infer_count > 1) {
+            match_count = infer_count
+        }
+
         if match_count == 1 {
             if (val_k == k.untyped_int) or (val_k == k.untyped_float) {
                 (&(*db).unify).bind_type(&(*db).types, slot, match_member_ty)
             }
-            root := unify_ptr.find(slot)
-            (*unify_ptr).types.set(root as u64, expected)
+            result_slot := unify_ptr.new_slot(expr)
+            unify_ptr.bind_type(types, result_slot, expected)
             db.set_union_coerce(expr, expected, match_idx)
             ret
         }

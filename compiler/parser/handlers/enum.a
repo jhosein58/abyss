@@ -69,9 +69,11 @@ parse_enum :: (p &Parser) u32 {
 
             bump(p)
             (*p).db.set_hir_symbol(name, id_none())
+            (*p).method_fn_depth = (*p).fn_stack.len + 1
             (*p).inside_method = true
             func := parse_expr(p, prec().const_def)
             (*p).inside_method = false
+            (*p).method_fn_depth = 0 as u64
             if func == hir_none() {
                 parse_error_at(p, "expected a method function after '::'", curr_span(p))
             }

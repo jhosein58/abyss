@@ -1,0 +1,2 @@
+add :: (T type, a T, b T) T { a + b }
+main :: () { x := add(true, false) }

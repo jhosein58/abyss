@@ -1,0 +1,2 @@
+bad :: (x u32, T type, y T) T { y }
+main :: () { x := bad(1 as u32, u32, 2 as u32) }

@@ -1,0 +1,2 @@
+Box :: (T type) type { struct { value: T new :: (x T) Self { .{ value: x } } } }
+main :: () { x := Box(u32).new() }

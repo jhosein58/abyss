@@ -1,7 +1,7 @@
 import HirTable, hir_kind, hir_none from "../hir.a"
 import ty_id_none from "../types.a"
 import Engine from "../engine.a"
-import method_returns_ref_self, method_has_explicit_self, synth_func, synth_return, synth_call from "rules/fn.a"
+import resolve_ty_id, method_returns_ref_self, method_has_explicit_self, synth_func, synth_return, synth_call, specialize_type_node from "rules/fn.a"
 import synth_lit_int, synth_lit_float, synth_lit_bool, synth_lit_str from "rules/lit.a"
 import synth_ident, synth_var_or_binding, synth_arg from "rules/var.a"
 import synth_unary_num, validate_unary_num, synth_unary_not, synth_unary_addr_of, synth_unary_deref,
@@ -14,6 +14,7 @@ import synth_enum from "rules/enum.a"
 
 synth_node :: (eng &Engine, id u32) {
     db := &(*eng).nexus
+    db.set_type_error_origin(id)
     tbl := &(*db).hir
     k := hir_kind()
     curr := (tbl).kind(id)
@@ -46,7 +47,7 @@ synth_node :: (eng &Engine, id u32) {
     if curr == k.k_if           { synth_if(db, tbl, id) }
     if curr == k.k_while        { synth_while(db, tbl, id) }
 
-    if curr == k.cast           { synth_cast(db, tbl, id) }
+    if curr == k.cast           { synth_cast(eng, id) }
 
     if curr == k.struct_        { synth_struct(eng, id) }
     if curr == k.struct_init    { synth_struct_init(db, tbl, id) }

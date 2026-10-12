@@ -1,0 +1,74 @@
+import Vec from "std/collections/vec.a"
+
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
+print_i32 :: (v i32) unit
+print_bool :: (v bool) unit
+
+Maybe :: (T type) type { T | bool }
+
+Box :: (T type) type {
+    struct {
+        value: T | bool
+
+        new :: (value T | bool) Self { .{ value: value } }
+        get :: () T | bool { .value }
+    }
+}
+
+maybe :: (T type, value T, yes bool) T | bool {
+    if yes { value } else { false }
+}
+
+explicit :: (T type, value T | bool) T | bool { value }
+identity :: (T type, value T) T { value }
+
+main :: () {
+    a := maybe(u32, 42 as u32, true)
+    b := maybe(i32, -7 as i32, true)
+    c := maybe(u32, 99 as u32, false)
+    print_u32(a as u32)
+    print("\n")
+    print_i32(b as i32)
+    print("\n")
+    print_bool(c as bool)
+    print("\n")
+    print_bool(@is(a, u32))
+    print("\n")
+    print_bool(@is(c, bool))
+    print("\n")
+    alias: Maybe(u32) = 33 as u32
+    print_u32(identity(alias) as u32)
+    print("\n")
+    print_u32(explicit(u32, 77 as u32) as u32)
+    print("\n")
+    boxed := Box(u32).new(123 as u32)
+    print_u32(boxed.get() as u32)
+    print("\n")
+    flags := Box(i32).new(true)
+    print_bool(flags.get() as bool)
+    print("\n")
+    v := Vec(u32 | bool).new()
+    v.push(10 as u32)
+    v.push(true)
+    v.push(20 as u32)
+    print_u32(v.get(0) as u32)
+    print("\n")
+    print_bool(v.get(1) as bool)
+    print("\n")
+    print_u32(v.pop() as u32)
+    print("\n")
+    v.destroy()
+    inferred := explicit(88 as u32)
+    print_u32(inferred as u32)
+    print("\n")
+    original: u32 = 91
+    sink := Box(u32).new(original)
+    print_u32(original)
+    print("\n")
+    print_u32(sink.get() as u32)
+    print("\n")
+    collapsed := maybe(bool, true, true)
+    print_bool(collapsed)
+    print("\n")
+}

@@ -1,0 +1,2 @@
+Box :: (T type) type { struct { value: T } }
+main :: () { x: Box(u32) = .{ value: 1 } y := x.nope }

@@ -93,6 +93,8 @@ Nexus :: struct {
     hir_files      : PoolU32, -- HirId    -> FileId
     hir_span_start : PoolU32, -- HirId    -> Span start offset
     hir_span_end   : PoolU32, -- HirId    -> Span end
+    type_specialization_depth : u32,
+    mono_method_owner : PoolU32,
     mono_orig_sym  : VecU32,
     mono_type      : VecU32,
     mono_sym       : VecU32,
@@ -133,6 +135,8 @@ Nexus :: struct {
             hir_files      : PoolU32.new(),
             hir_span_start : PoolU32.new(),
             hir_span_end   : PoolU32.new(),
+            type_specialization_depth : 0,
+            mono_method_owner : PoolU32.new(),
             mono_orig_sym  : VecU32.new(),
             mono_type      : VecU32.new(),
             mono_sym       : VecU32.new(),
@@ -345,6 +349,13 @@ Nexus :: struct {
         calc_pos(src, span.start)
     }
 
+    set_type_error_origin :: (hir_id u32) {
+        file_id := .get_hir_file(hir_id)
+        .unify.error_path = .get_file_path(file_id)
+        .unify.error_source = .get_file_source(file_id)
+        .unify.error_offset = .get_hir_span(hir_id).start
+    }
+
     print_loc :: (hir_id u32) {
         fid := .get_hir_file(hir_id)
         path := .get_file_path(fid)
@@ -394,6 +405,23 @@ Nexus :: struct {
         .mono_type.push(mono_ty)
         .mono_sym.push(sym_id)
         sym_id
+    }
+
+    find_mono_method :: (sym u32, owner u32, func_ty u32) u32 {
+        i: u64 = 0
+        while i < .mono_sym.len {
+            candidate := .mono_sym.get(i)
+            if (.mono_orig_sym.get(i) == sym) and (.mono_type.get(i) == func_ty) {
+                if .get_mono_method_owner(candidate) == owner { ret candidate }
+            }
+            i = i + 1
+        }
+        id_none()
+    }
+
+    get_mono_method_owner :: (sym u32) u32 {
+        if sym >= .mono_method_owner.count() { ret ty_id_none() }
+        .mono_method_owner.get(sym)
     }
 
     get_mono_orig_sym :: (sym u32) u32 {

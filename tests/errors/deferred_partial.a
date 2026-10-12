@@ -1,0 +1,2 @@
+Pair :: (T type, U type) type { struct { first: T, second: U } }
+main :: () { v: Pair(u32) }

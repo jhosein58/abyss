@@ -1,0 +1,2 @@
+Pair :: (T type) type { struct { first: T, second: T new :: (a T, b T) Self { .{ first: a, second: b } } } }
+main :: () { v := Pair().new(1 as u32, true) }

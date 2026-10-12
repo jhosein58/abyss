@@ -24,7 +24,7 @@ Parser :: struct {
     allow_fn  : bool,
     in_type   : bool,
     inside_method : bool,
-    method_fn_depth : u32,
+    method_fn_depth : u64,
     fn_stack  : VecU32
 }
 
@@ -41,7 +41,7 @@ Parser_new :: (db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv
         allow_fn  : true,
         in_type   : false,
         inside_method : false,
-        method_fn_depth : 0,
+        method_fn_depth : 0 as u64,
         fn_stack  : VecU32.new()
     }
 }

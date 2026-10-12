@@ -6,6 +6,7 @@ import Engine from "compiler/engine.a"
 import CCodeGen_finish from "compiler/codegen.a"
 import fall from "std/sys.a"
 import Fmt from "std/fmt.a"
+import Vec from "std/collections/vec.a"
 
 print_u32 :: (s u32) unit
 print_u64 :: (s u64) unit
@@ -19,6 +20,11 @@ get_arg         :: (idx i32) &u8
 get_env         :: (name &u8) &u8
 
 main :: () {
+    v := Vec().new()
+
+    v.push(10 as u32)
+
+    v.destroy()
     arena := Arena.new(1024 * 1024 * 16)
 
     main_path := "main.a"

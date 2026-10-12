@@ -1,0 +1,128 @@
+import malloc, realloc, free, mem_copy from "../mem.a"
+
+
+Vec :: (T type) type {
+    struct {
+        ptr: &T,
+        len: u64,
+        cap: u64
+
+        new :: () Self {
+            Self.with_cap(4)
+        }
+
+        with_cap :: (initial_cap u64) Self {
+            cap := initial_cap
+            if cap < 4 {
+                cap = 4
+            }
+
+            p := malloc(cap * @sizeof(T)) as &T
+
+            .{
+                ptr: p,
+                len: 0,
+                cap: cap
+            }
+        }
+
+        destroy :: () {
+            free(.ptr as &u8)
+            .ptr = 0 as &T
+            .len = 0
+            .cap = 0
+        }
+
+        reserve :: (additional u64) {
+            needed := .len + additional
+            if needed > .cap {
+                new_cap := .cap * 2
+                if new_cap < 4 { new_cap = 4 }
+                while new_cap < needed {
+                    new_cap = new_cap * 2
+                }
+
+                new_ptr := realloc(.ptr as &u8, new_cap * @sizeof(T)) as &T
+                .ptr = new_ptr
+                .cap = new_cap
+            }
+        }
+
+        grow :: () {
+            if .len == .cap {
+                .reserve(1)
+            }
+        }
+
+
+        push :: (val T) {
+            .grow()
+
+            *(.ptr + .len) = val
+            .len = .len + 1
+        }
+
+
+        get :: (idx u64) T {
+            *(.ptr + idx)
+        }
+
+        pop :: () T {
+            .len = .len - 1
+            .get(.len)
+        }
+
+        set :: (idx u64, val T) {
+            *(.ptr + idx) = val
+        }
+
+
+        last :: () T {
+            *(.ptr + (.len - 1))
+        }
+
+        is_empty :: () bool {
+            .len == 0
+        }
+
+        extend :: (src &T, count u64) {
+            if count == 0 { ret }
+
+            .reserve(count)
+            dst := (.ptr + .len) as &u8
+
+            mem_copy(dst, src as &u8, count * @sizeof(T))
+            .len = .len + count
+        }
+
+        mark :: () u64 {
+            .len
+        }
+
+        reset :: (mark u64) {
+            if mark <= .len {
+                .len = mark
+            }
+        }
+
+        clear :: () {
+            .len = 0
+        }
+
+        ptr_at :: (offset u64) &T {
+            .ptr + offset
+        }
+
+        swap_remove :: (idx u64) T {
+            last_idx := .len - 1
+            removed := *(.ptr + idx)
+        
+            if idx != last_idx {
+                *(.ptr + idx) = *(.ptr + last_idx)
+            }
+        
+            .len = last_idx
+            removed
+        }
+    }
+}

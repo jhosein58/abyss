@@ -121,7 +121,11 @@ path_resolve :: (arena &Arena, base Str, rel Str) Str {
         c_i = c_i + 1
     }
 
+    is_absolute := (combined.len > 0) and (*(combined.ptr) == 47 as u8)
     final_len: u64 = 0
+    if is_absolute {
+        final_len = 1
+    }
     k_i: u64 = 0
     while k_i < seg_starts.len {
         final_len = final_len + (seg_lens.get(k_i) as u64)
@@ -133,6 +137,10 @@ path_resolve :: (arena &Arena, base Str, rel Str) Str {
 
     out_buf := arena.alloc(final_len + 1)
     write_pos: u64 = 0
+    if is_absolute {
+        *(out_buf) = 47 as u8
+        write_pos = 1
+    }
     k_i = 0
     while k_i < seg_starts.len {
         s_off := seg_starts.get(k_i) as u64

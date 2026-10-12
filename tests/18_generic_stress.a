@@ -1,0 +1,213 @@
+import Vec from "std/collections/vec.a"
+
+print_u32 :: (v u32) unit
+print :: (s &u8) unit
+
+Marker0 :: struct { value: u32 }
+Marker1 :: struct { value: u32 }
+Marker2 :: struct { value: u32 }
+Marker3 :: struct { value: u32 }
+Marker4 :: struct { value: u32 }
+Marker5 :: struct { value: u32 }
+Marker6 :: struct { value: u32 }
+Marker7 :: struct { value: u32 }
+Marker8 :: struct { value: u32 }
+Marker9 :: struct { value: u32 }
+Marker10 :: struct { value: u32 }
+Marker11 :: struct { value: u32 }
+Marker12 :: struct { value: u32 }
+Marker13 :: struct { value: u32 }
+Marker14 :: struct { value: u32 }
+Marker15 :: struct { value: u32 }
+Marker16 :: struct { value: u32 }
+Marker17 :: struct { value: u32 }
+Marker18 :: struct { value: u32 }
+Marker19 :: struct { value: u32 }
+Marker20 :: struct { value: u32 }
+Marker21 :: struct { value: u32 }
+Marker22 :: struct { value: u32 }
+Marker23 :: struct { value: u32 }
+Marker24 :: struct { value: u32 }
+Marker25 :: struct { value: u32 }
+Marker26 :: struct { value: u32 }
+Marker27 :: struct { value: u32 }
+Marker28 :: struct { value: u32 }
+Marker29 :: struct { value: u32 }
+Marker30 :: struct { value: u32 }
+Marker31 :: struct { value: u32 }
+Marker32 :: struct { value: u32 }
+Marker33 :: struct { value: u32 }
+Marker34 :: struct { value: u32 }
+Marker35 :: struct { value: u32 }
+Marker36 :: struct { value: u32 }
+Marker37 :: struct { value: u32 }
+Marker38 :: struct { value: u32 }
+Marker39 :: struct { value: u32 }
+
+identity :: (T type, value T) T { value }
+
+main :: () {
+    total: u32 = 0
+    v0 := Vec(Marker0).new()
+    v0.push(.{ value: 0 })
+    total = total + identity(v0.get(0)).value
+    v0.destroy()
+    v1 := Vec(Marker1).new()
+    v1.push(.{ value: 1 })
+    total = total + identity(v1.get(0)).value
+    v1.destroy()
+    v2 := Vec(Marker2).new()
+    v2.push(.{ value: 2 })
+    total = total + identity(v2.get(0)).value
+    v2.destroy()
+    v3 := Vec(Marker3).new()
+    v3.push(.{ value: 3 })
+    total = total + identity(v3.get(0)).value
+    v3.destroy()
+    v4 := Vec(Marker4).new()
+    v4.push(.{ value: 4 })
+    total = total + identity(v4.get(0)).value
+    v4.destroy()
+    v5 := Vec(Marker5).new()
+    v5.push(.{ value: 5 })
+    total = total + identity(v5.get(0)).value
+    v5.destroy()
+    v6 := Vec(Marker6).new()
+    v6.push(.{ value: 6 })
+    total = total + identity(v6.get(0)).value
+    v6.destroy()
+    v7 := Vec(Marker7).new()
+    v7.push(.{ value: 7 })
+    total = total + identity(v7.get(0)).value
+    v7.destroy()
+    v8 := Vec(Marker8).new()
+    v8.push(.{ value: 8 })
+    total = total + identity(v8.get(0)).value
+    v8.destroy()
+    v9 := Vec(Marker9).new()
+    v9.push(.{ value: 9 })
+    total = total + identity(v9.get(0)).value
+    v9.destroy()
+    v10 := Vec(Marker10).new()
+    v10.push(.{ value: 10 })
+    total = total + identity(v10.get(0)).value
+    v10.destroy()
+    v11 := Vec(Marker11).new()
+    v11.push(.{ value: 11 })
+    total = total + identity(v11.get(0)).value
+    v11.destroy()
+    v12 := Vec(Marker12).new()
+    v12.push(.{ value: 12 })
+    total = total + identity(v12.get(0)).value
+    v12.destroy()
+    v13 := Vec(Marker13).new()
+    v13.push(.{ value: 13 })
+    total = total + identity(v13.get(0)).value
+    v13.destroy()
+    v14 := Vec(Marker14).new()
+    v14.push(.{ value: 14 })
+    total = total + identity(v14.get(0)).value
+    v14.destroy()
+    v15 := Vec(Marker15).new()
+    v15.push(.{ value: 15 })
+    total = total + identity(v15.get(0)).value
+    v15.destroy()
+    v16 := Vec(Marker16).new()
+    v16.push(.{ value: 16 })
+    total = total + identity(v16.get(0)).value
+    v16.destroy()
+    v17 := Vec(Marker17).new()
+    v17.push(.{ value: 17 })
+    total = total + identity(v17.get(0)).value
+    v17.destroy()
+    v18 := Vec(Marker18).new()
+    v18.push(.{ value: 18 })
+    total = total + identity(v18.get(0)).value
+    v18.destroy()
+    v19 := Vec(Marker19).new()
+    v19.push(.{ value: 19 })
+    total = total + identity(v19.get(0)).value
+    v19.destroy()
+    v20 := Vec(Marker20).new()
+    v20.push(.{ value: 20 })
+    total = total + identity(v20.get(0)).value
+    v20.destroy()
+    v21 := Vec(Marker21).new()
+    v21.push(.{ value: 21 })
+    total = total + identity(v21.get(0)).value
+    v21.destroy()
+    v22 := Vec(Marker22).new()
+    v22.push(.{ value: 22 })
+    total = total + identity(v22.get(0)).value
+    v22.destroy()
+    v23 := Vec(Marker23).new()
+    v23.push(.{ value: 23 })
+    total = total + identity(v23.get(0)).value
+    v23.destroy()
+    v24 := Vec(Marker24).new()
+    v24.push(.{ value: 24 })
+    total = total + identity(v24.get(0)).value
+    v24.destroy()
+    v25 := Vec(Marker25).new()
+    v25.push(.{ value: 25 })
+    total = total + identity(v25.get(0)).value
+    v25.destroy()
+    v26 := Vec(Marker26).new()
+    v26.push(.{ value: 26 })
+    total = total + identity(v26.get(0)).value
+    v26.destroy()
+    v27 := Vec(Marker27).new()
+    v27.push(.{ value: 27 })
+    total = total + identity(v27.get(0)).value
+    v27.destroy()
+    v28 := Vec(Marker28).new()
+    v28.push(.{ value: 28 })
+    total = total + identity(v28.get(0)).value
+    v28.destroy()
+    v29 := Vec(Marker29).new()
+    v29.push(.{ value: 29 })
+    total = total + identity(v29.get(0)).value
+    v29.destroy()
+    v30 := Vec(Marker30).new()
+    v30.push(.{ value: 30 })
+    total = total + identity(v30.get(0)).value
+    v30.destroy()
+    v31 := Vec(Marker31).new()
+    v31.push(.{ value: 31 })
+    total = total + identity(v31.get(0)).value
+    v31.destroy()
+    v32 := Vec(Marker32).new()
+    v32.push(.{ value: 32 })
+    total = total + identity(v32.get(0)).value
+    v32.destroy()
+    v33 := Vec(Marker33).new()
+    v33.push(.{ value: 33 })
+    total = total + identity(v33.get(0)).value
+    v33.destroy()
+    v34 := Vec(Marker34).new()
+    v34.push(.{ value: 34 })
+    total = total + identity(v34.get(0)).value
+    v34.destroy()
+    v35 := Vec(Marker35).new()
+    v35.push(.{ value: 35 })
+    total = total + identity(v35.get(0)).value
+    v35.destroy()
+    v36 := Vec(Marker36).new()
+    v36.push(.{ value: 36 })
+    total = total + identity(v36.get(0)).value
+    v36.destroy()
+    v37 := Vec(Marker37).new()
+    v37.push(.{ value: 37 })
+    total = total + identity(v37.get(0)).value
+    v37.destroy()
+    v38 := Vec(Marker38).new()
+    v38.push(.{ value: 38 })
+    total = total + identity(v38.get(0)).value
+    v38.destroy()
+    v39 := Vec(Marker39).new()
+    v39.push(.{ value: 39 })
+    total = total + identity(v39.get(0)).value
+    v39.destroy()
+    print_u32(total)
+    print("\n")
+}

@@ -196,6 +196,7 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
                 expected := db.get_const_type(type_id)
                 if expected != ty_id_none() { check_value(db, value_id, expected) }
             }
+            val_slot = (unify_ptr).get_slot(value_id)
             (&(*db).unify).union(&(*db).types, ident_slot, val_slot)
         }
     }

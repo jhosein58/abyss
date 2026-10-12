@@ -1,0 +1,2 @@
+Bad :: (T type) type { struct { next: Bad(T) } }
+main :: () { x: Bad(u32) }

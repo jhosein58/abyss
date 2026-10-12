@@ -1,0 +1,2 @@
+Either :: (T type, U type) type { T | U }
+main :: () { x: Either() = 42 as u32 }

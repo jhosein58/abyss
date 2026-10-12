@@ -15,7 +15,7 @@ YELLOW='\033[1;33m'
 RESET='\033[0m'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SEED_COMPILER="${ROOT_DIR}/abyssc"
+SEED_COMPILER="${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}"
 
 GCC_FLAGS="-O3 -march=native -mtune=native -fomit-frame-pointer -funroll-loops"
 
@@ -39,19 +39,18 @@ FIXED_POINT_REACHED=false
 for i in $(seq 1 "${ROUNDS}"); do
     echo -e "\n${YELLOW}>>> [Round ${i}/${ROUNDS}] Compiling compiler with: $(basename "${CURRENT_COMPILER}")...${RESET}"
 
-    if ! "${CURRENT_COMPILER}"; then
+    OUT_C="${WORK_DIR}/gen_${i}.c"
+    if ! "${CURRENT_COMPILER}" "${ROOT_DIR}/main.a" "${OUT_C}"; then
         echo -e "${RED}[FAIL] Compiler crashed at Generation ${i}!${RESET}"
         exit 1
     fi
 
-    OUT_C="${ROOT_DIR}/tmp/out.c"
     if [ ! -f "${OUT_C}" ]; then
         echo -e "${RED}[FAIL] Generation ${i} did not produce '${OUT_C}'!${RESET}"
         exit 1
     fi
 
     GEN_C="${WORK_DIR}/gen_${i}.c"
-    cp "${OUT_C}" "${GEN_C}"
 
     GEN_BIN="${WORK_DIR}/abyss_gen_${i}"
     echo -e "    Compiling C output via GCC..."
@@ -83,19 +82,17 @@ for i in $(seq 1 "${ROUNDS}"); do
     CURRENT_COMPILER="${GEN_BIN}"
 done
 
-if ! "${CURRENT_COMPILER}"; then
+if ! "${CURRENT_COMPILER}" "${ROOT_DIR}/main.a" "${WORK_DIR}/final.c"; then
     echo -e "${RED}[FAIL] Final compiler crashed!${RESET}"
     exit 1
 fi
 
-if ! cmp -s "${ROOT_DIR}/tmp/out.c" "${WORK_DIR}/gen_${ROUNDS}.c"; then
+if ! cmp -s "${WORK_DIR}/final.c" "${WORK_DIR}/gen_${ROUNDS}.c"; then
     echo -e "${RED}[FAIL] Final compiler output diverged!${RESET}"
     exit 1
 fi
 
-if [ -f "${ROOT_DIR}/test_compiler.sh" ]; then
-    bash "${ROOT_DIR}/test_compiler.sh" "${CURRENT_COMPILER}"
-fi
+bash "${ROOT_DIR}/scripts/test_compiler.sh" "${CURRENT_COMPILER}"
 
 echo -e "\n${CYAN}====================================================${RESET}"
 if [ "${FIXED_POINT_REACHED}" = true ]; then

@@ -1,0 +1,117 @@
+import Vec from "std/collections/vec.a"
+
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
+print_u64 :: (v u64) unit
+print_i32 :: (v i32) unit
+print_bool :: (b bool) unit
+
+println_u32 :: (v u32) {
+    print_u32(v)
+    print("\n")
+}
+
+println_u64 :: (v u64) {
+    print_u64(v)
+    print("\n")
+}
+
+println_i32 :: (v i32) {
+    print_i32(v)
+    print("\n")
+}
+
+println_bool :: (b bool) {
+    print_bool(b)
+    print("\n")
+}
+
+main :: () {
+    v := Vec(i32).new()
+    println_bool(v.is_empty())
+    println_u32(v.len as u32)
+    println_u32(v.cap as u32)
+
+    v.push(10)
+    v.push(20)
+    v.push(30)
+    println_bool(v.is_empty())
+    println_u32(v.len as u32)
+    println_i32(v.get(0 as u64))
+    println_i32(v.get(1 as u64))
+    println_i32(v.get(2 as u64))
+    println_i32(v.last())
+
+    v.set(1 as u64, 99)
+    println_i32(v.get(1 as u64))
+
+    v.push(40)
+    v.push(50)
+    println_u32(v.len as u32)
+    println_u32(v.cap as u32)
+
+    popped := v.pop()
+    println_i32(popped)
+    println_u32(v.len as u32)
+
+    swapped := v.swap_remove(0 as u64)
+    println_i32(swapped)
+    println_i32(v.get(0 as u64))
+    println_u32(v.len as u32)
+
+    p_elem := v.ptr_at(1 as u64)
+    println_i32(*p_elem)
+
+    m := v.mark()
+    println_u64(m)
+    v.push(999)
+    println_u32(v.len as u32)
+    v.reset(m)
+    println_u32(v.len as u32)
+
+    v.clear()
+    println_bool(v.is_empty())
+    println_u32(v.len as u32)
+
+    v.destroy()
+    println_u32(v.cap as u32)
+
+    v2 := Vec(u64).with_cap(2 as u64)
+    v2.push(1000 as u64)
+    v2.push(2000 as u64)
+    println_u64(v2.get(0 as u64))
+    println_u64(v2.get(1 as u64))
+    v2.destroy()
+
+    v3 := Vec(u32).new()
+    v3.push(42 as u32)
+    println_u32(v3.get(0 as u64))
+    v3.destroy()
+    stress := Vec(u32).with_cap(0)
+    i: u32 = 0
+    while i < 256 {
+        stress.push(i)
+        i = i + 1
+    }
+    sum: u32 = 0
+    i = 0
+    while i < 256 {
+        sum = sum + stress.get(i as u64)
+        i = i + 1
+    }
+    println_u32(stress.len as u32)
+    println_u32(sum)
+    extra: u32 = 88
+    stress.reserve(300)
+    stress.extend(&extra, 1)
+    println_u32(stress.last())
+    stress.destroy()
+    stress.push(77 as u32)
+    println_u32(stress.get(0))
+    stress.destroy()
+    pointers := Vec(&u32).new()
+    pointers.push(&extra)
+    *pointers.get(0) = 99
+    println_u32(extra)
+    pointers.destroy()
+}

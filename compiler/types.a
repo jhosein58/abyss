@@ -219,7 +219,8 @@ TypeStorage :: struct {
     nominal_creator_arg : VecU32,
     nominal_creator_items : VecU32,
     enum_names : VecStr,
-    enum_by_origin : VecU32
+    enum_by_origin : VecU32,
+    nominal_struct_node : VecU32
 
     new :: () Self {
         store := TyStore.new()
@@ -253,7 +254,8 @@ TypeStorage :: struct {
             nominal_creator_arg : VecU32.new(),
             nominal_creator_items : VecU32.new(),
             enum_names : VecStr.new(),
-            enum_by_origin : VecU32.new()
+            enum_by_origin : VecU32.new(),
+            nominal_struct_node : VecU32.new()
         }
     }
 
@@ -301,6 +303,7 @@ TypeStorage :: struct {
         .nominal_creator_items.destroy()
         .enum_names.destroy()
         .enum_by_origin.destroy()
+        .nominal_struct_node.destroy()
     }
 
     len :: () u32 {
@@ -578,11 +581,14 @@ TypeStorage :: struct {
     }
 
     alloc_nominal :: (base u32, name Str, origin u32) u32 {
-        while .nominal_by_origin.len <= origin as u64 {
-            .nominal_by_origin.push(ty_id_none())
+        generic_origin := (origin & 2147483648) != 0
+        if not generic_origin {
+            while .nominal_by_origin.len <= origin as u64 {
+                .nominal_by_origin.push(ty_id_none())
+            }
+            existing := .nominal_by_origin.get(origin as u64)
+            if existing != ty_id_none() { ret existing }
         }
-        existing := .nominal_by_origin.get(origin as u64)
-        if existing != ty_id_none() { ret existing }
 
         extra_idx := .store.extra.len as u32
         name_idx := .nominal_names.len as u32
@@ -591,7 +597,7 @@ TypeStorage :: struct {
         .store.extra.push(name_idx)
         .store.extra.push(origin)
         nominal := .store.push(ty_kind().nominal, extra_idx)
-        .nominal_by_origin.set(origin as u64, nominal)
+        if not generic_origin { .nominal_by_origin.set(origin as u64, nominal) }
         nominal
     }
 
@@ -606,6 +612,8 @@ TypeStorage :: struct {
     }
 
     record_nominal_creator :: (origin u32, sym u32, args SliceU32) {
+        if (origin & 2147483648) == 0 { ret }
+        origin = origin & 2147483647
         while .nominal_creator_sym.len <= (origin as u64) {
             .nominal_creator_sym.push(ty_id_none())
             .nominal_creator_arg.push(ty_id_none())
@@ -618,11 +626,15 @@ TypeStorage :: struct {
     }
 
     get_nominal_creator_sym :: (origin u32) u32 {
+        if (origin & 2147483648) == 0 { ret ty_id_none() }
+        origin = origin & 2147483647
         if (origin as u64) >= .nominal_creator_sym.len { ret ty_id_none() }
         .nominal_creator_sym.get(origin as u64)
     }
 
     get_nominal_creator_args :: (origin u32) SliceU32 {
+        if (origin & 2147483648) == 0 { ret .{ ptr: 0 as &u32, len: 0 } }
+        origin = origin & 2147483647
         if (origin as u64) >= .nominal_creator_arg.len {
             ret .{ ptr: 0 as &u32, len: 0 }
         }
@@ -635,6 +647,22 @@ TypeStorage :: struct {
             ptr: .nominal_creator_items.ptr_at((start as u64) + 1),
             len: len as u64
         }
+    }
+
+    record_nominal_struct_node :: (origin u32, node u32) {
+        if (origin & 2147483648) == 0 { ret }
+        origin = origin & 2147483647
+        while .nominal_struct_node.len <= (origin as u64) {
+            .nominal_struct_node.push(ty_id_none())
+        }
+        .nominal_struct_node.set(origin as u64, node)
+    }
+
+    get_nominal_struct_node :: (origin u32) u32 {
+        if (origin & 2147483648) == 0 { ret ty_id_none() }
+        origin = origin & 2147483647
+        if (origin as u64) >= .nominal_struct_node.len { ret ty_id_none() }
+        .nominal_struct_node.get(origin as u64)
     }
 
     alloc_struct :: (fields SliceU32) u32 {

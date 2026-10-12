@@ -1,0 +1,105 @@
+import Vec from "std/collections/vec.a"
+
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
+print_i32 :: (v i32) unit
+print_u64 :: (v u64) unit
+print_bool :: (v bool) unit
+
+Box :: (T type) type {
+    struct {
+        value: T
+
+        new :: (value T) Self { .{ value: value } }
+        get :: () T { .value }
+    }
+}
+
+Pair :: (T type, U type) type {
+    struct {
+        first: T,
+        second: U
+
+        new :: (first T, second U) Self { .{ first: first, second: second } }
+    }
+}
+
+zero :: (T type) T { 0 as T }
+identity :: (T type, value T) T { value }
+consume :: (value Vec(u32)) u32 { value.get(0) }
+
+main :: () {
+    a := Vec().new()
+    b := Vec().new()
+    a.push(10 as u32)
+    b.push(true)
+    print_u32(a.get(0))
+    print("\n")
+    print_bool(b.get(0))
+    print("\n")
+    alias := a
+    alias.push(20 as u32)
+    print_u32(alias.last())
+    print("\n")
+    alias.destroy()
+    b.destroy()
+    numbers := Vec().with_cap(1)
+    numbers.push(7)
+    numbers.push(9 as u64)
+    print_u64(numbers.get(0) + numbers.get(1))
+    print("\n")
+    numbers.destroy()
+    context: Vec(i32) = Vec().new()
+    context.push(-5)
+    print_i32(context.get(0))
+    print("\n")
+    context.destroy()
+    later := Vec().new()
+    size := @sizeof(@typeof(later))
+    later.push(33 as u32)
+    print_u32(size as u32)
+    print("\n")
+    print_u32(consume(later))
+    print("\n")
+    later.destroy()
+    inferred := Box().new(42 as u32)
+    print_u32(inferred.get())
+    print("\n")
+    literal: Box() = .{ value: 17 as u32 }
+    print_u32(literal.get())
+    print("\n")
+    pair := Pair().new(123 as u32, false)
+    print_u32(pair.first)
+    print("\n")
+    print_bool(pair.second)
+    print("\n")
+    inner := Vec().new()
+    outer := Vec().new()
+    outer.push(inner)
+    inner.push(88 as u32)
+    print_u32(outer.get(0).get(0))
+    print("\n")
+    inner.destroy()
+    outer.destroy()
+    pointers := Vec().new()
+    value: u32 = 91
+    pointers.push(&value)
+    print_u32(*pointers.get(0))
+    print("\n")
+    pointers.destroy()
+    raw := Vec().new()
+    p := raw.ptr
+    *p = 45 as u32
+    print_u32(*p)
+    print("\n")
+    raw.destroy()
+    result := zero()
+    typed: u64 = result
+    print_u64(typed)
+    print("\n")
+    forwarded := identity(Vec().new())
+    forwarded.push(99 as u32)
+    print_u32(forwarded.last())
+    print("\n")
+    forwarded.destroy()
+}
