@@ -477,6 +477,13 @@ UnifyStorage :: struct {
             ret ty_id_error()
         }
 
+        if (kind_a == k.enum_) and (kind_b == k.enum_) {
+            orig_a := (&(*types)).enum_origin(a)
+            orig_b := (&(*types)).enum_origin(b)
+            if orig_a == orig_b { ret a }
+            ret ty_id_error()
+        }
+
         ty_id_error()
     }
 

@@ -240,6 +240,7 @@ validate_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
         if (op == hir_kind().binary_eq_eq) or (op == hir_kind().binary_neq) {
             if (lhs_kind == k.bool) and (rhs_kind == k.bool) { ret }
             if (lhs_kind == k.ptr) and (rhs_kind == k.ptr) { ret }
+            if (lhs_kind == k.enum_) and (rhs_kind == k.enum_) { ret }
         }
     }
     print(c"\n[type error] invalid comparison operands\n       --> ")
