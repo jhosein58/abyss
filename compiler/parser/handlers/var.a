@@ -23,7 +23,10 @@ parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
         (*p).db.set_hir_symbol(lhs, sym_id)
     }
 
+    saved_toplv := (*p).toplv_sym
+    (*p).toplv_sym = sym_id
     rhs := parse_expr(p, right_bp)
+    (*p).toplv_sym = saved_toplv
     sp_rhs := span_of_hir(p, rhs)
 
     binding_id := ((*p).hir).push(k.binding, lhs, hir_none(), rhs)

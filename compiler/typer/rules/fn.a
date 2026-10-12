@@ -15,7 +15,26 @@ import synth_node from "../tyck.a"
 print :: (s &u8) unit
 print_u32 :: (v u32) unit
 
+method_has_explicit_self :: (db &Nexus, method u32) bool {
+    tbl := &(*db).hir
+    func_node := (tbl).extra(method)
+    if func_node == hir_none() { ret false }
+    params_list_id := (tbl).lhs(func_node)
+    if params_list_id == hir_none() { ret false }
+    args := db.get_list(params_list_id)
+    if args.len == 0 { ret false }
+    first_arg := *(args.ptr + 0)
+    arg_ident := (tbl).lhs(first_arg)
+    if arg_ident == hir_none() { ret false }
+    name_id := (tbl).lhs(arg_ident)
+    name := db.interner.get(name_id)
+    name.eq(Str.of("self"))
+}
+
 method_has_receiver :: (db &Nexus, method u32) bool {
+    if method_has_explicit_self(db, method) {
+        ret true
+    }
     tbl := &(*db).hir
     node := (tbl).lhs(method)
     while node < method {
@@ -159,6 +178,12 @@ find_enclosing_method :: (db &Nexus, node_id u32) u32 {
     owner := db.get_method_owner(node_id)
     if owner == hir_none() { ret hir_none() }
     methods_id := (&(*db).hir).extra(owner)
+    if (&(*db).hir).kind(owner) == hir_kind().enum_ {
+        if methods_id != hir_none() {
+            meta := db.get_list(methods_id)
+            methods_id = *(meta.ptr + 1)
+        }
+    }
     if methods_id == hir_none() { ret hir_none() }
     methods := db.get_list(methods_id)
     i: u64 = 0
@@ -593,55 +618,7 @@ synth_call :: (eng &Engine, id u32) {
     callee := (tbl).lhs(id)
     callee_kind := (tbl).kind(callee)
 
-    if callee_kind == hir_kind().ident {
-        name_id := (tbl).lhs(callee)
-        name := db.interner.get(name_id)
-        if name.eq(Str.of("sizeof")) {
-            args_list_id := (tbl).rhs(id)
-            if args_list_id != hir_none() {
-                args := db.get_list(args_list_id)
-                if args.len > 0 {
-                    arg_node := *(args.ptr + 0)
-                    target_ty := synth_type_node(eng, arg_node)
-                    if target_ty == ty_id_none() {
-                        synth_node(eng, arg_node)
-                        s := (unify_ptr).get_slot(arg_node)
-                        if s != slot_none() {
-                            target_ty = (unify_ptr).resolve_type_deep(types_ptr, s)
-                        }
-                    }
-                    if target_ty == ty_id_none() {
-                        target_ty = db.get_const_type(arg_node)
-                    }
-                    u64_ty := (&(*types_ptr)).alloc_uint(64)
-                    (&(*db).unify).bind_type(&(*db).types, slot, u64_ty)
-                    db.set_const_type(id, target_ty)
-                    ret
-                }
-            }
-        }
-        if name.eq(Str.of("typeof")) {
-            args_list_id := (tbl).rhs(id)
-            if args_list_id != hir_none() {
-                args := db.get_list(args_list_id)
-                if args.len > 0 {
-                    arg_node := *(args.ptr + 0)
-                    synth_node(eng, arg_node)
-                    s := (unify_ptr).get_slot(arg_node)
-                    arg_ty := ty_id_none()
-                    if s != slot_none() {
-                        arg_ty = (unify_ptr).resolve_type_deep(types_ptr, s)
-                    }
-                    if arg_ty == ty_id_none() {
-                        arg_ty = db.get_const_type(arg_node)
-                    }
-                    db.set_const_type(id, arg_ty)
-                    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
-                    ret
-                }
-            }
-        }
-    }
+
 
     callee_slot := (unify_ptr).get_slot(callee)
 
@@ -915,9 +892,38 @@ synth_call :: (eng &Engine, id u32) {
                 ret_ty := (&(*types_ptr)).func_return(callee_ty)
                 (&(*db).unify).bind_type(&(*db).types, slot, ret_ty)
 
-                if args_len != params.len {
+                method := db.get_method_target(callee)
+                has_expl_self := false
+                if method != id_none() {
+                    has_expl_self = method_has_explicit_self(db, method)
+                }
+
+                callee_lhs := hir_none()
+                if (tbl).kind(callee) == hir_kind().member {
+                    callee_lhs = (tbl).lhs(callee)
+                }
+
+                lhs_is_instance := false
+                if (callee_lhs != hir_none()) and has_expl_self {
+                    lhs_slot := (unify_ptr).get_slot(callee_lhs)
+                    if lhs_slot != slot_none() {
+                        lhs_ty := (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
+                        if lhs_ty != ty_id_type() {
+                            lhs_is_instance = true
+                        }
+                    }
+                }
+
+                expected_len := params.len
+                param_offset: u64 = 0
+                if lhs_is_instance {
+                    expected_len = params.len - 1
+                    param_offset = 1
+                    check_value(db, callee_lhs, *(params.ptr + 0))
+                }
+
+                if args_len != expected_len {
                     print("\n\033[1;31m[type error]\033[0m ")
-                    method := db.get_method_target(callee)
                     if method != id_none() {
                         print("method '")
                         name_node := (tbl).lhs(method)
@@ -927,7 +933,7 @@ synth_call :: (eng &Engine, id u32) {
                     } else {
                         print("function expected ")
                     }
-                    print_u32(params.len as u32)
+                    print_u32(expected_len as u32)
                     print(" arguments, but got ")
                     print_u32(args_len as u32)
                     print("\n       --> ")
@@ -942,7 +948,7 @@ synth_call :: (eng &Engine, id u32) {
                     while i < args.len {
                         arg_node := *(args.ptr + i)
                         arg_slot := (unify_ptr).get_slot(arg_node)
-                        param_ty := *(params.ptr + i)
+                        param_ty := *(params.ptr + param_offset + i)
 
                         if arg_slot != slot_none() {
                             check_value(db, arg_node, param_ty)

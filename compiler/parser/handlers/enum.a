@@ -1,0 +1,165 @@
+import token from "../../token.a"
+import hir_kind, hir_none from "../../hir.a"
+import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core.a"
+import VecU32 from "../../../std/vec/u32.a"
+import SliceU32 from "../../../std/slice/u32.a"
+import span_merge from "../../nexus/nexus.a"
+import id_none from "../../nexus/pool.a"
+import prec from "../prec.a"
+import span_of_hir, set_span from "common.a"
+import parse_ident from "ident.a"
+import parse_expr from "../parser.a"
+
+parse_enum :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    sp_start := curr_span(p)
+    bump(p)
+
+    backing_ty := hir_none()
+    if peek(p) != t.o_brace {
+        prev_in_type := (*p).in_type
+        (*p).in_type = true
+        backing_ty = parse_expr(p, prec().var_def + (1 as u8))
+        (*p).in_type = prev_in_type
+    }
+
+    if not expect(p, t.o_brace) {
+        parse_error_at(p, "expected '{' after enum", curr_span(p))
+    }
+
+    names := VecU32.new()
+    vals := VecU32.new()
+    methods := VecU32.new()
+
+    enum_node := id_none()
+    enum_toplv := (*p).toplv_sym
+    (*p).toplv_sym = id_none()
+
+    while (peek(p) != t.c_brace) and (not is_eof(p)) {
+        if peek(p) == t.comma { bump(p) }
+        if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
+
+        name := parse_ident(p)
+
+        if peek(p) == t.colon_colon {
+            if enum_node == id_none() {
+                ptr_n := 0 as &u32
+                if names.len > 0 { ptr_n = names.ptr_at(0) }
+                slice_n: SliceU32 = .{ ptr: ptr_n, len: names.len }
+
+                ptr_v := 0 as &u32
+                if vals.len > 0 { ptr_v = vals.ptr_at(0) }
+                slice_v: SliceU32 = .{ ptr: ptr_v, len: vals.len }
+
+                names_id := (*p).db.add_list(slice_n)
+                vals_id := (*p).db.add_list(slice_v)
+
+                meta := VecU32.new()
+                meta.push(backing_ty)
+                meta.push(hir_none())
+                meta_id := (*p).db.add_list(meta.as_slice())
+                meta.destroy()
+
+                enum_node = ((*p).hir).push(k.enum_, names_id, vals_id, meta_id)
+                if enum_toplv != id_none() {
+                    (*p).db.set_hir_symbol(enum_node, enum_toplv)
+                }
+            }
+
+            bump(p)
+            (*p).db.set_hir_symbol(name, id_none())
+            (*p).inside_method = true
+            func := parse_expr(p, prec().const_def)
+            (*p).inside_method = false
+            if func == hir_none() {
+                parse_error_at(p, "expected a method function after '::'", curr_span(p))
+            }
+            if ((*p).hir).kind(func) != k.function {
+                parse_error_at(p, "enum method must be a function", span_of_hir(p, func))
+            }
+            if ((*p).hir).extra(func) == hir_none() {
+                parse_error_at(p, "enum method requires a body", span_of_hir(p, func))
+            }
+            method := ((*p).hir).push(k.binding, name, hir_none(), func)
+            set_span(p, method, span_merge(span_of_hir(p, name), span_of_hir(p, func)))
+            methods.push(method)
+            if peek(p) == t.comma { bump(p) }
+            cont
+        }
+
+        val_expr := hir_none()
+        if peek(p) == t.eq {
+            bump(p)
+            val_expr = parse_expr(p, prec().assignment + (1 as u8))
+        }
+
+        names.push(name)
+        vals.push(val_expr)
+
+        if peek(p) == t.comma { bump(p) }
+    }
+
+    if is_eof(p) and (peek(p) != t.c_brace) {
+        parse_error_at(p, "unclosed enum definition, expected '}'", sp_start)
+    }
+
+    expect(p, t.c_brace)
+    sp_end := prev_span(p)
+
+    if enum_node == id_none() {
+        ptr_n := 0 as &u32
+        if names.len > 0 { ptr_n = names.ptr_at(0) }
+        slice_n: SliceU32 = .{ ptr: ptr_n, len: names.len }
+
+        ptr_v := 0 as &u32
+        if vals.len > 0 { ptr_v = vals.ptr_at(0) }
+        slice_v: SliceU32 = .{ ptr: ptr_v, len: vals.len }
+
+        names_id := (*p).db.add_list(slice_n)
+        vals_id := (*p).db.add_list(slice_v)
+
+        methods_id := hir_none()
+        if methods.len > 0 {
+            methods_id = (*p).db.add_list(methods.as_slice())
+        }
+
+        meta := VecU32.new()
+        meta.push(backing_ty)
+        meta.push(methods_id)
+        meta_id := (*p).db.add_list(meta.as_slice())
+        meta.destroy()
+
+        enum_node = ((*p).hir).push(k.enum_, names_id, vals_id, meta_id)
+        if enum_toplv != id_none() {
+            (*p).db.set_hir_symbol(enum_node, enum_toplv)
+        }
+    } else {
+        methods_id := hir_none()
+        if methods.len > 0 {
+            methods_id = (*p).db.add_list(methods.as_slice())
+        }
+        meta := VecU32.new()
+        meta.push(backing_ty)
+        meta.push(methods_id)
+        meta_id := (*p).db.add_list(meta.as_slice())
+        meta.destroy()
+        ((*p).hir).set_extra(enum_node, meta_id)
+    }
+
+    names.destroy()
+    vals.destroy()
+
+    i: u64 = 0
+    while i < methods.len {
+        method := methods.get(i)
+        start := ((*p).hir).lhs(method)
+        while start <= method {
+            (*p).db.set_method_owner(start, enum_node)
+            start = start + 1
+        }
+        i = i + 1
+    }
+    methods.destroy()
+    set_span(p, enum_node, span_merge(sp_start, sp_end))
+}

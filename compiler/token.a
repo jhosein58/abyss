@@ -22,6 +22,7 @@ TokenType :: struct {
     kw_break      : u8,
     kw_cont       : u8,
     kw_struct     : u8,
+    kw_enum       : u8,
     kw_import     : u8,
     kw_from       : u8,
     kw_true       : u8,
@@ -69,6 +70,7 @@ TokenType :: struct {
     comma         : u8,
     dot           : u8,
     hash          : u8,
+    at            : u8,
 
     o_paren       : u8,
     c_paren       : u8,
@@ -151,6 +153,8 @@ token :: () TokenType {
         c_brace       : 59,
         o_bracket     : 60,
         c_bracket     : 61,
+        kw_enum       : 62,
+        at            : 63
     }
 }
 
@@ -171,6 +175,8 @@ token_name :: (tk u8) Str {
     if tk == t.kw_break    { ret Str.of("kw_break")  }
     if tk == t.kw_cont     { ret Str.of("kw_cont")   }
     if tk == t.kw_struct   { ret Str.of("kw_struct") }
+    if tk == t.kw_enum     { ret Str.of("kw_enum")   }
+    if tk == t.at          { ret Str.of("@")         }
     if tk == t.kw_import   { ret Str.of("kw_import") }
     if tk == t.kw_from     { ret Str.of("kw_from")   }
     if tk == t.kw_true     { ret Str.of("kw_true")   }

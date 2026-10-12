@@ -28,7 +28,9 @@ TyKind :: struct {
     struct_       : u8,
     array         : u8,
     error         : u8,
-    nominal       : u8
+    nominal       : u8,
+    enum_         : u8,
+    union_        : u8
 }
 
 ty_kind :: () TyKind {
@@ -49,7 +51,9 @@ ty_kind :: () TyKind {
         struct_       : 13,
         array         : 14,
         error         : 15,
-        nominal       : 16
+        nominal       : 16,
+        enum_         : 17,
+        union_        : 18
     }
 }
 
@@ -72,6 +76,8 @@ ty_kind_name :: (k u8) Str {
     if k == t.array         { ret Str.of("Array")        }
     if k == t.error         { ret Str.of("Error")        }
     if k == t.nominal       { ret Str.of("Nominal")      }
+    if k == t.enum_         { ret Str.of("Enum")         }
+    if k == t.union_        { ret Str.of("Union")        }
     Str.of("Unknown")
 }
 
@@ -166,6 +172,19 @@ TyStore :: struct {
         }
         true
     }
+
+    type_eq_union :: (id u32, kind u8, members SliceU32) bool {
+        if .kinds.get(id as u64) != kind { ret false }
+        extra_idx := .payload.get(id as u64) as u64
+        ex_len := .extra.get(extra_idx) as u64
+        if ex_len != members.len { ret false }
+        i: u64 = 0
+        while i < members.len {
+            if .extra.get(extra_idx + 1 + i) != *(members.ptr + i) { ret false }
+            i = i + 1
+        }
+        true
+    }
 }
 
 
@@ -198,7 +217,9 @@ TypeStorage :: struct {
     nominal_by_origin : VecU32,
     nominal_creator_sym : VecU32,
     nominal_creator_arg : VecU32,
-    nominal_creator_items : VecU32
+    nominal_creator_items : VecU32,
+    enum_names : VecStr,
+    enum_by_origin : VecU32
 
     new :: () Self {
         store := TyStore.new()
@@ -230,7 +251,9 @@ TypeStorage :: struct {
             nominal_by_origin : VecU32.new(),
             nominal_creator_sym : VecU32.new(),
             nominal_creator_arg : VecU32.new(),
-            nominal_creator_items : VecU32.new()
+            nominal_creator_items : VecU32.new(),
+            enum_names : VecStr.new(),
+            enum_by_origin : VecU32.new()
         }
     }
 
@@ -276,6 +299,8 @@ TypeStorage :: struct {
         .nominal_creator_sym.destroy()
         .nominal_creator_arg.destroy()
         .nominal_creator_items.destroy()
+        .enum_names.destroy()
+        .enum_by_origin.destroy()
     }
 
     len :: () u32 {
@@ -341,6 +366,22 @@ TypeStorage :: struct {
             ret h
         }
 
+        if kind == k.union_ {
+            extra_idx := payload as u64
+            members_count := .store.extra.get(extra_idx)
+
+            h := .hash_combine(2166136261, kind as u32)
+            h = .hash_combine(h, members_count)
+
+            i: u64 = 0
+            while i < (members_count as u64) {
+                item := .store.extra.get(extra_idx + 1 + i)
+                h = .hash_combine(h, item)
+                i = i + 1
+            }
+            ret h
+        }
+
         h := .hash_combine(2166136261, kind as u32)
         .hash_combine(h, payload)
     }
@@ -361,7 +402,7 @@ TypeStorage :: struct {
         id: u32 = ty_builtin_count()
 
         while id < total_types {
-            if .kind(id) == ty_kind().nominal {
+            if (.kind(id) == ty_kind().nominal) or (.kind(id) == ty_kind().enum_) {
                 id = id + 1
                 cont
             }
@@ -647,6 +688,226 @@ TypeStorage :: struct {
         ty_id_error()
     }
 
+    alloc_enum :: (backing_ty u32, name Str, origin u32, variants SliceU32) u32 {
+        while .enum_by_origin.len <= (origin as u64) {
+            .enum_by_origin.push(ty_id_none())
+        }
+        existing := .enum_by_origin.get(origin as u64)
+        if existing != ty_id_none() { ret existing }
+
+        extra_idx := .store.extra.len as u32
+        name_idx := .enum_names.len as u32
+        .enum_names.push(name)
+        .store.extra.push(backing_ty)
+        .store.extra.push(name_idx)
+        .store.extra.push(origin)
+        v_count := (variants.len / 2) as u32
+        .store.extra.push(v_count)
+        i: u64 = 0
+        while i < variants.len {
+            .store.extra.push(*(variants.ptr + i))
+            i = i + 1
+        }
+        enum_id := .store.push(ty_kind().enum_, extra_idx)
+        .enum_by_origin.set(origin as u64, enum_id)
+        enum_id
+    }
+
+    enum_backing :: (id u32) u32 {
+        idx := .payload(id) as u64
+        .store.extra.get(idx)
+    }
+
+    enum_name :: (id u32) Str {
+        idx := .payload(id) as u64
+        name_idx := .store.extra.get(idx + 1)
+        .enum_names.get(name_idx as u64)
+    }
+
+    enum_origin :: (id u32) u32 {
+        idx := .payload(id) as u64
+        .store.extra.get(idx + 2)
+    }
+
+    enum_variant_count :: (id u32) u32 {
+        idx := .payload(id) as u64
+        .store.extra.get(idx + 3)
+    }
+
+    enum_variants :: (id u32) SliceU32 {
+        idx := .payload(id) as u64
+        cnt := .store.extra.get(idx + 3)
+        start_ptr := .store.extra.ptr_at(idx + 4)
+        .{
+            ptr: start_ptr,
+            len: (cnt * 2) as u64
+        }
+    }
+
+    enum_has_variant :: (id u32, name_id u32) bool {
+        vars := .enum_variants(id)
+        i: u64 = 0
+        while i < (vars.len / 2) {
+            if *(vars.ptr + (i * 2)) == name_id { ret true }
+            i = i + 1
+        }
+        false
+    }
+
+    enum_variant_val :: (id u32, name_id u32) u32 {
+        vars := .enum_variants(id)
+        i: u64 = 0
+        while i < (vars.len / 2) {
+            if *(vars.ptr + (i * 2)) == name_id { ret *(vars.ptr + (i * 2) + 1) }
+            i = i + 1
+        }
+        0
+    }
+
+    sort_union_members :: (members SliceU32) {
+        if members.len <= 1 { ret }
+        i: u64 = 0
+        while i < members.len {
+            j: u64 = i + 1
+            while j < members.len {
+                m_i := *(members.ptr + i)
+                m_j := *(members.ptr + j)
+                if m_i > m_j {
+                    *(members.ptr + i) = m_j
+                    *(members.ptr + j) = m_i
+                }
+                j = j + 1
+            }
+            i = i + 1
+        }
+    }
+
+    alloc_union :: (members SliceU32) u32 {
+        .sort_union_members(members)
+        k := ty_kind()
+        if (.table_len + 1) * 10 >= .table_cap * 7 {
+            .grow_table()
+        }
+
+        members_count := members.len as u32
+        h := .hash_combine(2166136261, k.union_ as u32)
+        h = .hash_combine(h, members_count)
+
+        i: u64 = 0
+        while i < members.len {
+            h = .hash_combine(h, *(members.ptr + i))
+            i = i + 1
+        }
+
+        mask := .table_cap - 1
+        idx := h & mask
+
+        while true {
+            existing := .table.get(idx as u64)
+            if existing == ty_id_none() {
+                extra_idx := .store.extra.len as u32
+                .store.extra.push(members_count)
+
+                m_i: u64 = 0
+                while m_i < members.len {
+                    .store.extra.push(*(members.ptr + m_i))
+                    m_i = m_i + 1
+                }
+
+                new_id := .store.push(k.union_, extra_idx)
+                .table.set(idx as u64, new_id)
+                .table_len = .table_len + 1
+                ret new_id
+            }
+
+            if .store.type_eq_union(existing, k.union_, members) {
+                ret existing
+            }
+
+            idx = (idx + 1) & mask
+        }
+
+        ty_id_error()
+    }
+
+    union_members_len :: (id u32) u32 {
+        extra_idx := .payload(id) as u64
+        .store.extra.get(extra_idx)
+    }
+
+    union_members :: (id u32) SliceU32 {
+        extra_idx := .payload(id) as u64
+        len := .store.extra.get(extra_idx)
+        start_ptr := .store.extra.ptr_at(extra_idx + 1)
+        .{
+            ptr: start_ptr,
+            len: len as u64
+        }
+    }
+
+    union_contains :: (id u32, member u32) bool {
+        members := .union_members(id)
+        i: u64 = 0
+        while i < members.len {
+            if *(members.ptr + i) == member { ret true }
+            i = i + 1
+        }
+        false
+    }
+
+    union_member_index :: (id u32, member u32) u32 {
+        members := .union_members(id)
+        i: u64 = 0
+        while i < members.len {
+            if *(members.ptr + i) == member { ret i as u32 }
+            i = i + 1
+        }
+        0
+    }
+
+    make_union_2 :: (a u32, b u32) u32 {
+        if a == b { ret a }
+        k := ty_kind()
+        v := VecU32.new()
+        if .kind(a) == k.union_ {
+            m_a := .union_members(a)
+            v.extend(m_a.ptr, m_a.len)
+        } else {
+            v.push(a)
+        }
+        if .kind(b) == k.union_ {
+            m_b := .union_members(b)
+            v.extend(m_b.ptr, m_b.len)
+        } else {
+            v.push(b)
+        }
+
+        .sort_union_members(v.as_slice())
+
+        dedup := VecU32.new()
+        last := ty_id_none()
+        i: u64 = 0
+        while i < v.len {
+            item := v.get(i)
+            if item != last {
+                dedup.push(item)
+                last = item
+            }
+            i = i + 1
+        }
+        v.destroy()
+
+        if dedup.len == 1 {
+            single := dedup.get(0)
+            dedup.destroy()
+            ret single
+        }
+
+        res := .alloc_union(dedup.as_slice())
+        dedup.destroy()
+        res
+    }
+
     infer_slot :: (id u32) u32 {
         .payload(id)
     }
@@ -759,6 +1020,22 @@ TypeStorage :: struct {
             .nominal_names.get(name_idx as u64).print()
             ret
         }
+        if kind == k.enum_ {
+            idx := payload as u64
+            name_idx := .store.extra.get(idx + 1)
+            .enum_names.get(name_idx as u64).print()
+            ret
+        }
+        if kind == k.union_ {
+            members := .union_members(id)
+            i: u64 = 0
+            while i < members.len {
+                .print_type(*(members.ptr + i))
+                if (i + 1) < members.len { print(" | ") }
+                i = i + 1
+            }
+            ret
+        }
 
         if kind == k.ptr {
             print("&")
@@ -846,6 +1123,25 @@ TypeStorage :: struct {
             idx := payload as u64
             name_idx := .store.extra.get(idx + 1)
             s.push_str(.nominal_names.get(name_idx as u64))
+            ret
+        }
+        if kind == k.enum_ {
+            idx := payload as u64
+            name_idx := .store.extra.get(idx + 1)
+            s.push_str(.enum_names.get(name_idx as u64))
+            ret
+        }
+        if kind == k.union_ {
+            s.push_str(Str.of("U_"))
+            members := .union_members(id)
+            i: u64 = 0
+            while i < members.len {
+                .name_to_buf(s, *(members.ptr + i))
+                if (i + 1) < members.len {
+                    s.push_char(*"_")
+                }
+                i = i + 1
+            }
             ret
         }
 

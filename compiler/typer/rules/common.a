@@ -60,7 +60,8 @@ check_value :: (db &Nexus, expr u32, expected u32) {
         if elseb != hir_none() {
             check_value(db, elseb, expected)
         }
-        (&(*db).unify).bind_type(&(*db).types, slot, expected)
+        root := unify_ptr.find(slot)
+        (*unify_ptr).types.set(root as u64, expected)
         ret
     }
 
@@ -68,11 +69,77 @@ check_value :: (db &Nexus, expr u32, expected u32) {
         items := db.get_list(tbl.lhs(expr))
         if items.len > 0 {
             check_value(db, *(items.ptr + items.len - 1), expected)
+            root := unify_ptr.find(slot)
+            (*unify_ptr).types.set(root as u64, expected)
             ret
         }
     }
 
     kind := (&(*types)).kind(expected)
+    if kind == ty_kind().union_ {
+        val_ty := (unify_ptr).resolve_type_deep(types, slot)
+        if val_ty == expected { ret }
+
+        members := (&(*types)).union_members(expected)
+        match_count: u32 = 0
+        match_idx: u32 = 0
+        match_member_ty := ty_id_none()
+        val_k := (&(*types)).kind(val_ty)
+        k := ty_kind()
+
+        m_i: u64 = 0
+        while m_i < members.len {
+            m_ty := *(members.ptr + m_i)
+            m_k := (&(*types)).kind(m_ty)
+            matches := false
+            if val_ty == m_ty {
+                matches = true
+            } else if val_k == k.untyped_int {
+                if (m_k == k.int) or (m_k == k.uint) {
+                    matches = true
+                }
+            } else if val_k == k.untyped_float {
+                if m_k == k.float {
+                    matches = true
+                }
+            }
+            if matches {
+                match_count = match_count + 1
+                match_idx = m_i as u32
+                match_member_ty = m_ty
+            }
+            m_i = m_i + 1
+        }
+
+        if match_count == 1 {
+            if (val_k == k.untyped_int) or (val_k == k.untyped_float) {
+                (&(*db).unify).bind_type(&(*db).types, slot, match_member_ty)
+            }
+            root := unify_ptr.find(slot)
+            (*unify_ptr).types.set(root as u64, expected)
+            db.set_union_coerce(expr, expected, match_idx)
+            ret
+        }
+
+        if match_count > 1 {
+            print("\n\033[1;31m[type error]\033[0m ambiguous coercion into union '")
+            (&(*types)).print_type(expected)
+            print("'\n       --> ")
+            db.print_loc(expr)
+            print("\n")
+            fall()
+        }
+
+        print("\n\033[1;31m[type error]\033[0m type '")
+        (&(*types)).print_type(val_ty)
+        print("' is not a member of union '")
+        (&(*types)).print_type(expected)
+        print("'\n       --> ")
+        db.print_loc(expr)
+        print("\n")
+        fall()
+    }
+
     if ((tbl).kind(expr) == hir_kind().struct_init) and
        ((kind == ty_kind().nominal) or (kind == ty_kind().struct_)) {
         target := (&(*types)).get_struct_fields(expected)

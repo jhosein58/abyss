@@ -1,0 +1,94 @@
+import Engine from "../../engine.a"
+import Nexus from "../../nexus/nexus.a"
+import hir_kind, hir_none from "../../hir.a"
+import slot_none from "../../unify.a"
+import ty_id_none, ty_id_type from "../../types.a"
+import fall from "../../../std/sys.a"
+import synth_node from "../tyck.a"
+import synth_type_node from "var.a"
+import VecU32 from "../../../std/vec/u32.a"
+import Str from "../../../std/string.a"
+import id_none from "../../nexus/pool.a"
+
+print :: (s &u8) unit
+
+synth_enum :: (eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := (unify_ptr).get_slot(id)
+    if slot == slot_none() {
+        slot = (unify_ptr).new_slot(id)
+    }
+
+    names_list_id := (tbl).lhs(id)
+    vals_list_id := (tbl).rhs(id)
+    meta_list_id := (tbl).extra(id)
+
+    meta := db.get_list(meta_list_id)
+    backing_node := *(meta.ptr + 0)
+    methods_list_id := *(meta.ptr + 1)
+
+    backing_ty := ty_id_none()
+    if backing_node != hir_none() {
+        backing_ty = synth_type_node(eng, backing_node)
+        if backing_ty == ty_id_none() {
+            print("\n\033[1;31m[type error]\033[0m enum backing type is invalid\n       --> ")
+            db.print_loc(backing_node)
+            print("\n")
+            fall()
+        }
+    } else {
+        backing_ty = (&(*types_ptr)).alloc_uint(32)
+    }
+
+    names := db.get_list(names_list_id)
+    vals := db.get_list(vals_list_id)
+
+    variants := VecU32.new()
+    curr_val: u32 = 0
+
+    i: u64 = 0
+    while i < names.len {
+        name_node := *(names.ptr + i)
+        name_id := (tbl).lhs(name_node)
+        val_node := *(vals.ptr + i)
+
+        if val_node != hir_none() {
+            if (tbl).kind(val_node) == hir_kind().lit_int {
+                curr_val = (tbl).lhs(val_node)
+            }
+        }
+
+        variants.push(name_id)
+        variants.push(curr_val)
+        curr_val = curr_val + 1
+        i = i + 1
+    }
+
+    name := Str.of("enum")
+    sym_id := db.get_hir_symbol(id)
+    if sym_id != id_none() {
+        sym_name_id := db.sym_names.get(sym_id)
+        name = db.interner.get(sym_name_id)
+    }
+
+    enum_ty := (&(*types_ptr)).alloc_enum(backing_ty, name, id, variants.as_slice())
+    variants.destroy()
+
+    db.set_const_type(id, enum_ty)
+    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+
+    if methods_list_id != hir_none() {
+        methods := db.get_list(methods_list_id)
+        m_i: u64 = 0
+        while m_i < methods.len {
+            method := *(methods.ptr + m_i)
+            synth_node(eng, method)
+            db.set_method_owner(method, id)
+            m_i = m_i + 1
+        }
+    }
+}

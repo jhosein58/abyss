@@ -82,7 +82,9 @@ HirExprKind :: struct {
     wildcard              : u8,
 
     error                 : u8,
-    marker_fn_start       : u8
+    marker_fn_start       : u8,
+    builtin_call          : u8,
+    enum_                 : u8
 }
 
 hir_kind :: () HirExprKind {
@@ -156,7 +158,9 @@ hir_kind :: () HirExprKind {
         wildcard              : 61,
 
         error                 : 62,
-        marker_fn_start       : 63
+        marker_fn_start       : 63,
+        builtin_call          : 64,
+        enum_                 : 65
     }
 }
 
@@ -232,6 +236,8 @@ hir_kind_name :: (kind u8) Str {
 
     if kind == k.error                 { ret Str.of("Error")         }
     if kind == k.marker_fn_start       { ret Str.of("MarkerFnStart") }
+    if kind == k.builtin_call          { ret Str.of("BuiltinCall")   }
+    if kind == k.enum_                 { ret Str.of("Enum")          }
 
     Str.of("Unknown")
 }

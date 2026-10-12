@@ -48,22 +48,22 @@ main :: () {
     println_u32(v_u32.len as u32)
     println_u32(v_u32.cap as u32)
 
-    sz_i32 := sizeof(i32)
+    sz_i32 := @sizeof(i32)
     println_u32(sz_i32 as u32)
 
-    sz_u64 := sizeof(u64)
+    sz_u64 := @sizeof(u64)
     println_u32(sz_u64 as u32)
 
-    sz_opt := sizeof(Option(i32))
+    sz_opt := @sizeof(Option(i32))
     println_u32(sz_opt as u32)
 
-    sz_vec := sizeof(Vec(u64))
+    sz_vec := @sizeof(Vec(u64))
     println_u32(sz_vec as u32)
 
     dummy: u32 = 999 as u32
-    sz_typeof := sizeof(typeof(dummy))
+    sz_typeof := @sizeof(@typeof(dummy))
     println_u32(sz_typeof as u32)
 
-    sz_typeof_opt := sizeof(typeof(o1))
+    sz_typeof_opt := @sizeof(@typeof(o1))
     println_u32(sz_typeof_opt as u32)
 }

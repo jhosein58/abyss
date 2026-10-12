@@ -20,21 +20,21 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
         while i < count {
             f_ty := *(fields.ptr + (i * 2) + 1)
               f_kind := (&(*types)).kind( f_ty)
-            if (f_kind == k.struct_) or (f_kind == k.nominal) or (f_kind == k.array) or (f_kind == k.func) {
+            if (f_kind == k.struct_) or (f_kind == k.nominal) or (f_kind == k.array) or (f_kind == k.func) or (f_kind == k.union_) or (f_kind == k.enum_) {
                 topo_dfs(types, sorted, states, f_ty)
             }
             i = i + 1
         }
     } else if kind == k.array {
-          inner_ty := (&(*types)).get_array_type( ty_id)
-          inner_kind := (&(*types)).kind( inner_ty)
-        if (inner_kind == k.struct_) or (inner_kind == k.nominal) or (inner_kind == k.array) or (inner_kind == k.func) {
+        inner_ty := (&(*types)).get_array_type(ty_id)
+        inner_kind := (&(*types)).kind(inner_ty)
+        if (inner_kind == k.struct_) or (inner_kind == k.nominal) or (inner_kind == k.array) or (inner_kind == k.func) or (inner_kind == k.union_) or (inner_kind == k.enum_) {
             topo_dfs(types, sorted, states, inner_ty)
         }
     } else if kind == k.func {
         ret_ty := (&(*types)).func_return(ty_id)
         ret_kind := (&(*types)).kind(ret_ty)
-        if (ret_kind == k.struct_) or (ret_kind == k.nominal) or (ret_kind == k.func) or (ret_kind == k.array) {
+        if (ret_kind == k.struct_) or (ret_kind == k.nominal) or (ret_kind == k.func) or (ret_kind == k.array) or (ret_kind == k.union_) or (ret_kind == k.enum_) {
             topo_dfs(types, sorted, states, ret_ty)
         }
         params := (&(*types)).func_params(ty_id)
@@ -42,10 +42,27 @@ topo_dfs :: (types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
         while i < params.len {
             p_ty := *(params.ptr + i)
             p_kind := (&(*types)).kind(p_ty)
-            if (p_kind == k.struct_) or (p_kind == k.nominal) or (p_kind == k.func) or (p_kind == k.array) {
+            if (p_kind == k.struct_) or (p_kind == k.nominal) or (p_kind == k.func) or (p_kind == k.array) or (p_kind == k.union_) or (p_kind == k.enum_) {
                 topo_dfs(types, sorted, states, p_ty)
             }
             i = i + 1
+        }
+    } else if kind == k.union_ {
+        members := (&(*types)).union_members(ty_id)
+        i: u64 = 0
+        while i < members.len {
+            m_ty := *(members.ptr + i)
+            m_kind := (&(*types)).kind(m_ty)
+            if (m_kind == k.struct_) or (m_kind == k.nominal) or (m_kind == k.func) or (m_kind == k.array) or (m_kind == k.union_) or (m_kind == k.enum_) {
+                topo_dfs(types, sorted, states, m_ty)
+            }
+            i = i + 1
+        }
+    } else if kind == k.enum_ {
+        b_ty := (&(*types)).enum_backing(ty_id)
+        b_kind := (&(*types)).kind(b_ty)
+        if (b_kind == k.struct_) or (b_kind == k.nominal) or (b_kind == k.func) or (b_kind == k.array) or (b_kind == k.union_) or (b_kind == k.enum_) {
+            topo_dfs(types, sorted, states, b_ty)
         }
     }
 

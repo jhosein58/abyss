@@ -120,6 +120,17 @@ synth_binary :: (db &Nexus, tbl &HirTable, id u32) {
         rhs_num := rhs_int or (rhs_k == k.float) or (rhs_k == k.untyped_float)
         op := (tbl).kind(id)
 
+        if op == hir_kind().binary_bit_or {
+            lhs_val := db.get_const_type(lhs)
+            rhs_val := db.get_const_type(rhs)
+            if (lhs_val != ty_id_none()) and (rhs_val != ty_id_none()) {
+                union_ty := (&(*types_ptr)).make_union_2(lhs_val, rhs_val)
+                (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+                db.set_const_type(id, union_ty)
+                ret
+            }
+        }
+
         if (lhs_k == k.ptr) or (rhs_k == k.ptr) {
             if (lhs_k == k.ptr) and rhs_int and ((op == hir_kind().binary_add) or (op == hir_kind().binary_sub)) {
                 (&(*db).unify).bind_type(&(*db).types, slot, lhs_ty)
@@ -280,6 +291,24 @@ synth_cast :: (db &Nexus, tbl &HirTable, id u32) {
         dst_int := (dst == k.int) or (dst == k.uint) or (dst == k.untyped_int)
         src_num := src_int or (src == k.float) or (src == k.untyped_float) or (src == k.bool)
         dst_num := dst_int or (dst == k.float) or (dst == k.untyped_float) or (dst == k.bool)
+        if src == k.union_ {
+            if (&(*types)).union_contains(lhs_type, rhs_type) {
+                (&(*db).unify).bind_type(&(*db).types, slot, rhs_type)
+                ret
+            }
+            print("\n[type error] union does not contain target type in cast\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
+        }
+        if (src == k.enum_) or (dst == k.enum_) {
+            src_valid := src_int or (src == k.enum_)
+            dst_valid := dst_int or (dst == k.enum_)
+            if src_valid and dst_valid {
+                (&(*db).unify).bind_type(&(*db).types, slot, rhs_type)
+                ret
+            }
+        }
         if not ((src_num and dst_num) or ((src == k.ptr) and (dst == k.ptr)) or
                 (src_int and (dst == k.ptr)) or ((src == k.ptr) and dst_int) or
                 ((src == k.ptr) and (dst == k.bool))) {

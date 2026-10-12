@@ -1,7 +1,7 @@
 import HirTable, hir_kind, hir_none from "../hir.a"
 import ty_id_none from "../types.a"
 import Engine from "../engine.a"
-import method_returns_ref_self, synth_func, synth_return, synth_call from "rules/fn.a"
+import method_returns_ref_self, method_has_explicit_self, synth_func, synth_return, synth_call from "rules/fn.a"
 import synth_lit_int, synth_lit_float, synth_lit_bool, synth_lit_str from "rules/lit.a"
 import synth_ident, synth_var_or_binding, synth_arg from "rules/var.a"
 import synth_unary_num, validate_unary_num, synth_unary_not, synth_unary_addr_of, synth_unary_deref,
@@ -9,6 +9,8 @@ import synth_unary_num, validate_unary_num, synth_unary_not, synth_unary_addr_of
        synth_logic_and_or, synth_cast from "rules/op.a"
 import synth_block, synth_if, synth_while, synth_break_cont from "rules/control.a"
 import synth_struct, synth_struct_init, synth_member from "rules/struct.a"
+import synth_builtin_call from "rules/builtin.a"
+import synth_enum from "rules/enum.a"
 
 synth_node :: (eng &Engine, id u32) {
     db := &(*eng).nexus
@@ -24,6 +26,7 @@ synth_node :: (eng &Engine, id u32) {
     if curr == k.function      { synth_func(eng, id) }
     if curr == k.k_ret         { synth_return(db, tbl, id) }
     if curr == k.call          { synth_call(eng, id) }
+    if curr == k.builtin_call  { synth_builtin_call(eng, id) }
     if curr == k.block         { synth_block(db, tbl, id) }
     if curr == k.binary_assign { synth_assign(db, tbl, id) }
 
@@ -47,6 +50,7 @@ synth_node :: (eng &Engine, id u32) {
 
     if curr == k.struct_        { synth_struct(eng, id) }
     if curr == k.struct_init    { synth_struct_init(db, tbl, id) }
+    if curr == k.enum_          { synth_enum(eng, id) }
     if curr == k.member         { synth_member(eng, id) }
 
     if (curr == k.binary_and) or (curr == k.binary_or) { synth_logic_and_or(db, tbl, id) }

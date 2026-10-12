@@ -186,8 +186,8 @@ synth_member :: (eng &Engine, id u32) {
     }
 
     kind := (&(*types_ptr)).kind(lhs_ty)
-    if (kind != ty_kind().struct_) and (kind != ty_kind().nominal) {
-        print("\n\033[1;31m[type error]\033[0m member receiver must be a struct value or named struct type, got '")
+    if (kind != ty_kind().struct_) and (kind != ty_kind().nominal) and (kind != ty_kind().enum_) {
+        print("\n\033[1;31m[type error]\033[0m member receiver must be a struct or enum, got '")
         (&(*types_ptr)).print_type(lhs_ty)
         print("'\n       --> ")
         db.print_loc(id)
@@ -197,7 +197,17 @@ synth_member :: (eng &Engine, id u32) {
 
     rhs_id := (tbl).rhs(id)
     name_id := (tbl).lhs(rhs_id)
-    if not is_type {
+
+    if kind == ty_kind().enum_ {
+        if is_type {
+            if (&(*types_ptr)).enum_has_variant(lhs_ty, name_id) {
+                (&(*db).unify).bind_type(&(*db).types, slot, lhs_ty)
+                ret
+            }
+        }
+    }
+
+    if (not is_type) and (kind != ty_kind().enum_) {
         fields := (&(*types_ptr)).get_struct_fields(lhs_ty)
         i: u64 = 0
         while i < fields.len / 2 {
@@ -214,13 +224,20 @@ synth_member :: (eng &Engine, id u32) {
         }
     }
 
-    if kind == ty_kind().nominal {
+    if (kind == ty_kind().nominal) or (kind == ty_kind().enum_) {
         origin := (&(*types_ptr)).nominal_origin(lhs_ty)
+        if kind == ty_kind().enum_ {
+            origin = (&(*types_ptr)).enum_origin(lhs_ty)
+        }
         struct_id := origin
         if (tbl).kind(origin) == hir_kind().binding {
             struct_id = (tbl).extra(origin)
         }
         methods_id := (tbl).extra(struct_id)
+        if kind == ty_kind().enum_ {
+            meta := db.get_list(methods_id)
+            methods_id = *(meta.ptr + 1)
+        }
         if methods_id != hir_none() {
             methods := db.get_list(methods_id)
             i: u64 = 0
@@ -230,13 +247,13 @@ synth_member :: (eng &Engine, id u32) {
                 if method_name == name_id {
                     receiver := method_has_receiver(db, method)
                     if is_type and receiver {
-                        print("\n\033[1;31m[type error]\033[0m instance method requires a struct value; call it on an instance\n       --> ")
+                        print("\n\033[1;31m[type error]\033[0m instance method requires a value; call it on an instance\n       --> ")
                         db.print_loc(id)
                         print("\n")
                         fall()
                     }
                     if (lhs_id != hir_none()) and (not is_type) and (not receiver) {
-                        print("\n\033[1;31m[type error]\033[0m static method requires the named struct type\n       --> ")
+                        print("\n\033[1;31m[type error]\033[0m static method requires the type\n       --> ")
                         db.print_loc(id)
                         print("\n")
                         fall()
@@ -259,7 +276,7 @@ synth_member :: (eng &Engine, id u32) {
         }
     }
 
-    print("\n\033[1;31m[type error]\033[0m struct '")
+    print("\n\033[1;31m[type error]\033[0m type '")
     (&(*types_ptr)).print_type(lhs_ty)
     print("' has no field or method named '")
     db.interner.get(name_id).print()

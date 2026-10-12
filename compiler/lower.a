@@ -10,7 +10,7 @@ import TypeStorage, ty_kind, ty_id_none, ty_id_type from "types.a"
 import slot_none from "unify.a"
 import topo_sort from "topo_sort.a"
 import fall from "../std/sys.a"
-import method_returns_ref_self, synth_node from "typer/tyck.a"
+import method_returns_ref_self, method_has_explicit_self, synth_node from "typer/tyck.a"
 import Engine from "engine.a"
 
 print :: (s &u8) unit
@@ -101,12 +101,78 @@ add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
                 i = i + 1
             }
         }
+    } else if kind == k.union_ {
+        if not vec_contains(queue, ty_id) {
+            queue.push(ty_id)
+            members := (&(*db).types).union_members(ty_id)
+            i: u64 = 0
+            while i < members.len {
+                add_type_to_queue(db, *(members.ptr + i), queue)
+                i = i + 1
+            }
+        }
+    } else if kind == k.enum_ {
+        if not vec_contains(queue, ty_id) {
+            queue.push(ty_id)
+            backing := (&(*db).types).enum_backing(ty_id)
+            add_type_to_queue(db, backing, queue)
+        }
     }
 }
 
-lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
+lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
     k := hir_kind()
     kind := (&(*db).hir).kind(id)
+
+    if kind == k.builtin_call {
+        name_id := (&(*db).hir).lhs(id)
+        name := db.interner.get(name_id)
+        args_list_id := (&(*db).hir).rhs(id)
+        args := db.get_list(args_list_id)
+
+        if name.eq(Str.of("sizeof")) {
+            target_ty := db.get_const_type(id)
+            add_type_to_queue(db, target_ty, type_queue)
+            t_str := ccg.type_str(&(*db).types, arena, target_ty)
+            fmt := Fmt.new(arena)
+            fmt.cstr("((uint64_t)sizeof(").str(t_str).cstr("))")
+            ret fmt.as_str()
+        }
+
+        if name.eq(Str.of("typeof")) {
+            ret Str.empty()
+        }
+
+        if name.eq(Str.of("is")) {
+            val_node := *(args.ptr + 0)
+            target_ty := db.get_const_type(id)
+            val_ty := get_node_type(db, val_node)
+            if (&(*db).types).kind(val_ty) == ty_kind().union_ {
+                if not (&(*db).types).union_contains(val_ty, target_ty) {
+                    ret ccg.expr_bool(false)
+                }
+                tag_idx := (&(*db).types).union_member_index(val_ty, target_ty)
+                val_str := lower_expr(db, ccg, arena, val_node, visited, queue, type_queue)
+                fmt := Fmt.new(arena)
+                fmt.cstr("(((").str(val_str).cstr(").tag == ").uint32(tag_idx).cstr("))")
+                ret fmt.as_str()
+            }
+            if val_ty == target_ty {
+                ret ccg.expr_bool(true)
+            }
+            ret ccg.expr_bool(false)
+        }
+
+        if name.eq(Str.of("tag")) {
+            val_node := *(args.ptr + 0)
+            val_str := lower_expr(db, ccg, arena, val_node, visited, queue, type_queue)
+            fmt := Fmt.new(arena)
+            fmt.cstr("(((").str(val_str).cstr(").tag))")
+            ret fmt.as_str()
+        }
+
+        ret Str.empty()
+    }
 
     if kind == k.lit_int {
         val := (&(*db).hir).lhs(id)
@@ -282,20 +348,6 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
 
     if kind == k.call {
         callee_id := (&(*db).hir).lhs(id)
-        callee_name := Str.empty()
-        if (&(*db).hir).kind(callee_id) == hir_kind().ident {
-            callee_name = db.interner.get((&(*db).hir).lhs(callee_id))
-        }
-        if callee_name.eq(Str.of("sizeof")) {
-            target_ty := db.get_const_type(id)
-            if target_ty != ty_id_none() {
-                add_type_to_queue(db, target_ty, type_queue)
-                t_str := ccg.type_str(&(*db).types, arena, target_ty)
-                fmt := Fmt.new(arena)
-                fmt.cstr("((uint64_t)sizeof(").str(t_str).cstr("))")
-                ret fmt.as_str()
-            }
-        }
         if get_node_type(db, id) == ty_id_type() {
             ret Str.empty()
         }
@@ -349,16 +401,33 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         }
 
         has_receiver := false
+        has_expl_self := false
         if method != id_none() {
-            method_name := (&(*db).hir).lhs(method)
-            node := method_name
-            while node < method {
-                if ((&(*db).hir).kind(node) == k.member) and
-                   ((&(*db).hir).lhs(node) == hir_none()) {
-                    has_receiver = true
-                    break
+            has_expl_self = method_has_explicit_self(db, method)
+            if not has_expl_self {
+                method_name := (&(*db).hir).lhs(method)
+                node := method_name
+                while node < method {
+                    if ((&(*db).hir).kind(node) == k.member) and
+                       ((&(*db).hir).lhs(node) == hir_none()) {
+                        has_receiver = true
+                        break
+                    }
+                    node = node + 1
                 }
-                node = node + 1
+            }
+        }
+
+        callee_lhs := hir_none()
+        if ((&(*db).hir).kind(callee_id) == k.member) {
+            callee_lhs = (&(*db).hir).lhs(callee_id)
+        }
+
+        lhs_is_instance := false
+        if (callee_lhs != hir_none()) and has_expl_self {
+            lhs_ty := get_node_type(db, callee_lhs)
+            if lhs_ty != ty_id_type() {
+                lhs_is_instance = true
             }
         }
 
@@ -366,7 +435,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
         first_arg := true
         if has_receiver {
             first_arg = false
-            lhs := (&(*db).hir).lhs(callee_id)
+            lhs := callee_lhs
 
             if lhs == hir_none() {
                 args_fmt.str(Str.of("_self"))
@@ -381,6 +450,34 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
                 add_type_to_queue(db, receiver_ty, type_queue)
                 receiver_ty_str := ccg.type_str(&(*db).types, arena, receiver_ty)
                 args_fmt.str(ccg.expr_receiver(arena, receiver_str, depth, is_lvalue(db, lhs), receiver_ty_str))
+            }
+        } else if lhs_is_instance {
+            first_arg = false
+            receiver_ty := get_node_type(db, callee_lhs)
+            receiver_str := lower_expr(db, ccg, arena, callee_lhs, visited, queue, type_queue)
+
+            func_node := (&(*db).hir).extra(method)
+            func_ty := db.get_const_type(func_node)
+            first_param_ty := ty_id_none()
+            if func_ty != ty_id_none() {
+                m_params := (&(*db).types).func_params(func_ty)
+                if m_params.len > 0 {
+                    first_param_ty = *(m_params.ptr + 0)
+                }
+            }
+
+            if (&(*db).types).kind(first_param_ty) == ty_kind().ptr {
+                if (&(*db).types).kind(receiver_ty) == ty_kind().ptr {
+                    args_fmt.str(receiver_str)
+                } else {
+                    args_fmt.cstr("&(").str(receiver_str).char(41 as u8)
+                }
+            } else {
+                if (&(*db).types).kind(receiver_ty) == ty_kind().ptr {
+                    args_fmt.cstr("(*").str(receiver_str).char(41 as u8)
+                } else {
+                    args_fmt.str(receiver_str)
+                }
             }
         }
 
@@ -469,7 +566,17 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     }
 
     if kind == k.cast {
-        lhs_v := lower_expr(db, ccg, arena, (&(*db).hir).lhs(id), visited, queue, type_queue)
+        lhs_node := (&(*db).hir).lhs(id)
+        lhs_ty := get_node_type(db, lhs_node)
+        if (&(*db).types).kind(lhs_ty) == ty_kind().union_ {
+            target_ty := get_node_type(db, id)
+            member_idx := (&(*db).types).union_member_index(lhs_ty, target_ty)
+            lhs_v := lower_expr(db, ccg, arena, lhs_node, visited, queue, type_queue)
+            fmt := Fmt.new(arena)
+            fmt.cstr("(((").str(lhs_v).cstr(").val._v").uint32(member_idx).cstr("))")
+            ret fmt.as_str()
+        }
+        lhs_v := lower_expr(db, ccg, arena, lhs_node, visited, queue, type_queue)
         ty_str := ccg.type_str(&(*db).types, arena, get_node_type(db, id))
         ret ccg.expr_cast(arena, ty_str, lhs_v)
     }
@@ -598,10 +705,24 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
             ret Str.empty()
         }
 
+        lhs_ty := get_node_type(db, lhs_id)
+        if (&(*db).types).kind(lhs_ty) == ty_kind().type_ {
+            actual_ty := db.get_const_type(lhs_id)
+            if (&(*db).types).kind(actual_ty) == ty_kind().enum_ {
+                field_name_id := (&(*db).hir).lhs(rhs_id)
+                if (&(*db).types).enum_has_variant(actual_ty, field_name_id) {
+                    var_val := (&(*db).types).enum_variant_val(actual_ty, field_name_id)
+                    add_type_to_queue(db, actual_ty, type_queue)
+                    enum_name := ccg.type_str(&(*db).types, arena, actual_ty)
+                    fmt := Fmt.new(arena)
+                    fmt.cstr("((").str(enum_name).cstr(")").uint32(var_val).cstr(")")
+                    ret fmt.as_str()
+                }
+            }
+        }
+
         lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
         field_name_id := (&(*db).hir).lhs(rhs_id)
-
-        lhs_ty := get_node_type(db, lhs_id)
         depth: u32 = 0
         while (&(*db).types).kind(lhs_ty) == ty_kind().ptr {
             lhs_ty = (&(*db).types).payload(lhs_ty)
@@ -616,6 +737,21 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     print("\n")
     fall()
     Str.empty()
+}
+
+lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
+    val_str := lower_expr_raw(db, ccg, arena, id, visited, queue, type_queue)
+    if val_str.len == 0 { ret val_str }
+    if db.has_union_coerce(id) {
+        target_union := db.get_union_coerce_ty(id)
+        k_idx := db.get_union_coerce_idx(id)
+        add_type_to_queue(db, target_union, type_queue)
+        union_name := ccg.type_str(&(*db).types, arena, target_union)
+        fmt := Fmt.new(arena)
+        fmt.cstr("((").str(union_name).cstr("){ .tag = ").uint32(k_idx).cstr(", .val = { ._v").uint32(k_idx).cstr(" = ").str(val_str).cstr(" } })")
+        ret fmt.as_str()
+    }
+    val_str
 }
 
 lower_function :: (eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
@@ -906,6 +1042,10 @@ lower_function :: (eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
             ccg.define_struct(&(*db).types, arena, t)
         } else if (&(*db).types).kind(t) == ty_kind().func {
             ccg.define_func_type(&(*db).types, arena, t)
+        } else if (&(*db).types).kind(t) == ty_kind().union_ {
+            ccg.define_union(&(*db).types, arena, t)
+        } else if (&(*db).types).kind(t) == ty_kind().enum_ {
+            ccg.define_enum(&(*db).types, arena, t)
         }
         s_i = s_i + 1
     }

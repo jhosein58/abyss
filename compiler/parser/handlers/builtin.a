@@ -1,0 +1,58 @@
+import token from "../../token.a"
+import hir_kind, hir_none from "../../hir.a"
+import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core.a"
+import VecU32 from "../../../std/vec/u32.a"
+import SliceU32 from "../../../std/slice/u32.a"
+import span_merge from "../../nexus/nexus.a"
+import span_of_hir, set_span from "common.a"
+import parse_ident from "ident.a"
+import parse_expr from "../parser.a"
+
+parse_builtin :: (p &Parser) u32 {
+    t := token()
+    k := hir_kind()
+    sp_start := curr_span(p)
+    bump(p)
+
+    if peek(p) != t.ident {
+        parse_error_at(p, "expected identifier after '@'", curr_span(p))
+    }
+
+    name_node := parse_ident(p)
+    name_id := ((*p).hir).lhs(name_node)
+
+    if not expect(p, t.o_paren) {
+        parse_error_at(p, "expected '(' after builtin name", curr_span(p))
+    }
+
+    args := VecU32.new()
+    if not optional(p, t.c_paren) {
+        while true {
+            if peek(p) == t.c_paren { break }
+            if is_eof(p) {
+                parse_error_at(p, "unclosed builtin call, expected ')'", sp_start)
+            }
+            arg := parse_expr(p, 0 as u8)
+            if arg == hir_none() {
+                parse_error_at(p, "expected argument in builtin call", curr_span(p))
+            }
+            args.push(arg)
+
+            if peek(p) == t.c_paren { break }
+            if not expect(p, t.comma) {
+                parse_error_at(p, "expected ',' or ')' after argument", curr_span(p))
+            }
+        }
+        expect(p, t.c_paren)
+    }
+
+    sp_end := prev_span(p)
+    ptr_a := 0 as &u32
+    if args.len > 0 { ptr_a = args.ptr_at(0) }
+    slice: SliceU32 = .{ ptr: ptr_a, len: args.len }
+    args_list := (*p).db.add_list(slice)
+    args.destroy()
+
+    node := ((*p).hir).push(k.builtin_call, name_id, args_list, hir_none())
+    set_span(p, node, span_merge(sp_start, sp_end))
+}

@@ -1,0 +1,34 @@
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
+print_bool :: (b bool) unit
+
+println_u32 :: (v u32) {
+    print_u32(v)
+    print("\n")
+}
+
+println_bool :: (b bool) {
+    print_bool(b)
+    print("\n")
+}
+
+main :: () {
+    x: i32 = 123
+    sz := @sizeof(i32)
+    println_u32(sz as u32)
+
+    sz_u8 := @sizeof(u8)
+    println_u32(sz_u8 as u32)
+
+    sz_ptr := @sizeof(&i32)
+    println_u32(sz_ptr as u32)
+
+    is_same := @is(x, i32)
+    println_bool(is_same)
+
+    is_diff := @is(x, bool)
+    println_bool(is_diff)
+
+    sz_of_ty := @sizeof(@typeof(x))
+    println_u32(sz_of_ty as u32)
+}

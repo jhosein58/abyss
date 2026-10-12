@@ -53,7 +53,7 @@ is_function_header :: (p &Parser) bool {
                 has_two_words = true
             } else if (tk != t.ident) and (tk != t.amp) and (tk != t.star) and
                       (tk != t.o_bracket) and (tk != t.c_bracket) and
-                      (tk != t.o_paren) and (tk != t.c_paren) {
+                      (tk != t.o_paren) and (tk != t.c_paren) and (tk != t.pipe) {
                 ret false
             }
         }

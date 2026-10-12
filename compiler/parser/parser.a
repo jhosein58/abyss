@@ -13,6 +13,8 @@ import parse_unary, parse_binary, parse_assign from "handlers/op.a"
 import parse_paren, parse_call from "handlers/fn.a"
 import parse_binding, parse_var_decl from "handlers/var.a"
 import parse_struct, parse_struct_init, parse_member from "handlers/struct.a"
+import parse_builtin from "handlers/builtin.a"
+import parse_enum from "handlers/enum.a"
 
 parse_expr :: (p &Parser, min_bp u8) u32 {
     lhs := dispatch_prefix(p)
@@ -65,6 +67,8 @@ dispatch_prefix :: (p &Parser) u32 {
     if tk == t.kw_ret     { ret parse_return(p) }
 
     if tk == t.kw_struct  { ret parse_struct(p) }
+    if tk == t.kw_enum    { ret parse_enum(p) }
+    if tk == t.at         { ret parse_builtin(p) }
     if (tk == t.dot) and (peek_n(p, 1) == t.o_brace) { ret parse_struct_init(p) }
     if tk == t.dot {
         if not (*p).inside_method {

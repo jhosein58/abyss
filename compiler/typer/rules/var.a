@@ -28,8 +28,8 @@ synth_ident :: (eng &Engine, id u32) {
     owner := db.get_method_owner(id)
     if (owner != hir_none()) and name.eq(Str.of("Self")) {
         self_ty := db.get_const_type(owner)
-        if (&(*types_ptr)).kind(self_ty) != ty_kind().nominal {
-            print("\n\033[1;31m[type error]\033[0m Self requires a named struct method\n       --> ")
+        if ((&(*types_ptr)).kind(self_ty) != ty_kind().nominal) and ((&(*types_ptr)).kind(self_ty) != ty_kind().enum_) {
+            print("\n\033[1;31m[type error]\033[0m Self requires a named struct or enum method\n       --> ")
             db.print_loc(id)
             print("\n")
             fall()
@@ -96,6 +96,23 @@ synth_type_node :: (eng &Engine, id u32) u32 {
             }
             (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
             ret ptr_ty
+        }
+    }
+
+    if curr == k.binary_bit_or {
+        lhs := (tbl).lhs(id)
+        rhs := (tbl).rhs(id)
+        lhs_ty := synth_type_node(eng, lhs)
+        rhs_ty := synth_type_node(eng, rhs)
+        if (lhs_ty != ty_id_none()) and (rhs_ty != ty_id_none()) {
+            union_ty := (&(*db).types).make_union_2(lhs_ty, rhs_ty)
+            db.set_const_type(id, union_ty)
+            slot := (&(*db).unify).get_slot(id)
+            if slot == slot_none() {
+                slot = (&(*db).unify).new_slot(id)
+            }
+            (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+            ret union_ty
         }
     }
 
@@ -175,7 +192,7 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
                 db.set_const_type(ident_id, type_val)
                 db.set_const_type(id, type_val)
             }
-            if (type_id != hir_none()) and ((tbl).kind(value_id) == hir_kind().struct_init) {
+            if type_id != hir_none() {
                 expected := db.get_const_type(type_id)
                 if expected != ty_id_none() { check_value(db, value_id, expected) }
             }

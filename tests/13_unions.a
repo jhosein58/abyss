@@ -1,0 +1,53 @@
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
+print_bool :: (b bool) unit
+
+println_u32 :: (v u32) {
+    print_u32(v)
+    print("\n")
+}
+
+println_bool :: (b bool) {
+    print_bool(b)
+    print("\n")
+}
+
+get_val :: (flag bool) i32 | bool {
+    if flag {
+        42
+    } else {
+        true
+    }
+}
+
+consume_rev :: (u bool | i32) u32 {
+    if @is(u, i32) {
+        (u as i32) as u32
+    } else {
+        0 as u32
+    }
+}
+
+main :: () {
+    v1 := get_val(true)
+    v2 := get_val(false)
+
+    println_bool(@is(v1, i32))
+    println_bool(@is(v1, bool))
+    println_u32((v1 as i32) as u32)
+
+    println_bool(@is(v2, i32))
+    println_bool(@is(v2, bool))
+    println_bool(v2 as bool)
+
+    r1 := consume_rev(100)
+    println_u32(r1)
+
+    r2 := consume_rev(v1)
+    println_u32(r2)
+
+    t1 := @tag(v1)
+    t2 := @tag(v2)
+    println_u32(t1)
+    println_u32(t2)
+}

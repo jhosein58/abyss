@@ -95,9 +95,9 @@ synth_if :: (db &Nexus, tbl &HirTable, id u32) {
                 ret
             }
         }
+    } else {
+        (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
     }
-
-    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
 }
 
 synth_while :: (db &Nexus, tbl &HirTable, id u32) {

@@ -1,0 +1,120 @@
+import Engine from "../../engine.a"
+import Nexus from "../../nexus/nexus.a"
+import hir_kind, hir_none from "../../hir.a"
+import slot_none from "../../unify.a"
+import ty_id_none, ty_id_type, ty_id_bool, ty_kind from "../../types.a"
+import fall from "../../../std/sys.a"
+import synth_node from "../tyck.a"
+import synth_type_node from "var.a"
+import Str from "../../../std/string.a"
+
+print :: (s &u8) unit
+
+synth_builtin_call :: (eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    slot := (unify_ptr).get_slot(id)
+    if slot == slot_none() {
+        slot = (unify_ptr).new_slot(id)
+    }
+
+    name_id := (tbl).lhs(id)
+    name := db.interner.get(name_id)
+    args_list_id := (tbl).rhs(id)
+    args := db.get_list(args_list_id)
+
+    if name.eq(Str.of("sizeof")) {
+        if args.len != 1 {
+            print("\n\033[1;31m[type error]\033[0m @sizeof expects exactly 1 argument\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
+        }
+        arg_node := *(args.ptr + 0)
+        target_ty := synth_type_node(eng, arg_node)
+        if target_ty == ty_id_none() {
+            print("\n\033[1;31m[type error]\033[0m @sizeof argument must be a type\n       --> ")
+            db.print_loc(arg_node)
+            print("\n")
+            fall()
+        }
+        u64_ty := (&(*types_ptr)).alloc_uint(64)
+        (&(*db).unify).bind_type(&(*db).types, slot, u64_ty)
+        db.set_const_type(id, target_ty)
+        ret
+    }
+
+    if name.eq(Str.of("typeof")) {
+        if args.len != 1 {
+            print("\n\033[1;31m[type error]\033[0m @typeof expects exactly 1 argument\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
+        }
+        arg_node := *(args.ptr + 0)
+        synth_node(eng, arg_node)
+        arg_slot := (unify_ptr).get_slot(arg_node)
+        arg_ty := ty_id_none()
+        if arg_slot != slot_none() {
+            arg_ty = (unify_ptr).resolve_type_deep(types_ptr, arg_slot)
+        }
+        if arg_ty == ty_id_none() {
+            arg_ty = db.get_const_type(arg_node)
+        }
+        if arg_ty == ty_id_none() {
+            print("\n\033[1;31m[type error]\033[0m cannot determine type for @typeof\n       --> ")
+            db.print_loc(arg_node)
+            print("\n")
+            fall()
+        }
+        (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+        db.set_const_type(id, arg_ty)
+        ret
+    }
+
+    if name.eq(Str.of("is")) {
+        if args.len != 2 {
+            print("\n\033[1;31m[type error]\033[0m @is expects exactly 2 arguments (val, Type)\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
+        }
+        val_node := *(args.ptr + 0)
+        ty_node := *(args.ptr + 1)
+        synth_node(eng, val_node)
+        target_ty := synth_type_node(eng, ty_node)
+        if target_ty == ty_id_none() {
+            print("\n\033[1;31m[type error]\033[0m second argument to @is must be a type\n       --> ")
+            db.print_loc(ty_node)
+            print("\n")
+            fall()
+        }
+        (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
+        db.set_const_type(id, target_ty)
+        ret
+    }
+
+    if name.eq(Str.of("tag")) {
+        if args.len != 1 {
+            print("\n\033[1;31m[type error]\033[0m @tag expects exactly 1 argument\n       --> ")
+            db.print_loc(id)
+            print("\n")
+            fall()
+        }
+        val_node := *(args.ptr + 0)
+        synth_node(eng, val_node)
+        u32_ty := (&(*types_ptr)).alloc_uint(32)
+        (&(*db).unify).bind_type(&(*db).types, slot, u32_ty)
+        ret
+    }
+
+    print("\n\033[1;31m[type error]\033[0m unknown builtin function '@")
+    name.print()
+    print("'\n       --> ")
+    db.print_loc(id)
+    print("\n")
+    fall()
+}

@@ -1,0 +1,55 @@
+print :: (s &u8) unit
+print_u32 :: (v u32) unit
+print_bool :: (b bool) unit
+
+println_u32 :: (v u32) {
+    print_u32(v)
+    print("\n")
+}
+
+println_bool :: (b bool) {
+    print_bool(b)
+    print("\n")
+}
+
+Color :: enum {
+    red,
+    green,
+    blue,
+
+    is_red :: (self Self) bool {
+        (self as u32) == 0
+    },
+
+    val :: (self Self) u32 {
+        self as u32
+    }
+}
+
+Status :: enum u8 {
+    ok = 200,
+    bad = 400
+}
+
+main :: () {
+    r := Color.red
+    g := Color.green
+    b := Color.blue
+
+    println_u32(r as u32)
+    println_u32(g as u32)
+    println_u32(b as u32)
+
+    println_bool(r.is_red())
+    println_bool(g.is_red())
+    println_u32(b.val())
+
+    s_ok := Status.ok
+    s_bad := Status.bad
+    println_u32(s_ok as u32)
+    println_u32(s_bad as u32)
+
+    c2 := 1 as Color
+    println_u32(c2 as u32)
+    println_bool(c2.is_red())
+}

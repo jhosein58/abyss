@@ -98,7 +98,9 @@ Nexus :: struct {
     mono_sym       : VecU32,
     mono_nom_sym   : VecU32,
     mono_nom_arg   : VecU32,
-    mono_nom_res   : VecU32
+    mono_nom_res   : VecU32,
+    union_coerce_ty : PoolU32,
+    union_coerce_idx : PoolU32
 
     new :: () Self {
         .{
@@ -136,7 +138,9 @@ Nexus :: struct {
             mono_sym       : VecU32.new(),
             mono_nom_sym   : VecU32.new(),
             mono_nom_arg   : VecU32.new(),
-            mono_nom_res   : VecU32.new()
+            mono_nom_res   : VecU32.new(),
+            union_coerce_ty : PoolU32.new(),
+            union_coerce_idx : PoolU32.new()
         }
     }
 
@@ -448,5 +452,25 @@ Nexus :: struct {
         .mono_nom_sym.push(sym)
         .mono_nom_arg.push(list_id)
         .mono_nom_res.push(res_ty)
+    }
+
+    set_union_coerce :: (expr u32, ty u32, idx u32) {
+        .union_coerce_ty.set_safe(expr, ty, ty_id_none())
+        .union_coerce_idx.set_safe(expr, idx, 0)
+    }
+
+    has_union_coerce :: (expr u32) bool {
+        if expr >= .union_coerce_ty.count() { ret false }
+        .union_coerce_ty.get(expr) != ty_id_none()
+    }
+
+    get_union_coerce_ty :: (expr u32) u32 {
+        if expr >= .union_coerce_ty.count() { ret ty_id_none() }
+        .union_coerce_ty.get(expr)
+    }
+
+    get_union_coerce_idx :: (expr u32) u32 {
+        if expr >= .union_coerce_idx.count() { ret 0 }
+        .union_coerce_idx.get(expr)
     }
 }

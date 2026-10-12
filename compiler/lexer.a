@@ -248,6 +248,7 @@ match_keyword :: (text Str) u8 {
         if text.eq(Str.of("cont")) { ret t.kw_cont }
         if text.eq(Str.of("true")) { ret t.kw_true }
         if text.eq(Str.of("from")) { ret t.kw_from }
+        if text.eq(Str.of("enum")) { ret t.kw_enum }
     }
 
     if text.len == 5 {
@@ -361,6 +362,7 @@ scan_symbol :: (l &Lexer) u8 {
     if c == 91 { ret t.o_bracket }
     if c == 93 { ret t.c_bracket }
     if c == 35 { ret t.hash }
+    if c == 64 { ret t.at }
 
     t.unknown
 }
