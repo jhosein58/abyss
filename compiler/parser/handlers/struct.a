@@ -1,11 +1,11 @@
 import token from "../../token.a"
 import hir_kind, hir_none from "../../hir.a"
 import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core.a"
-import VecU32 from "../../../std/vec/u32.a"
+import Vec from "../../../std/collections/vec.a"
 import span_merge from "../../nexus/nexus.a"
 import id_none from "../../nexus/pool.a"
 import prec from "../prec.a"
-import span_of_hir, set_span, skip_separators, check_delimiter, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node from "common.a"
+import span_of_hir, set_span, skip_separators, check_delimiter, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list from "common.a"
 import parse_ident from "ident.a"
 import parse_expr from "../parser.a"
 
@@ -18,10 +18,10 @@ parse_struct :: fn(p &Parser) u32 {
         parse_error_at(p, c"expected '{' after struct", curr_span(p))
     }
 
-    names := VecU32.new()
-    types := VecU32.new()
-    methods := VecU32.new()
-    field_names := VecU32.new()
+    names := Vec(u32).new()
+    types := Vec(u32).new()
+    methods := Vec(u32).new()
+    field_names := Vec(u32).new()
 
     struct_node := id_none()
     struct_toplv := p.toplv_sym
@@ -67,8 +67,8 @@ parse_struct :: fn(p &Parser) u32 {
     expect(p, t.c_brace)
     sp_end := prev_span(p)
 
-    names_id := p.db.add_list(names.as_slice())
-    types_id := p.db.add_list(types.as_slice())
+    names_id := add_list(p, &names)
+    types_id := add_list(p, &types)
     names.destroy()
     types.destroy()
     field_names.destroy()
@@ -84,8 +84,8 @@ parse_struct_init :: fn(p &Parser) u32 {
     bump(p)
     expect(p, t.o_brace)
 
-    fields := VecU32.new()
-    values := VecU32.new()
+    fields := Vec(u32).new()
+    values := Vec(u32).new()
 
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
         skip_separators(p)
@@ -108,8 +108,8 @@ parse_struct_init :: fn(p &Parser) u32 {
     expect(p, t.c_brace)
     sp_end := prev_span(p)
 
-    fids := p.db.add_list(fields.as_slice())
-    vids := p.db.add_list(values.as_slice())
+    fids := add_list(p, &fields)
+    vids := add_list(p, &values)
 
     fields.destroy()
     values.destroy()

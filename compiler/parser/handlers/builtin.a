@@ -1,9 +1,9 @@
 import token from "../../token.a"
 import hir_kind, hir_none from "../../hir.a"
 import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core.a"
-import VecU32 from "../../../std/vec/u32.a"
+import Vec from "../../../std/collections/vec.a"
 import span_merge from "../../nexus/nexus.a"
-import span_of_hir, set_span from "common.a"
+import span_of_hir, set_span, add_list from "common.a"
 import parse_ident from "ident.a"
 import parse_expr from "../parser.a"
 
@@ -24,7 +24,7 @@ parse_builtin :: fn(p &Parser) u32 {
         parse_error_at(p, c"expected '(' after builtin name", curr_span(p))
     }
 
-    args := VecU32.new()
+    args := Vec(u32).new()
     if not optional(p, t.c_paren) {
         while true {
             if peek(p) == t.c_paren { break }
@@ -46,7 +46,7 @@ parse_builtin :: fn(p &Parser) u32 {
     }
 
     sp_end := prev_span(p)
-    args_list := p.db.add_list(args.as_slice())
+    args_list := add_list(p, &args)
     args.destroy()
 
     node := p.hir.push(k.builtin_call, name_id, args_list, hir_none())

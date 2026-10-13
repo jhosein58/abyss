@@ -1,10 +1,10 @@
 import token from "../../token.a"
 import hir_kind, hir_none from "../../hir.a"
 import Parser, peek, bump, optional, expect, is_eof, peek_n, peek_preceded_by_newline, curr_span, prev_span, parse_error_at from "../core.a"
-import VecU32 from "../../../std/vec/u32.a"
+import Vec from "../../../std/collections/vec.a"
 import Span, span_merge from "../../nexus/nexus.a"
 import id_none from "../../nexus/pool.a"
-import span_of_hir, set_span from "common.a"
+import span_of_hir, set_span, add_list from "common.a"
 import parse_ident from "ident.a"
 import parse_block from "control.a"
 import parse_expr from "../parser.a"
@@ -20,7 +20,7 @@ define_param :: fn(p &Parser, name_hir u32) {
     p.env.define(name_id, sym_id)
 }
 
-push_arg :: fn(p &Parser, args &VecU32, name u32, ty u32) {
+push_arg :: fn(p &Parser, args &Vec(u32), name u32, ty u32) {
     k := hir_kind
     sp := span_of_hir(p, ty)
     if name != hir_none() {
@@ -35,8 +35,8 @@ push_arg :: fn(p &Parser, args &VecU32, name u32, ty u32) {
 parse_params :: fn(p &Parser) u32 {
     t := token
     k := hir_kind
-    args := VecU32.new()
-    pending_names := VecU32.new()
+    args := Vec(u32).new()
+    pending_names := Vec(u32).new()
 
     while (peek(p) != t.c_paren) and (not is_eof(p)) {
         is_type_token := (peek(p) == t.amp) or (peek(p) == t.star) or
@@ -100,7 +100,7 @@ parse_params :: fn(p &Parser) u32 {
 
     params := hir_none()
     if args.len > 0 {
-        params = p.db.add_list(args.as_slice())
+        params = add_list(p, &args)
     }
     args.destroy()
     params
@@ -179,7 +179,7 @@ parse_call :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind
     sp_lhs := span_of_hir(p, lhs)
 
-    args := VecU32.new()
+    args := Vec(u32).new()
     if not optional(p, t.c_paren) {
         while true {
             if peek(p) == t.c_paren { break }
@@ -201,7 +201,7 @@ parse_call :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     }
 
     sp_end := prev_span(p)
-    args_list := p.db.add_list(args.as_slice())
+    args_list := add_list(p, &args)
     args.destroy()
 
     node := p.hir.push(k.call, lhs, args_list, hir_none())

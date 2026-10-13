@@ -1,11 +1,11 @@
 import token from "../../token.a"
 import hir_kind, hir_none from "../../hir.a"
 import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core.a"
-import VecU32 from "../../../std/vec/u32.a"
+import Vec from "../../../std/collections/vec.a"
 import span_merge from "../../nexus/nexus.a"
 import id_none from "../../nexus/pool.a"
 import prec from "../prec.a"
-import set_span, skip_separators, check_delimiter, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node from "common.a"
+import set_span, skip_separators, check_delimiter, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list from "common.a"
 import parse_ident from "ident.a"
 import parse_expr from "../parser.a"
 
@@ -24,9 +24,9 @@ parse_enum :: fn(p &Parser) u32 {
         parse_error_at(p, c"expected '{' after enum", curr_span(p))
     }
 
-    names := VecU32.new()
-    vals := VecU32.new()
-    methods := VecU32.new()
+    names := Vec(u32).new()
+    vals := Vec(u32).new()
+    methods := Vec(u32).new()
 
     enum_node := id_none()
     enum_toplv := p.toplv_sym
@@ -61,16 +61,16 @@ parse_enum :: fn(p &Parser) u32 {
     expect(p, t.c_brace)
     sp_end := prev_span(p)
 
-    names_id := p.db.add_list(names.as_slice())
-    vals_id := p.db.add_list(vals.as_slice())
+    names_id := add_list(p, &names)
+    vals_id := add_list(p, &vals)
     names.destroy()
     vals.destroy()
 
     methods_id := add_methods_id(p, &methods)
-    meta := VecU32.new()
+    meta := Vec(u32).new()
     meta.push(backing_ty)
     meta.push(methods_id)
-    meta_id := p.db.add_list(meta.as_slice())
+    meta_id := add_list(p, &meta)
     meta.destroy()
 
     finish_type_node(p, &enum_node, k.enum_, names_id, vals_id, meta_id, enum_toplv, &methods, span_merge(sp_start, sp_end))

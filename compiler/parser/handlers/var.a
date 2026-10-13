@@ -11,28 +11,28 @@ parse_binding :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind
     sp_lhs := span_of_hir(p, lhs)
 
-    name_id := ((*p).hir).lhs(lhs)
+    name_id := p.hir.lhs(lhs)
     sym_id := lookup_sym(p, name_id)
 
     if sym_id != id_none() {
-        curr_hir := (*p).db.get_sym_hir(sym_id)
+        curr_hir := p.db.get_sym_hir(sym_id)
         if curr_hir == id_none() {
-            (*p).db.set_sym_hir(sym_id, lhs)
+            p.db.set_sym_hir(sym_id, lhs)
         }
-        (*p).db.set_hir_symbol(lhs, sym_id)
+        p.db.set_hir_symbol(lhs, sym_id)
     }
 
-    saved_toplv := (*p).toplv_sym
-    (*p).toplv_sym = sym_id
+    saved_toplv := p.toplv_sym
+    p.toplv_sym = sym_id
     rhs := parse_expr(p, right_bp)
-    (*p).toplv_sym = saved_toplv
+    p.toplv_sym = saved_toplv
     sp_rhs := span_of_hir(p, rhs)
 
-    binding_id := ((*p).hir).push(k.binding, lhs, hir_none(), rhs)
+    binding_id := p.hir.push(k.binding, lhs, hir_none(), rhs)
     set_span(p, binding_id, span_merge(sp_lhs, sp_rhs))
 
     if sym_id != id_none() {
-        (*p).db.set_hir_symbol(binding_id, sym_id)
+        p.db.set_hir_symbol(binding_id, sym_id)
     }
 
     binding_id
@@ -42,7 +42,7 @@ parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     t := token
     k := hir_kind
 
-    if ((*p).hir).kind(lhs) != k.ident {
+    if p.hir.kind(lhs) != k.ident {
         parse_error_at(p, c"left-hand side of declaration must be an identifier", span_of_hir(p, lhs))
     }
 

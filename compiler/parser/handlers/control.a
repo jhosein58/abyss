@@ -45,8 +45,8 @@ parse_block :: fn(p &Parser) u32 {
     k := hir_kind
     t := token
 
-    db := &(*(*p).db)
-    glob_stack := &(*db).glob_stack
+    db := &p.db
+    glob_stack := &db.glob_stack
 
     sp_start := curr_span(p)
     mark := glob_stack.mark()
@@ -74,7 +74,7 @@ parse_block :: fn(p &Parser) u32 {
     glob_stack.reset(mark)
     p.env.reset(env_mark)
 
-    node := ((*p).hir).push(k.block, list_id, hir_none(), hir_none())
+    node := p.hir.push(k.block, list_id, hir_none(), hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -99,7 +99,7 @@ parse_break :: fn(p &Parser) u32 {
     k := hir_kind
     sp := curr_span(p)
     bump(p)
-    node := ((*p).hir).push(k.k_break, hir_none(), hir_none(), hir_none())
+    node := p.hir.push(k.k_break, hir_none(), hir_none(), hir_none())
     set_span(p, node, sp)
 }
 
@@ -107,6 +107,6 @@ parse_cont :: fn(p &Parser) u32 {
     k := hir_kind
     sp := curr_span(p)
     bump(p)
-    node := ((*p).hir).push(k.k_cont, hir_none(), hir_none(), hir_none())
+    node := p.hir.push(k.k_cont, hir_none(), hir_none(), hir_none())
     set_span(p, node, sp)
 }
