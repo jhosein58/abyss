@@ -28,7 +28,7 @@ validate_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
         k := ty_kind()
         is_int := (kind == k.int) or (kind == k.uint) or (kind == k.untyped_int)
         if is_int { ret }
-        if ((tbl).kind(id) == hir_kind().unary_neg) and
+        if ((tbl).kind(id) == hir_kind.unary_neg) and
            ((kind == k.float) or (kind == k.untyped_float)) { ret }
     }
     print(c"\n[type error] invalid unary operand\n       --> ")
@@ -140,7 +140,7 @@ synth_binary :: (db &Nexus, tbl &HirTable, id u32) {
         rhs_num := rhs_int or (rhs_k == k.float) or (rhs_k == k.untyped_float)
         op := (tbl).kind(id)
 
-        if op == hir_kind().binary_bit_or {
+        if op == hir_kind.binary_bit_or {
             lhs_val := db.get_const_type(lhs)
             rhs_val := db.get_const_type(rhs)
             if (lhs_val != ty_id_none()) and (rhs_val != ty_id_none()) {
@@ -152,18 +152,18 @@ synth_binary :: (db &Nexus, tbl &HirTable, id u32) {
         }
 
         if (lhs_k == k.ptr) or (rhs_k == k.ptr) {
-            if (lhs_k == k.ptr) and rhs_int and ((op == hir_kind().binary_add) or (op == hir_kind().binary_sub)) {
+            if (lhs_k == k.ptr) and rhs_int and ((op == hir_kind.binary_add) or (op == hir_kind.binary_sub)) {
                 (&(*db).unify).bind_type(&(*db).types, slot, lhs_ty)
                 ret
             }
-            if (rhs_k == k.ptr) and lhs_int and (op == hir_kind().binary_add) {
+            if (rhs_k == k.ptr) and lhs_int and (op == hir_kind.binary_add) {
                 (&(*db).unify).bind_type(&(*db).types, slot, rhs_ty)
                 ret
             }
         } else if lhs_num and rhs_num {
-            bitwise := (op == hir_kind().binary_bit_and) or (op == hir_kind().binary_bit_or) or
-                       (op == hir_kind().binary_bit_xor) or (op == hir_kind().binary_shl) or
-                       (op == hir_kind().binary_shr)
+            bitwise := (op == hir_kind.binary_bit_and) or (op == hir_kind.binary_bit_or) or
+                       (op == hir_kind.binary_bit_xor) or (op == hir_kind.binary_shl) or
+                       (op == hir_kind.binary_shr)
             if (not bitwise) or (lhs_int and rhs_int) {
                 (&(*db).unify).union(&(*db).types, lhs_slot, rhs_slot)
                 (&(*db).unify).union(&(*db).types, slot, lhs_slot)
@@ -237,7 +237,7 @@ validate_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
                    (rhs_kind == k.untyped_int) or (rhs_kind == k.untyped_float)
         if lhs_num and rhs_num { ret }
         op := (tbl).kind(id)
-        if (op == hir_kind().binary_eq_eq) or (op == hir_kind().binary_neq) {
+        if (op == hir_kind.binary_eq_eq) or (op == hir_kind.binary_neq) {
             if (lhs_kind == k.bool) and (rhs_kind == k.bool) { ret }
             if (lhs_kind == k.ptr) and (rhs_kind == k.ptr) { ret }
             if (lhs_kind == k.enum_) and (rhs_kind == k.enum_) { ret }

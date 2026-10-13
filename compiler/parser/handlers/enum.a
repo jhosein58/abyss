@@ -11,8 +11,8 @@ import parse_ident from "ident.a"
 import parse_expr from "../parser.a"
 
 parse_enum :: (p &Parser) u32 {
-    t := token()
-    k := hir_kind()
+    t := token
+    k := hir_kind
     sp_start := curr_span(p)
     bump(p)
 

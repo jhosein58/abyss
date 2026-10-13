@@ -1,4 +1,4 @@
-import token from "../../token.a"
+import token, TokenType from "../../token.a"
 import hir_kind, hir_none from "../../hir.a"
 import Parser, bump, curr_span, parse_error_at from "../core.a"
 import prec from "../prec.a"
@@ -6,9 +6,9 @@ import span_merge from "../../nexus/nexus.a"
 import span_of_hir, set_span from "common.a"
 import parse_expr from "../parser.a"
 
-parse_unary :: (p &Parser, op u8) u32 {
-    t := token()
-    k := hir_kind()
+parse_unary :: (p &Parser, op TokenType) u32 {
+    t := token
+    k := hir_kind
     sp_start := curr_span(p)
     bump(p)
 
@@ -26,9 +26,9 @@ parse_unary :: (p &Parser, op u8) u32 {
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
-parse_binary :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
-    t := token()
-    k := hir_kind()
+parse_binary :: (p &Parser, op TokenType, lhs u32, right_bp u8) u32 {
+    t := token
+    k := hir_kind
 
     sp_lhs := span_of_hir(p, lhs)
     rhs := parse_expr(p, right_bp)
@@ -64,7 +64,7 @@ parse_binary :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
 }
 
 parse_assign :: (p &Parser, lhs u32, right_bp u8) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp_lhs := span_of_hir(p, lhs)
     rhs := parse_expr(p, right_bp)
     sp_rhs := span_of_hir(p, rhs)

@@ -55,7 +55,7 @@ check_value :: (db &Nexus, expr u32, expected u32) {
     slot := unify_ptr.get_slot(expr)
     if slot == slot_none() { ret }
 
-    if tbl.kind(expr) == hir_kind().k_if {
+    if tbl.kind(expr) == hir_kind.k_if {
         check_value(db, tbl.rhs(expr), expected)
         elseb := tbl.extra(expr)
         if elseb != hir_none() {
@@ -66,7 +66,7 @@ check_value :: (db &Nexus, expr u32, expected u32) {
         ret
     }
 
-    if tbl.kind(expr) == hir_kind().block {
+    if tbl.kind(expr) == hir_kind.block {
         items := db.get_list(tbl.lhs(expr))
         if items.len > 0 {
             check_value(db, *(items.ptr + items.len - 1), expected)
@@ -165,7 +165,7 @@ check_value :: (db &Nexus, expr u32, expected u32) {
         fall()
     }
 
-    if ((tbl).kind(expr) == hir_kind().struct_init) and
+    if ((tbl).kind(expr) == hir_kind.struct_init) and
        ((kind == ty_kind().nominal) or (kind == ty_kind().struct_)) {
         target := (&(*types)).get_struct_fields(expected)
         names := db.get_list((tbl).lhs(expr))

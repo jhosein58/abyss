@@ -38,7 +38,7 @@ method_has_receiver :: (db &Nexus, method u32) bool {
     tbl := &(*db).hir
     node := (tbl).lhs(method)
     while node < method {
-        if ((tbl).kind(node) == hir_kind().member) and
+        if ((tbl).kind(node) == hir_kind.member) and
            ((tbl).lhs(node) == hir_none()) {
             ret true
         }
@@ -187,7 +187,7 @@ find_enclosing_method :: (db &Nexus, node_id u32) u32 {
     owner := db.get_method_owner(node_id)
     if owner == hir_none() { ret hir_none() }
     methods_id := (&(*db).hir).extra(owner)
-    if (&(*db).hir).kind(owner) == hir_kind().enum_ {
+    if (&(*db).hir).kind(owner) == hir_kind.enum_ {
         if methods_id != hir_none() {
             meta := db.get_list(methods_id)
             methods_id = *(meta.ptr + 1)
@@ -219,7 +219,7 @@ method_returns_ref_self :: (db &Nexus, node_id u32) bool {
     if not method_has_receiver(db, method) { ret false }
 
     func_id := (&(*db).hir).extra(method)
-    if (func_id == hir_none()) or ((&(*db).hir).kind(func_id) != hir_kind().function) {
+    if (func_id == hir_none()) or ((&(*db).hir).kind(func_id) != hir_kind.function) {
         ret false
     }
 
@@ -281,30 +281,30 @@ specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &
     func_node := id_none()
     if (callee_sym & 2147483648) != 0 {
         binding_id := callee_sym & 2147483647
-        if (tbl).kind(binding_id) == hir_kind().binding {
+        if (tbl).kind(binding_id) == hir_kind.binding {
             func_node = (tbl).extra(binding_id)
-        } else if (tbl).kind(binding_id) == hir_kind().function {
+        } else if (tbl).kind(binding_id) == hir_kind.function {
             func_node = binding_id
         }
     } else {
         func_node = db.get_sym_hir(callee_sym)
-        if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind().function) {
+        if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind.function) {
             hir_end := db.sym_hir_end.get(callee_sym)
             if (hir_end != 0) and (hir_end != id_none()) {
                 b_id := hir_end - 1
-                if (tbl).kind(b_id) == hir_kind().binding {
+                if (tbl).kind(b_id) == hir_kind.binding {
                     func_node = (tbl).extra(b_id)
                 }
             }
-            if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind().function) {
+            if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind.function) {
                 scan_i := func_node + 1
                 tbl_len := (tbl).len()
                 while scan_i < tbl_len {
                     sk := (tbl).kind(scan_i)
-                    if (sk == hir_kind().var) or (sk == hir_kind().binding) {
+                    if (sk == hir_kind.var) or (sk == hir_kind.binding) {
                         if (tbl).lhs(scan_i) == func_node {
                             cand := (tbl).extra(scan_i)
-                            if (cand != hir_none()) and ((tbl).kind(cand) == hir_kind().function) {
+                            if (cand != hir_none()) and ((tbl).kind(cand) == hir_kind.function) {
                                 func_node = cand
                                 break
                             }
@@ -337,15 +337,15 @@ specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &
     struct_node := hir_none()
     if body_id != hir_none() {
         b_kind := (tbl).kind(body_id)
-        if b_kind == hir_kind().struct_ {
+        if b_kind == hir_kind.struct_ {
             struct_node = body_id
-        } else if b_kind == hir_kind().block {
+        } else if b_kind == hir_kind.block {
             items_list := (tbl).lhs(body_id)
             if items_list != hir_none() {
                 items := db.get_list(items_list)
                 if items.len > 0 {
                     last_item := *(items.ptr + items.len - 1)
-                    if (tbl).kind(last_item) == hir_kind().k_ret {
+                    if (tbl).kind(last_item) == hir_kind.k_ret {
                         struct_node = (tbl).lhs(last_item)
                     } else {
                         struct_node = last_item
@@ -355,12 +355,12 @@ specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &
         }
     }
 
-    if (struct_node != hir_none()) and ((tbl).kind(struct_node) == hir_kind().struct_) {
+    if (struct_node != hir_none()) and ((tbl).kind(struct_node) == hir_kind.struct_) {
         nom_origin := (&(*types_ptr)).len() | 2147483648
         nom_name := Str.of("struct")
         if (callee_sym & 2147483648) != 0 {
             binding_id := callee_sym & 2147483647
-            if (tbl).kind(binding_id) == hir_kind().binding {
+            if (tbl).kind(binding_id) == hir_kind.binding {
                 name_hir := (tbl).lhs(binding_id)
                 nom_name = db.interner.get((tbl).lhs(name_hir))
             }
@@ -454,7 +454,7 @@ specialize_type_node_inner :: (eng &Engine, ty_node u32, fn_params SliceU32, con
     if ty_node == hir_none() { ret ty_id_none() }
     db := &(*eng).nexus
     tbl := &(*db).hir
-    k := hir_kind()
+    k := hir_kind
     curr := (tbl).kind(ty_node)
 
     if curr == k.ident {
@@ -872,7 +872,7 @@ synth_call :: (eng &Engine, id u32) {
                     }
                 }
                 callee_sym := id_none()
-                if callee_kind == hir_kind().ident {
+                if callee_kind == hir_kind.ident {
                     sym := db.get_hir_symbol(callee)
                     if sym != id_none() {
                         real_s := sym
@@ -932,7 +932,7 @@ synth_call :: (eng &Engine, id u32) {
                 }
 
                 func_node := id_none()
-                if callee_kind == hir_kind().ident {
+                if callee_kind == hir_kind.ident {
                     sym := db.get_hir_symbol(callee)
                     if sym != id_none() {
                         real_s := sym
@@ -942,23 +942,23 @@ synth_call :: (eng &Engine, id u32) {
                             real_s = tgt
                         }
                         func_node = db.get_sym_hir(real_s)
-                        if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind().function) {
+                        if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind.function) {
                             hir_end := db.sym_hir_end.get(real_s)
                             if (hir_end != 0) and (hir_end != id_none()) {
                                 b_id := hir_end - 1
-                                if (tbl).kind(b_id) == hir_kind().binding {
+                                if (tbl).kind(b_id) == hir_kind.binding {
                                     func_node = (tbl).extra(b_id)
                                 }
                             }
-                            if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind().function) {
+                            if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind.function) {
                                 scan_i := func_node + 1
                                 tbl_len := (tbl).len()
                                 while scan_i < tbl_len {
                                     sk := (tbl).kind(scan_i)
-                                    if (sk == hir_kind().var) or (sk == hir_kind().binding) {
+                                    if (sk == hir_kind.var) or (sk == hir_kind.binding) {
                                         if (tbl).lhs(scan_i) == func_node {
                                             cand := (tbl).extra(scan_i)
-                                            if (cand != hir_none()) and ((tbl).kind(cand) == hir_kind().function) {
+                                            if (cand != hir_none()) and ((tbl).kind(cand) == hir_kind.function) {
                                                 func_node = cand
                                                 break
                                             }
@@ -970,9 +970,9 @@ synth_call :: (eng &Engine, id u32) {
                             }
                         }
                     }
-                } else if callee_kind == hir_kind().function {
+                } else if callee_kind == hir_kind.function {
                     func_node = callee
-                } else if callee_kind == hir_kind().member {
+                } else if callee_kind == hir_kind.member {
                     m := db.get_method_target(callee)
                     if m != id_none() {
                         func_node = (tbl).extra(m)
@@ -1164,7 +1164,7 @@ synth_call :: (eng &Engine, id u32) {
                 }
 
                 callee_lhs := hir_none()
-                if (tbl).kind(callee) == hir_kind().member {
+                if (tbl).kind(callee) == hir_kind.member {
                     callee_lhs = (tbl).lhs(callee)
                 }
 

@@ -23,8 +23,8 @@ ensure_unique_field :: (p &Parser, fields &VecU32, field u32) {
 }
 
 parse_struct :: (p &Parser) u32 {
-    t := token()
-    k := hir_kind()
+    t := token
+    k := hir_kind
     sp_start := curr_span(p)
     bump(p)
     if not expect(p, t.o_brace) {
@@ -164,8 +164,8 @@ parse_struct :: (p &Parser) u32 {
 }
 
 parse_struct_init :: (p &Parser) u32 {
-    t := token()
-    k := hir_kind()
+    t := token
+    k := hir_kind
     sp_start := curr_span(p)
     bump(p)
     expect(p, t.o_brace)
@@ -214,7 +214,7 @@ parse_struct_init :: (p &Parser) u32 {
 }
 
 parse_member :: (p &Parser, lhs u32, right_bp u8) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp_lhs := span_of_hir(p, lhs)
     rhs := parse_expr(p, right_bp)
     if rhs == hir_none() {

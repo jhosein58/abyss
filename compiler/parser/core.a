@@ -59,17 +59,17 @@ is_eof :: (p &Parser) bool {
     p.cursor >= p.end
 }
 
-peek :: (p &Parser) u8 {
+peek :: (p &Parser) TokenType {
     if p.cursor >= p.end {
-        ret token().eof
+        ret token.eof
     }
     p.tokens.kind(p.cursor)
 }
 
-peek_n :: (p &Parser, n u32) u8 {
+peek_n :: (p &Parser, n u32) TokenType {
     target := (*p).cursor + n
     if target >= (*p).end {
-        ret token().eof
+        ret token.eof
     }
     p.tokens.kind(target)
 }
@@ -82,15 +82,7 @@ bump :: (p &Parser) u32 {
     c
 }
 
-optional :: (p &Parser, kind u8) bool {
-    if peek(p) == kind {
-        bump(p)
-        ret true
-    }
-    false
-}
-
-expect :: (p &Parser, kind u8) bool {
+optional :: (p &Parser, kind TokenType) bool {
     if peek(p) == kind {
         bump(p)
         ret true
@@ -208,37 +200,10 @@ parse_error_at :: (p &Parser, msg &u8, sp Span) {
     fall()
 }
 
-expect :: (p &Parser, kind u8) {
+expect :: (p &Parser, kind TokenType) bool {
     if peek(p) == kind {
         bump(p)
-        ret
+        ret true
     }
-
-    sp := curr_span(p)
-    path := (*p).db.get_file_path((*p).file_id)
-    src := (*p).db.get_file_source((*p).file_id)
-    pos := calc_pos(src, sp.start)
-
-    print(c"\n\033[1;31m[syntax error]\033[0m expected '")
-    exp_name := token_name(kind)
-    exp_name.prin()
-    print(c"', but found '")
-    got_name := token_name(peek(p))
-    got_name.print()
-    if peek(p) != token().eof {
-        print(c"' (")
-        txt := curr_text(p)
-        txt.print()
-        print(c")")
-    } else {
-        print(c"'")
-    }
-    print(c"\n       --> ")
-    print(path.ptr)
-    print(c":")
-    print_u32(pos.line)
-    print(c":")
-    print_u32(pos.col)
-    print(c"\n\n")
-    fall()
+    false
 }

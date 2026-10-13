@@ -230,7 +230,7 @@ synth_member :: (eng &Engine, id u32) {
             origin = (&(*types_ptr)).enum_origin(lhs_ty)
         }
         struct_id := origin
-        if ((origin & 2147483648) == 0) and ((tbl).kind(origin) == hir_kind().binding) {
+        if ((origin & 2147483648) == 0) and ((tbl).kind(origin) == hir_kind.binding) {
             struct_id = (tbl).extra(origin)
         }
         spec_node := (&(*types_ptr)).get_nominal_struct_node(origin)
@@ -268,30 +268,30 @@ synth_member :: (eng &Engine, id u32) {
                         creator_fn := id_none()
                         if (creator_sym & 2147483648) != 0 {
                             b_id := creator_sym & 2147483647
-                            if (tbl).kind(b_id) == hir_kind().binding {
+                            if (tbl).kind(b_id) == hir_kind.binding {
                                 creator_fn = (tbl).extra(b_id)
-                            } else if (tbl).kind(b_id) == hir_kind().function {
+                            } else if (tbl).kind(b_id) == hir_kind.function {
                                 creator_fn = b_id
                             }
                         } else {
                             creator_fn = db.get_sym_hir(creator_sym)
-                            if (creator_fn != id_none()) and ((tbl).kind(creator_fn) != hir_kind().function) {
+                            if (creator_fn != id_none()) and ((tbl).kind(creator_fn) != hir_kind.function) {
                                 h_end := db.sym_hir_end.get(creator_sym)
                                 if (h_end != 0) and (h_end != id_none()) {
                                     b_id := h_end - 1
-                                    if (tbl).kind(b_id) == hir_kind().binding {
+                                    if (tbl).kind(b_id) == hir_kind.binding {
                                         creator_fn = (tbl).extra(b_id)
                                     }
                                 }
-                                if (creator_fn != id_none()) and ((tbl).kind(creator_fn) != hir_kind().function) {
+                                if (creator_fn != id_none()) and ((tbl).kind(creator_fn) != hir_kind.function) {
                                     scan_i := creator_fn + 1
                                     tbl_len := (tbl).len()
                                     while scan_i < tbl_len {
                                         sk := (tbl).kind(scan_i)
-                                        if (sk == hir_kind().var) or (sk == hir_kind().binding) {
+                                        if (sk == hir_kind.var) or (sk == hir_kind.binding) {
                                             if (tbl).lhs(scan_i) == creator_fn {
                                                 cand := (tbl).extra(scan_i)
-                                                if (cand != hir_none()) and ((tbl).kind(cand) == hir_kind().function) {
+                                                if (cand != hir_none()) and ((tbl).kind(cand) == hir_kind.function) {
                                                     creator_fn = cand
                                                     break
                                                 }

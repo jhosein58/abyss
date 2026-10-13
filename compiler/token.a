@@ -5,163 +5,87 @@ import VecBool from "../std/vec/bool.a"
 
 import Str from "../std/string.a"
 
-TokenType :: struct {
-    eof           : u8,
-    unknown       : u8,
-    ident         : u8,
+TokenType :: enum u8 {
+    eof,
+    unknown,
+    ident,
 
-    lit_int       : u8,
-    lit_float     : u8,
-    lit_str       : u8,
-    lit_char      : u8,
+    lit_int,
+    lit_float,
+    lit_str,
+    lit_char,
 
-    kw_ret        : u8,
-    kw_if         : u8,
-    kw_else       : u8,
-    kw_while      : u8,
-    kw_break      : u8,
-    kw_cont       : u8,
-    kw_struct     : u8,
-    kw_enum       : u8,
-    kw_import     : u8,
-    kw_from       : u8,
-    kw_true       : u8,
-    kw_false      : u8,
-    kw_as         : u8,
-    kw_and        : u8,
-    kw_or         : u8,
-    kw_not        : u8,
+    kw_ret,
+    kw_if,
+    kw_else,
+    kw_while,
+    kw_break,
+    kw_cont,
+    kw_struct,
+    kw_import,
+    kw_from,
+    kw_true,
+    kw_false,
+    kw_as,
+    kw_and,
+    kw_or,
+    kw_not,
 
-    plus          : u8,
-    minus         : u8,
-    star          : u8,
-    slash         : u8,
-    percent       : u8,
-    plus_eq       : u8,
-    minus_eq      : u8,
-    star_eq       : u8,
-    slash_eq      : u8,
-    percent_eq    : u8,
+    plus,
+    minus,
+    star,
+    slash,
+    percent,
+    plus_eq,
+    minus_eq,
+    star_eq,
+    slash_eq,
+    percent_eq,
 
-    amp           : u8,
-    pipe          : u8,
-    caret         : u8,
-    tilde         : u8,
-    amp_eq        : u8,
-    pipe_eq       : u8,
-    caret_eq      : u8,
+    amp,
+    pipe,
+    caret,
+    tilde,
+    amp_eq,
+    pipe_eq,
+    caret_eq,
 
-    left_shift    : u8,
-    right_shift   : u8,
-    left_shift_eq : u8,
-    right_shift_eq: u8,
+    left_shift,
+    right_shift,
+    left_shift_eq,
+    right_shift_eq,
 
-    eq            : u8,
-    eq_eq         : u8,
-    bang_eq       : u8,
-    lt            : u8,
-    lt_eq         : u8,
-    gt            : u8,
-    gt_eq         : u8,
+    eq,
+    eq_eq,
+    bang_eq,
+    lt,
+    lt_eq,
+    gt,
+    gt_eq,
 
-    colon         : u8,
-    colon_colon   : u8,
-    semi          : u8,
-    comma         : u8,
-    dot           : u8,
-    hash          : u8,
-    at            : u8,
+    colon,
+    colon_colon,
+    semi,
+    comma,
+    dot,
 
-    o_paren       : u8,
-    c_paren       : u8,
-    o_brace       : u8,
-    c_brace       : u8,
-    o_bracket     : u8,
-    c_bracket     : u8,
-    lit_cstr      : u8
+    hash,
+
+    o_paren,
+    c_paren,
+    o_brace,
+    c_brace,
+    o_bracket,
+    c_bracket,
+    kw_enum,
+    at,
+    lit_cstr
 }
 
-token :: () TokenType {
-    .{
-        eof           : 0,
-        unknown       : 1,
-        ident         : 2,
+token :: TokenType
 
-        lit_int       : 3,
-        lit_float     : 4,
-        lit_str       : 5,
-        lit_char      : 6,
-
-        kw_ret        : 7,
-        kw_if         : 8,
-        kw_else       : 9,
-        kw_while      : 10,
-        kw_break      : 11,
-        kw_cont       : 12,
-        kw_struct     : 13,
-        kw_import     : 14,
-        kw_from       : 15,
-        kw_true       : 16,
-        kw_false      : 17,
-        kw_as         : 18,
-        kw_and        : 19,
-        kw_or         : 20,
-        kw_not        : 21,
-
-        plus          : 22,
-        minus         : 23,
-        star          : 24,
-        slash         : 25,
-        percent       : 26,
-        plus_eq       : 27,
-        minus_eq      : 28,
-        star_eq       : 29,
-        slash_eq      : 30,
-        percent_eq    : 31,
-
-        amp           : 32,
-        pipe          : 33,
-        caret         : 34,
-        tilde         : 35,
-        amp_eq        : 36,
-        pipe_eq       : 37,
-        caret_eq      : 38,
-
-        left_shift    : 39,
-        right_shift   : 40,
-        left_shift_eq : 41,
-        right_shift_eq: 42,
-
-        eq            : 43,
-        eq_eq         : 44,
-        bang_eq       : 45,
-        lt            : 46,
-        lt_eq         : 47,
-        gt            : 48,
-        gt_eq         : 49,
-
-        colon         : 50,
-        colon_colon   : 51,
-        semi          : 52,
-        comma         : 53,
-        dot           : 54,
-
-        hash          : 55,
-
-        o_paren       : 56,
-        c_paren       : 57,
-        o_brace       : 58,
-        c_brace       : 59,
-        o_bracket     : 60,
-        c_bracket     : 61,
-        kw_enum       : 62,
-        at            : 63,
-        lit_cstr      : 64
-    }
-}
-
-token_name :: (tk u8) Str {
-    t := token()
+token_name :: (tk TokenType) Str {
+    t := token
 
     if tk == t.eof         { ret Str.of("eof")       }
     if tk == t.ident       { ret Str.of("ident")     }
@@ -234,8 +158,8 @@ TokenStream :: struct {
         .newline_befores.destroy()
     }
 
-    push :: (kind u8, start, len u32, text Str, newline_before bool) {
-        .kinds.push(kind)
+    push :: (kind TokenType, start, len u32, text Str, newline_before bool) {
+        .kinds.push(kind as u8)
         .starts.push(start)
         .lens.push(len)
         .texts.push(text)
@@ -246,8 +170,8 @@ TokenStream :: struct {
         .kinds.len
     }
 
-    kind :: (idx u32) u8 {
-        .kinds.get(idx as u64)
+    kind :: (idx u32) TokenType {
+        .kinds.get(idx as u64) as TokenType
     }
 
     start :: (idx u32) u32 {

@@ -68,7 +68,7 @@ dump_hir :: (db &Nexus, hir &HirTable, arena &Arena) {
     unify := &(*db).unify
     types := &(*db).types
 
-    k := hir_kind()
+    k := hir_kind
     total := hir.len()
 
     print_divider()

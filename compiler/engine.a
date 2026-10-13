@@ -84,7 +84,7 @@ Engine :: struct {
         )
 
         parse_expr(&parser, 0)
-        if peek(&parser) != token().eof {
+        if peek(&parser) != token.eof {
             parse_error_at(&parser, c"unexpected token after declaration", curr_span(&parser))
         }
         ScopeEnv_destroy(&parser.env)

@@ -57,7 +57,7 @@ synth_enum :: (eng &Engine, id u32) {
         val_node := *(vals.ptr + i)
 
         if val_node != hir_none() {
-            if (tbl).kind(val_node) == hir_kind().lit_int {
+            if (tbl).kind(val_node) == hir_kind.lit_int {
                 curr_val = (tbl).lhs(val_node)
             }
         }

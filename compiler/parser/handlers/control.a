@@ -8,8 +8,8 @@ import span_of_hir, set_span from "common.a"
 import parse_expr from "../parser.a"
 
 parse_if :: (p &Parser) u32 {
-    t := token()
-    k := hir_kind()
+    t := token
+    k := hir_kind
     sp_start := curr_span(p)
     bump(p)
 
@@ -32,7 +32,7 @@ parse_if :: (p &Parser) u32 {
 }
 
 parse_while :: (p &Parser) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp_start := curr_span(p)
     bump(p)
 
@@ -49,8 +49,8 @@ parse_while :: (p &Parser) u32 {
 }
 
 parse_block :: (p &Parser) u32 {
-    k := hir_kind()
-    t := token()
+    k := hir_kind
+    t := token
 
     db := &(*(*p).db)
     glob_stack := &(*db).glob_stack
@@ -86,8 +86,8 @@ parse_block :: (p &Parser) u32 {
 }
 
 parse_return :: (p &Parser) u32 {
-    t := token()
-    k := hir_kind()
+    t := token
+    k := hir_kind
     sp_start := curr_span(p)
     sp_end := sp_start
     bump(p)
@@ -108,7 +108,7 @@ parse_return :: (p &Parser) u32 {
 }
 
 parse_break :: (p &Parser) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp := curr_span(p)
     bump(p)
     node := ((*p).hir).push(k.k_break, hir_none(), hir_none(), hir_none())
@@ -116,7 +116,7 @@ parse_break :: (p &Parser) u32 {
 }
 
 parse_cont :: (p &Parser) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp := curr_span(p)
     bump(p)
     node := ((*p).hir).push(k.k_cont, hir_none(), hir_none(), hir_none())

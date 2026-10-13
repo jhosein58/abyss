@@ -76,7 +76,7 @@ synth_type_node :: (eng &Engine, id u32) u32 {
     if existing != ty_id_none() { ret existing }
 
     tbl := &(*db).hir
-    k := hir_kind()
+    k := hir_kind
     curr := (tbl).kind(id)
 
     if curr == k.ident {
@@ -159,7 +159,7 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
     }
 
     if value_id != hir_none() {
-        if ((tbl).kind(id) == hir_kind().binding) and ((tbl).kind(value_id) == hir_kind().struct_) {
+        if ((tbl).kind(id) == hir_kind.binding) and ((tbl).kind(value_id) == hir_kind.struct_) {
             structural := db.get_const_type(value_id)
             kind := (&(*types_ptr)).kind(structural)
             if (kind != ty_kind().struct_) and (kind != ty_kind().nominal) {

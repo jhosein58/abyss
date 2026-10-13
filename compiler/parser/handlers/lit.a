@@ -4,7 +4,7 @@ import Parser, bump, curr_text, str_to_u32, curr_span from "../core.a"
 import set_span from "common.a"
 
 parse_lit_int :: (p &Parser) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp := curr_span(p)
     val := str_to_u32(p, curr_text(p))
     bump(p)
@@ -13,7 +13,7 @@ parse_lit_int :: (p &Parser) u32 {
 }
 
 parse_float :: (p &Parser) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp := curr_span(p)
     name := curr_text(p)
     name_id := p.db.interner.intern(name)
@@ -23,7 +23,7 @@ parse_float :: (p &Parser) u32 {
 }
 
 parse_str :: (p &Parser) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp := curr_span(p)
     raw := curr_text(p)
     bump(p)
@@ -33,7 +33,7 @@ parse_str :: (p &Parser) u32 {
 }
 
 parse_char :: (p &Parser) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp := curr_span(p)
     raw := curr_text(p)
     bump(p)
@@ -43,7 +43,7 @@ parse_char :: (p &Parser) u32 {
 }
 
 parse_cstr :: (p &Parser) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp := curr_span(p)
     raw := curr_text(p)
     bump(p)
@@ -53,7 +53,7 @@ parse_cstr :: (p &Parser) u32 {
 }
 
 parse_true :: (p &Parser) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp := curr_span(p)
     bump(p)
 
@@ -62,7 +62,7 @@ parse_true :: (p &Parser) u32 {
 }
 
 parse_false :: (p &Parser) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp := curr_span(p)
     bump(p)
     node := ((*p).hir).push(k.lit_bool_false, hir_none(), hir_none(), hir_none())

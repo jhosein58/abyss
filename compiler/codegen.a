@@ -4,7 +4,7 @@ import Str, String from "../std/string.a"
 import Arena from "../std/allocator.a"
 import Fmt from "../std/fmt.a"
 import TypeStorage, ty_kind, ty_id_none from "types.a"
-import HirExprKind from "hir.a"
+import HirExprKind, hir_kind from "hir.a"
 import fall from "../std/sys.a"
 
 print :: (s &u8) unit
@@ -617,8 +617,9 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
-    binary_op :: (k HirExprKind, kind u8) Str {
+    binary_op :: (kind HirExprKind) Str {
         .indent
+        k := hir_kind
         if kind == k.binary_add     { ret Str.of(" + ") }
         if kind == k.binary_sub     { ret Str.of(" - ") }
         if kind == k.binary_mul     { ret Str.of(" * ") }

@@ -16,7 +16,7 @@ synth_node :: (eng &Engine, id u32) {
     db := &(*eng).nexus
     db.set_type_error_origin(id)
     tbl := &(*db).hir
-    k := hir_kind()
+    k := hir_kind
     curr := (tbl).kind(id)
 
     if curr == k.lit_int       { synth_lit_int(db, tbl, id) }
@@ -77,7 +77,7 @@ synth_node :: (eng &Engine, id u32) {
 type_check :: (eng &Engine, start u32, len u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
-    k := hir_kind()
+    k := hir_kind
     i := start
     while i < len {
         curr := (tbl).kind(i)

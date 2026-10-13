@@ -13,7 +13,7 @@ import parse_expr from "../parser.a"
 import prec from "../prec.a"
 
 define_param :: (p &Parser, name_hir u32) {
-    k := hir_kind()
+    k := hir_kind
     if ((*p).hir).kind(name_hir) != k.ident {
         parse_error_at(p, c"parameter name must be an identifier", span_of_hir(p, name_hir))
     }
@@ -23,7 +23,7 @@ define_param :: (p &Parser, name_hir u32) {
 }
 
 is_function_header :: (p &Parser) bool {
-    t := token()
+    t := token
 
     first := peek(p)
     if (first != t.ident) and (first != t.amp) and (first != t.star) and
@@ -103,8 +103,8 @@ parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
     saved_toplv := (*p).toplv_sym
     (*p).toplv_sym = id_none()
 
-    t := token()
-    k := hir_kind()
+    t := token
+    k := hir_kind
 
     ret_ty := hir_none()
     sp_end := sp_start
@@ -158,7 +158,7 @@ parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
 }
 
 parse_paren :: (p &Parser) u32 {
-    t := token()
+    t := token
     sp_start := curr_span(p)
     bump(p)
 
@@ -187,7 +187,7 @@ parse_paren :: (p &Parser) u32 {
                 ty := parse_expr(p, 0 as u8)
                 (*p).in_type = prev_in_type
                 p_sp := span_of_hir(p, ty)
-                arg_id := ((*p).hir).push(hir_kind().arg, hir_none(), ty, hir_none())
+                arg_id := ((*p).hir).push(hir_kind.arg, hir_none(), ty, hir_none())
                 set_span(p, arg_id, p_sp)
                 args.push(arg_id)
                 optional(p, t.comma)
@@ -212,7 +212,7 @@ parse_paren :: (p &Parser) u32 {
                 while p_i < pending_names.len {
                     p_name := pending_names.get(p_i)
                     p_sp := span_merge(span_of_hir(p, p_name), span_of_hir(p, ty))
-                    arg_id := ((*p).hir).push(hir_kind().arg, p_name, ty, hir_none())
+                    arg_id := ((*p).hir).push(hir_kind.arg, p_name, ty, hir_none())
                     set_span(p, arg_id, p_sp)
                     args.push(arg_id)
                     p_i = p_i + 1
@@ -255,7 +255,7 @@ parse_paren :: (p &Parser) u32 {
             }
 
             p_sp := span_of_hir(p, name_or_ty)
-            arg_id := ((*p).hir).push(hir_kind().arg, hir_none(), name_or_ty, hir_none())
+            arg_id := ((*p).hir).push(hir_kind.arg, hir_none(), name_or_ty, hir_none())
             set_span(p, arg_id, p_sp)
             args.push(arg_id)
             optional(p, t.comma)
@@ -286,8 +286,8 @@ parse_paren :: (p &Parser) u32 {
 }
 
 parse_call :: (p &Parser, lhs u32, right_bp u8) u32 {
-    t := token()
-    k := hir_kind()
+    t := token
+    k := hir_kind
     sp_lhs := span_of_hir(p, lhs)
 
     args := VecU32.new()

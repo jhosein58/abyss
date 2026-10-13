@@ -251,7 +251,7 @@ scan_file_symbols :: (
     queue_tok_end   &VecU32,
     pending_imports &VecU32
 ) {
-    t := token()
+    t := token
     cursor := start_tok
     depth: u32 = 0
 

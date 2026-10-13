@@ -5,8 +5,8 @@ import id_none from "../../nexus/pool.a"
 import set_span from "common.a"
 
 parse_ident :: (p &Parser) u32 {
-    k := hir_kind()
-    t := token()
+    k := hir_kind
+    t := token
 
     if peek(p) != t.ident {
         parse_error_at(p, c"expected identifier", curr_span(p))

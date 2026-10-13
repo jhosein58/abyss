@@ -135,7 +135,7 @@ scan_number :: (l &Lexer, stream &TokenStream) {
             }
             len := ((*l).cursor - offset) as u32
             text := Str.new((*l).source.ptr + offset, len as u64)
-            stream.push(token().lit_int, offset as u32, len, text, (*l).had_newline)
+            stream.push(token.lit_int, offset as u32, len, text, (*l).had_newline)
             (*l).had_newline = false
             ret
         }
@@ -165,9 +165,9 @@ scan_number :: (l &Lexer, stream &TokenStream) {
         }
     }
     
-    tk_kind := token().lit_int
+    tk_kind := token.lit_int
     if is_float {
-        tk_kind = token().lit_float
+        tk_kind = token.lit_float
     }
 
     stream.push(tk_kind, offset as u32, len, text, (*l).had_newline)
@@ -198,7 +198,7 @@ scan_string :: (l &Lexer, stream &TokenStream) {
 
     len := ((*l).cursor - offset) as u32
     text := Str.new((*l).source.ptr + offset, len as u64)
-    stream.push(token().lit_str, offset as u32, len, text, (*l).had_newline)
+    stream.push(token.lit_str, offset as u32, len, text, (*l).had_newline)
     (*l).had_newline = false
 }
 
@@ -227,7 +227,7 @@ scan_c_string :: (l &Lexer, stream &TokenStream) {
 
     len := ((*l).cursor - offset) as u32
     text := Str.new((*l).source.ptr + offset, len as u64)
-    stream.push(token().lit_cstr, offset as u32, len, text, (*l).had_newline)
+    stream.push(token.lit_cstr, offset as u32, len, text, (*l).had_newline)
     (*l).had_newline = false
 }
 
@@ -262,12 +262,12 @@ scan_char :: (l &Lexer, stream &TokenStream) {
 
     len := ((*l).cursor - offset) as u32
     text := Str.new((*l).source.ptr + offset, len as u64)
-    stream.push(token().lit_char, offset as u32, len, text, (*l).had_newline)
+    stream.push(token.lit_char, offset as u32, len, text, (*l).had_newline)
     (*l).had_newline = false
 }
 
-match_keyword :: (text Str) u8 {
-    t := token()
+match_keyword :: (text Str) TokenType {
+    t := token
 
     if text.len == 2 {
         if text.eq(Str.of("if")) { ret t.kw_if }
@@ -318,8 +318,8 @@ scan_identifier :: (l &Lexer, stream &TokenStream) {
     (*l).had_newline = false
 }
 
-scan_symbol :: (l &Lexer) u8 {
-    t := token()
+scan_symbol :: (l &Lexer) TokenType {
+    t := token
     c := current(l)
     bump(l)
 
@@ -454,7 +454,7 @@ lex :: (stream &TokenStream, source Str, path Str) {
         offset := lexer.cursor
         had_nl := lexer.had_newline
         kind := scan_symbol(&lexer)
-        if kind == token().unknown {
+        if kind == token.unknown {
             lexer_error(&lexer, c"unknown character", offset)
         }
         len := (lexer.cursor - offset) as u32
@@ -464,5 +464,5 @@ lex :: (stream &TokenStream, source Str, path Str) {
         lexer.had_newline = false
     }
 
-    stream.push(token().eof, lexer.cursor as u32, 0, Str.empty(), lexer.had_newline)
+    stream.push(token.eof, lexer.cursor as u32, 0, Str.empty(), lexer.had_newline)
 }

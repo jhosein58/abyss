@@ -1,4 +1,4 @@
-import token from "../token.a"
+import token, TokenType from "../token.a"
 import hir_kind, hir_none from "../hir.a"
 import Parser, is_eof, peek, bump, peek_n, peek_preceded_by_newline, curr_span, parse_error_at from "core.a"
 import is_soft, bp_from_infix from "prec.a"
@@ -24,7 +24,7 @@ parse_expr :: (p &Parser, min_bp u8) u32 {
 
         if peek_preceded_by_newline(p) {
             soft := is_soft(tk)
-            if (not soft) and (tk == token().dot) {
+            if (not soft) and (tk == token.dot) {
                 soft = is_dot_continuation(p, lhs)
             }
             if not soft {
@@ -45,7 +45,7 @@ parse_expr :: (p &Parser, min_bp u8) u32 {
 }
 
 dispatch_prefix :: (p &Parser) u32 {
-    t := token()
+    t := token
     tk := peek(p)
 
     if tk == t.eof        { ret hir_none() }
@@ -80,7 +80,7 @@ dispatch_prefix :: (p &Parser) u32 {
         bump(p)
         field := parse_ident(p)
         (*p).db.set_hir_symbol(field, id_none())
-        node := ((*p).hir).push(hir_kind().member, hir_none(), field, hir_none())
+        node := ((*p).hir).push(hir_kind.member, hir_none(), field, hir_none())
         ret set_span(p, node, span_merge(sp_start, span_of_hir(p, field)))
     }
 
@@ -92,8 +92,8 @@ dispatch_prefix :: (p &Parser) u32 {
     hir_none()
 }
 
-dispatch_infix :: (p &Parser, op u8, lhs u32, right_bp u8) u32 {
-    t := token()
+dispatch_infix :: (p &Parser, op TokenType, lhs u32, right_bp u8) u32 {
+    t := token
 
     if op == t.colon_colon { ret parse_binding(p, lhs, right_bp) }
     if op == t.colon       { ret parse_var_decl(p, lhs, right_bp) }

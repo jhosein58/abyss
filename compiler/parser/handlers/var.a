@@ -9,7 +9,7 @@ import span_of_hir, set_span from "common.a"
 import parse_expr from "../parser.a"
 
 parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
-    k := hir_kind()
+    k := hir_kind
     sp_lhs := span_of_hir(p, lhs)
 
     name_id := ((*p).hir).lhs(lhs)
@@ -40,8 +40,8 @@ parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
 }
 
 parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
-    t := token()
-    k := hir_kind()
+    t := token
+    k := hir_kind
 
     if ((*p).hir).kind(lhs) != k.ident {
         parse_error_at(p, c"left-hand side of declaration must be an identifier", span_of_hir(p, lhs))
