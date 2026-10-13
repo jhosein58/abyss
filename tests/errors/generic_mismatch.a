@@ -1,2 +1,2 @@
-same :: (T type, a T, b T) T { a }
-main :: () { x := same(1 as u32, true) }
+same :: fn(T type, a T, b T) T { a }
+main :: fn() { x := same(1 as u32, true) }

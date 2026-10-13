@@ -8,9 +8,9 @@ import Engine from "../../engine.a"
 import synth_type_node from "var.a"
 import resolve_ty_id from "fn.a"
 
-print :: (s &u8) unit
+print :: fn(s &u8) unit
 
-synth_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
+synth_unary_num :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := (&(*db).unify).new_slot(id)
     child := (tbl).lhs(id)
     child_slot := (&(*db).unify).get_slot(child)
@@ -19,7 +19,7 @@ synth_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
     }
 }
 
-validate_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
+validate_unary_num :: fn(db &Nexus, tbl &HirTable, id u32) {
     child := (tbl).lhs(id)
     child_slot := (&(*db).unify).get_slot(child)
     if child_slot != slot_none() {
@@ -37,7 +37,7 @@ validate_unary_num :: (db &Nexus, tbl &HirTable, id u32) {
     fall()
 }
 
-synth_unary_not :: (db &Nexus, tbl &HirTable, id u32) {
+synth_unary_not :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := (&(*db).unify).new_slot(id)
     child := (tbl).lhs(id)
     child_slot := (&(*db).unify).get_slot(child)
@@ -47,7 +47,7 @@ synth_unary_not :: (db &Nexus, tbl &HirTable, id u32) {
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
 }
 
-synth_unary_addr_of :: (db &Nexus, tbl &HirTable, id u32) {
+synth_unary_addr_of :: fn(db &Nexus, tbl &HirTable, id u32) {
     if db.get_const_type(id) != ty_id_none() {
         ret
     }
@@ -87,7 +87,7 @@ synth_unary_addr_of :: (db &Nexus, tbl &HirTable, id u32) {
     }
 }
 
-synth_unary_deref :: (db &Nexus, tbl &HirTable, id u32) {
+synth_unary_deref :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := (&(*db).unify).get_slot(id)
     if slot == slot_none() {
         slot = (&(*db).unify).new_slot(id)
@@ -112,7 +112,7 @@ synth_unary_deref :: (db &Nexus, tbl &HirTable, id u32) {
     }
 }
 
-synth_binary :: (db &Nexus, tbl &HirTable, id u32) {
+synth_binary :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -183,7 +183,7 @@ synth_binary :: (db &Nexus, tbl &HirTable, id u32) {
     }
 }
 
-synth_assign :: (db &Nexus, tbl &HirTable, id u32) {
+synth_assign :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -206,7 +206,7 @@ synth_assign :: (db &Nexus, tbl &HirTable, id u32) {
     }
 }
 
-synth_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
+synth_binary_comp :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := (&(*db).unify).new_slot(id)
     lhs := (tbl).lhs(id)
     rhs := (tbl).rhs(id)
@@ -220,7 +220,7 @@ synth_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
 }
 
-validate_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
+validate_binary_comp :: fn(db &Nexus, tbl &HirTable, id u32) {
     lhs := (tbl).lhs(id)
     rhs := (tbl).rhs(id)
     lhs_slot := (&(*db).unify).get_slot(lhs)
@@ -249,7 +249,7 @@ validate_binary_comp :: (db &Nexus, tbl &HirTable, id u32) {
     fall()
 }
 
-synth_logic_and_or :: (db &Nexus, tbl &HirTable, id u32) {
+synth_logic_and_or :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -291,7 +291,7 @@ synth_logic_and_or :: (db &Nexus, tbl &HirTable, id u32) {
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
 }
 
-synth_cast :: (eng &Engine, id u32) {
+synth_cast :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     slot := (&(*db).unify).get_slot(id)

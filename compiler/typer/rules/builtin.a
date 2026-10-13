@@ -8,9 +8,9 @@ import synth_node from "../tyck.a"
 import synth_type_node from "var.a"
 import Str from "../../../std/string.a"
 
-print :: (s &u8) unit
+print :: fn(s &u8) unit
 
-synth_builtin_call :: (eng &Engine, id u32) {
+synth_builtin_call :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     unify_ptr := &(*db).unify

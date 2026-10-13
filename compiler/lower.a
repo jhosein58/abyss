@@ -14,16 +14,16 @@ import fall from "../std/sys.a"
 import resolve_ty_id, method_returns_ref_self, method_has_explicit_self, specialize_type_node, type_check from "typer/tyck.a"
 import Engine from "engine.a"
 
-print :: (s &u8) unit
+print :: fn(s &u8) unit
 
-get_node_type :: (db &Nexus, id u32) u32 {
+get_node_type :: fn(db &Nexus, id u32) u32 {
     if id == hir_none() { ret ty_id_none() }
     slot := (&(*db).unify).get_slot(id)
     if slot == slot_none() { ret ty_id_none() }
     (&(*db).unify).resolve_type_deep(&(*db).types, slot)
 }
 
-vec_contains :: (v &VecU32, val u32) bool {
+vec_contains :: fn(v &VecU32, val u32) bool {
     i: u64 = 0
     while i < (*v).len {
         if v.get(i) == val { ret true }
@@ -32,9 +32,9 @@ vec_contains :: (v &VecU32, val u32) bool {
     false
 }
 
-method_tag :: () u32 { 2147483648 }
+method_tag :: fn() u32 { 2147483648 }
 
-is_lvalue :: (db &Nexus, id u32) bool {
+is_lvalue :: fn(db &Nexus, id u32) bool {
     tbl := &(*db).hir
     kind := (tbl).kind(id)
     if kind == hir_kind.ident { ret get_node_type(db, id) != ty_id_type() }
@@ -49,14 +49,14 @@ is_lvalue :: (db &Nexus, id u32) bool {
     false
 }
 
-type_has_infer :: (types &TypeStorage, ty_id u32) bool {
+type_has_infer :: fn(types &TypeStorage, ty_id u32) bool {
     visited := VecU32.new()
     result := type_has_infer_seen(types, ty_id, &visited)
     visited.destroy()
     result
 }
 
-type_has_infer_seen :: (types &TypeStorage, ty_id u32, visited &VecU32) bool {
+type_has_infer_seen :: fn(types &TypeStorage, ty_id u32, visited &VecU32) bool {
     if ty_id == ty_id_none() { ret true }
     if vec_contains(visited, ty_id) { ret false }
     visited.push(ty_id)
@@ -102,7 +102,7 @@ type_has_infer_seen :: (types &TypeStorage, ty_id u32, visited &VecU32) bool {
     false
 }
 
-finalize_inferred_types :: (eng &Engine, func_id u32) {
+finalize_inferred_types :: fn(eng &Engine, func_id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     body := tbl.extra(func_id)
@@ -182,7 +182,7 @@ finalize_inferred_types :: (eng &Engine, func_id u32) {
     skipped.destroy()
 }
 
-add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
+add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &VecU32) {
     if ty_id == ty_id_none() { ret }
     if type_has_infer(&(*db).types, ty_id) { ret }
     k := ty_kind()
@@ -234,7 +234,7 @@ add_type_to_queue :: (db &Nexus, ty_id u32, queue &VecU32) {
     }
 }
 
-lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
+lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
     k := hir_kind
     kind := (&(*db).hir).kind(id)
 
@@ -934,7 +934,7 @@ lower_expr_raw :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU
     Str.empty()
 }
 
-lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
+lower_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
     val_str := lower_expr_raw(db, ccg, arena, id, visited, queue, type_queue)
     if val_str.len == 0 { ret val_str }
     if db.has_union_coerce(id) {
@@ -949,7 +949,7 @@ lower_expr :: (db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, 
     val_str
 }
 
-lower_function :: (eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
+lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
     if sym_id == id_none() {
         ret
     }

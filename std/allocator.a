@@ -1,7 +1,7 @@
 import malloc, free, mem_copy from "mem.a"
 
 
-align_up :: (n u64) u64 {
+align_up :: fn(n u64) u64 {
     (n + 7) & ~7
 }
 
@@ -12,9 +12,9 @@ ArenaChunk :: struct {
     offset: u64,
     cap: u64
 
-    size :: () u64 { 32 }
+    size :: fn() u64 { 32 }
 
-    new :: (cap u64, next_chunk &u8) &Self {
+    new :: fn(cap u64, next_chunk &u8) &Self {
         chunk := malloc(ArenaChunk.size()) as &Self
         mem   := malloc(cap)
 
@@ -34,7 +34,7 @@ Arena :: struct {
 
 
 
-    new :: (default_chunk_size u64) Arena {
+    new :: fn(default_chunk_size u64) Arena {
         first_chunk := ArenaChunk.new(default_chunk_size, 0 as &u8)
 
         .{
@@ -43,7 +43,7 @@ Arena :: struct {
         }
     }
 
-    alloc :: (s u64) &u8 {
+    alloc :: fn(s u64) &u8 {
         aligned_size := align_up(s)
         curr := .current
 
@@ -65,7 +65,7 @@ Arena :: struct {
         ptr
     }
 
-    reset :: () {
+    reset :: fn() {
         curr := .current
         while (curr as &u8) != (0 as &u8) {
             curr.offset = 0
@@ -74,7 +74,7 @@ Arena :: struct {
     }
 
 
-    realloc :: (old_ptr &u8, old_size u64, new_size u64) &u8 {
+    realloc :: fn(old_ptr &u8, old_size u64, new_size u64) &u8 {
         if new_size <= old_size {
             ret old_ptr
         }
@@ -101,7 +101,7 @@ Arena :: struct {
         new_ptr
     }
 
-    destroy :: () {
+    destroy :: fn() {
         curr := .current
 
         while (curr as &u8) != 0 as &u8 {

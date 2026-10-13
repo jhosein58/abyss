@@ -1,18 +1,18 @@
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
-print_bool :: (b bool) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
+print_bool :: fn(b bool) unit
 
-println_u32 :: (v u32) {
+println_u32 :: fn(v u32) {
     print_u32(v)
     print(c"\n")
 }
 
-println_bool :: (b bool) {
+println_bool :: fn(b bool) {
     print_bool(b)
     print(c"\n")
 }
 
-main :: () {
+main :: fn() {
     x: i32 = 123
     sz := @sizeof(i32)
     println_u32(sz as u32)

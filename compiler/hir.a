@@ -3,7 +3,7 @@ import VecU32 from "../std/vec/u32.a"
 import U32_MAX from "../std/primitive/u32.a"
 import Str from "../std/string.a"
 
-hir_none :: () u32 {
+hir_none :: fn() u32 {
     U32_MAX()
 }
 
@@ -85,7 +85,7 @@ HirExprKind :: enum u8 {
 
 hir_kind :: HirExprKind
 
-hir_kind_name :: (kind HirExprKind) Str {
+hir_kind_name :: fn(kind HirExprKind) Str {
     k := hir_kind
 
     if kind == k.empty                 { ret Str.of("Empty")         }
@@ -171,7 +171,7 @@ HirTable :: struct {
     rhs_list   : VecU32,
     extra_list : VecU32,
 
-    new :: () HirTable {
+    new :: fn() HirTable {
         .{
             kinds : VecU8.new(),
             lhs_list   : VecU32.new(),
@@ -180,18 +180,18 @@ HirTable :: struct {
         }
     }
 
-    destroy :: () {
+    destroy :: fn() {
         .kinds.destroy()
         .lhs_list.destroy()
         .rhs_list.destroy()
         .extra_list.destroy()
     }
 
-    len :: () u32 {
+    len :: fn() u32 {
         .kinds.len as u32
     }
 
-    push :: (kind HirExprKind, lhs, rhs, extra u32) u32 {
+    push :: fn(kind HirExprKind, lhs, rhs, extra u32) u32 {
         id := .len()
 
         .kinds.push(kind as u8)
@@ -202,31 +202,31 @@ HirTable :: struct {
         id
     }
 
-    kind :: (id u32) HirExprKind {
+    kind :: fn(id u32) HirExprKind {
         .kinds.get(id as u64) as HirExprKind
     }
 
-    lhs :: (id u32) u32 {
+    lhs :: fn(id u32) u32 {
         .lhs_list.get(id as u64)
     }
 
-    rhs :: (id u32) u32 {
+    rhs :: fn(id u32) u32 {
         .rhs_list.get(id as u64)
     }
 
-    extra :: (id u32) u32 {
+    extra :: fn(id u32) u32 {
         .extra_list.get(id as u64)
     }
 
-    set_lhs :: (id u32, val u32) {
+    set_lhs :: fn(id u32, val u32) {
         .lhs_list.set(id as u64, val)
     }
 
-    set_rhs :: (id u32, val u32) {
+    set_rhs :: fn(id u32, val u32) {
         .rhs_list.set(id as u64, val)
     }
 
-    set_extra :: (id u32, val u32) {
+    set_extra :: fn(id u32, val u32) {
         .extra_list.set(id as u64, val)
     }
 }

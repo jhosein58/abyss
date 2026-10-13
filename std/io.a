@@ -1,10 +1,10 @@
 import print as print_cstr from "prelude.a"
 
-Printable :: () type {
+Printable :: fn() type {
     i8 | i16 | i32 | i64 | u8 | u16 | u32 | u64 | f32 | f64 | bool | &u8 | Str
 }
 
-print :: (T type, v T) {
+print :: fn(T type, v T) {
     value: Printable() = v
     if @is(value, i8) {
         print_i8(value as i8)

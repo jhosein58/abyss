@@ -3,8 +3,8 @@ import token, TokenType, TokenStream from "token.a"
 import calc_pos from "nexus/nexus.a"
 import fall from "../std/sys.a"
 
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
 
 Lexer :: struct {
     source: Str,
@@ -13,7 +13,7 @@ Lexer :: struct {
     had_newline: bool
 }
 
-Lexer_new :: (source Str, path Str) Lexer {
+Lexer_new :: fn(source Str, path Str) Lexer {
     .{
         source: source,
         path: path,
@@ -22,7 +22,7 @@ Lexer_new :: (source Str, path Str) Lexer {
     }
 }
 
-lexer_error :: (l &Lexer, msg &u8, offset u64) {
+lexer_error :: fn(l &Lexer, msg &u8, offset u64) {
     print(c"\n[lex error] ")
     print(msg)
     print(c"\n       --> ")
@@ -36,43 +36,43 @@ lexer_error :: (l &Lexer, msg &u8, offset u64) {
     fall()
 }
 
-is_eof :: (l &Lexer) bool {
+is_eof :: fn(l &Lexer) bool {
     (*l).cursor >= (*l).source.len
 }
 
-read_char :: (l &Lexer, offset u64) u8 {
+read_char :: fn(l &Lexer, offset u64) u8 {
     *((*l).source.ptr + offset)
 }
 
-current :: (l &Lexer) u8 {
+current :: fn(l &Lexer) u8 {
     if is_eof(l) {
         ret 0 as u8
     }
     read_char(l, (*l).cursor)
 }
 
-peek :: (l &Lexer) u8 {
+peek :: fn(l &Lexer) u8 {
     if (*l).cursor + 1 >= (*l).source.len {
         ret 0 as u8
     }
     read_char(l, (*l).cursor + 1)
 }
 
-bump :: (l &Lexer) {
+bump :: fn(l &Lexer) {
     if not is_eof(l) {
         (*l).cursor = (*l).cursor + 1
     }
 }
 
-is_digit :: (c u8) bool {
+is_digit :: fn(c u8) bool {
     (c >= 48) and (c <= 57)
 }
 
-is_hex_digit :: (c u8) bool {
+is_hex_digit :: fn(c u8) bool {
     (c >= 48 and c <= 57) or (c >= 65 and c <= 70) or (c >= 97 and c <= 102)
 }
 
-valid_escape :: (l &Lexer) bool {
+valid_escape :: fn(l &Lexer) bool {
     c := current(l)
     if c == 120 { ret is_hex_digit(peek(l)) }
     if (c >= 48) and (c <= 55) { ret true }
@@ -80,40 +80,40 @@ valid_escape :: (l &Lexer) bool {
     (c == 116) or (c == 118) or (c == 92) or (c == 39) or (c == 34) or (c == 63)
 }
 
-is_alpha :: (c u8) bool {
+is_alpha :: fn(c u8) bool {
     (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or (c == 95)
 }
 
-is_ident_start :: (c u8) bool {
+is_ident_start :: fn(c u8) bool {
     is_alpha(c)
 }
 
-is_ident_continue :: (c u8) bool {
+is_ident_continue :: fn(c u8) bool {
     is_alpha(c) or is_digit(c)
 }
 
-is_whitespace :: (c u8) bool {
+is_whitespace :: fn(c u8) bool {
     c == 32 or c == 9
 }
 
-is_newline :: (c u8) bool {
+is_newline :: fn(c u8) bool {
     c == 10 or c == 13
 }
 
-skip_whitespace :: (l &Lexer) {
+skip_whitespace :: fn(l &Lexer) {
     while ((not is_eof(l)) and is_whitespace(current(l))) or false {
         bump(l)
     }
 }
 
-skip_newlines :: (l &Lexer) {
+skip_newlines :: fn(l &Lexer) {
     while ((not is_eof(l)) and is_newline(current(l))) or false {
         bump(l)
         (*l).had_newline = true
     }
 }
 
-skip_comment :: (l &Lexer) {
+skip_comment :: fn(l &Lexer) {
     bump(l)
     bump(l)
     while ((not is_eof(l)) and (not is_newline(current(l)))) or false {
@@ -121,7 +121,7 @@ skip_comment :: (l &Lexer) {
     }
 }
 
-scan_number :: (l &Lexer, stream &TokenStream) {
+scan_number :: fn(l &Lexer, stream &TokenStream) {
     offset := (*l).cursor
     is_float := false
 
@@ -174,7 +174,7 @@ scan_number :: (l &Lexer, stream &TokenStream) {
     (*l).had_newline = false
 }
 
-scan_string :: (l &Lexer, stream &TokenStream) {
+scan_string :: fn(l &Lexer, stream &TokenStream) {
     offset := (*l).cursor
     bump(l) -- '"'
 
@@ -202,7 +202,7 @@ scan_string :: (l &Lexer, stream &TokenStream) {
     (*l).had_newline = false
 }
 
-scan_c_string :: (l &Lexer, stream &TokenStream) {
+scan_c_string :: fn(l &Lexer, stream &TokenStream) {
     offset := (*l).cursor
     bump(l)
     bump(l)
@@ -231,7 +231,7 @@ scan_c_string :: (l &Lexer, stream &TokenStream) {
     (*l).had_newline = false
 }
 
-scan_char :: (l &Lexer, stream &TokenStream) {
+scan_char :: fn(l &Lexer, stream &TokenStream) {
     offset := (*l).cursor
     bump(l)
 
@@ -266,7 +266,7 @@ scan_char :: (l &Lexer, stream &TokenStream) {
     (*l).had_newline = false
 }
 
-match_keyword :: (text Str) TokenType {
+match_keyword :: fn(text Str) TokenType {
     t := token
 
     if text.len == 2 {
@@ -304,7 +304,7 @@ match_keyword :: (text Str) TokenType {
     t.ident
 }
 
-scan_identifier :: (l &Lexer, stream &TokenStream) {
+scan_identifier :: fn(l &Lexer, stream &TokenStream) {
     offset := (*l).cursor
 
     while ((not is_eof(l)) and is_ident_continue(current(l))) or false {
@@ -319,7 +319,7 @@ scan_identifier :: (l &Lexer, stream &TokenStream) {
     (*l).had_newline = false
 }
 
-scan_symbol :: (l &Lexer) TokenType {
+scan_symbol :: fn(l &Lexer) TokenType {
     t := token
     c := current(l)
     bump(l)
@@ -406,7 +406,7 @@ scan_symbol :: (l &Lexer) TokenType {
     t.unknown
 }
 
-lex :: (stream &TokenStream, source Str, path Str) {
+lex :: fn(stream &TokenStream, source Str, path Str) {
     lexer := Lexer_new(source, path)
 
     while not is_eof(&lexer) {

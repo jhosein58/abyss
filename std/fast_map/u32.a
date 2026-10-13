@@ -9,11 +9,11 @@ KeyTy :: u32
 ValTy :: u32
 Self  :: FastMapU32
 
-key_size  :: () u64   { U32_size() }
-val_size  :: () u64   { U32_size() }
-key_none  :: () KeyTy { U32_MAX() }
-val_none  :: () ValTy { U32_MAX() }
-key_hash  :: (k KeyTy) u32 { hash_u32(k) }
+key_size  :: fn() u64   { U32_size() }
+val_size  :: fn() u64   { U32_size() }
+key_none  :: fn() KeyTy { U32_MAX() }
+val_none  :: fn() ValTy { U32_MAX() }
+key_hash  :: fn(k KeyTy) u32 { hash_u32(k) }
 
 --------------------------------------------------------------------------------
 
@@ -24,11 +24,11 @@ FastMapU32 :: struct {
     len  : u64
 }
 
-FastMapU32_new :: () Self {
+FastMapU32_new :: fn() Self {
     FastMapU32_with_cap(16)
 }
 
-FastMapU32_with_cap :: (initial_cap u64) Self {
+FastMapU32_with_cap :: fn(initial_cap u64) Self {
     cap := initial_cap
     if cap < 16 {
         cap = 16
@@ -50,7 +50,7 @@ FastMapU32_with_cap :: (initial_cap u64) Self {
     }
 }
 
-FastMapU32_destroy :: (m &Self) {
+FastMapU32_destroy :: fn(m &Self) {
     free((*m).keys as &u8)
     free((*m).vals as &u8)
     (*m).keys = 0 as &KeyTy
@@ -59,17 +59,17 @@ FastMapU32_destroy :: (m &Self) {
     (*m).cap = 0
 }
 
-FastMapU32_clear :: (m &Self) {
+FastMapU32_clear :: fn(m &Self) {
     k_bytes := (*m).cap * key_size()
     mem_set((*m).keys as &u8, 255 as u8, k_bytes)
     (*m).len = 0
 }
 
-FastMapU32_count :: (m &Self) u64 {
+FastMapU32_count :: fn(m &Self) u64 {
     (*m).len
 }
 
-FastMapU32_grow :: (m &Self) {
+FastMapU32_grow :: fn(m &Self) {
     old_cap := (*m).cap
     old_keys := (*m).keys
     old_vals := (*m).vals
@@ -111,7 +111,7 @@ FastMapU32_grow :: (m &Self) {
     (*m).cap = new_cap
 }
 
-FastMapU32_insert :: (m &Self, key KeyTy, val ValTy) bool {
+FastMapU32_insert :: fn(m &Self, key KeyTy, val ValTy) bool {
     if ((*m).len + 1) * 10 >= (*m).cap * 7 {
         FastMapU32_grow(m)
     }
@@ -141,7 +141,7 @@ FastMapU32_insert :: (m &Self, key KeyTy, val ValTy) bool {
     false
 }
 
-FastMapU32_get :: (m &Self, key KeyTy) ValTy {
+FastMapU32_get :: fn(m &Self, key KeyTy) ValTy {
     mask := (*m).cap - 1
     idx := (key_hash(key) as u64) & mask
     empty := key_none()
@@ -163,6 +163,6 @@ FastMapU32_get :: (m &Self, key KeyTy) ValTy {
     val_none()
 }
 
-FastMapU32_contains :: (m &Self, key KeyTy) bool {
+FastMapU32_contains :: fn(m &Self, key KeyTy) bool {
     FastMapU32_get(m, key) != val_none()
 }

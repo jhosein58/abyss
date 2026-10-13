@@ -12,7 +12,7 @@ import synth_struct, synth_struct_init, synth_member from "rules/struct.a"
 import synth_builtin_call from "rules/builtin.a"
 import synth_enum from "rules/enum.a"
 
-synth_node :: (eng &Engine, id u32) {
+synth_node :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
     db.set_type_error_origin(id)
     tbl := &(*db).hir
@@ -74,7 +74,7 @@ synth_node :: (eng &Engine, id u32) {
     }
 }
 
-type_check :: (eng &Engine, start u32, len u32) {
+type_check :: fn(eng &Engine, start u32, len u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     k := hir_kind

@@ -1,36 +1,36 @@
-print :: (s &u8) unit
-print_i32 :: (v i32) unit
+print :: fn(s &u8) unit
+print_i32 :: fn(v i32) unit
 
-println_i32 :: (v i32) {
+println_i32 :: fn(v i32) {
     print_i32(v)
     print(c"\n")
 }
 
-add :: (a, b i32) i32 {
+add :: fn(a, b i32) i32 {
     a + b
 }
 
-abs_val :: (x i32) i32 {
+abs_val :: fn(x i32) i32 {
     if x < 0 { ret -x }
     x
 }
 
-factorial :: (n i32) i32 {
+factorial :: fn(n i32) i32 {
     if n <= 1 { 1 } else { n * factorial(n - 1) }
 }
 
-fib :: (n i32) i32 {
+fib :: fn(n i32) i32 {
     if n <= 0 { ret 0 }
     if n == 1 { ret 1 }
     fib(n - 1) + fib(n - 2)
 }
 
-calc :: (base, mult i32, is_pos bool) i32 {
+calc :: fn(base, mult i32, is_pos bool) i32 {
     val := base * mult
     if is_pos { val } else { -val }
 }
 
-main :: () {
+main :: fn() {
     println_i32(add(15, 27))
     println_i32(abs_val(-42))
     println_i32(abs_val(42))

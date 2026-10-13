@@ -8,10 +8,10 @@ import Str from "../std/string.a"
 import calc_pos from "nexus/nexus.a"
 import fall from "../std/sys.a"
 
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
 
-slot_none :: () u32 {
+slot_none :: fn() u32 {
     U32_MAX()
 }
 
@@ -27,7 +27,7 @@ UnifyStorage :: struct {
     hir_to_slot : VecU32,
     scratch     : VecU32
 
-    new :: () Self {
+    new :: fn() Self {
         .{
             error_path : Str.empty(),
             error_source : Str.empty(),
@@ -41,7 +41,7 @@ UnifyStorage :: struct {
         }
     }
 
-    destroy :: () {
+    destroy :: fn() {
         .parents.destroy()
         .ranks.destroy()
          .types.destroy()
@@ -50,7 +50,7 @@ UnifyStorage :: struct {
         .scratch.destroy()
     }
 
-    set_hir_slot :: (hir_id u32, slot u32) {
+    set_hir_slot :: fn(hir_id u32, slot u32) {
         if hir_id == slot_none() { ret }
         idx := hir_id as u64
         while (idx >= .hir_to_slot.len) {
@@ -59,7 +59,7 @@ UnifyStorage :: struct {
         .hir_to_slot.set(idx, slot)
     }
 
-    new_slot :: (origin u32) u32 {
+    new_slot :: fn(origin u32) u32 {
         slot := .parents.len as u32
 
         .parents.push(slot)
@@ -74,7 +74,7 @@ UnifyStorage :: struct {
         slot
     }
 
-    tmp_slot :: () u32 {
+    tmp_slot :: fn() u32 {
         slot := .parents.len as u32
 
         .parents.push(slot)
@@ -85,7 +85,7 @@ UnifyStorage :: struct {
         slot
     }
 
-    get_slot :: (id u32) u32 {
+    get_slot :: fn(id u32) u32 {
         idx := id as u64
         if idx >= .hir_to_slot.len {
             ret slot_none()
@@ -93,7 +93,7 @@ UnifyStorage :: struct {
         .hir_to_slot.get(idx)
     }
 
-    print_error_location :: () {
+    print_error_location :: fn() {
         if .error_path.len == 0 { ret }
         pos := calc_pos(.error_source, .error_offset)
         print(c"       --> ")
@@ -105,7 +105,7 @@ UnifyStorage :: struct {
         print(c"\n")
     }
 
-    type_contains_slot :: (types &TypeStorage, ty u32, target u32, seen &VecU32) bool {
+    type_contains_slot :: fn(types &TypeStorage, ty u32, target u32, seen &VecU32) bool {
         if ty == ty_id_none() { ret false }
         i: u64 = 0
         while i < (*seen).len {
@@ -155,7 +155,7 @@ UnifyStorage :: struct {
         false
     }
 
-    type_mismatch :: (types &TypeStorage, expected u32, actual u32) {
+    type_mismatch :: fn(types &TypeStorage, expected u32, actual u32) {
         print(c"\n\033[1;31m[type error]\033[0m type mismatch: cannot unify '")
           (&(*types)).print_type( expected)
         print(c"' with '")
@@ -170,7 +170,7 @@ UnifyStorage :: struct {
         fall()
     }
 
-    find :: (slot u32) u32 {
+    find :: fn(slot u32) u32 {
         curr := slot
         while true {
             parent := .parents.get(curr as u64)
@@ -184,7 +184,7 @@ UnifyStorage :: struct {
         curr
     }
 
-    union :: (types &TypeStorage, a u32, b u32) u32 {
+    union :: fn(types &TypeStorage, a u32, b u32) u32 {
         root_a := .find(a)
         root_b := .find(b)
 
@@ -242,7 +242,7 @@ UnifyStorage :: struct {
         new_root
     }
 
-    bind_type :: (types &TypeStorage, slot u32, ty u32) u32 {
+    bind_type :: fn(types &TypeStorage, slot u32, ty u32) u32 {
         root := .find(slot)
          existing := .types.get(root as u64)
         if (&(*types)).kind(ty) == ty_kind().infer {
@@ -269,7 +269,7 @@ UnifyStorage :: struct {
         unified
     }
 
-    unify_types :: (types &TypeStorage, a u32, b u32) u32 {
+    unify_types :: fn(types &TypeStorage, a u32, b u32) u32 {
         if (a == ty_id_none()) or (b == ty_id_none()) or
            (a == ty_id_unknown()) or (b == ty_id_unknown()) {
             ret ty_id_error()
@@ -487,12 +487,12 @@ UnifyStorage :: struct {
         ty_id_error()
     }
 
-    resolve_type :: (slot u32) u32 {
+    resolve_type :: fn(slot u32) u32 {
         root := .find(slot)
          .types.get(root as u64)
     }
 
-    resolve_type_deep :: (types &TypeStorage, slot u32) u32 {
+    resolve_type_deep :: fn(types &TypeStorage, slot u32) u32 {
         tyid := .resolve_type(slot)
         if tyid == ty_id_none() {
             ret ty_id_none()

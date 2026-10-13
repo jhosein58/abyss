@@ -2,7 +2,7 @@ import print from "std/io.a"
 
 Record :: struct { value: i32 }
 
-main :: () {
+main :: fn() {
     value: Record = .{ value: 7 }
     print(value)
 }

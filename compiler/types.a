@@ -6,9 +6,9 @@ import U32_MAX from "../std/primitive/u32.a"
 import Str, String from "../std/string.a"
 import Arena from "../std/allocator.a"
 
-print_char :: (c u8) unit
-print_u32  :: (n u32) unit
-print      :: (s &u8) unit
+print_char :: fn(c u8) unit
+print_u32  :: fn(n u32) unit
+print      :: fn(s &u8) unit
 
 
 TyKind :: struct {
@@ -33,7 +33,7 @@ TyKind :: struct {
     union_        : u8
 }
 
-ty_kind :: () TyKind {
+ty_kind :: fn() TyKind {
     .{
         unknown       : 0,
         infer         : 1,
@@ -57,7 +57,7 @@ ty_kind :: () TyKind {
     }
 }
 
-ty_kind_name :: (k u8) Str {
+ty_kind_name :: fn(k u8) Str {
     t := ty_kind()
     if k == t.unknown       { ret Str.of("Unknown")      }
     if k == t.infer         { ret Str.of("Infer")        }
@@ -82,16 +82,16 @@ ty_kind_name :: (k u8) Str {
 }
 
 
-ty_id_none          :: () u32 { U32_MAX() }
-ty_id_unknown       :: () u32 { 0 }
-ty_id_untyped_int   :: () u32 { 1 }
-ty_id_untyped_float :: () u32 { 2 }
-ty_id_bool          :: () u32 { 3 }
-ty_id_type          :: () u32 { 4 }
-ty_id_unit          :: () u32 { 5 }
-ty_id_never         :: () u32 { 6 }
-ty_id_error         :: () u32 { 7 }
-ty_builtin_count    :: () u32 { 8 }
+ty_id_none          :: fn() u32 { U32_MAX() }
+ty_id_unknown       :: fn() u32 { 0 }
+ty_id_untyped_int   :: fn() u32 { 1 }
+ty_id_untyped_float :: fn() u32 { 2 }
+ty_id_bool          :: fn() u32 { 3 }
+ty_id_type          :: fn() u32 { 4 }
+ty_id_unit          :: fn() u32 { 5 }
+ty_id_never         :: fn() u32 { 6 }
+ty_id_error         :: fn() u32 { 7 }
+ty_builtin_count    :: fn() u32 { 8 }
 
 
 TyStore :: struct {
@@ -99,7 +99,7 @@ TyStore :: struct {
     payload : VecU32,
     extra   : VecU32
 
-    new :: () Self {
+    new :: fn() Self {
         .{
             kinds   : VecU8.new(),
             payload : VecU32.new(),
@@ -107,33 +107,33 @@ TyStore :: struct {
         }
     }
 
-    destroy :: () {
+    destroy :: fn() {
         .kinds.destroy()
         .payload.destroy()
         .extra.destroy()
     }
 
-    len :: () u32 {
+    len :: fn() u32 {
         .kinds.len as u32
     }
 
-    push :: (kind u8, payload u32) u32 {
+    push :: fn(kind u8, payload u32) u32 {
         idx := .kinds.len as u32
         .kinds.push(kind)
         .payload.push(payload)
         idx
     }
 
-    hash_combine :: (seed u32, val u32) u32 {
+    hash_combine :: fn(seed u32, val u32) u32 {
         (seed ^ val) * 16777619
     }
 
-    type_eq_simple :: (id u32, kind u8, payload u32) bool {
+    type_eq_simple :: fn(id u32, kind u8, payload u32) bool {
         if .kinds.get(id as u64) != kind { ret false }
         .payload.get(id as u64) == payload
     }
 
-    type_eq_array :: (id u32, kind u8, ty u32, len u32) bool {
+    type_eq_array :: fn(id u32, kind u8, ty u32, len u32) bool {
         if .kinds.get(id as u64) != kind { ret false }
         extra_idx := .payload.get(id as u64) as u64
         ex_ty  := .extra.get(extra_idx)
@@ -141,7 +141,7 @@ TyStore :: struct {
         (ex_ty == ty) and (ex_len == len)
     }
 
-    type_eq_func :: (id u32, kind u8, params SliceU32, ret_ty u32, packed u32) bool {
+    type_eq_func :: fn(id u32, kind u8, params SliceU32, ret_ty u32, packed u32) bool {
         if .kinds.get(id as u64) != kind { ret false }
         extra_idx := .payload.get(id as u64) as u64
         ex_packed := .extra.get(extra_idx)
@@ -157,7 +157,7 @@ TyStore :: struct {
         true
     }
 
-    type_eq_struct :: (id u32, kind u8, fields SliceU32, fields_count u32) bool {
+    type_eq_struct :: fn(id u32, kind u8, fields SliceU32, fields_count u32) bool {
         if .kinds.get(id as u64) != kind { ret false }
         extra_idx := .payload.get(id as u64) as u64
         ex_len := .extra.get(extra_idx)
@@ -173,7 +173,7 @@ TyStore :: struct {
         true
     }
 
-    type_eq_union :: (id u32, kind u8, members SliceU32) bool {
+    type_eq_union :: fn(id u32, kind u8, members SliceU32) bool {
         if .kinds.get(id as u64) != kind { ret false }
         extra_idx := .payload.get(id as u64) as u64
         ex_len := .extra.get(extra_idx) as u64
@@ -222,7 +222,7 @@ TypeStorage :: struct {
     enum_by_origin : VecU32,
     nominal_struct_node : VecU32
 
-    new :: () Self {
+    new :: fn() Self {
         store := TyStore.new()
 
         k := ty_kind()
@@ -259,11 +259,11 @@ TypeStorage :: struct {
         }
     }
 
-    hash_combine :: (seed u32, val u32) u32 {
+    hash_combine :: fn(seed u32, val u32) u32 {
         (seed ^ val) * 16777619
     }
 
-    sort_struct_fields :: (fields SliceU32) {
+    sort_struct_fields :: fn(fields SliceU32) {
         count := fields.len / 2
         if count <= 1 { ret }
 
@@ -293,7 +293,7 @@ TypeStorage :: struct {
         }
     }
 
-    destroy :: () {
+    destroy :: fn() {
         .store.destroy()
         .table.destroy()
         .nominal_names.destroy()
@@ -306,20 +306,20 @@ TypeStorage :: struct {
         .nominal_struct_node.destroy()
     }
 
-    len :: () u32 {
+    len :: fn() u32 {
         .store.len()
     }
 
-    kind :: (id u32) u8 {
+    kind :: fn(id u32) u8 {
         if id == ty_id_none() { ret ty_kind().unknown }
         .store.kinds.get(id as u64)
     }
 
-    payload :: (id u32) u32 {
+    payload :: fn(id u32) u32 {
         .store.payload.get(id as u64)
     }
 
-    hash_of :: (id u32) u32 {
+    hash_of :: fn(id u32) u32 {
         k := ty_kind()
         kind := .kind(id)
         payload := .payload(id)
@@ -389,7 +389,7 @@ TypeStorage :: struct {
         .hash_combine(h, payload)
     }
 
-    grow_table :: () {
+    grow_table :: fn() {
         old_cap := .table_cap
         new_cap := old_cap * 2
         new_tbl := VecU32.with_cap(new_cap as u64)
@@ -425,23 +425,23 @@ TypeStorage :: struct {
         .table_cap = new_cap
     }
 
-    alloc_unknown :: () u32 { ty_id_unknown()       }
+    alloc_unknown :: fn() u32 { ty_id_unknown()       }
 
-    alloc_untyped_int :: () u32 { ty_id_untyped_int()   }
+    alloc_untyped_int :: fn() u32 { ty_id_untyped_int()   }
 
-    alloc_untyped_float :: () u32 { ty_id_untyped_float() }
+    alloc_untyped_float :: fn() u32 { ty_id_untyped_float() }
 
-    alloc_bool :: () u32 { ty_id_bool()          }
+    alloc_bool :: fn() u32 { ty_id_bool()          }
 
-    alloc_type :: () u32 { ty_id_type()          }
+    alloc_type :: fn() u32 { ty_id_type()          }
 
-    alloc_unit :: () u32 { ty_id_unit()          }
+    alloc_unit :: fn() u32 { ty_id_unit()          }
 
-    alloc_never :: () u32 { ty_id_never()         }
+    alloc_never :: fn() u32 { ty_id_never()         }
 
-    alloc_error :: () u32 { ty_id_error()         }
+    alloc_error :: fn() u32 { ty_id_error()         }
 
-    get_or_insert_simple :: (kind u8, payload u32) u32 {
+    get_or_insert_simple :: fn(kind u8, payload u32) u32 {
         if (.table_len + 1) * 10 >= .table_cap * 7 {
             .grow_table()
         }
@@ -471,27 +471,27 @@ TypeStorage :: struct {
         ty_id_error()
     }
 
-    alloc_infer :: (slot u32) u32 {
+    alloc_infer :: fn(slot u32) u32 {
         .get_or_insert_simple(ty_kind().infer, slot)
     }
 
-    alloc_int :: (width u16) u32 {
+    alloc_int :: fn(width u16) u32 {
     .get_or_insert_simple(ty_kind().int, width as u32)
     }
 
-    alloc_uint :: (width u16) u32 {
+    alloc_uint :: fn(width u16) u32 {
         .get_or_insert_simple(ty_kind().uint, width as u32)
     }
 
-    alloc_float :: (width u16) u32 {
+    alloc_float :: fn(width u16) u32 {
         .get_or_insert_simple(ty_kind().float, width as u32)
     }
 
-    alloc_ptr :: (inner u32) u32 {
+    alloc_ptr :: fn(inner u32) u32 {
         .get_or_insert_simple(ty_kind().ptr, inner)
     }
 
-    alloc_array :: (ty u32, len u32) u32 {
+    alloc_array :: fn(ty u32, len u32) u32 {
         k := ty_kind()
         if (.table_len + 1) * 10 >= .table_cap * 7 {
             .grow_table()
@@ -527,7 +527,7 @@ TypeStorage :: struct {
         ty_id_error()
     }
 
-    alloc_func :: (params SliceU32, ret_ty u32, is_extern bool) u32 {
+    alloc_func :: fn(params SliceU32, ret_ty u32, is_extern bool) u32 {
         k := ty_kind()
         if (.table_len + 1) * 10 >= .table_cap * 7 {
             .grow_table()
@@ -580,7 +580,7 @@ TypeStorage :: struct {
         ty_id_error()
     }
 
-    alloc_nominal :: (base u32, name Str, origin u32) u32 {
+    alloc_nominal :: fn(base u32, name Str, origin u32) u32 {
         generic_origin := (origin & 2147483648) != 0
         if not generic_origin {
             while .nominal_by_origin.len <= origin as u64 {
@@ -601,17 +601,17 @@ TypeStorage :: struct {
         nominal
     }
 
-    nominal_base :: (id u32) u32 {
+    nominal_base :: fn(id u32) u32 {
         idx := .payload(id) as u64
         .store.extra.get(idx)
     }
 
-    nominal_origin :: (id u32) u32 {
+    nominal_origin :: fn(id u32) u32 {
         idx := .payload(id) as u64
         .store.extra.get(idx + 2)
     }
 
-    record_nominal_creator :: (origin u32, sym u32, args SliceU32) {
+    record_nominal_creator :: fn(origin u32, sym u32, args SliceU32) {
         if (origin & 2147483648) == 0 { ret }
         origin = origin & 2147483647
         while .nominal_creator_sym.len <= (origin as u64) {
@@ -625,14 +625,14 @@ TypeStorage :: struct {
         .nominal_creator_arg.set(origin as u64, start)
     }
 
-    get_nominal_creator_sym :: (origin u32) u32 {
+    get_nominal_creator_sym :: fn(origin u32) u32 {
         if (origin & 2147483648) == 0 { ret ty_id_none() }
         origin = origin & 2147483647
         if (origin as u64) >= .nominal_creator_sym.len { ret ty_id_none() }
         .nominal_creator_sym.get(origin as u64)
     }
 
-    get_nominal_creator_args :: (origin u32) SliceU32 {
+    get_nominal_creator_args :: fn(origin u32) SliceU32 {
         if (origin & 2147483648) == 0 { ret .{ ptr: 0 as &u32, len: 0 } }
         origin = origin & 2147483647
         if (origin as u64) >= .nominal_creator_arg.len {
@@ -649,7 +649,7 @@ TypeStorage :: struct {
         }
     }
 
-    record_nominal_struct_node :: (origin u32, node u32) {
+    record_nominal_struct_node :: fn(origin u32, node u32) {
         if (origin & 2147483648) == 0 { ret }
         origin = origin & 2147483647
         while .nominal_struct_node.len <= (origin as u64) {
@@ -658,14 +658,14 @@ TypeStorage :: struct {
         .nominal_struct_node.set(origin as u64, node)
     }
 
-    get_nominal_struct_node :: (origin u32) u32 {
+    get_nominal_struct_node :: fn(origin u32) u32 {
         if (origin & 2147483648) == 0 { ret ty_id_none() }
         origin = origin & 2147483647
         if (origin as u64) >= .nominal_struct_node.len { ret ty_id_none() }
         .nominal_struct_node.get(origin as u64)
     }
 
-    alloc_struct :: (fields SliceU32) u32 {
+    alloc_struct :: fn(fields SliceU32) u32 {
 
         .sort_struct_fields(fields)
 
@@ -716,7 +716,7 @@ TypeStorage :: struct {
         ty_id_error()
     }
 
-    alloc_enum :: (backing_ty u32, name Str, origin u32, variants SliceU32) u32 {
+    alloc_enum :: fn(backing_ty u32, name Str, origin u32, variants SliceU32) u32 {
         while .enum_by_origin.len <= (origin as u64) {
             .enum_by_origin.push(ty_id_none())
         }
@@ -741,28 +741,28 @@ TypeStorage :: struct {
         enum_id
     }
 
-    enum_backing :: (id u32) u32 {
+    enum_backing :: fn(id u32) u32 {
         idx := .payload(id) as u64
         .store.extra.get(idx)
     }
 
-    enum_name :: (id u32) Str {
+    enum_name :: fn(id u32) Str {
         idx := .payload(id) as u64
         name_idx := .store.extra.get(idx + 1)
         .enum_names.get(name_idx as u64)
     }
 
-    enum_origin :: (id u32) u32 {
+    enum_origin :: fn(id u32) u32 {
         idx := .payload(id) as u64
         .store.extra.get(idx + 2)
     }
 
-    enum_variant_count :: (id u32) u32 {
+    enum_variant_count :: fn(id u32) u32 {
         idx := .payload(id) as u64
         .store.extra.get(idx + 3)
     }
 
-    enum_variants :: (id u32) SliceU32 {
+    enum_variants :: fn(id u32) SliceU32 {
         idx := .payload(id) as u64
         cnt := .store.extra.get(idx + 3)
         start_ptr := .store.extra.ptr_at(idx + 4)
@@ -772,7 +772,7 @@ TypeStorage :: struct {
         }
     }
 
-    enum_has_variant :: (id u32, name_id u32) bool {
+    enum_has_variant :: fn(id u32, name_id u32) bool {
         vars := .enum_variants(id)
         i: u64 = 0
         while i < (vars.len / 2) {
@@ -782,7 +782,7 @@ TypeStorage :: struct {
         false
     }
 
-    enum_variant_val :: (id u32, name_id u32) u32 {
+    enum_variant_val :: fn(id u32, name_id u32) u32 {
         vars := .enum_variants(id)
         i: u64 = 0
         while i < (vars.len / 2) {
@@ -792,7 +792,7 @@ TypeStorage :: struct {
         0
     }
 
-    sort_union_members :: (members SliceU32) {
+    sort_union_members :: fn(members SliceU32) {
         if members.len <= 1 { ret }
         i: u64 = 0
         while i < members.len {
@@ -810,7 +810,7 @@ TypeStorage :: struct {
         }
     }
 
-    alloc_union :: (members SliceU32) u32 {
+    alloc_union :: fn(members SliceU32) u32 {
         .sort_union_members(members)
         k := ty_kind()
         if (.table_len + 1) * 10 >= .table_cap * 7 {
@@ -858,12 +858,12 @@ TypeStorage :: struct {
         ty_id_error()
     }
 
-    union_members_len :: (id u32) u32 {
+    union_members_len :: fn(id u32) u32 {
         extra_idx := .payload(id) as u64
         .store.extra.get(extra_idx)
     }
 
-    union_members :: (id u32) SliceU32 {
+    union_members :: fn(id u32) SliceU32 {
         extra_idx := .payload(id) as u64
         len := .store.extra.get(extra_idx)
         start_ptr := .store.extra.ptr_at(extra_idx + 1)
@@ -873,7 +873,7 @@ TypeStorage :: struct {
         }
     }
 
-    union_contains :: (id u32, member u32) bool {
+    union_contains :: fn(id u32, member u32) bool {
         members := .union_members(id)
         i: u64 = 0
         while i < members.len {
@@ -883,7 +883,7 @@ TypeStorage :: struct {
         false
     }
 
-    union_member_index :: (id u32, member u32) u32 {
+    union_member_index :: fn(id u32, member u32) u32 {
         members := .union_members(id)
         i: u64 = 0
         while i < members.len {
@@ -893,7 +893,7 @@ TypeStorage :: struct {
         0
     }
 
-    make_union_2 :: (a u32, b u32) u32 {
+    make_union_2 :: fn(a u32, b u32) u32 {
         if a == b { ret a }
         k := ty_kind()
         v := VecU32.new()
@@ -936,38 +936,38 @@ TypeStorage :: struct {
         res
     }
 
-    infer_slot :: (id u32) u32 {
+    infer_slot :: fn(id u32) u32 {
         .payload(id)
     }
 
-    get_array_type :: (id u32) u32 {
+    get_array_type :: fn(id u32) u32 {
         extra_idx := .payload(id) as u64
         .store.extra.get(extra_idx)
     }
 
-    get_array_len :: (id u32) u32 {
+    get_array_len :: fn(id u32) u32 {
         extra_idx := .payload(id) as u64
         .store.extra.get(extra_idx + 1)
     }
 
-    func_return :: (func u32) u32 {
+    func_return :: fn(func u32) u32 {
         extra_idx := .payload(func) as u64
         .store.extra.get(extra_idx + 1)
     }
 
-    func_params_len :: (func u32) u32 {
+    func_params_len :: fn(func u32) u32 {
         extra_idx := .payload(func) as u64
         packed := .store.extra.get(extra_idx)
         packed >> 16
     }
 
-    func_is_extern :: (func u32) bool {
+    func_is_extern :: fn(func u32) bool {
         extra_idx := .payload(func) as u64
         packed := .store.extra.get(extra_idx)
         (packed & 65535) != 0
     }
 
-    func_params :: (func u32) SliceU32 {
+    func_params :: fn(func u32) SliceU32 {
         extra_idx := .payload(func) as u64
         count := .func_params_len(func)
         start_ptr := .store.extra.ptr_at(extra_idx + 2)
@@ -977,7 +977,7 @@ TypeStorage :: struct {
         }
     }
 
-    func_has_type_param :: (func u32) bool {
+    func_has_type_param :: fn(func u32) bool {
         if .kind(func) != ty_kind().func { ret false }
         params := .func_params(func)
         i: u64 = 0
@@ -988,7 +988,7 @@ TypeStorage :: struct {
         false
     }
 
-    func_leading_type_params :: (func u32) u32 {
+    func_leading_type_params :: fn(func u32) u32 {
         if .kind(func) != ty_kind().func { ret 0 }
         params := .func_params(func)
         count: u32 = 0
@@ -999,7 +999,7 @@ TypeStorage :: struct {
         count
     }
 
-    get_struct_fields_len :: (id u32) u32 {
+    get_struct_fields_len :: fn(id u32) u32 {
         if .kind(id) == ty_kind().nominal {
             ret .get_struct_fields_len(.nominal_base(id))
         }
@@ -1007,7 +1007,7 @@ TypeStorage :: struct {
         .store.extra.get(extra_idx)
     }
 
-    get_struct_fields :: (id u32) SliceU32 {
+    get_struct_fields :: fn(id u32) SliceU32 {
         if .kind(id) == ty_kind().nominal {
             ret .get_struct_fields(.nominal_base(id))
         }
@@ -1020,7 +1020,7 @@ TypeStorage :: struct {
         }
     }
 
-    print_type :: (id u32) {
+    print_type :: fn(id u32) {
         if id == ty_id_none() {
             print(c"None")
             ret
@@ -1104,7 +1104,7 @@ TypeStorage :: struct {
         ty_kind_name(kind).print()
     }
 
-    name_to_buf :: (s &String, id u32) {
+    name_to_buf :: fn(s &String, id u32) {
         if id == ty_id_none() {
             s.push_str(Str.of("None"))
             ret
@@ -1237,7 +1237,7 @@ TypeStorage :: struct {
         s.push_str(ty_kind_name(kind))
     }
 
-    name :: (a &Arena, id u32) Str {
+    name :: fn(a &Arena, id u32) Str {
         s := String.new(a)
         s.push_str(Str.of("ty"))
         s.push_u32(id)

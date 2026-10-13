@@ -6,9 +6,9 @@ import check_value from "common.a"
 import method_returns_ref_self from "fn.a"
 import fall from "../../../std/sys.a"
 
-print :: (s &u8) unit
+print :: fn(s &u8) unit
 
-synth_block :: (db &Nexus, tbl &HirTable, id u32) {
+synth_block :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -42,7 +42,7 @@ synth_block :: (db &Nexus, tbl &HirTable, id u32) {
     }
 }
 
-synth_if :: (db &Nexus, tbl &HirTable, id u32) {
+synth_if :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -100,7 +100,7 @@ synth_if :: (db &Nexus, tbl &HirTable, id u32) {
     }
 }
 
-synth_while :: (db &Nexus, tbl &HirTable, id u32) {
+synth_while :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -124,7 +124,7 @@ synth_while :: (db &Nexus, tbl &HirTable, id u32) {
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
 }
 
-synth_break_cont :: (db &Nexus, tbl &HirTable, id u32) {
+synth_break_cont :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := (&(*db).unify).new_slot(id)
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
 }

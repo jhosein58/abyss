@@ -8,8 +8,8 @@ import id_none from "../nexus/pool.a"
 import fall from "../../std/sys.a"
 
 
-print     :: (s &u8) unit
-print_u32 :: (v u32) unit
+print     :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
 
 Parser :: struct {
     db        : &Nexus,
@@ -22,7 +22,7 @@ Parser :: struct {
     env       : ScopeEnv
 }
 
-Parser_new :: (db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv_sym u32, start u32, count u32) Parser {
+Parser_new :: fn(db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv_sym u32, start u32, count u32) Parser {
     .{
         db        : db,
         tokens    : tokens,
@@ -35,7 +35,7 @@ Parser_new :: (db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv
     }
 }
 
-lookup_sym :: (p &Parser, name_id u32) u32 {
+lookup_sym :: fn(p &Parser, name_id u32) u32 {
     sym := ScopeEnv_lookup(&(*p).env, name_id)
     if sym != id_none() {
         ret sym
@@ -44,18 +44,18 @@ lookup_sym :: (p &Parser, name_id u32) u32 {
     (*p).db.find_symbol((*p).file_id, name_id)
 }
 
-is_eof :: (p &Parser) bool {
+is_eof :: fn(p &Parser) bool {
     p.cursor >= p.end
 }
 
-peek :: (p &Parser) TokenType {
+peek :: fn(p &Parser) TokenType {
     if p.cursor >= p.end {
         ret token.eof
     }
     p.tokens.kind(p.cursor)
 }
 
-peek_n :: (p &Parser, n u32) TokenType {
+peek_n :: fn(p &Parser, n u32) TokenType {
     target := (*p).cursor + n
     if target >= (*p).end {
         ret token.eof
@@ -63,7 +63,7 @@ peek_n :: (p &Parser, n u32) TokenType {
     p.tokens.kind(target)
 }
 
-bump :: (p &Parser) u32 {
+bump :: fn(p &Parser) u32 {
     c := (*p).cursor
     if (*p).cursor < (*p).end {
         (*p).cursor = (*p).cursor + 1
@@ -71,7 +71,7 @@ bump :: (p &Parser) u32 {
     c
 }
 
-optional :: (p &Parser, kind TokenType) bool {
+optional :: fn(p &Parser, kind TokenType) bool {
     if peek(p) == kind {
         bump(p)
         ret true
@@ -79,28 +79,28 @@ optional :: (p &Parser, kind TokenType) bool {
     false
 }
 
-peek_preceded_by_newline :: (p &Parser) bool {
+peek_preceded_by_newline :: fn(p &Parser) bool {
     if (*p).cursor >= (*p).end {
         ret false
     }
     p.tokens.newline_before(p.cursor)
 }
 
-curr_text :: (p &Parser) Str {
+curr_text :: fn(p &Parser) Str {
     if (*p).cursor >= (*p).end {
         ret Str.empty()
     }
     p.tokens.text(p.cursor)
 }
 
-prev_text :: (p &Parser) Str {
+prev_text :: fn(p &Parser) Str {
     if (*p).cursor == 0 {
         ret Str.empty()
     }
      p.tokens.text(p.cursor - 1)
 }
 
-tok_span :: (p &Parser, idx u32) Span {
+tok_span :: fn(p &Parser, idx u32) Span {
     if idx >= (*p).end {
         if (*p).end > 0 {
             last := (*p).end - 1
@@ -115,16 +115,16 @@ tok_span :: (p &Parser, idx u32) Span {
     span_new(st, st + ln)
 }
 
-curr_span :: (p &Parser) Span {
+curr_span :: fn(p &Parser) Span {
     tok_span(p, (*p).cursor)
 }
 
-prev_span :: (p &Parser) Span {
+prev_span :: fn(p &Parser) Span {
     if (*p).cursor == 0 { ret span_new(0, 0) }
     tok_span(p, (*p).cursor - 1)
 }
 
-parse_error_at :: (p &Parser, msg &u8, sp Span) {
+parse_error_at :: fn(p &Parser, msg &u8, sp Span) {
     path := (*p).db.get_file_path((*p).file_id)
     src := (*p).db.get_file_source((*p).file_id)
     pos := calc_pos(src, sp.start)
@@ -141,7 +141,7 @@ parse_error_at :: (p &Parser, msg &u8, sp Span) {
     fall()
 }
 
-expect :: (p &Parser, kind TokenType) bool {
+expect :: fn(p &Parser, kind TokenType) bool {
     if peek(p) == kind {
         bump(p)
         ret true

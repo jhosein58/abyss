@@ -10,8 +10,8 @@ import TokenStream from "../token.a"
 import HirTable from "../hir.a"
 import PoolU32, id_none from "pool.a"
 
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
 
 Span :: struct {
     start : u32,
@@ -23,11 +23,11 @@ Pos :: struct {
     col  : u32
 }
 
-span_new :: (start u32, end u32) Span {
+span_new :: fn(start u32, end u32) Span {
     .{ start: start, end: end }
 }
 
-span_merge :: (a Span, b Span) Span {
+span_merge :: fn(a Span, b Span) Span {
     s := a.start
     if b.start < s { s = b.start }
     
@@ -37,7 +37,7 @@ span_merge :: (a Span, b Span) Span {
     .{ start: s, end: e }
 }
 
-calc_pos :: (source Str, offset u32) Pos {
+calc_pos :: fn(source Str, offset u32) Pos {
     line: u32 = 1
     col:  u32 = 1
     i:    u64 = 0
@@ -107,7 +107,7 @@ Nexus :: struct {
     union_coerce_idx : PoolU32,
     str_type       : u32,
 
-    new :: () Self {
+    new :: fn() Self {
         .{
             tokens         : TokenStream.new(),
             hir            : HirTable.new(),
@@ -154,14 +154,14 @@ Nexus :: struct {
         }
     }
 
-    add_list :: (items SliceU32) u32 {
+    add_list :: fn(items SliceU32) u32 {
         start := .u32_items.len as u32
         .u32_items.push(items.len as u32)
         .u32_items.extend(items.ptr, items.len)
         start
     }
 
-    get_list :: (start u32) SliceU32 {
+    get_list :: fn(start u32) SliceU32 {
         len := .u32_items.get(start as u64)
 
         .{
@@ -170,7 +170,7 @@ Nexus :: struct {
         }
     }
 
-    alloc_symbol :: (file_id u32, name_id u32, tok_start u32, tok_end u32) u32 {
+    alloc_symbol :: fn(file_id u32, name_id u32, tok_start u32, tok_end u32) u32 {
         sym_id := .sym_names.alloc(name_id)
 
         .sym_files.alloc(file_id)
@@ -185,7 +185,7 @@ Nexus :: struct {
         sym_id
     }
 
-    alloc_local_symbol :: (file_id u32, name_id u32, hir_id u32) u32 {
+    alloc_local_symbol :: fn(file_id u32, name_id u32, hir_id u32) u32 {
         sym_id := .sym_names.alloc(name_id)
 
         .sym_files.alloc(file_id)
@@ -201,7 +201,7 @@ Nexus :: struct {
         sym_id
     }
 
-    alloc_symbol_alias :: (file_id u32, name_id u32, target_sym u32) u32 {
+    alloc_symbol_alias :: fn(file_id u32, name_id u32, target_sym u32) u32 {
         sym_id := .sym_names.alloc(name_id)
 
         .sym_files.alloc(file_id)
@@ -216,7 +216,7 @@ Nexus :: struct {
         sym_id
     }
 
-    find_symbol :: (file_id u32, name_id u32) u32 {
+    find_symbol :: fn(file_id u32, name_id u32) u32 {
         sym := .find_local_symbol(file_id, name_id)
         if sym != id_none() { ret sym }
         if .core_prelude != id_none() {
@@ -229,7 +229,7 @@ Nexus :: struct {
         id_none()
     }
 
-    find_local_symbol :: (file_id u32, name_id u32) u32 {
+    find_local_symbol :: fn(file_id u32, name_id u32) u32 {
         count := .sym_names.count()
 
         i: u32 = 0
@@ -252,85 +252,85 @@ Nexus :: struct {
         id_none()
     }
 
-    set_sym_hir :: (sym_id u32, hir_id u32) {
+    set_sym_hir :: fn(sym_id u32, hir_id u32) {
         .sym_nodes.set(sym_id, hir_id)
     }
 
-    get_sym_hir :: (sym_id u32) u32 {
+    get_sym_hir :: fn(sym_id u32) u32 {
         if sym_id == id_none() { ret id_none() }
         if sym_id >= .sym_nodes.count() { ret id_none() }
         .sym_nodes.get(sym_id)
     }
 
-    set_hir_symbol :: (hir_id u32, sym_id u32) {
+    set_hir_symbol :: fn(hir_id u32, sym_id u32) {
         .hir_to_symbol.set_safe(hir_id, sym_id, id_none())
     }
 
-    get_hir_symbol :: (hir_id u32) u32 {
+    get_hir_symbol :: fn(hir_id u32) u32 {
         if hir_id == id_none() { ret id_none() }
         if hir_id >= .hir_to_symbol.count() { ret id_none() }
         .hir_to_symbol.get(hir_id)
     }
 
-    set_const_type :: (hir_id u32, ty_id u32) {
+    set_const_type :: fn(hir_id u32, ty_id u32) {
         .const_types.set_safe(hir_id, ty_id, ty_id_none())
     }
 
-    get_const_type :: (hir_id u32) u32 {
+    get_const_type :: fn(hir_id u32) u32 {
         if hir_id >= .const_types.count() { ret ty_id_none() }
         .const_types.get(hir_id)
     }
 
-    set_method_owner :: (hir_id u32, struct_id u32) {
+    set_method_owner :: fn(hir_id u32, struct_id u32) {
         .method_owner.set_safe(hir_id, struct_id, id_none())
     }
 
-    get_method_owner :: (hir_id u32) u32 {
+    get_method_owner :: fn(hir_id u32) u32 {
         if hir_id >= .method_owner.count() { ret id_none() }
         .method_owner.get(hir_id)
     }
 
-    set_method_target :: (hir_id u32, method_id u32) {
+    set_method_target :: fn(hir_id u32, method_id u32) {
         .method_target.set_safe(hir_id, method_id, id_none())
     }
 
-    get_method_target :: (hir_id u32) u32 {
+    get_method_target :: fn(hir_id u32) u32 {
         if hir_id >= .method_target.count() { ret id_none() }
         .method_target.get(hir_id)
     }
 
-    set_sym_resolving :: (sym_id u32, resolving bool) {
+    set_sym_resolving :: fn(sym_id u32, resolving bool) {
         val: u32 = 0
         if resolving { val = 1 }
         .sym_resolving.set_safe(sym_id, val, 0)
     }
 
-    is_sym_resolving :: (sym_id u32) bool {
+    is_sym_resolving :: fn(sym_id u32) bool {
         if sym_id >= .sym_resolving.count() { ret false }
         .sym_resolving.get(sym_id) == 1
     }
 
-    add_file_source :: (source Str) u32 {
+    add_file_source :: fn(source Str) u32 {
         id := .file_sources.len as u32
         .file_sources.push(source)
         id
     }
 
-    set_hir_span :: (hir_id u32, start u32, end u32) {
+    set_hir_span :: fn(hir_id u32, start u32, end u32) {
         .hir_span_start.set_safe(hir_id, start, 0)
         .hir_span_end.set_safe(hir_id, end, 0)
     }
 
-    set_hir_file :: (hir_id u32, file_id u32) {
+    set_hir_file :: fn(hir_id u32, file_id u32) {
         .hir_files.set_safe(hir_id, file_id, id_none())
     }
 
-    get_hir_file :: (hir_id u32) u32 {
+    get_hir_file :: fn(hir_id u32) u32 {
         if hir_id >= .hir_files.count() { ret id_none() }
         .hir_files.get(hir_id)
     }
 
-    get_hir_span :: (hir_id u32) Span {
+    get_hir_span :: fn(hir_id u32) Span {
         if hir_id >= .hir_span_start.count() {
             ret .{ start: 0, end: 0 }
         }
@@ -339,24 +339,24 @@ Nexus :: struct {
         .{ start: start, end: end }
     }
 
-    add_file :: (path Str, source Str) u32 {
+    add_file :: fn(path Str, source Str) u32 {
         id := .file_sources.len as u32
         .file_paths.push(path)
         .file_sources.push(source)
         id
     }
 
-    get_file_path :: (file_id u32) Str {
+    get_file_path :: fn(file_id u32) Str {
         if (file_id as u64) >= .file_paths.len { ret Str.of("unknown") }
         .file_paths.get(file_id as u64)
     }
 
-    get_file_source :: (file_id u32) Str {
+    get_file_source :: fn(file_id u32) Str {
         if (file_id as u64) >= .file_sources.len { ret Str.of("") }
         .file_sources.get(file_id as u64)
     }
 
-    get_pos :: (hir_id u32) Pos {
+    get_pos :: fn(hir_id u32) Pos {
         fid := .get_hir_file(hir_id)
         span := .get_hir_span(hir_id)
 
@@ -368,14 +368,14 @@ Nexus :: struct {
         calc_pos(src, span.start)
     }
 
-    set_type_error_origin :: (hir_id u32) {
+    set_type_error_origin :: fn(hir_id u32) {
         file_id := .get_hir_file(hir_id)
         .unify.error_path = .get_file_path(file_id)
         .unify.error_source = .get_file_source(file_id)
         .unify.error_offset = .get_hir_span(hir_id).start
     }
 
-    print_loc :: (hir_id u32) {
+    print_loc :: fn(hir_id u32) {
         fid := .get_hir_file(hir_id)
         path := .get_file_path(fid)
         pos := .get_pos(hir_id)
@@ -387,7 +387,7 @@ Nexus :: struct {
         print_u32(pos.col)
     }
 
-    find_mono_sym :: (orig_sym u32, mono_ty u32) u32 {
+    find_mono_sym :: fn(orig_sym u32, mono_ty u32) u32 {
         i: u64 = 0
         while i < .mono_orig_sym.len {
             if (.mono_orig_sym.get(i) == orig_sym) and (.mono_type.get(i) == mono_ty) {
@@ -398,7 +398,7 @@ Nexus :: struct {
         id_none()
     }
 
-    alloc_mono_sym :: (orig_sym u32, mono_ty u32) u32 {
+    alloc_mono_sym :: fn(orig_sym u32, mono_ty u32) u32 {
         file_id: u32 = 0
         name_id: u32 = 0
         if (orig_sym & 2147483648) != 0 {
@@ -426,7 +426,7 @@ Nexus :: struct {
         sym_id
     }
 
-    find_mono_method :: (sym u32, owner u32, func_ty u32) u32 {
+    find_mono_method :: fn(sym u32, owner u32, func_ty u32) u32 {
         i: u64 = 0
         while i < .mono_sym.len {
             candidate := .mono_sym.get(i)
@@ -438,12 +438,12 @@ Nexus :: struct {
         id_none()
     }
 
-    get_mono_method_owner :: (sym u32) u32 {
+    get_mono_method_owner :: fn(sym u32) u32 {
         if sym >= .mono_method_owner.count() { ret ty_id_none() }
         .mono_method_owner.get(sym)
     }
 
-    get_mono_orig_sym :: (sym u32) u32 {
+    get_mono_orig_sym :: fn(sym u32) u32 {
         i: u64 = 0
         while i < .mono_sym.len {
             if .mono_sym.get(i) == sym {
@@ -454,7 +454,7 @@ Nexus :: struct {
         id_none()
     }
 
-    get_mono_type :: (sym u32) u32 {
+    get_mono_type :: fn(sym u32) u32 {
         i: u64 = 0
         while i < .mono_sym.len {
             if .mono_sym.get(i) == sym {
@@ -465,11 +465,11 @@ Nexus :: struct {
         ty_id_none()
     }
 
-    is_mono_sym :: (sym u32) bool {
+    is_mono_sym :: fn(sym u32) bool {
         .get_mono_orig_sym(sym) != id_none()
     }
 
-    find_mono_nominal :: (sym u32, args SliceU32) u32 {
+    find_mono_nominal :: fn(sym u32, args SliceU32) u32 {
         i: u64 = 0
         while i < .mono_nom_sym.len {
             if .mono_nom_sym.get(i) == sym {
@@ -494,29 +494,29 @@ Nexus :: struct {
         ty_id_none()
     }
 
-    add_mono_nominal :: (sym u32, args SliceU32, res_ty u32) {
+    add_mono_nominal :: fn(sym u32, args SliceU32, res_ty u32) {
         list_id := .add_list(args)
         .mono_nom_sym.push(sym)
         .mono_nom_arg.push(list_id)
         .mono_nom_res.push(res_ty)
     }
 
-    set_union_coerce :: (expr u32, ty u32, idx u32) {
+    set_union_coerce :: fn(expr u32, ty u32, idx u32) {
         .union_coerce_ty.set_safe(expr, ty, ty_id_none())
         .union_coerce_idx.set_safe(expr, idx, 0)
     }
 
-    has_union_coerce :: (expr u32) bool {
+    has_union_coerce :: fn(expr u32) bool {
         if expr >= .union_coerce_ty.count() { ret false }
         .union_coerce_ty.get(expr) != ty_id_none()
     }
 
-    get_union_coerce_ty :: (expr u32) u32 {
+    get_union_coerce_ty :: fn(expr u32) u32 {
         if expr >= .union_coerce_ty.count() { ret ty_id_none() }
         .union_coerce_ty.get(expr)
     }
 
-    get_union_coerce_idx :: (expr u32) u32 {
+    get_union_coerce_idx :: fn(expr u32) u32 {
         if expr >= .union_coerce_idx.count() { ret 0 }
         .union_coerce_idx.get(expr)
     }

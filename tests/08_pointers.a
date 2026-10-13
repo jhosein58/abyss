@@ -1,16 +1,16 @@
-print :: (s &u8) unit
-print_i32 :: (v i32) unit
+print :: fn(s &u8) unit
+print_i32 :: fn(v i32) unit
 
-println_i32 :: (v i32) {
+println_i32 :: fn(v i32) {
     print_i32(v)
     print(c"\n")
 }
 
-increment :: (p &i32) {
+increment :: fn(p &i32) {
     *p = *p + 1
 }
 
-swap :: (a, b &i32) {
+swap :: fn(a, b &i32) {
     tmp := *a
     *a = *b
     *b = tmp
@@ -20,11 +20,11 @@ Node :: struct {
     val: i32
 }
 
-set_node :: (n &Node, v i32) {
+set_node :: fn(n &Node, v i32) {
     (*n).val = v
 }
 
-main :: () {
+main :: fn() {
     x := 10
     println_i32(x)
 

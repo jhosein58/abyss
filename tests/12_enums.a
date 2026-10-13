@@ -1,13 +1,13 @@
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
-print_bool :: (b bool) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
+print_bool :: fn(b bool) unit
 
-println_u32 :: (v u32) {
+println_u32 :: fn(v u32) {
     print_u32(v)
     print(c"\n")
 }
 
-println_bool :: (b bool) {
+println_bool :: fn(b bool) {
     print_bool(b)
     print(c"\n")
 }
@@ -17,11 +17,11 @@ Color :: enum {
     green,
     blue,
 
-    is_red :: (self Self) bool {
+    is_red :: fn(self Self) bool {
         (self as u32) == 0
     },
 
-    val :: (self Self) u32 {
+    val :: fn(self Self) u32 {
         self as u32
     }
 }
@@ -31,7 +31,7 @@ Status :: enum u8 {
     bad = 400
 }
 
-main :: () {
+main :: fn() {
     r := Color.red
     g := Color.green
     b := Color.blue

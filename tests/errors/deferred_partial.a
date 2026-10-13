@@ -1,2 +1,2 @@
-Pair :: (T type, U type) type { struct { first: T, second: U } }
-main :: () { v: Pair(u32) }
+Pair :: fn(T type, U type) type { struct { first: T, second: U } }
+main :: fn() { v: Pair(u32) }

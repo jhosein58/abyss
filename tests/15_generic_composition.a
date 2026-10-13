@@ -1,38 +1,38 @@
 import Vec from "std/collections/vec.a"
 
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
-print_i32 :: (v i32) unit
-print_bool :: (v bool) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
+print_i32 :: fn(v i32) unit
+print_bool :: fn(v bool) unit
 
-Box :: (T type) type {
+Box :: fn(T type) type {
     struct {
         value: T
 
-        new :: (value T) Self { .{ value: value } }
-        get :: () T { .value }
-        convert :: (U type, value U) U { .value value }
-        address :: () &Self { .value ret }
+        new :: fn(value T) Self { .{ value: value } }
+        get :: fn() T { .value }
+        convert :: fn(U type, value U) U { .value value }
+        address :: fn() &Self { .value ret }
     }
 }
 
-Callback :: (T type) type {
+Callback :: fn(T type) type {
     struct {
         value: T,
         apply: fn(x T) T
 
-        run :: () T { .apply(.value) }
+        run :: fn() T { .apply(.value) }
     }
 }
 
-identity :: (T type, value T) T { value }
-read :: (T type, value &&T) T { **value }
-inc :: (x u32) u32 { x + 1 }
-negate :: (x i32) i32 { -x }
+identity :: fn(T type, value T) T { value }
+read :: fn(T type, value &&T) T { **value }
+inc :: fn(x u32) u32 { x + 1 }
+negate :: fn(x i32) i32 { -x }
 
 Color :: enum { red, green, blue }
 
-main :: () {
+main :: fn() {
     a := Box(u32).new(42 as u32)
     b := Box(i32).new(-7 as i32)
     print_u32(a.convert(u32, 11 as u32))

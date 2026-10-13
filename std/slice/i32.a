@@ -3,7 +3,7 @@
 SliceTy  :: i32
 SliceI32 :: Self
 
-SliceI32_new :: (p &SliceTy, len u64) Self { Self_new() }
+SliceI32_new :: fn(p &SliceTy, len u64) Self { Self_new() }
 --------------------------------------------------------------------------------------------
 
 Self :: struct {
@@ -12,7 +12,7 @@ Self :: struct {
 }
 
 
-Self_new :: (p &SliceTy, len u64) Self {
+Self_new :: fn(p &SliceTy, len u64) Self {
     .{
         ptr: p,
         len: len

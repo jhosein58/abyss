@@ -1,5 +1,5 @@
-abyss_fall :: () unit
+abyss_fall :: fn() unit
 
-fall :: () {
+fall :: fn() {
     abyss_fall()
 }

@@ -1,49 +1,49 @@
-print :: (s &u8) unit
-print_char :: (c u8) unit
-print_i32 :: (v i32) unit
-print_u32 :: (v u32) unit
-print_bool :: (b bool) unit
+print :: fn(s &u8) unit
+print_char :: fn(c u8) unit
+print_i32 :: fn(v i32) unit
+print_u32 :: fn(v u32) unit
+print_bool :: fn(b bool) unit
 
-println_i32 :: (v i32) {
+println_i32 :: fn(v i32) {
     print_i32(v)
     print(c"\n")
 }
 
-println_u32 :: (v u32) {
+println_u32 :: fn(v u32) {
     print_u32(v)
     print(c"\n")
 }
 
-println_bool :: (b bool) {
+println_bool :: fn(b bool) {
     print_bool(b)
     print(c"\n")
 }
 
-add :: (t type, a, b t) t {
+add :: fn(t type, a, b t) t {
     a + b
 }
 
-identity :: (t type, x t) t {
+identity :: fn(t type, x t) t {
     x
 }
 
-is_equal :: (t type, a, b t) bool {
+is_equal :: fn(t type, a, b t) bool {
     a == b
 }
 
 Pair :: struct {
     first: u32,
 
-    make_same :: (t type, val t) t {
+    make_same :: fn(t type, val t) t {
         val
     }
 
-    add_val :: (t type, v t) u32 {
+    add_val :: fn(t type, v t) u32 {
         .first + (v as u32)
     }
 }
 
-main :: () {
+main :: fn() {
     v1 := add(u32, 10 as u32, 20 as u32)
     println_u32(v1)
 
@@ -65,11 +65,11 @@ main :: () {
     id2 := identity(888 as u32)
     println_u32(id2)
 
-    double_fn := (t type, x t) t { x + x }
+    double_fn := fn(t type, x t) t { x + x }
     v5 := double_fn(21 as u32)
     println_u32(v5)
 
-    v6 := ((t type, x t) t { x + x })(50 as u32)
+    v6 := (fn(t type, x t) t { x + x })(50 as u32)
     println_u32(v6)
 
     s1 := Pair.make_same(u32, 123 as u32)

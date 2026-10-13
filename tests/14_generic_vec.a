@@ -1,32 +1,32 @@
 import Vec from "std/collections/vec.a"
 
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
-print_u64 :: (v u64) unit
-print_i32 :: (v i32) unit
-print_bool :: (b bool) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
+print_u64 :: fn(v u64) unit
+print_i32 :: fn(v i32) unit
+print_bool :: fn(b bool) unit
 
-println_u32 :: (v u32) {
+println_u32 :: fn(v u32) {
     print_u32(v)
     print(c"\n")
 }
 
-println_u64 :: (v u64) {
+println_u64 :: fn(v u64) {
     print_u64(v)
     print(c"\n")
 }
 
-println_i32 :: (v i32) {
+println_i32 :: fn(v i32) {
     print_i32(v)
     print(c"\n")
 }
 
-println_bool :: (b bool) {
+println_bool :: fn(b bool) {
     print_bool(b)
     print(c"\n")
 }
 
-main :: () {
+main :: fn() {
     v := Vec(i32).new()
     println_bool(v.is_empty())
     println_u32(v.len as u32)

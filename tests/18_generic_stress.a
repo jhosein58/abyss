@@ -1,7 +1,7 @@
 import Vec from "std/collections/vec.a"
 
-print_u32 :: (v u32) unit
-print :: (s &u8) unit
+print_u32 :: fn(v u32) unit
+print :: fn(s &u8) unit
 
 Marker0 :: struct { value: u32 }
 Marker1 :: struct { value: u32 }
@@ -44,9 +44,9 @@ Marker37 :: struct { value: u32 }
 Marker38 :: struct { value: u32 }
 Marker39 :: struct { value: u32 }
 
-identity :: (T type, value T) T { value }
+identity :: fn(T type, value T) T { value }
 
-main :: () {
+main :: fn() {
     total: u32 = 0
     v0 := Vec(Marker0).new()
     v0.push(.{ value: 0 })

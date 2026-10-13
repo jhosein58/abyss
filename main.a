@@ -10,18 +10,18 @@ import Fmt from "std/fmt.a"
 import Vec from "std/collections/vec.a"
 import print from "std/io.a"
 
-print_u32 :: (s u32) unit
-print_u64 :: (s u64) unit
-print_u8 :: (s u8) unit
-print_char :: (s u8) unit
+print_u32 :: fn(s u32) unit
+print_u64 :: fn(s u64) unit
+print_u8 :: fn(s u8) unit
+print_char :: fn(s u8) unit
 
 
-compile_and_run :: (path &u8) i32
-get_arg_count   :: () i32
-get_arg         :: (idx i32) &u8
-get_env         :: (name &u8) &u8
+compile_and_run :: fn(path &u8) i32
+get_arg_count   :: fn() i32
+get_arg         :: fn(idx i32) &u8
+get_env         :: fn(name &u8) &u8
 
-main :: () {
+main :: fn() {
 
     arena := Arena.new(1024 * 1024 * 16)
 

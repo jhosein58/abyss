@@ -12,9 +12,9 @@ import VecU32 as EmbeddedVecU32 from "std/vec/u32.a"
 import VecStr as EmbeddedVecStr from "std/vec/str.a"
 import FastMapU32 as EmbeddedFastMapU32 from "std/fast_map/u32.a"
 
-Box :: (T type) type { struct { value: T } }
+Box :: fn(T type) type { struct { value: T } }
 
-main :: () {
+main :: fn() {
     inferred := Maybe().some(42 as u32)
     contextual: Maybe(u32) = Maybe().none()
     print_u32(inferred.unwrap_or(contextual.unwrap_or(9)))

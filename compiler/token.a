@@ -85,7 +85,7 @@ TokenType :: enum u8 {
 
 token :: TokenType
 
-token_name :: (tk TokenType) Str {
+token_name :: fn(tk TokenType) Str {
     t := token
 
     if tk == t.eof         { ret Str.of("eof")       }
@@ -142,7 +142,7 @@ TokenStream :: struct {
     texts          : VecStr,
     newline_befores: VecBool,
 
-    new :: () TokenStream {
+    new :: fn() TokenStream {
         .{
             kinds          : VecU8.new(),
             starts         : VecU32.new(),
@@ -152,7 +152,7 @@ TokenStream :: struct {
         }
     }
 
-    destroy :: () {
+    destroy :: fn() {
         .kinds.destroy()
         .starts.destroy()
         .lens.destroy()
@@ -160,7 +160,7 @@ TokenStream :: struct {
         .newline_befores.destroy()
     }
 
-    push :: (kind TokenType, start, len u32, text Str, newline_before bool) {
+    push :: fn(kind TokenType, start, len u32, text Str, newline_before bool) {
         .kinds.push(kind as u8)
         .starts.push(start)
         .lens.push(len)
@@ -168,27 +168,27 @@ TokenStream :: struct {
         .newline_befores.push(newline_before)
     }
 
-    count :: () u64 {
+    count :: fn() u64 {
         .kinds.len
     }
 
-    kind :: (idx u32) TokenType {
+    kind :: fn(idx u32) TokenType {
         .kinds.get(idx as u64) as TokenType
     }
 
-    start :: (idx u32) u32 {
+    start :: fn(idx u32) u32 {
         .starts.get(idx as u64)
     }
 
-    len :: (idx u32) u32 {
+    len :: fn(idx u32) u32 {
         .lens.get(idx as u64)
     }
 
-    text :: (idx u32) Str {
+    text :: fn(idx u32) Str {
         .texts.get(idx as u64)
     }
 
-    newline_before :: (idx u32) bool {
+    newline_before :: fn(idx u32) bool {
         .newline_befores.get(idx as u64)
     }
 }

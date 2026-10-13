@@ -23,9 +23,9 @@ Abyss is a statically typed, compiled systems programming language designed for 
 ## Code at a Glance
 
 ```rust
-print :: (s &u8) unit
+print :: fn(s &u8) unit
 
-main :: () {
+main :: fn() {
     print("Hello, Abyss!")
 }
 

@@ -1,34 +1,34 @@
 import Vec from "std/collections/vec.a"
 
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
-print_i32 :: (v i32) unit
-print_u64 :: (v u64) unit
-print_bool :: (v bool) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
+print_i32 :: fn(v i32) unit
+print_u64 :: fn(v u64) unit
+print_bool :: fn(v bool) unit
 
-Box :: (T type) type {
+Box :: fn(T type) type {
     struct {
         value: T
 
-        new :: (value T) Self { .{ value: value } }
-        get :: () T { .value }
+        new :: fn(value T) Self { .{ value: value } }
+        get :: fn() T { .value }
     }
 }
 
-Pair :: (T type, U type) type {
+Pair :: fn(T type, U type) type {
     struct {
         first: T,
         second: U
 
-        new :: (first T, second U) Self { .{ first: first, second: second } }
+        new :: fn(first T, second U) Self { .{ first: first, second: second } }
     }
 }
 
-zero :: (T type) T { 0 as T }
-identity :: (T type, value T) T { value }
-consume :: (value Vec(u32)) u32 { value.get(0) }
+zero :: fn(T type) T { 0 as T }
+identity :: fn(T type, value T) T { value }
+consume :: fn(value Vec(u32)) u32 { value.get(0) }
 
-main :: () {
+main :: fn() {
     a := Vec().new()
     b := Vec().new()
     a.push(10 as u32)

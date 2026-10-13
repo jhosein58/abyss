@@ -10,11 +10,11 @@ AVecU8 :: struct {
     len: u64,
     cap: u64,
 
-    new :: (arena &Arena) Self {
+    new :: fn(arena &Arena) Self {
         Self.with_cap(arena, 4)
     }
 
-    with_cap :: (arena &Arena, initial_cap u64) Self {
+    with_cap :: fn(arena &Arena, initial_cap u64) Self {
         bytes := initial_cap * U8_size()
         p := arena.alloc(bytes) as &ArenaVecType
 
@@ -26,7 +26,7 @@ AVecU8 :: struct {
         }
     }
 
-    grow :: () {
+    grow :: fn() {
         if .len == .cap {
             new_cap := .cap * 2
             old_bytes := .cap * U8_size()
@@ -39,27 +39,27 @@ AVecU8 :: struct {
         }
     }
 
-    push :: (val ArenaVecType) {
+    push :: fn(val ArenaVecType) {
         .grow()
 
         *(.ptr + .len) = val
         .len = .len + 1
     }
 
-    get :: (idx u64) ArenaVecType {
+    get :: fn(idx u64) ArenaVecType {
         *(.ptr + idx)
     }
 
-    set :: (idx u64, val ArenaVecType) {
+    set :: fn(idx u64, val ArenaVecType) {
         *(.ptr + idx) = val
     }
 
-    pop :: () ArenaVecType {
+    pop :: fn() ArenaVecType {
         .len = .len - 1
         *(.ptr + .len)
     }
 
-    clear :: () {
+    clear :: fn() {
         .len = 0
     }
 }

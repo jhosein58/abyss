@@ -7,10 +7,10 @@ import Vec as Buffer from "std/collections/vec.a"
 import Arena as Memory from "std/allocator.a"
 import String as Builder from "std/string.a"
 
-Vec :: () u32 { 5 }
-value :: () u32 { 6 }
+Vec :: fn() u32 { 5 }
+value :: fn() u32 { 6 }
 
-main :: () {
+main :: fn() {
     first := Buffer(u32).new()
     second := OtherBuffer(u32).new()
     first.push(renamed())

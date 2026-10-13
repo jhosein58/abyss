@@ -1,11 +1,11 @@
 import Parser from "../core.a"
 import Span from "../../nexus/nexus.a"
 
-span_of_hir :: (p &Parser, hir_id u32) Span {
+span_of_hir :: fn(p &Parser, hir_id u32) Span {
     p.db.get_hir_span(hir_id)
 }
 
-set_span :: (p &Parser, hir_id u32, sp Span) u32 {
+set_span :: fn(p &Parser, hir_id u32, sp Span) u32 {
     p.db.set_hir_span(hir_id, sp.start, sp.end)
     p.db.set_hir_file(hir_id, p.file_id)
     hir_id

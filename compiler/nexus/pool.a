@@ -1,49 +1,49 @@
 import VecU32 from "../../std/vec/u32.a"
 import U32_MAX from "../../std/primitive/u32.a"
 
-id_none :: () u32 {
+id_none :: fn() u32 {
     U32_MAX()
 }
 
 PoolU32 :: struct {
     data: VecU32,
 
-    new :: () Self {
+    new :: fn() Self {
         .{
             data: VecU32.new()
         }
     }
 
-    destroy :: () {
+    destroy :: fn() {
         .data.destroy()
     }
 
-    count :: () u32 {
+    count :: fn() u32 {
         .data.len as u32
     }
 
-    alloc :: (val u32) u32 {
+    alloc :: fn(val u32) u32 {
         id := .count()
         .data.push(val)
         id
     }
 
-    get :: (id u32) u32 {
+    get :: fn(id u32) u32 {
         .data.get(id as u64)
     }
 
-    set :: (id u32, val u32) {
+    set :: fn(id u32, val u32) {
         .data.set(id as u64, val)
     }
 
-    grow_to :: (new_len u32, default_val u32) {
+    grow_to :: fn(new_len u32, default_val u32) {
         target := new_len as u64
         while .data.len < target {
             .data.push(default_val)
         }
     }
 
-    set_safe :: (id u32, val u32, default_val u32) {
+    set_safe :: fn(id u32, val u32, default_val u32) {
         idx := id as u64
         if idx >= .data.len {
             .grow_to((id + 1) as u32, default_val)

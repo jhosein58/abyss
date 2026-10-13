@@ -9,7 +9,7 @@ import span_of_hir, set_span from "common.a"
 import parse_ident from "ident.a"
 import parse_expr from "../parser.a"
 
-parse_enum :: (p &Parser) u32 {
+parse_enum :: fn(p &Parser) u32 {
     t := token
     k := hir_kind
     sp_start := curr_span(p)

@@ -1,18 +1,18 @@
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
-print_bool :: (b bool) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
+print_bool :: fn(b bool) unit
 
-println_u32 :: (v u32) {
+println_u32 :: fn(v u32) {
     print_u32(v)
     print(c"\n")
 }
 
-println_bool :: (b bool) {
+println_bool :: fn(b bool) {
     print_bool(b)
     print(c"\n")
 }
 
-get_val :: (flag bool) i32 | bool {
+get_val :: fn(flag bool) i32 | bool {
     if flag {
         42
     } else {
@@ -20,7 +20,7 @@ get_val :: (flag bool) i32 | bool {
     }
 }
 
-consume_rev :: (u bool | i32) u32 {
+consume_rev :: fn(u bool | i32) u32 {
     if @is(u, i32) {
         (u as i32) as u32
     } else {
@@ -28,7 +28,7 @@ consume_rev :: (u bool | i32) u32 {
     }
 }
 
-main :: () {
+main :: fn() {
     v1 := get_val(true)
     v2 := get_val(false)
 

@@ -29,8 +29,8 @@ cp "${ROOT_DIR}/tests/23_embedded_core.a" "${WORK_DIR}/main.a"
     printf 'this is invalid C\n' > runtime/prelude.c
     timeout 30s ./abyssc main.a shadow.c
     cmp out.c shadow.c
-    printf 'import Missing from "std/missing.a"\nmain :: () {}\n' > missing.a
-    printf 'Missing :: () u32 { 99 }\n' > std/missing.a
+    printf 'import Missing from "std/missing.a"\nmain :: fn() {}\n' > missing.a
+    printf 'Missing :: fn() u32 { 99 }\n' > std/missing.a
     if timeout 30s ./abyssc missing.a missing.c > missing.log 2>&1; then
         echo 'FAIL standalone: missing embedded module loaded from disk'
         exit 1

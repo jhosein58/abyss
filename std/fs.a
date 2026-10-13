@@ -3,19 +3,19 @@ import Str from "string.a"
 import fall               from "sys.a"
 
 
-print :: (s &u8) unit
+print :: fn(s &u8) unit
 
-file_open  :: (path, mode &u8) &u8
-file_seek  :: (handle &u8, offset i64, w i32) i32
-file_tell  :: (handle &u8) i64
-file_read  :: (handle, ptr &u8, s, count u64) u64
-file_write :: (handle, ptr &u8, s, count u64) u64
-file_close :: (handle &u8) i32
+file_open  :: fn(path, mode &u8) &u8
+file_seek  :: fn(handle &u8, offset i64, w i32) i32
+file_tell  :: fn(handle &u8) i64
+file_read  :: fn(handle, ptr &u8, s, count u64) u64
+file_write :: fn(handle, ptr &u8, s, count u64) u64
+file_close :: fn(handle &u8) i32
 
-SEEK_SET :: () i32 { 0 }
-SEEK_END :: () i32 { 2 }
+SEEK_SET :: fn() i32 { 0 }
+SEEK_END :: fn() i32 { 2 }
 
-read_file :: (a &Arena, path &u8) Str {
+read_file :: fn(a &Arena, path &u8) Str {
     file_handle := file_open(path, c"rb")
 
     if file_handle == (0 as &u8) {
@@ -59,7 +59,7 @@ read_file :: (a &Arena, path &u8) Str {
     }
 }
 
-write_file :: (path &u8, content Str) bool {
+write_file :: fn(path &u8, content Str) bool {
     file_handle := file_open(path, c"wb")
 
     if file_handle == (0 as &u8) {
@@ -82,7 +82,7 @@ write_file :: (path &u8, content Str) bool {
     true
 }
 
-append_file :: (path &u8, content Str) bool {
+append_file :: fn(path &u8, content Str) bool {
     file_handle := file_open(path, c"ab")
 
     if file_handle == (0 as &u8) {

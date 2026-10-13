@@ -1,2 +1,2 @@
-Either :: (T type, U type) type { T | U }
-main :: () { x: Either() = 42 as u32 }
+Either :: fn(T type, U type) type { T | U }
+main :: fn() { x: Either() = 42 as u32 }

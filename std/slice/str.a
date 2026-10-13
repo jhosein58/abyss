@@ -4,7 +4,7 @@ import Str from "../string.a"
 SliceTy  :: Str
 SliceStr :: Self
 
-SliceStr_new :: (p &SliceTy, len u64) Self { Self_new() }
+SliceStr_new :: fn(p &SliceTy, len u64) Self { Self_new() }
 --------------------------------------------------------------------------------------------
 
 Self :: struct {
@@ -13,7 +13,7 @@ Self :: struct {
 }
 
 
-Self_new :: (p &SliceTy, len u64) Self {
+Self_new :: fn(p &SliceTy, len u64) Self {
     .{
         ptr: p,
         len: len

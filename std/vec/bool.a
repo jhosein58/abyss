@@ -5,18 +5,18 @@ import SliceBool from "../slice/bool.a"
 VecType             :: bool
 SliceType           :: SliceBool 
 
-elem_size           :: () u64 { Bool_size() }
+elem_size           :: fn() u64 { Bool_size() }
 
 VecBool :: struct {
     ptr: &VecType,
     len: u64,
     cap: u64
 
-    new :: () Self {
+    new :: fn() Self {
         Self.with_cap(4)
     }
 
-    with_cap :: (initial_cap u64) Self {
+    with_cap :: fn(initial_cap u64) Self {
         cap := initial_cap
         if cap < 4 {
             cap = 4
@@ -31,14 +31,14 @@ VecBool :: struct {
         }
     }
 
-    destroy :: () {
+    destroy :: fn() {
         free(.ptr as &u8)
         .ptr = 0 as &VecType
         .len = 0
         .cap = 0
     }
 
-    reserve :: (additional u64) {
+    reserve :: fn(additional u64) {
         needed := .len + additional
         if needed > .cap {
             new_cap := .cap * 2
@@ -53,14 +53,14 @@ VecBool :: struct {
         }
     }
 
-    grow :: () {
+    grow :: fn() {
         if .len == .cap {
             .reserve(1)
         }
     }
 
 
-    push :: (val VecType) {
+    push :: fn(val VecType) {
         .grow()
 
         *(.ptr + .len) = val
@@ -68,29 +68,29 @@ VecBool :: struct {
     }
 
 
-    get :: (idx u64) VecType {
+    get :: fn(idx u64) VecType {
         *(.ptr + idx)
     }
 
-    pop :: () VecType {
+    pop :: fn() VecType {
         .len = .len - 1
         .get(.len)
     }
 
-    set :: (idx u64, val VecType) {
+    set :: fn(idx u64, val VecType) {
         *(.ptr + idx) = val
     }
 
 
-    last :: () VecType {
+    last :: fn() VecType {
         *(.ptr + (.len - 1))
     }
 
-    is_empty :: () bool {
+    is_empty :: fn() bool {
         .len == 0
     }
 
-    extend :: (src &VecType, count u64) {
+    extend :: fn(src &VecType, count u64) {
         if count == 0 { ret }
 
         .reserve(count)
@@ -100,25 +100,25 @@ VecBool :: struct {
         .len = .len + count
     }
 
-    mark :: () u64 {
+    mark :: fn() u64 {
         .len
     }
 
-    reset :: (mark u64) {
+    reset :: fn(mark u64) {
         if mark <= .len {
             .len = mark
         }
     }
 
-    clear :: () {
+    clear :: fn() {
         len = 0
     }
 
-    ptr_at :: (offset u64) &VecType {
+    ptr_at :: fn(offset u64) &VecType {
         .ptr + offset
     }
 
-    swap_remove :: (idx u64) VecType {
+    swap_remove :: fn(idx u64) VecType {
         last_idx := .len - 1
         removed := *(.ptr + idx)
     
@@ -130,7 +130,7 @@ VecBool :: struct {
         removed
     }
 
-    as_slice :: () SliceType {
+    as_slice :: fn() SliceType {
         .{
             ptr: .ptr,
             len: .len

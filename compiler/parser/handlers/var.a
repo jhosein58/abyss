@@ -8,7 +8,7 @@ import id_none from "../../nexus/pool.a"
 import span_of_hir, set_span from "common.a"
 import parse_expr from "../parser.a"
 
-parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
+parse_binding :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind
     sp_lhs := span_of_hir(p, lhs)
 
@@ -39,7 +39,7 @@ parse_binding :: (p &Parser, lhs u32, right_bp u8) u32 {
     binding_id
 }
 
-parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
+parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     t := token
     k := hir_kind
 

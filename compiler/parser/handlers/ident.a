@@ -4,7 +4,7 @@ import Parser, peek, bump, curr_text, curr_span, parse_error_at, lookup_sym from
 import id_none from "../../nexus/pool.a"
 import set_span from "common.a"
 
-parse_ident :: (p &Parser) u32 {
+parse_ident :: fn(p &Parser) u32 {
     k := hir_kind
     t := token
 

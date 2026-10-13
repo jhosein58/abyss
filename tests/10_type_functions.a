@@ -1,25 +1,25 @@
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
-print_bool :: (b bool) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
+print_bool :: fn(b bool) unit
 
-println_u32 :: (v u32) {
+println_u32 :: fn(v u32) {
     print_u32(v)
     print(c"\n")
 }
 
-println_bool :: (b bool) {
+println_bool :: fn(b bool) {
     print_bool(b)
     print(c"\n")
 }
 
-Option :: (T type) type {
+Option :: fn(T type) type {
     struct {
         is_some: bool,
         val: T
     }
 }
 
-Vec :: (T type) type {
+Vec :: fn(T type) type {
     struct {
         ptr: &T,
         len: u64,
@@ -27,15 +27,15 @@ Vec :: (T type) type {
     }
 }
 
-some :: (T type, val T) Option(T) {
+some :: fn(T type, val T) Option(T) {
     .{ is_some: true, val: val }
 }
 
-unwrap :: (T type, opt Option(T)) T {
+unwrap :: fn(T type, opt Option(T)) T {
     opt.val
 }
 
-main :: () {
+main :: fn() {
     o1 := some(i32, 42)
     println_bool(o1.is_some)
     println_u32(unwrap(i32, o1) as u32)

@@ -1,5 +1,5 @@
 import Vec from "../../std/collections/vec.a"
-main :: () {
+main :: fn() {
     v := Vec().new()
     v.push(v)
 }

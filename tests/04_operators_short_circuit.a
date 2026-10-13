@@ -1,23 +1,23 @@
-print :: (s &u8) unit
-print_i32 :: (v i32) unit
-print_bool :: (b bool) unit
+print :: fn(s &u8) unit
+print_i32 :: fn(v i32) unit
+print_bool :: fn(b bool) unit
 
-println_i32 :: (v i32) {
+println_i32 :: fn(v i32) {
     print_i32(v)
     print(c"\n")
 }
 
-println_bool :: (b bool) {
+println_bool :: fn(b bool) {
     print_bool(b)
     print(c"\n")
 }
 
-trigger :: () bool {
+trigger :: fn() bool {
     print(c"SIDE_EFFECT\n")
     true
 }
 
-main :: () {
+main :: fn() {
     a := 20
     b := 6
 

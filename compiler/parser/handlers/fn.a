@@ -11,7 +11,7 @@ import parse_block from "control.a"
 import parse_expr from "../parser.a"
 import prec from "../prec.a"
 
-define_param :: (p &Parser, name_hir u32) {
+define_param :: fn(p &Parser, name_hir u32) {
     k := hir_kind
     if p.hir.kind(name_hir) != k.ident {
         parse_error_at(p, c"parameter name must be an identifier", span_of_hir(p, name_hir))
@@ -21,7 +21,7 @@ define_param :: (p &Parser, name_hir u32) {
     ScopeEnv_define(&p.env, name_id, sym_id)
 }
 
-is_named_group :: (p &Parser) bool {
+is_named_group :: fn(p &Parser) bool {
     t := token
     depth: u32 = 1
     i := p.cursor + 1
@@ -46,73 +46,7 @@ is_named_group :: (p &Parser) bool {
     false
 }
 
-is_fn_header :: (p &Parser) bool {
-    t := token
-    if peek(p) == t.c_paren { ret true }
-
-    i := p.cursor
-    depth: u32 = 1
-    has_type := false
-    has_comma := false
-    prev := t.eof
-
-    while i < p.end {
-        tk := p.tokens.kind(i)
-        if tk == t.o_paren {
-            depth = depth + 1
-        } else if tk == t.c_paren {
-            depth = depth - 1
-            if depth == 0 { break }
-        } else if depth == 1 {
-            if tk == t.comma {
-                has_comma = true
-            } else if (prev == t.ident) and
-                      ((tk == t.ident) or (tk == t.amp) or (tk == t.star) or
-                       (tk == t.o_bracket) or (tk == t.kw_fn)) {
-                has_type = true
-            }
-        }
-        prev = tk
-        i = i + 1
-    }
-
-    if depth != 0 { ret false }
-
-    after := t.eof
-    if (i + 1) < p.end {
-        after = p.tokens.kind(i + 1)
-    }
-
-    if (not has_type) and (not has_comma) {
-        ret false
-    }
-
-    if after == t.o_brace {
-        ret true
-    }
-
-    if p.toplv_sym != id_none() {
-        ret true
-    }
-
-    j := i + 1
-    while j < p.end {
-        tk := p.tokens.kind(j)
-        if tk == t.o_brace { ret true }
-        if p.tokens.newline_before(j) { break }
-        if (tk != t.ident) and (tk != t.amp) and (tk != t.star) and
-           (tk != t.o_bracket) and (tk != t.c_bracket) and
-           (tk != t.o_paren) and (tk != t.c_paren) and (tk != t.pipe) and (tk != t.dot) and
-           (tk != t.kw_fn) {
-            break
-        }
-        j = j + 1
-    }
-
-    false
-}
-
-parse_params :: (p &Parser) u32 {
+parse_params :: fn(p &Parser) u32 {
     t := token
     k := hir_kind
     args := VecU32.new()
@@ -184,17 +118,28 @@ parse_params :: (p &Parser) u32 {
     params
 }
 
-parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
+parse_fn :: fn(p &Parser, min_bp u8) u32 {
+    t := token
+    k := hir_kind
+    sp_start := curr_span(p)
+    bump(p)
+    expect(p, t.o_paren)
+
     saved_toplv := p.toplv_sym
     p.toplv_sym = id_none()
 
-    t := token
-    k := hir_kind
+    env_mark := ScopeEnv_mark(&p.env)
+    params := parse_params(p)
 
     ret_ty := hir_none()
-    sp_end := sp_start
-    if (peek(p) != t.o_brace) and (peek(p) != t.eq) and (peek(p) != t.comma) and
-       (peek(p) != t.c_paren) and (peek(p) != t.c_brace) and (not is_eof(p)) {
+    sp_end := prev_span(p)
+
+    next := peek(p)
+    has_ret := (not is_eof(p)) and (not peek_preceded_by_newline(p)) and
+               (next != t.o_brace) and (next != t.eq) and (next != t.comma) and
+               (next != t.c_paren) and (next != t.c_brace) and (next != t.semi)
+
+    if has_ret {
         ret_ty = parse_expr(p, prec().var_def + (1 as u8))
         sp_end = span_of_hir(p, ret_ty)
     }
@@ -214,7 +159,8 @@ parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
     }
 
     body := hir_none()
-    if peek(p) == t.o_brace {
+    can_have_body := min_bp <= prec().var_def
+    if can_have_body and (peek(p) == t.o_brace) {
         body = parse_block(p)
         sp_end = span_of_hir(p, body)
         p.hir.set_rhs(body, fn_node)
@@ -224,68 +170,23 @@ parse_fn_tail :: (p &Parser, params u32, sp_start Span) u32 {
         }
     }
 
+    ScopeEnv_reset(&p.env, env_mark)
+
     p.hir.set_extra(fn_node, body)
     set_span(p, fn_node, span_merge(sp_start, sp_end))
 }
 
-parse_fn :: (p &Parser) u32 {
-    t := token
-    k := hir_kind
-    sp_start := curr_span(p)
-    bump(p)
-    expect(p, t.o_paren)
-
-    params := parse_params(p)
-
-    ret_ty := hir_none()
-    sp_end := prev_span(p)
-
-    next := peek(p)
-    has_ret := (not is_eof(p)) and (not peek_preceded_by_newline(p)) and
-               (next != t.o_brace) and (next != t.eq) and (next != t.comma) and
-               (next != t.c_paren) and (next != t.c_brace) and (next != t.semi)
-
-    if has_ret {
-        ret_ty = parse_expr(p, prec().var_def + (1 as u8))
-        sp_end = span_of_hir(p, ret_ty)
-    }
-
-    fn_node := p.hir.push(k.function, params, ret_ty, hir_none())
-    set_span(p, fn_node, span_merge(sp_start, sp_end))
-}
-
-parse_paren :: (p &Parser) u32 {
+parse_paren :: fn(p &Parser) u32 {
     t := token
     sp_start := curr_span(p)
     bump(p)
-
-    if optional(p, t.c_paren) {
-        env_mark := ScopeEnv_mark(&p.env)
-        fn_id := parse_fn_tail(p, hir_none(), sp_start)
-        ScopeEnv_reset(&p.env, env_mark)
-        ret fn_id
-    }
-
-    if is_fn_header(p) {
-        saved_toplv := p.toplv_sym
-        p.toplv_sym = id_none()
-
-        env_mark := ScopeEnv_mark(&p.env)
-        params := parse_params(p)
-
-        p.toplv_sym = saved_toplv
-        fn_id := parse_fn_tail(p, params, sp_start)
-        ScopeEnv_reset(&p.env, env_mark)
-        ret fn_id
-    }
-
     expr := parse_expr(p, 0 as u8)
     expect(p, t.c_paren)
     sp_end := prev_span(p)
     set_span(p, expr, span_merge(sp_start, sp_end))
 }
 
-parse_call :: (p &Parser, lhs u32, right_bp u8) u32 {
+parse_call :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     t := token
     k := hir_kind
     sp_lhs := span_of_hir(p, lhs)

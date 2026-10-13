@@ -1,25 +1,25 @@
-print :: (s &u8) unit
-print_char :: (c u8) unit
-print_i32 :: (v i32) unit
-print_u32 :: (v u32) unit
-print_bool :: (b bool) unit
+print :: fn(s &u8) unit
+print_char :: fn(c u8) unit
+print_i32 :: fn(v i32) unit
+print_u32 :: fn(v u32) unit
+print_bool :: fn(b bool) unit
 
-println_i32 :: (v i32) {
+println_i32 :: fn(v i32) {
     print_i32(v)
     print(c"\n")
 }
 
-println_u32 :: (v u32) {
+println_u32 :: fn(v u32) {
     print_u32(v)
     print(c"\n")
 }
 
-println_bool :: (b bool) {
+println_bool :: fn(b bool) {
     print_bool(b)
     print(c"\n")
 }
 
-main :: () {
+main :: fn() {
     println_i32(0)
     println_i32(42)
     println_i32(-100)

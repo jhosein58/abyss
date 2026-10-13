@@ -1,17 +1,17 @@
 import malloc, realloc, free, mem_copy from "../mem.a"
 
 
-Vec :: (T type) type {
+Vec :: fn(T type) type {
     struct {
         ptr: &T,
         len: u64,
         cap: u64
 
-        new :: () Self {
+        new :: fn() Self {
             Self.with_cap(4)
         }
 
-        with_cap :: (initial_cap u64) Self {
+        with_cap :: fn(initial_cap u64) Self {
             cap := initial_cap
             if cap < 4 {
                 cap = 4
@@ -26,14 +26,14 @@ Vec :: (T type) type {
             }
         }
 
-        destroy :: () {
+        destroy :: fn() {
             free(.ptr as &u8)
             .ptr = 0 as &T
             .len = 0
             .cap = 0
         }
 
-        reserve :: (additional u64) {
+        reserve :: fn(additional u64) {
             needed := .len + additional
             if needed > .cap {
                 new_cap := .cap * 2
@@ -48,14 +48,14 @@ Vec :: (T type) type {
             }
         }
 
-        grow :: () {
+        grow :: fn() {
             if .len == .cap {
                 .reserve(1)
             }
         }
 
 
-        push :: (val T) {
+        push :: fn(val T) {
             .grow()
 
             *(.ptr + .len) = val
@@ -63,29 +63,29 @@ Vec :: (T type) type {
         }
 
 
-        get :: (idx u64) T {
+        get :: fn(idx u64) T {
             *(.ptr + idx)
         }
 
-        pop :: () T {
+        pop :: fn() T {
             .len = .len - 1
             .get(.len)
         }
 
-        set :: (idx u64, val T) {
+        set :: fn(idx u64, val T) {
             *(.ptr + idx) = val
         }
 
 
-        last :: () T {
+        last :: fn() T {
             *(.ptr + (.len - 1))
         }
 
-        is_empty :: () bool {
+        is_empty :: fn() bool {
             .len == 0
         }
 
-        extend :: (src &T, count u64) {
+        extend :: fn(src &T, count u64) {
             if count == 0 { ret }
 
             .reserve(count)
@@ -95,25 +95,25 @@ Vec :: (T type) type {
             .len = .len + count
         }
 
-        mark :: () u64 {
+        mark :: fn() u64 {
             .len
         }
 
-        reset :: (mark u64) {
+        reset :: fn(mark u64) {
             if mark <= .len {
                 .len = mark
             }
         }
 
-        clear :: () {
+        clear :: fn() {
             .len = 0
         }
 
-        ptr_at :: (offset u64) &T {
+        ptr_at :: fn(offset u64) &T {
             .ptr + offset
         }
 
-        swap_remove :: (idx u64) T {
+        swap_remove :: fn(idx u64) T {
             last_idx := .len - 1
             removed := *(.ptr + idx)
         

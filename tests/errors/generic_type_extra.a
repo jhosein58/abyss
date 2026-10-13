@@ -1,2 +1,2 @@
-Box :: (T type) type { struct { value: T } }
-main :: () { x: Box(u32, bool) = .{ value: 42 } }
+Box :: fn(T type) type { struct { value: T } }
+main :: fn() { x: Box(u32, bool) = .{ value: 42 } }

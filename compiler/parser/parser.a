@@ -16,8 +16,8 @@ import parse_struct, parse_struct_init, parse_member from "handlers/struct.a"
 import parse_builtin from "handlers/builtin.a"
 import parse_enum from "handlers/enum.a"
 
-parse_expr :: (p &Parser, min_bp u8) u32 {
-    lhs := dispatch_prefix(p)
+parse_expr :: fn(p &Parser, min_bp u8) u32 {
+    lhs := dispatch_prefix(p, min_bp)
 
     while not is_eof(p) {
         tk := peek(p)
@@ -41,7 +41,7 @@ parse_expr :: (p &Parser, min_bp u8) u32 {
     lhs
 }
 
-dispatch_prefix :: (p &Parser) u32 {
+dispatch_prefix :: fn(p &Parser, min_bp u8) u32 {
     t := token
     tk := peek(p)
 
@@ -67,7 +67,7 @@ dispatch_prefix :: (p &Parser) u32 {
 
     if tk == t.kw_struct  { ret parse_struct(p) }
     if tk == t.kw_enum    { ret parse_enum(p) }
-    if tk == t.kw_fn      { ret parse_fn(p) }
+    if tk == t.kw_fn      { ret parse_fn(p, min_bp) }
     if tk == t.at         { ret parse_builtin(p) }
     if (tk == t.dot) and (peek_n(p, 1) == t.o_brace) { ret parse_struct_init(p) }
     if tk == t.dot {
@@ -87,7 +87,7 @@ dispatch_prefix :: (p &Parser) u32 {
     hir_none()
 }
 
-dispatch_infix :: (p &Parser, op TokenType, lhs u32, right_bp u8) u32 {
+dispatch_infix :: fn(p &Parser, op TokenType, lhs u32, right_bp u8) u32 {
     t := token
 
     if op == t.colon_colon { ret parse_binding(p, lhs, right_bp) }

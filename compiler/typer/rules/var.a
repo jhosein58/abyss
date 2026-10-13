@@ -9,9 +9,9 @@ import fall from "../../../std/sys.a"
 import parse_builtin_type, check_value from "common.a"
 import synth_node from "../tyck.a"
 
-print :: (s &u8) unit
+print :: fn(s &u8) unit
 
-synth_ident :: (eng &Engine, id u32) {
+synth_ident :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     unify_ptr := &(*db).unify
@@ -69,7 +69,7 @@ synth_ident :: (eng &Engine, id u32) {
     }
 }
 
-synth_type_node :: (eng &Engine, id u32) u32 {
+synth_type_node :: fn(eng &Engine, id u32) u32 {
     if id == hir_none() { ret ty_id_none() }
     db := &(*eng).nexus
     existing := db.get_const_type(id)
@@ -125,7 +125,7 @@ synth_type_node :: (eng &Engine, id u32) u32 {
     db.get_const_type(id)
 }
 
-synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
+synth_var_or_binding :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -204,7 +204,7 @@ synth_var_or_binding :: (db &Nexus, tbl &HirTable, id u32) {
     (&(*db).unify).union(&(*db).types, slot, ident_slot)
 }
 
-synth_arg :: (db &Nexus, tbl &HirTable, id u32) {
+synth_arg :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 

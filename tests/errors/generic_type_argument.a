@@ -1,2 +1,2 @@
-identity :: (T type, value T) T { value }
-main :: () { x := identity(42, 1) }
+identity :: fn(T type, value T) T { value }
+main :: fn() { x := identity(42, 1) }

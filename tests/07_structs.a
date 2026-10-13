@@ -1,7 +1,7 @@
-print :: (s &u8) unit
-print_i32 :: (v i32) unit
+print :: fn(s &u8) unit
+print_i32 :: fn(v i32) unit
 
-println_i32 :: (v i32) {
+println_i32 :: fn(v i32) {
     print_i32(v)
     print(c"\n")
 }
@@ -15,11 +15,11 @@ Rect :: struct {
     w: i32,
     h: i32,
 
-    area :: () i32 {
+    area :: fn() i32 {
         .w * .h
     }
 
-    scale :: (factor i32) i32 {
+    scale :: fn(factor i32) i32 {
         .w * factor
     }
 }
@@ -28,7 +28,7 @@ Ops :: struct {
     op: fn(i32, i32) i32
 }
 
-main :: () {
+main :: fn() {
     p: Point = .{ x: 10, y: 20 }
     println_i32(p.x)
     println_i32(p.y)
@@ -37,7 +37,7 @@ main :: () {
     println_i32(r.area())
     println_i32(r.scale(3))
 
-    add := (a, b i32) i32 { a + b }
+    add := fn(a, b i32) i32 { a + b }
     o: Ops = .{ op: add }
     println_i32(o.op(10, 5))
 }

@@ -2,20 +2,20 @@ import Str from "../core/string.a"
 import Arena  from "allocator.a"
 import AVecU8 from "avec/u8.a"
 
-str_len    :: (s &u8) u64
-print_char :: (c u8)  unit
+str_len    :: fn(s &u8) u64
+print_char :: fn(c u8)  unit
 
 
 String :: struct {
     buf: AVecU8,
 
-    new :: (a &Arena) String {
+    new :: fn(a &Arena) String {
         .{
             buf: AVecU8.new(a)
         }
     }
 
-    push_str :: (s Str) {
+    push_str :: fn(s Str) {
         i := 0
 
         while i < s.len {
@@ -24,15 +24,15 @@ String :: struct {
         }
     }
 
-    as_str :: () Str {
+    as_str :: fn() Str {
         Str.new(.buf.ptr, .buf.len)
     }
 
-    push_char :: (c u8) {
+    push_char :: fn(c u8) {
         .buf.push(c)
     }
 
-    push_u32 :: (val u32) {
+    push_u32 :: fn(val u32) {
         if val == 0 {
             .push_char('0') 
             ret
@@ -55,13 +55,13 @@ String :: struct {
     }
 }
 
-u32_to_str :: (arena &Arena, val u32) Str {
+u32_to_str :: fn(arena &Arena, val u32) Str {
     s := String.new(arena)
     s.push_u32(val)
     s.as_str()
 }
 
-parse_u32 :: (s Str) Maybe(u32) {
+parse_u32 :: fn(s Str) Maybe(u32) {
     if s.len == 0 { ret Maybe(u32).none() }
     res: u32 = 0
     i: u64 = 0

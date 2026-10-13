@@ -1,30 +1,30 @@
-str_len :: (s &u8) u64
-print_char :: (c u8) unit
+str_len :: fn(s &u8) u64
+print_char :: fn(c u8) unit
 
 Str :: struct {
     ptr: &u8,
     len: u64 
 
 
-    size :: () u64 {
+    size :: fn() u64 {
         16
     }
 
-    new :: (ptr &u8, len u64) Str {
+    new :: fn(ptr &u8, len u64) Str {
         .{
             ptr: ptr,
             len: len,
         }
     }
 
-    empty :: () Str {
+    empty :: fn() Str {
         .{
             ptr: 0 as &u8,
             len: 0,
         }
     }
 
-    of :: (s &u8 | Str) Self {
+    of :: fn(s &u8 | Str) Self {
         if @is(s, Str) {
             ret s as Str
         }
@@ -35,7 +35,7 @@ Str :: struct {
         }
     }
 
-    print :: () {
+    print :: fn() {
         i := 0
 
         while i < .len {
@@ -44,19 +44,19 @@ Str :: struct {
         }
     }
 
-    println :: (s Str) {
+    println :: fn(s Str) {
         s.print()
         print_char('\n')
     }
 
-    sub :: (start u64, len u64) Str {
+    sub :: fn(start u64, len u64) Str {
         .{
             ptr: (.ptr + start),
             len: len
         }
     }
 
-    eq :: (b Str) bool {
+    eq :: fn(b Str) bool {
         if .len != b.len {
             ret false
         }

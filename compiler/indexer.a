@@ -9,9 +9,9 @@ import id_none from "nexus/pool.a"
 import fall from "../std/sys.a"
 import embedded_source from "embedded.a"
 
-print :: (s &u8) unit
+print :: fn(s &u8) unit
 
-index_error :: (path Str, msg &u8) {
+index_error :: fn(path Str, msg &u8) {
     print(c"\n[import error] ")
     print(msg)
     print(c" in ")
@@ -21,7 +21,7 @@ index_error :: (path Str, msg &u8) {
 }
 
 
-trim_quotes :: (s Str) Str {
+trim_quotes :: fn(s Str) Str {
     if s.len >= 2 {
         first := *(s.ptr)
         last := *(s.ptr + s.len - 1)
@@ -35,7 +35,7 @@ trim_quotes :: (s Str) Str {
     s
 }
 
-path_resolve :: (arena &Arena, base Str, rel Str) Str {
+path_resolve :: fn(arena &Arena, base Str, rel Str) Str {
     dir_len: u64 = 0
     if base.len > 0 {
         idx := base.len
@@ -166,14 +166,14 @@ path_resolve :: (arena &Arena, base Str, rel Str) Str {
     .{ ptr: out_buf, len: final_len }
 }
 
-is_embedded_path :: (path Str) bool {
+is_embedded_path :: fn(path Str) bool {
     if path.len < 4 { ret false }
     if path.sub(0, 4).eq(Str.of("std/")) { ret true }
     if path.len < 5 { ret false }
     path.sub(0, 5).eq(Str.of("core/"))
 }
 
-module_path :: (arena &Arena, base Str, path Str) Str {
+module_path :: fn(arena &Arena, base Str, path Str) Str {
     rel := path
     while rel.len >= 3 {
         if not rel.sub(0, 3).eq(Str.of("../")) { break }
@@ -192,7 +192,7 @@ module_path :: (arena &Arena, base Str, path Str) Str {
     target
 }
 
-resolve_and_load_file :: (
+resolve_and_load_file :: fn(
     db              &Nexus,
     arena           &Arena,
     curr_path       Str,
@@ -238,7 +238,7 @@ resolve_and_load_file :: (
     fid
 }
 
-scan_file_symbols :: (
+scan_file_symbols :: fn(
     db              &Nexus,
     arena           &Arena,
     file_id         u32,
@@ -401,7 +401,7 @@ scan_file_symbols :: (
     }
 }
 
-index_file :: (db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u32, end_tok u32) {
+index_file :: fn(db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u32, end_tok u32) {
     loaded_paths    := VecU32.new()
     queue_fids      := VecU32.new()
     queue_tok_start := VecU32.new()

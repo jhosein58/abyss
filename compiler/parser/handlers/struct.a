@@ -9,7 +9,7 @@ import span_of_hir, set_span from "common.a"
 import parse_ident from "ident.a"
 import parse_expr from "../parser.a"
 
-parse_struct :: (p &Parser) u32 {
+parse_struct :: fn(p &Parser) u32 {
     t := token
     k := hir_kind
     sp_start := curr_span(p)
@@ -119,7 +119,7 @@ parse_struct :: (p &Parser) u32 {
     set_span(p, struct_node, span_merge(sp_start, sp_end))
 }
 
-parse_struct_init :: (p &Parser) u32 {
+parse_struct_init :: fn(p &Parser) u32 {
     t := token
     k := hir_kind
     sp_start := curr_span(p)
@@ -160,7 +160,7 @@ parse_struct_init :: (p &Parser) u32 {
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
-parse_member :: (p &Parser, lhs u32, right_bp u8) u32 {
+parse_member :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind
     sp_lhs := span_of_hir(p, lhs)
     rhs := parse_expr(p, right_bp)

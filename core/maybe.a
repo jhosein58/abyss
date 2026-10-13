@@ -1,18 +1,18 @@
-Maybe :: (T type) type {
+Maybe :: fn(T type) type {
     struct {
         present: bool,
         value: T
 
-        some :: (value T) Self { .{ present: true, value: value } }
-        none :: () Self {
+        some :: fn(value T) Self { .{ present: true, value: value } }
+        none :: fn() Self {
             result: Self
             result.present = false
             result
         }
-        is_some :: () bool { .present }
-        is_none :: () bool { not .present }
-        unwrap :: () T { .value }
-        unwrap_or :: (fallback T) T {
+        is_some :: fn() bool { .present }
+        is_none :: fn() bool { not .present }
+        unwrap :: fn() T { .value }
+        unwrap_or :: fn(fallback T) T {
             if .present { .value } else { fallback }
         }
     }

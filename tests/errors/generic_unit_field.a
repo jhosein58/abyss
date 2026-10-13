@@ -1,2 +1,2 @@
-Box :: (T type) type { struct { value: T } }
-main :: () { x: Box(unit) }
+Box :: fn(T type) type { struct { value: T } }
+main :: fn() { x: Box(unit) }

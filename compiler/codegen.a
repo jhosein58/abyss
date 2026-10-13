@@ -7,9 +7,9 @@ import TypeStorage, ty_kind, ty_id_none from "types.a"
 import HirExprKind, hir_kind from "hir.a"
 import fall from "../std/sys.a"
 
-print :: (s &u8) unit
+print :: fn(s &u8) unit
 
-vec_push_str :: (v &VecU8, s Str) {
+vec_push_str :: fn(v &VecU8, s Str) {
     i: u64 = 0
     while i < s.len {
         v.push(*(s.ptr + i))
@@ -17,11 +17,11 @@ vec_push_str :: (v &VecU8, s Str) {
     }
 }
 
-vec_push_char :: (v &VecU8, c u8) {
+vec_push_char :: fn(v &VecU8, c u8) {
     v.push(c)
 }
 
-vec_push_u32 :: (v &VecU8, n u32) {
+vec_push_u32 :: fn(v &VecU8, n u32) {
     if n == 0 {
         v.push(48 as u8)
         ret
@@ -43,7 +43,7 @@ vec_push_u32 :: (v &VecU8, n u32) {
     }
 }
 
-vec_as_str :: (v &VecU8) Str {
+vec_as_str :: fn(v &VecU8) Str {
     .{
         ptr: (*v).ptr,
         len: (*v).len
@@ -61,7 +61,7 @@ CCodeGen :: struct {
     indent          : u32,
     tmp_id          : u32,
 
-    new :: () Self {
+    new :: fn() Self {
         .{
             struct_decls    : VecU8.new(),
             struct_defs     : VecU8.new(),
@@ -75,7 +75,7 @@ CCodeGen :: struct {
         }
     }
 
-    destroy :: () {
+    destroy :: fn() {
         .func_decls.destroy()
         .code.destroy()
         .struct_decls.destroy()
@@ -83,7 +83,7 @@ CCodeGen :: struct {
         .emitted_structs.destroy()
     }
 
-    indent_line :: () {
+    indent_line :: fn() {
         i: u32 = 0
         while i < .indent {
             vec_push_str(&.code, Str.of("    "))
@@ -91,12 +91,12 @@ CCodeGen :: struct {
         }
     }
 
-    abyss_main :: (sym_id u32) {
+    abyss_main :: fn(sym_id u32) {
         .main_sym = sym_id
         .has_main = true
     }
 
-    declare_function :: (fn_name Str, ret_type Str, params Str) {
+    declare_function :: fn(fn_name Str, ret_type Str, params Str) {
         vec_push_str(&.func_decls, ret_type)
         vec_push_char(&.func_decls, 32 as u8)
         vec_push_str(&.func_decls, fn_name)
@@ -105,7 +105,7 @@ CCodeGen :: struct {
         vec_push_str(&.func_decls, Str.of(");\n"))
     }
 
-    start_function :: (fn_name Str, ret_type Str, params Str) {
+    start_function :: fn(fn_name Str, ret_type Str, params Str) {
         .declare_function(fn_name, ret_type, params)
 
         vec_push_str(&.code, ret_type)
@@ -118,14 +118,14 @@ CCodeGen :: struct {
         .tmp_id = 0
     }
 
-    end_function :: () {
+    end_function :: fn() {
         if .indent > 0 {
             .indent = .indent - 1
         }
         vec_push_str(&.code, Str.of("}\n\n"))
     }
 
-    create_variable :: (name Str, ty Str, init_val Str, has_init bool) {
+    create_variable :: fn(name Str, ty Str, init_val Str, has_init bool) {
         .indent_line()
         vec_push_str(&.code, ty)
         vec_push_char(&.code, 32 as u8)
@@ -139,14 +139,14 @@ CCodeGen :: struct {
         vec_push_str(&.code, Str.of(";\n"))
     }
 
-    expr :: (e Str) {
+    expr :: fn(e Str) {
         if e.len == 0 { ret }
         .indent_line()
         vec_push_str(&.code, e)
         vec_push_str(&.code, Str.of(";\n"))
     }
 
-    gen_return :: (val Str, has_val bool) {
+    gen_return :: fn(val Str, has_val bool) {
         .indent_line()
         vec_push_str(&.code, Str.of("return"))
         if has_val and (val.len > 0) {
@@ -156,7 +156,7 @@ CCodeGen :: struct {
         vec_push_str(&.code, Str.of(";\n"))
     }
 
-    start_if :: (cond Str) {
+    start_if :: fn(cond Str) {
         .indent_line()
         vec_push_str(&.code, Str.of("if ("))
         vec_push_str(&.code, cond)
@@ -164,7 +164,7 @@ CCodeGen :: struct {
         .indent = .indent + 1
     }
 
-    else_ :: () {
+    else_ :: fn() {
         if .indent > 0 {
             .indent = .indent - 1
         }
@@ -173,7 +173,7 @@ CCodeGen :: struct {
         .indent = .indent + 1
     }
 
-    start_while :: (cond Str) {
+    start_while :: fn(cond Str) {
         .indent_line()
         vec_push_str(&.code, Str.of("while ("))
         vec_push_str(&.code, cond)
@@ -181,7 +181,7 @@ CCodeGen :: struct {
         .indent = .indent + 1
     }
 
-    end_block :: () {
+    end_block :: fn() {
         if .indent > 0 {
             .indent = .indent - 1
         }
@@ -189,33 +189,33 @@ CCodeGen :: struct {
         vec_push_str(&.code, Str.of("}\n"))
     }
 
-    emit_break :: () {
+    emit_break :: fn() {
         .expr(Str.of("break"))
     }
 
-    emit_cont :: () {
+    emit_cont :: fn() {
         .expr(Str.of("continue"))
     }
 
-    new_tmp :: () u32 {
+    new_tmp :: fn() u32 {
         t := .tmp_id
         .tmp_id = .tmp_id + 1
         t
     }
 
-    tmp_var_name :: (arena &Arena, id u32) Str {
+    tmp_var_name :: fn(arena &Arena, id u32) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.sym(Str.of("_t"), id)
         fmt.as_str()
     }
 
-    new_tmp_var :: (arena &Arena) Str {
+    new_tmp_var :: fn(arena &Arena) Str {
         t := .new_tmp()
         .tmp_var_name(arena, t)
     }
 
-    decl_struct :: (name Str) {
+    decl_struct :: fn(name Str) {
         vec_push_str(&.struct_decls, Str.of("typedef struct "))
         vec_push_str(&.struct_decls, name)
         vec_push_char(&.struct_decls, 32 as u8)
@@ -223,7 +223,7 @@ CCodeGen :: struct {
         vec_push_str(&.struct_decls, Str.of(";\n"))
     }
 
-    def_struct :: (ty_id u32, name Str, body Str) {
+    def_struct :: fn(ty_id u32, name Str, body Str) {
         i: u64 = 0
         while i < .emitted_structs.len {
             if .emitted_structs.get(i) == ty_id {
@@ -242,7 +242,7 @@ CCodeGen :: struct {
         vec_push_str(&.struct_defs, Str.of("};\n\n"))
     }
 
-    define_struct :: (types &TypeStorage, arena &Arena, ty_id u32) {
+    define_struct :: fn(types &TypeStorage, arena &Arena, ty_id u32) {
         i: u64 = 0
         while i < .emitted_structs.len {
             if .emitted_structs.get(i) == ty_id {
@@ -269,7 +269,7 @@ CCodeGen :: struct {
         .def_struct(ty_id, s_name, fmt.as_str())
     }
 
-    define_func_type :: (types &TypeStorage, arena &Arena, ty_id u32) {
+    define_func_type :: fn(types &TypeStorage, arena &Arena, ty_id u32) {
         i: u64 = 0
         while i < .emitted_structs.len {
             if .emitted_structs.get(i) == ty_id {
@@ -307,7 +307,7 @@ CCodeGen :: struct {
         vec_push_str(&.struct_decls, Str.of(");\n"))
     }
 
-    define_enum :: (types &TypeStorage, arena &Arena, ty_id u32) {
+    define_enum :: fn(types &TypeStorage, arena &Arena, ty_id u32) {
         i: u64 = 0
         while i < .emitted_structs.len {
             if .emitted_structs.get(i) == ty_id {
@@ -328,7 +328,7 @@ CCodeGen :: struct {
         vec_push_str(&.struct_decls, Str.of(";\n"))
     }
 
-    define_union :: (types &TypeStorage, arena &Arena, ty_id u32) {
+    define_union :: fn(types &TypeStorage, arena &Arena, ty_id u32) {
         i: u64 = 0
         while i < .emitted_structs.len {
             if .emitted_structs.get(i) == ty_id {
@@ -360,7 +360,7 @@ CCodeGen :: struct {
         vec_push_str(&.struct_defs, Str.of("};\n\n"))
     }
 
-    finish :: (pre Str) Str {
+    finish :: fn(pre Str) Str {
         out := VecU8.new()
 
         vec_push_str(&out, pre)
@@ -384,7 +384,7 @@ CCodeGen :: struct {
         vec_as_str(&out)
     }
 
-    type_str :: (types &TypeStorage, arena &Arena, ty_id u32) Str {
+    type_str :: fn(types &TypeStorage, arena &Arena, ty_id u32) Str {
         .indent
         if ty_id == ty_id_none() {
             print(c"\n[codegen error] missing type\n")
@@ -452,35 +452,35 @@ CCodeGen :: struct {
         Str.empty()
     }
 
-    sym_name :: (arena &Arena, sym_id u32) Str {
+    sym_name :: fn(arena &Arena, sym_id u32) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.sym(Str.of("sym_"), sym_id)
         fmt.as_str()
     }
 
-    method_name :: (arena &Arena, method_id u32) Str {
+    method_name :: fn(arena &Arena, method_id u32) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.sym(Str.of("method_"), method_id)
         fmt.as_str()
     }
 
-    field_name :: (arena &Arena, field_id u32) Str {
+    field_name :: fn(arena &Arena, field_id u32) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.sym(Str.of("_f"), field_id)
         fmt.as_str()
     }
 
-    expr_int :: (arena &Arena, val u32) Str {
+    expr_int :: fn(arena &Arena, val u32) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.uint32(val)
         fmt.as_str()
     }
 
-    expr_str_lit :: (arena &Arena, struct_name Str, ptr_id u32, len_id u32, raw Str) Str {
+    expr_str_lit :: fn(arena &Arena, struct_name Str, ptr_id u32, len_id u32, raw Str) Str {
         .indent
         fmt := Fmt.new(arena)
         if struct_name.len == 0 {
@@ -491,14 +491,14 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
-    expr_char_lit :: (arena &Arena, raw Str) Str {
+    expr_char_lit :: fn(arena &Arena, raw Str) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.wrap(Str.of("((uint8_t)"), raw, Str.of(")"))
         fmt.as_str()
     }
 
-    expr_cstr_lit :: (arena &Arena, raw Str) Str {
+    expr_cstr_lit :: fn(arena &Arena, raw Str) Str {
         .indent
         c_raw := raw
         if (raw.len >= 2) and (*(raw.ptr) == 99) {
@@ -509,7 +509,7 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
-    expr_bool :: (val bool) Str {
+    expr_bool :: fn(val bool) Str {
         .indent
         if val {
             ret Str.of("true")
@@ -517,56 +517,56 @@ CCodeGen :: struct {
         Str.of("false")
     }
 
-    expr_assign :: (arena &Arena, lhs Str, rhs Str) Str {
+    expr_assign :: fn(arena &Arena, lhs Str, rhs Str) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.str(lhs).cstr(c" = ").str(rhs)
         fmt.as_str()
     }
 
-    expr_binary :: (arena &Arena, op Str, lhs Str, rhs Str) Str {
+    expr_binary :: fn(arena &Arena, op Str, lhs Str, rhs Str) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.binary(op, lhs, rhs)
         fmt.as_str()
     }
 
-    expr_unary :: (arena &Arena, op Str, inner Str) Str {
+    expr_unary :: fn(arena &Arena, op Str, inner Str) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.char(40 as u8).str(op).char(40 as u8).str(inner).cstr(c"))")
         fmt.as_str()
     }
 
-    expr_str_deref :: (arena &Arena, inner Str, ptr_id u32) Str {
+    expr_str_deref :: fn(arena &Arena, inner Str, ptr_id u32) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.cstr(c"(*(").str(inner).cstr(c"._f").uint32(ptr_id).cstr(c"))")
         fmt.as_str()
     }
 
-    expr_cast :: (arena &Arena, ty_str Str, inner Str) Str {
+    expr_cast :: fn(arena &Arena, ty_str Str, inner Str) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.cstr(c"((").str(ty_str).cstr(c")").str(inner).char(41 as u8)
         fmt.as_str()
     }
 
-    expr_call :: (arena &Arena, callee Str, args Str) Str {
+    expr_call :: fn(arena &Arena, callee Str, args Str) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.str(callee).char(40 as u8).str(args).char(41 as u8)
         fmt.as_str()
     }
 
-    expr_self_member :: (arena &Arena, field_id u32) Str {
+    expr_self_member :: fn(arena &Arena, field_id u32) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.cstr(c"(_self->_f").uint32(field_id).char(41 as u8)
         fmt.as_str()
     }
 
-    expr_member :: (arena &Arena, lhs Str, depth u32, field_id u32) Str {
+    expr_member :: fn(arena &Arena, lhs Str, depth u32, field_id u32) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.char(40 as u8)
@@ -585,7 +585,7 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
-    expr_receiver :: (arena &Arena, recv_str Str, depth u32, is_lval bool, ty_str Str) Str {
+    expr_receiver :: fn(arena &Arena, recv_str Str, depth u32, is_lval bool, ty_str Str) Str {
         .indent
         fmt := Fmt.new(arena)
         if depth > 0 {
@@ -603,21 +603,21 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
-    expr_struct_init_field :: (arena &Arena, field_id u32, val_str Str) Str {
+    expr_struct_init_field :: fn(arena &Arena, field_id u32, val_str Str) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.cstr(c"._f").uint32(field_id).cstr(c" = ").str(val_str)
         fmt.as_str()
     }
 
-    expr_struct_init :: (arena &Arena, struct_name Str, fields_body Str) Str {
+    expr_struct_init :: fn(arena &Arena, struct_name Str, fields_body Str) Str {
         .indent
         fmt := Fmt.new(arena)
         fmt.cstr(c"((").str(struct_name).cstr(c"){").str(fields_body).cstr(c"})")
         fmt.as_str()
     }
 
-    binary_op :: (kind HirExprKind) Str {
+    binary_op :: fn(kind HirExprKind) Str {
         .indent
         k := hir_kind
         if kind == k.binary_add     { ret Str.of(" + ") }
@@ -642,18 +642,18 @@ CCodeGen :: struct {
     }
 }
 
-CCodeGen_finish :: (self &CCodeGen, pre Str) Str {
+CCodeGen_finish :: fn(self &CCodeGen, pre Str) Str {
     self.finish(pre)
 }
 
-CCodeGen_new :: () CCodeGen {
+CCodeGen_new :: fn() CCodeGen {
     CCodeGen.new()
 }
 
-CCodeGen_destroy :: (self &CCodeGen) {
+CCodeGen_destroy :: fn(self &CCodeGen) {
     self.destroy()
 }
 
-CCodeGen_abyss_main :: (self &CCodeGen, sym_id u32) {
+CCodeGen_abyss_main :: fn(self &CCodeGen, sym_id u32) {
     self.abyss_main(sym_id)
 }

@@ -1,29 +1,29 @@
 import Vec from "std/collections/vec.a"
 
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
-print_i32 :: (v i32) unit
-print_bool :: (v bool) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
+print_i32 :: fn(v i32) unit
+print_bool :: fn(v bool) unit
 
-Maybe :: (T type) type { T | bool }
+Maybe :: fn(T type) type { T | bool }
 
-Box :: (T type) type {
+Box :: fn(T type) type {
     struct {
         value: T | bool
 
-        new :: (value T | bool) Self { .{ value: value } }
-        get :: () T | bool { .value }
+        new :: fn(value T | bool) Self { .{ value: value } }
+        get :: fn() T | bool { .value }
     }
 }
 
-maybe :: (T type, value T, yes bool) T | bool {
+maybe :: fn(T type, value T, yes bool) T | bool {
     if yes { value } else { false }
 }
 
-explicit :: (T type, value T | bool) T | bool { value }
-identity :: (T type, value T) T { value }
+explicit :: fn(T type, value T | bool) T | bool { value }
+identity :: fn(T type, value T) T { value }
 
-main :: () {
+main :: fn() {
     a := maybe(u32, 42 as u32, true)
     b := maybe(i32, -7 as i32, true)
     c := maybe(u32, 99 as u32, false)

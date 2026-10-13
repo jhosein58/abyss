@@ -12,10 +12,10 @@ import synth_type_node from "var.a"
 import check_value from "common.a"
 import synth_node from "../tyck.a"
 
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
 
-method_has_explicit_self :: (db &Nexus, method u32) bool {
+method_has_explicit_self :: fn(db &Nexus, method u32) bool {
     tbl := &(*db).hir
     func_node := (tbl).extra(method)
     if func_node == hir_none() { ret false }
@@ -31,7 +31,7 @@ method_has_explicit_self :: (db &Nexus, method u32) bool {
     name.eq(Str.of("self"))
 }
 
-method_has_receiver :: (db &Nexus, method u32) bool {
+method_has_receiver :: fn(db &Nexus, method u32) bool {
     if method_has_explicit_self(db, method) {
         ret true
     }
@@ -47,7 +47,7 @@ method_has_receiver :: (db &Nexus, method u32) bool {
     false
 }
 
-synth_func :: (eng &Engine, id u32) {
+synth_func :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     unify_ptr := &(*db).unify
@@ -198,7 +198,7 @@ synth_func :: (eng &Engine, id u32) {
     }
 }
 
-find_enclosing_method :: (db &Nexus, node_id u32) u32 {
+find_enclosing_method :: fn(db &Nexus, node_id u32) u32 {
     owner := db.get_method_owner(node_id)
     if owner == hir_none() { ret hir_none() }
     methods_id := (&(*db).hir).extra(owner)
@@ -222,7 +222,7 @@ find_enclosing_method :: (db &Nexus, node_id u32) u32 {
     hir_none()
 }
 
-method_returns_ref_self :: (db &Nexus, node_id u32) bool {
+method_returns_ref_self :: fn(db &Nexus, node_id u32) bool {
     owner := db.get_method_owner(node_id)
     if owner == hir_none() { ret false }
     owner_ty := db.get_const_type(owner)
@@ -249,7 +249,7 @@ method_returns_ref_self :: (db &Nexus, node_id u32) bool {
     (&(*types)).payload(ret_ty) == owner_ty
 }
 
-synth_return :: (db &Nexus, tbl &HirTable, id u32) {
+synth_return :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -285,7 +285,7 @@ synth_return :: (db &Nexus, tbl &HirTable, id u32) {
     }
 }
 
-specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &VecU32) u32 {
+specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args &VecU32) u32 {
     db := &(*eng).nexus
     tbl := &(*db).hir
     types_ptr := &(*db).types
@@ -469,7 +469,7 @@ specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &
     ty_id_none()
 }
 
-specialize_type_node :: (eng &Engine, ty_node u32, fn_params SliceU32, concrete_args &VecU32) u32 {
+specialize_type_node :: fn(eng &Engine, ty_node u32, fn_params SliceU32, concrete_args &VecU32) u32 {
     params_vec := VecU32.new()
     params_vec.extend(fn_params.ptr, fn_params.len)
     result := specialize_type_node_inner(eng, ty_node, params_vec.as_slice(), concrete_args)
@@ -477,7 +477,7 @@ specialize_type_node :: (eng &Engine, ty_node u32, fn_params SliceU32, concrete_
     result
 }
 
-specialize_type_node_inner :: (eng &Engine, ty_node u32, fn_params SliceU32, concrete_args &VecU32) u32 {
+specialize_type_node_inner :: fn(eng &Engine, ty_node u32, fn_params SliceU32, concrete_args &VecU32) u32 {
     if ty_node == hir_none() { ret ty_id_none() }
     db := &(*eng).nexus
     tbl := &(*db).hir
@@ -597,7 +597,7 @@ specialize_type_node_inner :: (eng &Engine, ty_node u32, fn_params SliceU32, con
     synth_type_node(eng, ty_node)
 }
 
-instantiate_type :: (eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU32) u32 {
+instantiate_type :: fn(eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU32) u32 {
     if ty == ty_id_none() { ret ty_id_none() }
     db := &(*eng).nexus
     types := &(*db).types
@@ -707,7 +707,7 @@ instantiate_type :: (eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU3
     ty
 }
 
-resolve_ty_id :: (eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty u32) u32 {
+resolve_ty_id :: fn(eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty u32) u32 {
     db := &(*eng).nexus
     k := ty_kind()
     kind := (&(*types)).kind(ty)
@@ -798,7 +798,7 @@ resolve_ty_id :: (eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty u
     ty
 }
 
-synth_call :: (eng &Engine, id u32) {
+synth_call :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     unify_ptr := &(*db).unify

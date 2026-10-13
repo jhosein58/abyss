@@ -4,7 +4,7 @@ import VecStr from "vec/str.a"
 import U32_size, U32_MAX from "primitive/u32.a"
 import malloc, free, mem_set from "mem.a"
 
-intern_none :: () u32 {
+intern_none :: fn() u32 {
     U32_MAX()
 }
 
@@ -15,11 +15,11 @@ Interner :: struct {
     cap     : u64,
     count   : u64,
 
-    new :: () Self {
+    new :: fn() Self {
         Self.with_cap(64)
     }
 
-    with_cap :: (initial_cap u64) Self {
+    with_cap :: fn(initial_cap u64) Self {
         cap := initial_cap
         if cap < 64 {
             cap = 64
@@ -38,7 +38,7 @@ Interner :: struct {
         }
     }
 
-    destroy :: () {
+    destroy :: fn() {
         .strings.destroy()
         free(.table as &u8)
 
@@ -47,7 +47,7 @@ Interner :: struct {
         .count = 0
     }
 
-    grow :: () {
+    grow :: fn() {
         old_cap := .cap
         old_table := .table
 
@@ -81,7 +81,7 @@ Interner :: struct {
         .cap = new_cap
     }
 
-    intern :: (s Str) u32 {
+    intern :: fn(s Str) u32 {
         if (.count + 1) * 10 >= .cap * 7 {
             .grow()
         }
@@ -114,11 +114,11 @@ Interner :: struct {
         empty
     }
 
-    get :: (id u32) Str {
+    get :: fn(id u32) Str {
         .strings.get(id as u64)
     }
 
-    len :: () u64 {
+    len :: fn() u64 {
         .strings.len
     }
 }

@@ -1,2 +1,2 @@
-Maybe :: (T type) type { T | bool }
-main :: () { x: Maybe() = true }
+Maybe :: fn(T type) type { T | bool }
+main :: fn() { x: Maybe() = true }

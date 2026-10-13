@@ -1,20 +1,20 @@
-print :: (s &u8) unit
-print_u32 :: (v u32) unit
-print_i32 :: (v i32) unit
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
+print_i32 :: fn(v i32) unit
 
-Node :: (T type) type {
+Node :: fn(T type) type {
     struct {
         value: T,
         next: &Node(T)
 
-        get :: () T { .value }
+        get :: fn() T { .value }
         extra: u32
     }
 }
 
-identity :: (T type, value T) T { value }
+identity :: fn(T type, value T) T { value }
 
-main :: () {
+main :: fn() {
     tail: Node(u32) = .{ value: 42, next: 0 as &Node(u32), extra: 1 }
     head: Node() = .{ value: 11, next: &tail, extra: 2 }
     other: Node() = .{ value: -7, next: 0 as &Node(i32), extra: 3 }
