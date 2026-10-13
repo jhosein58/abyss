@@ -10,18 +10,6 @@ import span_of_hir, set_span from "common.a"
 import parse_ident from "ident.a"
 import parse_expr from "../parser.a"
 
-ensure_unique_field :: (p &Parser, fields &VecU32, field u32) {
-    name_id := ((*p).hir).lhs(field)
-    i: u64 = 0
-    while i < (*fields).len {
-        previous := fields.get(i)
-        if ((*p).hir).lhs(previous) == name_id {
-            parse_error_at(p, c"duplicate field name", span_of_hir(p, field))
-        }
-        i = i + 1
-    }
-}
-
 parse_struct :: (p &Parser) u32 {
     t := token
     k := hir_kind
@@ -34,7 +22,6 @@ parse_struct :: (p &Parser) u32 {
     names := VecU32.new()
     types := VecU32.new()
     methods := VecU32.new()
-    method_names := VecU32.new()
     if (*p).inside_method {
         parse_error_at(p, c"nested struct declarations inside methods are not supported", sp_start)
     }
@@ -48,8 +35,6 @@ parse_struct :: (p &Parser) u32 {
         if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
 
         name := parse_ident(p)
-        ensure_unique_field(p, &names, name)
-        ensure_unique_field(p, &method_names, name)
         if peek(p) == t.colon_colon {
             if struct_node == id_none() {
                 ptr_n := 0 as &u32
@@ -88,7 +73,6 @@ parse_struct :: (p &Parser) u32 {
             method := ((*p).hir).push(k.binding, name, hir_none(), func)
             set_span(p, method, span_merge(span_of_hir(p, name), span_of_hir(p, func)))
             methods.push(method)
-            method_names.push(name)
             if peek(p) == t.comma { bump(p) }
             cont
         }
@@ -147,7 +131,6 @@ parse_struct :: (p &Parser) u32 {
 
     names.destroy()
     types.destroy()
-    method_names.destroy()
 
     i: u64 = 0
     while i < methods.len {
@@ -178,7 +161,6 @@ parse_struct_init :: (p &Parser) u32 {
         if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
 
         f := parse_ident(p)
-        ensure_unique_field(p, &fields, f)
         expect(p, t.colon)
         v := parse_expr(p, prec().var_def + (1 as u8))
 

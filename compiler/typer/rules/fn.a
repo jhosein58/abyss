@@ -169,6 +169,21 @@ synth_func :: (eng &Engine, id u32) {
     }
     db.set_const_type(id, func_ty)
 
+    if body_id != hir_none() {
+        scan := id + 1
+        while scan <= body_id {
+            if (tbl).kind(scan) == hir_kind.function {
+                inner_body := (tbl).extra(scan)
+                if inner_body != hir_none() {
+                    scan = inner_body
+                }
+            } else if ((tbl).kind(scan) == hir_kind.k_ret) and ((tbl).rhs(scan) == hir_none()) {
+                (tbl).set_rhs(scan, id)
+            }
+            scan = scan + 1
+        }
+    }
+
     sym_id := db.get_hir_symbol(id)
     if sym_id != id_none() {
         sym_hir := db.get_sym_hir(sym_id)

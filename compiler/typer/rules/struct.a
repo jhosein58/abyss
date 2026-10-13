@@ -35,6 +35,17 @@ synth_struct :: (eng &Engine, id u32) {
 
         name_id := (tbl).lhs(name_node)
 
+        j: u64 = 0
+        while j < fields_vec.len {
+            if fields_vec.get(j) == name_id {
+                print(c"\n\033[1;31m[type error]\033[0m duplicate field name\n       --> ")
+                db.print_loc(name_node)
+                print(c"\n")
+                fall()
+            }
+            j = j + 2
+        }
+
         ty_val := db.get_const_type(type_node)
         if ty_val == ty_id_none() {
             ty_val = synth_type_node(eng, type_node)
@@ -122,6 +133,17 @@ synth_struct_init :: (db &Nexus, tbl &HirTable, id u32) {
         v_node := *(vals.ptr + i)
 
         name_id := (tbl).lhs(f_node)
+
+        j: u64 = 0
+        while j < fields_vec.len {
+            if fields_vec.get(j) == name_id {
+                print(c"\n\033[1;31m[type error]\033[0m duplicate field name\n       --> ")
+                db.print_loc(f_node)
+                print(c"\n")
+                fall()
+            }
+            j = j + 2
+        }
 
         v_slot := (unify_ptr).get_slot(v_node)
         if v_slot == slot_none() {
