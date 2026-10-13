@@ -2,9 +2,10 @@ import token, TokenStream from "token.a"
 import lex from "lexer.a"
 import Nexus from "nexus/nexus.a"
 import Str from "../std/string.a"
+import Path from "../std/path.a"
 import Arena from "../std/allocator.a"
 import read_file from "../std/fs.a"
-import VecU32 from "../std/vec/u32.a"
+import Vec from "../std/collections/vec.a"
 import id_none from "nexus/pool.a"
 import fall from "../std/sys.a"
 import embedded_source from "embedded.a"
@@ -20,171 +21,21 @@ index_error :: fn(path Str, msg &u8) {
     fall()
 }
 
-
-trim_quotes :: fn(s Str) Str {
-    if s.len >= 2 {
-        first := *(s.ptr)
-        last := *(s.ptr + s.len - 1)
-        if (first == 34 as u8) and (last == 34 as u8) {
-            ret .{
-                ptr: s.ptr + 1,
-                len: s.len - 2
-            }
-        }
-    }
-    s
-}
-
-path_resolve :: fn(arena &Arena, base Str, rel Str) Str {
-    dir_len: u64 = 0
-    if base.len > 0 {
-        idx := base.len
-        while idx > 0 {
-            idx = idx - 1
-            if *(base.ptr + idx) == 47 as u8 { -- '/'
-                dir_len = idx
-                break
-            }
-        }
-    }
-
-    combined_len := rel.len
-    if dir_len > 0 {
-        combined_len = dir_len + 1 + rel.len
-    }
-
-    comb_buf := arena.alloc(combined_len + 1)
-    if dir_len > 0 {
-        i: u64 = 0
-        while i < dir_len {
-            *(comb_buf + i) = *(base.ptr + i)
-            i = i + 1
-        }
-        *(comb_buf + dir_len) = 47 as u8
-        j: u64 = 0
-        while j < rel.len {
-            *(comb_buf + dir_len + 1 + j) = *(rel.ptr + j)
-            j = j + 1
-        }
-    } else {
-        i: u64 = 0
-        while i < rel.len {
-            *(comb_buf + i) = *(rel.ptr + i)
-            i = i + 1
-        }
-    }
-
-    combined: Str = .{ ptr: comb_buf, len: combined_len }
-
-    seg_starts := VecU32.new()
-    seg_lens   := VecU32.new()
-
-    c_i: u64 = 0
-    seg_start: u64 = 0
-    while c_i <= combined.len {
-        is_end := c_i == combined.len
-        is_slash := false
-        if not is_end {
-            if *(combined.ptr + c_i) == 47 as u8 { is_slash = true }
-        }
-
-        if is_end or is_slash {
-            s_len := c_i - seg_start
-            if s_len > 0 {
-                is_dot := (s_len == 1) and (*(combined.ptr + seg_start) == 46 as u8)
-                is_dotdot := (s_len == 2) and (*(combined.ptr + seg_start) == 46 as u8) and (*(combined.ptr + seg_start + 1) == 46 as u8)
-
-                if is_dot {
-                } else if is_dotdot {
-                    if seg_starts.len > 0 {
-                        last_idx := seg_starts.len - 1
-                        top_start := seg_starts.get(last_idx) as u64
-                        top_len   := seg_lens.get(last_idx) as u64
-                        top_is_dotdot := (top_len == 2) and (*(combined.ptr + top_start) == 46 as u8) and (*(combined.ptr + top_start + 1) == 46 as u8)
-                        if top_is_dotdot {
-                            seg_starts.push(seg_start as u32)
-                            seg_lens.push(s_len as u32)
-                        } else {
-                            seg_starts.len = seg_starts.len - 1
-                            seg_lens.len = seg_lens.len - 1
-                        }
-                    } else {
-                        seg_starts.push(seg_start as u32)
-                        seg_lens.push(s_len as u32)
-                    }
-                } else {
-                    seg_starts.push(seg_start as u32)
-                    seg_lens.push(s_len as u32)
-                }
-            }
-            seg_start = c_i + 1
-        }
-        c_i = c_i + 1
-    }
-
-    is_absolute := (combined.len > 0) and (*(combined.ptr) == 47 as u8)
-    final_len: u64 = 0
-    if is_absolute {
-        final_len = 1
-    }
-    k_i: u64 = 0
-    while k_i < seg_starts.len {
-        final_len = final_len + (seg_lens.get(k_i) as u64)
-        if (k_i + 1) < seg_starts.len {
-            final_len = final_len + 1
-        }
-        k_i = k_i + 1
-    }
-
-    out_buf := arena.alloc(final_len + 1)
-    write_pos: u64 = 0
-    if is_absolute {
-        *(out_buf) = 47 as u8
-        write_pos = 1
-    }
-    k_i = 0
-    while k_i < seg_starts.len {
-        s_off := seg_starts.get(k_i) as u64
-        s_len := seg_lens.get(k_i) as u64
-        cp_i: u64 = 0
-        while cp_i < s_len {
-            *(out_buf + write_pos) = *(combined.ptr + s_off + cp_i)
-            write_pos = write_pos + 1
-            cp_i = cp_i + 1
-        }
-        if (k_i + 1) < seg_starts.len {
-            *(out_buf + write_pos) = 47 as u8
-            write_pos = write_pos + 1
-        }
-        k_i = k_i + 1
-    }
-    *(out_buf + write_pos) = 0 as u8
-
-    seg_starts.destroy()
-    seg_lens.destroy()
-
-    .{ ptr: out_buf, len: final_len }
-}
-
 is_embedded_path :: fn(path Str) bool {
-    if path.len < 4 { ret false }
-    if path.sub(0, 4).eq(Str.of("std/")) { ret true }
-    if path.len < 5 { ret false }
-    path.sub(0, 5).eq(Str.of("core/"))
+    path.starts_with(Str.of("std/")) or path.starts_with(Str.of("core/"))
 }
 
 module_path :: fn(arena &Arena, base Str, path Str) Str {
     rel := path
-    while rel.len >= 3 {
-        if not rel.sub(0, 3).eq(Str.of("../")) { break }
+    while rel.starts_with(Str.of("../")) {
         rel = rel.sub(3, rel.len - 3)
     }
-    target := Str.empty()
     embedded := is_embedded_path(rel) or is_embedded_path(base)
+    target := Str.empty()
     if is_embedded_path(rel) {
-        target = path_resolve(arena, Str.empty(), rel)
+        target = Path.resolve(arena, Str.empty(), rel)
     } else {
-        target = path_resolve(arena, base, path)
+        target = Path.resolve(arena, base, path)
     }
     if embedded and (not is_embedded_path(target)) {
         index_error(path, c"embedded import escapes library root")
@@ -192,303 +43,256 @@ module_path :: fn(arena &Arena, base Str, path Str) Str {
     target
 }
 
-resolve_and_load_file :: fn(
-    db              &Nexus,
-    arena           &Arena,
-    curr_path       Str,
-    import_path     Str,
-    loaded_paths    &VecU32,
-    queue_fids      &VecU32,
-    queue_tok_start &VecU32,
-    queue_tok_end   &VecU32
-) u32 {
-    target_path := module_path(arena, curr_path, import_path)
-    path_id := db.interner.intern(target_path)
+Indexer :: struct {
+    db              &Nexus
+    arena           &Arena
+    loaded_paths    Vec(u32)
+    queue_fids      Vec(u32)
+    queue_tok_start Vec(u32)
+    queue_tok_end   Vec(u32)
+    pending_imports Vec(u32)
 
-    i: u64 = 0
-    while i < (*loaded_paths).len {
-        if loaded_paths.get(i) == path_id {
-            ret i as u32
+    new :: fn(db &Nexus, arena &Arena) Self {
+        .{
+            db              : db,
+            arena           : arena,
+            loaded_paths    : Vec(u32).new(),
+            queue_fids      : Vec(u32).new(),
+            queue_tok_start : Vec(u32).new(),
+            queue_tok_end   : Vec(u32).new(),
+            pending_imports : Vec(u32).new()
         }
-        i = i + 1
     }
 
-    source := Str.empty()
-    if is_embedded_path(target_path) {
-        source = embedded_source(target_path)
-        if source.ptr == (0 as &u8) {
-            index_error(target_path, c"embedded module not found")
+    destroy :: fn() {
+        .loaded_paths.destroy()
+        .queue_fids.destroy()
+        .queue_tok_start.destroy()
+        .queue_tok_end.destroy()
+        .pending_imports.destroy()
+    }
+
+    resolve_and_load :: fn(curr_path Str, import_path Str) u32 {
+        db := .db
+        target_path := module_path(.arena, curr_path, import_path)
+        path_id := db.interner.intern(target_path)
+
+        i: u64 = 0
+        while i < .loaded_paths.len {
+            if .loaded_paths.get(i) == path_id {
+                ret i as u32
+            }
+            i = i + 1
         }
-    } else {
-        source = read_file(arena, target_path.ptr)
-    }
-    fid := db.add_file(target_path, source)
-    while (*loaded_paths).len < (fid as u64) {
-        loaded_paths.push(id_none())
-    }
-    loaded_paths.push(path_id)
-    tok_start := db.tokens.count() as u32
-    lex(&(*db).tokens, source, target_path)
-    tok_end := db.tokens.count() as u32
 
-    queue_fids.push(fid)
-    queue_tok_start.push(tok_start)
-    queue_tok_end.push(tok_end)
-
-    fid
-}
-
-scan_file_symbols :: fn(
-    db              &Nexus,
-    arena           &Arena,
-    file_id         u32,
-    curr_path       Str,
-    start_tok       u32,
-    end_tok         u32,
-    loaded_paths    &VecU32,
-    queue_fids      &VecU32,
-    queue_tok_start &VecU32,
-    queue_tok_end   &VecU32,
-    pending_imports &VecU32
-) {
-    t := token
-    cursor := start_tok
-    depth: u32 = 0
-
-    has_sym := false
-    curr_sym_name: u32 = 0
-    curr_sym_tok:  u32 = 0
-
-    while cursor < end_tok {
-        tk := db.tokens.kind(cursor)
-        tk_text := db.tokens.text(cursor)
-
-        if (tk == t.o_brace) or (tk == t.o_paren) {
-            depth = depth + 1
-        } else if (tk == t.c_brace) or (tk == t.c_paren) {
-            if depth > 0 {
-                depth = depth - 1
+        source := Str.empty()
+        if is_embedded_path(target_path) {
+            source = embedded_source(target_path)
+            if source.ptr == (0 as &u8) {
+                index_error(target_path, c"embedded module not found")
             }
-        } else if (depth == 0) and (tk_text.eq(Str.of("import"))) {
-            if has_sym {
-                db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
-                has_sym = false
-            }
+        } else {
+            source = read_file(.arena, target_path.ptr)
+        }
 
-            scan := cursor + 1
-            imported_names := VecU32.new()
-            local_names := VecU32.new()
+        fid := db.add_file(target_path, source)
+        while .loaded_paths.len < (fid as u64) {
+            .loaded_paths.push(id_none())
+        }
+        .loaded_paths.push(path_id)
 
-            while scan < end_tok {
-                if db.tokens.kind(scan) != t.ident {
-                    index_error(curr_path, c"expected import name")
+        tok_start := db.tokens.count() as u32
+        lex(&(*db).tokens, source, target_path)
+        tok_end := db.tokens.count() as u32
+
+        .queue_fids.push(fid)
+        .queue_tok_start.push(tok_start)
+        .queue_tok_end.push(tok_end)
+
+        fid
+    }
+
+    scan_symbols :: fn(file_id u32, curr_path Str, start_tok u32, end_tok u32) {
+        db := .db
+        t := token
+        cursor := start_tok
+        depth: u32 = 0
+
+        has_sym := false
+        curr_sym_name: u32 = 0
+        curr_sym_tok:  u32 = 0
+
+        while cursor < end_tok {
+            tk := db.tokens.kind(cursor)
+
+            if (tk == t.o_brace) or (tk == t.o_paren) {
+                depth = depth + 1
+            } else if (tk == t.c_brace) or (tk == t.c_paren) {
+                if depth > 0 {
+                    depth = depth - 1
                 }
-                name_id := db.interner.intern(db.tokens.text(scan))
-                imported_names.push(name_id)
-                scan = scan + 1
-                local_id := name_id
-                if (scan < end_tok) and (db.tokens.kind(scan) == t.kw_as) {
-                    scan = scan + 1
-                    if (scan >= end_tok) or (db.tokens.kind(scan) != t.ident) {
-                        index_error(curr_path, c"expected import alias after 'as'")
+            } else if (depth == 0) and (tk == t.kw_import) {
+                if has_sym {
+                    db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
+                    has_sym = false
+                }
+
+                scan := cursor + 1
+                imported_names := Vec(u32).new()
+                local_names := Vec(u32).new()
+
+                while scan < end_tok {
+                    if db.tokens.kind(scan) != t.ident {
+                        index_error(curr_path, c"expected import name")
                     }
-                    local_id = db.interner.intern(db.tokens.text(scan))
+                    name_id := db.interner.intern(db.tokens.text(scan))
+                    imported_names.push(name_id)
+                    scan = scan + 1
+                    local_id := name_id
+                    if (scan < end_tok) and (db.tokens.kind(scan) == t.kw_as) {
+                        scan = scan + 1
+                        if (scan >= end_tok) or (db.tokens.kind(scan) != t.ident) {
+                            index_error(curr_path, c"expected import alias after 'as'")
+                        }
+                        local_id = db.interner.intern(db.tokens.text(scan))
+                        scan = scan + 1
+                    }
+                    local_names.push(local_id)
+                    if (scan < end_tok) and (db.tokens.kind(scan) == t.kw_from) {
+                        scan = scan + 1
+                        break
+                    }
+                    if (scan >= end_tok) or (db.tokens.kind(scan) != t.comma) {
+                        index_error(curr_path, c"expected ',' or 'from' after import name")
+                    }
                     scan = scan + 1
                 }
-                local_names.push(local_id)
-                if (scan < end_tok) and db.tokens.text(scan).eq(Str.of("from")) {
-                    scan = scan + 1
-                    break
-                }
-                if (scan >= end_tok) or (db.tokens.kind(scan) != t.comma) {
-                    index_error(curr_path, c"expected ',' or 'from' after import name")
-                }
-                scan = scan + 1
-            }
 
-            if (scan >= end_tok) or (imported_names.len == 0) {
-                index_error(curr_path, c"expected names, 'from', and a quoted path")
-            }
-            if db.tokens.kind(scan) != t.lit_str {
-                index_error(curr_path, c"expected quoted import path")
-            }
-            if scan < end_tok {
+                if (scan >= end_tok) or (imported_names.len == 0) {
+                    index_error(curr_path, c"expected names, 'from', and a quoted path")
+                }
+                if db.tokens.kind(scan) != t.lit_str {
+                    index_error(curr_path, c"expected quoted import path")
+                }
+
                 raw_path := db.tokens.text(scan)
-                path_str := trim_quotes(raw_path)
+                path_str := raw_path.trim_quotes()
 
-                target_fid := resolve_and_load_file(
-                    db, arena, curr_path, path_str,
-                    loaded_paths, queue_fids, queue_tok_start, queue_tok_end
-                )
+                target_fid := .resolve_and_load(curr_path, path_str)
 
                 n_i: u64 = 0
                 while n_i < imported_names.len {
-                    nid := imported_names.get(n_i)
-                    pending_imports.push(file_id)
-                    pending_imports.push(local_names.get(n_i))
-                    pending_imports.push(nid)
-                    pending_imports.push(target_fid)
+                    .pending_imports.push(file_id)
+                    .pending_imports.push(local_names.get(n_i))
+                    .pending_imports.push(imported_names.get(n_i))
+                    .pending_imports.push(target_fid)
                     n_i = n_i + 1
                 }
                 imported_names.destroy()
                 local_names.destroy()
                 cursor = scan + 1
                 cont
-            }
-            imported_names.destroy()
-            local_names.destroy()
-        } else if (depth == 0) and (tk == t.ident) {
-            if (cursor + 1) < end_tok {
-                next_tk := db.tokens.kind(cursor + 1)
-                if next_tk == t.colon_colon {
-                    if (cursor + 2) < end_tok {
-                        c2_text := db.tokens.text(cursor + 2)
-                        if c2_text.eq(Str.of("import")) {
-                            if (cursor + 5 >= end_tok) or
-                               (db.tokens.kind(cursor + 3) != t.ident) or
-                               (not db.tokens.text(cursor + 4).eq(Str.of("from"))) or
-                               (db.tokens.kind(cursor + 5) != t.lit_str) {
-                                index_error(curr_path, c"malformed symbol import")
-                            }
-                            if has_sym {
-                                db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
-                                has_sym = false
-                            }
-
-                            loc_str := db.tokens.text(cursor)
-                            loc_name := db.interner.intern(loc_str)
-
-                            rem_str := db.tokens.text(cursor + 3)
-                            rem_name := db.interner.intern(rem_str)
-
-                            raw_path := db.tokens.text(cursor + 5)
-                            path_str := trim_quotes(raw_path)
-
-                            target_fid := resolve_and_load_file(
-                                db, arena, curr_path, path_str,
-                                loaded_paths, queue_fids, queue_tok_start, queue_tok_end
-                            )
-
-                            pending_imports.push(file_id)
-                            pending_imports.push(loc_name)
-                            pending_imports.push(rem_name)
-                            pending_imports.push(target_fid)
-
-                            cursor = cursor + 6
-                            cont
+            } else if (depth == 0) and (tk == t.ident) {
+                if (cursor + 1) < end_tok {
+                    if db.tokens.kind(cursor + 1) == t.colon_colon {
+                        if has_sym {
+                            db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
                         }
+                        curr_sym_name = db.interner.intern(db.tokens.text(cursor))
+                        curr_sym_tok  = cursor
+                        has_sym = true
+                        cursor = cursor + 1
                     }
-
-                    if has_sym {
-                        db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
-                    }
-
-                    text := db.tokens.text(cursor)
-                    curr_sym_name = db.interner.intern(text)
-                    curr_sym_tok  = cursor
-                    has_sym = true
-
-                    cursor = cursor + 1
                 }
+            }
+
+            cursor = cursor + 1
+        }
+
+        if has_sym {
+            db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, end_tok)
+        }
+    }
+
+    resolve_pending_imports :: fn() {
+        db := .db
+        changed := true
+        while changed {
+            changed = false
+            p_i: u64 = 0
+            while p_i < .pending_imports.len {
+                src_fid := .pending_imports.get(p_i)
+                if src_fid != id_none() {
+                    loc_name := .pending_imports.get(p_i + 1)
+                    imp_name := .pending_imports.get(p_i + 2)
+                    tgt_fid  := .pending_imports.get(p_i + 3)
+
+                    target_sym := db.find_local_symbol(tgt_fid, imp_name)
+                    if target_sym != id_none() {
+                        existing := db.find_local_symbol(src_fid, loc_name)
+                        if (existing != id_none()) and (existing != target_sym) {
+                            index_error(db.get_file_path(src_fid), c"import name conflicts with an existing symbol")
+                        }
+                        if existing == id_none() {
+                            db.alloc_symbol_alias(src_fid, loc_name, target_sym)
+                        }
+                        .pending_imports.set(p_i, id_none())
+                        changed = true
+                    }
+                }
+                p_i = p_i + 4
             }
         }
 
-        cursor = cursor + 1
+        check_i: u64 = 0
+        while check_i < .pending_imports.len {
+            src_fid := .pending_imports.get(check_i)
+            if src_fid != id_none() {
+                name_id := .pending_imports.get(check_i + 2)
+                print(c"\n[import error] symbol not found: ")
+                db.interner.get(name_id).print()
+                print(c"\n")
+                fall()
+            }
+            check_i = check_i + 4
+        }
     }
 
-    if has_sym {
-        db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, end_tok)
+    run :: fn(root_fid u32, root_path Str, start_tok u32, end_tok u32) {
+        db := .db
+        root_path_id := db.interner.intern(root_path)
+        while .loaded_paths.len < (root_fid as u64) {
+            .loaded_paths.push(id_none())
+        }
+        .loaded_paths.push(root_path_id)
+
+        .queue_fids.push(root_fid)
+        .queue_tok_start.push(start_tok)
+        .queue_tok_end.push(end_tok)
+
+        db.core_prelude = .resolve_and_load(Str.empty(), Str.of("core/prelude.a"))
+        db.std_prelude  = .resolve_and_load(Str.empty(), Str.of("std/prelude.a"))
+
+        q_head: u64 = 0
+        while q_head < .queue_fids.len {
+            fid   := .queue_fids.get(q_head)
+            s_tok := .queue_tok_start.get(q_head)
+            e_tok := .queue_tok_end.get(q_head)
+
+            path_id := .loaded_paths.get(fid as u64)
+            c_path  := db.interner.get(path_id)
+
+            .scan_symbols(fid, c_path, s_tok, e_tok)
+
+            q_head = q_head + 1
+        }
+
+        .resolve_pending_imports()
     }
 }
 
 index_file :: fn(db &Nexus, arena &Arena, root_fid u32, root_path Str, start_tok u32, end_tok u32) {
-    loaded_paths    := VecU32.new()
-    queue_fids      := VecU32.new()
-    queue_tok_start := VecU32.new()
-    queue_tok_end   := VecU32.new()
-    pending_imports := VecU32.new()
-
-    root_path_id := db.interner.intern(root_path)
-    while loaded_paths.len < (root_fid as u64) {
-        loaded_paths.push(id_none())
-    }
-    loaded_paths.push(root_path_id)
-
-    queue_fids.push(root_fid)
-    queue_tok_start.push(start_tok)
-    queue_tok_end.push(end_tok)
-
-    db.core_prelude = resolve_and_load_file(
-        db, arena, Str.empty(), Str.of("core/prelude.a"),
-        &loaded_paths, &queue_fids, &queue_tok_start, &queue_tok_end
-    )
-    db.std_prelude = resolve_and_load_file(
-        db, arena, Str.empty(), Str.of("std/prelude.a"),
-        &loaded_paths, &queue_fids, &queue_tok_start, &queue_tok_end
-    )
-
-    q_head: u64 = 0
-    while q_head < queue_fids.len {
-        fid   := queue_fids.get(q_head)
-        s_tok := queue_tok_start.get(q_head)
-        e_tok := queue_tok_end.get(q_head)
-
-        path_id := loaded_paths.get(fid as u64)
-        c_path  := db.interner.get(path_id)
-
-        scan_file_symbols(
-            db, arena, fid, c_path, s_tok, e_tok,
-            &loaded_paths, &queue_fids, &queue_tok_start, &queue_tok_end,
-            &pending_imports
-        )
-
-        q_head = q_head + 1
-    }
-
-    changed := true
-    while changed {
-        changed = false
-        p_i: u64 = 0
-        while p_i < pending_imports.len {
-            src_fid := pending_imports.get(p_i)
-            if src_fid != id_none() {
-                loc_name := pending_imports.get(p_i + 1)
-                imp_name := pending_imports.get(p_i + 2)
-                tgt_fid  := pending_imports.get(p_i + 3)
-
-                target_sym := db.find_local_symbol(tgt_fid, imp_name)
-                if target_sym != id_none() {
-                    existing := db.find_local_symbol(src_fid, loc_name)
-                    if (existing != id_none()) and (existing != target_sym) {
-                        index_error(db.get_file_path(src_fid), c"import name conflicts with an existing symbol")
-                    }
-                    if existing == id_none() {
-                        db.alloc_symbol_alias(src_fid, loc_name, target_sym)
-                    }
-                    pending_imports.set(p_i, id_none())
-                    changed = true
-                }
-            }
-            p_i = p_i + 4
-        }
-    }
-
-    p_i: u64 = 0
-    while p_i < pending_imports.len {
-        src_fid := pending_imports.get(p_i)
-        if src_fid != id_none() {
-            name_id := pending_imports.get(p_i + 2)
-            print(c"\n[import error] symbol not found: ")
-            db.interner.get(name_id).print()
-            print(c"\n")
-            fall()
-        }
-        p_i = p_i + 4
-    }
-
-    loaded_paths.destroy()
-    queue_fids.destroy()
-    queue_tok_start.destroy()
-    queue_tok_end.destroy()
-    pending_imports.destroy()
+    indexer := Indexer.new(db, arena)
+    indexer.run(root_fid, root_path, start_tok, end_tok)
+    indexer.destroy()
 }

@@ -71,4 +71,26 @@ Str :: struct {
 
         true
     }
+
+    starts_with :: fn(prefix Str) bool {
+        if .len < prefix.len { ret false }
+        .sub(0, prefix.len).eq(prefix)
+    }
+
+    ends_with :: fn(suffix Str) bool {
+        if .len < suffix.len { ret false }
+        .sub(.len - suffix.len, suffix.len).eq(suffix)
+    }
+
+    trim_quotes :: fn() Str {
+        if .len >= 2 {
+            if (*(.ptr) == '"') and (*(.ptr + .len - 1) == '"') {
+                ret .sub(1, .len - 2)
+            }
+        }
+        .{
+            ptr: .ptr,
+            len: .len
+        }
+    }
 }
