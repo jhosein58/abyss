@@ -7,13 +7,11 @@ println_i32 :: fn(v i32) {
 }
 
 Point :: struct {
-    x: i32,
-    y: i32
+    x, y i32
 }
 
 Rect :: struct {
-    w: i32,
-    h: i32,
+    w, h i32
 
     area :: fn() i32 {
         .w * .h
@@ -25,7 +23,17 @@ Rect :: struct {
 }
 
 Ops :: struct {
-    op: fn(i32, i32) i32
+    op fn(i32, i32) i32
+}
+
+Item :: struct {
+    a i32
+    b i32
+    c, d i32
+}
+
+Inline :: struct {
+    x i32; y i32
 }
 
 main :: fn() {
@@ -40,4 +48,10 @@ main :: fn() {
     add := fn(a, b i32) i32 { a + b }
     o: Ops = .{ op: add }
     println_i32(o.op(10, 5))
+
+    item: Item = .{ a: 1, b: 2, c: 3, d: 4 }
+    println_i32(item.a + item.b + item.c + item.d)
+
+    inl: Inline = .{ x: 100, y: 200 }
+    println_i32(inl.x + inl.y)
 }

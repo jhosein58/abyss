@@ -1,6 +1,6 @@
 import token from "../../token.a"
 import hir_kind, hir_none from "../../hir.a"
-import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core.a"
+import Parser, bump, optional, expect, peek, peek_n, is_eof, curr_span, prev_span, parse_error_at, peek_preceded_by_newline from "../core.a"
 import VecU32 from "../../../std/vec/u32.a"
 import span_merge from "../../nexus/nexus.a"
 import id_none from "../../nexus/pool.a"
@@ -21,13 +21,14 @@ parse_struct :: fn(p &Parser) u32 {
     names := VecU32.new()
     types := VecU32.new()
     methods := VecU32.new()
+    field_names := VecU32.new()
 
     struct_node := id_none()
     struct_toplv := p.toplv_sym
     p.toplv_sym = id_none()
 
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
-        if peek(p) == t.comma { bump(p) }
+        while (peek(p) == t.semi) or (peek(p) == t.comma) { bump(p) }
         if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
 
         name := parse_ident(p)
@@ -57,21 +58,38 @@ parse_struct :: fn(p &Parser) u32 {
             method := p.hir.push(k.binding, name, hir_none(), func)
             set_span(p, method, span_merge(span_of_hir(p, name), span_of_hir(p, func)))
             methods.push(method)
-            if peek(p) == t.comma { bump(p) }
+
+            has_sep := optional(p, t.semi) or optional(p, t.comma)
+            if (not has_sep) and (not peek_preceded_by_newline(p)) and (peek(p) != t.c_brace) and (peek(p) != t.eof) and (peek_n(p, 1) != t.colon_colon) {
+                parse_error_at(p, c"expected ';' or newline after struct method", curr_span(p))
+            }
             cont
         }
-        if not expect(p, t.colon) {
-            parse_error_at(p, c"expected ':' for a field or '::' for a method", curr_span(p))
+
+        field_names.push(name)
+        while optional(p, t.comma) {
+            field_names.push(parse_ident(p))
         }
+
+        optional(p, t.colon)
         ty := parse_expr(p, prec().var_def + (1 as u8))
         if ty == hir_none() {
-            parse_error_at(p, c"expected a field type after ':'", curr_span(p))
+            parse_error_at(p, c"expected a field type", curr_span(p))
         }
 
-        names.push(name)
-        types.push(ty)
+        f_i: u64 = 0
+        while f_i < field_names.len {
+            f_name := field_names.get(f_i)
+            names.push(f_name)
+            types.push(ty)
+            f_i = f_i + 1
+        }
+        field_names.clear()
 
-        if peek(p) == t.comma { bump(p) }
+        has_sep := optional(p, t.semi) or optional(p, t.comma)
+        if (not has_sep) and (not peek_preceded_by_newline(p)) and (peek(p) != t.c_brace) and (peek(p) != t.eof) and (peek_n(p, 1) != t.colon_colon) {
+            parse_error_at(p, c"expected ';' or newline between struct fields", curr_span(p))
+        }
     }
 
     if is_eof(p) and (peek(p) != t.c_brace) {
@@ -104,6 +122,7 @@ parse_struct :: fn(p &Parser) u32 {
 
     names.destroy()
     types.destroy()
+    field_names.destroy()
 
     i: u64 = 0
     while i < methods.len {
