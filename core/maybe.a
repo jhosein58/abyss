@@ -11,6 +11,7 @@ Maybe :: (T type) type {
         }
         is_some :: () bool { .present }
         is_none :: () bool { not .present }
+        unwrap :: () T { .value }
         unwrap_or :: (fallback T) T {
             if .present { .value } else { fallback }
         }

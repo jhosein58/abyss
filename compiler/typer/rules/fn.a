@@ -402,6 +402,18 @@ specialize_nominal_from_creator :: (eng &Engine, callee_sym u32, concrete_args &
             types_nodes = db.get_list(types_list)
             f_name_node := *(names.ptr + f_i)
             f_name_id := (tbl).lhs(f_name_node)
+
+            chk_i: u64 = 0
+            while chk_i < fields_vec.len {
+                if fields_vec.get(chk_i) == f_name_id {
+                    print(c"\n\033[1;31m[type error]\033[0m duplicate field name\n       --> ")
+                    db.print_loc(f_name_node)
+                    print(c"\n")
+                    fall()
+                }
+                chk_i = chk_i + 2
+            }
+
             f_ty_node := *(types_nodes.ptr + f_i)
             f_ty := specialize_type_node(eng, f_ty_node, fn_params_slice, concrete_args)
             if (f_ty == ty_id_none()) or (f_ty == ty_id_unit()) or (f_ty == ty_id_type()) {

@@ -49,45 +49,42 @@ parse_var_decl :: (p &Parser, lhs u32, right_bp u8) u32 {
 
     sp_lhs := span_of_hir(p, lhs)
 
-    name_id := ((*p).hir).lhs(lhs)
-    sym_id := (*p).db.alloc_local_symbol((*p).file_id, name_id, lhs)
-    ScopeEnv_define(&(*p).env, name_id, sym_id)
+    name_id := p.hir.lhs(lhs)
+    sym_id := p.db.alloc_local_symbol(p.file_id, name_id, lhs)
+    ScopeEnv_define(&p.env, name_id, sym_id)
 
     if optional(p, t.eq) {
         val := parse_expr(p, 0 as u8)
         sp_val := span_of_hir(p, val)
-        var_id := ((*p).hir).push(k.var, lhs, hir_none(), val)
+        var_id := p.hir.push(k.var, lhs, hir_none(), val)
         set_span(p, var_id, span_merge(sp_lhs, sp_val))
-        (*p).db.set_hir_symbol(var_id, sym_id)
+        p.db.set_hir_symbol(var_id, sym_id)
         ret var_id
     }
 
-    prev_in_type := (*p).in_type
-    (*p).in_type = true
     ty := parse_expr(p, prec().var_def + (1 as u8))
-    (*p).in_type = prev_in_type
     sp_end := span_of_hir(p, ty)
 
     if optional(p, t.eq) {
         val := parse_expr(p, 0 as u8)
         sp_end = span_of_hir(p, val)
-        var_id := ((*p).hir).push(k.var, lhs, ty, val)
+        var_id := p.hir.push(k.var, lhs, ty, val)
         set_span(p, var_id, span_merge(sp_lhs, sp_end))
-        (*p).db.set_hir_symbol(var_id, sym_id)
+        p.db.set_hir_symbol(var_id, sym_id)
         ret var_id
     }
 
     if optional(p, t.colon) {
         val := parse_expr(p, 0 as u8)
         sp_end = span_of_hir(p, val)
-        binding_id := ((*p).hir).push(k.binding, lhs, ty, val)
+        binding_id := p.hir.push(k.binding, lhs, ty, val)
         set_span(p, binding_id, span_merge(sp_lhs, sp_end))
-        (*p).db.set_hir_symbol(binding_id, sym_id)
+        p.db.set_hir_symbol(binding_id, sym_id)
         ret binding_id
     }
 
-    var_id := ((*p).hir).push(k.var, lhs, ty, hir_none())
+    var_id := p.hir.push(k.var, lhs, ty, hir_none())
     set_span(p, var_id, span_merge(sp_lhs, sp_end))
-    (*p).db.set_hir_symbol(var_id, sym_id)
+    p.db.set_hir_symbol(var_id, sym_id)
     var_id
 }

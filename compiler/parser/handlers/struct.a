@@ -22,13 +22,10 @@ parse_struct :: (p &Parser) u32 {
     names := VecU32.new()
     types := VecU32.new()
     methods := VecU32.new()
-    if (*p).inside_method {
-        parse_error_at(p, c"nested struct declarations inside methods are not supported", sp_start)
-    }
 
     struct_node := id_none()
-    struct_toplv := (*p).toplv_sym
-    (*p).toplv_sym = id_none()
+    struct_toplv := p.toplv_sym
+    p.toplv_sym = id_none()
 
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
         if peek(p) == t.comma { bump(p) }
@@ -37,40 +34,28 @@ parse_struct :: (p &Parser) u32 {
         name := parse_ident(p)
         if peek(p) == t.colon_colon {
             if struct_node == id_none() {
-                ptr_n := 0 as &u32
-                if names.len > 0 { ptr_n = names.ptr_at(0) }
-                slice_n: SliceU32 = .{ ptr: ptr_n, len: names.len }
+                names_id := p.db.add_list(names.as_slice())
+                types_id := p.db.add_list(types.as_slice())
 
-                ptr_t := 0 as &u32
-                if types.len > 0 { ptr_t = types.ptr_at(0) }
-                slice_t: SliceU32 = .{ ptr: ptr_t, len: types.len }
-
-                names_id := (*p).db.add_list(slice_n)
-                types_id := (*p).db.add_list(slice_t)
-
-                struct_node = ((*p).hir).push(k.struct_, names_id, types_id, hir_none())
+                struct_node = p.hir.push(k.struct_, names_id, types_id, hir_none())
                 if struct_toplv != id_none() {
-                    (*p).db.set_hir_symbol(struct_node, struct_toplv)
+                    p.db.set_hir_symbol(struct_node, struct_toplv)
                 }
             }
 
             bump(p)
-            (*p).db.set_hir_symbol(name, id_none())
-            (*p).method_fn_depth = (*p).fn_stack.len + 1
-            (*p).inside_method = true
+            p.db.set_hir_symbol(name, id_none())
             func := parse_expr(p, prec().const_def)
-            (*p).inside_method = false
-            (*p).method_fn_depth = 0 as u64
             if func == hir_none() {
                 parse_error_at(p, c"expected a method function after '::'", curr_span(p))
             }
-            if ((*p).hir).kind(func) != k.function {
+            if p.hir.kind(func) != k.function {
                 parse_error_at(p, c"struct method must be a function", span_of_hir(p, func))
             }
-            if ((*p).hir).extra(func) == hir_none() {
+            if p.hir.extra(func) == hir_none() {
                 parse_error_at(p, c"struct method requires a body", span_of_hir(p, func))
             }
-            method := ((*p).hir).push(k.binding, name, hir_none(), func)
+            method := p.hir.push(k.binding, name, hir_none(), func)
             set_span(p, method, span_merge(span_of_hir(p, name), span_of_hir(p, func)))
             methods.push(method)
             if peek(p) == t.comma { bump(p) }
@@ -79,10 +64,7 @@ parse_struct :: (p &Parser) u32 {
         if not expect(p, t.colon) {
             parse_error_at(p, c"expected ':' for a field or '::' for a method", curr_span(p))
         }
-        prev_in_type := (*p).in_type
-        (*p).in_type = true
         ty := parse_expr(p, prec().var_def + (1 as u8))
-        (*p).in_type = prev_in_type
         if ty == hir_none() {
             parse_error_at(p, c"expected a field type after ':'", curr_span(p))
         }
@@ -101,33 +83,25 @@ parse_struct :: (p &Parser) u32 {
     sp_end := prev_span(p)
 
     if struct_node == id_none() {
-        ptr_n := 0 as &u32
-        if names.len > 0 { ptr_n = names.ptr_at(0) }
-        slice_n: SliceU32 = .{ ptr: ptr_n, len: names.len }
+        names_id := p.db.add_list(names.as_slice())
+        types_id := p.db.add_list(types.as_slice())
 
-        ptr_t := 0 as &u32
-        if types.len > 0 { ptr_t = types.ptr_at(0) }
-        slice_t: SliceU32 = .{ ptr: ptr_t, len: types.len }
-
-        names_id := (*p).db.add_list(slice_n)
-        types_id := (*p).db.add_list(slice_t)
-
-        struct_node = ((*p).hir).push(k.struct_, names_id, types_id, hir_none())
+        struct_node = p.hir.push(k.struct_, names_id, types_id, hir_none())
         if struct_toplv != id_none() {
-            (*p).db.set_hir_symbol(struct_node, struct_toplv)
+            p.db.set_hir_symbol(struct_node, struct_toplv)
         }
     }
 
-    final_names := (*p).db.add_list(names.as_slice())
-    final_types := (*p).db.add_list(types.as_slice())
-    ((*p).hir).set_lhs(struct_node, final_names)
-    ((*p).hir).set_rhs(struct_node, final_types)
+    final_names := p.db.add_list(names.as_slice())
+    final_types := p.db.add_list(types.as_slice())
+    p.hir.set_lhs(struct_node, final_names)
+    p.hir.set_rhs(struct_node, final_types)
 
     methods_id := hir_none()
     if methods.len > 0 {
-        methods_id = (*p).db.add_list(methods.as_slice())
+        methods_id = p.db.add_list(methods.as_slice())
     }
-    ((*p).hir).set_extra(struct_node, methods_id)
+    p.hir.set_extra(struct_node, methods_id)
 
     names.destroy()
     types.destroy()
@@ -135,9 +109,9 @@ parse_struct :: (p &Parser) u32 {
     i: u64 = 0
     while i < methods.len {
         method := methods.get(i)
-        start := ((*p).hir).lhs(method)
+        start := p.hir.lhs(method)
         while start <= method {
-            (*p).db.set_method_owner(start, struct_node)
+            p.db.set_method_owner(start, struct_node)
             start = start + 1
         }
         i = i + 1
@@ -177,21 +151,13 @@ parse_struct_init :: (p &Parser) u32 {
     expect(p, t.c_brace)
     sp_end := prev_span(p)
 
-    ptr_f := 0 as &u32
-    if fields.len > 0 { ptr_f = fields.ptr_at(0) }
-    slice_f: SliceU32 = .{ ptr: ptr_f, len: fields.len }
-
-    ptr_v := 0 as &u32
-    if values.len > 0 { ptr_v = values.ptr_at(0) }
-    slice_v: SliceU32 = .{ ptr: ptr_v, len: values.len }
-
-    fids := (*p).db.add_list(slice_f)
-    vids := (*p).db.add_list(slice_v)
+    fids := p.db.add_list(fields.as_slice())
+    vids := p.db.add_list(values.as_slice())
 
     fields.destroy()
     values.destroy()
 
-    node := ((*p).hir).push(k.struct_init, fids, vids, hir_none())
+    node := p.hir.push(k.struct_init, fids, vids, hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -204,10 +170,10 @@ parse_member :: (p &Parser, lhs u32, right_bp u8) u32 {
     }
     sp_rhs := span_of_hir(p, rhs)
 
-    if ((*p).hir).kind(rhs) != k.ident {
+    if p.hir.kind(rhs) != k.ident {
         parse_error_at(p, c"member name must be an identifier", sp_rhs)
     }
 
-    node := ((*p).hir).push(k.member, lhs, rhs, hir_none())
+    node := p.hir.push(k.member, lhs, rhs, hir_none())
     set_span(p, node, span_merge(sp_lhs, sp_rhs))
 }

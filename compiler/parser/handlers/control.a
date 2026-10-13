@@ -13,10 +13,7 @@ parse_if :: (p &Parser) u32 {
     sp_start := curr_span(p)
     bump(p)
 
-    prev_allow_fn := (*p).allow_fn
-    (*p).allow_fn = false
     cond := parse_expr(p, 0 as u8)
-    (*p).allow_fn = prev_allow_fn
 
     thenb := parse_expr(p, 0 as u8)
     sp_end := span_of_hir(p, thenb)
@@ -27,7 +24,7 @@ parse_if :: (p &Parser) u32 {
         sp_end = span_of_hir(p, elseb)
     }
 
-    node := ((*p).hir).push(k.k_if, cond, thenb, elseb)
+    node := p.hir.push(k.k_if, cond, thenb, elseb)
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -36,15 +33,12 @@ parse_while :: (p &Parser) u32 {
     sp_start := curr_span(p)
     bump(p)
 
-    prev_allow_fn := (*p).allow_fn
-    (*p).allow_fn = false
     cond := parse_expr(p, 0 as u8)
-    (*p).allow_fn = prev_allow_fn
 
     body := parse_expr(p, 0 as u8)
     sp_end := span_of_hir(p, body)
 
-    node := ((*p).hir).push(k.k_while, cond, body, hir_none())
+    node := p.hir.push(k.k_while, cond, body, hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -98,12 +92,7 @@ parse_return :: (p &Parser) u32 {
         sp_end = span_of_hir(p, val)
     }
 
-    fn_id := hir_none()
-    if not (*p).fn_stack.is_empty() {
-        fn_id = (*p).fn_stack.last()
-    }
-
-    node := ((*p).hir).push(k.k_ret, val, fn_id, hir_none())
+    node := p.hir.push(k.k_ret, val, hir_none(), hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 

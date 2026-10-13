@@ -88,7 +88,6 @@ Engine :: struct {
             parse_error_at(&parser, c"unexpected token after declaration", curr_span(&parser))
         }
         ScopeEnv_destroy(&parser.env)
-        parser.fn_stack.destroy()
 
         hir_end := .nexus.hir.len()
 

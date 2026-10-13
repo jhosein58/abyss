@@ -5,7 +5,7 @@ import is_soft, bp_from_infix from "prec.a"
 import span_merge from "../nexus/nexus.a"
 import id_none from "../nexus/pool.a"
 
-import span_of_hir, set_span, is_dot_continuation from "handlers/common.a"
+import span_of_hir, set_span from "handlers/common.a"
 import parse_lit_int, parse_float, parse_str, parse_char, parse_cstr, parse_true, parse_false from "handlers/lit.a"
 import parse_ident from "handlers/ident.a"
 import parse_if, parse_while, parse_block, parse_return, parse_break, parse_cont from "handlers/control.a"
@@ -24,9 +24,6 @@ parse_expr :: (p &Parser, min_bp u8) u32 {
 
         if peek_preceded_by_newline(p) {
             soft := is_soft(tk)
-            if (not soft) and (tk == token.dot) {
-                soft = is_dot_continuation(p, lhs)
-            }
             if not soft {
                 break
             }
@@ -73,14 +70,11 @@ dispatch_prefix :: (p &Parser) u32 {
     if tk == t.at         { ret parse_builtin(p) }
     if (tk == t.dot) and (peek_n(p, 1) == t.o_brace) { ret parse_struct_init(p) }
     if tk == t.dot {
-        if not (*p).inside_method {
-            parse_error_at(p, c"implicit field access is only valid inside a struct method", curr_span(p))
-        }
         sp_start := curr_span(p)
         bump(p)
         field := parse_ident(p)
-        (*p).db.set_hir_symbol(field, id_none())
-        node := ((*p).hir).push(hir_kind.member, hir_none(), field, hir_none())
+        p.db.set_hir_symbol(field, id_none())
+        node := p.hir.push(hir_kind.member, hir_none(), field, hir_none())
         ret set_span(p, node, span_merge(sp_start, span_of_hir(p, field)))
     }
 

@@ -19,10 +19,3 @@ is_assign_op :: (kind TokenType) bool {
     if kind == t.amp_eq or kind == t.pipe_eq or kind == t.caret_eq or kind == t.left_shift_eq or kind == t.right_shift_eq { ret true }
     false
 }
-
-is_dot_continuation :: (p &Parser, lhs u32) bool {
-    if lhs == hir_none() { ret false }
-    if peek_n(p, 1) == token.o_brace { ret false }
-    if (*p).inside_method { ret false }
-    true
-}
