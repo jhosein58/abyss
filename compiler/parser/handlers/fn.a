@@ -1,7 +1,6 @@
 import token from "../../token.a"
 import hir_kind, hir_none from "../../hir.a"
 import Parser, peek, bump, optional, expect, is_eof, peek_n, peek_preceded_by_newline, curr_span, prev_span, parse_error_at from "../core.a"
-import ScopeEnv_mark, ScopeEnv_reset, ScopeEnv_define from "../env.a"
 import VecU32 from "../../../std/vec/u32.a"
 import Span, span_merge from "../../nexus/nexus.a"
 import id_none from "../../nexus/pool.a"
@@ -18,7 +17,19 @@ define_param :: fn(p &Parser, name_hir u32) {
     }
     name_id := p.hir.lhs(name_hir)
     sym_id := p.db.alloc_local_symbol(p.file_id, name_id, name_hir)
-    ScopeEnv_define(&p.env, name_id, sym_id)
+    p.env.define(name_id, sym_id)
+}
+
+push_arg :: fn(p &Parser, args &VecU32, name u32, ty u32) {
+    k := hir_kind
+    sp := span_of_hir(p, ty)
+    if name != hir_none() {
+        define_param(p, name)
+        sp = span_merge(span_of_hir(p, name), sp)
+    }
+    arg_id := p.hir.push(k.arg, name, ty, hir_none())
+    set_span(p, arg_id, sp)
+    args.push(arg_id)
 }
 
 parse_params :: fn(p &Parser) u32 {
@@ -34,12 +45,15 @@ parse_params :: fn(p &Parser) u32 {
 
         if is_type_token {
             ty := parse_expr(p, prec().var_def + (1 as u8))
-            p_sp := span_of_hir(p, ty)
-            arg_id := p.hir.push(k.arg, hir_none(), ty, hir_none())
-            set_span(p, arg_id, p_sp)
-            args.push(arg_id)
-            optional(p, t.comma)
+            push_arg(p, &args, hir_none(), ty)
+            if (peek(p) != t.c_paren) and (not optional(p, t.comma)) {
+                parse_error_at(p, c"expected ',' or ')' after parameter", curr_span(p))
+            }
             cont
+        }
+
+        if peek(p) != t.ident {
+            parse_error_at(p, c"expected parameter name or type", curr_span(p))
         }
 
         name := parse_ident(p)
@@ -54,33 +68,32 @@ parse_params :: fn(p &Parser) u32 {
             ty := parse_expr(p, prec().var_def + (1 as u8))
             p_i: u64 = 0
             while p_i < pending_names.len {
-                p_name := pending_names.get(p_i)
-                define_param(p, p_name)
-                p_sp := span_merge(span_of_hir(p, p_name), span_of_hir(p, ty))
-                arg_id := p.hir.push(k.arg, p_name, ty, hir_none())
-                set_span(p, arg_id, p_sp)
-                args.push(arg_id)
+                push_arg(p, &args, pending_names.get(p_i), ty)
                 p_i = p_i + 1
             }
             pending_names.reset(0)
-            optional(p, t.comma)
+            if (peek(p) != t.c_paren) and (not optional(p, t.comma)) {
+                parse_error_at(p, c"expected ',' or ')' after parameter", curr_span(p))
+            }
             cont
         }
 
         if optional(p, t.comma) {
             cont
         }
+
+        if peek(p) == t.c_paren {
+            break
+        }
+
+        parse_error_at(p, c"expected parameter type or ','", curr_span(p))
     }
 
     expect(p, t.c_paren)
 
     p_i: u64 = 0
     while p_i < pending_names.len {
-        p_name := pending_names.get(p_i)
-        p_sp := span_of_hir(p, p_name)
-        arg_id := p.hir.push(k.arg, hir_none(), p_name, hir_none())
-        set_span(p, arg_id, p_sp)
-        args.push(arg_id)
+        push_arg(p, &args, hir_none(), pending_names.get(p_i))
         p_i = p_i + 1
     }
     pending_names.destroy()
@@ -103,7 +116,7 @@ parse_fn :: fn(p &Parser, min_bp u8) u32 {
     saved_toplv := p.toplv_sym
     p.toplv_sym = id_none()
 
-    env_mark := ScopeEnv_mark(&p.env)
+    env_mark := p.env.mark()
     params := parse_params(p)
 
     ret_ty := hir_none()
@@ -145,7 +158,7 @@ parse_fn :: fn(p &Parser, min_bp u8) u32 {
         }
     }
 
-    ScopeEnv_reset(&p.env, env_mark)
+    p.env.reset(env_mark)
 
     p.hir.set_extra(fn_node, body)
     set_span(p, fn_node, span_merge(sp_start, sp_end))

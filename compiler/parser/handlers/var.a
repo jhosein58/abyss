@@ -1,7 +1,6 @@
 import token from "../../token.a"
 import hir_kind, hir_none from "../../hir.a"
 import Parser, optional, lookup_sym, curr_span, parse_error_at from "../core.a"
-import ScopeEnv_define from "../env.a"
 import prec from "../prec.a"
 import span_merge from "../../nexus/nexus.a"
 import id_none from "../../nexus/pool.a"
@@ -51,7 +50,7 @@ parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
 
     name_id := p.hir.lhs(lhs)
     sym_id := p.db.alloc_local_symbol(p.file_id, name_id, lhs)
-    ScopeEnv_define(&p.env, name_id, sym_id)
+    p.env.define(name_id, sym_id)
 
     if optional(p, t.eq) {
         val := parse_expr(p, 0 as u8)
