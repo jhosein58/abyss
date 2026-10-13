@@ -1,5 +1,11 @@
-import Parser from "../core.a"
-import Span from "../../nexus/nexus.a"
+import token from "../../token.a"
+import HirExprKind, hir_kind, hir_none from "../../hir.a"
+import Parser, peek, peek_n, bump, optional, curr_span, parse_error_at, peek_preceded_by_newline from "../core.a"
+import Span, span_merge from "../../nexus/nexus.a"
+import id_none from "../../nexus/pool.a"
+import VecU32 from "../../../std/vec/u32.a"
+import prec from "../prec.a"
+import parse_expr from "../parser.a"
 
 span_of_hir :: fn(p &Parser, hir_id u32) Span {
     p.db.get_hir_span(hir_id)
@@ -9,4 +15,80 @@ set_span :: fn(p &Parser, hir_id u32, sp Span) u32 {
     p.db.set_hir_span(hir_id, sp.start, sp.end)
     p.db.set_hir_file(hir_id, p.file_id)
     hir_id
+}
+
+skip_separators :: fn(p &Parser) {
+    while (peek(p) == token.semi) or (peek(p) == token.comma) {
+        bump(p)
+    }
+}
+
+check_delimiter :: fn(p &Parser, msg &u8) {
+    has_sep := optional(p, token.semi) or optional(p, token.comma)
+    if (not has_sep) and (not peek_preceded_by_newline(p)) and (peek(p) != token.c_brace) and (peek(p) != token.eof) and (peek_n(p, 1) != token.colon_colon) {
+        parse_error_at(p, msg, curr_span(p))
+    }
+}
+
+parse_method :: fn(p &Parser, name u32, methods &VecU32) {
+    k := hir_kind
+    bump(p)
+    p.db.set_hir_symbol(name, id_none())
+    func := parse_expr(p, prec().const_def)
+    if func == hir_none() {
+        parse_error_at(p, c"expected a method function after '::'", curr_span(p))
+    }
+    if p.hir.kind(func) != k.function {
+        parse_error_at(p, c"method must be a function", span_of_hir(p, func))
+    }
+    if p.hir.extra(func) == hir_none() {
+        parse_error_at(p, c"method requires a body", span_of_hir(p, func))
+    }
+    method := p.hir.push(k.binding, name, hir_none(), func)
+    set_span(p, method, span_merge(span_of_hir(p, name), span_of_hir(p, func)))
+    methods.push(method)
+    check_delimiter(p, c"expected ';' or newline after method")
+}
+
+add_methods_id :: fn(p &Parser, methods &VecU32) u32 {
+    if methods.len == 0 { ret hir_none() }
+    p.db.add_list(methods.as_slice())
+}
+
+bind_method_owners :: fn(p &Parser, owner u32, methods &VecU32) {
+    i: u64 = 0
+    while i < methods.len {
+        method := methods.get(i)
+        start := p.hir.lhs(method)
+        while start <= method {
+            p.db.set_method_owner(start, owner)
+            start = start + 1
+        }
+        i = i + 1
+    }
+    methods.destroy()
+}
+
+ensure_type_node :: fn(p &Parser, node &u32, kind HirExprKind, toplv u32) {
+    if *node == id_none() {
+        *node = p.hir.push(kind, hir_none(), hir_none(), hir_none())
+        if toplv != id_none() {
+            p.db.set_hir_symbol(*node, toplv)
+        }
+    }
+}
+
+finish_type_node :: fn(p &Parser, node &u32, kind HirExprKind, lhs u32, rhs u32, extra u32, toplv u32, methods &VecU32, sp Span) u32 {
+    if *node == id_none() {
+        *node = p.hir.push(kind, lhs, rhs, extra)
+        if toplv != id_none() {
+            p.db.set_hir_symbol(*node, toplv)
+        }
+    } else {
+        p.hir.set_lhs(*node, lhs)
+        p.hir.set_rhs(*node, rhs)
+        p.hir.set_extra(*node, extra)
+    }
+    bind_method_owners(p, *node, methods)
+    set_span(p, *node, sp)
 }
