@@ -19,7 +19,7 @@ Box :: (T type) type {
 Callback :: (T type) type {
     struct {
         value: T,
-        apply: (x T) T
+        apply: &(x T) T
 
         run :: () T { .apply(.value) }
     }

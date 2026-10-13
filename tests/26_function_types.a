@@ -1,0 +1,36 @@
+print :: (s &u8) unit
+print_i32 :: (v i32) unit
+
+println_i32 :: (v i32) {
+    print_i32(v)
+    print(c"\n")
+}
+
+greet :: () {
+    print(c"hello\n")
+}
+
+print_sum :: (a, b i32) {
+    println_i32(a + b)
+}
+
+to_int :: (x f32) i32 {
+    x as i32
+}
+
+run_task :: (task &()) {
+    task()
+}
+
+main :: () {
+    f1: &() = greet
+    f1()
+
+    f2: &(i32, i32) = print_sum
+    f2(12, 34)
+
+    f3: &(f32) i32 = to_int
+    println_i32(f3(99.0 as f32))
+
+    run_task(greet)
+}
