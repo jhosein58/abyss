@@ -111,22 +111,22 @@ Lexer :: struct {
 
     valid_escape :: fn() bool {
         c := .current()
-        if c == 120 { ret is_hex_digit(.peek()) }
-        if (c >= 48) and (c <= 55) { ret true }
-        (c == 97) or (c == 98) or (c == 102) or (c == 110) or (c == 114) or
-        (c == 116) or (c == 118) or (c == 92) or (c == 39) or (c == 34) or (c == 63)
+        if c == 'x' { ret is_hex_digit(.peek()) }
+        if (c >= '0') and (c <= '7') { ret true }
+        (c == 'a') or (c == 'b') or (c == 'f') or (c == 'n') or (c == 'r') or
+        (c == 't') or (c == 'v') or (c == '\\') or (c == '\'') or (c == '"') or (c == '?')
     }
 
     scan_number :: fn(stream &TokenStream) {
         offset := .cursor
         is_float := false
 
-        if .current() == 48 {
+        if .current() == '0' {
             p := .peek()
-            if (p == 120) or (p == 88) {
+            if (p == 'x') or (p == 'X') {
                 .bump()
                 .bump()
-                while (not .is_eof()) and (is_hex_digit(.current()) or (.current() == 95)) {
+                while (not .is_eof()) and (is_hex_digit(.current()) or (.current() == '_')) {
                     .bump()
                 }
                 .emit(stream, token.lit_int, offset)
@@ -134,14 +134,14 @@ Lexer :: struct {
             }
         }
 
-        while (not .is_eof()) and (is_digit(.current()) or (.current() == 95)) {
+        while (not .is_eof()) and (is_digit(.current()) or (.current() == '_')) {
             .bump()
         }
 
-        if (.current() == 46) and (.peek() != 46) and is_digit(.peek()) {
+        if (.current() == '.') and (.peek() != '.') and is_digit(.peek()) {
             is_float = true
             .bump()
-            while (not .is_eof()) and (is_digit(.current()) or (.current() == 95)) {
+            while (not .is_eof()) and (is_digit(.current()) or (.current() == '_')) {
                 .bump()
             }
         }
@@ -149,7 +149,7 @@ Lexer :: struct {
         if is_float {
             check := offset
             while check < .cursor {
-                if *(.source.ptr + check) == 95 {
+                if *(.source.ptr + check) == '_' {
                     .error(c"separators in float literals are unsupported", offset)
                 }
                 check = check + 1
@@ -166,11 +166,11 @@ Lexer :: struct {
         if is_c { .bump() }
         .bump()
 
-        while (not .is_eof()) and (.current() != 34) {
+        while (not .is_eof()) and (.current() != '"') {
             if is_newline(.current()) {
                 .error(c"newline in string literal", offset)
             }
-            if .current() == 92 {
+            if .current() == '\\' {
                 .bump()
                 if .is_eof() or (not .valid_escape()) {
                     .error(c"invalid string escape", offset)
@@ -193,12 +193,12 @@ Lexer :: struct {
         offset := .cursor
         .bump()
 
-        if .current() == 92 {
+        if .current() == '\\' {
             .bump()
             if .is_eof() or (not .valid_escape()) {
                 .error(c"invalid character escape", offset)
             }
-            if .current() == 120 {
+            if .current() == 'x' {
                 .bump()
                 while is_hex_digit(.current()) {
                     .bump()
@@ -207,13 +207,13 @@ Lexer :: struct {
                 .bump()
             }
         } else {
-            if .is_eof() or (.current() == 39) {
+            if .is_eof() or (.current() == '\'') {
                 .error(c"invalid character literal", offset)
             }
             .bump()
         }
 
-        if .current() != 39 {
+        if .current() != '\'' {
             .error(c"unterminated or oversized character literal", offset)
         }
         .bump()
@@ -236,45 +236,45 @@ Lexer :: struct {
         c := .current()
         .bump()
 
-        if c == 43 { if .match(61) { ret t.plus_eq } ret t.plus }
-        if c == 45 { if .match(61) { ret t.minus_eq } ret t.minus }
-        if c == 42 { if .match(61) { ret t.star_eq } ret t.star }
-        if c == 47 { if .match(61) { ret t.slash_eq } ret t.slash }
-        if c == 37 { if .match(61) { ret t.percent_eq } ret t.percent }
-        if c == 38 { if .match(61) { ret t.amp_eq } ret t.amp }
-        if c == 124 { if .match(61) { ret t.pipe_eq } ret t.pipe }
-        if c == 94 { if .match(61) { ret t.caret_eq } ret t.caret }
-        if c == 126 { ret t.tilde }
-        if c == 61 { if .match(61) { ret t.eq_eq } ret t.eq }
-        if c == 33 { if .match(61) { ret t.bang_eq } ret t.unknown }
-        if c == 58 { if .match(58) { ret t.colon_colon } ret t.colon }
-        if c == 46 { ret t.dot }
-        if c == 60 {
-            if .match(60) {
-                if .match(61) { ret t.left_shift_eq }
+        if c == '+' { if .match('=') { ret t.plus_eq } ret t.plus }
+        if c == '-' { if .match('=') { ret t.minus_eq } ret t.minus }
+        if c == '*' { if .match('=') { ret t.star_eq } ret t.star }
+        if c == '/' { if .match('=') { ret t.slash_eq } ret t.slash }
+        if c == '%' { if .match('=') { ret t.percent_eq } ret t.percent }
+        if c == '&' { if .match('=') { ret t.amp_eq } ret t.amp }
+        if c == '|' { if .match('=') { ret t.pipe_eq } ret t.pipe }
+        if c == '^' { if .match('=') { ret t.caret_eq } ret t.caret }
+        if c == '~' { ret t.tilde }
+        if c == '=' { if .match('=') { ret t.eq_eq } ret t.eq }
+        if c == '!' { if .match('=') { ret t.bang_eq } ret t.unknown }
+        if c == ':' { if .match(':') { ret t.colon_colon } ret t.colon }
+        if c == '.' { ret t.dot }
+        if c == '<' {
+            if .match('<') {
+                if .match('=') { ret t.left_shift_eq }
                 ret t.left_shift
             }
-            if .match(61) { ret t.lt_eq }
+            if .match('=') { ret t.lt_eq }
             ret t.lt
         }
-        if c == 62 {
-            if .match(62) {
-                if .match(61) { ret t.right_shift_eq }
+        if c == '>' {
+            if .match('>') {
+                if .match('=') { ret t.right_shift_eq }
                 ret t.right_shift
             }
-            if .match(61) { ret t.gt_eq }
+            if .match('=') { ret t.gt_eq }
             ret t.gt
         }
-        if c == 44 { ret t.comma }
-        if c == 59 { ret t.semi }
-        if c == 40 { ret t.o_paren }
-        if c == 41 { ret t.c_paren }
-        if c == 123 { ret t.o_brace }
-        if c == 125 { ret t.c_brace }
-        if c == 91 { ret t.o_bracket }
-        if c == 93 { ret t.c_bracket }
-        if c == 35 { ret t.hash }
-        if c == 64 { ret t.at }
+        if c == ',' { ret t.comma }
+        if c == ';' { ret t.semi }
+        if c == '(' { ret t.o_paren }
+        if c == ')' { ret t.c_paren }
+        if c == '{' { ret t.o_brace }
+        if c == '}' { ret t.c_brace }
+        if c == '[' { ret t.o_bracket }
+        if c == ']' { ret t.c_bracket }
+        if c == '#' { ret t.hash }
+        if c == '@' { ret t.at }
 
         t.unknown
     }
@@ -303,7 +303,7 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
             cont
         }
 
-        if c == 45 and lexer.peek() == 45 {
+        if c == '-' and lexer.peek() == '-' {
             lexer.bump()
             lexer.bump()
             while (not lexer.is_eof()) and (not is_newline(lexer.current())) {
@@ -312,22 +312,22 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
             cont
         }
 
-        if is_digit(c) or (c == 46 and is_digit(lexer.peek())) {
+        if is_digit(c) or (c == '.' and is_digit(lexer.peek())) {
             lexer.scan_number(stream)
             cont
         }
 
-        if c == 99 and lexer.peek() == 34 {
+        if c == 'c' and lexer.peek() == '"' {
             lexer.scan_str(stream, true)
             cont
         }
 
-        if c == 34 {
+        if c == '"' {
             lexer.scan_str(stream, false)
             cont
         }
 
-        if c == 39 {
+        if c == '\'' {
             lexer.scan_char(stream)
             cont
         }

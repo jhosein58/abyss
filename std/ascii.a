@@ -1,13 +1,13 @@
 is_digit :: fn(c u8) bool {
-    (c >= 48) and (c <= 57)
+    (c >= '0') and (c <= '9')
 }
 
 is_hex_digit :: fn(c u8) bool {
-    (c >= 48 and c <= 57) or (c >= 65 and c <= 70) or (c >= 97 and c <= 102)
+    (c >= '0' and c <= '9') or (c >= 'A' and c <= 'F') or (c >= 'a' and c <= 'f')
 }
 
 is_alpha :: fn(c u8) bool {
-    (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or (c == 95)
+    (c >= 'A' and c <= 'Z') or (c >= 'a' and c <= 'z') or (c == '_')
 }
 
 is_alphanumeric :: fn(c u8) bool {
@@ -15,19 +15,19 @@ is_alphanumeric :: fn(c u8) bool {
 }
 
 is_whitespace :: fn(c u8) bool {
-    (c == 32) or (c == 9)
+    (c == ' ') or (c == '\t')
 }
 
 is_newline :: fn(c u8) bool {
-    (c == 10) or (c == 13)
+    (c == '\n') or (c == '\r')
 }
 
 to_lower :: fn(c u8) u8 {
-    if (c >= 65) and (c <= 90) { ret (c + 32) as u8 }
+    if (c >= 'A') and (c <= 'Z') { ret (c + 32) as u8 }
     c
 }
 
 to_upper :: fn(c u8) u8 {
-    if (c >= 97) and (c <= 122) { ret (c - 32) as u8 }
+    if (c >= 'a') and (c <= 'z') { ret (c - 32) as u8 }
     c
 }
