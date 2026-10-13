@@ -1,0 +1,33 @@
+is_digit :: fn(c u8) bool {
+    (c >= 48) and (c <= 57)
+}
+
+is_hex_digit :: fn(c u8) bool {
+    (c >= 48 and c <= 57) or (c >= 65 and c <= 70) or (c >= 97 and c <= 102)
+}
+
+is_alpha :: fn(c u8) bool {
+    (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or (c == 95)
+}
+
+is_alphanumeric :: fn(c u8) bool {
+    is_alpha(c) or is_digit(c)
+}
+
+is_whitespace :: fn(c u8) bool {
+    (c == 32) or (c == 9)
+}
+
+is_newline :: fn(c u8) bool {
+    (c == 10) or (c == 13)
+}
+
+to_lower :: fn(c u8) u8 {
+    if (c >= 65) and (c <= 90) { ret (c + 32) as u8 }
+    c
+}
+
+to_upper :: fn(c u8) u8 {
+    if (c >= 97) and (c <= 122) { ret (c - 32) as u8 }
+    c
+}
