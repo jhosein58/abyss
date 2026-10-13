@@ -1,12 +1,12 @@
-import Nexus from "../../nexus/nexus.a"
-import HirTable, hir_kind from "../../hir.a"
-import ty_kind, ty_id_none, ty_id_bool, ty_id_type from "../../types.a"
-import slot_none from "../../unify.a"
-import fall from "../../../std/sys.a"
-import check_value from "common.a"
-import Engine from "../../engine.a"
-import synth_type_node from "var.a"
-import resolve_ty_id from "fn.a"
+import Nexus from "../../nexus/nexus"
+import HirTable, hir_kind from "../../hir"
+import ty_kind, ty_id_none, ty_id_bool, ty_id_type from "../../types"
+import slot_none from "../../unify"
+import fall from "std/sys"
+import check_value from "./common"
+import Engine from "../../engine"
+import synth_type_node from "./var"
+import resolve_ty_id from "./fn"
 
 print :: fn(s &u8) unit
 

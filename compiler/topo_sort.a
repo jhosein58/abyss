@@ -1,11 +1,11 @@
-import Nexus from "nexus/nexus.a"
- import TypeStorage, ty_kind from "types.a"
-import VecU32 from "../std/vec/u32.a"
-import fall from "../std/sys.a"
+import Nexus from "./nexus/nexus"
+import TypeStorage, ty_kind from "./types"
+import VecU32 from "std/vec/u32"
+import fall from "std/sys"
 
 print :: fn(s &u8) unit
 
-import VecU8 from "../std/vec/u8.a"
+import VecU8 from "std/vec/u8"
 
 topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
     if (ty_id as u64) >= (*states).len { ret }

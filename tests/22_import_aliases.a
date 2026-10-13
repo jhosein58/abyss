@@ -1,5 +1,5 @@
 import Vec as Buffer from "std/collections/vec.a"
-import Forwarded as OtherBuffer, Choice as Option, forwarded_value as renamed, text from "modules/reexport.a"
+import Forwarded as OtherBuffer, Choice as Option, forwarded_value as renamed, text from "./modules/reexport"
 import Str as Text from "core/string.a"
 import Str as SameText from "std/string.a"
 import print_u32 as output_number from "std/prelude.a"

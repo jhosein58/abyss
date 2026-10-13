@@ -3,6 +3,16 @@ import Arena from "allocator.a"
 import Vec from "collections/vec.a"
 
 Path :: struct {
+    ensure_ext :: fn(arena &Arena, path Str, ext Str) Str {
+        if path.ends_with(ext) {
+            ret path
+        }
+        out := String.new(arena)
+        out.push_str(path)
+        out.push_str(ext)
+        out.as_str()
+    }
+
     dir :: fn(path Str) Str {
         if path.len == 0 { ret Str.empty() }
         i := path.len

@@ -1,13 +1,13 @@
-import token from "../../token.a"
-import hir_kind, hir_none from "../../hir.a"
-import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core.a"
-import Vec from "../../../std/collections/vec.a"
-import span_merge from "../../nexus/nexus.a"
-import id_none from "../../nexus/pool.a"
-import prec from "../prec.a"
-import span_of_hir, set_span, skip_separators, check_delimiter, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list from "common.a"
-import parse_ident from "ident.a"
-import parse_expr from "../parser.a"
+import token from "../../token"
+import hir_kind, hir_none from "../../hir"
+import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core"
+import Vec from "std/collections/vec"
+import span_merge from "../../nexus/nexus"
+import id_none from "../../nexus/pool"
+import prec from "../prec"
+import span_of_hir, set_span, skip_separators, check_delimiter, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list from "./common"
+import parse_ident from "./ident"
+import parse_expr from "../parser"
 
 parse_struct :: fn(p &Parser) u32 {
     t := token

@@ -1,11 +1,11 @@
-import token, token_name, TokenType, TokenStream from "../token.a"
-import HirTable from "../hir.a"
-import Str from "../../std/string.a"
+import token, token_name, TokenType, TokenStream from "../token"
+import HirTable from "../hir"
+import Str from "std/string"
 import Nexus,
-       calc_pos, Span, Pos, span_new, span_merge from "../nexus/nexus.a"
-import ScopeEnv from "env.a"
-import id_none from "../nexus/pool.a"
-import fall from "../../std/sys.a"
+       calc_pos, Span, Pos, span_new, span_merge from "../nexus/nexus"
+import ScopeEnv from "./env"
+import id_none from "../nexus/pool"
+import fall from "std/sys"
 
 
 print     :: fn(s &u8) unit

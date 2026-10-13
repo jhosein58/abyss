@@ -1,14 +1,14 @@
-import VecU32 from "../../std/vec/u32.a"
-import VecStr from "../../std/vec/str.a"
-import SliceU32, SliceU32_new from "../../std/slice/u32.a"
-import Interner from "../../std/interner.a"
-import Str from "../../std/string.a"
+import VecU32 from "std/vec/u32"
+import VecStr from "std/vec/str"
+import SliceU32, SliceU32_new from "std/slice/u32"
+import Interner from "std/interner"
+import Str from "std/string"
 
-import TypeStorage, ty_id_none from "../types.a"
-import UnifyStorage from "../unify.a"
-import TokenStream from "../token.a"
-import HirTable from "../hir.a"
-import PoolU32, id_none from "pool.a"
+import TypeStorage, ty_id_none from "../types"
+import UnifyStorage from "../unify"
+import TokenStream from "../token"
+import HirTable from "../hir"
+import PoolU32, id_none from "./pool"
 
 print :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit

@@ -1,9 +1,9 @@
-import Nexus from "../../nexus/nexus.a"
-import HirTable, hir_kind, hir_none from "../../hir.a"
-import Str from "../../../std/string.a"
-import TypeStorage, ty_kind, ty_id_none, ty_id_type from "../../types.a"
-import UnifyStorage, slot_none from "../../unify.a"
-import fall from "../../../std/sys.a"
+import Nexus from "../../nexus/nexus"
+import HirTable, hir_kind, hir_none from "../../hir"
+import Str from "std/string"
+import TypeStorage, ty_kind, ty_id_none, ty_id_type from "../../types"
+import UnifyStorage, slot_none from "../../unify"
+import fall from "std/sys"
 
 print :: fn(s &u8) unit
 

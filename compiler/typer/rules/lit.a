@@ -1,7 +1,7 @@
-import Nexus from "../../nexus/nexus.a"
-import HirTable from "../../hir.a"
-import ty_id_untyped_int, ty_id_untyped_float, ty_id_bool, ty_id_none from "../../types.a"
-import Engine from "../../engine.a"
+import Nexus from "../../nexus/nexus"
+import HirTable from "../../hir"
+import ty_id_untyped_int, ty_id_untyped_float, ty_id_bool, ty_id_none from "../../types"
+import Engine from "../../engine"
 
 synth_lit_int :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify

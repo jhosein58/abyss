@@ -1,12 +1,12 @@
-import token from "../../token.a"
-import HirExprKind, hir_kind, hir_none from "../../hir.a"
-import Parser, peek, peek_n, bump, optional, curr_span, parse_error_at, peek_preceded_by_newline from "../core.a"
-import Span, span_merge from "../../nexus/nexus.a"
-import id_none from "../../nexus/pool.a"
-import Vec from "../../../std/collections/vec.a"
-import SliceU32 from "../../../std/slice/u32.a"
-import prec from "../prec.a"
-import parse_expr from "../parser.a"
+import token from "../../token"
+import HirExprKind, hir_kind, hir_none from "../../hir"
+import Parser, peek, peek_n, bump, optional, curr_span, parse_error_at, peek_preceded_by_newline from "../core"
+import Span, span_merge from "../../nexus/nexus"
+import id_none from "../../nexus/pool"
+import Vec from "std/collections/vec"
+import SliceU32 from "std/slice/u32"
+import prec from "../prec"
+import parse_expr from "../parser"
 
 span_of_hir :: fn(p &Parser, hir_id u32) Span {
     p.db.get_hir_span(hir_id)

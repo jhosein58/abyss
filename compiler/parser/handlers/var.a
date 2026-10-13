@@ -1,11 +1,11 @@
-import token from "../../token.a"
-import hir_kind, hir_none from "../../hir.a"
-import Parser, optional, lookup_sym, curr_span, parse_error_at from "../core.a"
-import prec from "../prec.a"
-import span_merge from "../../nexus/nexus.a"
-import id_none from "../../nexus/pool.a"
-import span_of_hir, set_span from "common.a"
-import parse_expr from "../parser.a"
+import token from "../../token"
+import hir_kind, hir_none from "../../hir"
+import Parser, optional, lookup_sym, curr_span, parse_error_at from "../core"
+import prec from "../prec"
+import span_merge from "../../nexus/nexus"
+import id_none from "../../nexus/pool"
+import span_of_hir, set_span from "./common"
+import parse_expr from "../parser"
 
 parse_binding :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind

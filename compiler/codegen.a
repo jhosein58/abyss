@@ -1,11 +1,11 @@
-import VecU8 from "../std/vec/u8.a"
-import VecU32 from "../std/vec/u32.a"
-import Str, String from "../std/string.a"
-import Arena from "../std/allocator.a"
-import Fmt from "../std/fmt.a"
-import TypeStorage, ty_kind, ty_id_none from "types.a"
-import HirExprKind, hir_kind from "hir.a"
-import fall from "../std/sys.a"
+import VecU8 from "std/vec/u8"
+import VecU32 from "std/vec/u32"
+import Str, String from "std/string"
+import Arena from "std/allocator"
+import Fmt from "std/fmt"
+import TypeStorage, ty_kind, ty_id_none from "./types"
+import HirExprKind, hir_kind from "./hir"
+import fall from "std/sys"
 
 print :: fn(s &u8) unit
 

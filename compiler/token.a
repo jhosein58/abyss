@@ -1,9 +1,9 @@
-import VecU8  from "../std/vec/u8.a"
-import VecU32 from "../std/vec/u32.a"
-import VecStr from "../std/vec/str.a"
-import VecBool from "../std/vec/bool.a"
+import VecU8  from "std/vec/u8"
+import VecU32 from "std/vec/u32"
+import VecStr from "std/vec/str"
+import VecBool from "std/vec/bool"
 
-import Str from "../std/string.a"
+import Str from "std/string"
 
 TokenType :: enum u8 {
     eof,

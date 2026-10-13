@@ -1,7 +1,7 @@
-import VecU8 from "../std/vec/u8.a"
-import VecU32 from "../std/vec/u32.a"
-import U32_MAX from "../std/primitive/u32.a"
-import Str from "../std/string.a"
+import VecU8 from "std/vec/u8"
+import VecU32 from "std/vec/u32"
+import U32_MAX from "std/primitive/u32"
+import Str from "std/string"
 
 hir_none :: fn() u32 {
     U32_MAX()

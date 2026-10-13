@@ -1,8 +1,8 @@
-import Str from "../std/string.a"
-import token, TokenType, TokenStream from "token.a"
-import calc_pos from "nexus/nexus.a"
-import fall from "../std/sys.a"
-import is_digit, is_hex_digit, is_alpha, is_alphanumeric, is_whitespace, is_newline from "../std/ascii.a"
+import Str from "std/string"
+import token, TokenType, TokenStream from "./token"
+import calc_pos from "./nexus/nexus"
+import fall from "std/sys"
+import is_digit, is_hex_digit, is_alpha, is_alphanumeric, is_whitespace, is_newline from "std/ascii"
 
 print :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit

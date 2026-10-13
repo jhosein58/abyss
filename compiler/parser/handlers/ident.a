@@ -1,8 +1,8 @@
-import token from "../../token.a"
-import hir_kind, hir_none from "../../hir.a"
-import Parser, peek, bump, curr_text, curr_span, parse_error_at, lookup_sym from "../core.a"
-import id_none from "../../nexus/pool.a"
-import set_span from "common.a"
+import token from "../../token"
+import hir_kind, hir_none from "../../hir"
+import Parser, peek, bump, curr_text, curr_span, parse_error_at, lookup_sym from "../core"
+import id_none from "../../nexus/pool"
+import set_span from "./common"
 
 parse_ident :: fn(p &Parser) u32 {
     k := hir_kind

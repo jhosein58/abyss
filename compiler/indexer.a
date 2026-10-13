@@ -1,14 +1,14 @@
-import token, TokenStream from "token.a"
-import lex from "lexer.a"
-import Nexus from "nexus/nexus.a"
-import Str from "../std/string.a"
-import Path from "../std/path.a"
-import Arena from "../std/allocator.a"
-import read_file from "../std/fs.a"
-import Vec from "../std/collections/vec.a"
-import id_none from "nexus/pool.a"
-import fall from "../std/sys.a"
-import embedded_source from "embedded.a"
+import token, TokenStream from "./token"
+import lex from "./lexer"
+import Nexus from "./nexus/nexus"
+import Str from "std/string"
+import Path from "std/path"
+import Arena from "std/allocator"
+import read_file from "std/fs"
+import Vec from "std/collections/vec"
+import id_none from "./nexus/pool"
+import fall from "std/sys"
+import embedded_source from "./embedded"
 
 print :: fn(s &u8) unit
 
@@ -26,16 +26,18 @@ is_embedded_path :: fn(path Str) bool {
 }
 
 module_path :: fn(arena &Arena, base Str, path Str) Str {
-    rel := path
-    while rel.starts_with(Str.of("../")) {
-        rel = rel.sub(3, rel.len - 3)
-    }
-    embedded := is_embedded_path(rel) or is_embedded_path(base)
+    full_path := Path.ensure_ext(arena, path, Str.of(".a"))
+    is_rel := full_path.starts_with(Str.of("./")) or full_path.starts_with(Str.of("../"))
+    embedded := is_embedded_path(full_path) or is_embedded_path(base)
     target := Str.empty()
-    if is_embedded_path(rel) {
-        target = Path.resolve(arena, Str.empty(), rel)
+    if is_rel {
+        target = Path.resolve(arena, base, full_path)
     } else {
-        target = Path.resolve(arena, base, path)
+        if is_embedded_path(base) and (not is_embedded_path(full_path)) {
+            target = Path.resolve(arena, base, full_path)
+        } else {
+            target = Path.normalize(arena, full_path)
+        }
     }
     if embedded and (not is_embedded_path(target)) {
         index_error(path, c"embedded import escapes library root")

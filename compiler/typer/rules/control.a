@@ -1,10 +1,10 @@
-import Nexus from "../../nexus/nexus.a"
-import HirTable, hir_none from "../../hir.a"
-import ty_kind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error from "../../types.a"
-import slot_none from "../../unify.a"
-import check_value from "common.a"
-import method_returns_ref_self from "fn.a"
-import fall from "../../../std/sys.a"
+import Nexus from "../../nexus/nexus"
+import HirTable, hir_none from "../../hir"
+import ty_kind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error from "../../types"
+import slot_none from "../../unify"
+import check_value from "./common"
+import method_returns_ref_self from "./fn"
+import fall from "std/sys"
 
 print :: fn(s &u8) unit
 

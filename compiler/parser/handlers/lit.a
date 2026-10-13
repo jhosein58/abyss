@@ -1,8 +1,8 @@
-import token from "../../token.a"
-import hir_kind, hir_none from "../../hir.a"
-import Parser, bump, curr_text, curr_span from "../core.a"
-import parse_u32 from "../../../std/string.a"
-import set_span from "common.a"
+import token from "../../token"
+import hir_kind, hir_none from "../../hir"
+import Parser, bump, curr_text, curr_span from "../core"
+import parse_u32 from "std/string"
+import set_span from "./common"
 
 parse_lit_int :: fn(p &Parser) u32 {
     k := hir_kind
