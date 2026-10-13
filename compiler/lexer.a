@@ -273,6 +273,7 @@ match_keyword :: (text Str) TokenType {
         if text.eq(Str.of("if")) { ret t.kw_if }
         if text.eq(Str.of("as")) { ret t.kw_as }
         if text.eq(Str.of("or")) { ret t.kw_or }
+        if text.eq(Str.of("fn")) { ret t.kw_fn }
     }
 
     if text.len == 3 {

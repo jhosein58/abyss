@@ -18,19 +18,22 @@ to_int :: (x f32) i32 {
     x as i32
 }
 
-run_task :: (task &()) {
+run_task :: (task fn()) {
     task()
 }
 
 main :: () {
-    f1: &() = greet
+    f1: fn() = greet
     f1()
 
-    f2: &(i32, i32) = print_sum
+    f2: fn(i32, i32) = print_sum
     f2(12, 34)
 
-    f3: &(f32) i32 = to_int
+    f3: fn(f32) i32 = to_int
     println_i32(f3(99.0 as f32))
 
     run_task(greet)
+
+    mult := (a, b i32) i32 { a * b }
+    println_i32(mult(5, 6))
 }
