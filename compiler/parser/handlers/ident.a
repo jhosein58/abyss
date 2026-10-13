@@ -17,12 +17,12 @@ parse_ident :: (p &Parser) u32 {
     name_id := p.db.interner.intern(name)
     bump(p)
 
-    ident_hir := ((*p).hir).push(k.ident, name_id, hir_none(), hir_none())
+    ident_hir := p.hir.push(k.ident, name_id, hir_none(), hir_none())
     set_span(p, ident_hir, sp)
 
     sym_id := lookup_sym(p, name_id)
     if sym_id != id_none() {
-        (*p).db.set_hir_symbol(ident_hir, sym_id)
+        p.db.set_hir_symbol(ident_hir, sym_id)
     }
 
     ident_hir

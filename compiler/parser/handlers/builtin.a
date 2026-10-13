@@ -2,7 +2,6 @@ import token from "../../token.a"
 import hir_kind, hir_none from "../../hir.a"
 import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core.a"
 import VecU32 from "../../../std/vec/u32.a"
-import SliceU32 from "../../../std/slice/u32.a"
 import span_merge from "../../nexus/nexus.a"
 import span_of_hir, set_span from "common.a"
 import parse_ident from "ident.a"
@@ -19,7 +18,7 @@ parse_builtin :: (p &Parser) u32 {
     }
 
     name_node := parse_ident(p)
-    name_id := ((*p).hir).lhs(name_node)
+    name_id := p.hir.lhs(name_node)
 
     if not expect(p, t.o_paren) {
         parse_error_at(p, c"expected '(' after builtin name", curr_span(p))
@@ -47,12 +46,9 @@ parse_builtin :: (p &Parser) u32 {
     }
 
     sp_end := prev_span(p)
-    ptr_a := 0 as &u32
-    if args.len > 0 { ptr_a = args.ptr_at(0) }
-    slice: SliceU32 = .{ ptr: ptr_a, len: args.len }
-    args_list := (*p).db.add_list(slice)
+    args_list := p.db.add_list(args.as_slice())
     args.destroy()
 
-    node := ((*p).hir).push(k.builtin_call, name_id, args_list, hir_none())
+    node := p.hir.push(k.builtin_call, name_id, args_list, hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }

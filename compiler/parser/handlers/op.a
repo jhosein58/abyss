@@ -22,7 +22,7 @@ parse_unary :: (p &Parser, op TokenType) u32 {
     if op == t.amp    { op_kind = k.unary_addr_of }
     if op == t.star   { op_kind = k.unary_deref }
 
-    node := ((*p).hir).push(op_kind, body, hir_none(), hir_none())
+    node := p.hir.push(op_kind, body, hir_none(), hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
@@ -59,7 +59,7 @@ parse_binary :: (p &Parser, op TokenType, lhs u32, right_bp u8) u32 {
         parse_error_at(p, c"unsupported binary operator", curr_span(p))
     }
 
-    node := ((*p).hir).push(op_kind, lhs, rhs, hir_none())
+    node := p.hir.push(op_kind, lhs, rhs, hir_none())
     set_span(p, node, span_merge(sp_lhs, sp_rhs))
 }
 
@@ -69,6 +69,6 @@ parse_assign :: (p &Parser, lhs u32, right_bp u8) u32 {
     rhs := parse_expr(p, right_bp)
     sp_rhs := span_of_hir(p, rhs)
 
-    node := ((*p).hir).push(k.binary_assign, lhs, rhs, hir_none())
+    node := p.hir.push(k.binary_assign, lhs, rhs, hir_none())
     set_span(p, node, span_merge(sp_lhs, sp_rhs))
 }
