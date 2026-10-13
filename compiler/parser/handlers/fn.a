@@ -21,31 +21,6 @@ define_param :: fn(p &Parser, name_hir u32) {
     ScopeEnv_define(&p.env, name_id, sym_id)
 }
 
-is_named_group :: fn(p &Parser) bool {
-    t := token
-    depth: u32 = 1
-    i := p.cursor + 1
-    prev := t.eof
-    while i < p.end {
-        tk := p.tokens.kind(i)
-        if tk == t.o_paren {
-            depth = depth + 1
-        } else if tk == t.c_paren {
-            depth = depth - 1
-            if depth == 0 { break }
-        } else if depth == 1 {
-            if (prev == t.ident) and
-               ((tk == t.ident) or (tk == t.amp) or (tk == t.star) or
-                (tk == t.o_bracket) or (tk == t.kw_fn)) {
-                ret true
-            }
-        }
-        prev = tk
-        i = i + 1
-    }
-    false
-}
-
 parse_params :: fn(p &Parser) u32 {
     t := token
     k := hir_kind
@@ -58,7 +33,7 @@ parse_params :: fn(p &Parser) u32 {
                          (peek(p) == t.kw_fn)
 
         if is_type_token {
-            ty := parse_expr(p, 0 as u8)
+            ty := parse_expr(p, prec().var_def + (1 as u8))
             p_sp := span_of_hir(p, ty)
             arg_id := p.hir.push(k.arg, hir_none(), ty, hir_none())
             set_span(p, arg_id, p_sp)
@@ -68,18 +43,19 @@ parse_params :: fn(p &Parser) u32 {
         }
 
         name := parse_ident(p)
+        pending_names.push(name)
+
         next_tk := peek(p)
         has_explicit_type := (next_tk == t.ident) or (next_tk == t.amp) or
                              (next_tk == t.star) or (next_tk == t.o_bracket) or
                              (next_tk == t.at) or (next_tk == t.kw_fn)
 
         if has_explicit_type {
-            define_param(p, name)
-            pending_names.push(name)
-            ty := parse_expr(p, 0 as u8)
+            ty := parse_expr(p, prec().var_def + (1 as u8))
             p_i: u64 = 0
             while p_i < pending_names.len {
                 p_name := pending_names.get(p_i)
+                define_param(p, p_name)
                 p_sp := span_merge(span_of_hir(p, p_name), span_of_hir(p, ty))
                 arg_id := p.hir.push(k.arg, p_name, ty, hir_none())
                 set_span(p, arg_id, p_sp)
@@ -91,24 +67,23 @@ parse_params :: fn(p &Parser) u32 {
             cont
         }
 
-        if next_tk == t.comma {
-            if is_named_group(p) {
-                define_param(p, name)
-                pending_names.push(name)
-                bump(p)
-                cont
-            }
+        if optional(p, t.comma) {
+            cont
         }
-
-        p_sp := span_of_hir(p, name)
-        arg_id := p.hir.push(k.arg, hir_none(), name, hir_none())
-        set_span(p, arg_id, p_sp)
-        args.push(arg_id)
-        optional(p, t.comma)
     }
 
-    pending_names.destroy()
     expect(p, t.c_paren)
+
+    p_i: u64 = 0
+    while p_i < pending_names.len {
+        p_name := pending_names.get(p_i)
+        p_sp := span_of_hir(p, p_name)
+        arg_id := p.hir.push(k.arg, hir_none(), p_name, hir_none())
+        set_span(p, arg_id, p_sp)
+        args.push(arg_id)
+        p_i = p_i + 1
+    }
+    pending_names.destroy()
 
     params := hir_none()
     if args.len > 0 {
