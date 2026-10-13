@@ -21,9 +21,9 @@ print :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit 
 
 Engine :: struct {
-    nexus         : Nexus,
-    file_count    : u32,
-    ccg           : CCodeGen
+    nexus         Nexus
+    file_count    u32
+    ccg           CCodeGen
 
     new :: fn() Self {
         .{

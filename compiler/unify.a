@@ -17,15 +17,15 @@ slot_none :: fn() u32 {
 
 
 UnifyStorage :: struct {
-    error_path : Str,
-    error_source : Str,
-    error_offset : u32,
-    parents     : VecU32,
-    ranks       : VecU8,
-    types       : VecU32,
-    origins     : VecU32,
-    hir_to_slot : VecU32,
-    scratch     : VecU32
+    error_path Str
+    error_source Str
+    error_offset u32
+    parents     VecU32
+    ranks       VecU8
+    types       VecU32
+    origins     VecU32
+    hir_to_slot VecU32
+    scratch     VecU32
 
     new :: fn() Self {
         .{

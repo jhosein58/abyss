@@ -2,56 +2,51 @@ import Arena  from "allocator.a"
 import Str, String from "string.a"
 
 Escape :: struct {
-    -- control sequences
-    reset     : &u8,
-    bold      : &u8,
-    dim       : &u8,
-    italic    : &u8,
-    underline : &u8,
-    blink     : &u8,
-    reverse   : &u8,
-    hidden    : &u8,
-    strike    : &u8,
+    reset     &u8
+    bold      &u8
+    dim       &u8
+    italic    &u8
+    underline &u8
+    blink     &u8
+    reverse   &u8
+    hidden    &u8
+    strike    &u8
 
-    -- foreground (normal)
-    fg_black   : &u8,
-    fg_red     : &u8,
-    fg_green   : &u8,
-    fg_yellow  : &u8,
-    fg_blue    : &u8,
-    fg_magenta : &u8,
-    fg_cyan    : &u8,
-    fg_white   : &u8,
+    fg_black   &u8
+    fg_red     &u8
+    fg_green   &u8
+    fg_yellow  &u8
+    fg_blue    &u8
+    fg_magenta &u8
+    fg_cyan    &u8
+    fg_white   &u8
 
-    -- foreground (bright)
-    fg_bright_black   : &u8,
-    fg_bright_red     : &u8,
-    fg_bright_green   : &u8,
-    fg_bright_yellow  : &u8,
-    fg_bright_blue    : &u8,
-    fg_bright_magenta : &u8,
-    fg_bright_cyan    : &u8,
-    fg_bright_white   : &u8,
+    fg_bright_black   &u8
+    fg_bright_red     &u8
+    fg_bright_green   &u8
+    fg_bright_yellow  &u8
+    fg_bright_blue    &u8
+    fg_bright_magenta &u8
+    fg_bright_cyan    &u8
+    fg_bright_white   &u8
 
-    -- background (normal)
-    bg_black   : &u8,
-    bg_red     : &u8,
-    bg_green   : &u8,
-    bg_yellow  : &u8,
-    bg_blue    : &u8,
-    bg_magenta : &u8,
-    bg_cyan    : &u8,
-    bg_white   : &u8,
+    bg_black   &u8
+    bg_red     &u8
+    bg_green   &u8
+    bg_yellow  &u8
+    bg_blue    &u8
+    bg_magenta &u8
+    bg_cyan    &u8
+    bg_white   &u8
 
-    -- background (bright)
-    bg_bright_black   : &u8,
-    bg_bright_red     : &u8,
-    bg_bright_green   : &u8,
-    bg_bright_yellow  : &u8,
-    bg_bright_blue    : &u8,
-    bg_bright_magenta : &u8,
-    bg_bright_cyan    : &u8,
-    bg_bright_white   : &u8,
+    bg_bright_black   &u8
+    bg_bright_red     &u8
+    bg_bright_green   &u8
+    bg_bright_yellow  &u8
+    bg_bright_blue    &u8
+    bg_bright_magenta &u8
+    bg_bright_cyan    &u8
+    bg_bright_white   &u8
 }
 
 escape :: fn() Escape {
@@ -105,7 +100,7 @@ escape :: fn() Escape {
 }
 
 Fmt :: struct {
-    buf: String,
+    buf String
 
     new :: fn(arena &Arena) Self {
         .{ buf: String.new(arena) }

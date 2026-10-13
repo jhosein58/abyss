@@ -1,2 +1,2 @@
-Phantom :: fn(T type) type { struct { value: u32 } }
+Phantom :: fn(T type) type { struct { value u32 } }
 main :: fn() { v: Phantom() = .{ value: 1 } }

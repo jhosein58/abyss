@@ -7,10 +7,10 @@ print :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit
 
 Lexer :: struct {
-    source: Str,
-    path: Str,
-    cursor: u64,
-    had_newline: bool
+    source Str
+    path Str
+    cursor u64
+    had_newline bool
 }
 
 Lexer_new :: fn(source Str, path Str) Lexer {

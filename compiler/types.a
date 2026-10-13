@@ -12,25 +12,25 @@ print      :: fn(s &u8) unit
 
 
 TyKind :: struct {
-    unknown       : u8,
-    infer         : u8,
-    untyped_int   : u8,
-    untyped_float : u8,
-    int           : u8,
-    uint          : u8,
-    float         : u8,
-    bool          : u8,
-    ptr           : u8,
-    type_         : u8,
-    unit          : u8,
-    func          : u8,
-    never         : u8,
-    struct_       : u8,
-    array         : u8,
-    error         : u8,
-    nominal       : u8,
-    enum_         : u8,
-    union_        : u8
+    unknown       u8
+    infer         u8
+    untyped_int   u8
+    untyped_float u8
+    int           u8
+    uint          u8
+    float         u8
+    bool          u8
+    ptr           u8
+    type_         u8
+    unit          u8
+    func          u8
+    never         u8
+    struct_       u8
+    array         u8
+    error         u8
+    nominal       u8
+    enum_         u8
+    union_        u8
 }
 
 ty_kind :: fn() TyKind {
@@ -95,9 +95,9 @@ ty_builtin_count    :: fn() u32 { 8 }
 
 
 TyStore :: struct {
-    kinds   : VecU8,
-    payload : VecU32,
-    extra   : VecU32
+    kinds   VecU8
+    payload VecU32
+    extra   VecU32
 
     new :: fn() Self {
         .{
@@ -209,18 +209,18 @@ TyStore :: struct {
 
 
 TypeStorage :: struct {
-    store     : TyStore,
-    table     : VecU32,
-    table_cap : u32,
-    table_len : u32,
-    nominal_names : VecStr,
-    nominal_by_origin : VecU32,
-    nominal_creator_sym : VecU32,
-    nominal_creator_arg : VecU32,
-    nominal_creator_items : VecU32,
-    enum_names : VecStr,
-    enum_by_origin : VecU32,
-    nominal_struct_node : VecU32
+    store     TyStore
+    table     VecU32
+    table_cap u32
+    table_len u32
+    nominal_names VecStr
+    nominal_by_origin VecU32
+    nominal_creator_sym VecU32
+    nominal_creator_arg VecU32
+    nominal_creator_items VecU32
+    enum_names VecStr
+    enum_by_origin VecU32
+    nominal_struct_node VecU32
 
     new :: fn() Self {
         store := TyStore.new()

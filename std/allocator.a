@@ -7,10 +7,10 @@ align_up :: fn(n u64) u64 {
 
 
 ArenaChunk :: struct {
-    next_chunk: &u8,
-    memory: &u8,
-    offset: u64,
-    cap: u64
+    next_chunk &u8
+    memory &u8
+    offset u64
+    cap u64
 
     size :: fn() u64 { 32 }
 
@@ -29,8 +29,8 @@ ArenaChunk :: struct {
 }
 
 Arena :: struct {
-    current: &ArenaChunk,
-    default_chunk_size: u64,
+    current &ArenaChunk
+    default_chunk_size u64
 
 
 

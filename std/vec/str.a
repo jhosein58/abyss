@@ -8,9 +8,9 @@ SliceType          :: SliceStr
 elem_size          :: fn() u64 { Str.size() }
 
 VecStr :: struct {
-    ptr: &VecType,
-    len: u64,
-    cap: u64
+    ptr &VecType
+    len u64
+    cap u64
 
     new :: fn() Self {
         Self.with_cap(4)

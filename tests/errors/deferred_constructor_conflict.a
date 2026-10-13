@@ -1,2 +1,2 @@
-Pair :: fn(T type) type { struct { first: T, second: T new :: fn(a T, b T) Self { .{ first: a, second: b } } } }
+Pair :: fn(T type) type { struct { first T, second T new :: fn(a T, b T) Self { .{ first: a, second: b } } } }
 main :: fn() { v := Pair().new(1 as u32, true) }

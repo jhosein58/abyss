@@ -14,13 +14,11 @@ print :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit
 
 Span :: struct {
-    start : u32,
-    end   : u32
+    start, end u32
 }
 
 Pos :: struct {
-    line : u32,
-    col  : u32
+    line, col u32
 }
 
 span_new :: fn(start u32, end u32) Span {
@@ -63,49 +61,49 @@ calc_pos :: fn(source Str, offset u32) Pos {
 
 
 Nexus :: struct {
-    tokens         : TokenStream,
-    hir            : HirTable,
+    tokens         TokenStream
+    hir            HirTable
 
-    glob_stack     : VecU32,
-    u32_items      : VecU32,
-    interner       : Interner,
-    types          : TypeStorage,
-    unify          : UnifyStorage,
+    glob_stack     VecU32
+    u32_items      VecU32
+    interner       Interner
+    types          TypeStorage
+    unify          UnifyStorage
 
-    sym_names      : PoolU32,
-    sym_files      : PoolU32,
-    sym_tok_start  : PoolU32,
-    sym_tok_end    : PoolU32,
-    sym_hir_start  : PoolU32,
-    sym_hir_end    : PoolU32,
-    sym_target     : PoolU32,
+    sym_names      PoolU32
+    sym_files      PoolU32
+    sym_tok_start  PoolU32
+    sym_tok_end    PoolU32
+    sym_hir_start  PoolU32
+    sym_hir_end    PoolU32
+    sym_target     PoolU32
 
-    sym_nodes      : PoolU32, -- SymbolId -> HirId
-    hir_to_symbol  : PoolU32, -- HirId    -> SymbolId
+    sym_nodes      PoolU32
+    hir_to_symbol  PoolU32
 
-    const_types    : PoolU32, -- HirId    -> TypeId 
-    method_owner   : PoolU32,
-    method_target  : PoolU32,
-    sym_resolving  : PoolU32  -- SymbolId -> 0 or 1
+    const_types    PoolU32
+    method_owner   PoolU32
+    method_target  PoolU32
+    sym_resolving  PoolU32
 
-    core_prelude   : u32,
-    std_prelude    : u32,
-    file_sources   : VecStr,
-    file_paths     : VecStr,
-    hir_files      : PoolU32, -- HirId    -> FileId
-    hir_span_start : PoolU32, -- HirId    -> Span start offset
-    hir_span_end   : PoolU32, -- HirId    -> Span end
-    type_specialization_depth : u32,
-    mono_method_owner : PoolU32,
-    mono_orig_sym  : VecU32,
-    mono_type      : VecU32,
-    mono_sym       : VecU32,
-    mono_nom_sym   : VecU32,
-    mono_nom_arg   : VecU32,
-    mono_nom_res   : VecU32,
-    union_coerce_ty : PoolU32,
-    union_coerce_idx : PoolU32,
-    str_type       : u32,
+    core_prelude   u32
+    std_prelude    u32
+    file_sources   VecStr
+    file_paths     VecStr
+    hir_files      PoolU32
+    hir_span_start PoolU32
+    hir_span_end   PoolU32
+    type_specialization_depth u32
+    mono_method_owner PoolU32
+    mono_orig_sym  VecU32
+    mono_type      VecU32
+    mono_sym       VecU32
+    mono_nom_sym   VecU32
+    mono_nom_arg   VecU32
+    mono_nom_res   VecU32
+    union_coerce_ty PoolU32
+    union_coerce_idx PoolU32
+    str_type       u32
 
     new :: fn() Self {
         .{

@@ -8,7 +8,7 @@ print_bool :: fn(v bool) unit
 Maybe :: fn(T type) type { T | bool }
 Choice :: fn(T type) type {
     struct {
-        value: T | bool
+        value T | bool
 
         new :: fn(value T | bool) Self { .{ value: value } }
         get :: fn() T | bool { .value }

@@ -1,7 +1,7 @@
 Slice :: fn(T type) type {
     struct {
-        ptr: &T,
-        len: u64,
+        ptr &T
+        len u64
 
         new :: fn(ptr &T, len u64) Self {
             .{

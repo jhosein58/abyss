@@ -1,2 +1,2 @@
-Box :: fn(T type, U type) type { struct { value: T, other: U } }
+Box :: fn(T type, U type) type { struct { value T, other U } }
 main :: fn() { x: Box(u32) = .{ value: 42, other: true } }

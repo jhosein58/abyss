@@ -9,7 +9,7 @@ Maybe :: fn(T type) type { T | bool }
 
 Box :: fn(T type) type {
     struct {
-        value: T | bool
+        value T | bool
 
         new :: fn(value T | bool) Self { .{ value: value } }
         get :: fn() T | bool { .value }

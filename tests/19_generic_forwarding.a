@@ -4,7 +4,7 @@ print_i32 :: fn(v i32) unit
 
 Box :: fn(T type) type {
     struct {
-        value: T
+        value T
 
         new :: fn(x T) Self { .{ value: x } }
         convert :: fn(U type, x U) U { .value x }

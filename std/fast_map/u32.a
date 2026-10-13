@@ -18,10 +18,10 @@ key_hash  :: fn(k KeyTy) u32 { hash_u32(k) }
 --------------------------------------------------------------------------------
 
 FastMapU32 :: struct {
-    keys : &KeyTy,
-    vals : &ValTy,
-    cap  : u64,
-    len  : u64
+    keys &KeyTy
+    vals &ValTy
+    cap  u64
+    len  u64
 }
 
 FastMapU32_new :: fn() Self {

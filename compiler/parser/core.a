@@ -12,14 +12,14 @@ print     :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit
 
 Parser :: struct {
-    db        : &Nexus,
-    tokens    : &TokenStream,
-    hir       : &HirTable,
-    cursor    : u32,
-    end       : u32,
-    file_id   : u32,
-    toplv_sym : u32,
-    env       : ScopeEnv
+    db        &Nexus
+    tokens    &TokenStream
+    hir       &HirTable
+    cursor    u32
+    end       u32
+    file_id   u32
+    toplv_sym u32
+    env       ScopeEnv
 }
 
 Parser_new :: fn(db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv_sym u32, start u32, count u32) Parser {

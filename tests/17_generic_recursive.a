@@ -4,11 +4,11 @@ print_i32 :: fn(v i32) unit
 
 Node :: fn(T type) type {
     struct {
-        value: T,
-        next: &Node(T)
+        value T
+        next &Node(T)
 
         get :: fn() T { .value }
-        extra: u32
+        extra u32
     }
 }
 

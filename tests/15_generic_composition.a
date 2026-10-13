@@ -7,7 +7,7 @@ print_bool :: fn(v bool) unit
 
 Box :: fn(T type) type {
     struct {
-        value: T
+        value T
 
         new :: fn(value T) Self { .{ value: value } }
         get :: fn() T { .value }
@@ -18,8 +18,8 @@ Box :: fn(T type) type {
 
 Callback :: fn(T type) type {
     struct {
-        value: T,
-        apply: fn(x T) T
+        value T
+        apply fn(x T) T
 
         run :: fn() T { .apply(.value) }
     }

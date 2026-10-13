@@ -1,7 +1,7 @@
 Maybe :: fn(T type) type {
     struct {
-        present: bool,
-        value: T
+        present bool
+        value T
 
         some :: fn(value T) Self { .{ present: true, value: value } }
         none :: fn() Self {

@@ -5,10 +5,10 @@ ArenaVecType :: u8
 
 
 AVecU8 :: struct {
-    arena: &Arena,
-    ptr: &ArenaVecType,
-    len: u64,
-    cap: u64,
+    arena &Arena
+    ptr &ArenaVecType
+    len u64
+    cap u64
 
     new :: fn(arena &Arena) Self {
         Self.with_cap(arena, 4)

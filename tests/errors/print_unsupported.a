@@ -1,6 +1,6 @@
 import print from "std/io.a"
 
-Record :: struct { value: i32 }
+Record :: struct { value i32 }
 
 main :: fn() {
     value: Record = .{ value: 7 }

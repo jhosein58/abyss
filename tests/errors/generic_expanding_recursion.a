@@ -1,2 +1,2 @@
-Bad :: fn(T type) type { struct { next: &Bad(&T) } }
+Bad :: fn(T type) type { struct { next &Bad(&T) } }
 main :: fn() { x: Bad(u32) }

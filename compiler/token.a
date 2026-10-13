@@ -136,11 +136,11 @@ token_name :: fn(tk TokenType) Str {
 }
 
 TokenStream :: struct {
-    kinds          : VecU8,
-    starts         : VecU32,
-    lens           : VecU32,
-    texts          : VecStr,
-    newline_befores: VecBool,
+    kinds           VecU8
+    starts          VecU32
+    lens            VecU32
+    texts           VecStr
+    newline_befores VecBool
 
     new :: fn() TokenStream {
         .{

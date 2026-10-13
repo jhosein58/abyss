@@ -8,7 +8,7 @@ print_bool :: fn(v bool) unit
 
 Box :: fn(T type) type {
     struct {
-        value: T
+        value T
 
         new :: fn(value T) Self { .{ value: value } }
         get :: fn() T { .value }
@@ -17,8 +17,8 @@ Box :: fn(T type) type {
 
 Pair :: fn(T type, U type) type {
     struct {
-        first: T,
-        second: U
+        first T
+        second U
 
         new :: fn(first T, second U) Self { .{ first: first, second: second } }
     }

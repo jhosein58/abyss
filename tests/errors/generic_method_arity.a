@@ -1,2 +1,2 @@
-Box :: fn(T type) type { struct { value: T new :: fn(x T) Self { .{ value: x } } } }
+Box :: fn(T type) type { struct { value T new :: fn(x T) Self { .{ value: x } } } }
 main :: fn() { x := Box(u32).new() }

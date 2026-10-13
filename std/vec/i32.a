@@ -8,9 +8,9 @@ SliceType          :: SliceI32
 elem_size          :: fn() u64 { I32_size() }
 
 VecI32 :: struct {
-    ptr: &VecType,
-    len: u64,
-    cap: u64
+    ptr &VecType
+    len u64
+    cap u64
 
     new :: fn() Self {
         Self.with_cap(4)

@@ -7,8 +7,8 @@ SliceI32_new :: fn(p &SliceTy, len u64) Self { Self_new() }
 --------------------------------------------------------------------------------------------
 
 Self :: struct {
-    ptr: &SliceTy,
-    len: u64
+    ptr &SliceTy
+    len u64
 }
 
 

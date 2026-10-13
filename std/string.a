@@ -7,7 +7,7 @@ print_char :: fn(c u8)  unit
 
 
 String :: struct {
-    buf: AVecU8,
+    buf AVecU8
 
     new :: fn(a &Arena) String {
         .{

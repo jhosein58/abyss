@@ -14,16 +14,16 @@ println_bool :: fn(b bool) {
 
 Option :: fn(T type) type {
     struct {
-        is_some: bool,
-        val: T
+        is_some bool
+        val T
     }
 }
 
 Vec :: fn(T type) type {
     struct {
-        ptr: &T,
-        len: u64,
-        cap: u64
+        ptr &T
+        len u64
+        cap u64
     }
 }
 

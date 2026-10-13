@@ -3,9 +3,9 @@ import malloc, realloc, free, mem_copy from "../mem.a"
 
 Vec :: fn(T type) type {
     struct {
-        ptr: &T,
-        len: u64,
-        cap: u64
+        ptr &T
+        len u64
+        cap u64
 
         new :: fn() Self {
             Self.with_cap(4)
