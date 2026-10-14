@@ -35,11 +35,11 @@ Str :: struct {
         }
     }
 
-    print :: fn() {
+    print :: fn(self &Self) {
         i := 0
 
-        while i < .len {
-            print_char(*(.ptr + i))
+        while i < self.len {
+            print_char(*(self.ptr + i))
             i = i + 1
         }
     }
@@ -49,21 +49,21 @@ Str :: struct {
         print_char('\n')
     }
 
-    sub :: fn(start u64, len u64) Str {
+    sub :: fn(self &Self, start u64, len u64) Str {
         .{
-            ptr: (.ptr + start),
+            ptr: (self.ptr + start),
             len: len
         }
     }
 
-    eq :: fn(b Str) bool {
-        if .len != b.len {
+    eq :: fn(self &Self, b Str) bool {
+        if self.len != b.len {
             ret false
         }
 
         i: u64 = 0
-        while i < .len {
-            if *(.ptr + i) != *(b.ptr + i) {
+        while i < self.len {
+            if *(self.ptr + i) != *(b.ptr + i) {
                 ret false
             }
             i = i + 1
@@ -72,25 +72,25 @@ Str :: struct {
         true
     }
 
-    starts_with :: fn(prefix Str) bool {
-        if .len < prefix.len { ret false }
-        .sub(0, prefix.len).eq(prefix)
+    starts_with :: fn(self &Self, prefix Str) bool {
+        if self.len < prefix.len { ret false }
+        self.sub(0, prefix.len).eq(prefix)
     }
 
-    ends_with :: fn(suffix Str) bool {
-        if .len < suffix.len { ret false }
-        .sub(.len - suffix.len, suffix.len).eq(suffix)
+    ends_with :: fn(self &Self, suffix Str) bool {
+        if self.len < suffix.len { ret false }
+        self.sub(self.len - suffix.len, suffix.len).eq(suffix)
     }
 
-    trim_quotes :: fn() Str {
-        if .len >= 2 {
-            if (*(.ptr) == '"') and (*(.ptr + .len - 1) == '"') {
-                ret .sub(1, .len - 2)
+    trim_quotes :: fn(self &Self) Str {
+        if self.len >= 2 {
+            if (*(self.ptr) == '"') and (*(self.ptr + self.len - 1) == '"') {
+                ret self.sub(1, self.len - 2)
             }
         }
         .{
-            ptr: .ptr,
-            len: .len
+            ptr: self.ptr,
+            len: self.len
         }
     }
 }

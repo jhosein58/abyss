@@ -1,0 +1,9 @@
+Box :: struct {
+    value u32
+    get :: fn(self &Self) u32 { .value }
+}
+
+main :: fn() {
+    box: Box = .{ value: 1 }
+    box.get()
+}

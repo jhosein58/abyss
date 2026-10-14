@@ -26,40 +26,40 @@ AVecU8 :: struct {
         }
     }
 
-    grow :: fn() {
-        if .len == .cap {
-            new_cap := .cap * 2
-            old_bytes := .cap * U8_size()
+    grow :: fn(self &Self) {
+        if self.len == self.cap {
+            new_cap := self.cap * 2
+            old_bytes := self.cap * U8_size()
             new_bytes := new_cap * U8_size()
 
-            new_ptr := .arena.realloc(.ptr as &u8, old_bytes, new_bytes) as &ArenaVecType
+            new_ptr := self.arena.realloc(self.ptr as &u8, old_bytes, new_bytes) as &ArenaVecType
 
-            .ptr = new_ptr
-            .cap = new_cap
+            self.ptr = new_ptr
+            self.cap = new_cap
         }
     }
 
-    push :: fn(val ArenaVecType) {
-        .grow()
+    push :: fn(self &Self, val ArenaVecType) {
+        self.grow()
 
-        *(.ptr + .len) = val
-        .len = .len + 1
+        *(self.ptr + self.len) = val
+        self.len = self.len + 1
     }
 
-    get :: fn(idx u64) ArenaVecType {
-        *(.ptr + idx)
+    get :: fn(self &Self, idx u64) ArenaVecType {
+        *(self.ptr + idx)
     }
 
-    set :: fn(idx u64, val ArenaVecType) {
-        *(.ptr + idx) = val
+    set :: fn(self &Self, idx u64, val ArenaVecType) {
+        *(self.ptr + idx) = val
     }
 
-    pop :: fn() ArenaVecType {
-        .len = .len - 1
-        *(.ptr + .len)
+    pop :: fn(self &Self) ArenaVecType {
+        self.len = self.len - 1
+        *(self.ptr + self.len)
     }
 
-    clear :: fn() {
-        .len = 0
+    clear :: fn(self &Self) {
+        self.len = 0
     }
 }

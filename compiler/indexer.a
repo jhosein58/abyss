@@ -66,22 +66,22 @@ Indexer :: struct {
         }
     }
 
-    destroy :: fn() {
-        .loaded_paths.destroy()
-        .queue_fids.destroy()
-        .queue_tok_start.destroy()
-        .queue_tok_end.destroy()
-        .pending_imports.destroy()
+    destroy :: fn(self &Self) {
+        self.loaded_paths.destroy()
+        self.queue_fids.destroy()
+        self.queue_tok_start.destroy()
+        self.queue_tok_end.destroy()
+        self.pending_imports.destroy()
     }
 
-    resolve_and_load :: fn(curr_path Str, import_path Str) u32 {
-        db := .db
-        target_path := module_path(.arena, curr_path, import_path)
+    resolve_and_load :: fn(self &Self, curr_path Str, import_path Str) u32 {
+        db := self.db
+        target_path := module_path(self.arena, curr_path, import_path)
         path_id := db.interner.intern(target_path)
 
         i: u64 = 0
-        while i < .loaded_paths.len {
-            if .loaded_paths.get(i) == path_id {
+        while i < self.loaded_paths.len {
+            if self.loaded_paths.get(i) == path_id {
                 ret i as u32
             }
             i = i + 1
@@ -94,28 +94,28 @@ Indexer :: struct {
                 index_error(target_path, c"embedded module not found")
             }
         } else {
-            source = read_file(.arena, target_path.ptr)
+            source = read_file(self.arena, target_path.ptr)
         }
 
         fid := db.add_file(target_path, source)
-        while .loaded_paths.len < (fid as u64) {
-            .loaded_paths.push(id_none())
+        while self.loaded_paths.len < (fid as u64) {
+            self.loaded_paths.push(id_none())
         }
-        .loaded_paths.push(path_id)
+        self.loaded_paths.push(path_id)
 
         tok_start := db.tokens.count() as u32
         lex(&(*db).tokens, source, target_path)
         tok_end := db.tokens.count() as u32
 
-        .queue_fids.push(fid)
-        .queue_tok_start.push(tok_start)
-        .queue_tok_end.push(tok_end)
+        self.queue_fids.push(fid)
+        self.queue_tok_start.push(tok_start)
+        self.queue_tok_end.push(tok_end)
 
         fid
     }
 
-    scan_symbols :: fn(file_id u32, curr_path Str, start_tok u32, end_tok u32) {
-        db := .db
+    scan_symbols :: fn(self &Self, file_id u32, curr_path Str, start_tok u32, end_tok u32) {
+        db := self.db
         t := token
         cursor := start_tok
         depth: u32 = 0
@@ -180,14 +180,14 @@ Indexer :: struct {
                 raw_path := db.tokens.text(scan)
                 path_str := raw_path.trim_quotes()
 
-                target_fid := .resolve_and_load(curr_path, path_str)
+                target_fid := self.resolve_and_load(curr_path, path_str)
 
                 n_i: u64 = 0
                 while n_i < imported_names.len {
-                    .pending_imports.push(file_id)
-                    .pending_imports.push(local_names.get(n_i))
-                    .pending_imports.push(imported_names.get(n_i))
-                    .pending_imports.push(target_fid)
+                    self.pending_imports.push(file_id)
+                    self.pending_imports.push(local_names.get(n_i))
+                    self.pending_imports.push(imported_names.get(n_i))
+                    self.pending_imports.push(target_fid)
                     n_i = n_i + 1
                 }
                 imported_names.destroy()
@@ -216,18 +216,18 @@ Indexer :: struct {
         }
     }
 
-    resolve_pending_imports :: fn() {
-        db := .db
+    resolve_pending_imports :: fn(self &Self) {
+        db := self.db
         changed := true
         while changed {
             changed = false
             p_i: u64 = 0
-            while p_i < .pending_imports.len {
-                src_fid := .pending_imports.get(p_i)
+            while p_i < self.pending_imports.len {
+                src_fid := self.pending_imports.get(p_i)
                 if src_fid != id_none() {
-                    loc_name := .pending_imports.get(p_i + 1)
-                    imp_name := .pending_imports.get(p_i + 2)
-                    tgt_fid  := .pending_imports.get(p_i + 3)
+                    loc_name := self.pending_imports.get(p_i + 1)
+                    imp_name := self.pending_imports.get(p_i + 2)
+                    tgt_fid  := self.pending_imports.get(p_i + 3)
 
                     target_sym := db.find_local_symbol(tgt_fid, imp_name)
                     if target_sym != id_none() {
@@ -238,7 +238,7 @@ Indexer :: struct {
                         if existing == id_none() {
                             db.alloc_symbol_alias(src_fid, loc_name, target_sym)
                         }
-                        .pending_imports.set(p_i, id_none())
+                        self.pending_imports.set(p_i, id_none())
                         changed = true
                     }
                 }
@@ -247,10 +247,10 @@ Indexer :: struct {
         }
 
         check_i: u64 = 0
-        while check_i < .pending_imports.len {
-            src_fid := .pending_imports.get(check_i)
+        while check_i < self.pending_imports.len {
+            src_fid := self.pending_imports.get(check_i)
             if src_fid != id_none() {
-                name_id := .pending_imports.get(check_i + 2)
+                name_id := self.pending_imports.get(check_i + 2)
                 print(c"\n[import error] symbol not found: ")
                 db.interner.get(name_id).print()
                 print(c"\n")
@@ -260,36 +260,36 @@ Indexer :: struct {
         }
     }
 
-    run :: fn(root_fid u32, root_path Str, start_tok u32, end_tok u32) {
-        db := .db
+    run :: fn(self &Self, root_fid u32, root_path Str, start_tok u32, end_tok u32) {
+        db := self.db
         root_path_id := db.interner.intern(root_path)
-        while .loaded_paths.len < (root_fid as u64) {
-            .loaded_paths.push(id_none())
+        while self.loaded_paths.len < (root_fid as u64) {
+            self.loaded_paths.push(id_none())
         }
-        .loaded_paths.push(root_path_id)
+        self.loaded_paths.push(root_path_id)
 
-        .queue_fids.push(root_fid)
-        .queue_tok_start.push(start_tok)
-        .queue_tok_end.push(end_tok)
+        self.queue_fids.push(root_fid)
+        self.queue_tok_start.push(start_tok)
+        self.queue_tok_end.push(end_tok)
 
-        db.core_prelude = .resolve_and_load(Str.empty(), Str.of("core/prelude.a"))
-        db.std_prelude  = .resolve_and_load(Str.empty(), Str.of("std/prelude.a"))
+        db.core_prelude = self.resolve_and_load(Str.empty(), Str.of("core/prelude.a"))
+        db.std_prelude  = self.resolve_and_load(Str.empty(), Str.of("std/prelude.a"))
 
         q_head: u64 = 0
-        while q_head < .queue_fids.len {
-            fid   := .queue_fids.get(q_head)
-            s_tok := .queue_tok_start.get(q_head)
-            e_tok := .queue_tok_end.get(q_head)
+        while q_head < self.queue_fids.len {
+            fid   := self.queue_fids.get(q_head)
+            s_tok := self.queue_tok_start.get(q_head)
+            e_tok := self.queue_tok_end.get(q_head)
 
-            path_id := .loaded_paths.get(fid as u64)
+            path_id := self.loaded_paths.get(fid as u64)
             c_path  := db.interner.get(path_id)
 
-            .scan_symbols(fid, c_path, s_tok, e_tok)
+            self.scan_symbols(fid, c_path, s_tok, e_tok)
 
             q_head = q_head + 1
         }
 
-        .resolve_pending_imports()
+        self.resolve_pending_imports()
     }
 }
 

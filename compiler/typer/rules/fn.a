@@ -3,7 +3,7 @@ import HirTable, hir_kind, hir_none from "../../hir"
 import SliceU32 from "std/slice/u32"
 import VecU32 from "std/vec/u32"
 import Str from "std/string"
-import TypeStorage, ty_kind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float from "../../types"
+import TypeStorage, ty_kind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error from "../../types"
 import UnifyStorage, slot_none from "../../unify"
 import id_none from "../../nexus/pool"
 import Engine from "../../engine"
@@ -15,36 +15,41 @@ import synth_node from "../tyck"
 print :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit
 
-method_has_explicit_self :: fn(db &Nexus, method u32) bool {
-    tbl := &(*db).hir
-    func_node := (tbl).extra(method)
-    if func_node == hir_none() { ret false }
-    params_list_id := (tbl).lhs(func_node)
-    if params_list_id == hir_none() { ret false }
-    args := db.get_list(params_list_id)
-    if args.len == 0 { ret false }
-    first_arg := *(args.ptr + 0)
-    arg_ident := (tbl).lhs(first_arg)
-    if arg_ident == hir_none() { ret false }
-    name_id := (tbl).lhs(arg_ident)
-    name := db.interner.get(name_id)
-    name.eq(Str.of("self"))
+method_self_param :: fn(db &Nexus, method u32) u32 {
+    tbl := &db.hir
+    func_node := tbl.extra(method)
+    if func_node == hir_none() { ret hir_none() }
+    params_list := tbl.lhs(func_node)
+    if params_list == hir_none() { ret hir_none() }
+    args := db.get_list(params_list)
+    i: u64 = 0
+    while i < args.len {
+        arg := *(args.ptr + i)
+        ident := tbl.lhs(arg)
+        if ident == hir_none() { ret hir_none() }
+        if db.interner.get(tbl.lhs(ident)).eq(Str.of("self")) { ret i as u32 }
+        ty_node := tbl.rhs(arg)
+        if (ty_node == hir_none()) or (tbl.kind(ty_node) != hir_kind.ident) { ret hir_none() }
+        if not db.interner.get(tbl.lhs(ty_node)).eq(Str.of("type")) { ret hir_none() }
+        i = i + 1
+    }
+    hir_none()
 }
 
-method_has_receiver :: fn(db &Nexus, method u32) bool {
-    if method_has_explicit_self(db, method) {
-        ret true
+method_has_explicit_self :: fn(db &Nexus, method u32) bool {
+    method_self_param(db, method) != hir_none()
+}
+
+check_method_receiver :: fn(db &Nexus, receiver u32, expected u32) {
+    types := &db.types
+    unify := &db.unify
+    db.set_type_error_origin(receiver)
+    actual := unify.resolve_type_deep(types, unify.get_slot(receiver))
+    while types.kind(actual) == ty_kind().ptr { actual = types.payload(actual) }
+    while types.kind(expected) == ty_kind().ptr { expected = types.payload(expected) }
+    if unify.unify_types(types, expected, actual) == ty_id_error() {
+        unify.type_mismatch(types, expected, actual)
     }
-    tbl := &(*db).hir
-    node := (tbl).lhs(method)
-    while node < method {
-        if ((tbl).kind(node) == hir_kind.member) and
-           ((tbl).lhs(node) == hir_none()) {
-            ret true
-        }
-        node = node + 1
-    }
-    false
 }
 
 synth_func :: fn(eng &Engine, id u32) {
@@ -198,57 +203,6 @@ synth_func :: fn(eng &Engine, id u32) {
     }
 }
 
-find_enclosing_method :: fn(db &Nexus, node_id u32) u32 {
-    owner := db.get_method_owner(node_id)
-    if owner == hir_none() { ret hir_none() }
-    methods_id := (&(*db).hir).extra(owner)
-    if (&(*db).hir).kind(owner) == hir_kind.enum_ {
-        if methods_id != hir_none() {
-            meta := db.get_list(methods_id)
-            methods_id = *(meta.ptr + 1)
-        }
-    }
-    if methods_id == hir_none() { ret hir_none() }
-    methods := db.get_list(methods_id)
-    i: u64 = 0
-    while i < methods.len {
-        m := *(methods.ptr + i)
-        start := (&(*db).hir).lhs(m)
-        if (node_id >= start) and (node_id <= m) {
-            ret m
-        }
-        i = i + 1
-    }
-    hir_none()
-}
-
-method_returns_ref_self :: fn(db &Nexus, node_id u32) bool {
-    owner := db.get_method_owner(node_id)
-    if owner == hir_none() { ret false }
-    owner_ty := db.get_const_type(owner)
-    if owner_ty == ty_id_none() { ret false }
-
-    method := find_enclosing_method(db, node_id)
-    if method == hir_none() { ret false }
-
-    if not method_has_receiver(db, method) { ret false }
-
-    func_id := (&(*db).hir).extra(method)
-    if (func_id == hir_none()) or ((&(*db).hir).kind(func_id) != hir_kind.function) {
-        ret false
-    }
-
-    ret_hir := (&(*db).hir).rhs(func_id)
-    if ret_hir == hir_none() { ret false }
-
-    ret_ty := db.get_const_type(ret_hir)
-    if ret_ty == ty_id_none() { ret false }
-
-    types := &(*db).types
-    if (&(*types)).kind(ret_ty) != ty_kind().ptr { ret false }
-    (&(*types)).payload(ret_ty) == owner_ty
-}
-
 synth_return :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
@@ -273,9 +227,6 @@ synth_return :: fn(db &Nexus, tbl &HirTable, id u32) {
             (&(*db).unify).bind_type(&(*db).types, val_slot, ret_ty)
         }
     } else {
-        if method_returns_ref_self(db, id) {
-            ret
-        }
         if ret_ty != ty_id_unit() {
             print(c"\n\033[1;31m[type error]\033[0m return with no value in function returning non-unit\n       --> ")
             db.print_loc(id)
@@ -941,17 +892,49 @@ synth_call :: fn(eng &Engine, id u32) {
             is_generic := (&(*types_ptr)).func_has_type_param(callee_ty)
             leading_tp := (&(*types_ptr)).func_leading_type_params(callee_ty)
 
+            method := db.get_method_target(callee)
+            callee_lhs := hir_none()
+            lhs_is_instance := false
+            if (method != id_none()) and method_has_explicit_self(db, method) {
+                callee_lhs = tbl.lhs(callee)
+                lhs_slot := unify_ptr.get_slot(callee_lhs)
+                if lhs_slot != slot_none() {
+                    lhs_is_instance = unify_ptr.resolve_type(lhs_slot) != ty_id_type()
+                }
+            }
+            if is_generic and lhs_is_instance {
+                receiver_index: u64 = 0
+                if args_len + 1 == params.len { receiver_index = leading_tp as u64 }
+                source_args := VecU32.new()
+                source_args.extend(args_vec.ptr, args_vec.len)
+                args_vec.clear()
+                i: u64 = 0
+                while i <= source_args.len {
+                    if i == receiver_index { args_vec.push(callee_lhs) }
+                    if i < source_args.len { args_vec.push(source_args.get(i)) }
+                    i = i + 1
+                }
+                source_args.destroy()
+                args_len = args_vec.len
+            }
+
             is_explicit := args_len == params.len
             is_omitted := is_generic and (leading_tp > 0) and (args_len == (params.len - (leading_tp as u64)))
 
             if is_generic {
                 if (not is_explicit) and (not is_omitted) {
+                    expected_len := params.len
+                    actual_len := args_len
+                    if lhs_is_instance {
+                        expected_len = expected_len - 1
+                        actual_len = actual_len - 1
+                    }
                     print(c"\n\033[1;31m[type error]\033[0m function expected ")
-                    print_u32(params.len as u32)
+                    print_u32(expected_len as u32)
                     print(c" (or ")
-                    print_u32((params.len - (leading_tp as u64)) as u32)
+                    print_u32((expected_len - (leading_tp as u64)) as u32)
                     print(c") arguments, but got ")
-                    print_u32(args_len as u32)
+                    print_u32(actual_len as u32)
                     print(c"\n       --> ")
                     db.print_loc(id)
                     print(c"\n\n")
@@ -1088,11 +1071,15 @@ synth_call :: fn(eng &Engine, id u32) {
                             inst_param := instantiate_type(eng, *(params.ptr + i), &tmpl_slots, &fresh_slots)
                             arg_slot := (unify_ptr).get_slot(arg_node)
                             if arg_slot != slot_none() {
-                                check_value(db, arg_node, inst_param)
-                                arg_slot = (unify_ptr).get_slot(arg_node)
-                                p_tmp := unify_ptr.tmp_slot()
-                                (&(*db).unify).bind_type(&(*db).types, p_tmp, inst_param)
-                                (&(*db).unify).union(&(*db).types, arg_slot, p_tmp)
+                                if lhs_is_instance and (arg_node == callee_lhs) {
+                                    check_method_receiver(db, arg_node, inst_param)
+                                } else {
+                                    check_value(db, arg_node, inst_param)
+                                    arg_slot = (unify_ptr).get_slot(arg_node)
+                                    p_tmp := unify_ptr.tmp_slot()
+                                    (&(*db).unify).bind_type(&(*db).types, p_tmp, inst_param)
+                                    (&(*db).unify).union(&(*db).types, arg_slot, p_tmp)
+                                }
                             }
                         }
                         i = i + 1
@@ -1105,11 +1092,15 @@ synth_call :: fn(eng &Engine, id u32) {
                         inst_param := instantiate_type(eng, *(params.ptr + p_idx), &tmpl_slots, &fresh_slots)
                         arg_slot := (unify_ptr).get_slot(arg_node)
                         if arg_slot != slot_none() {
-                            check_value(db, arg_node, inst_param)
-                            arg_slot = (unify_ptr).get_slot(arg_node)
-                            p_tmp := unify_ptr.tmp_slot()
-                            (&(*db).unify).bind_type(&(*db).types, p_tmp, inst_param)
-                            (&(*db).unify).union(&(*db).types, arg_slot, p_tmp)
+                            if lhs_is_instance and (arg_node == callee_lhs) {
+                                check_method_receiver(db, arg_node, inst_param)
+                            } else {
+                                check_value(db, arg_node, inst_param)
+                                arg_slot = (unify_ptr).get_slot(arg_node)
+                                p_tmp := unify_ptr.tmp_slot()
+                                (&(*db).unify).bind_type(&(*db).types, p_tmp, inst_param)
+                                (&(*db).unify).union(&(*db).types, arg_slot, p_tmp)
+                            }
                         }
                         i = i + 1
                     }
@@ -1151,7 +1142,7 @@ synth_call :: fn(eng &Engine, id u32) {
                 i: u64 = 0
                 while i < args.len {
                     arg_node := *(args.ptr + i)
-                    if db.has_union_coerce(arg_node) {
+                    if db.has_union_coerce(arg_node) and (arg_node != callee_lhs) {
                         source_union := db.get_union_coerce_ty(arg_node)
                         source_idx := db.get_union_coerce_idx(arg_node)
                         source_members := (&(*types_ptr)).union_members(source_union)
@@ -1184,34 +1175,12 @@ synth_call :: fn(eng &Engine, id u32) {
                 ret_ty := (&(*types_ptr)).func_return(callee_ty)
                 (&(*db).unify).bind_type(&(*db).types, slot, ret_ty)
 
-                method := db.get_method_target(callee)
-                has_expl_self := false
-                if method != id_none() {
-                    has_expl_self = method_has_explicit_self(db, method)
-                }
-
-                callee_lhs := hir_none()
-                if (tbl).kind(callee) == hir_kind.member {
-                    callee_lhs = (tbl).lhs(callee)
-                }
-
-                lhs_is_instance := false
-                if (callee_lhs != hir_none()) and has_expl_self {
-                    lhs_slot := (unify_ptr).get_slot(callee_lhs)
-                    if lhs_slot != slot_none() {
-                        lhs_ty := (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
-                        if lhs_ty != ty_id_type() {
-                            lhs_is_instance = true
-                        }
-                    }
-                }
-
                 expected_len := params.len
                 param_offset: u64 = 0
                 if lhs_is_instance {
                     expected_len = params.len - 1
                     param_offset = 1
-                    check_value(db, callee_lhs, *(params.ptr + 0))
+                    check_method_receiver(db, callee_lhs, *(params.ptr + 0))
                 }
 
                 if args_len != expected_len {

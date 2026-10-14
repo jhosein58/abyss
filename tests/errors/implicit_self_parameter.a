@@ -1,0 +1,8 @@
+Box :: struct {
+    value u32
+    get :: fn() u32 { self.value }
+}
+
+main :: fn() {
+    Box.get()
+}

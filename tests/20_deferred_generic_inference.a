@@ -11,7 +11,7 @@ Box :: fn(T type) type {
         value T
 
         new :: fn(value T) Self { .{ value: value } }
-        get :: fn() T { .value }
+        get :: fn(self &Self) T { self.value }
     }
 }
 

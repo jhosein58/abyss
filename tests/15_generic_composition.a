@@ -10,9 +10,9 @@ Box :: fn(T type) type {
         value T
 
         new :: fn(value T) Self { .{ value: value } }
-        get :: fn() T { .value }
-        convert :: fn(U type, value U) U { .value value }
-        address :: fn() &Self { .value ret }
+        get :: fn(self &Self) T { self.value }
+        convert :: fn(U type, self &Self, value U) U { value }
+        address :: fn(self &Self) &Self { ret self }
     }
 }
 
@@ -21,7 +21,7 @@ Callback :: fn(T type) type {
         value T
         apply fn(x T) T
 
-        run :: fn() T { .apply(.value) }
+        run :: fn(self &Self) T { self.apply(self.value) }
     }
 }
 

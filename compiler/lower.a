@@ -11,7 +11,7 @@ import TypeStorage, ty_kind, ty_id_none, ty_id_type, ty_id_unit from "./types"
 import slot_none from "./unify"
 import topo_sort from "./topo_sort"
 import fall from "std/sys"
-import resolve_ty_id, method_returns_ref_self, method_has_explicit_self, specialize_type_node, type_check from "./typer/tyck"
+import resolve_ty_id, method_self_param, method_has_explicit_self, specialize_type_node, type_check from "./typer/tyck"
 import Engine from "./engine"
 
 print :: fn(s &u8) unit
@@ -492,11 +492,6 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ve
                         struct_ty = (&(*db).types).payload(struct_ty)
                     }
                 }
-            } else {
-                owner := db.get_method_owner(method)
-                if owner != hir_none() {
-                    struct_ty = db.get_const_type(owner)
-                }
             }
             if struct_ty != ty_id_none() {
                 if (&(*db).types).kind(struct_ty) == ty_kind().nominal {
@@ -562,31 +557,13 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ve
             }
         }
 
-        has_receiver := false
-        has_expl_self := false
-        if method != id_none() {
-            has_expl_self = method_has_explicit_self(db, method)
-            if not has_expl_self {
-                method_name := (&(*db).hir).lhs(method)
-                node := method_name
-                while node < method {
-                    if ((&(*db).hir).kind(node) == k.member) and
-                       ((&(*db).hir).lhs(node) == hir_none()) {
-                        has_receiver = true
-                        break
-                    }
-                    node = node + 1
-                }
-            }
-        }
-
         callee_lhs := hir_none()
         if ((&(*db).hir).kind(callee_id) == k.member) {
             callee_lhs = (&(*db).hir).lhs(callee_id)
         }
 
         lhs_is_instance := false
-        if (callee_lhs != hir_none()) and has_expl_self {
+        if (callee_lhs != hir_none()) and (method != id_none()) and method_has_explicit_self(db, method) {
             lhs_ty := get_node_type(db, callee_lhs)
             if lhs_ty != ty_id_type() {
                 lhs_is_instance = true
@@ -595,50 +572,33 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ve
 
         args_fmt := Fmt.new(arena)
         first_arg := true
-        if has_receiver {
-            first_arg = false
-            lhs := callee_lhs
-
-            if lhs == hir_none() {
-                args_fmt.str(Str.of("_self"))
-            } else {
-                receiver_ty := get_node_type(db, lhs)
-                receiver_str := lower_expr(db, ccg, arena, lhs, visited, queue, type_queue)
-                depth: u32 = 0
-                while (&(*db).types).kind(receiver_ty) == ty_kind().ptr {
-                    receiver_ty = (&(*db).types).payload(receiver_ty)
-                    depth = depth + 1
-                }
-                add_type_to_queue(db, receiver_ty, type_queue)
-                receiver_ty_str := ccg.type_str(&(*db).types, arena, receiver_ty)
-                args_fmt.str(ccg.expr_receiver(arena, receiver_str, depth, is_lvalue(db, lhs), receiver_ty_str))
-            }
-        } else if lhs_is_instance {
+        if lhs_is_instance {
             first_arg = false
             receiver_ty := get_node_type(db, callee_lhs)
             receiver_str := lower_expr(db, ccg, arena, callee_lhs, visited, queue, type_queue)
 
-            func_node := (&(*db).hir).extra(method)
-            func_ty := db.get_const_type(func_node)
-            first_param_ty := ty_id_none()
-            if func_ty != ty_id_none() {
-                m_params := (&(*db).types).func_params(func_ty)
-                if m_params.len > 0 {
-                    first_param_ty = *(m_params.ptr + 0)
-                }
+            receiver_depth: u32 = 0
+            while (&db.types).kind(receiver_ty) == ty_kind().ptr {
+                receiver_ty = (&db.types).payload(receiver_ty)
+                receiver_depth = receiver_depth + 1
             }
-
-            if (&(*db).types).kind(first_param_ty) == ty_kind().ptr {
-                if (&(*db).types).kind(receiver_ty) == ty_kind().ptr {
-                    args_fmt.str(receiver_str)
-                } else {
-                    args_fmt.cstr(c"&(").str(receiver_str).char(41 as u8)
-                }
+            receiver_param := method_self_param(db, method)
+            m_params := (&db.types).func_params(callee_ty)
+            first_param_ty := *(m_params.ptr + receiver_param)
+            add_type_to_queue(db, receiver_ty, type_queue)
+            receiver_ty_str := ccg.type_str(&db.types, arena, receiver_ty)
+            if (&db.types).kind(first_param_ty) == ty_kind().ptr {
+                args_fmt.str(ccg.expr_receiver(arena, receiver_str, receiver_depth, is_lvalue(db, callee_lhs), receiver_ty_str))
             } else {
-                if (&(*db).types).kind(receiver_ty) == ty_kind().ptr {
-                    args_fmt.cstr(c"(*").str(receiver_str).char(41 as u8)
-                } else {
-                    args_fmt.str(receiver_str)
+                while receiver_depth > 0 {
+                    args_fmt.cstr(c"*(")
+                    receiver_depth = receiver_depth - 1
+                }
+                args_fmt.str(receiver_str)
+                receiver_ty = get_node_type(db, callee_lhs)
+                while (&db.types).kind(receiver_ty) == ty_kind().ptr {
+                    args_fmt.char(41 as u8)
+                    receiver_ty = (&db.types).payload(receiver_ty)
                 }
             }
         }
@@ -837,8 +797,6 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ve
         if val_id != hir_none() {
             val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
             ccg.gen_return(val_str, true)
-        } else if method_returns_ref_self(db, id) {
-            ccg.gen_return(Str.of("_self"), true)
         } else {
             ccg.gen_return(Str.empty(), false)
         }
@@ -889,15 +847,6 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ve
             db.print_loc(id)
             print(c"\n")
             fall()
-        }
-
-        if lhs_id == hir_none() {
-            field_id := (&(*db).hir).lhs(rhs_id)
-            ret ccg.expr_self_member(arena, field_id)
-        }
-
-        if (lhs_id == hir_none()) or (rhs_id == hir_none()) {
-            ret Str.empty()
         }
 
         lhs_ty := get_node_type(db, lhs_id)
@@ -1270,40 +1219,9 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
     params_slice := (&(*db).types).func_params(func_ty)
     params_str   := Str.of("void")
 
-    receiver := false
-    method_owner := id_none()
-    is_ref_self := false
-    if is_method {
-        method_owner = db.get_method_owner(binding_id)
-        method_node := (&(*db).hir).lhs(binding_id)
-        while method_node < binding_id {
-            if ((&(*db).hir).kind(method_node) == k.member) and
-               ((&(*db).hir).lhs(method_node) == hir_none()) {
-                receiver = true
-                break
-            }
-            method_node = method_node + 1
-        }
-
-        if receiver and (method_owner != id_none()) {
-            owner_ty := db.get_const_type(method_owner)
-            if (owner_ty != ty_id_none()) and
-                ((&(*db).types).kind(ret_ty) == ty_kind().ptr) and
-                ((&(*db).types).payload(ret_ty) == owner_ty) {
-                is_ref_self = true
-            }
-        }
-    }
-
-    if (params_slice.len > 0) or receiver {
+    if params_slice.len > 0 {
         p_fmt := Fmt.new(arena)
         first_p := true
-        if receiver {
-            owner_ty := db.get_const_type(method_owner)
-            p_fmt.str(ccg.type_str(&(*db).types, arena, owner_ty))
-            p_fmt.cstr(c"* _self")
-            first_p = false
-        }
         orig_params: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
         if orig_func_ty != ty_id_none() {
             orig_params = (&(*db).types).func_params(orig_func_ty)
@@ -1358,20 +1276,11 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
         param_index = param_index + 1
     }
 
-    if receiver {
-        add_type_to_queue(db, db.get_const_type(method_owner), &type_queue)
-    }
-
     ccg.start_function(fn_name, ret_str, params_str)
 
     body_val := lower_expr(db, ccg, arena, body_id, visited, &queue, &type_queue)
 
-    if is_ref_self {
-        if body_val.len > 0 {
-            ccg.expr(body_val)
-        }
-        ccg.gen_return(Str.of("_self"), true)
-    } else if (&(*db).types).kind(ret_ty) == ty_kind().unit {
+    if (&(*db).types).kind(ret_ty) == ty_kind().unit {
         if body_val.len > 0 {
             ccg.expr(body_val)
         }

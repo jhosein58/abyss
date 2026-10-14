@@ -15,26 +15,26 @@ String :: struct {
         }
     }
 
-    push_str :: fn(s Str) {
+    push_str :: fn(self &Self, s Str) {
         i := 0
 
         while i < s.len {
-            .buf.push(*(s.ptr + i))
+            self.buf.push(*(s.ptr + i))
             i = i + 1
         }
     }
 
-    as_str :: fn() Str {
-        Str.new(.buf.ptr, .buf.len)
+    as_str :: fn(self &Self) Str {
+        Str.new(self.buf.ptr, self.buf.len)
     }
 
-    push_char :: fn(c u8) {
-        .buf.push(c)
+    push_char :: fn(self &Self, c u8) {
+        self.buf.push(c)
     }
 
-    push_u32 :: fn(val u32) {
+    push_u32 :: fn(self &Self, val u32) {
         if val == 0 {
-            .push_char('0') 
+            self.push_char('0')
             ret
         }
 
@@ -47,7 +47,7 @@ String :: struct {
 
         while divisor > 0 {
             digit := v / divisor
-            .push_char((digit + 48) as u8)
+            self.push_char((digit + 48) as u8)
         
             v = v - (digit * divisor)
             divisor = divisor / 10

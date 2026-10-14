@@ -38,8 +38,8 @@ Pair :: struct {
         val
     }
 
-    add_val :: fn(t type, v t) u32 {
-        .first + (v as u32)
+    add_val :: fn(t type, self &Self, v t) u32 {
+        self.first + (v as u32)
     }
 }
 

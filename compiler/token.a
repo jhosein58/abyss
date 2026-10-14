@@ -152,43 +152,43 @@ TokenStream :: struct {
         }
     }
 
-    destroy :: fn() {
-        .kinds.destroy()
-        .starts.destroy()
-        .lens.destroy()
-        .texts.destroy()
-        .newline_befores.destroy()
+    destroy :: fn(self &Self) {
+        self.kinds.destroy()
+        self.starts.destroy()
+        self.lens.destroy()
+        self.texts.destroy()
+        self.newline_befores.destroy()
     }
 
-    push :: fn(kind TokenType, start, len u32, text Str, newline_before bool) {
-        .kinds.push(kind as u8)
-        .starts.push(start)
-        .lens.push(len)
-        .texts.push(text)
-        .newline_befores.push(newline_before)
+    push :: fn(self &Self, kind TokenType, start, len u32, text Str, newline_before bool) {
+        self.kinds.push(kind as u8)
+        self.starts.push(start)
+        self.lens.push(len)
+        self.texts.push(text)
+        self.newline_befores.push(newline_before)
     }
 
-    count :: fn() u64 {
-        .kinds.len
+    count :: fn(self &Self) u64 {
+        self.kinds.len
     }
 
-    kind :: fn(idx u32) TokenType {
-        .kinds.get(idx as u64) as TokenType
+    kind :: fn(self &Self, idx u32) TokenType {
+        self.kinds.get(idx as u64) as TokenType
     }
 
-    start :: fn(idx u32) u32 {
-        .starts.get(idx as u64)
+    start :: fn(self &Self, idx u32) u32 {
+        self.starts.get(idx as u64)
     }
 
-    len :: fn(idx u32) u32 {
-        .lens.get(idx as u64)
+    len :: fn(self &Self, idx u32) u32 {
+        self.lens.get(idx as u64)
     }
 
-    text :: fn(idx u32) Str {
-        .texts.get(idx as u64)
+    text :: fn(self &Self, idx u32) Str {
+        self.texts.get(idx as u64)
     }
 
-    newline_before :: fn(idx u32) bool {
-        .newline_befores.get(idx as u64)
+    newline_before :: fn(self &Self, idx u32) bool {
+        self.newline_befores.get(idx as u64)
     }
 }

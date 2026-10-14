@@ -7,7 +7,7 @@ Box :: fn(T type) type {
         value T
 
         new :: fn(x T) Self { .{ value: x } }
-        convert :: fn(U type, x U) U { .value x }
+        convert :: fn(U type, self &Self, x U) U { x }
     }
 }
 

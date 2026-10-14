@@ -26,102 +26,102 @@ Vec :: fn(T type) type {
             }
         }
 
-        destroy :: fn() {
-            free(.ptr as &u8)
-            .ptr = 0 as &T
-            .len = 0
-            .cap = 0
+        destroy :: fn(self &Self) {
+            free(self.ptr as &u8)
+            self.ptr = 0 as &T
+            self.len = 0
+            self.cap = 0
         }
 
-        reserve :: fn(additional u64) {
-            needed := .len + additional
-            if needed > .cap {
-                new_cap := .cap * 2
+        reserve :: fn(self &Self, additional u64) {
+            needed := self.len + additional
+            if needed > self.cap {
+                new_cap := self.cap * 2
                 if new_cap < 4 { new_cap = 4 }
                 while new_cap < needed {
                     new_cap = new_cap * 2
                 }
 
-                new_ptr := realloc(.ptr as &u8, new_cap * @sizeof(T)) as &T
-                .ptr = new_ptr
-                .cap = new_cap
+                new_ptr := realloc(self.ptr as &u8, new_cap * @sizeof(T)) as &T
+                self.ptr = new_ptr
+                self.cap = new_cap
             }
         }
 
-        grow :: fn() {
-            if .len == .cap {
-                .reserve(1)
+        grow :: fn(self &Self) {
+            if self.len == self.cap {
+                self.reserve(1)
             }
         }
 
 
-        push :: fn(val T) {
-            .grow()
+        push :: fn(self &Self, val T) {
+            self.grow()
 
-            *(.ptr + .len) = val
-            .len = .len + 1
+            *(self.ptr + self.len) = val
+            self.len = self.len + 1
         }
 
 
-        get :: fn(idx u64) T {
-            *(.ptr + idx)
+        get :: fn(self &Self, idx u64) T {
+            *(self.ptr + idx)
         }
 
-        pop :: fn() T {
-            .len = .len - 1
-            .get(.len)
+        pop :: fn(self &Self) T {
+            self.len = self.len - 1
+            self.get(self.len)
         }
 
-        set :: fn(idx u64, val T) {
-            *(.ptr + idx) = val
+        set :: fn(self &Self, idx u64, val T) {
+            *(self.ptr + idx) = val
         }
 
 
-        last :: fn() T {
-            *(.ptr + (.len - 1))
+        last :: fn(self &Self) T {
+            *(self.ptr + (self.len - 1))
         }
 
-        is_empty :: fn() bool {
-            .len == 0
+        is_empty :: fn(self &Self) bool {
+            self.len == 0
         }
 
-        extend :: fn(src &T, count u64) {
+        extend :: fn(self &Self, src &T, count u64) {
             if count == 0 { ret }
 
-            .reserve(count)
-            dst := (.ptr + .len) as &u8
+            self.reserve(count)
+            dst := (self.ptr + self.len) as &u8
 
             mem_copy(dst, src as &u8, count * @sizeof(T))
-            .len = .len + count
+            self.len = self.len + count
         }
 
-        mark :: fn() u64 {
-            .len
+        mark :: fn(self &Self) u64 {
+            self.len
         }
 
-        reset :: fn(mark u64) {
-            if mark <= .len {
-                .len = mark
+        reset :: fn(self &Self, mark u64) {
+            if mark <= self.len {
+                self.len = mark
             }
         }
 
-        clear :: fn() {
-            .len = 0
+        clear :: fn(self &Self) {
+            self.len = 0
         }
 
-        ptr_at :: fn(offset u64) &T {
-            .ptr + offset
+        ptr_at :: fn(self &Self, offset u64) &T {
+            self.ptr + offset
         }
 
-        swap_remove :: fn(idx u64) T {
-            last_idx := .len - 1
-            removed := *(.ptr + idx)
+        swap_remove :: fn(self &Self, idx u64) T {
+            last_idx := self.len - 1
+            removed := *(self.ptr + idx)
         
             if idx != last_idx {
-                *(.ptr + idx) = *(.ptr + last_idx)
+                *(self.ptr + idx) = *(self.ptr + last_idx)
             }
         
-            .len = last_idx
+            self.len = last_idx
             removed
         }
     }

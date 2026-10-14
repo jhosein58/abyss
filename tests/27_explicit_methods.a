@@ -1,0 +1,100 @@
+import print from "std/io.a"
+import Arena from "std/allocator.a"
+import Fmt from "std/fmt.a"
+import Vec from "std/collections/vec.a"
+import VecBool from "std/vec/bool.a"
+import VecI32 from "std/vec/i32.a"
+import VecStr from "std/vec/str.a"
+import VecU8 from "std/vec/u8.a"
+import VecU32 from "std/vec/u32.a"
+
+Counter :: struct {
+    value i32
+
+    new :: fn(value i32) Self { .{ value: value } }
+
+    get :: fn(self &Self) i32 { self.value }
+
+    add :: fn(self &Self, amount i32) &Self {
+        if amount == 0 { ret self }
+        self.value = self.value + amount
+        ret self
+    }
+
+    choose :: fn(self &Self, other &Self, keep bool) &Self {
+        if keep { ret self }
+        ret other
+    }
+
+    convert :: fn(T type, self &Self, value T) T { value }
+
+    copy :: fn(self &Self) Self { *self }
+}
+
+main :: fn() {
+    counter := Counter.new(10)
+    counter.add(0).add(5)
+    print(counter.get())
+    print("\n")
+
+    ptr := &counter
+    indirect := &ptr
+    indirect.add(7)
+    print(indirect.get())
+    print("\n")
+
+    other := Counter.new(100)
+    counter.choose(&other, false).add(3)
+    counter.choose(&other, true).add(1)
+    print(counter.get())
+    print(" ")
+    print(other.get())
+    print("\n")
+
+    print(Counter.new(6).add(4).get())
+    print(" ")
+    print(counter.copy().get())
+    print("\n")
+
+    print(counter.convert(u64, 42 as u64))
+    print(" ")
+    print(indirect.convert(true))
+    print("\n")
+
+    values := Vec(Counter).new()
+    values.push(counter)
+    print(values.get(0).add(2).get())
+    print(" ")
+    print(values.get(0).get())
+    print("\n")
+    values.destroy()
+
+    bools := VecBool.new()
+    ints := VecI32.new()
+    strings := VecStr.new()
+    bytes := VecU8.new()
+    numbers := VecU32.new()
+    bools.push(true)
+    ints.push(1)
+    strings.push("value")
+    bytes.push(1)
+    numbers.push(1)
+    bools.clear()
+    ints.clear()
+    strings.clear()
+    bytes.clear()
+    numbers.clear()
+    print(bools.len + ints.len + strings.len + bytes.len + numbers.len)
+    print("\n")
+    bools.destroy()
+    ints.destroy()
+    strings.destroy()
+    bytes.destroy()
+    numbers.destroy()
+
+    arena := Arena.new(4096)
+    fmt := Fmt.new(&arena)
+    fmt.uint64(0).space().uint64(42).space().int32(-7).space().boolean(true).space().boolean(false).newline()
+    print(fmt.as_str())
+    arena.destroy()
+}

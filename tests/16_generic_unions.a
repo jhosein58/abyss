@@ -12,7 +12,7 @@ Box :: fn(T type) type {
         value T | bool
 
         new :: fn(value T | bool) Self { .{ value: value } }
-        get :: fn() T | bool { .value }
+        get :: fn(self &Self) T | bool { self.value }
     }
 }
 

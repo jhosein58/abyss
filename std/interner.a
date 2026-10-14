@@ -38,18 +38,18 @@ Interner :: struct {
         }
     }
 
-    destroy :: fn() {
-        .strings.destroy()
-        free(.table as &u8)
+    destroy :: fn(self &Self) {
+        self.strings.destroy()
+        free(self.table as &u8)
 
-        .table = 0 as &u32
-        .cap = 0
-        .count = 0
+        self.table = 0 as &u32
+        self.cap = 0
+        self.count = 0
     }
 
-    grow :: fn() {
-        old_cap := .cap
-        old_table := .table
+    grow :: fn(self &Self) {
+        old_cap := self.cap
+        old_table := self.table
 
         new_cap := old_cap * 2
         new_bytes := new_cap * U32_size()
@@ -64,7 +64,7 @@ Interner :: struct {
         while i < old_cap {
             id := *(old_table + i)
             if id != empty {
-                s := .strings.get(id as u64)
+                s := self.strings.get(id as u64)
                 idx := (hash_str(s) as u64) & mask
 
                 while *(new_table + idx) != empty {
@@ -77,33 +77,33 @@ Interner :: struct {
         }
 
         free(old_table as &u8)
-        .table = new_table
-        .cap = new_cap
+        self.table = new_table
+        self.cap = new_cap
     }
 
-    intern :: fn(s Str) u32 {
-        if (.count + 1) * 10 >= .cap * 7 {
-            .grow()
+    intern :: fn(self &Self, s Str) u32 {
+        if (self.count + 1) * 10 >= self.cap * 7 {
+            self.grow()
         }
 
-        mask := .cap - 1
+        mask := self.cap - 1
         h := hash_str(s) as u64
         idx := h & mask
         empty := intern_none()
 
         while true {
-            id := *(.table + idx)
+            id := *(self.table + idx)
 
             if id == empty {
-                new_id := .strings.len as u32
-                .strings.push(s)
+                new_id := self.strings.len as u32
+                self.strings.push(s)
 
-                *(.table + idx) = new_id
-                .count = .count + 1
+                *(self.table + idx) = new_id
+                self.count = self.count + 1
                 ret new_id
             }
 
-            existing_str := .strings.get(id as u64)
+            existing_str := self.strings.get(id as u64)
             if s.eq(existing_str) {
                 ret id
             }
@@ -114,12 +114,12 @@ Interner :: struct {
         empty
     }
 
-    get :: fn(id u32) Str {
-        .strings.get(id as u64)
+    get :: fn(self &Self, id u32) Str {
+        self.strings.get(id as u64)
     }
 
-    len :: fn() u64 {
-        .strings.len
+    len :: fn(self &Self) u64 {
+        self.strings.len
     }
 }
 

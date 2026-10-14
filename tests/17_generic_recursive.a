@@ -7,7 +7,7 @@ Node :: fn(T type) type {
         value T
         next &Node(T)
 
-        get :: fn() T { .value }
+        get :: fn(self &Self) T { self.value }
         extra u32
     }
 }

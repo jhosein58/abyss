@@ -17,12 +17,12 @@ Color :: enum {
     green,
     blue,
 
-    is_red :: fn(self Self) bool {
-        (self as u32) == 0
+    is_red :: fn(self &Self) bool {
+        (*self as u32) == 0
     },
 
-    val :: fn(self Self) u32 {
-        self as u32
+    val :: fn(self &Self) u32 {
+        *self as u32
     }
 }
 

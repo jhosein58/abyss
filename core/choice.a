@@ -17,11 +17,11 @@ Choice :: fn(T type, E type) type {
             }
         }
 
-        is_success :: fn() bool { .is_ok }
-        is_error :: fn() bool { not .is_ok }
+        is_success :: fn(self &Self) bool { self.is_ok }
+        is_error :: fn(self &Self) bool { not self.is_ok }
 
-        unwrap_or :: fn(fallback T) T {
-            if .is_ok { .val as T } else { fallback }
+        unwrap_or :: fn(self &Self, fallback T) T {
+            if self.is_ok { self.val as T } else { fallback }
         }
     }
 }

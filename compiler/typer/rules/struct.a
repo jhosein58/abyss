@@ -8,7 +8,7 @@ import id_none from "../../nexus/pool"
 import Engine from "../../engine"
 import fall from "std/sys"
 import synth_type_node from "./var"
-import synth_func, method_has_receiver, specialize_type_node from "./fn"
+import synth_func, method_has_explicit_self, specialize_type_node from "./fn"
 
 print :: fn(s &u8) unit
 
@@ -179,31 +179,20 @@ synth_member :: fn(eng &Engine, id u32) {
 
     is_type := false
     lhs_ty := ty_id_none()
-    if lhs_id == hir_none() {
-        owner := db.get_method_owner(id)
-        if owner == hir_none() {
-            print(c"\n\033[1;31m[type error]\033[0m implicit field access outside a method\n       --> ")
-            db.print_loc(id)
-            print(c"\n")
-            fall()
-        }
-        lhs_ty = db.get_const_type(owner)
+    lhs_slot := (unify_ptr).get_slot(lhs_id)
+    if lhs_slot == slot_none() {
+        print(c"\n\033[1;31m[type error]\033[0m cannot resolve member receiver\n       --> ")
+        db.print_loc(lhs_id)
+        print(c"\n")
+        fall()
+    }
+    lhs_ty = (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
+    if lhs_ty == ty_id_type() {
+        lhs_ty = db.get_const_type(lhs_id)
+        is_type = true
     } else {
-        lhs_slot := (unify_ptr).get_slot(lhs_id)
-        if lhs_slot == slot_none() {
-            print(c"\n\033[1;31m[type error]\033[0m cannot resolve member receiver\n       --> ")
-            db.print_loc(lhs_id)
-            print(c"\n")
-            fall()
-        }
-        lhs_ty = (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
-        if lhs_ty == ty_id_type() {
-            lhs_ty = db.get_const_type(lhs_id)
-            is_type = true
-        } else {
-            while (&(*types_ptr)).kind(lhs_ty) == ty_kind().ptr {
-                lhs_ty = (&(*types_ptr)).payload(lhs_ty)
-            }
+        while (&(*types_ptr)).kind(lhs_ty) == ty_kind().ptr {
+            lhs_ty = (&(*types_ptr)).payload(lhs_ty)
         }
     }
 
@@ -271,14 +260,14 @@ synth_member :: fn(eng &Engine, id u32) {
                 method := *(methods.ptr + i)
                 method_name := (tbl).lhs((tbl).lhs(method))
                 if method_name == name_id {
-                    receiver := method_has_receiver(db, method)
+                    receiver := method_has_explicit_self(db, method)
                     if is_type and receiver {
                         print(c"\n\033[1;31m[type error]\033[0m instance method requires a value; call it on an instance\n       --> ")
                         db.print_loc(id)
                         print(c"\n")
                         fall()
                     }
-                    if (lhs_id != hir_none()) and (not is_type) and (not receiver) {
+                    if (not is_type) and (not receiver) {
                         print(c"\n\033[1;31m[type error]\033[0m static method requires the type\n       --> ")
                         db.print_loc(id)
                         print(c"\n")

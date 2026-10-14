@@ -60,41 +60,41 @@ Lexer :: struct {
         }
     }
 
-    is_eof :: fn() bool {
-        .cursor >= .source.len
+    is_eof :: fn(self &Self) bool {
+        self.cursor >= self.source.len
     }
 
-    current :: fn() u8 {
-        if .is_eof() { ret 0 as u8 }
-        *(.source.ptr + .cursor)
+    current :: fn(self &Self) u8 {
+        if self.is_eof() { ret 0 as u8 }
+        *(self.source.ptr + self.cursor)
     }
 
-    peek :: fn() u8 {
-        if .cursor + 1 >= .source.len { ret 0 as u8 }
-        *(.source.ptr + .cursor + 1)
+    peek :: fn(self &Self) u8 {
+        if self.cursor + 1 >= self.source.len { ret 0 as u8 }
+        *(self.source.ptr + self.cursor + 1)
     }
 
-    bump :: fn() {
-        if not .is_eof() {
-            .cursor = .cursor + 1
+    bump :: fn(self &Self) {
+        if not self.is_eof() {
+            self.cursor = self.cursor + 1
         }
     }
 
-    match :: fn(expected u8) bool {
-        if (.current() == expected) and (not .is_eof()) {
-            .bump()
+    match :: fn(self &Self, expected u8) bool {
+        if (self.current() == expected) and (not self.is_eof()) {
+            self.bump()
             ret true
         }
         false
     }
 
-    error :: fn(msg &u8, offset u64) {
+    error :: fn(self &Self, msg &u8, offset u64) {
         print(c"\n[lex error] ")
         print(msg)
         print(c"\n       --> ")
-        .path.print()
+        self.path.print()
         print(c":")
-        pos := calc_pos(.source, offset as u32)
+        pos := calc_pos(self.source, offset as u32)
         print_u32(pos.line)
         print(c":")
         print_u32(pos.col)
@@ -102,55 +102,55 @@ Lexer :: struct {
         fall()
     }
 
-    emit :: fn(stream &TokenStream, kind TokenType, offset u64) {
-        len := (.cursor - offset) as u32
-        text := Str.new(.source.ptr + offset, len as u64)
-        stream.push(kind, offset as u32, len, text, .had_newline)
-        .had_newline = false
+    emit :: fn(self &Self, stream &TokenStream, kind TokenType, offset u64) {
+        len := (self.cursor - offset) as u32
+        text := Str.new(self.source.ptr + offset, len as u64)
+        stream.push(kind, offset as u32, len, text, self.had_newline)
+        self.had_newline = false
     }
 
-    valid_escape :: fn() bool {
-        c := .current()
-        if c == 'x' { ret is_hex_digit(.peek()) }
+    valid_escape :: fn(self &Self) bool {
+        c := self.current()
+        if c == 'x' { ret is_hex_digit(self.peek()) }
         if (c >= '0') and (c <= '7') { ret true }
         (c == 'a') or (c == 'b') or (c == 'f') or (c == 'n') or (c == 'r') or
         (c == 't') or (c == 'v') or (c == '\\') or (c == '\'') or (c == '"') or (c == '?')
     }
 
-    scan_number :: fn(stream &TokenStream) {
-        offset := .cursor
+    scan_number :: fn(self &Self, stream &TokenStream) {
+        offset := self.cursor
         is_float := false
 
-        if .current() == '0' {
-            p := .peek()
+        if self.current() == '0' {
+            p := self.peek()
             if (p == 'x') or (p == 'X') {
-                .bump()
-                .bump()
-                while (not .is_eof()) and (is_hex_digit(.current()) or (.current() == '_')) {
-                    .bump()
+                self.bump()
+                self.bump()
+                while (not self.is_eof()) and (is_hex_digit(self.current()) or (self.current() == '_')) {
+                    self.bump()
                 }
-                .emit(stream, token.lit_int, offset)
+                self.emit(stream, token.lit_int, offset)
                 ret
             }
         }
 
-        while (not .is_eof()) and (is_digit(.current()) or (.current() == '_')) {
-            .bump()
+        while (not self.is_eof()) and (is_digit(self.current()) or (self.current() == '_')) {
+            self.bump()
         }
 
-        if (.current() == '.') and (.peek() != '.') and is_digit(.peek()) {
+        if (self.current() == '.') and (self.peek() != '.') and is_digit(self.peek()) {
             is_float = true
-            .bump()
-            while (not .is_eof()) and (is_digit(.current()) or (.current() == '_')) {
-                .bump()
+            self.bump()
+            while (not self.is_eof()) and (is_digit(self.current()) or (self.current() == '_')) {
+                self.bump()
             }
         }
 
         if is_float {
             check := offset
-            while check < .cursor {
-                if *(.source.ptr + check) == '_' {
-                    .error(c"separators in float literals are unsupported", offset)
+            while check < self.cursor {
+                if *(self.source.ptr + check) == '_' {
+                    self.error(c"separators in float literals are unsupported", offset)
                 }
                 check = check + 1
             }
@@ -158,111 +158,111 @@ Lexer :: struct {
 
         kind := token.lit_int
         if is_float { kind = token.lit_float }
-        .emit(stream, kind, offset)
+        self.emit(stream, kind, offset)
     }
 
-    scan_str :: fn(stream &TokenStream, is_c bool) {
-        offset := .cursor
-        if is_c { .bump() }
-        .bump()
+    scan_str :: fn(self &Self, stream &TokenStream, is_c bool) {
+        offset := self.cursor
+        if is_c { self.bump() }
+        self.bump()
 
-        while (not .is_eof()) and (.current() != '"') {
-            if is_newline(.current()) {
-                .error(c"newline in string literal", offset)
+        while (not self.is_eof()) and (self.current() != '"') {
+            if is_newline(self.current()) {
+                self.error(c"newline in string literal", offset)
             }
-            if .current() == '\\' {
-                .bump()
-                if .is_eof() or (not .valid_escape()) {
-                    .error(c"invalid string escape", offset)
+            if self.current() == '\\' {
+                self.bump()
+                if self.is_eof() or (not self.valid_escape()) {
+                    self.error(c"invalid string escape", offset)
                 }
             }
-            .bump()
+            self.bump()
         }
 
-        if .is_eof() {
-            .error(c"unterminated string", offset)
+        if self.is_eof() {
+            self.error(c"unterminated string", offset)
         }
-        .bump()
+        self.bump()
 
         kind := token.lit_str
         if is_c { kind = token.lit_cstr }
-        .emit(stream, kind, offset)
+        self.emit(stream, kind, offset)
     }
 
-    scan_char :: fn(stream &TokenStream) {
-        offset := .cursor
-        .bump()
+    scan_char :: fn(self &Self, stream &TokenStream) {
+        offset := self.cursor
+        self.bump()
 
-        if .current() == '\\' {
-            .bump()
-            if .is_eof() or (not .valid_escape()) {
-                .error(c"invalid character escape", offset)
+        if self.current() == '\\' {
+            self.bump()
+            if self.is_eof() or (not self.valid_escape()) {
+                self.error(c"invalid character escape", offset)
             }
-            if .current() == 'x' {
-                .bump()
-                while is_hex_digit(.current()) {
-                    .bump()
+            if self.current() == 'x' {
+                self.bump()
+                while is_hex_digit(self.current()) {
+                    self.bump()
                 }
             } else {
-                .bump()
+                self.bump()
             }
         } else {
-            if .is_eof() or (.current() == '\'') {
-                .error(c"invalid character literal", offset)
+            if self.is_eof() or (self.current() == '\'') {
+                self.error(c"invalid character literal", offset)
             }
-            .bump()
+            self.bump()
         }
 
-        if .current() != '\'' {
-            .error(c"unterminated or oversized character literal", offset)
+        if self.current() != '\'' {
+            self.error(c"unterminated or oversized character literal", offset)
         }
-        .bump()
+        self.bump()
 
-        .emit(stream, token.lit_char, offset)
+        self.emit(stream, token.lit_char, offset)
     }
 
-    scan_identifier :: fn(stream &TokenStream) {
-        offset := .cursor
-        while (not .is_eof()) and is_alphanumeric(.current()) {
-            .bump()
+    scan_identifier :: fn(self &Self, stream &TokenStream) {
+        offset := self.cursor
+        while (not self.is_eof()) and is_alphanumeric(self.current()) {
+            self.bump()
         }
-        len := (.cursor - offset) as u32
-        text := Str.new(.source.ptr + offset, len as u64)
-        .emit(stream, match_keyword(text), offset)
+        len := (self.cursor - offset) as u32
+        text := Str.new(self.source.ptr + offset, len as u64)
+        self.emit(stream, match_keyword(text), offset)
     }
 
-    scan_symbol :: fn() TokenType {
+    scan_symbol :: fn(self &Self) TokenType {
         t := token
-        c := .current()
-        .bump()
+        c := self.current()
+        self.bump()
 
-        if c == '+' { if .match('=') { ret t.plus_eq } ret t.plus }
-        if c == '-' { if .match('=') { ret t.minus_eq } ret t.minus }
-        if c == '*' { if .match('=') { ret t.star_eq } ret t.star }
-        if c == '/' { if .match('=') { ret t.slash_eq } ret t.slash }
-        if c == '%' { if .match('=') { ret t.percent_eq } ret t.percent }
-        if c == '&' { if .match('=') { ret t.amp_eq } ret t.amp }
-        if c == '|' { if .match('=') { ret t.pipe_eq } ret t.pipe }
-        if c == '^' { if .match('=') { ret t.caret_eq } ret t.caret }
+        if c == '+' { if self.match('=') { ret t.plus_eq } ret t.plus }
+        if c == '-' { if self.match('=') { ret t.minus_eq } ret t.minus }
+        if c == '*' { if self.match('=') { ret t.star_eq } ret t.star }
+        if c == '/' { if self.match('=') { ret t.slash_eq } ret t.slash }
+        if c == '%' { if self.match('=') { ret t.percent_eq } ret t.percent }
+        if c == '&' { if self.match('=') { ret t.amp_eq } ret t.amp }
+        if c == '|' { if self.match('=') { ret t.pipe_eq } ret t.pipe }
+        if c == '^' { if self.match('=') { ret t.caret_eq } ret t.caret }
         if c == '~' { ret t.tilde }
-        if c == '=' { if .match('=') { ret t.eq_eq } ret t.eq }
-        if c == '!' { if .match('=') { ret t.bang_eq } ret t.unknown }
-        if c == ':' { if .match(':') { ret t.colon_colon } ret t.colon }
+        if c == '=' { if self.match('=') { ret t.eq_eq } ret t.eq }
+        if c == '!' { if self.match('=') { ret t.bang_eq } ret t.unknown }
+        if c == ':' { if self.match(':') { ret t.colon_colon } ret t.colon }
         if c == '.' { ret t.dot }
         if c == '<' {
-            if .match('<') {
-                if .match('=') { ret t.left_shift_eq }
+            if self.match('<') {
+                if self.match('=') { ret t.left_shift_eq }
                 ret t.left_shift
             }
-            if .match('=') { ret t.lt_eq }
+            if self.match('=') { ret t.lt_eq }
             ret t.lt
         }
         if c == '>' {
-            if .match('>') {
-                if .match('=') { ret t.right_shift_eq }
+            if self.match('>') {
+                if self.match('=') { ret t.right_shift_eq }
                 ret t.right_shift
             }
-            if .match('=') { ret t.gt_eq }
+            if self.match('=') { ret t.gt_eq }
             ret t.gt
         }
         if c == ',' { ret t.comma }

@@ -1,0 +1,9 @@
+Box :: struct {
+    value u32
+    address :: fn(self &Self) &Self { self.value }
+}
+
+main :: fn() {
+    box: Box = .{ value: 1 }
+    box.address()
+}

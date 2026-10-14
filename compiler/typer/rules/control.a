@@ -3,7 +3,6 @@ import HirTable, hir_none from "../../hir"
 import ty_kind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error from "../../types"
 import slot_none from "../../unify"
 import check_value from "./common"
-import method_returns_ref_self from "./fn"
 import fall from "std/sys"
 
 print :: fn(s &u8) unit
@@ -31,7 +30,7 @@ synth_block :: fn(db &Nexus, tbl &HirTable, id u32) {
         func_ty := db.get_const_type(fn_id)
         if func_ty != ty_id_none() {
             ret_ty := (&(*types_ptr)).func_return(func_ty)
-            if (ret_ty != ty_id_unit()) and (not method_returns_ref_self(db, id)) {
+            if ret_ty != ty_id_unit() {
                 if items.len > 0 {
                     last_id := *(items.ptr + items.len - 1)
                     check_value(db, last_id, ret_ty)

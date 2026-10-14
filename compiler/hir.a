@@ -180,53 +180,53 @@ HirTable :: struct {
         }
     }
 
-    destroy :: fn() {
-        .kinds.destroy()
-        .lhs_list.destroy()
-        .rhs_list.destroy()
-        .extra_list.destroy()
+    destroy :: fn(self &Self) {
+        self.kinds.destroy()
+        self.lhs_list.destroy()
+        self.rhs_list.destroy()
+        self.extra_list.destroy()
     }
 
-    len :: fn() u32 {
-        .kinds.len as u32
+    len :: fn(self &Self) u32 {
+        self.kinds.len as u32
     }
 
-    push :: fn(kind HirExprKind, lhs, rhs, extra u32) u32 {
-        id := .len()
+    push :: fn(self &Self, kind HirExprKind, lhs, rhs, extra u32) u32 {
+        id := self.len()
 
-        .kinds.push(kind as u8)
-        .lhs_list.push(lhs)
-        .rhs_list.push(rhs)
-        .extra_list.push(extra)
+        self.kinds.push(kind as u8)
+        self.lhs_list.push(lhs)
+        self.rhs_list.push(rhs)
+        self.extra_list.push(extra)
 
         id
     }
 
-    kind :: fn(id u32) HirExprKind {
-        .kinds.get(id as u64) as HirExprKind
+    kind :: fn(self &Self, id u32) HirExprKind {
+        self.kinds.get(id as u64) as HirExprKind
     }
 
-    lhs :: fn(id u32) u32 {
-        .lhs_list.get(id as u64)
+    lhs :: fn(self &Self, id u32) u32 {
+        self.lhs_list.get(id as u64)
     }
 
-    rhs :: fn(id u32) u32 {
-        .rhs_list.get(id as u64)
+    rhs :: fn(self &Self, id u32) u32 {
+        self.rhs_list.get(id as u64)
     }
 
-    extra :: fn(id u32) u32 {
-        .extra_list.get(id as u64)
+    extra :: fn(self &Self, id u32) u32 {
+        self.extra_list.get(id as u64)
     }
 
-    set_lhs :: fn(id u32, val u32) {
-        .lhs_list.set(id as u64, val)
+    set_lhs :: fn(self &Self, id u32, val u32) {
+        self.lhs_list.set(id as u64, val)
     }
 
-    set_rhs :: fn(id u32, val u32) {
-        .rhs_list.set(id as u64, val)
+    set_rhs :: fn(self &Self, id u32, val u32) {
+        self.rhs_list.set(id as u64, val)
     }
 
-    set_extra :: fn(id u32, val u32) {
-        .extra_list.set(id as u64, val)
+    set_extra :: fn(self &Self, id u32, val u32) {
+        self.extra_list.set(id as u64, val)
     }
 }

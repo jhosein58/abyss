@@ -1,11 +1,7 @@
 import token, TokenType from "../token"
-import hir_kind, hir_none from "../hir"
+import hir_none from "../hir"
 import Parser, is_eof, peek, bump, peek_n, peek_preceded_by_newline, curr_span, parse_error_at from "./core"
 import is_soft, bp_from_infix from "./prec"
-import span_merge from "../nexus/nexus"
-import id_none from "../nexus/pool"
-
-import span_of_hir, set_span from "./handlers/common"
 import parse_lit_int, parse_float, parse_str, parse_char, parse_cstr, parse_true, parse_false from "./handlers/lit"
 import parse_ident from "./handlers/ident"
 import parse_if, parse_while, parse_block, parse_return, parse_break, parse_cont from "./handlers/control"
@@ -70,14 +66,6 @@ dispatch_prefix :: fn(p &Parser, min_bp u8) u32 {
     if tk == t.kw_fn      { ret parse_fn(p, min_bp) }
     if tk == t.at         { ret parse_builtin(p) }
     if (tk == t.dot) and (peek_n(p, 1) == t.o_brace) { ret parse_struct_init(p) }
-    if tk == t.dot {
-        sp_start := curr_span(p)
-        bump(p)
-        field := parse_ident(p)
-        p.db.set_hir_symbol(field, id_none())
-        node := p.hir.push(hir_kind.member, hir_none(), field, hir_none())
-        ret set_span(p, node, span_merge(sp_start, span_of_hir(p, field)))
-    }
 
     if (tk == t.minus) or (tk == t.kw_not) or (tk == t.tilde) or (tk == t.amp) or (tk == t.star) {
         ret parse_unary(p, tk)

@@ -13,12 +13,12 @@ Point :: struct {
 Rect :: struct {
     w, h i32
 
-    area :: fn() i32 {
-        .w * .h
+    area :: fn(self &Self) i32 {
+        self.w * self.h
     }
 
-    scale :: fn(factor i32) i32 {
-        .w * factor
+    scale :: fn(self &Self, factor i32) i32 {
+        self.w * factor
     }
 }
 

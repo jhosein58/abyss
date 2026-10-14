@@ -14,40 +14,40 @@ PoolU32 :: struct {
         }
     }
 
-    destroy :: fn() {
-        .data.destroy()
+    destroy :: fn(self &Self) {
+        self.data.destroy()
     }
 
-    count :: fn() u32 {
-        .data.len as u32
+    count :: fn(self &Self) u32 {
+        self.data.len as u32
     }
 
-    alloc :: fn(val u32) u32 {
-        id := .count()
-        .data.push(val)
+    alloc :: fn(self &Self, val u32) u32 {
+        id := self.count()
+        self.data.push(val)
         id
     }
 
-    get :: fn(id u32) u32 {
-        .data.get(id as u64)
+    get :: fn(self &Self, id u32) u32 {
+        self.data.get(id as u64)
     }
 
-    set :: fn(id u32, val u32) {
-        .data.set(id as u64, val)
+    set :: fn(self &Self, id u32, val u32) {
+        self.data.set(id as u64, val)
     }
 
-    grow_to :: fn(new_len u32, default_val u32) {
+    grow_to :: fn(self &Self, new_len u32, default_val u32) {
         target := new_len as u64
-        while .data.len < target {
-            .data.push(default_val)
+        while self.data.len < target {
+            self.data.push(default_val)
         }
     }
 
-    set_safe :: fn(id u32, val u32, default_val u32) {
+    set_safe :: fn(self &Self, id u32, val u32, default_val u32) {
         idx := id as u64
-        if idx >= .data.len {
-            .grow_to((id + 1) as u32, default_val)
+        if idx >= self.data.len {
+            self.grow_to((id + 1) as u32, default_val)
         }
-        .data.set(idx, val)
+        self.data.set(idx, val)
     }
 }

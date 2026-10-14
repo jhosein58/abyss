@@ -9,11 +9,11 @@ Maybe :: fn(T type) type {
             result.present = false
             result
         }
-        is_some :: fn() bool { .present }
-        is_none :: fn() bool { not .present }
-        unwrap :: fn() T { .value }
-        unwrap_or :: fn(fallback T) T {
-            if .present { .value } else { fallback }
+        is_some :: fn(self &Self) bool { self.present }
+        is_none :: fn(self &Self) bool { not self.present }
+        unwrap :: fn(self &Self) T { self.value }
+        unwrap_or :: fn(self &Self, fallback T) T {
+            if self.present { self.value } else { fallback }
         }
     }
 }

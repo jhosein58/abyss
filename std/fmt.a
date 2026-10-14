@@ -106,26 +106,30 @@ Fmt :: struct {
         .{ buf: String.new(arena) }
     }
 
-    str :: fn(s Str) &Self {
-        .buf.push_str(s)
+    str :: fn(self &Self, s Str) &Self {
+        self.buf.push_str(s)
+        ret self
     }
 
-    cstr :: fn(s &u8) &Self {
-        .str(Str.of(s))
+    cstr :: fn(self &Self, s &u8) &Self {
+        self.str(Str.of(s))
+        ret self
     }
 
-    char :: fn(c u8) &Self {
-        .buf.push_char(c)
+    char :: fn(self &Self, c u8) &Self {
+        self.buf.push_char(c)
+        ret self
     }
 
-    uint32 :: fn(v u32) &Self {
-        .buf.push_u32(v)
+    uint32 :: fn(self &Self, v u32) &Self {
+        self.buf.push_u32(v)
+        ret self
     }
 
-    uint64 :: fn(v u64) &Self {
+    uint64 :: fn(self &Self, v u64) &Self {
         if v == 0 {
-            .buf.push_char(48 as u8)
-            ret
+            self.buf.push_char(48 as u8)
+            ret self
         }
         divisor: u64 = 1
         temp := v
@@ -136,82 +140,95 @@ Fmt :: struct {
         rem := v
         while divisor > 0 {
             d := (rem / divisor) as u8
-            .buf.push_char(48 as u8 + d)
+            self.buf.push_char(48 as u8 + d)
             rem = rem - ((d as u64) * divisor)
             divisor = divisor / 10
         }
+        ret self
     }
 
-    int32 :: fn(v i32) &Self {
+    int32 :: fn(self &Self, v i32) &Self {
         if v < 0 {
-            .buf.push_char(45 as u8)
-            .uint32((0 - v) as u32)
+            self.buf.push_char(45 as u8)
+            self.uint32((0 - v) as u32)
         } else {
-            .uint32(v as u32)
+            self.uint32(v as u32)
         }
+        ret self
     }
 
-    boolean :: fn(v bool) &Self {
+    boolean :: fn(self &Self, v bool) &Self {
         if v {
-            ret .str(Str.of("true"))
+            self.str(Str.of("true"))
+        } else {
+            self.str(Str.of("false"))
         }
-        .str(Str.of("false"))
+        ret self
     }
 
-    space :: fn() &Self {
-        .buf.push_char(32 as u8)
+    space :: fn(self &Self) &Self {
+        self.buf.push_char(32 as u8)
+        ret self
     }
 
-    newline :: fn() &Self {
-        .buf.push_char(10 as u8)
+    newline :: fn(self &Self) &Self {
+        self.buf.push_char(10 as u8)
+        ret self
     }
 
-    semi :: fn() &Self {
-        .str(Str.of(";\n"))
+    semi :: fn(self &Self) &Self {
+        self.str(Str.of(";\n"))
+        ret self
     }
 
-    comma :: fn() &Self {
-        .str(Str.of(", "))
+    comma :: fn(self &Self) &Self {
+        self.str(Str.of(", "))
+        ret self
     }
 
-    paren :: fn(inner Str) &Self {
-        .buf.push_char(40 as u8)
-        .str(inner)
-        .buf.push_char(41 as u8)
+    paren :: fn(self &Self, inner Str) &Self {
+        self.buf.push_char(40 as u8)
+        self.str(inner)
+        self.buf.push_char(41 as u8)
+        ret self
     }
 
-    wrap :: fn(left Str, inner Str, right Str) &Self {
-        .str(left)
-        .str(inner)
-        .str(right)
+    wrap :: fn(self &Self, left Str, inner Str, right Str) &Self {
+        self.str(left)
+        self.str(inner)
+        self.str(right)
+        ret self
     }
 
-    sym :: fn(prefix Str, id u32) &Self {
-        .str(prefix)
-        .uint32(id)
+    sym :: fn(self &Self, prefix Str, id u32) &Self {
+        self.str(prefix)
+        self.uint32(id)
+        ret self
     }
 
-    binary :: fn(op Str, lhs Str, rhs Str) &Self {
-        .buf.push_char(40 as u8)
-        .str(lhs)
-        .str(op)
-        .str(rhs)
-        .buf.push_char(41 as u8)
+    binary :: fn(self &Self, op Str, lhs Str, rhs Str) &Self {
+        self.buf.push_char(40 as u8)
+        self.str(lhs)
+        self.str(op)
+        self.str(rhs)
+        self.buf.push_char(41 as u8)
+        ret self
     }
 
-    indent :: fn(level u32) &Self {
+    indent :: fn(self &Self, level u32) &Self {
         i: u32 = 0
         while i < level {
-            .str(Str.of("    "))
+            self.str(Str.of("    "))
             i = i + 1
         }
+        ret self
     }
 
-    as_str :: fn() Str {
-        .buf.as_str()
+    as_str :: fn(self &Self) Str {
+        self.buf.as_str()
     }
 
-    print :: fn() {
-        .as_str().print()
+    print :: fn(self &Self) {
+        self.as_str().print()
     }
 }
