@@ -5,9 +5,9 @@ import Interner from "std/interner"
 import Str from "std/string"
 
 import TypeStorage, ty_id_none from "../types"
-import UnifyStorage from "../unify"
+import UnifyStorage, slot_none from "../unify"
 import TokenStream from "../token"
-import HirTable from "../hir"
+import HirTable, hir_kind, hir_none from "../hir"
 import PoolU32, id_none from "./pool"
 
 print :: fn(s &u8) unit
@@ -83,7 +83,6 @@ Nexus :: struct {
 
     const_types    PoolU32
     method_owner   PoolU32
-    method_target  PoolU32
     sym_resolving  PoolU32
 
     core_prelude   u32
@@ -94,7 +93,6 @@ Nexus :: struct {
     hir_span_start PoolU32
     hir_span_end   PoolU32
     type_specialization_depth u32
-    mono_method_owner PoolU32
     mono_orig_sym  VecU32
     mono_type      VecU32
     mono_sym       VecU32
@@ -128,7 +126,6 @@ Nexus :: struct {
 
             const_types    : PoolU32.new(),
             method_owner   : PoolU32.new(),
-            method_target  : PoolU32.new(),
             sym_resolving  : PoolU32.new(),
 
             core_prelude   : id_none(),
@@ -139,7 +136,6 @@ Nexus :: struct {
             hir_span_start : PoolU32.new(),
             hir_span_end   : PoolU32.new(),
             type_specialization_depth : 0,
-            mono_method_owner : PoolU32.new(),
             mono_orig_sym  : VecU32.new(),
             mono_type      : VecU32.new(),
             mono_sym       : VecU32.new(),
@@ -235,17 +231,78 @@ Nexus :: struct {
             f := self.sym_files.get(i)
             n := self.sym_names.get(i)
             if (f == file_id) and (n == name_id) {
-                curr := i
-                while curr != id_none() {
-                    target := self.sym_target.get(curr)
-                    if (target == id_none()) or (target == curr) {
-                        ret curr
-                    }
-                    curr = target
-                }
-                ret i
+                ret self.resolve_sym(i)
             }
             i = i + 1
+        }
+        id_none()
+    }
+
+    resolve_sym :: fn(self &Self, sym_id u32) u32 {
+        if sym_id == id_none() { ret id_none() }
+        real_s := sym_id
+        while true {
+            tgt := self.sym_target.get(real_s)
+            if (tgt == id_none()) or (tgt == real_s) { break }
+            real_s = tgt
+        }
+        real_s
+    }
+
+    get_fn_node :: fn(self &Self, sym_id u32) u32 {
+        real_s := self.resolve_sym(sym_id)
+        if real_s == id_none() { ret id_none() }
+        if self.is_mono_sym(real_s) {
+            orig := self.get_mono_orig_sym(real_s)
+            ret self.get_fn_node(orig)
+        }
+        hir := self.get_sym_hir(real_s)
+        if hir != id_none() {
+            if self.hir.kind(hir) == hir_kind.function { ret hir }
+            if (self.hir.kind(hir) == hir_kind.binding) or (self.hir.kind(hir) == hir_kind.var) {
+                cand := self.hir.extra(hir)
+                if (cand != hir_none()) and (self.hir.kind(cand) == hir_kind.function) {
+                    ret cand
+                }
+            }
+        }
+        hir_end := self.sym_hir_end.get(real_s)
+        if (hir_end != 0) and (hir_end != id_none()) {
+            b_id := hir_end - 1
+            if (self.hir.kind(b_id) == hir_kind.binding) or (self.hir.kind(b_id) == hir_kind.var) {
+                cand := self.hir.extra(b_id)
+                if (cand != hir_none()) and (self.hir.kind(cand) == hir_kind.function) {
+                    ret cand
+                }
+            }
+        }
+        if (real_s & 2147483648) != 0 {
+            b_id := real_s & 2147483647
+            if (self.hir.kind(b_id) == hir_kind.binding) or (self.hir.kind(b_id) == hir_kind.var) {
+                cand := self.hir.extra(b_id)
+                if (cand != hir_none()) and (self.hir.kind(cand) == hir_kind.function) {
+                    ret cand
+                }
+            } else if self.hir.kind(b_id) == hir_kind.function {
+                ret b_id
+            }
+        }
+        if hir != id_none() {
+            tbl_len := self.hir.len()
+            scan_i := hir + 1
+            while scan_i < tbl_len {
+                sk := self.hir.kind(scan_i)
+                if (sk == hir_kind.var) or (sk == hir_kind.binding) {
+                    if self.hir.lhs(scan_i) == hir {
+                        cand := self.hir.extra(scan_i)
+                        if (cand != hir_none()) and (self.hir.kind(cand) == hir_kind.function) {
+                            ret cand
+                        }
+                    }
+                }
+                if scan_i > (hir + 50) { break }
+                scan_i = scan_i + 1
+            }
         }
         id_none()
     }
@@ -279,6 +336,13 @@ Nexus :: struct {
         self.const_types.get(hir_id)
     }
 
+    get_node_type :: fn(self &Self, id u32) u32 {
+        if id == hir_none() { ret ty_id_none() }
+        slot := (&self.unify).get_slot(id)
+        if slot == slot_none() { ret ty_id_none() }
+        (&self.unify).resolve_type_deep(&self.types, slot)
+    }
+
     set_method_owner :: fn(self &Self, hir_id u32, struct_id u32) {
         self.method_owner.set_safe(hir_id, struct_id, id_none())
     }
@@ -286,15 +350,6 @@ Nexus :: struct {
     get_method_owner :: fn(self &Self, hir_id u32) u32 {
         if hir_id >= self.method_owner.count() { ret id_none() }
         self.method_owner.get(hir_id)
-    }
-
-    set_method_target :: fn(self &Self, hir_id u32, method_id u32) {
-        self.method_target.set_safe(hir_id, method_id, id_none())
-    }
-
-    get_method_target :: fn(self &Self, hir_id u32) u32 {
-        if hir_id >= self.method_target.count() { ret id_none() }
-        self.method_target.get(hir_id)
     }
 
     set_sym_resolving :: fn(self &Self, sym_id u32, resolving bool) {
@@ -397,6 +452,7 @@ Nexus :: struct {
     }
 
     alloc_mono_sym :: fn(self &Self, orig_sym u32, mono_ty u32) u32 {
+        if orig_sym == id_none() { ret id_none() }
         file_id: u32 = 0
         name_id: u32 = 0
         if (orig_sym & 2147483648) != 0 {
@@ -422,23 +478,6 @@ Nexus :: struct {
         self.mono_type.push(mono_ty)
         self.mono_sym.push(sym_id)
         sym_id
-    }
-
-    find_mono_method :: fn(self &Self, sym u32, owner u32, func_ty u32) u32 {
-        i: u64 = 0
-        while i < self.mono_sym.len {
-            candidate := self.mono_sym.get(i)
-            if (self.mono_orig_sym.get(i) == sym) and (self.mono_type.get(i) == func_ty) {
-                if self.get_mono_method_owner(candidate) == owner { ret candidate }
-            }
-            i = i + 1
-        }
-        id_none()
-    }
-
-    get_mono_method_owner :: fn(self &Self, sym u32) u32 {
-        if sym >= self.mono_method_owner.count() { ret ty_id_none() }
-        self.mono_method_owner.get(sym)
     }
 
     get_mono_orig_sym :: fn(self &Self, sym u32) u32 {

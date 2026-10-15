@@ -15,23 +15,17 @@ import synth_node from "../tyck"
 print :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit
 
-method_self_param :: fn(db &Nexus, method u32) u32 {
+func_has_self :: fn(db &Nexus, func_node u32) bool {
+    if func_node == hir_none() { ret false }
     tbl := &db.hir
-    func_node := tbl.extra(method)
-    if func_node == hir_none() { ret hir_none() }
     params_list := tbl.lhs(func_node)
-    if params_list == hir_none() { ret hir_none() }
+    if params_list == hir_none() { ret false }
     args := db.get_list(params_list)
-    if args.len == 0 { ret hir_none() }
+    if args.len == 0 { ret false }
     arg0 := *(args.ptr + 0)
     ident := tbl.lhs(arg0)
-    if ident == hir_none() { ret hir_none() }
-    if db.interner.get(tbl.lhs(ident)).eq(Str.of("self")) { ret 0 }
-    hir_none()
-}
-
-method_has_explicit_self :: fn(db &Nexus, method u32) bool {
-    method_self_param(db, method) != hir_none()
+    if ident == hir_none() { ret false }
+    db.interner.get(tbl.lhs(ident)).eq(Str.of("self"))
 }
 
 
@@ -177,7 +171,7 @@ synth_func :: fn(eng &Engine, id u32) {
     sym_id := db.get_hir_symbol(id)
     if sym_id != id_none() {
         sym_hir := db.get_sym_hir(sym_id)
-        if sym_hir != id_none() {
+        if (sym_hir != id_none()) and (sym_hir != id) {
             sym_slot := (&(*db).unify).get_slot(sym_hir)
             if sym_slot == slot_none() {
                 sym_slot = (&(*db).unify).new_slot(sym_hir)
@@ -185,6 +179,7 @@ synth_func :: fn(eng &Engine, id u32) {
             (&(*db).unify).union(&(*db).types, sym_slot, slot)
             db.set_const_type(sym_hir, func_ty)
         }
+        db.set_sym_hir(sym_id, id)
     }
 }
 
@@ -229,44 +224,7 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
     cached := db.find_mono_nominal(callee_sym, concrete_args.as_slice())
     if cached != ty_id_none() { ret cached }
 
-    func_node := id_none()
-    if (callee_sym & 2147483648) != 0 {
-        binding_id := callee_sym & 2147483647
-        if (tbl).kind(binding_id) == hir_kind.binding {
-            func_node = (tbl).extra(binding_id)
-        } else if (tbl).kind(binding_id) == hir_kind.function {
-            func_node = binding_id
-        }
-    } else {
-        func_node = db.get_sym_hir(callee_sym)
-        if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind.function) {
-            hir_end := db.sym_hir_end.get(callee_sym)
-            if (hir_end != 0) and (hir_end != id_none()) {
-                b_id := hir_end - 1
-                if (tbl).kind(b_id) == hir_kind.binding {
-                    func_node = (tbl).extra(b_id)
-                }
-            }
-            if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind.function) {
-                scan_i := func_node + 1
-                tbl_len := (tbl).len()
-                while scan_i < tbl_len {
-                    sk := (tbl).kind(scan_i)
-                    if (sk == hir_kind.var) or (sk == hir_kind.binding) {
-                        if (tbl).lhs(scan_i) == func_node {
-                            cand := (tbl).extra(scan_i)
-                            if (cand != hir_none()) and ((tbl).kind(cand) == hir_kind.function) {
-                                func_node = cand
-                                break
-                            }
-                        }
-                    }
-                    if scan_i > (func_node + 50) { break }
-                    scan_i = scan_i + 1
-                }
-            }
-        }
-    }
+    func_node := db.get_fn_node(callee_sym)
     if func_node == id_none() { ret ty_id_none() }
     if (*db).type_specialization_depth >= 128 {
         print(c"\n[type error] generic type specialization exceeded recursion limit\n       --> ")
@@ -504,13 +462,7 @@ specialize_type_node_inner :: fn(eng &Engine, ty_node u32, fn_params SliceU32, c
         if (tbl).kind(callee) == k.ident {
             sym := db.get_hir_symbol(callee)
             if sym != id_none() {
-                real_s := sym
-                while true {
-                    tgt := db.sym_target.get(real_s)
-                    if (tgt == id_none()) or (tgt == real_s) { break }
-                    real_s = tgt
-                }
-                callee_sym = real_s
+                callee_sym = db.resolve_sym(sym)
             }
         }
         if callee_sym != id_none() {
@@ -838,13 +790,7 @@ synth_call :: fn(eng &Engine, id u32) {
                 if callee_kind == hir_kind.ident {
                     sym := db.get_hir_symbol(callee)
                     if sym != id_none() {
-                        real_s := sym
-                        while true {
-                            tgt := db.sym_target.get(real_s)
-                            if (tgt == id_none()) or (tgt == real_s) { break }
-                            real_s = tgt
-                        }
-                        callee_sym = real_s
+                        callee_sym = db.resolve_sym(sym)
                     }
                 }
                 if callee_sym == id_none() {
@@ -876,14 +822,39 @@ synth_call :: fn(eng &Engine, id u32) {
 
             is_generic := (&(*types_ptr)).func_has_type_param(callee_ty)
 
-            method := db.get_method_target(callee)
             callee_lhs := hir_none()
             lhs_is_instance := false
-            if (method != id_none()) and method_has_explicit_self(db, method) {
+            is_struct_generic := false
+            if callee_kind == hir_kind.member {
                 callee_lhs = tbl.lhs(callee)
-                lhs_slot := unify_ptr.get_slot(callee_lhs)
-                if lhs_slot != slot_none() {
-                    lhs_is_instance = unify_ptr.resolve_type(lhs_slot) != ty_id_type()
+                m_sym := db.get_hir_symbol(callee)
+                if m_sym != id_none() {
+                    callee_fn := db.get_fn_node(m_sym)
+                    if func_has_self(db, callee_fn) {
+                        lhs_slot := unify_ptr.get_slot(callee_lhs)
+                        if lhs_slot != slot_none() {
+                            lhs_is_instance = unify_ptr.resolve_type_deep(types_ptr, lhs_slot) != ty_id_type()
+                        }
+                    }
+                    lhs_slot := unify_ptr.get_slot(callee_lhs)
+                    if lhs_slot != slot_none() {
+                        struct_ty := unify_ptr.resolve_type_deep(types_ptr, lhs_slot)
+                        if struct_ty == ty_id_type() {
+                            struct_ty = db.get_const_type(callee_lhs)
+                        } else {
+                            while (&(*types_ptr)).kind(struct_ty) == ty_kind().ptr {
+                                struct_ty = (&(*types_ptr)).payload(struct_ty)
+                            }
+                        }
+                        if struct_ty != ty_id_none() {
+                            if (&(*types_ptr)).kind(struct_ty) == ty_kind().nominal {
+                                s_origin := (&(*types_ptr)).nominal_origin(struct_ty)
+                                if (&(*types_ptr)).get_nominal_creator_sym(s_origin) != ty_id_none() {
+                                    is_struct_generic = true
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1003,47 +974,14 @@ synth_call :: fn(eng &Engine, id u32) {
                 if callee_kind == hir_kind.ident {
                     sym := db.get_hir_symbol(callee)
                     if sym != id_none() {
-                        real_s := sym
-                        while true {
-                            tgt := db.sym_target.get(real_s)
-                            if (tgt == id_none()) or (tgt == real_s) { break }
-                            real_s = tgt
-                        }
-                        func_node = db.get_sym_hir(real_s)
-                        if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind.function) {
-                            hir_end := db.sym_hir_end.get(real_s)
-                            if (hir_end != 0) and (hir_end != id_none()) {
-                                b_id := hir_end - 1
-                                if (tbl).kind(b_id) == hir_kind.binding {
-                                    func_node = (tbl).extra(b_id)
-                                }
-                            }
-                            if (func_node != id_none()) and ((tbl).kind(func_node) != hir_kind.function) {
-                                scan_i := func_node + 1
-                                tbl_len := (tbl).len()
-                                while scan_i < tbl_len {
-                                    sk := (tbl).kind(scan_i)
-                                    if (sk == hir_kind.var) or (sk == hir_kind.binding) {
-                                        if (tbl).lhs(scan_i) == func_node {
-                                            cand := (tbl).extra(scan_i)
-                                            if (cand != hir_none()) and ((tbl).kind(cand) == hir_kind.function) {
-                                                func_node = cand
-                                                break
-                                            }
-                                        }
-                                    }
-                                    if scan_i > (func_node + 50) { break }
-                                    scan_i = scan_i + 1
-                                }
-                            }
-                        }
+                        func_node = db.get_fn_node(sym)
                     }
                 } else if callee_kind == hir_kind.function {
                     func_node = callee
                 } else if callee_kind == hir_kind.member {
-                    m := db.get_method_target(callee)
-                    if m != id_none() {
-                        func_node = (tbl).extra(m)
+                    sym := db.get_hir_symbol(callee)
+                    if sym != id_none() {
+                        func_node = db.get_fn_node(sym)
                     }
                 }
 
@@ -1248,6 +1186,9 @@ synth_call :: fn(eng &Engine, id u32) {
             } else {
                 ret_ty := (&(*types_ptr)).func_return(callee_ty)
                 (&(*db).unify).bind_type(&(*db).types, slot, ret_ty)
+                if is_struct_generic {
+                    db.set_const_type(id, callee_ty)
+                }
 
                 if args_len != params.len {
                     expected_len := params.len
@@ -1257,9 +1198,9 @@ synth_call :: fn(eng &Engine, id u32) {
                         actual_len = actual_len - 1
                     }
                     print(c"\n\033[1;31m[type error]\033[0m ")
-                    if method != id_none() {
+                    if callee_kind == hir_kind.member {
                         print(c"method '")
-                        name_node := (tbl).lhs(method)
+                        name_node := (tbl).rhs(callee)
                         name_id := (tbl).lhs(name_node)
                         db.interner.get(name_id).print()
                         print(c"' expected ")

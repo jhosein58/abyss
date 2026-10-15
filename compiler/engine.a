@@ -100,14 +100,7 @@ Engine :: struct {
         if sym_id == id_none() { ret }
         db := &self.nexus
 
-        real_sym := sym_id
-        while true {
-            tgt := db.sym_target.get(real_sym)
-            if (tgt == id_none()) or (tgt == real_sym) {
-                break
-            }
-            real_sym = tgt
-        }
+        real_sym := db.resolve_sym(sym_id)
 
         tok_start := db.sym_tok_start.get(real_sym)
         if tok_start == id_none() {
@@ -153,14 +146,7 @@ Engine :: struct {
         if sym_id == id_none() { ret slot_none() }
         db := &self.nexus
 
-        real_sym := sym_id
-        while true {
-            tgt := db.sym_target.get(real_sym)
-            if (tgt == id_none()) or (tgt == real_sym) {
-                break
-            }
-            real_sym = tgt
-        }
+        real_sym := db.resolve_sym(sym_id)
 
         tok_start := db.sym_tok_start.get(real_sym)
         if tok_start == id_none() {
@@ -195,14 +181,7 @@ Engine :: struct {
             ret ty_id_none()
         }
         self.ensure_resolved(sym_str)
-        real_sym := sym_str
-        while true {
-            tgt := (*db).sym_target.get(real_sym)
-            if (tgt == id_none()) or (tgt == real_sym) {
-                break
-            }
-            real_sym = tgt
-        }
+        real_sym := (*db).resolve_sym(sym_str)
         decl_hir := (*db).get_sym_hir(real_sym)
         if decl_hir != id_none() {
             str_ty := (*db).get_const_type(decl_hir)

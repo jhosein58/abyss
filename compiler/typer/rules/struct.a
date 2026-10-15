@@ -8,7 +8,7 @@ import id_none from "../../nexus/pool"
 import Engine from "../../engine"
 import fall from "std/sys"
 import synth_type_node from "./var"
-import synth_func, method_has_explicit_self, specialize_type_node from "./fn"
+import synth_func, func_has_self, specialize_type_node from "./fn"
 
 print :: fn(s &u8) unit
 
@@ -260,7 +260,8 @@ synth_member :: fn(eng &Engine, id u32) {
                 method := *(methods.ptr + i)
                 method_name := (tbl).lhs((tbl).lhs(method))
                 if method_name == name_id {
-                    receiver := method_has_explicit_self(db, method)
+                    func_node := (tbl).extra(method)
+                    receiver := func_has_self(db, func_node)
                     if is_type and receiver {
                         print(c"\n\033[1;31m[type error]\033[0m instance method requires a value; call it on an instance\n       --> ")
                         db.print_loc(id)
@@ -276,44 +277,7 @@ synth_member :: fn(eng &Engine, id u32) {
                     creator_sym := (&(*types_ptr)).get_nominal_creator_sym(origin)
                     if creator_sym != ty_id_none() {
                         creator_args := (&(*types_ptr)).get_nominal_creator_args(origin)
-                        creator_fn := id_none()
-                        if (creator_sym & 2147483648) != 0 {
-                            b_id := creator_sym & 2147483647
-                            if (tbl).kind(b_id) == hir_kind.binding {
-                                creator_fn = (tbl).extra(b_id)
-                            } else if (tbl).kind(b_id) == hir_kind.function {
-                                creator_fn = b_id
-                            }
-                        } else {
-                            creator_fn = db.get_sym_hir(creator_sym)
-                            if (creator_fn != id_none()) and ((tbl).kind(creator_fn) != hir_kind.function) {
-                                h_end := db.sym_hir_end.get(creator_sym)
-                                if (h_end != 0) and (h_end != id_none()) {
-                                    b_id := h_end - 1
-                                    if (tbl).kind(b_id) == hir_kind.binding {
-                                        creator_fn = (tbl).extra(b_id)
-                                    }
-                                }
-                                if (creator_fn != id_none()) and ((tbl).kind(creator_fn) != hir_kind.function) {
-                                    scan_i := creator_fn + 1
-                                    tbl_len := (tbl).len()
-                                    while scan_i < tbl_len {
-                                        sk := (tbl).kind(scan_i)
-                                        if (sk == hir_kind.var) or (sk == hir_kind.binding) {
-                                            if (tbl).lhs(scan_i) == creator_fn {
-                                                cand := (tbl).extra(scan_i)
-                                                if (cand != hir_none()) and ((tbl).kind(cand) == hir_kind.function) {
-                                                    creator_fn = cand
-                                                    break
-                                                }
-                                            }
-                                        }
-                                        if scan_i > (creator_fn + 50) { break }
-                                        scan_i = scan_i + 1
-                                    }
-                                }
-                            }
-                        }
+                        creator_fn := db.get_fn_node(creator_sym)
 
                         fn_params_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
                         if creator_fn != id_none() {
@@ -398,7 +362,6 @@ synth_member :: fn(eng &Engine, id u32) {
                         method_type_params.destroy()
 
                         db.set_const_type(func_node, concrete_method_ty)
-                        db.set_method_target(id, method)
                         method_sym := db.get_hir_symbol(method)
                         db.set_hir_symbol(id, method_sym)
                         db.set_const_type(id, concrete_method_ty)
@@ -415,7 +378,6 @@ synth_member :: fn(eng &Engine, id u32) {
                         func_ty := (unify_ptr).resolve_type(func_slot)
                         (&(*db).unify).bind_type(&(*db).types, method_slot, func_ty)
                     }
-                    db.set_method_target(id, method)
                     method_sym := db.get_hir_symbol(method)
                     db.set_hir_symbol(id, method_sym)
                     (&(*db).unify).union(&(*db).types, slot, method_slot)
