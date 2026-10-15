@@ -10,6 +10,7 @@ import id_none from "./nexus/pool"
 import slot_none from "./unify"
 import ty_id_none, ty_kind from "./types"
 import Str from "std/string"
+import Path from "std/path"
 import VecU32 from "std/vec/u32"
 import Arena from "std/allocator"
 import fall from "std/sys"
@@ -38,14 +39,15 @@ Engine :: struct {
     }
 
     add_file :: fn(self &Self, arena &Arena, path Str, source Str) u32 {
-        file_id := self.nexus.add_file(path, source)
+        norm_path := Path.normalize(arena, path)
+        file_id := self.nexus.add_file(norm_path, source)
         self.file_count = file_id + 1
 
         tok_start := self.nexus.tokens.count()
-        lex(&self.nexus.tokens, source, path)
+        lex(&self.nexus.tokens, source, norm_path)
         tok_end := self.nexus.tokens.count()
 
-        index_file(&self.nexus, arena, file_id, path, tok_start as u32, tok_end as u32)
+        index_file(&self.nexus, arena, file_id, norm_path, tok_start as u32, tok_end as u32)
         file_id
     }
 

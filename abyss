@@ -54,6 +54,34 @@ case "${CMD}" in
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -march=native -mtune=native -fomit-frame-pointer -funroll-loops "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/tmp/out"
         "${ROOT_DIR}/tmp/out"
         ;;
+    b-win|win)
+        prepare_compiler
+        TARGET="${1:-}"
+        MINGW_CC="${MINGW_CC:-x86_64-w64-mingw32-gcc}"
+        if [ -n "${TARGET}" ]; then
+            "${ROOT_DIR}/abyssc" "${TARGET}" "${ROOT_DIR}/tmp/out.c"
+            "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/tmp/out.exe"
+            echo "Built ${ROOT_DIR}/tmp/out.exe"
+        else
+            "${ROOT_DIR}/abyssc" "${ROOT_DIR}/main.a" "${ROOT_DIR}/tmp/out.c"
+            "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/abyssc.exe"
+            echo "Built ${ROOT_DIR}/abyssc.exe"
+        fi
+        ;;
+    r-win|br-win)
+        prepare_compiler
+        TARGET="${1:-}"
+        MINGW_CC="${MINGW_CC:-x86_64-w64-mingw32-gcc}"
+        if [ -n "${TARGET}" ]; then
+            "${ROOT_DIR}/abyssc" "${TARGET}" "${ROOT_DIR}/tmp/out.c"
+            "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/tmp/out.exe"
+            WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${ROOT_DIR}/tmp/out.exe"
+        else
+            "${ROOT_DIR}/abyssc" "${ROOT_DIR}/main.a" "${ROOT_DIR}/tmp/out.c"
+            "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/abyssc.exe"
+            WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${ROOT_DIR}/abyssc.exe"
+        fi
+        ;;
     test|t)
         bash "${ROOT_DIR}/scripts/test_compiler.sh" "${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}" "${1:-}"
         ;;
@@ -71,6 +99,8 @@ case "${CMD}" in
         echo "  r [file]          Build and run in debug mode"
         echo "  b [file]          Build in release mode"
         echo "  br [file]         Build and run in release mode"
+        echo "  b-win [file]      Build Windows binary (default: abyssc.exe)"
+        echo "  r-win [file]      Build and run Windows binary with wine"
         echo "  test [filter]     Run language test suite"
         echo "  bootstrap [n]     Run bootstrap stability test"
         echo "  clean             Clean tmp build artifacts"

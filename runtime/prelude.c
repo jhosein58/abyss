@@ -4,6 +4,11 @@
 #include <string.h>
 #include <stdlib.h>
 
+#if defined(_WIN32) || defined(_WIN64)
+#define popen _popen
+#define pclose _pclose
+#endif
+
 void print(uint8_t *s) {
     printf("%s", (const char *)s);
 }
@@ -120,14 +125,28 @@ int32_t compile_and_run(uint8_t *path) {
     char out_path[1024];
 
     const char *last_slash = strrchr(p, '/');
+#if defined(_WIN32) || defined(_WIN64)
+    const char *last_bslash = strrchr(p, '\\');
+    if (!last_slash || (last_bslash && last_bslash > last_slash)) {
+        last_slash = last_bslash;
+    }
+    const char *bin_name = "stg1_out.exe";
+#else
+    const char *bin_name = "stg1_out";
+#endif
     if (last_slash) {
         size_t dir_len = (size_t)(last_slash - p + 1);
-        if (dir_len + sizeof("stg1_out") >= sizeof(out_path)) return -1;
+        size_t bin_name_len = strlen(bin_name);
+        if (dir_len + bin_name_len + 1 >= sizeof(out_path)) return -1;
 
         memcpy(out_path, p, dir_len);
-        strcpy(out_path + dir_len, "stg1_out");
+        strcpy(out_path + dir_len, bin_name);
     } else {
-        snprintf(out_path, sizeof(out_path), "./stg1_out");
+#if defined(_WIN32) || defined(_WIN64)
+        snprintf(out_path, sizeof(out_path), "%s", bin_name);
+#else
+        snprintf(out_path, sizeof(out_path), "./%s", bin_name);
+#endif
     }
 
     char compile_cmd[2048];

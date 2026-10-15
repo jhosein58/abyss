@@ -22,12 +22,12 @@ index_error :: fn(path Str, msg &u8) {
 }
 
 is_embedded_path :: fn(path Str) bool {
-    path.starts_with(Str.of("std/")) or path.starts_with(Str.of("core/"))
+    path.starts_with(Str.of("std/")) or path.starts_with(Str.of("core/")) or path.starts_with(Str.of("std\\")) or path.starts_with(Str.of("core\\"))
 }
 
 module_path :: fn(arena &Arena, base Str, path Str) Str {
     full_path := Path.ensure_ext(arena, path, Str.of(".a"))
-    is_rel := full_path.starts_with(Str.of("./")) or full_path.starts_with(Str.of("../"))
+    is_rel := full_path.starts_with(Str.of("./")) or full_path.starts_with(Str.of("../")) or full_path.starts_with(Str.of(".\\")) or full_path.starts_with(Str.of("..\\"))
     embedded := is_embedded_path(full_path) or is_embedded_path(base)
     target := Str.empty()
     if is_rel {
