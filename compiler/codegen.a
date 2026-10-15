@@ -492,12 +492,6 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
-    method_name :: fn(self &Self, arena &Arena, method_id u32) Str {
-        fmt := Fmt.new(arena)
-        fmt.sym(Str.of("method_"), method_id)
-        fmt.as_str()
-    }
-
     field_name :: fn(self &Self, arena &Arena, field_id u32) Str {
         fmt := Fmt.new(arena)
         fmt.sym(Str.of("_f"), field_id)
@@ -606,23 +600,6 @@ CCodeGen :: struct {
             d = d - 1
         }
         fmt.cstr(c")._f").uint32(field_id)
-        fmt.as_str()
-    }
-
-    expr_receiver :: fn(self &Self, arena &Arena, recv_str Str, depth u32, is_lval bool, ty_str Str) Str {
-        fmt := Fmt.new(arena)
-        if depth > 0 {
-            d := depth
-            while d > 1 {
-                fmt.cstr(c"*")
-                d = d - 1
-            }
-            fmt.char(40 as u8).str(recv_str).char(41 as u8)
-        } else if is_lval {
-            fmt.cstr(c"&(").str(recv_str).char(41 as u8)
-        } else {
-            fmt.cstr(c"&((").str(ty_str).cstr(c"[]){").str(recv_str).cstr(c"})[0]")
-        }
         fmt.as_str()
     }
 

@@ -353,18 +353,11 @@ synth_member :: fn(eng &Engine, id u32) {
                         if m_params_list != hir_none() {
                             count := db.get_list(m_params_list).len
                             mp_i: u64 = 0
-                            runtime_seen := false
                             while mp_i < count {
                                 m_params := db.get_list(m_params_list)
                                 m_arg := *(m_params.ptr + mp_i)
                                 m_ty_node := (tbl).rhs(m_arg)
                                 if synth_type_node(eng, m_ty_node) == ty_id_type() {
-                                    if runtime_seen {
-                                        print(c"\n[type error] generic type parameters must precede runtime parameters\n       --> ")
-                                        db.print_loc(m_arg)
-                                        print(c"\n")
-                                        fall()
-                                    }
                                     m_ident := (tbl).lhs(m_arg)
                                     m_slot := (unify_ptr).new_slot(m_ident)
                                     m_infer := (&(*types_ptr)).alloc_infer(m_slot)
@@ -372,8 +365,6 @@ synth_member :: fn(eng &Engine, id u32) {
                                     db.set_const_type(m_arg, m_infer)
                                     method_type_params.push(m_arg)
                                     c_args_vec.push(m_infer)
-                                } else {
-                                    runtime_seen = true
                                 }
                                 mp_i = mp_i + 1
                             }
@@ -408,6 +399,8 @@ synth_member :: fn(eng &Engine, id u32) {
 
                         db.set_const_type(func_node, concrete_method_ty)
                         db.set_method_target(id, method)
+                        method_sym := db.get_hir_symbol(method)
+                        db.set_hir_symbol(id, method_sym)
                         db.set_const_type(id, concrete_method_ty)
                         (&(*db).unify).bind_type(&(*db).types, slot, concrete_method_ty)
                         ret
@@ -423,6 +416,8 @@ synth_member :: fn(eng &Engine, id u32) {
                         (&(*db).unify).bind_type(&(*db).types, method_slot, func_ty)
                     }
                     db.set_method_target(id, method)
+                    method_sym := db.get_hir_symbol(method)
+                    db.set_hir_symbol(id, method_sym)
                     (&(*db).unify).union(&(*db).types, slot, method_slot)
                     ret
                 }

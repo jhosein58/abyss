@@ -11,7 +11,7 @@ Box :: fn(T type) type {
 
         new :: fn(value T) Self { .{ value: value } }
         get :: fn(self &Self) T { self.value }
-        convert :: fn(U type, self &Self, value U) U { value }
+        convert :: fn(self &Self, U type, value U) U { value }
         address :: fn(self &Self) &Self { ret self }
     }
 }

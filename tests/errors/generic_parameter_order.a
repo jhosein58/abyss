@@ -1,2 +1,2 @@
-bad :: fn(x u32, T type, y T) T { y }
-main :: fn() { x := bad(1 as u32, u32, 2 as u32) }
+bad :: fn(x u32, self u32) {}
+main :: fn() { bad(1 as u32, 2 as u32) }

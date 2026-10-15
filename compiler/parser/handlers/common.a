@@ -39,8 +39,11 @@ check_delimiter :: fn(p &Parser, msg &u8) {
 parse_method :: fn(p &Parser, name u32, methods &Vec(u32)) {
     k := hir_kind
     bump(p)
-    p.db.set_hir_symbol(name, id_none())
+    name_id := p.hir.lhs(name)
+    method_sym := p.db.alloc_local_symbol(p.file_id, name_id, name)
+    p.toplv_sym = method_sym
     func := parse_expr(p, prec().const_def)
+    p.toplv_sym = id_none()
     if func == hir_none() {
         parse_error_at(p, c"expected a method function after '::'", curr_span(p))
     }
@@ -50,8 +53,12 @@ parse_method :: fn(p &Parser, name u32, methods &Vec(u32)) {
     if p.hir.extra(func) == hir_none() {
         parse_error_at(p, c"method requires a body", span_of_hir(p, func))
     }
+    p.db.set_sym_hir(method_sym, func)
+    p.db.set_hir_symbol(name, method_sym)
+    p.db.set_hir_symbol(func, method_sym)
     method := p.hir.push(k.binding, name, hir_none(), func)
     set_span(p, method, span_merge(span_of_hir(p, name), span_of_hir(p, func)))
+    p.db.set_hir_symbol(method, method_sym)
     methods.push(method)
     check_delimiter(p, c"expected ';' or newline after method")
 }

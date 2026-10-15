@@ -1,5 +1,5 @@
 Box :: struct {
-    convert :: fn(T type, self &Self, value T) T { value }
+    convert :: fn(self &Self, T type, value T) T { value }
 }
 
 main :: fn() {
