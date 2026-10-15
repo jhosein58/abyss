@@ -8,7 +8,7 @@ import id_none from "../../nexus/pool"
 import Engine from "../../engine"
 import fall from "std/sys"
 import synth_type_node from "./var"
-import synth_func, func_has_self, specialize_type_node from "./fn"
+import synth_func, func_has_self, specialize_type_node, specialize_nominal_method from "./fn"
 
 print :: fn(s &u8) unit
 
@@ -276,92 +276,8 @@ synth_member :: fn(eng &Engine, id u32) {
                     }
                     creator_sym := (&(*types_ptr)).get_nominal_creator_sym(origin)
                     if creator_sym != ty_id_none() {
-                        creator_args := (&(*types_ptr)).get_nominal_creator_args(origin)
-                        creator_fn := db.get_fn_node(creator_sym)
-
-                        fn_params_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
-                        if creator_fn != id_none() {
-                            cp_list := (tbl).lhs(creator_fn)
-                            if cp_list != hir_none() {
-                                fn_params_slice = db.get_list(cp_list)
-                            }
-                        }
-
-                        db.set_const_type(struct_id, lhs_ty)
-                        p_i: u64 = 0
-                        while p_i < fn_params_slice.len {
-                            if p_i < creator_args.len {
-                                p_arg := *(fn_params_slice.ptr + p_i)
-                                p_ident := (tbl).lhs(p_arg)
-                                arg_val := *(creator_args.ptr + p_i)
-                                if p_ident != hir_none() {
-                                    type_slot := (&(*db).unify).new_slot(p_ident)
-                                    (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
-                                    db.set_const_type(p_ident, arg_val)
-                                }
-                                db.set_const_type(p_arg, arg_val)
-                            }
-                            p_i = p_i + 1
-                        }
-
                         func_node := (tbl).extra(method)
-                        m_params_list := (tbl).lhs(func_node)
-                        c_args_vec := VecU32.new()
-                        ca_i: u64 = 0
-                        while ca_i < creator_args.len {
-                            c_args_vec.push(*(creator_args.ptr + ca_i))
-                            ca_i = ca_i + 1
-                        }
-                        method_type_params := VecU32.new()
-                        method_type_params.extend(fn_params_slice.ptr, fn_params_slice.len)
-                        if m_params_list != hir_none() {
-                            count := db.get_list(m_params_list).len
-                            mp_i: u64 = 0
-                            while mp_i < count {
-                                m_params := db.get_list(m_params_list)
-                                m_arg := *(m_params.ptr + mp_i)
-                                m_ty_node := (tbl).rhs(m_arg)
-                                if synth_type_node(eng, m_ty_node) == ty_id_type() {
-                                    m_ident := (tbl).lhs(m_arg)
-                                    m_slot := (unify_ptr).new_slot(m_ident)
-                                    m_infer := (&(*types_ptr)).alloc_infer(m_slot)
-                                    db.set_const_type(m_ident, m_infer)
-                                    db.set_const_type(m_arg, m_infer)
-                                    method_type_params.push(m_arg)
-                                    c_args_vec.push(m_infer)
-                                }
-                                mp_i = mp_i + 1
-                            }
-                        }
-                        concrete_params_vec := VecU32.new()
-                        if m_params_list != hir_none() {
-                            count := db.get_list(m_params_list).len
-                            mp_i: u64 = 0
-                            while mp_i < count {
-                                m_params := db.get_list(m_params_list)
-                                m_arg := *(m_params.ptr + mp_i)
-                                m_ty_node := (tbl).rhs(m_arg)
-                                concrete_p_ty := specialize_type_node(eng, m_ty_node, method_type_params.as_slice(), &c_args_vec)
-                                concrete_params_vec.push(concrete_p_ty)
-                                mp_i = mp_i + 1
-                            }
-                        }
-                        m_ret_node := (tbl).rhs(func_node)
-                        concrete_ret := ty_id_unit()
-                        if m_ret_node != hir_none() {
-                            concrete_ret = specialize_type_node(eng, m_ret_node, method_type_params.as_slice(), &c_args_vec)
-                        }
-                        c_p_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
-                        if concrete_params_vec.len > 0 {
-                            c_p_slice.ptr = concrete_params_vec.ptr_at(0)
-                            c_p_slice.len = concrete_params_vec.len
-                        }
-                        concrete_method_ty := (&(*types_ptr)).alloc_func(c_p_slice, concrete_ret, false)
-                        concrete_params_vec.destroy()
-                        c_args_vec.destroy()
-                        method_type_params.destroy()
-
-                        db.set_const_type(func_node, concrete_method_ty)
+                        concrete_method_ty := specialize_nominal_method(eng, origin, struct_id, func_node, lhs_ty)
                         method_sym := db.get_hir_symbol(method)
                         db.set_hir_symbol(id, method_sym)
                         db.set_const_type(id, concrete_method_ty)

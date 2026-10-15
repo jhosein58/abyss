@@ -255,8 +255,12 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     func_id := db.get_fn_node(real_sym)
     if func_id == id_none() { ret }
     if (tbl).kind(func_id) != hir_kind.function { ret }
+    if mono_func_ty == ty_id_none() { ret }
 
     orig_func_ty := db.get_const_type(func_id)
+    if orig_func_ty == ty_id_none() {
+        orig_func_ty = mono_func_ty
+    }
 
     struct_ty := ty_id_none()
     mono_params := (&(*db).types).func_params(mono_func_ty)
@@ -322,12 +326,25 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     if args_list_id != hir_none() {
         fn_args := db.get_list(args_list_id)
         p_idx: u64 = 0
-        while p_idx < orig_params.len {
-            if p_idx < fn_args.len {
+        while (p_idx < orig_params.len) or (p_idx < mono_params.len) {
+            if (p_idx < fn_args.len) and (p_idx < mono_params.len) {
                 arg_node := *(fn_args.ptr + p_idx)
                 arg_ident := (tbl).lhs(arg_node)
                 concrete_p_ty := *(mono_params.ptr + p_idx)
-                if *(orig_params.ptr + p_idx) == ty_id_type() {
+                is_type_param := false
+                if p_idx < orig_params.len {
+                    if *(orig_params.ptr + p_idx) == ty_id_type() {
+                        is_type_param = true
+                    }
+                }
+                arg_ty_node := (tbl).rhs(arg_node)
+                if (not is_type_param) and (arg_ty_node != hir_none()) and ((tbl).kind(arg_ty_node) == hir_kind.ident) {
+                    type_name_id := (tbl).lhs(arg_ty_node)
+                    if db.interner.get(type_name_id).eq(Str.of("type")) {
+                        is_type_param = true
+                    }
+                }
+                if is_type_param {
                     type_slot := (&(*db).unify).new_slot(arg_ident)
                     (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
                     db.set_const_type(arg_ident, concrete_p_ty)

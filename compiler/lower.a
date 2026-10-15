@@ -95,6 +95,35 @@ add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &VecU32) {
     }
 }
 
+resolve_call_symbol :: fn(db &Nexus, id u32, callee_id u32, queue &VecU32) u32 {
+    tbl := &db.hir
+    target_sym := db.get_hir_symbol(callee_id)
+    if (target_sym == id_none()) and ((tbl).kind(callee_id) == hir_kind.function) {
+        target_sym = db.get_hir_symbol(callee_id)
+    }
+    if target_sym != id_none() {
+        target_sym = db.resolve_sym(target_sym)
+    }
+    if target_sym == id_none() {
+        ret id_none()
+    }
+    mono_func_ty := db.get_const_type(id)
+    if mono_func_ty != ty_id_none() {
+        mono_sym := db.find_mono_sym(target_sym, mono_func_ty)
+        if mono_sym == id_none() {
+            mono_sym = db.alloc_mono_sym(target_sym, mono_func_ty)
+        }
+        if not vec_contains(queue, mono_sym) {
+            queue.push(mono_sym)
+        }
+        ret mono_sym
+    }
+    if not vec_contains(queue, target_sym) {
+        queue.push(target_sym)
+    }
+    target_sym
+}
+
 lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
     k := hir_kind
     kind := (&(*db).hir).kind(id)
@@ -280,63 +309,25 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ve
 
     if kind == k.call {
         callee_id := (&(*db).hir).lhs(id)
-        if get_node_type(db, id) == ty_id_type() {
-            ret Str.empty()
-        }
-
-        args_list := (&(*db).hir).rhs(id)
-        callee_sym := db.get_hir_symbol(callee_id)
-        target_sym := callee_sym
-        if (target_sym == id_none()) and ((&(*db).hir).kind(callee_id) == k.function) {
-            target_sym = db.get_hir_symbol(callee_id)
-        }
-        if target_sym != id_none() {
-            target_sym = db.resolve_sym(target_sym)
-        }
-
-        mono_func_ty := db.get_const_type(id)
-        callee_str := Str.empty()
-        if (target_sym != id_none()) and (mono_func_ty != ty_id_none()) {
-            mono_sym := db.find_mono_sym(target_sym, mono_func_ty)
-            if mono_sym == id_none() {
-                mono_sym = db.alloc_mono_sym(target_sym, mono_func_ty)
-            }
-            if not vec_contains(queue, mono_sym) {
-                queue.push(mono_sym)
-            }
-            callee_str = ccg.sym_name(arena, mono_sym)
-        } else {
-            if target_sym != id_none() {
-                if not vec_contains(queue, target_sym) {
-                    queue.push(target_sym)
-                }
-            }
-            if ((&(*db).hir).kind(callee_id) == k.member) and (target_sym != id_none()) {
-                callee_str = ccg.sym_name(arena, target_sym)
-            } else {
-                callee_str = lower_expr(db, ccg, arena, callee_id, visited, queue, type_queue)
-            }
-        }
-
+        if get_node_type(db, id) == ty_id_type() { ret Str.empty() }
+        call_sym := resolve_call_symbol(db, id, callee_id, queue)
+        callee_str := ccg.sym_name(arena, call_sym)
+        if call_sym == id_none() { callee_str = lower_expr(db, ccg, arena, callee_id, visited, queue, type_queue) }
+        else if (&(*db).types).func_is_extern(get_node_type(db, callee_id)) and (db.sym_tok_start.get(call_sym) != id_none()) { callee_str = db.interner.get(db.sym_names.get(call_sym)) }
         args_fmt := Fmt.new(arena)
         first_arg := true
-        if args_list != hir_none() {
-            args := db.get_list(args_list)
+        if (&(*db).hir).rhs(id) != hir_none() {
+            args := db.get_list((&(*db).hir).rhs(id))
             i: u64 = 0
             while i < args.len {
                 arg_node := *(args.ptr + i)
-                if get_node_type(db, arg_node) == ty_id_type() {
-                    i = i + 1
-                    cont
-                }
-                arg_val := lower_expr(db, ccg, arena, arg_node, visited, queue, type_queue)
-                if not first_arg { args_fmt.cstr(c", ") }
-                args_fmt.str(arg_val)
-                first_arg = false
                 i = i + 1
+                if get_node_type(db, arg_node) == ty_id_type() { cont }
+                if not first_arg { args_fmt.cstr(c", ") }
+                args_fmt.str(lower_expr(db, ccg, arena, arg_node, visited, queue, type_queue))
+                first_arg = false
             }
         }
-
         ret ccg.expr_call(arena, callee_str, args_fmt.as_str())
     }
 
@@ -679,6 +670,9 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
     }
 
     orig_func_ty := db.get_const_type(func_id)
+    if (orig_func_ty == ty_id_none()) and is_mono {
+        orig_func_ty = mono_func_ty
+    }
     if (not is_mono) and (orig_func_ty != ty_id_none()) and (&(*db).types).func_has_type_param(orig_func_ty) {
         ret
     }
@@ -732,7 +726,27 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
         }
         i: u64 = 0
         while i < params_slice.len {
-            if is_mono and (i < orig_params.len) and (*(orig_params.ptr + i) == ty_id_type()) {
+            is_type_param := false
+            if i < orig_params.len {
+                if *(orig_params.ptr + i) == ty_id_type() {
+                    is_type_param = true
+                }
+            }
+            args_list_id := (&(*db).hir).lhs(func_id)
+            if (not is_type_param) and (args_list_id != hir_none()) {
+                fn_args := db.get_list(args_list_id)
+                if i < fn_args.len {
+                    arg_node := *(fn_args.ptr + i)
+                    arg_ty_node := (&(*db).hir).rhs(arg_node)
+                    if (arg_ty_node != hir_none()) and ((&(*db).hir).kind(arg_ty_node) == k.ident) {
+                        type_name_id := (&(*db).hir).lhs(arg_ty_node)
+                        if db.interner.get(type_name_id).eq(Str.of("type")) {
+                            is_type_param = true
+                        }
+                    }
+                }
+            }
+            if is_mono and is_type_param {
                 i = i + 1
                 cont
             }

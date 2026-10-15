@@ -441,6 +441,7 @@ Nexus :: struct {
     }
 
     find_mono_sym :: fn(self &Self, orig_sym u32, mono_ty u32) u32 {
+        if (orig_sym == id_none()) or (mono_ty == ty_id_none()) { ret id_none() }
         i: u64 = 0
         while i < self.mono_orig_sym.len {
             if (self.mono_orig_sym.get(i) == orig_sym) and (self.mono_type.get(i) == mono_ty) {
@@ -452,7 +453,7 @@ Nexus :: struct {
     }
 
     alloc_mono_sym :: fn(self &Self, orig_sym u32, mono_ty u32) u32 {
-        if orig_sym == id_none() { ret id_none() }
+        if (orig_sym == id_none()) or (mono_ty == ty_id_none()) { ret id_none() }
         file_id: u32 = 0
         name_id: u32 = 0
         if (orig_sym & 2147483648) != 0 {

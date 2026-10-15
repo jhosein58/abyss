@@ -229,4 +229,8 @@ HirTable :: struct {
     set_extra :: fn(self &Self, id u32, val u32) {
         self.extra_list.set(id as u64, val)
     }
+
+    set_kind :: fn(self &Self, id u32, k HirExprKind) {
+        self.kinds.set(id as u64, k as u8)
+    }
 }
