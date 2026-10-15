@@ -5,7 +5,7 @@
 Abyss is a statically typed, compiled systems programming language designed for mechanical sympathy, predictability, and raw performance. It pairs clean, modern ergonomics inspired by Odin and Jai with the explicit transparency of C.
 
 > **Status: 100% Self-Hosted**  
-> The Abyss compiler is written in Abyss and emits deterministic, portable C99.
+> The Abyss compiler is written in Abyss and emits deterministic GNU C99.
 
 ---
 
@@ -13,7 +13,7 @@ Abyss is a statically typed, compiled systems programming language designed for 
 
 * **Ergonomic Syntax:** Clean declaration-first grammar without header files or preprocessor baggage.
 * **Unification Type System:** Bidirectional Hindley-Milner-style type inference with strict numeric sizing.
-* **Portable C99 Target:** Compiles directly to readable C99, leveraging GCC/Clang for optimizations and vectorization.
+* **GNU C99 Target:** Compiles directly to readable GNU C99, leveraging GCC/Clang for optimizations and vectorization.
 * **Zero-Cost Interop:** Native binding and direct execution of any C library without runtime wrappers.
 * **Data-Oriented Compiler:** Built around flat arena tables and dense numeric IDs (`HirId`, `TypeId`) instead of pointer-heavy AST trees.
 * **Minimal Core `std`:** Lightweight baseline modules covering Arena allocation, dynamic vectors, strings, and basic file I/O.
@@ -52,6 +52,7 @@ Run the self-hosting and compiler regression tests with:
 
 The bootstrap test builds five compiler generations, checks identical C output,
 runs the final compiler, and tests program execution and type-error diagnostics.
+Block expressions use GNU C statement expressions; value-producing `if` expressions use C's conditional operator.
 Each test run keeps its artifacts in a unique directory under `tmp/`.
 Successful programs use checked-in `.out` files; rejected programs under
 `tests/errors/` use `.err` files containing required diagnostic fragments.

@@ -68,7 +68,21 @@ while IFS= read -r TEST_FILE; do
             FAILED=$((FAILED + 1))
             continue
         fi
-        if ! gcc -std=c99 -D_POSIX_C_SOURCE=200809L -O0 -Werror=implicit-function-declaration -Werror=incompatible-pointer-types "${C_OUT}" -o "${CASE_DIR}/program" > "${CASE_DIR}/gcc.log" 2>&1; then
+        if [[ "${TEST_NAME}" == 28_c_expressions ]]; then
+            if ! rg -q '&& \(\{' "${C_OUT}" || ! rg -q '\|\| \(\{' "${C_OUT}" || ! rg -q '\) \? \(' "${C_OUT}" || rg -q '\b_t[0-9]+\b' "${C_OUT}"; then
+                echo "FAIL ${TEST_NAME}: expected native C operators and block expressions without temporary variables"
+                FAILED=$((FAILED + 1))
+                continue
+            fi
+        fi
+        if [[ "${TEST_NAME}" == 28_c_expressions || "${TEST_NAME}" == 29_while_conditions ]]; then
+            if ! rg -q 'while \(' "${C_OUT}" || rg -q 'while \(1\)' "${C_OUT}"; then
+                echo "FAIL ${TEST_NAME}: expected while conditions without an unconditional-loop wrapper"
+                FAILED=$((FAILED + 1))
+                continue
+            fi
+        fi
+        if ! gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -Werror=implicit-function-declaration -Werror=incompatible-pointer-types "${C_OUT}" -o "${CASE_DIR}/program" > "${CASE_DIR}/gcc.log" 2>&1; then
             echo "FAIL ${TEST_NAME}: C compilation"
             cat "${CASE_DIR}/gcc.log"
             FAILED=$((FAILED + 1))

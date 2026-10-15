@@ -9,7 +9,7 @@ cp "${ROOT_DIR}/tests/23_embedded_core.a" "${WORK_DIR}/main.a"
 (
     cd "${WORK_DIR}"
     env -u ABYSS_SRC -u ABYSS_OUT ABYSS_PRELUDE=/nonexistent/prelude.c timeout 30s ./abyssc
-    gcc -std=c99 -D_POSIX_C_SOURCE=200809L -O2 -Werror=implicit-function-declaration -Werror=incompatible-pointer-types out.c -o program
+    gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O2 -Werror=implicit-function-declaration -Werror=incompatible-pointer-types out.c -o program
     timeout 5s ./program > actual.out
     diff -u "${ROOT_DIR}/tests/23_embedded_core.out" actual.out
     for TEST_FILE in "${ROOT_DIR}"/tests/[0-9]*.a; do
@@ -18,7 +18,7 @@ cp "${ROOT_DIR}/tests/23_embedded_core.a" "${WORK_DIR}/main.a"
         fi
         cp "${TEST_FILE}" main.a
         timeout 30s ./abyssc main.a relocated.c
-        gcc -std=c99 -D_POSIX_C_SOURCE=200809L -O0 -Werror=implicit-function-declaration -Werror=incompatible-pointer-types relocated.c -o relocated
+        gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -Werror=implicit-function-declaration -Werror=incompatible-pointer-types relocated.c -o relocated
         timeout 5s ./relocated > relocated.out
         diff -u "${TEST_FILE%.a}.out" relocated.out
     done

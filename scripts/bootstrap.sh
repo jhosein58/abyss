@@ -17,7 +17,7 @@ RESET='\033[0m'
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SEED_COMPILER="${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}"
 
-GCC_FLAGS="-O3 -march=native -mtune=native -fomit-frame-pointer -funroll-loops"
+GCC_FLAGS="-std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -march=native -mtune=native -fomit-frame-pointer -funroll-loops"
 
 echo -e "${CYAN}====================================================${RESET}"
 echo -e "${CYAN}        ABYSS COMPILER BOOTSTRAP STABILITY TEST     ${RESET}"

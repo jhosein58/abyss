@@ -1,0 +1,97 @@
+import print from "std/io.a"
+
+main :: fn() {
+    i := 0
+    while i < 3 { i = i + 1 }
+    skipped := 0
+    while false { skipped = skipped + 1 }
+    print(i)
+    print(" ")
+    print(skipped)
+    print("\n")
+
+    j := 0
+    total := 0
+    while j < 6 {
+        j = j + 1
+        if j == 2 { cont }
+        if j == 5 { break }
+        total = total + j
+    }
+    print(j)
+    print(" ")
+    print(total)
+    print("\n")
+
+    checked := 0
+    sum := 0
+    while {
+        checked = checked + 1
+        limit := 4
+        checked < limit
+    } {
+        sum = sum + checked
+    }
+    print(checked)
+    print(" ")
+    print(sum)
+    print("\n")
+
+    outer := 0
+    nested_break := 0
+    while outer < 2 {
+        outer = outer + 1
+        inner := 0
+        while {
+            inner = inner + 1
+            if inner == 3 { break }
+            true
+        } {
+            nested_break = nested_break + inner
+        }
+    }
+    print(outer)
+    print(" ")
+    print(nested_break)
+    print("\n")
+
+    rounds := 0
+    nested_continue := 0
+    while rounds < 2 {
+        rounds = rounds + 1
+        inner := 0
+        while {
+            inner = inner + 1
+            if inner == 2 { cont }
+            inner < 4
+        } {
+            nested_continue = nested_continue + inner
+        }
+    }
+    print(rounds)
+    print(" ")
+    print(nested_continue)
+    print("\n")
+
+    condition_index := 0
+    condition_sum := 0
+    while {
+        condition_index = condition_index + 1
+        if condition_index == 2 { cont }
+        if condition_index == 4 { break }
+        inner := 0
+        while inner < 3 {
+            inner = inner + 1
+            if inner == 2 { cont }
+            if inner == 3 { break }
+            condition_sum = condition_sum + 10
+        }
+        true
+    } {
+        condition_sum = condition_sum + condition_index
+    }
+    print(condition_index)
+    print(" ")
+    print(condition_sum)
+    print("\n")
+}

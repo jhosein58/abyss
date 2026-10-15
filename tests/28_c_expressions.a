@@ -1,0 +1,197 @@
+import print from "std/io.a"
+
+effect :: fn(count &i32, value bool) bool {
+    *count = *count + 1
+    value
+}
+
+early :: fn(flag bool) i32 {
+    value: i32 = if flag { ret 7 } else { 3 }
+    value + 1
+}
+
+logical_return :: fn(flag bool) bool {
+    flag and { ret true }
+}
+
+pick :: fn(T type, flag bool, first T, second T) T {
+    if flag {
+        value := first
+        value
+    } else {
+        value := second
+        value
+    }
+}
+
+Record :: struct {
+    value i32
+}
+
+early_record :: fn(flag bool) Record {
+    value: Record = if flag { ret .{ value: 41 } } else { .{ value: 3 } }
+    value
+}
+
+choose_ptr :: fn(flag bool, first &i32, second &i32) &i32 {
+    if flag { ret first } else { second }
+}
+
+choose_union :: fn(flag bool) i32 | bool {
+    if flag {
+        value := 9
+        value
+    } else {
+        value := false
+        value
+    }
+}
+
+inc :: fn(value i32) i32 { value + 1 }
+dec :: fn(value i32) i32 { value - 1 }
+
+main :: fn() {
+    count := 0
+    first := false and {
+        count = count + 100
+        effect(&count, true)
+    }
+    second := true or {
+        count = count + 100
+        effect(&count, false)
+    }
+    third := true and {
+        local := 2
+        effect(&count, local == 2)
+    }
+    fourth := false or {
+        if true {
+            count = count + 3
+            true
+        } else {
+            count = count + 100
+            false
+        }
+    }
+    print(first)
+    print(" ")
+    print(second)
+    print(" ")
+    print(third)
+    print(" ")
+    print(fourth)
+    print(" ")
+    print(count)
+    print("\n")
+
+    fifth := false and (if true { effect(&count, true) } else { effect(&count, false) })
+    sixth := true or (if false { effect(&count, true) } else { effect(&count, false) })
+    print(fifth)
+    print(" ")
+    print(sixth)
+    print(" ")
+    print(count)
+    print("\n")
+
+    chosen := if false {
+        count = count + 100
+        local := 11
+        local
+    } else {
+        count = count + 2
+        local := 21
+        local
+    }
+    print(chosen)
+    print(" ")
+    print(count)
+    print("\n")
+
+    nested := {
+        value := 5
+        inner := { value := 6 value }
+        value + inner
+    }
+    print(nested)
+    print("\n")
+
+    print(early(true))
+    print(" ")
+    print(early(false))
+    print(" ")
+    print(logical_return(true))
+    print(" ")
+    print(logical_return(false))
+    print("\n")
+
+    print(early_record(true).value)
+    print(" ")
+    print(early_record(false).value)
+    print("\n")
+
+    a := 10
+    b := 20
+    print(*choose_ptr(true, &a, &b))
+    print(" ")
+    print(*choose_ptr(false, &a, &b))
+    print("\n")
+
+    print(choose_union(true) as i32)
+    print(" ")
+    print(choose_union(false) as bool)
+    print("\n")
+
+    one: Record = .{ value: 1 }
+    two: Record = .{ value: 2 }
+    print(pick(true, one, two).value)
+    print(" ")
+    print(pick(false, one, two).value)
+    print(" ")
+    print(pick(true, false, true))
+    print("\n")
+
+    operation := if true { inc } else { dec }
+    print(operation(10))
+    print("\n")
+
+    i := 0
+    sum := 0
+    while { i = i + 1 i < 4 } {
+        if i == 2 { cont }
+        sum = sum + i
+    }
+    print(i)
+    print(" ")
+    print(sum)
+    print("\n")
+
+    j := 0
+    total := 0
+    while j < 6 {
+        j = j + 1
+        {
+            if j == 2 { cont }
+            if j == 5 { break }
+            total = total + j
+        }
+    }
+    print(j)
+    print(" ")
+    print(total)
+    print("\n")
+
+    condition_index := 0
+    condition_sum := 0
+    while {
+        condition_index = condition_index + 1
+        if condition_index == 2 { cont }
+        if condition_index == 5 { break }
+        true
+    } {
+        condition_sum = condition_sum + condition_index
+    }
+    print(condition_index)
+    print(" ")
+    print(condition_sum)
+    print("\n")
+}

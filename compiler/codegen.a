@@ -4,7 +4,7 @@ import Str, String from "std/string"
 import Arena from "std/allocator"
 import Fmt from "std/fmt"
 import TypeStorage, ty_kind, ty_id_none from "./types"
-import HirExprKind, hir_kind from "./hir"
+import HirExprKind, hir_kind, hir_none from "./hir"
 import fall from "std/sys"
 
 print :: fn(s &u8) unit
@@ -50,6 +50,12 @@ vec_as_str :: fn(v &VecU8) Str {
     }
 }
 
+LoopCondition :: struct {
+    id u32
+    breaks bool
+    continues bool
+}
+
 CCodeGen :: struct {
     struct_decls    : VecU8,
     struct_defs     : VecU8,
@@ -59,7 +65,7 @@ CCodeGen :: struct {
     main_sym        : u32,
     has_main        : bool,
     indent          : u32,
-    tmp_id          : u32,
+    loop_condition  : LoopCondition,
 
     new :: fn() Self {
         .{
@@ -71,7 +77,7 @@ CCodeGen :: struct {
             main_sym        : 0,
             has_main        : false,
             indent          : 0,
-            tmp_id          : 0
+            loop_condition  : .{ id: hir_none(), breaks: false, continues: false }
         }
     }
 
@@ -115,7 +121,6 @@ CCodeGen :: struct {
         vec_push_str(&self.code, params)
         vec_push_str(&self.code, Str.of(") {\n"))
         self.indent = self.indent + 1
-        self.tmp_id = 0
     }
 
     end_function :: fn(self &Self) {
@@ -189,29 +194,60 @@ CCodeGen :: struct {
         vec_push_str(&self.code, Str.of("}\n"))
     }
 
-    emit_break :: fn(self &Self) {
-        self.expr(Str.of("break"))
-    }
-
-    emit_cont :: fn(self &Self) {
-        self.expr(Str.of("continue"))
-    }
-
-    new_tmp :: fn(self &Self) u32 {
-        t := self.tmp_id
-        self.tmp_id = self.tmp_id + 1
-        t
-    }
-
-    tmp_var_name :: fn(self &Self, arena &Arena, id u32) Str {
+    loop_label :: fn(self &Self, arena &Arena, id u32, suffix Str) Str {
         fmt := Fmt.new(arena)
-        fmt.sym(Str.of("_t"), id)
+        fmt.sym(Str.of("_loop_"), id).str(suffix)
         fmt.as_str()
     }
 
-    new_tmp_var :: fn(self &Self, arena &Arena) Str {
-        t := self.new_tmp()
-        self.tmp_var_name(arena, t)
+    emit_label :: fn(self &Self, arena &Arena, label Str) {
+        fmt := Fmt.new(arena)
+        fmt.str(label).char(58 as u8)
+        self.expr(fmt.as_str())
+    }
+
+    emit_goto :: fn(self &Self, arena &Arena, label Str) {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"goto ").str(label)
+        self.expr(fmt.as_str())
+    }
+
+    emit_break :: fn(self &Self, arena &Arena) {
+        if self.loop_condition.id == hir_none() {
+            self.expr(Str.of("break"))
+        } else {
+            self.loop_condition.breaks = true
+            self.emit_goto(arena, self.loop_label(arena, self.loop_condition.id, Str.of("_end")))
+        }
+    }
+
+    emit_cont :: fn(self &Self, arena &Arena) {
+        if self.loop_condition.id == hir_none() {
+            self.expr(Str.of("continue"))
+        } else {
+            self.loop_condition.continues = true
+            self.emit_goto(arena, self.loop_label(arena, self.loop_condition.id, Str.of("_begin")))
+        }
+    }
+
+    begin_expr :: fn(self &Self) u64 {
+        self.indent = self.indent + 1
+        self.code.mark()
+    }
+
+    end_expr :: fn(self &Self, arena &Arena, mark u64, value Str) Str {
+        if (self.code.len == mark) and (value.len > 0) {
+            self.indent = self.indent - 1
+            ret value
+        }
+        self.expr(value)
+        body := Str.new(self.code.ptr_at(mark), self.code.len - mark)
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"({\n").str(body)
+        self.code.reset(mark)
+        self.indent = self.indent - 1
+        fmt.indent(self.indent).cstr(c"})")
+        fmt.as_str()
     }
 
     decl_struct :: fn(self &Self, name Str) {
@@ -516,6 +552,18 @@ CCodeGen :: struct {
     expr_binary :: fn(self &Self, arena &Arena, op Str, lhs Str, rhs Str) Str {
         fmt := Fmt.new(arena)
         fmt.binary(op, lhs, rhs)
+        fmt.as_str()
+    }
+
+    expr_conditional :: fn(self &Self, arena &Arena, cond Str, then_val Str, else_val Str) Str {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"((").str(cond).cstr(c") ? (").str(then_val).cstr(c") : (").str(else_val).cstr(c"))")
+        fmt.as_str()
+    }
+
+    expr_zero :: fn(self &Self, arena &Arena, ty Str) Str {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"((").str(ty).cstr(c"){0})")
         fmt.as_str()
     }
 
