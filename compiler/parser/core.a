@@ -132,7 +132,7 @@ parse_error_at :: fn(p &Parser, msg &u8, sp Span) {
     print(c"\n\033[1;31m[syntax error]\033[0m ")
     print(msg)
     print(c"\n       --> ")
-    print(path.ptr)
+    path.print()
     print(c":")
     print_u32(pos.line)
     print(c":")

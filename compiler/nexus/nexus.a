@@ -433,7 +433,7 @@ Nexus :: struct {
         path := self.get_file_path(fid)
         pos := self.get_pos(hir_id)
 
-        print(path.ptr)
+        path.print()
         print(c":")
         print_u32(pos.line)
         print(c":")
