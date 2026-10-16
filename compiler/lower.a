@@ -711,15 +711,10 @@ lower_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32
     val_str
 }
 
-lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
+lower_one_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) {
     if sym_id == id_none() {
         ret
     }
-
-    if vec_contains(visited, sym_id) {
-        ret
-    }
-    visited.push(sym_id)
 
     db := &(*eng).nexus
     ccg := &(*eng).ccg
@@ -851,19 +846,16 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
         ret
     }
 
-    queue := VecU32.new()
-    type_queue := VecU32.new()
-
-    add_type_to_queue(db, ret_ty, &type_queue)
+    add_type_to_queue(db, ret_ty, type_queue)
     param_index: u64 = 0
     while param_index < params_slice.len {
-        add_type_to_queue(db, *(params_slice.ptr + param_index), &type_queue)
+        add_type_to_queue(db, *(params_slice.ptr + param_index), type_queue)
         param_index = param_index + 1
     }
 
     ccg.start_function(fn_name, ret_str, params_str)
 
-    body_val := lower_body(db, ccg, arena, body_id, visited, &queue, &type_queue)
+    body_val := lower_body(db, ccg, arena, body_id, visited, queue, type_queue)
 
     if (&(*db).types).kind(ret_ty) == ty_kind().unit {
         if body_val.len > 0 {
@@ -879,12 +871,29 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
     if is_mono {
         db.set_const_type(func_id, saved_orig_ty)
     }
+}
+
+lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
+    if sym_id == id_none() {
+        ret
+    }
+
+    db := &(*eng).nexus
+    ccg := &(*eng).ccg
+
+    queue := VecU32.new()
+    type_queue := VecU32.new()
+
+    queue.push(sym_id)
 
     q_i: u64 = 0
     while q_i < queue.len {
         q_sym := queue.get(q_i)
-        lower_function(eng, arena, q_sym, visited)
         q_i = q_i + 1
+        if not vec_contains(visited, q_sym) {
+            visited.push(q_sym)
+            lower_one_function(eng, arena, q_sym, visited, &queue, &type_queue)
+        }
     }
 
     sorted := topo_sort(db, &type_queue)
