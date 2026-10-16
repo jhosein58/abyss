@@ -582,174 +582,87 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
     concrete_method_ty
 }
 
-instantiate_type :: fn(eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU32) u32 {
+transform_type :: fn(eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU32, unify_ptr &UnifyStorage, types &TypeStorage, is_instantiate bool) u32 {
     if ty == ty_id_none() { ret ty_id_none() }
     db := &(*eng).nexus
-    types := &(*db).types
     k := ty_kind()
     kind := (&(*types)).kind(ty)
 
     if kind == k.infer {
-        slot := (&(*types)).infer_slot(ty)
-        i: u64 = 0
-        while i < tmpl_slots.len {
-            if tmpl_slots.get(i) == slot {
-                fresh := fresh_slots.get(i)
-                resolved := (&(*db).unify).resolve_type_deep(types, fresh)
-                if resolved != ty_id_none() { ret resolved }
-                ret (&(*types)).alloc_infer(fresh)
-            }
-            i = i + 1
-        }
-        ret ty
-    }
-
-    if kind == k.ptr {
-        inner := (&(*types)).payload(ty)
-        inst_inner := instantiate_type(eng, inner, tmpl_slots, fresh_slots)
-        ret (&(*types)).alloc_ptr(inst_inner)
-    }
-
-    if kind == k.array {
-        inner := (&(*types)).get_array_type(ty)
-        len := (&(*types)).get_array_len(ty)
-        inst_inner := instantiate_type(eng, inner, tmpl_slots, fresh_slots)
-        ret (&(*types)).alloc_array(inst_inner, len)
-    }
-
-    if kind == k.func {
-        params := (&(*types)).func_params(ty)
-        ret_ty := (&(*types)).func_return(ty)
-        is_ext := (&(*types)).func_is_extern(ty)
-
-        source_params := VecU32.new()
-        source_params.extend(params.ptr, params.len)
-        params = source_params.as_slice()
-        inst_ret := instantiate_type(eng, ret_ty, tmpl_slots, fresh_slots)
-        p_vec := VecU32.new()
-        p_i: u64 = 0
-        while p_i < params.len {
-            p_vec.push(instantiate_type(eng, *(params.ptr + p_i), tmpl_slots, fresh_slots))
-            p_i = p_i + 1
-        }
-        ptr_p := 0 as &u32
-        if p_vec.len > 0 { ptr_p = p_vec.ptr_at(0) }
-        slice: SliceU32 = .{ ptr: ptr_p, len: p_vec.len }
-        new_fn := (&(*types)).alloc_func(slice, inst_ret, is_ext)
-        p_vec.destroy()
-        source_params.destroy()
-        ret new_fn
-    }
-
-    if kind == k.union_ {
-        count := (&(*types)).union_members(ty).len
-        result := ty_id_none()
-        i: u64 = 0
-        while i < count {
-            members := (&(*types)).union_members(ty)
-            member := instantiate_type(eng, *(members.ptr + i), tmpl_slots, fresh_slots)
-            if result == ty_id_none() {
-                result = member
-            } else {
-                result = (&(*types)).make_union_2(result, member)
-            }
-            i = i + 1
-        }
-        ret result
-    }
-
-    if kind == k.nominal {
-        orig := (&(*types)).nominal_origin(ty)
-        creator_sym := (&(*types)).get_nominal_creator_sym(orig)
-        if creator_sym != ty_id_none() {
-            creator_args := (&(*types)).get_nominal_creator_args(orig)
-            new_args := VecU32.new()
-            changed := false
-            c_i: u64 = 0
-            while c_i < creator_args.len {
-                creator_args = (&(*types)).get_nominal_creator_args(orig)
-                c_arg := *(creator_args.ptr + c_i)
-                new_arg := instantiate_type(eng, c_arg, tmpl_slots, fresh_slots)
-                if new_arg != c_arg { changed = true }
-                new_args.push(new_arg)
-                c_i = c_i + 1
-            }
-            if changed {
-                cached := db.find_mono_nominal(creator_sym, new_args.as_slice())
-                if cached != ty_id_none() {
-                    new_args.destroy()
-                    ret cached
+        if is_instantiate {
+            slot := (&(*types)).infer_slot(ty)
+            i: u64 = 0
+            while i < tmpl_slots.len {
+                if tmpl_slots.get(i) == slot {
+                    fresh := fresh_slots.get(i)
+                    resolved := (&(*db).unify).resolve_type_deep(types, fresh)
+                    if resolved != ty_id_none() { ret resolved }
+                    ret (&(*types)).alloc_infer(fresh)
                 }
-                spec_ty := specialize_nominal_from_creator(eng, creator_sym, &new_args)
-                new_args.destroy()
-                ret spec_ty
+                i = i + 1
             }
-            new_args.destroy()
+            ret ty
+        } else {
+            s := (&(*types)).infer_slot(ty)
+            resolved := (unify_ptr).resolve_type_deep(types, s)
+            if resolved == ty_id_none() { ret ty }
+            if resolved == ty_id_untyped_int() {
+                resolved = (&(*types)).alloc_int(32)
+                unify_ptr.bind_type(types, s, resolved)
+            } else if resolved == ty_id_untyped_float() {
+                resolved = (&(*types)).alloc_float(64)
+                unify_ptr.bind_type(types, s, resolved)
+            }
+            ret transform_type(eng, resolved, tmpl_slots, fresh_slots, unify_ptr, types, false)
         }
-        ret ty
     }
 
-    ty
-}
-
-resolve_ty_id :: fn(eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty u32) u32 {
-    db := &(*eng).nexus
-    k := ty_kind()
-    kind := (&(*types)).kind(ty)
-    if kind == k.infer {
-        s := (&(*types)).infer_slot(ty)
-        resolved := (unify_ptr).resolve_type_deep(types, s)
-        if resolved == ty_id_none() { ret ty }
-        if resolved == ty_id_untyped_int() {
-            resolved = (&(*types)).alloc_int(32)
-            unify_ptr.bind_type(types, s, resolved)
-        } else if resolved == ty_id_untyped_float() {
-            resolved = (&(*types)).alloc_float(64)
-            unify_ptr.bind_type(types, s, resolved)
-        }
-        ret resolve_ty_id(eng, unify_ptr, types, resolved)
-    }
     if kind == k.ptr {
         inner := (&(*types)).payload(ty)
-        res_inner := resolve_ty_id(eng, unify_ptr, types, inner)
+        res_inner := transform_type(eng, inner, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
         ret (&(*types)).alloc_ptr(res_inner)
     }
+
     if kind == k.array {
         inner := (&(*types)).get_array_type(ty)
         len := (&(*types)).get_array_len(ty)
-        res_inner := resolve_ty_id(eng, unify_ptr, types, inner)
+        res_inner := transform_type(eng, inner, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
         ret (&(*types)).alloc_array(res_inner, len)
     }
-    if kind == k.union_ {
-        count := (&(*types)).union_members(ty).len
-        result := ty_id_none()
-        i: u64 = 0
-        while i < count {
-            members := (&(*types)).union_members(ty)
-            member := resolve_ty_id(eng, unify_ptr, types, *(members.ptr + i))
-            if result == ty_id_none() {
-                result = member
-            } else {
-                result = (&(*types)).make_union_2(result, member)
-            }
-            i = i + 1
-        }
-        ret result
-    }
+
     if kind == k.func {
         count := (&(*types)).func_params(ty).len
-        ret_ty := resolve_ty_id(eng, unify_ptr, types, (&(*types)).func_return(ty))
+        ret_ty := transform_type(eng, (&(*types)).func_return(ty), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+        is_ext := (&(*types)).func_is_extern(ty)
         params_vec := VecU32.new()
         i: u64 = 0
         while i < count {
             params := (&(*types)).func_params(ty)
-            params_vec.push(resolve_ty_id(eng, unify_ptr, types, *(params.ptr + i)))
+            params_vec.push(transform_type(eng, *(params.ptr + i), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate))
             i = i + 1
         }
-        result := (&(*types)).alloc_func(params_vec.as_slice(), ret_ty, (&(*types)).func_is_extern(ty))
+        result := (&(*types)).alloc_func(params_vec.as_slice(), ret_ty, is_ext)
         params_vec.destroy()
         ret result
     }
+
+    if kind == k.union_ {
+        count := (&(*types)).union_members(ty).len
+        result := ty_id_none()
+        i: u64 = 0
+        while i < count {
+            members := (&(*types)).union_members(ty)
+            member := transform_type(eng, *(members.ptr + i), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+            if result == ty_id_none() {
+                result = member
+            } else {
+                result = (&(*types)).make_union_2(result, member)
+            }
+            i = i + 1
+        }
+        ret result
+    }
+
     if kind == k.nominal {
         orig := (&(*types)).nominal_origin(ty)
         creator_sym := (&(*types)).get_nominal_creator_sym(orig)
@@ -761,7 +674,7 @@ resolve_ty_id :: fn(eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty
             while c_i < creator_args.len {
                 creator_args = (&(*types)).get_nominal_creator_args(orig)
                 c_arg := *(creator_args.ptr + c_i)
-                new_arg := resolve_ty_id(eng, unify_ptr, types, c_arg)
+                new_arg := transform_type(eng, c_arg, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
                 if new_arg != c_arg { changed = true }
                 res_args.push(new_arg)
                 c_i = c_i + 1
@@ -780,7 +693,17 @@ resolve_ty_id :: fn(eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty
         }
         ret ty
     }
+
     ty
+}
+
+instantiate_type :: fn(eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU32) u32 {
+    db := &(*eng).nexus
+    transform_type(eng, ty, tmpl_slots, fresh_slots, &(*db).unify, &(*db).types, true)
+}
+
+resolve_ty_id :: fn(eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty u32) u32 {
+    transform_type(eng, ty, 0 as &VecU32, 0 as &VecU32, unify_ptr, types, false)
 }
 
 report_arg_count_error :: fn(db &Nexus, id u32, callee u32, params_len u64, args_len u64, lhs_is_instance bool, type_params_count u32) {
@@ -814,477 +737,417 @@ report_arg_count_error :: fn(db &Nexus, id u32, callee u32, params_len u64, args
     fall()
 }
 
+register_call_mono_sym :: fn(db &Nexus, id u32, callee u32, mono_func_ty u32) {
+    db.set_const_type(id, mono_func_ty)
+    target_sym := db.get_hir_symbol(callee)
+    if target_sym != id_none() {
+        target_sym = db.resolve_sym(target_sym)
+        mono_sym := db.find_mono_sym(target_sym, mono_func_ty)
+        if mono_sym == id_none() {
+            db.alloc_mono_sym(target_sym, mono_func_ty)
+        }
+    }
+}
+
+unify_call_arg :: fn(eng &Engine, arg_node u32, expected_ty u32) {
+    db := &(*eng).nexus
+    unify_ptr := &(*db).unify
+    arg_slot := unify_ptr.get_slot(arg_node)
+    if arg_slot == slot_none() {
+        synth_node(eng, arg_node)
+        arg_slot = unify_ptr.get_slot(arg_node)
+    }
+    if arg_slot != slot_none() {
+        check_value(db, arg_node, expected_ty)
+        arg_slot = unify_ptr.get_slot(arg_node)
+        p_tmp := unify_ptr.tmp_slot()
+        unify_ptr.bind_type(&(*db).types, p_tmp, expected_ty)
+        unify_ptr.union(&(*db).types, arg_slot, p_tmp)
+    }
+    if arg_slot == slot_none() {
+        print(c"\n[type error] cannot resolve argument\n       --> ")
+        db.print_loc(arg_node)
+        print(c"\n")
+        fall()
+    }
+}
+
+check_method_receiver :: fn(db &Nexus, callee u32, params &SliceU32, lhs_is_instance &bool, is_struct_generic &bool) u64 {
+    tbl := &db.hir
+    types_ptr := &db.types
+    unify_ptr := &db.unify
+    if tbl.kind(callee) != hir_kind.member { ret 0 }
+    callee_lhs := tbl.lhs(callee)
+    m_sym := db.get_hir_symbol(callee)
+    if m_sym == id_none() { ret 0 }
+    callee_fn := db.get_fn_node(m_sym)
+    if func_has_self(db, callee_fn) {
+        lhs_slot := unify_ptr.get_slot(callee_lhs)
+        if lhs_slot != slot_none() {
+            *lhs_is_instance = unify_ptr.resolve_type_deep(types_ptr, lhs_slot) != ty_id_type()
+        }
+    }
+    lhs_slot := unify_ptr.get_slot(callee_lhs)
+    if lhs_slot != slot_none() {
+        struct_ty := unify_ptr.resolve_type_deep(types_ptr, lhs_slot)
+        if struct_ty == ty_id_type() {
+            struct_ty = db.get_const_type(callee_lhs)
+        } else {
+            while (&(*types_ptr)).kind(struct_ty) == ty_kind().ptr {
+                struct_ty = (&(*types_ptr)).payload(struct_ty)
+            }
+        }
+        if struct_ty != ty_id_none() {
+            if (&(*types_ptr)).kind(struct_ty) == ty_kind().nominal {
+                s_origin := (&(*types_ptr)).nominal_origin(struct_ty)
+                if (&(*types_ptr)).get_nominal_creator_sym(s_origin) != ty_id_none() {
+                    *is_struct_generic = true
+                }
+            }
+        }
+    }
+    if *lhs_is_instance {
+        base_lhs := unify_ptr.resolve_type_deep(types_ptr, unify_ptr.get_slot(callee_lhs))
+        while (&(*types_ptr)).kind(base_lhs) == ty_kind().ptr {
+            base_lhs = (&(*types_ptr)).payload(base_lhs)
+        }
+        base_p0 := *(params.ptr + 0)
+        while (&(*types_ptr)).kind(base_p0) == ty_kind().ptr {
+            base_p0 = (&(*types_ptr)).payload(base_p0)
+        }
+        tmp_lhs := unify_ptr.tmp_slot()
+        unify_ptr.bind_type(types_ptr, tmp_lhs, base_lhs)
+        tmp_p0 := unify_ptr.tmp_slot()
+        unify_ptr.bind_type(types_ptr, tmp_p0, base_p0)
+        unify_ptr.union(types_ptr, tmp_lhs, tmp_p0)
+        ret 1
+    }
+    0
+}
+
+synth_type_func_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u32, args_vec &VecU32, params &SliceU32, args_len u64) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    types_ptr := &(*db).types
+    unify_ptr := &(*db).unify
+    leading_types := (&(*types_ptr)).func_leading_type_params(callee_ty)
+    omitted_types := (leading_types > 0) and (args_len == params.len - (leading_types as u64))
+    if (args_len != params.len) and (not omitted_types) {
+        print(c"\n[type error] type function expected ")
+        print_u32(params.len as u32)
+        print(c" arguments, but got ")
+        print_u32(args_len as u32)
+        print(c"\n       --> ")
+        db.print_loc(id)
+        print(c"\n")
+        fall()
+    }
+    concrete_args := VecU32.new()
+    if omitted_types {
+        type_i: u32 = 0
+        while type_i < leading_types {
+            infer_slot := unify_ptr.tmp_slot()
+            concrete_args.push((&(*types_ptr)).alloc_infer(infer_slot))
+            type_i = type_i + 1
+        }
+    }
+    if args_vec.len > 0 {
+        args := args_vec.as_slice()
+        i: u64 = 0
+        while i < args.len {
+            arg_node := *(args.ptr + i)
+            arg_ty := synth_type_node(eng, arg_node)
+            arg_slot := unify_ptr.get_slot(arg_node)
+            if (arg_ty == ty_id_none()) or (arg_slot == slot_none()) {
+                print(c"\n[type error] type function argument must be a type\n       --> ")
+                db.print_loc(arg_node)
+                print(c"\n")
+                fall()
+            }
+            if (unify_ptr.resolve_type(arg_slot) != ty_id_type()) and ((&(*types_ptr)).kind(arg_ty) != ty_kind().infer) {
+                print(c"\n[type error] type function argument must be a type\n       --> ")
+                db.print_loc(arg_node)
+                print(c"\n")
+                fall()
+            }
+            concrete_args.push(arg_ty)
+            i = i + 1
+        }
+    }
+    callee_sym := id_none()
+    if tbl.kind(callee) == hir_kind.ident {
+        sym := db.get_hir_symbol(callee)
+        if sym != id_none() { callee_sym = db.resolve_sym(sym) }
+    }
+    if callee_sym == id_none() { callee_sym = callee | 2147483648 }
+    cached := db.find_mono_nominal(callee_sym, concrete_args.as_slice())
+    if cached != ty_id_none() {
+        concrete_args.destroy()
+        db.set_const_type(id, cached)
+        unify_ptr.bind_type(types_ptr, slot, ty_id_type())
+        ret
+    }
+    spec_ty := specialize_nominal_from_creator(eng, callee_sym, &concrete_args)
+    concrete_args.destroy()
+    if spec_ty == ty_id_none() {
+        print(c"\n[type error] type function did not produce a type\n       --> ")
+        db.print_loc(id)
+        print(c"\n")
+        fall()
+    }
+    db.set_const_type(id, spec_ty)
+    unify_ptr.bind_type(types_ptr, slot, ty_id_type())
+}
+
+synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u32, args_vec &VecU32, params &SliceU32, args_len u64, param_start u64, lhs_is_instance bool) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    types_ptr := &(*db).types
+    unify_ptr := &(*db).unify
+
+    type_params_count: u32 = 0
+    tp_idx: u64 = param_start
+    while tp_idx < params.len {
+        if *(params.ptr + tp_idx) == ty_id_type() { type_params_count = type_params_count + 1 }
+        tp_idx = tp_idx + 1
+    }
+    expected_total := params.len - param_start
+    expected_runtime := expected_total - (type_params_count as u64)
+    is_explicit := args_len == expected_total
+    is_omitted := (type_params_count > 0) and (args_len == expected_runtime)
+    if (not is_explicit) and (not is_omitted) {
+        report_arg_count_error(db, id, callee, params.len, args_len, lhs_is_instance, type_params_count)
+    }
+
+    func_node := id_none()
+    c_kind := tbl.kind(callee)
+    if (c_kind == hir_kind.ident) or (c_kind == hir_kind.member) {
+        sym := db.get_hir_symbol(callee)
+        if sym != id_none() { func_node = db.get_fn_node(sym) }
+    } else if c_kind == hir_kind.function {
+        func_node = callee
+    }
+
+    tmpl_slots := VecU32.new()
+    fresh_slots := VecU32.new()
+    fn_args_vec := VecU32.new()
+    fn_args_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    if func_node != id_none() {
+        fn_params_list := (tbl).lhs(func_node)
+        if fn_params_list != hir_none() {
+            fn_args := db.get_list(fn_params_list)
+            fn_args_vec.extend(fn_args.ptr, fn_args.len)
+            fn_args_slice = fn_args_vec.as_slice()
+        }
+    }
+    tp_i: u64 = 0
+    while tp_i < params.len {
+        if *(params.ptr + tp_i) == ty_id_type() {
+            t_slot := slot_none()
+            if tp_i < fn_args_slice.len {
+                p_arg := *(fn_args_slice.ptr + tp_i)
+                t_inf := db.get_const_type(p_arg)
+                if t_inf != ty_id_none() { t_slot = (&(*types_ptr)).infer_slot(t_inf) }
+            }
+            if t_slot == slot_none() {
+                p_i: u64 = tp_i
+                while p_i < params.len {
+                    p_t := *(params.ptr + p_i)
+                    if (&(*types_ptr)).kind(p_t) == ty_kind().infer {
+                        cand := (&(*types_ptr)).infer_slot(p_t)
+                        found := false
+                        chk_i: u64 = 0
+                        while chk_i < tmpl_slots.len {
+                            if tmpl_slots.get(chk_i) == cand { found = true break }
+                            chk_i = chk_i + 1
+                        }
+                        if not found { t_slot = cand break }
+                    }
+                    p_i = p_i + 1
+                }
+            }
+            f_slot := unify_ptr.tmp_slot()
+            tmpl_slots.push(t_slot)
+            fresh_slots.push(f_slot)
+        }
+        tp_i = tp_i + 1
+    }
+    ret_ty := (&(*types_ptr)).func_return(callee_ty)
+    inst_ret := instantiate_type(eng, ret_ty, &tmpl_slots, &fresh_slots)
+    unify_ptr.bind_type(types_ptr, slot, inst_ret)
+
+    args := args_vec.as_slice()
+    tp_seen: u64 = 0
+    arg_idx: u64 = 0
+    p_i: u64 = param_start
+    while p_i < params.len {
+        param_ty := *(params.ptr + p_i)
+        if param_ty == ty_id_type() {
+            if is_explicit {
+                arg_node := *(args.ptr + arg_idx)
+                arg_val := db.get_const_type(arg_node)
+                type_slot := unify_ptr.get_slot(arg_node)
+                if (arg_val == ty_id_none()) or (type_slot == slot_none()) {
+                    print(c"\n[type error] generic type argument must be a type\n       --> ")
+                    db.print_loc(arg_node)
+                    print(c"\n")
+                    fall()
+                }
+                if unify_ptr.resolve_type(type_slot) != ty_id_type() {
+                    print(c"\n[type error] generic type argument must be a type\n       --> ")
+                    db.print_loc(arg_node)
+                    print(c"\n")
+                    fall()
+                }
+                if arg_val != ty_id_none() {
+                    t_target := fresh_slots.get(tp_seen)
+                    unify_ptr.bind_type(types_ptr, t_target, arg_val)
+                }
+                tp_seen = tp_seen + 1
+                arg_idx = arg_idx + 1
+            }
+        } else {
+            arg_node := *(args.ptr + arg_idx)
+            inst_param := instantiate_type(eng, param_ty, &tmpl_slots, &fresh_slots)
+            unify_call_arg(eng, arg_node, inst_param)
+            arg_idx = arg_idx + 1
+        }
+        p_i = p_i + 1
+    }
+    tp_i = 0
+    while tp_i < fresh_slots.len {
+        f_s := fresh_slots.get(tp_i)
+        r_ty := (unify_ptr).resolve_type_deep(types_ptr, f_s)
+        if r_ty == ty_id_untyped_int() {
+            r_ty = (&(*types_ptr)).alloc_int(32)
+            unify_ptr.bind_type(types_ptr, f_s, r_ty)
+        } else if r_ty == ty_id_untyped_float() {
+            r_ty = (&(*types_ptr)).alloc_float(64)
+            unify_ptr.bind_type(types_ptr, f_s, r_ty)
+        }
+        tp_i = tp_i + 1
+    }
+    mono_p_vec := VecU32.new()
+    tp_seen = 0 as u64
+    p_i = 0
+    while p_i < params.len {
+        if *(params.ptr + p_i) == ty_id_type() {
+            param_slot := fresh_slots.get(tp_seen)
+            param_ty := (unify_ptr).resolve_type_deep(types_ptr, param_slot)
+            if param_ty == ty_id_none() { param_ty = (&(*types_ptr)).alloc_infer(param_slot) }
+            mono_p_vec.push(param_ty)
+            tp_seen = tp_seen + 1
+        } else {
+            p_inst := instantiate_type(eng, *(params.ptr + p_i), &tmpl_slots, &fresh_slots)
+            mono_p_vec.push(resolve_ty_id(eng, unify_ptr, types_ptr, p_inst))
+        }
+        p_i = p_i + 1
+    }
+    final_ret := resolve_ty_id(eng, unify_ptr, types_ptr, inst_ret)
+    ptr_m := 0 as &u32
+    if mono_p_vec.len > 0 { ptr_m = mono_p_vec.ptr_at(0) }
+    m_slice: SliceU32 = .{ ptr: ptr_m, len: mono_p_vec.len }
+    mono_func_ty := (&(*types_ptr)).alloc_func(m_slice, final_ret, false)
+    i: u64 = 0
+    while i < args.len {
+        arg_node := *(args.ptr + i)
+        if db.has_union_coerce(arg_node) {
+            source_union := db.get_union_coerce_ty(arg_node)
+            source_idx := db.get_union_coerce_idx(arg_node)
+            source_members := (&(*types_ptr)).union_members(source_union)
+            source_ty := resolve_ty_id(eng, unify_ptr, types_ptr, *(source_members.ptr + (source_idx as u64)))
+            param_idx: u64 = 0
+            if is_omitted {
+                scan_p: u64 = param_start
+                rt_seen: u64 = 0
+                while scan_p < params.len {
+                    if *(params.ptr + scan_p) != ty_id_type() {
+                        if rt_seen == i { param_idx = scan_p break }
+                        rt_seen = rt_seen + 1
+                    }
+                    scan_p = scan_p + 1
+                }
+            } else {
+                param_idx = i + param_start
+            }
+            final_params := (&(*types_ptr)).func_params(mono_func_ty)
+            target_ty := *(final_params.ptr + param_idx)
+            if (&(*types_ptr)).kind(target_ty) == ty_kind().union_ {
+                target_idx := (&(*types_ptr)).union_member_index(target_ty, source_ty)
+                db.set_union_coerce(arg_node, target_ty, target_idx)
+            } else {
+                db.set_union_coerce(arg_node, ty_id_none(), 0)
+            }
+            arg_slot := unify_ptr.get_slot(arg_node)
+            arg_root := unify_ptr.find(arg_slot)
+            (*unify_ptr).types.set(arg_root as u64, target_ty)
+        }
+        i = i + 1
+    }
+    mono_p_vec.destroy()
+    fn_args_vec.destroy()
+    tmpl_slots.destroy()
+    fresh_slots.destroy()
+    root := (unify_ptr).find(slot)
+    (*unify_ptr).types.set(root as u64, final_ret)
+    register_call_mono_sym(db, id, callee, mono_func_ty)
+}
+
 synth_call :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
-
     slot := (unify_ptr).get_slot(id)
-    if slot == slot_none() {
-        slot = (unify_ptr).new_slot(id)
-    }
+    if slot == slot_none() { slot = (unify_ptr).new_slot(id) }
     callee := (tbl).lhs(id)
-    callee_kind := (tbl).kind(callee)
     callee_slot := (unify_ptr).get_slot(callee)
-
     if callee_slot == slot_none() {
         print(c"\n[type error] cannot resolve call target\n       --> ")
         db.print_loc(callee)
         print(c"\n")
         fall()
     }
-    if callee_slot != slot_none() {
-        callee_ty := (unify_ptr).resolve_type_deep(types_ptr, callee_slot)
-        if callee_ty == ty_id_none() {
-            callee_ty = db.get_const_type(callee)
-        }
-
-        if (&(*types_ptr)).kind(callee_ty) != ty_kind().func {
-            print(c"\n\033[1;31m[type error]\033[0m cannot call non-function type '")
-            (&(*types_ptr)).print_type(callee_ty)
-            print(c"'\n       --> ")
-            db.print_loc(callee)
-            print(c"\n\n")
-            fall()
-        }
-
-        if (&(*types_ptr)).kind(callee_ty) == ty_kind().func {
-            args_list_id := (tbl).rhs(id)
-            params := (&(*types_ptr)).func_params(callee_ty)
-            params_vec := VecU32.new()
-            params_vec.extend(params.ptr, params.len)
-            params = params_vec.as_slice()
-            args_vec := VecU32.new()
-            if args_list_id != hir_none() {
-                source_args := db.get_list(args_list_id)
-                args_vec.extend(source_args.ptr, source_args.len)
+    callee_ty := (unify_ptr).resolve_type_deep(types_ptr, callee_slot)
+    if callee_ty == ty_id_none() { callee_ty = db.get_const_type(callee) }
+    if (&(*types_ptr)).kind(callee_ty) != ty_kind().func {
+        print(c"\n\033[1;31m[type error]\033[0m cannot call non-function type '")
+        (&(*types_ptr)).print_type(callee_ty)
+        print(c"'\n       --> ")
+        db.print_loc(callee)
+        print(c"\n\n")
+        fall()
+    }
+    params_slice := (&(*types_ptr)).func_params(callee_ty)
+    params_vec := VecU32.new()
+    params_vec.extend(params_slice.ptr, params_slice.len)
+    params := params_vec.as_slice()
+    args_vec := VecU32.new()
+    if (tbl).rhs(id) != hir_none() {
+        source_args := db.get_list((tbl).rhs(id))
+        args_vec.extend(source_args.ptr, source_args.len)
+    }
+    args := args_vec.as_slice()
+    if (&(*types_ptr)).func_return(callee_ty) == ty_id_type() {
+        synth_type_func_call(eng, id, callee, callee_ty, slot, &args_vec, &params, args.len)
+    } else {
+        lhs_is_instance := false
+        is_struct_generic := false
+        param_start := check_method_receiver(db, callee, &params, &lhs_is_instance, &is_struct_generic)
+        if (&(*types_ptr)).func_has_type_param(callee_ty) {
+            synth_generic_call(eng, id, callee, callee_ty, slot, &args_vec, &params, args.len, param_start, lhs_is_instance)
+        } else {
+            unify_ptr.bind_type(types_ptr, slot, (&(*types_ptr)).func_return(callee_ty))
+            if is_struct_generic { register_call_mono_sym(db, id, callee, callee_ty) }
+            expected := params.len - param_start
+            if args.len != expected { report_arg_count_error(db, id, callee, params.len, args.len, lhs_is_instance, 0) }
+            i: u64 = 0
+            while i < args.len {
+                unify_call_arg(eng, *(args.ptr + i), *(params.ptr + (i + param_start)))
+                i = i + 1
             }
-            args_len: u64 = 0
-            if args_list_id != hir_none() {
-                args := args_vec.as_slice()
-                args_len = args.len
-            }
-
-            ret_ty_check := (&(*types_ptr)).func_return(callee_ty)
-            if ret_ty_check == ty_id_type() {
-                leading_types := (&(*types_ptr)).func_leading_type_params(callee_ty)
-                omitted_types := (leading_types > 0) and
-                    (args_len == params.len - (leading_types as u64))
-                if (args_len != params.len) and (not omitted_types) {
-                    print(c"\n[type error] type function expected ")
-                    print_u32(params.len as u32)
-                    print(c" arguments, but got ")
-                    print_u32(args_len as u32)
-                    print(c"\n       --> ")
-                    db.print_loc(id)
-                    print(c"\n")
-                    fall()
-                }
-                concrete_args := VecU32.new()
-                if omitted_types {
-                    type_i: u32 = 0
-                    while type_i < leading_types {
-                        infer_slot := unify_ptr.tmp_slot()
-                        concrete_args.push((&(*types_ptr)).alloc_infer(infer_slot))
-                        type_i = type_i + 1
-                    }
-                }
-                if args_list_id != hir_none() {
-                    args := args_vec.as_slice()
-                    i: u64 = 0
-                    while i < args.len {
-                        arg_node := *(args.ptr + i)
-                        arg_ty := synth_type_node(eng, arg_node)
-                        arg_slot := unify_ptr.get_slot(arg_node)
-                        if (arg_ty == ty_id_none()) or (arg_slot == slot_none()) {
-                            print(c"\n[type error] type function argument must be a type\n       --> ")
-                            db.print_loc(arg_node)
-                            print(c"\n")
-                            fall()
-                        }
-                        if (unify_ptr.resolve_type(arg_slot) != ty_id_type()) and
-                           ((&(*types_ptr)).kind(arg_ty) != ty_kind().infer) {
-                            print(c"\n[type error] type function argument must be a type\n       --> ")
-                            db.print_loc(arg_node)
-                            print(c"\n")
-                            fall()
-                        }
-                        concrete_args.push(arg_ty)
-                        i = i + 1
-                    }
-                }
-                callee_sym := id_none()
-                if callee_kind == hir_kind.ident {
-                    sym := db.get_hir_symbol(callee)
-                    if sym != id_none() {
-                        callee_sym = db.resolve_sym(sym)
-                    }
-                }
-                if callee_sym == id_none() {
-                    callee_sym = callee | 2147483648
-                }
-                cached := db.find_mono_nominal(callee_sym, concrete_args.as_slice())
-                if cached != ty_id_none() {
-                    concrete_args.destroy()
-                    db.set_const_type(id, cached)
-                    (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
-                    args_vec.destroy()
-                    params_vec.destroy()
-                    ret
-                }
-                spec_ty := specialize_nominal_from_creator(eng, callee_sym, &concrete_args)
-                concrete_args.destroy()
-                if spec_ty == ty_id_none() {
-                    print(c"\n[type error] type function did not produce a type\n       --> ")
-                    db.print_loc(id)
-                    print(c"\n")
-                    fall()
-                }
-                db.set_const_type(id, spec_ty)
-                (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
-                args_vec.destroy()
-                params_vec.destroy()
-                ret
-            }
-
-            is_generic := (&(*types_ptr)).func_has_type_param(callee_ty)
-
-            callee_lhs := hir_none()
-            lhs_is_instance := false
-            is_struct_generic := false
-            if callee_kind == hir_kind.member {
-                callee_lhs = tbl.lhs(callee)
-                m_sym := db.get_hir_symbol(callee)
-                if m_sym != id_none() {
-                    callee_fn := db.get_fn_node(m_sym)
-                    if func_has_self(db, callee_fn) {
-                        lhs_slot := unify_ptr.get_slot(callee_lhs)
-                        if lhs_slot != slot_none() {
-                            lhs_is_instance = unify_ptr.resolve_type_deep(types_ptr, lhs_slot) != ty_id_type()
-                        }
-                    }
-                    lhs_slot := unify_ptr.get_slot(callee_lhs)
-                    if lhs_slot != slot_none() {
-                        struct_ty := unify_ptr.resolve_type_deep(types_ptr, lhs_slot)
-                        if struct_ty == ty_id_type() {
-                            struct_ty = db.get_const_type(callee_lhs)
-                        } else {
-                            while (&(*types_ptr)).kind(struct_ty) == ty_kind().ptr {
-                                struct_ty = (&(*types_ptr)).payload(struct_ty)
-                            }
-                        }
-                        if struct_ty != ty_id_none() {
-                            if (&(*types_ptr)).kind(struct_ty) == ty_kind().nominal {
-                                s_origin := (&(*types_ptr)).nominal_origin(struct_ty)
-                                if (&(*types_ptr)).get_nominal_creator_sym(s_origin) != ty_id_none() {
-                                    is_struct_generic = true
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            param_start: u64 = 0
-            if lhs_is_instance {
-                param_start = 1
-                lhs_slot := unify_ptr.get_slot(callee_lhs)
-                base_lhs := unify_ptr.resolve_type_deep(types_ptr, lhs_slot)
-                while (&(*types_ptr)).kind(base_lhs) == ty_kind().ptr {
-                    base_lhs = (&(*types_ptr)).payload(base_lhs)
-                }
-                base_p0 := *(params.ptr + 0)
-                while (&(*types_ptr)).kind(base_p0) == ty_kind().ptr {
-                    base_p0 = (&(*types_ptr)).payload(base_p0)
-                }
-                tmp_lhs := unify_ptr.tmp_slot()
-                (&(*db).unify).bind_type(&(*db).types, tmp_lhs, base_lhs)
-                tmp_p0 := unify_ptr.tmp_slot()
-                (&(*db).unify).bind_type(&(*db).types, tmp_p0, base_p0)
-                (&(*db).unify).union(&(*db).types, tmp_lhs, tmp_p0)
-            }
-
-            type_params_count: u32 = 0
-            tp_idx: u64 = param_start
-            while tp_idx < params.len {
-                if *(params.ptr + tp_idx) == ty_id_type() {
-                    type_params_count = type_params_count + 1
-                }
-                tp_idx = tp_idx + 1
-            }
-            expected_total := params.len - param_start
-            expected_runtime := expected_total - (type_params_count as u64)
-
-            is_explicit := args_len == expected_total
-            is_omitted := is_generic and (type_params_count > 0) and (args_len == expected_runtime)
-
-            if is_generic {
-                if (not is_explicit) and (not is_omitted) {
-                    report_arg_count_error(db, id, callee, params.len, args_len, lhs_is_instance, type_params_count)
-                }
-
-                func_node := id_none()
-                if callee_kind == hir_kind.ident {
-                    sym := db.get_hir_symbol(callee)
-                    if sym != id_none() {
-                        func_node = db.get_fn_node(sym)
-                    }
-                } else if callee_kind == hir_kind.function {
-                    func_node = callee
-                } else if callee_kind == hir_kind.member {
-                    sym := db.get_hir_symbol(callee)
-                    if sym != id_none() {
-                        func_node = db.get_fn_node(sym)
-                    }
-                }
-
-                tmpl_slots := VecU32.new()
-                fresh_slots := VecU32.new()
-
-                fn_args_vec := VecU32.new()
-                fn_args_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
-                if func_node != id_none() {
-                    fn_params_list := (tbl).lhs(func_node)
-                    if fn_params_list != hir_none() {
-                        fn_args := db.get_list(fn_params_list)
-                        fn_args_vec.extend(fn_args.ptr, fn_args.len)
-                        fn_args_slice = fn_args_vec.as_slice()
-                    }
-                }
-
-                tp_i: u64 = 0
-                while tp_i < params.len {
-                    if *(params.ptr + tp_i) == ty_id_type() {
-                        t_slot := slot_none()
-                        if tp_i < fn_args_slice.len {
-                            p_arg := *(fn_args_slice.ptr + tp_i)
-                            t_inf := db.get_const_type(p_arg)
-                            if t_inf != ty_id_none() {
-                                t_slot = (&(*types_ptr)).infer_slot(t_inf)
-                            }
-                        }
-                        if t_slot == slot_none() {
-                            p_i: u64 = tp_i
-                            while p_i < params.len {
-                                p_t := *(params.ptr + p_i)
-                                if (&(*types_ptr)).kind(p_t) == ty_kind().infer {
-                                    cand := (&(*types_ptr)).infer_slot(p_t)
-                                    found := false
-                                    chk_i: u64 = 0
-                                    while chk_i < tmpl_slots.len {
-                                        if tmpl_slots.get(chk_i) == cand { found = true break }
-                                        chk_i = chk_i + 1
-                                    }
-                                    if not found {
-                                        t_slot = cand
-                                        break
-                                    }
-                                }
-                                p_i = p_i + 1
-                            }
-                        }
-                        f_slot := unify_ptr.tmp_slot()
-                        tmpl_slots.push(t_slot)
-                        fresh_slots.push(f_slot)
-                    }
-                    tp_i = tp_i + 1
-                }
-
-                ret_ty := (&(*types_ptr)).func_return(callee_ty)
-                inst_ret := instantiate_type(eng, ret_ty, &tmpl_slots, &fresh_slots)
-                (&(*db).unify).bind_type(&(*db).types, slot, inst_ret)
-
-                args := args_vec.as_slice()
-                tp_seen: u64 = 0
-                arg_idx: u64 = 0
-                p_i: u64 = param_start
-                while p_i < params.len {
-                    param_ty := *(params.ptr + p_i)
-                    if param_ty == ty_id_type() {
-                        if is_explicit {
-                            arg_node := *(args.ptr + arg_idx)
-                            arg_val := db.get_const_type(arg_node)
-                            type_slot := unify_ptr.get_slot(arg_node)
-                            if (arg_val == ty_id_none()) or (type_slot == slot_none()) {
-                                print(c"\n[type error] generic type argument must be a type\n       --> ")
-                                db.print_loc(arg_node)
-                                print(c"\n")
-                                fall()
-                            }
-                            if unify_ptr.resolve_type(type_slot) != ty_id_type() {
-                                print(c"\n[type error] generic type argument must be a type\n       --> ")
-                                db.print_loc(arg_node)
-                                print(c"\n")
-                                fall()
-                            }
-                            if arg_val != ty_id_none() {
-                                t_target := fresh_slots.get(tp_seen)
-                                (&(*db).unify).bind_type(&(*db).types, t_target, arg_val)
-                            }
-                            tp_seen = tp_seen + 1
-                            arg_idx = arg_idx + 1
-                        }
-                    } else {
-                        arg_node := *(args.ptr + arg_idx)
-                        inst_param := instantiate_type(eng, param_ty, &tmpl_slots, &fresh_slots)
-                        arg_slot := (unify_ptr).get_slot(arg_node)
-                        if arg_slot == slot_none() {
-                            synth_node(eng, arg_node)
-                            arg_slot = (unify_ptr).get_slot(arg_node)
-                        }
-                        if arg_slot != slot_none() {
-                            check_value(db, arg_node, inst_param)
-                            arg_slot = (unify_ptr).get_slot(arg_node)
-                            p_tmp := unify_ptr.tmp_slot()
-                            (&(*db).unify).bind_type(&(*db).types, p_tmp, inst_param)
-                            (&(*db).unify).union(&(*db).types, arg_slot, p_tmp)
-                        }
-                        arg_idx = arg_idx + 1
-                    }
-                    p_i = p_i + 1
-                }
-
-                tp_i = 0
-                while tp_i < fresh_slots.len {
-                    f_s := fresh_slots.get(tp_i)
-                    r_ty := (unify_ptr).resolve_type_deep(types_ptr, f_s)
-                    if r_ty == ty_id_untyped_int() {
-                        r_ty = (&(*types_ptr)).alloc_int(32)
-                        (&(*db).unify).bind_type(&(*db).types, f_s, r_ty)
-                    } else if r_ty == ty_id_untyped_float() {
-                        r_ty = (&(*types_ptr)).alloc_float(64)
-                        (&(*db).unify).bind_type(&(*db).types, f_s, r_ty)
-                    }
-                    tp_i = tp_i + 1
-                }
-
-                mono_p_vec := VecU32.new()
-                tp_seen := 0 as u64
-                p_i: u64 = 0
-                while p_i < params.len {
-                    if *(params.ptr + p_i) == ty_id_type() {
-                        param_slot := fresh_slots.get(tp_seen)
-                        param_ty := (unify_ptr).resolve_type_deep(types_ptr, param_slot)
-                        if param_ty == ty_id_none() { param_ty = (&(*types_ptr)).alloc_infer(param_slot) }
-                        mono_p_vec.push(param_ty)
-                        tp_seen = tp_seen + 1
-                    } else {
-                        p_inst := instantiate_type(eng, *(params.ptr + p_i), &tmpl_slots, &fresh_slots)
-                        mono_p_vec.push(resolve_ty_id(eng, unify_ptr, types_ptr, p_inst))
-                    }
-                    p_i = p_i + 1
-                }
-                final_ret := resolve_ty_id(eng, unify_ptr, types_ptr, inst_ret)
-                ptr_m := 0 as &u32
-                if mono_p_vec.len > 0 { ptr_m = mono_p_vec.ptr_at(0) }
-                m_slice: SliceU32 = .{ ptr: ptr_m, len: mono_p_vec.len }
-                mono_func_ty := (&(*types_ptr)).alloc_func(m_slice, final_ret, false)
-                i: u64 = 0
-                while i < args.len {
-                    arg_node := *(args.ptr + i)
-                    if db.has_union_coerce(arg_node) {
-                        source_union := db.get_union_coerce_ty(arg_node)
-                        source_idx := db.get_union_coerce_idx(arg_node)
-                        source_members := (&(*types_ptr)).union_members(source_union)
-                        source_ty := resolve_ty_id(eng, unify_ptr, types_ptr, *(source_members.ptr + (source_idx as u64)))
-                        param_idx: u64 = 0
-                        if is_omitted {
-                            scan_p: u64 = param_start
-                            rt_seen: u64 = 0
-                            while scan_p < params.len {
-                                if *(params.ptr + scan_p) != ty_id_type() {
-                                    if rt_seen == i {
-                                        param_idx = scan_p
-                                        break
-                                    }
-                                    rt_seen = rt_seen + 1
-                                }
-                                scan_p = scan_p + 1
-                            }
-                        } else {
-                            param_idx = i + param_start
-                        }
-                        final_params := (&(*types_ptr)).func_params(mono_func_ty)
-                        target_ty := *(final_params.ptr + param_idx)
-                        if (&(*types_ptr)).kind(target_ty) == ty_kind().union_ {
-                            target_idx := (&(*types_ptr)).union_member_index(target_ty, source_ty)
-                            db.set_union_coerce(arg_node, target_ty, target_idx)
-                        } else {
-                            db.set_union_coerce(arg_node, ty_id_none(), 0)
-                        }
-                        arg_slot := unify_ptr.get_slot(arg_node)
-                        arg_root := unify_ptr.find(arg_slot)
-                        (*unify_ptr).types.set(arg_root as u64, target_ty)
-                    }
-                    i = i + 1
-                }
-                mono_p_vec.destroy()
-                fn_args_vec.destroy()
-                tmpl_slots.destroy()
-                fresh_slots.destroy()
-                root := (unify_ptr).find(slot)
-                (*unify_ptr).types.set(root as u64, final_ret)
-
-                db.set_const_type(id, mono_func_ty)
-                target_sym := db.get_hir_symbol(callee)
-                if target_sym != id_none() {
-                    target_sym = db.resolve_sym(target_sym)
-                    mono_sym := db.find_mono_sym(target_sym, mono_func_ty)
-                    if mono_sym == id_none() {
-                        db.alloc_mono_sym(target_sym, mono_func_ty)
-                    }
-                }
-            } else {
-                ret_ty := (&(*types_ptr)).func_return(callee_ty)
-                (&(*db).unify).bind_type(&(*db).types, slot, ret_ty)
-                if is_struct_generic {
-                    db.set_const_type(id, callee_ty)
-                    target_sym := db.get_hir_symbol(callee)
-                    if target_sym != id_none() {
-                        target_sym = db.resolve_sym(target_sym)
-                        mono_sym := db.find_mono_sym(target_sym, callee_ty)
-                        if mono_sym == id_none() {
-                            db.alloc_mono_sym(target_sym, callee_ty)
-                        }
-                    }
-                }
-
-                if args_len != expected_total {
-                    report_arg_count_error(db, id, callee, params.len, args_len, lhs_is_instance, 0)
-                }
-
-                if args_list_id != hir_none() {
-                    args := args_vec.as_slice()
-                    i: u64 = 0
-                    while i < args.len {
-                        arg_node := *(args.ptr + i)
-                        arg_slot := (unify_ptr).get_slot(arg_node)
-                        if arg_slot == slot_none() {
-                            synth_node(eng, arg_node)
-                            arg_slot = (unify_ptr).get_slot(arg_node)
-                        }
-                        param_ty := *(params.ptr + (i + param_start))
-
-                        if arg_slot != slot_none() {
-                            check_value(db, arg_node, param_ty)
-                            arg_slot = (unify_ptr).get_slot(arg_node)
-                            param_slot := unify_ptr.tmp_slot()
-                            (&(*db).unify).bind_type(&(*db).types, param_slot, param_ty)
-                            (&(*db).unify).union(&(*db).types, arg_slot, param_slot)
-                        }
-                        if arg_slot == slot_none() {
-                            print(c"\n[type error] cannot resolve argument\n       --> ")
-                            db.print_loc(arg_node)
-                            print(c"\n")
-                            fall()
-                        }
-                        i = i + 1
-                    }
-                }
-            }
-            args_vec.destroy()
-            params_vec.destroy()
         }
     }
+    args_vec.destroy()
+    params_vec.destroy()
 }
