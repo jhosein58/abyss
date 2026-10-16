@@ -10,6 +10,8 @@ import Fmt from "std/fmt"
 import Vec from "std/collections/vec"
 import print from "std/io"
 
+import Path from "std/path"
+
 print_u32  :: fn(s u32) 
 print_u64  :: fn(s u64) 
 print_u8   :: fn(s u8)
@@ -20,6 +22,8 @@ compile_and_run :: fn(path &u8) i32
 get_arg_count   :: fn() i32
 get_arg         :: fn(idx i32) &u8
 get_env         :: fn(name &u8) &u8
+file_open       :: fn(path, mode &u8) &u8
+file_close      :: fn(handle &u8) i32
 
 main :: fn() {
 
@@ -59,6 +63,38 @@ main :: fn() {
     eng.abyss_main(sym_id)
     eng.compile(&arena, sym_id)
 
-    c_code := CCodeGen_finish(&eng.ccg, embedded_runtime())
+    prelude_source := embedded_runtime()
+    env_prelude := get_env(c"ABYSS_PRELUDE")
+    if env_prelude != (0 as &u8) {
+        fh := file_open(env_prelude, c"rb")
+        if fh != (0 as &u8) {
+            file_close(fh)
+            prelude_source = read_file(&arena, env_prelude)
+        }
+    } else {
+        env_dev := get_env(c"ABYSS_DEV")
+        if env_dev != (0 as &u8) {
+            prelude_path := c"runtime/prelude.c"
+            dev_str := Str.of(env_dev)
+            if (not dev_str.eq(Str.of("1"))) and (not dev_str.eq(Str.of("true"))) {
+                p_str := Path.join(&arena, dev_str, Str.of("runtime/prelude.c"))
+                buf := arena.alloc(p_str.len + 1)
+                i: u64 = 0
+                while i < p_str.len {
+                    *(buf + i) = *(p_str.ptr + i)
+                    i = i + 1
+                }
+                *(buf + p_str.len) = 0 as u8
+                prelude_path = buf
+            }
+            fh := file_open(prelude_path, c"rb")
+            if fh != (0 as &u8) {
+                file_close(fh)
+                prelude_source = read_file(&arena, prelude_path)
+            }
+        }
+    }
+
+    c_code := CCodeGen_finish(&eng.ccg, prelude_source)
     write_file(out_path, c_code)
 }

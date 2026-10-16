@@ -11,6 +11,20 @@ import fall from "std/sys"
 import embedded_source from "./embedded"
 
 print :: fn(s &u8) unit
+get_env :: fn(name &u8) &u8
+file_open :: fn(path, mode &u8) &u8
+file_close :: fn(handle &u8) i32
+
+to_cstr :: fn(arena &Arena, s Str) &u8 {
+    buf := arena.alloc(s.len + 1)
+    i: u64 = 0
+    while i < s.len {
+        *(buf + i) = *(s.ptr + i)
+        i = i + 1
+    }
+    *(buf + s.len) = 0 as u8
+    buf
+}
 
 index_error :: fn(path Str, msg &u8) {
     print(c"\n[import error] ")
@@ -89,12 +103,29 @@ Indexer :: struct {
 
         source := Str.empty()
         if is_embedded_path(target_path) {
-            source = embedded_source(target_path)
+            env_dev := get_env(c"ABYSS_DEV")
+            if env_dev != (0 as &u8) {
+                disk_path := target_path
+                dev_str := Str.of(env_dev)
+                if (not dev_str.eq(Str.of("1"))) and (not dev_str.eq(Str.of("true"))) {
+                    disk_path = Path.join(self.arena, dev_str, target_path)
+                }
+                c_disk_path := to_cstr(self.arena, disk_path)
+                fh := file_open(c_disk_path, c"rb")
+                if fh != (0 as &u8) {
+                    file_close(fh)
+                    source = read_file(self.arena, c_disk_path)
+                }
+            }
+            if source.ptr == (0 as &u8) {
+                source = embedded_source(target_path)
+            }
             if source.ptr == (0 as &u8) {
                 index_error(target_path, c"embedded module not found")
             }
         } else {
-            source = read_file(self.arena, target_path.ptr)
+            c_target_path := to_cstr(self.arena, target_path)
+            source = read_file(self.arena, c_target_path)
         }
 
         fid := db.add_file(target_path, source)
