@@ -6,7 +6,7 @@ import fall from "std/sys"
 import check_value from "./common"
 import Engine from "../../engine"
 import synth_type_node from "./var"
-import resolve_ty_id from "./fn"
+import resolve_ty_id from "../specialize"
 
 print :: fn(s &u8) unit
 
