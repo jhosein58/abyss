@@ -11,7 +11,6 @@ import slot_none from "./unify"
 import ty_id_none, ty_kind from "./types"
 import Str from "std/string"
 import Path from "std/path"
-import VecU32 from "std/vec/u32"
 import Arena from "std/allocator"
 import fall from "std/sys"
 
@@ -208,7 +207,7 @@ Engine :: struct {
     }
 
     compile :: fn(self &Self, arena &Arena, sym_id u32) {
-        visited := VecU32.new()
+        visited := Vec(u32).new()
         lower_function(self, arena, sym_id, &visited)
         visited.destroy()
     }

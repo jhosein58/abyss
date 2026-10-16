@@ -1,13 +1,10 @@
 import Nexus from "./nexus/nexus"
 import TypeStorage, ty_kind from "./types"
-import VecU32 from "std/vec/u32"
 import fall from "std/sys"
 
 print :: fn(s &u8) unit
 
-import VecU8 from "std/vec/u8"
-
-topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &VecU32, states &VecU8, ty_id u32) {
+topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8), ty_id u32) {
     if (ty_id as u64) >= (*states).len { ret }
     st := states.get(ty_id as u64)
     if st == (1 as u8) {
@@ -90,10 +87,10 @@ topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &VecU32, states &VecU8, ty_
     states.set(ty_id as u64, 2 as u8)
 }
 
-topo_sort :: fn(db &Nexus, type_queue &VecU32) VecU32 {
+topo_sort :: fn(db &Nexus, type_queue &Vec(u32)) Vec(u32) {
     types := &(*db).types
-    sorted := VecU32.new()
-    states := VecU8.new()
+    sorted := Vec(u32).new()
+    states := Vec(u8).new()
 
      total_types := (&(*types)).len()
     i: u32 = 0

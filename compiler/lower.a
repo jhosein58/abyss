@@ -5,7 +5,6 @@ import CCodeGen from "./codegen"
 import Str from "std/string"
 import Fmt from "std/fmt"
 import Arena from "std/allocator"
-import VecU32 from "std/vec/u32"
 import SliceU32 from "std/slice/u32"
 import TypeStorage, ty_kind, ty_id_none, ty_id_type, ty_id_unit from "./types"
 import topo_sort from "./topo_sort"
@@ -20,7 +19,7 @@ get_node_type :: fn(db &Nexus, id u32) u32 {
     db.get_node_type(id)
 }
 
-vec_contains :: fn(v &VecU32, val u32) bool {
+vec_contains :: fn(v &Vec(u32), val u32) bool {
     i: u64 = 0
     while i < (*v).len {
         if v.get(i) == val { ret true }
@@ -44,7 +43,7 @@ is_lvalue :: fn(db &Nexus, id u32) bool {
     false
 }
 
-add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &VecU32) {
+add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
     if ty_id == ty_id_none() { ret }
     if type_has_infer(&(*db).types, ty_id) { ret }
     k := ty_kind()
@@ -96,7 +95,7 @@ add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &VecU32) {
     }
 }
 
-resolve_call_symbol :: fn(db &Nexus, id u32, callee_id u32, queue &VecU32) u32 {
+resolve_call_symbol :: fn(db &Nexus, id u32, callee_id u32, queue &Vec(u32)) u32 {
     tbl := &db.hir
     target_sym := db.get_hir_symbol(callee_id)
     if (target_sym == id_none()) and ((tbl).kind(callee_id) == hir_kind.function) {
@@ -125,7 +124,7 @@ resolve_call_symbol :: fn(db &Nexus, id u32, callee_id u32, queue &VecU32) u32 {
     target_sym
 }
 
-emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, callee_id u32, call_sym u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
+emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, callee_id u32, call_sym u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     tbl := &db.hir
     if tbl.kind(callee_id) != hir_kind.member { ret Str.empty() }
     callee_lhs := tbl.lhs(callee_id)
@@ -190,7 +189,7 @@ emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, calle
     lhs_val
 }
 
-lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
+lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     name_id := (&(*db).hir).lhs(id)
     name := db.interner.get(name_id)
     args_list_id := (&(*db).hir).rhs(id)
@@ -240,7 +239,7 @@ lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited
     Str.empty()
 }
 
-lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
+lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     k := hir_kind
     kind := (&(*db).hir).kind(id)
 
@@ -647,7 +646,7 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ve
     Str.empty()
 }
 
-lower_body :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
+lower_body :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     if (&db.hir).kind(id) != hir_kind.block {
         ret lower_expr(db, ccg, arena, id, visited, queue, type_queue)
     }
@@ -673,7 +672,7 @@ lower_body :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32
     last_val
 }
 
-lower_scoped_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, expected u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
+lower_scoped_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, expected u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     mark := ccg.begin_expr()
     value := lower_body(db, ccg, arena, id, visited, queue, type_queue)
     kind := (&db.types).kind(expected)
@@ -688,7 +687,7 @@ lower_scoped_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, expected
     ccg.end_expr(arena, mark, value)
 }
 
-lower_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) Str {
+lower_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     val_str := lower_expr_raw(db, ccg, arena, id, visited, queue, type_queue)
     if val_str.len == 0 { ret val_str }
     if db.has_union_coerce(id) {
@@ -773,7 +772,7 @@ format_func_signature :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, 
     .{ fn_name: fn_name, params_str: params_str }
 }
 
-queue_func_types :: fn(db &Nexus, func_ty u32, type_queue &VecU32) {
+queue_func_types :: fn(db &Nexus, func_ty u32, type_queue &Vec(u32)) {
     add_type_to_queue(db, (&(*db).types).func_return(func_ty), type_queue)
     params := (&(*db).types).func_params(func_ty)
     i: u64 = 0
@@ -792,7 +791,7 @@ emit_func_body_return :: fn(ccg &CCodeGen, db &Nexus, ret_ty u32, body_val Str) 
     }
 }
 
-lower_one_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32, queue &VecU32, type_queue &VecU32) {
+lower_one_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) {
     if sym_id == id_none() { ret }
     db := &(*eng).nexus
     ccg := &(*eng).ccg
@@ -840,7 +839,7 @@ lower_one_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32,
     if is_mono { db.set_const_type(func_id, saved_orig_ty) }
 }
 
-lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
+lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &Vec(u32)) {
     if sym_id == id_none() {
         ret
     }
@@ -848,8 +847,8 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
     db := &(*eng).nexus
     ccg := &(*eng).ccg
 
-    queue := VecU32.new()
-    type_queue := VecU32.new()
+    queue := Vec(u32).new()
+    type_queue := Vec(u32).new()
 
     queue.push(sym_id)
 
