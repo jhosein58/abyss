@@ -783,94 +783,12 @@ resolve_ty_id :: fn(eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty
     ty
 }
 
-prepare_method_receiver_arg :: fn(db &Nexus, call_id u32, callee_lhs u32, param0_ty u32, args_vec &VecU32) u64 {
-    tbl := &db.hir
-    unify_ptr := &db.unify
-    types_ptr := &db.types
-
-    p_depth: u32 = 0
-    t_p := param0_ty
-    while (&(*types_ptr)).kind(t_p) == ty_kind().ptr {
-        t_p = (&(*types_ptr)).payload(t_p)
-        p_depth = p_depth + 1
-    }
-
-    lhs_slot := unify_ptr.get_slot(callee_lhs)
-    callee_lhs_ty := unify_ptr.resolve_type(lhs_slot)
-    r_depth: u32 = 0
-    t_r := callee_lhs_ty
-    while (&(*types_ptr)).kind(t_r) == ty_kind().ptr {
-        t_r = (&(*types_ptr)).payload(t_r)
-        r_depth = r_depth + 1
-    }
-
-    receiver_arg := callee_lhs
-    curr_ty := callee_lhs_ty
-    while r_depth < p_depth {
-        sp := db.get_hir_span(receiver_arg)
-        fid := db.get_hir_file(receiver_arg)
-        receiver_arg = tbl.push(hir_kind.unary_addr_of, receiver_arg, hir_none(), hir_none())
-        db.set_hir_span(receiver_arg, sp.start, sp.end)
-        db.set_hir_file(receiver_arg, fid)
-        curr_ty = (&(*types_ptr)).alloc_ptr(curr_ty)
-        db.set_const_type(receiver_arg, curr_ty)
-        s := unify_ptr.new_slot(receiver_arg)
-        unify_ptr.bind_type(types_ptr, s, curr_ty)
-        r_depth = r_depth + 1
-    }
-    while r_depth > p_depth {
-        sp := db.get_hir_span(receiver_arg)
-        fid := db.get_hir_file(receiver_arg)
-        receiver_arg = tbl.push(hir_kind.unary_deref, receiver_arg, hir_none(), hir_none())
-        db.set_hir_span(receiver_arg, sp.start, sp.end)
-        db.set_hir_file(receiver_arg, fid)
-        curr_ty = (&(*types_ptr)).payload(curr_ty)
-        db.set_const_type(receiver_arg, curr_ty)
-        s := unify_ptr.new_slot(receiver_arg)
-        unify_ptr.bind_type(types_ptr, s, curr_ty)
-        r_depth = r_depth - 1
-    }
-
-    already_desugared := false
-    if args_vec.len > 0 {
-        first_arg := *(args_vec.ptr + 0)
-        root := first_arg
-        while (tbl.kind(root) == hir_kind.unary_addr_of) or (tbl.kind(root) == hir_kind.unary_deref) {
-            root = tbl.lhs(root)
-        }
-        if root == callee_lhs {
-            already_desugared = true
-        }
-    }
-    if already_desugared {
-        args_vec.set(0, receiver_arg)
-        new_args_list := db.add_list(args_vec.as_slice())
-        tbl.set_rhs(call_id, new_args_list)
-        ret args_vec.len
-    }
-
-    new_args := VecU32.new()
-    new_args.push(receiver_arg)
-    na_i: u64 = 0
-    while na_i < args_vec.len {
-        new_args.push(*(args_vec.ptr + na_i))
-        na_i = na_i + 1
-    }
-    args_vec.clear()
-    args_vec.extend(new_args.ptr, new_args.len)
-    new_args.destroy()
-    new_args_list := db.add_list(args_vec.as_slice())
-    tbl.set_rhs(call_id, new_args_list)
-    args_vec.len
-}
-
 report_arg_count_error :: fn(db &Nexus, id u32, callee u32, params_len u64, args_len u64, lhs_is_instance bool, type_params_count u32) {
     tbl := &db.hir
     expected := params_len
     actual := args_len
     if lhs_is_instance {
         expected = expected - 1
-        actual = actual - 1
     }
     print(c"\n\033[1;31m[type error]\033[0m ")
     if (type_params_count == 0) and ((tbl).kind(callee) == hir_kind.member) {
@@ -1068,22 +986,38 @@ synth_call :: fn(eng &Engine, id u32) {
                 }
             }
 
+            param_start: u64 = 0
             if lhs_is_instance {
-                args_len = prepare_method_receiver_arg(db, id, callee_lhs, *(params.ptr + 0), &args_vec)
+                param_start = 1
+                lhs_slot := unify_ptr.get_slot(callee_lhs)
+                base_lhs := unify_ptr.resolve_type_deep(types_ptr, lhs_slot)
+                while (&(*types_ptr)).kind(base_lhs) == ty_kind().ptr {
+                    base_lhs = (&(*types_ptr)).payload(base_lhs)
+                }
+                base_p0 := *(params.ptr + 0)
+                while (&(*types_ptr)).kind(base_p0) == ty_kind().ptr {
+                    base_p0 = (&(*types_ptr)).payload(base_p0)
+                }
+                tmp_lhs := unify_ptr.tmp_slot()
+                (&(*db).unify).bind_type(&(*db).types, tmp_lhs, base_lhs)
+                tmp_p0 := unify_ptr.tmp_slot()
+                (&(*db).unify).bind_type(&(*db).types, tmp_p0, base_p0)
+                (&(*db).unify).union(&(*db).types, tmp_lhs, tmp_p0)
             }
 
             type_params_count: u32 = 0
-            tp_idx: u64 = 0
+            tp_idx: u64 = param_start
             while tp_idx < params.len {
                 if *(params.ptr + tp_idx) == ty_id_type() {
                     type_params_count = type_params_count + 1
                 }
                 tp_idx = tp_idx + 1
             }
-            runtime_params_count := params.len - (type_params_count as u64)
+            expected_total := params.len - param_start
+            expected_runtime := expected_total - (type_params_count as u64)
 
-            is_explicit := args_len == params.len
-            is_omitted := is_generic and (type_params_count > 0) and (args_len == runtime_params_count)
+            is_explicit := args_len == expected_total
+            is_omitted := is_generic and (type_params_count > 0) and (args_len == expected_runtime)
 
             if is_generic {
                 if (not is_explicit) and (not is_omitted) {
@@ -1164,7 +1098,7 @@ synth_call :: fn(eng &Engine, id u32) {
                 args := args_vec.as_slice()
                 tp_seen: u64 = 0
                 arg_idx: u64 = 0
-                p_i: u64 = 0
+                p_i: u64 = param_start
                 while p_i < params.len {
                     param_ty := *(params.ptr + p_i)
                     if param_ty == ty_id_type() {
@@ -1256,7 +1190,7 @@ synth_call :: fn(eng &Engine, id u32) {
                         source_ty := resolve_ty_id(eng, unify_ptr, types_ptr, *(source_members.ptr + (source_idx as u64)))
                         param_idx: u64 = 0
                         if is_omitted {
-                            scan_p: u64 = 0
+                            scan_p: u64 = param_start
                             rt_seen: u64 = 0
                             while scan_p < params.len {
                                 if *(params.ptr + scan_p) != ty_id_type() {
@@ -1269,7 +1203,7 @@ synth_call :: fn(eng &Engine, id u32) {
                                 scan_p = scan_p + 1
                             }
                         } else {
-                            param_idx = i
+                            param_idx = i + param_start
                         }
                         final_params := (&(*types_ptr)).func_params(mono_func_ty)
                         target_ty := *(final_params.ptr + param_idx)
@@ -1316,7 +1250,7 @@ synth_call :: fn(eng &Engine, id u32) {
                     }
                 }
 
-                if args_len != params.len {
+                if args_len != expected_total {
                     report_arg_count_error(db, id, callee, params.len, args_len, lhs_is_instance, 0)
                 }
 
@@ -1330,7 +1264,7 @@ synth_call :: fn(eng &Engine, id u32) {
                             synth_node(eng, arg_node)
                             arg_slot = (unify_ptr).get_slot(arg_node)
                         }
-                        param_ty := *(params.ptr + i)
+                        param_ty := *(params.ptr + (i + param_start))
 
                         if arg_slot != slot_none() {
                             check_value(db, arg_node, param_ty)
