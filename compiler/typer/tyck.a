@@ -258,6 +258,7 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     if mono_func_ty == ty_id_none() { ret }
 
     orig_func_ty := db.get_const_type(func_id)
+    saved_orig_ty := orig_func_ty
     if orig_func_ty == ty_id_none() {
         orig_func_ty = mono_func_ty
     }
@@ -323,6 +324,8 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
 
     orig_params := (&(*db).types).func_params(orig_func_ty)
     args_list_id := (tbl).lhs(func_id)
+    has_type_param := false
+    orig_p_vec := VecU32.new()
     if args_list_id != hir_none() {
         fn_args := db.get_list(args_list_id)
         p_idx: u64 = 0
@@ -345,10 +348,13 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
                     }
                 }
                 if is_type_param {
+                    has_type_param = true
+                    orig_p_vec.push(ty_id_type())
                     type_slot := (&(*db).unify).new_slot(arg_ident)
                     (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
                     db.set_const_type(arg_ident, concrete_p_ty)
                 } else {
+                    orig_p_vec.push(concrete_p_ty)
                     p_slot := (&(*db).unify).new_slot(arg_ident)
                     (&(*db).unify).bind_type(&(*db).types, p_slot, concrete_p_ty)
                     db.set_const_type(arg_ident, concrete_p_ty)
@@ -357,6 +363,10 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
             p_idx = p_idx + 1
         }
     }
+    if has_type_param {
+        orig_func_ty = (&(*db).types).alloc_func(orig_p_vec.as_slice(), (&(*db).types).func_return(mono_func_ty), false)
+    }
+    orig_p_vec.destroy()
 
     db.set_const_type(func_id, mono_func_ty)
 
@@ -373,4 +383,10 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     }
 
     finalize_inferred_types(eng, func_id)
+
+    if has_type_param {
+        db.set_const_type(func_id, orig_func_ty)
+    } else if (saved_orig_ty != ty_id_none()) and (&(*db).types).func_has_type_param(saved_orig_ty) {
+        db.set_const_type(func_id, saved_orig_ty)
+    }
 }

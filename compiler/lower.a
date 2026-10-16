@@ -669,7 +669,8 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
         }
     }
 
-    orig_func_ty := db.get_const_type(func_id)
+    saved_orig_ty := db.get_const_type(func_id)
+    orig_func_ty := saved_orig_ty
     if (orig_func_ty == ty_id_none()) and is_mono {
         orig_func_ty = mono_func_ty
     }
@@ -682,6 +683,9 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
 
     if is_mono {
         tyck_mono_function(eng, sym_id)
+        if (db.get_const_type(func_id) != ty_id_none()) and (&(*db).types).func_has_type_param(db.get_const_type(func_id)) {
+            orig_func_ty = db.get_const_type(func_id)
+        }
     }
 
     finalize_inferred_types(eng, func_id)
@@ -726,27 +730,7 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
         }
         i: u64 = 0
         while i < params_slice.len {
-            is_type_param := false
-            if i < orig_params.len {
-                if *(orig_params.ptr + i) == ty_id_type() {
-                    is_type_param = true
-                }
-            }
-            args_list_id := (&(*db).hir).lhs(func_id)
-            if (not is_type_param) and (args_list_id != hir_none()) {
-                fn_args := db.get_list(args_list_id)
-                if i < fn_args.len {
-                    arg_node := *(fn_args.ptr + i)
-                    arg_ty_node := (&(*db).hir).rhs(arg_node)
-                    if (arg_ty_node != hir_none()) and ((&(*db).hir).kind(arg_ty_node) == k.ident) {
-                        type_name_id := (&(*db).hir).lhs(arg_ty_node)
-                        if db.interner.get(type_name_id).eq(Str.of("type")) {
-                            is_type_param = true
-                        }
-                    }
-                }
-            }
-            if is_mono and is_type_param {
+            if is_mono and (i < orig_params.len) and (*(orig_params.ptr + i) == ty_id_type()) {
                 i = i + 1
                 cont
             }
@@ -810,7 +794,7 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &VecU32) {
     ccg.end_function()
 
     if is_mono {
-        db.set_const_type(func_id, orig_func_ty)
+        db.set_const_type(func_id, saved_orig_ty)
     }
 
     q_i: u64 = 0
