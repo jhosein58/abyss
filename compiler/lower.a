@@ -693,9 +693,9 @@ lower_scoped_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, expected
 
 lower_match_condition :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, value_ty u32, arm u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     tbl := &(*db).hir
-    if tbl.extra(arm) == 0 { ret Str.of("1") }
-    value_str := lower_expr(db, ccg, arena, value_id, visited, queue, type_queue)
     patterns := db.get_list(tbl.lhs(arm))
+    if patterns.len == 0 { ret Str.of("1") }
+    value_str := lower_expr(db, ccg, arena, value_id, visited, queue, type_queue)
     fmt := Fmt.new(arena)
     i: u64 = 0
     while i < patterns.len {
@@ -716,6 +716,30 @@ lower_match_condition :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32
     fmt.as_str()
 }
 
+lower_match_binding :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, value_ty u32, arm u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) {
+    tbl := &(*db).hir
+    binder := tbl.extra(arm)
+    if binder == hir_none() { ret }
+    sym := db.get_hir_symbol(binder)
+    if sym == id_none() { ret }
+    bind_ty := get_node_type(db, binder)
+    if bind_ty == ty_id_none() { ret }
+    value_str := lower_expr(db, ccg, arena, value_id, visited, queue, type_queue)
+    patterns := db.get_list(tbl.lhs(arm))
+    if ((&(*db).types).kind(value_ty) == ty_kind().union_) and (patterns.len == 1) {
+        pat := *(patterns.ptr + 0)
+        pat_ty := db.get_const_type(pat)
+        idx := (&(*db).types).union_member_index(value_ty, pat_ty)
+        ty_str := ccg.type_str(&(*db).types, arena, bind_ty)
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"((").str(ty_str).cstr(c")((").str(value_str).cstr(c").val._v").uint32(idx).cstr(c"))")
+        value_str = fmt.as_str()
+    }
+    name := ccg.sym_name(arena, sym)
+    ty_str := ccg.type_str(&(*db).types, arena, bind_ty)
+    ccg.create_variable(name, ty_str, value_str, true)
+}
+
 lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     tbl := &(*db).hir
     value_id := tbl.lhs(id)
@@ -733,23 +757,39 @@ lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u
             i = i - 1
             arm := *(arms.ptr + i)
             cond := lower_match_condition(db, ccg, arena, value_id, value_ty, arm, visited, queue, type_queue)
+            mark := ccg.begin_expr()
+            lower_match_binding(db, ccg, arena, value_id, value_ty, arm, visited, queue, type_queue)
             branch := lower_scoped_expr(db, ccg, arena, tbl.rhs(arm), match_ty, visited, queue, type_queue)
+            if ccg.code.len != mark { branch = ccg.end_expr(arena, mark, branch) }
             result = ccg.expr_conditional(arena, cond, branch, result)
         }
         ret result
     }
 
     i: u64 = 0
+    open_blocks: u32 = 0
     while i < arms.len {
         arm := *(arms.ptr + i)
         cond := lower_match_condition(db, ccg, arena, value_id, value_ty, arm, visited, queue, type_queue)
-        ccg.start_if(cond)
+        if i == 0 {
+            ccg.start_if(cond)
+            open_blocks = open_blocks + 1
+        } else {
+            ccg.else_()
+            if db.get_list(tbl.lhs(arm)).len > 0 {
+                ccg.start_if(cond)
+                open_blocks = open_blocks + 1
+            }
+        }
+        lower_match_binding(db, ccg, arena, value_id, value_ty, arm, visited, queue, type_queue)
         branch := lower_body(db, ccg, arena, tbl.rhs(arm), visited, queue, type_queue)
         if branch.len > 0 { ccg.expr(branch) }
-        if (i + 1) < arms.len { ccg.else_() }
         i = i + 1
     }
-    if arms.len > 0 { ccg.end_block() }
+    while open_blocks > 0 {
+        ccg.end_block()
+        open_blocks = open_blocks - 1
+    }
     Str.empty()
 }
 

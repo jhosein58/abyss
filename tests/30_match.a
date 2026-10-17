@@ -1,5 +1,8 @@
 import print from "std/io.a"
 
+print_i32 :: fn(v i32) unit
+print_bool :: fn(v bool) unit
+
 Color :: enum { red, green, blue }
 
 pick_color :: fn(c Color) u32 {
@@ -34,6 +37,13 @@ pick_with_statements :: fn(c Color) u32 {
     }
 }
 
+print_value :: fn(v i32 | bool) {
+    match val in v {
+        i32 { print_i32(val) }
+        bool { print_bool(val) }
+    }
+}
+
 main :: fn() {
     print(pick_color(Color.red) as u32)
     print(c"\n")
@@ -44,4 +54,9 @@ main :: fn() {
     print(pick_with_else(true) as u32)
     print(c"\n")
     print(pick_with_statements(Color.red) as u32)
+    print(c"\n")
+    print_value(7)
+    print(c"\n")
+    print_value(false)
+    print(c"\n")
 }

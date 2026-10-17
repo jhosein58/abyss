@@ -30,7 +30,7 @@ synth_match :: fn(eng &Engine, id u32) {
     value_ty := ty_id_none()
     if value_slot != slot_none() { value_ty = unify.resolve_type_deep(types, value_slot) }
     hint := tbl.extra(id)
-    if hint != hir_none() {
+    if hint != hir_none() and tbl.kind(hint) != hir_kind.match_binding {
         hint_ty := synth_type_node(eng, hint)
         if hint_ty == ty_id_none() { match_error(db, c"match type annotation is unresolved", hint) }
         if value_ty == ty_id_none() or value_ty == ty_id_error() {
@@ -55,7 +55,7 @@ synth_match :: fn(eng &Engine, id u32) {
         arm := *(arms.ptr + i)
         patterns := db.get_list(tbl.lhs(arm))
         marker := tbl.extra(arm)
-        if marker == 0 {
+        if patterns.len == 0 {
             if has_else { match_error(db, c"match has more than one else arm", arm) }
             has_else = true
         }
@@ -77,6 +77,20 @@ synth_match :: fn(eng &Engine, id u32) {
             p_i = p_i + 1
         }
         body := tbl.rhs(arm)
+        binder := hir_none()
+        if tbl.extra(id) != hir_none() and tbl.kind(tbl.extra(id)) == hir_kind.match_binding {
+            binder = tbl.extra(arm)
+            if binder != hir_none() {
+                bind_ty := value_ty
+                if (value_kind == ty_kind().union_) and (patterns.len == 1) {
+                    bind_ty = synth_type_node(eng, *(patterns.ptr + 0))
+                }
+                db.set_const_type(binder, bind_ty)
+                bind_slot := unify.get_slot(binder)
+                if bind_slot == slot_none() { bind_slot = unify.new_slot(binder) }
+                unify.bind_type(types, bind_slot, bind_ty)
+            }
+        }
         body_slot := unify.get_slot(body)
         body_ty := ty_id_none()
         if body_slot != slot_none() { body_ty = unify.resolve_type_deep(types, body_slot) }
@@ -103,6 +117,55 @@ synth_match :: fn(eng &Engine, id u32) {
     if result_ty == ty_id_none() { result_ty = ty_id_never() }
     unify.bind_type(types, slot, result_ty)
     covered.destroy()
+}
+
+prepare_match_bindings :: fn(eng &Engine, start u32, len u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    types := &(*db).types
+    unify := &(*db).unify
+    i := start
+    while i < len {
+        if tbl.kind(i) != hir_kind.k_match {
+            i = i + 1
+            cont
+        }
+        meta := tbl.extra(i)
+        if meta == hir_none() or tbl.kind(meta) != hir_kind.match_binding {
+            i = i + 1
+            cont
+        }
+        value := tbl.lhs(i)
+        value_slot := unify.get_slot(value)
+        value_ty := ty_id_none()
+        if value_slot != slot_none() { value_ty = unify.resolve_type_deep(types, value_slot) }
+        if value_ty == ty_id_none() {
+            i = i + 1
+            cont
+        }
+        value_kind := types.kind(value_ty)
+        arms := db.get_list(tbl.rhs(i))
+        a: u64 = 0
+        while a < arms.len {
+            arm := *(arms.ptr + a)
+            binder := tbl.extra(arm)
+            if binder == hir_none() {
+                a = a + 1
+                cont
+            }
+            patterns := db.get_list(tbl.lhs(arm))
+            bind_ty := value_ty
+            if (value_kind == ty_kind().union_) and (patterns.len == 1) {
+                bind_ty = synth_type_node(eng, *(patterns.ptr + 0))
+            }
+            db.set_const_type(binder, bind_ty)
+            bind_slot := unify.get_slot(binder)
+            if bind_slot == slot_none() { bind_slot = unify.new_slot(binder) }
+            unify.bind_type(types, bind_slot, bind_ty)
+            a = a + 1
+        }
+        i = i + 1
+    }
 }
 
 vec_u32_contains :: fn(v &VecU32, value u32) bool {
