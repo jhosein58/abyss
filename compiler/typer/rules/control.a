@@ -173,9 +173,7 @@ vec_u32_contains :: fn(v &VecU32, value u32) bool {
 iterator_kind :: fn(eng &Engine, ty u32, id u32) u8 {
     db := &(*eng).nexus
     types := &(*db).types
-    if (ty == ty_id_none()) or (types.kind(ty) != ty_kind().nominal) {
-        match_error(db, c"for expression is not an Iterator", id)
-    }
+    if (ty == ty_id_none()) or (types.kind(ty) != ty_kind().nominal) { ret 0 }
     name_id := db.interner.intern(Str.of("Iterator"))
     iterator_sym := db.find_symbol(db.core_prelude, name_id)
     ref_name_id := db.interner.intern(Str.of("RefIterator"))
@@ -192,6 +190,40 @@ iterator_kind :: fn(eng &Engine, ty u32, id u32) u8 {
     0
 }
 
+has_instance_method :: fn(db &Nexus, ty u32, name_id u32) bool {
+    tbl := &(*db).hir
+    types := &(*db).types
+    while types.kind(ty) == ty_kind().ptr {
+        ty = types.payload(ty)
+    }
+    kind := types.kind(ty)
+    if (kind != ty_kind().nominal) and (kind != ty_kind().enum_) { ret false }
+    origin := types.nominal_origin(ty)
+    if kind == ty_kind().enum_ { origin = types.enum_origin(ty) }
+    struct_id := origin
+    if ((origin & 2147483648) == 0) and (tbl.kind(origin) == hir_kind.binding) {
+        struct_id = tbl.extra(origin)
+    }
+    spec_node := types.get_nominal_struct_node(origin)
+    if spec_node != ty_id_none() { struct_id = spec_node }
+    methods_id := tbl.extra(struct_id)
+    if kind == ty_kind().enum_ {
+        meta := db.get_list(methods_id)
+        if meta.len < 2 { ret false }
+        methods_id = *(meta.ptr + 1)
+    }
+    if methods_id == hir_none() { ret false }
+    methods := db.get_list(methods_id)
+    i: u64 = 0
+    while i < methods.len {
+        method := *(methods.ptr + i)
+        method_name := tbl.lhs(tbl.lhs(method))
+        if method_name == name_id { ret true }
+        i = i + 1
+    }
+    false
+}
+
 iterator_item_type :: fn(eng &Engine, ty u32, id u32) u32 {
     db := &(*eng).nexus
     types := &(*db).types
@@ -205,6 +237,24 @@ iterator_item_type :: fn(eng &Engine, ty u32, id u32) u32 {
     if kind == 2 {
         ret types.alloc_ptr(*(args.ptr + 0))
     }
+    *(args.ptr + 0)
+}
+
+maybe_item_type :: fn(eng &Engine, ty u32, id u32) u32 {
+    db := &(*eng).nexus
+    types := &(*db).types
+    if (ty == ty_id_none()) or (types.kind(ty) != ty_kind().nominal) {
+        match_error(db, c"iterator next() must return Maybe(T)", id)
+    }
+    maybe_name := db.interner.intern(Str.of("Maybe"))
+    maybe_sym := db.find_symbol(db.core_prelude, maybe_name)
+    origin := types.nominal_origin(ty)
+    creator := db.resolve_sym(types.get_nominal_creator_sym(origin))
+    if (maybe_sym == id_none()) or (creator != db.resolve_sym(maybe_sym)) {
+        match_error(db, c"iterator next() must return Maybe(T)", id)
+    }
+    args := types.get_nominal_creator_args(origin)
+    if args.len != 1 { match_error(db, c"iterator next() must return Maybe(T)", id) }
     *(args.ptr + 0)
 }
 
@@ -229,6 +279,30 @@ make_iter_call :: fn(eng &Engine, source u32, name Str) u32 {
     synth_node(eng, member)
     synth_node(eng, call)
     call
+}
+
+make_structural_iter :: fn(eng &Engine, source u32) u32 {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    unify := &(*db).unify
+    types := &(*db).types
+    next_call := make_iter_call(eng, source, Str.of("next"))
+    next_slot := unify.get_slot(next_call)
+    if next_slot == slot_none() {
+        match_error(db, c"iterator next() type is unresolved", source)
+    }
+    next_ty := unify.resolve_type_deep(types, next_slot)
+    maybe_item_type(eng, next_ty, next_call)
+    wrapper := tbl.push(hir_kind.for_iter, source, next_call, hir_none())
+    file_id := db.get_hir_file(source)
+    span := db.get_hir_span(source)
+    db.set_hir_file(wrapper, file_id)
+    db.set_hir_span(wrapper, span.start, span.end)
+    source_slot := unify.get_slot(source)
+    if source_slot != slot_none() {
+        unify.union(types, unify.new_slot(wrapper), source_slot)
+    }
+    wrapper
 }
 
 normalize_for_iter :: fn(eng &Engine, iter u32) u32 {
@@ -258,7 +332,28 @@ normalize_for_iter :: fn(eng &Engine, iter u32) u32 {
     if iterator_kind(eng, iter_ty, iter) != 0 {
         ret iter
     }
-    make_iter_call(eng, iter, Str.of("iter"))
+    next_name := db.interner.intern(Str.of("next"))
+    if has_instance_method(db, iter_ty, next_name) {
+        ret make_structural_iter(eng, iter)
+    }
+    iter_name := db.interner.intern(Str.of("iter"))
+    if not has_instance_method(db, iter_ty, iter_name) {
+        match_error(db, c"for expression requires next() or iter()", iter)
+    }
+    iter_expr := make_iter_call(eng, iter, Str.of("iter"))
+    iter_expr_slot := unify.get_slot(iter_expr)
+    if iter_expr_slot == slot_none() {
+        match_error(db, c"iter() return type is unresolved", iter)
+    }
+    iter_expr_ty := unify.resolve_type_deep(types, iter_expr_slot)
+    if iterator_kind(eng, iter_expr_ty, iter_expr) != 0 {
+        ret iter_expr
+    }
+    if has_instance_method(db, iter_expr_ty, next_name) {
+        ret make_structural_iter(eng, iter_expr)
+    }
+    match_error(db, c"iter() must return an iterator with next() -> Maybe(T)", iter_expr)
+    iter_expr
 }
 
 synth_for :: fn(eng &Engine, id u32) {
@@ -276,7 +371,15 @@ synth_for :: fn(eng &Engine, id u32) {
         iter_slot := unify.get_slot(iter)
         if iter_slot == slot_none() { match_error(db, c"for iterator type is unresolved", iter) }
         iter_ty := unify.resolve_type_deep(types, iter_slot)
-        item_ty := iterator_item_type(eng, iter_ty, iter)
+        item_ty := ty_id_none()
+        if tbl.kind(iter) == hir_kind.for_iter {
+            next_slot := unify.get_slot(tbl.rhs(iter))
+            if next_slot == slot_none() { match_error(db, c"iterator next() type is unresolved", iter) }
+            next_ty := unify.resolve_type_deep(types, next_slot)
+            item_ty = maybe_item_type(eng, next_ty, tbl.rhs(iter))
+        } else {
+            item_ty = iterator_item_type(eng, iter_ty, iter)
+        }
         var_node := *(vars.ptr + i)
         var_slot := unify.get_slot(var_node)
         if var_slot == slot_none() { var_slot = unify.new_slot(var_node) }

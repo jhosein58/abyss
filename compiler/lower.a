@@ -808,6 +808,37 @@ lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u
     Str.empty()
 }
 
+for_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, call_id u32, source_name Str, source_ty u32) Str {
+    tbl := &(*db).hir
+    callee := tbl.lhs(call_id)
+    func_ty := get_node_type(db, callee)
+    if (&(*db).types).kind(func_ty) != ty_kind().func { ret source_name }
+    params := (&(*db).types).func_params(func_ty)
+    if params.len == 0 { ret source_name }
+    expected := *(params.ptr + 0)
+    expected_depth: u32 = 0
+    while (&(*db).types).kind(expected) == ty_kind().ptr {
+        expected = (&(*db).types).payload(expected)
+        expected_depth = expected_depth + 1
+    }
+    source_depth: u32 = 0
+    source := source_ty
+    while (&(*db).types).kind(source) == ty_kind().ptr {
+        source = (&(*db).types).payload(source)
+        source_depth = source_depth + 1
+    }
+    receiver := source_name
+    while source_depth < expected_depth {
+        receiver = ccg.expr_unary(arena, Str.of("&"), receiver)
+        source_depth = source_depth + 1
+    }
+    while source_depth > expected_depth {
+        receiver = ccg.expr_unary(arena, Str.of("*"), receiver)
+        source_depth = source_depth - 1
+    }
+    receiver
+}
+
 lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     tbl := &(*db).hir
     vars := db.get_list(tbl.lhs(id))
@@ -815,19 +846,26 @@ lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32
     ptr_id := db.interner.intern(Str.of("ptr"))
     len_id := db.interner.intern(Str.of("len"))
     index_id := db.interner.intern(Str.of("index"))
+    present_id := db.interner.intern(Str.of("present"))
+    value_id := db.interner.intern(Str.of("value"))
 
     iter_names := Vec(Str).new()
+    value_names := Vec(Str).new()
+    structural_flags := Vec(u8).new()
     i: u64 = 0
     while i < iters.len {
         iter := *(iters.ptr + i)
-        iter_ty := get_node_type(db, iter)
+        source := iter
+        if tbl.kind(iter) == hir_kind.for_iter { source = tbl.lhs(iter) }
+        iter_ty := get_node_type(db, source)
         add_type_to_queue(db, iter_ty, type_queue)
-        value := lower_expr(db, ccg, arena, iter, visited, queue, type_queue)
+        value := lower_expr(db, ccg, arena, source, visited, queue, type_queue)
         name_fmt := Fmt.new(arena)
         name_fmt.cstr(c"_for_").uint32(id).cstr(c"_").uint32(i as u32)
         iter_name := name_fmt.as_str()
         iter_names.push(iter_name)
         ccg.create_variable(iter_name, ccg.type_str(&(*db).types, arena, iter_ty), value, true)
+        if tbl.kind(iter) == hir_kind.for_iter { structural_flags.push(1 as u8) } else { structural_flags.push(0 as u8) }
         i = i + 1
     }
 
@@ -839,11 +877,33 @@ lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32
     i = 0
     while i < iter_names.len {
         name := iter_names.get(i)
-        cond := Fmt.new(arena)
-        cond.cstr(c"(").str(name).cstr(c"._f").uint32(len_id).cstr(c" <= ").str(name).cstr(c"._f").uint32(index_id).cstr(c")")
-        ccg.start_if(cond.as_str())
-        ccg.expr(Str.of("break"))
-        ccg.end_block()
+        if structural_flags.get(i) != 0 {
+            iter := *(iters.ptr + i)
+            next_call := tbl.rhs(iter)
+            next_ty := get_node_type(db, next_call)
+            add_type_to_queue(db, next_ty, type_queue)
+            call_sym := resolve_call_symbol(db, next_call, tbl.lhs(next_call), queue)
+            callee_name := ccg.sym_name(arena, call_sym)
+            receiver := for_method_receiver(db, ccg, arena, next_call, name, get_node_type(db, tbl.lhs(iter)))
+            next_expr := ccg.expr_call(arena, callee_name, receiver)
+            next_fmt := Fmt.new(arena)
+            next_fmt.cstr(c"_for_next_").uint32(id).cstr(c"_").uint32(i as u32)
+            next_name := next_fmt.as_str()
+            ccg.create_variable(next_name, ccg.type_str(&(*db).types, arena, next_ty), next_expr, true)
+            value_names.push(next_name)
+            cond := Fmt.new(arena)
+            cond.cstr(c"(!").str(next_name).cstr(c"._f").uint32(present_id).cstr(c")")
+            ccg.start_if(cond.as_str())
+            ccg.expr(Str.of("break"))
+            ccg.end_block()
+        } else {
+            value_names.push(name)
+            cond := Fmt.new(arena)
+            cond.cstr(c"(").str(name).cstr(c"._f").uint32(len_id).cstr(c" <= ").str(name).cstr(c"._f").uint32(index_id).cstr(c")")
+            ccg.start_if(cond.as_str())
+            ccg.expr(Str.of("break"))
+            ccg.end_block()
+        }
         i = i + 1
     }
 
@@ -857,15 +917,20 @@ lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32
         var_ty_str := ccg.type_str(&(*db).types, arena, var_ty)
         iter_name := iter_names.get(i)
         value := Fmt.new(arena)
-        if iterator_is_ref(db, iter_ty) {
+        if structural_flags.get(i) != 0 {
+            next_name := value_names.get(i)
+            value.str(next_name).cstr(c"._f").uint32(value_id)
+        } else if iterator_is_ref(db, iter_ty) {
             value.cstr(c"(").str(iter_name).cstr(c"._f").uint32(ptr_id).cstr(c" + ").str(iter_name).cstr(c"._f").uint32(index_id).cstr(c")")
         } else {
             value.cstr(c"*(").str(iter_name).cstr(c"._f").uint32(ptr_id).cstr(c" + ").str(iter_name).cstr(c"._f").uint32(index_id).cstr(c")")
         }
         ccg.create_variable(var_name, var_ty_str, value.as_str(), true)
-        inc := Fmt.new(arena)
-        inc.str(iter_name).cstr(c"._f").uint32(index_id).cstr(c" = ").str(iter_name).cstr(c"._f").uint32(index_id).cstr(c" + 1")
-        ccg.expr(inc.as_str())
+        if structural_flags.get(i) == 0 {
+            inc := Fmt.new(arena)
+            inc.str(iter_name).cstr(c"._f").uint32(index_id).cstr(c" = ").str(iter_name).cstr(c"._f").uint32(index_id).cstr(c" + 1")
+            ccg.expr(inc.as_str())
+        }
         i = i + 1
     }
 
@@ -876,6 +941,8 @@ lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32
     if condition.breaks { ccg.emit_label(arena, ccg.loop_label(arena, id, Str.of("_end"))) }
     ccg.loop_condition = outer_condition
     iter_names.destroy()
+    value_names.destroy()
+    structural_flags.destroy()
     Str.empty()
 }
 

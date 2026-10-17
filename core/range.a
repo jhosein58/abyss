@@ -1,0 +1,19 @@
+import Maybe from "maybe.a"
+
+Range :: struct {
+    current i32
+    end i32
+
+    new :: fn(start i32, end i32) Self {
+        .{ current: start, end: end }
+    }
+
+    next :: fn(self &Self) Maybe(i32) {
+        if self.current >= self.end {
+            ret Maybe(i32).none()
+        }
+        value := self.current
+        self.current = self.current + 1
+        Maybe(i32).some(value)
+    }
+}

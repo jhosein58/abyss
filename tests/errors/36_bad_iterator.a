@@ -1,0 +1,9 @@
+Bad :: struct {
+    next :: fn(self &Self) i32 { 1 }
+}
+
+main :: fn() {
+    value: Bad = .{}
+    for item in value {
+    }
+}

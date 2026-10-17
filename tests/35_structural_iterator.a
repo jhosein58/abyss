@@ -1,0 +1,16 @@
+print :: fn(s &u8) unit
+print_i32 :: fn(v i32) unit
+
+main :: fn() {
+    total := 0 as i32
+    for value in Range.new(2, 6) {
+        total = total + value
+    }
+    print_i32(total)
+    print(c"\n")
+
+    for a, b in Range.new(1, 4), Range.new(10, 13) {
+        print_i32(a + b)
+        print(c"\n")
+    }
+}
