@@ -82,6 +82,9 @@ synth_match :: fn(eng &Engine, id u32) {
         if tbl.extra(id) != hir_none() and tbl.kind(tbl.extra(id)) == hir_kind.match_binding {
             binder = tbl.extra(arm)
             if binder != hir_none() {
+                if patterns.len > 1 {
+                    match_error(db, c"cannot bind variable in match arm with multiple patterns", arm)
+                }
                 bind_ty := value_ty
                 if patterns.len == 1 {
                     pat_ty := synth_type_node(eng, *(patterns.ptr + 0))
@@ -178,6 +181,9 @@ prepare_match_bindings :: fn(eng &Engine, start u32, len u32) {
                 cont
             }
             patterns := db.get_list(tbl.lhs(arm))
+            if patterns.len > 1 {
+                match_error(db, c"cannot bind variable in match arm with multiple patterns", arm)
+            }
             bind_ty := value_ty
             if patterns.len == 1 {
                 pat_ty := synth_type_node(eng, *(patterns.ptr + 0))

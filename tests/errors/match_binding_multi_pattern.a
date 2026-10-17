@@ -1,0 +1,7 @@
+main :: fn() {
+    v: i32 | f32 | bool = 1
+    match x in v {
+        i32, f32 { 1 }
+        bool { 2 }
+    }
+}
