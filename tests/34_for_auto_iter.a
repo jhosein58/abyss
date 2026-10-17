@@ -1,0 +1,32 @@
+import Vec from "std/collections/vec.a"
+
+print :: fn(s &u8) unit
+print_i32 :: fn(v i32) unit
+
+main :: fn() {
+    values := Vec(i32).new()
+    values.push(10)
+    values.push(20)
+    values.push(30)
+
+    total := 0 as i32
+    for value in values {
+        total = total + value
+    }
+    print_i32(total)
+    print(c"\n")
+
+    refs := 0 as i32
+    for value in &values {
+        refs = refs + *value
+    }
+    print_i32(refs)
+    print(c"\n")
+
+    for value in values.iter() {
+        print_i32(value)
+        print(c"\n")
+    }
+
+    values.destroy()
+}

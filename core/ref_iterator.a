@@ -1,0 +1,26 @@
+import Maybe from "maybe.a"
+
+RefIterator :: fn(T type) type {
+    struct {
+        ptr &T
+        len u64
+        index u64
+
+        new :: fn(ptr &T, len u64) Self {
+            .{ ptr: ptr, len: len, index: 0 }
+        }
+
+        next :: fn(self &Self) Maybe(&T) {
+            if self.index >= self.len {
+                ret Maybe(&T).none()
+            }
+            value := self.ptr + self.index
+            self.index = self.index + 1
+            Maybe(&T).some(value)
+        }
+
+        is_done :: fn(self &Self) bool {
+            self.index >= self.len
+        }
+    }
+}

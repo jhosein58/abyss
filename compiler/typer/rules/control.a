@@ -6,9 +6,11 @@ import slot_none from "../../unify"
 import check_value from "./common"
 import synth_type_node from "./var"
 import VecU32 from "std/vec/u32"
+import SliceU32 from "std/slice/u32"
 import Str from "std/string"
 import id_none from "../../nexus/pool"
 import fall from "std/sys"
+import synth_node from "../tyck"
 
 print :: fn(s &u8) unit
 
@@ -168,7 +170,7 @@ vec_u32_contains :: fn(v &VecU32, value u32) bool {
     false
 }
 
-iterator_item_type :: fn(eng &Engine, ty u32, id u32) u32 {
+iterator_kind :: fn(eng &Engine, ty u32, id u32) u8 {
     db := &(*eng).nexus
     types := &(*db).types
     if (ty == ty_id_none()) or (types.kind(ty) != ty_kind().nominal) {
@@ -176,46 +178,87 @@ iterator_item_type :: fn(eng &Engine, ty u32, id u32) u32 {
     }
     name_id := db.interner.intern(Str.of("Iterator"))
     iterator_sym := db.find_symbol(db.core_prelude, name_id)
+    ref_name_id := db.interner.intern(Str.of("RefIterator"))
+    ref_iterator_sym := db.find_symbol(db.core_prelude, ref_name_id)
     origin := types.nominal_origin(ty)
     creator := types.get_nominal_creator_sym(origin)
-    if (iterator_sym == id_none()) or (db.resolve_sym(creator) != db.resolve_sym(iterator_sym)) {
+    creator = db.resolve_sym(creator)
+    if (iterator_sym != id_none()) and (creator == db.resolve_sym(iterator_sym)) {
+        ret 1
+    }
+    if (ref_iterator_sym != id_none()) and (creator == db.resolve_sym(ref_iterator_sym)) {
+        ret 2
+    }
+    0
+}
+
+iterator_item_type :: fn(eng &Engine, ty u32, id u32) u32 {
+    db := &(*eng).nexus
+    types := &(*db).types
+    kind := iterator_kind(eng, ty, id)
+    if kind == 0 {
         match_error(db, c"for expression is not an Iterator", id)
     }
+    origin := types.nominal_origin(ty)
     args := types.get_nominal_creator_args(origin)
     if args.len != 1 { match_error(db, c"Iterator type has no item type", id) }
+    if kind == 2 {
+        ret types.alloc_ptr(*(args.ptr + 0))
+    }
     *(args.ptr + 0)
 }
 
-prepare_for_bindings :: fn(eng &Engine, start u32, len u32) {
+make_iter_call :: fn(eng &Engine, source u32, name Str) u32 {
     db := &(*eng).nexus
     tbl := &(*db).hir
-    types := &(*db).types
+    k := hir_kind
+    name_id := db.interner.intern(name)
+    rhs := tbl.push(k.ident, name_id, hir_none(), hir_none())
+    member := tbl.push(k.member, source, rhs, hir_none())
+    empty: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    args := db.add_list(empty)
+    call := tbl.push(k.call, member, args, hir_none())
+    file_id := db.get_hir_file(source)
+    span := db.get_hir_span(source)
+    db.set_hir_file(rhs, file_id)
+    db.set_hir_file(member, file_id)
+    db.set_hir_file(call, file_id)
+    db.set_hir_span(rhs, span.start, span.end)
+    db.set_hir_span(member, span.start, span.end)
+    db.set_hir_span(call, span.start, span.end)
+    synth_node(eng, member)
+    synth_node(eng, call)
+    call
+}
+
+normalize_for_iter :: fn(eng &Engine, iter u32) u32 {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
     unify := &(*db).unify
-    i := start
-    while i < len {
-        if tbl.kind(i) != hir_kind.k_for {
-            i = i + 1
-            cont
+    types := &(*db).types
+    source := iter
+    if tbl.kind(iter) == hir_kind.unary_addr_of {
+        source = tbl.lhs(iter)
+        source_slot := unify.get_slot(source)
+        if source_slot == slot_none() {
+            match_error(db, c"for reference source type is unresolved", iter)
         }
-        vars := db.get_list(tbl.lhs(i))
-        iters := db.get_list(tbl.rhs(i))
-        j: u64 = 0
-        while j < vars.len {
-            iter := *(iters.ptr + j)
-            iter_slot := unify.get_slot(iter)
-            if iter_slot != slot_none() {
-                iter_ty := unify.resolve_type_deep(types, iter_slot)
-                item_ty := iterator_item_type(eng, iter_ty, iter)
-                var_node := *(vars.ptr + j)
-                db.set_const_type(var_node, item_ty)
-                var_slot := unify.get_slot(var_node)
-                if var_slot == slot_none() { var_slot = unify.new_slot(var_node) }
-                unify.bind_type(types, var_slot, item_ty)
-            }
-            j = j + 1
+        source_ty := unify.resolve_type_deep(types, source_slot)
+        if (source_ty == ty_id_none()) or (types.kind(source_ty) != ty_kind().nominal) {
+            match_error(db, c"for reference source must provide iter_ref", iter)
         }
-        i = i + 1
+        call := make_iter_call(eng, source, Str.of("iter_ref"))
+        ret call
     }
+    iter_slot := unify.get_slot(iter)
+    if iter_slot == slot_none() {
+        match_error(db, c"for expression type is unresolved", iter)
+    }
+    iter_ty := unify.resolve_type_deep(types, iter_slot)
+    if iterator_kind(eng, iter_ty, iter) != 0 {
+        ret iter
+    }
+    make_iter_call(eng, iter, Str.of("iter"))
 }
 
 synth_for :: fn(eng &Engine, id u32) {
@@ -228,7 +271,8 @@ synth_for :: fn(eng &Engine, id u32) {
     iters := db.get_list(tbl.rhs(id))
     i: u64 = 0
     while i < iters.len {
-        iter := *(iters.ptr + i)
+        iter := normalize_for_iter(eng, *(iters.ptr + i))
+        *(iters.ptr + i) = iter
         iter_slot := unify.get_slot(iter)
         if iter_slot == slot_none() { match_error(db, c"for iterator type is unresolved", iter) }
         iter_ty := unify.resolve_type_deep(types, iter_slot)

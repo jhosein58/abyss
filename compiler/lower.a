@@ -19,6 +19,17 @@ get_node_type :: fn(db &Nexus, id u32) u32 {
     db.get_node_type(id)
 }
 
+iterator_is_ref :: fn(db &Nexus, ty_id u32) bool {
+    types := &(*db).types
+    if (ty_id == ty_id_none()) or (types.kind(ty_id) != ty_kind().nominal) { ret false }
+    name_id := db.interner.intern(Str.of("RefIterator"))
+    ref_sym := db.find_symbol(db.core_prelude, name_id)
+    origin := types.nominal_origin(ty_id)
+    creator := types.get_nominal_creator_sym(origin)
+    if ref_sym == id_none() { ret false }
+    db.resolve_sym(creator) == db.resolve_sym(ref_sym)
+}
+
 vec_contains :: fn(v &Vec(u32), val u32) bool {
     i: u64 = 0
     while i < (*v).len {
@@ -842,10 +853,15 @@ lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32
         var_sym := db.get_hir_symbol(var_node)
         var_name := ccg.sym_name(arena, var_sym)
         var_ty := get_node_type(db, var_node)
+        iter_ty := get_node_type(db, *(iters.ptr + i))
         var_ty_str := ccg.type_str(&(*db).types, arena, var_ty)
         iter_name := iter_names.get(i)
         value := Fmt.new(arena)
-        value.cstr(c"*(").str(iter_name).cstr(c"._f").uint32(ptr_id).cstr(c" + ").str(iter_name).cstr(c"._f").uint32(index_id).cstr(c")")
+        if iterator_is_ref(db, iter_ty) {
+            value.cstr(c"(").str(iter_name).cstr(c"._f").uint32(ptr_id).cstr(c" + ").str(iter_name).cstr(c"._f").uint32(index_id).cstr(c")")
+        } else {
+            value.cstr(c"*(").str(iter_name).cstr(c"._f").uint32(ptr_id).cstr(c" + ").str(iter_name).cstr(c"._f").uint32(index_id).cstr(c")")
+        }
         ccg.create_variable(var_name, var_ty_str, value.as_str(), true)
         inc := Fmt.new(arena)
         inc.str(iter_name).cstr(c"._f").uint32(index_id).cstr(c" = ").str(iter_name).cstr(c"._f").uint32(index_id).cstr(c" + 1")

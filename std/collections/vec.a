@@ -1,5 +1,5 @@
 import malloc, realloc, free, mem_copy from "../mem.a"
-import Iterator as Iter from "core/iterator.a"
+import Iterator as Iter, RefIterator as RefIter from "core/prelude.a"
 
 
 Vec :: fn(T type) type {
@@ -127,6 +127,10 @@ Vec :: fn(T type) type {
         }
 
         iter :: fn(self &Self) Iter(T) {
+            .{ ptr: self.ptr, len: self.len, index: 0 }
+        }
+
+        iter_ref :: fn(self &Self) RefIter(T) {
             .{ ptr: self.ptr, len: self.len, index: 0 }
         }
 
