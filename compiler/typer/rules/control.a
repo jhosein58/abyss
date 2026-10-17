@@ -1,11 +1,118 @@
 import Nexus from "../../nexus/nexus"
-import HirTable, hir_none from "../../hir"
-import ty_kind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error from "../../types"
+import Engine from "../../engine"
+import HirTable, hir_kind, hir_none from "../../hir"
+import ty_kind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error, ty_id_never from "../../types"
 import slot_none from "../../unify"
 import check_value from "./common"
+import synth_type_node from "./var"
+import VecU32 from "std/vec/u32"
 import fall from "std/sys"
 
 print :: fn(s &u8) unit
+
+match_error :: fn(db &Nexus, msg &u8, id u32) {
+    print(c"\n\033[1;31m[type error]\033[0m ")
+    print(msg)
+    print(c"\n       --> ")
+    db.print_loc(id)
+    print(c"\n")
+    fall()
+}
+
+synth_match :: fn(eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    types := &(*db).types
+    unify := &(*db).unify
+    slot := unify.new_slot(id)
+    value := tbl.lhs(id)
+    value_slot := unify.get_slot(value)
+    value_ty := ty_id_none()
+    if value_slot != slot_none() { value_ty = unify.resolve_type_deep(types, value_slot) }
+    hint := tbl.extra(id)
+    if hint != hir_none() {
+        hint_ty := synth_type_node(eng, hint)
+        if hint_ty == ty_id_none() { match_error(db, c"match type annotation is unresolved", hint) }
+        if value_ty == ty_id_none() or value_ty == ty_id_error() {
+            if value_slot != slot_none() { unify.bind_type(types, value_slot, hint_ty) }
+            value_ty = hint_ty
+        } else if value_ty != hint_ty {
+            match_error(db, c"match value type does not match its annotation", value)
+        }
+    }
+    if value_ty == ty_id_none() { match_error(db, c"match value type is unresolved", value) }
+    value_kind := types.kind(value_ty)
+    if (value_kind != ty_kind().enum_) and (value_kind != ty_kind().union_) {
+        match_error(db, c"match requires an enum or union value", value)
+    }
+
+    arms := db.get_list(tbl.rhs(id))
+    covered := VecU32.new()
+    result_ty := ty_id_none()
+    has_else := false
+    i: u64 = 0
+    while i < arms.len {
+        arm := *(arms.ptr + i)
+        patterns := db.get_list(tbl.lhs(arm))
+        marker := tbl.extra(arm)
+        if marker == 0 {
+            if has_else { match_error(db, c"match has more than one else arm", arm) }
+            has_else = true
+        }
+        p_i: u64 = 0
+        while p_i < patterns.len {
+            pat := *(patterns.ptr + p_i)
+            if value_kind == ty_kind().enum_ {
+                name_id := tbl.lhs(pat)
+                if not types.enum_has_variant(value_ty, name_id) { match_error(db, c"match pattern is not an enum variant", pat) }
+                if vec_u32_contains(&covered, name_id) { match_error(db, c"match pattern is duplicated", pat) }
+                covered.push(name_id)
+            } else {
+                pat_ty := synth_type_node(eng, pat)
+                if pat_ty == ty_id_none() { match_error(db, c"match union pattern is not a type", pat) }
+                if not types.union_contains(value_ty, pat_ty) { match_error(db, c"match pattern is not a member of the union", pat) }
+                if vec_u32_contains(&covered, pat_ty) { match_error(db, c"match pattern is duplicated", pat) }
+                covered.push(pat_ty)
+            }
+            p_i = p_i + 1
+        }
+        body := tbl.rhs(arm)
+        body_slot := unify.get_slot(body)
+        body_ty := ty_id_none()
+        if body_slot != slot_none() { body_ty = unify.resolve_type_deep(types, body_slot) }
+        if body_ty != ty_id_none() and body_ty != ty_id_never() {
+            if result_ty == ty_id_none() or result_ty == ty_id_never() {
+                result_ty = body_ty
+            } else {
+                merged := unify.unify_types(types, result_ty, body_ty)
+                if (merged == ty_id_error()) or (merged == ty_id_none()) {
+                    match_error(db, c"match arms have incompatible result types", body)
+                }
+                result_ty = merged
+            }
+        }
+        i = i + 1
+    }
+
+    if not has_else {
+        required: u32 = 0
+        if value_kind == ty_kind().enum_ { required = types.enum_variant_count(value_ty) }
+        else { required = types.union_members_len(value_ty) }
+        if covered.len < (required as u64) { match_error(db, c"non-exhaustive match; add the missing cases or else", id) }
+    }
+    if result_ty == ty_id_none() { result_ty = ty_id_never() }
+    unify.bind_type(types, slot, result_ty)
+    covered.destroy()
+}
+
+vec_u32_contains :: fn(v &VecU32, value u32) bool {
+    i: u64 = 0
+    while i < v.len {
+        if v.get(i) == value { ret true }
+        i = i + 1
+    }
+    false
+}
 
 synth_block :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify

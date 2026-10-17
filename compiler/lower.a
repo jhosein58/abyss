@@ -534,6 +534,10 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ve
         ret Str.empty()
     }
 
+    if kind == k.k_match {
+        ret lower_match(db, ccg, arena, id, visited, queue, type_queue)
+    }
+
     if kind == k.k_while {
         outer_condition := ccg.loop_condition
         ccg.loop_condition = .{ id: id, breaks: false, continues: false }
@@ -685,6 +689,68 @@ lower_scoped_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, expected
         }
     }
     ccg.end_expr(arena, mark, value)
+}
+
+lower_match_condition :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, value_ty u32, arm u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+    tbl := &(*db).hir
+    if tbl.extra(arm) == 0 { ret Str.of("1") }
+    value_str := lower_expr(db, ccg, arena, value_id, visited, queue, type_queue)
+    patterns := db.get_list(tbl.lhs(arm))
+    fmt := Fmt.new(arena)
+    i: u64 = 0
+    while i < patterns.len {
+        if i > 0 { fmt.cstr(c" || ") }
+        pat := *(patterns.ptr + i)
+        if (&(*db).types).kind(value_ty) == ty_kind().enum_ {
+            name_id := tbl.lhs(pat)
+            val := (&(*db).types).enum_variant_val(value_ty, name_id)
+            enum_name := ccg.type_str(&(*db).types, arena, value_ty)
+            fmt.cstr(c"(").str(value_str).cstr(c" == ((").str(enum_name).cstr(c")").uint32(val).cstr(c"))")
+        } else {
+            pat_ty := db.get_const_type(pat)
+            idx := (&(*db).types).union_member_index(value_ty, pat_ty)
+            fmt.cstr(c"((").str(value_str).cstr(c").tag == ").uint32(idx).cstr(c")")
+        }
+        i = i + 1
+    }
+    fmt.as_str()
+}
+
+lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+    tbl := &(*db).hir
+    value_id := tbl.lhs(id)
+    value_ty := get_node_type(db, value_id)
+    arms := db.get_list(tbl.rhs(id))
+    match_ty := get_node_type(db, id)
+    is_expr := (match_ty != ty_id_none()) and
+               ((&(*db).types).kind(match_ty) != ty_kind().unit) and
+               ((&(*db).types).kind(match_ty) != ty_kind().never)
+
+    if is_expr {
+        result := ccg.expr_zero(arena, ccg.type_str(&(*db).types, arena, match_ty))
+        i: u64 = arms.len
+        while i > 0 {
+            i = i - 1
+            arm := *(arms.ptr + i)
+            cond := lower_match_condition(db, ccg, arena, value_id, value_ty, arm, visited, queue, type_queue)
+            branch := lower_scoped_expr(db, ccg, arena, tbl.rhs(arm), match_ty, visited, queue, type_queue)
+            result = ccg.expr_conditional(arena, cond, branch, result)
+        }
+        ret result
+    }
+
+    i: u64 = 0
+    while i < arms.len {
+        arm := *(arms.ptr + i)
+        cond := lower_match_condition(db, ccg, arena, value_id, value_ty, arm, visited, queue, type_queue)
+        ccg.start_if(cond)
+        branch := lower_body(db, ccg, arena, tbl.rhs(arm), visited, queue, type_queue)
+        if branch.len > 0 { ccg.expr(branch) }
+        if (i + 1) < arms.len { ccg.else_() }
+        i = i + 1
+    }
+    if arms.len > 0 { ccg.end_block() }
+    Str.empty()
 }
 
 lower_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {

@@ -15,6 +15,7 @@ match_keyword :: fn(text Str) TokenType {
         if text.eq(Str.of("as")) { ret t.kw_as }
         if text.eq(Str.of("or")) { ret t.kw_or }
         if text.eq(Str.of("fn")) { ret t.kw_fn }
+        if text.eq(Str.of("in")) { ret t.kw_in }
     }
 
     if text.len == 3 {
@@ -35,6 +36,7 @@ match_keyword :: fn(text Str) TokenType {
         if text.eq(Str.of("while")) { ret t.kw_while }
         if text.eq(Str.of("break")) { ret t.kw_break }
         if text.eq(Str.of("false")) { ret t.kw_false }
+        if text.eq(Str.of("match")) { ret t.kw_match }
     }
 
     if text.len == 6 {
@@ -80,7 +82,7 @@ Lexer :: struct {
         }
     }
 
-    match :: fn(self &Self, expected u8) bool {
+    consume_char :: fn(self &Self, expected u8) bool {
         if (self.current() == expected) and (not self.is_eof()) {
             self.bump()
             ret true
@@ -236,33 +238,33 @@ Lexer :: struct {
         c := self.current()
         self.bump()
 
-        if c == '+' { if self.match('=') { ret t.plus_eq } ret t.plus }
-        if c == '-' { if self.match('=') { ret t.minus_eq } ret t.minus }
-        if c == '*' { if self.match('=') { ret t.star_eq } ret t.star }
-        if c == '/' { if self.match('=') { ret t.slash_eq } ret t.slash }
-        if c == '%' { if self.match('=') { ret t.percent_eq } ret t.percent }
-        if c == '&' { if self.match('=') { ret t.amp_eq } ret t.amp }
-        if c == '|' { if self.match('=') { ret t.pipe_eq } ret t.pipe }
-        if c == '^' { if self.match('=') { ret t.caret_eq } ret t.caret }
+        if c == '+' { if self.consume_char('=') { ret t.plus_eq } ret t.plus }
+        if c == '-' { if self.consume_char('=') { ret t.minus_eq } ret t.minus }
+        if c == '*' { if self.consume_char('=') { ret t.star_eq } ret t.star }
+        if c == '/' { if self.consume_char('=') { ret t.slash_eq } ret t.slash }
+        if c == '%' { if self.consume_char('=') { ret t.percent_eq } ret t.percent }
+        if c == '&' { if self.consume_char('=') { ret t.amp_eq } ret t.amp }
+        if c == '|' { if self.consume_char('=') { ret t.pipe_eq } ret t.pipe }
+        if c == '^' { if self.consume_char('=') { ret t.caret_eq } ret t.caret }
         if c == '~' { ret t.tilde }
-        if c == '=' { if self.match('=') { ret t.eq_eq } ret t.eq }
-        if c == '!' { if self.match('=') { ret t.bang_eq } ret t.unknown }
-        if c == ':' { if self.match(':') { ret t.colon_colon } ret t.colon }
+        if c == '=' { if self.consume_char('=') { ret t.eq_eq } ret t.eq }
+        if c == '!' { if self.consume_char('=') { ret t.bang_eq } ret t.unknown }
+        if c == ':' { if self.consume_char(':') { ret t.colon_colon } ret t.colon }
         if c == '.' { ret t.dot }
         if c == '<' {
-            if self.match('<') {
-                if self.match('=') { ret t.left_shift_eq }
+            if self.consume_char('<') {
+                if self.consume_char('=') { ret t.left_shift_eq }
                 ret t.left_shift
             }
-            if self.match('=') { ret t.lt_eq }
+            if self.consume_char('=') { ret t.lt_eq }
             ret t.lt
         }
         if c == '>' {
-            if self.match('>') {
-                if self.match('=') { ret t.right_shift_eq }
+            if self.consume_char('>') {
+                if self.consume_char('=') { ret t.right_shift_eq }
                 ret t.right_shift
             }
-            if self.match('=') { ret t.gt_eq }
+            if self.consume_char('=') { ret t.gt_eq }
             ret t.gt
         }
         if c == ',' { ret t.comma }

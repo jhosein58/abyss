@@ -64,6 +64,8 @@ HirExprKind :: enum u8 {
     block,
     k_if,
     k_while,
+    k_match,
+    match_arm,
     k_break,
     k_cont,
 
@@ -144,6 +146,8 @@ hir_kind_name :: fn(kind HirExprKind) Str {
     if kind == k.block                 { ret Str.of("Block")         }
     if kind == k.k_if                  { ret Str.of("If")            }
     if kind == k.k_while               { ret Str.of("While")         }
+    if kind == k.k_match               { ret Str.of("Match")         }
+    if kind == k.match_arm             { ret Str.of("MatchArm")       }
     if kind == k.k_break               { ret Str.of("Break")         }
     if kind == k.k_cont                { ret Str.of("Cont")          }
 

@@ -1,0 +1,67 @@
+import token from "../../token"
+import hir_kind, hir_none from "../../hir"
+import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core"
+import Vec from "std/collections/vec"
+import span_merge from "../../nexus/nexus"
+import add_list, set_span, skip_separators, check_delimiter from "./common"
+import parse_ident from "./ident"
+import parse_expr from "../parser"
+
+parse_match :: fn(p &Parser) u32 {
+    t := token
+    k := hir_kind
+    sp_start := curr_span(p)
+    bump(p)
+
+    value := parse_expr(p, 0 as u8)
+    type_hint := hir_none()
+    if optional(p, t.kw_in) {
+        type_hint = parse_expr(p, 0 as u8)
+    }
+    if not expect(p, t.o_brace) {
+        parse_error_at(p, c"expected '{' after match value", curr_span(p))
+    }
+
+    arms := Vec(u32).new()
+    while (peek(p) != t.c_brace) and (not is_eof(p)) {
+        skip_separators(p)
+        if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
+        arm_sp_start := curr_span(p)
+
+        patterns := Vec(u32).new()
+        is_else := false
+        if peek(p) == t.kw_else {
+            bump(p)
+            is_else = true
+        } else {
+            patterns.push(parse_ident(p))
+            while optional(p, t.comma) {
+                patterns.push(parse_ident(p))
+            }
+        }
+
+        if peek(p) != t.o_brace {
+            parse_error_at(p, c"expected '{' after match pattern", curr_span(p))
+        }
+        body := parse_expr(p, 0 as u8)
+
+        patterns_id := add_list(p, &patterns)
+        patterns.destroy()
+        marker := hir_none()
+        if is_else { marker = 0 }
+        arm := p.hir.push(k.match_arm, patterns_id, body, marker)
+        set_span(p, arm, span_merge(arm_sp_start, prev_span(p)))
+        arms.push(arm)
+        check_delimiter(p, c"expected ';' or newline between match arms")
+    }
+
+    if is_eof(p) and (peek(p) != t.c_brace) {
+        parse_error_at(p, c"unclosed match, expected '}'", sp_start)
+    }
+    expect(p, t.c_brace)
+    sp_end := prev_span(p)
+    arms_id := add_list(p, &arms)
+    arms.destroy()
+    node := p.hir.push(k.k_match, value, arms_id, type_hint)
+    set_span(p, node, span_merge(sp_start, sp_end))
+}

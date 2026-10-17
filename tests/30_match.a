@@ -1,0 +1,47 @@
+import print from "std/io.a"
+
+Color :: enum { red, green, blue }
+
+pick_color :: fn(c Color) u32 {
+    match c {
+        red { 10 }
+        green, blue { 20 }
+    }
+}
+
+pick_union :: fn(v i32 | bool) u32 {
+    match v in i32 | bool {
+        i32 { 1 }
+        bool { 2 }
+    }
+}
+
+pick_with_else :: fn(v i32 | bool) u32 {
+    match v {
+        i32 { 3 }
+        else { 4 }
+    }
+}
+
+pick_with_statements :: fn(c Color) u32 {
+    match c {
+        red {
+            print(c"red")
+            print(c"\n")
+            5
+        }
+        else { 6 }
+    }
+}
+
+main :: fn() {
+    print(pick_color(Color.red) as u32)
+    print(c"\n")
+    print(pick_union(3) as u32)
+    print(c"\n")
+    print(pick_union(true) as u32)
+    print(c"\n")
+    print(pick_with_else(true) as u32)
+    print(c"\n")
+    print(pick_with_statements(Color.red) as u32)
+}

@@ -11,6 +11,7 @@ import parse_binding, parse_var_decl from "./handlers/var"
 import parse_struct, parse_struct_init, parse_member from "./handlers/struct"
 import parse_builtin from "./handlers/builtin"
 import parse_enum from "./handlers/enum"
+import parse_match from "./handlers/match"
 
 parse_expr :: fn(p &Parser, min_bp u8) u32 {
     lhs := dispatch_prefix(p, min_bp)
@@ -60,6 +61,7 @@ dispatch_prefix :: fn(p &Parser, min_bp u8) u32 {
     if tk == t.kw_break   { ret parse_break(p) }
     if tk == t.kw_cont    { ret parse_cont(p) }
     if tk == t.kw_ret     { ret parse_return(p) }
+    if tk == t.kw_match   { ret parse_match(p) }
 
     if tk == t.kw_struct  { ret parse_struct(p) }
     if tk == t.kw_enum    { ret parse_enum(p) }

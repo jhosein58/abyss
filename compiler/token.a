@@ -31,6 +31,8 @@ TokenType :: enum u8 {
     kw_or,
     kw_not,
     kw_fn,
+    kw_match,
+    kw_in,
 
     plus,
     minus,
@@ -105,6 +107,8 @@ token_name :: fn(tk TokenType) Str {
     if tk == t.kw_struct   { ret Str.of("kw_struct") }
     if tk == t.kw_enum     { ret Str.of("kw_enum")   }
     if tk == t.kw_fn       { ret Str.of("kw_fn")     }
+    if tk == t.kw_match   { ret Str.of("kw_match")   }
+    if tk == t.kw_in      { ret Str.of("kw_in")      }
     if tk == t.at          { ret Str.of("@")         }
     if tk == t.kw_import   { ret Str.of("kw_import") }
     if tk == t.kw_from     { ret Str.of("kw_from")   }
