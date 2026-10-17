@@ -67,6 +67,7 @@ HirExprKind :: enum u8 {
     k_match,
     match_arm,
     match_binding,
+    k_for,
     k_break,
     k_cont,
 
@@ -150,6 +151,7 @@ hir_kind_name :: fn(kind HirExprKind) Str {
     if kind == k.k_match               { ret Str.of("Match")         }
     if kind == k.match_arm             { ret Str.of("MatchArm")       }
     if kind == k.match_binding         { ret Str.of("MatchBinding")   }
+    if kind == k.k_for                 { ret Str.of("For")            }
     if kind == k.k_break               { ret Str.of("Break")         }
     if kind == k.k_cont                { ret Str.of("Cont")          }
 

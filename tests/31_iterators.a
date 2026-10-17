@@ -1,0 +1,35 @@
+import Vec from "std/collections/vec.a"
+
+print :: fn(s &u8) unit
+print_i32 :: fn(v i32) unit
+print_bool :: fn(v bool) unit
+
+main :: fn() {
+    values := Vec(i32).new()
+    values.push(10)
+    values.push(20)
+    values.push(30)
+
+    direct := values.iter()
+    first := direct.next()
+    print_bool(first.is_some())
+    print(c"\n")
+    print_i32(first.unwrap())
+    print(c"\n")
+
+    total := 0 as i32
+    for value in values.iter() {
+        total = total + value
+    }
+    print_i32(total)
+    print(c"\n")
+
+    copied := Vec(i32).collect(values.iter())
+    for a, b in values.iter(), copied.iter() {
+        print_i32(a + b)
+        print(c"\n")
+    }
+
+    copied.destroy()
+    values.destroy()
+}

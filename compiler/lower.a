@@ -538,6 +538,10 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ve
         ret lower_match(db, ccg, arena, id, visited, queue, type_queue)
     }
 
+    if kind == k.k_for {
+        ret lower_for(db, ccg, arena, id, visited, queue, type_queue)
+    }
+
     if kind == k.k_while {
         outer_condition := ccg.loop_condition
         ccg.loop_condition = .{ id: id, breaks: false, continues: false }
@@ -790,6 +794,72 @@ lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u
         ccg.end_block()
         open_blocks = open_blocks - 1
     }
+    Str.empty()
+}
+
+lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+    tbl := &(*db).hir
+    vars := db.get_list(tbl.lhs(id))
+    iters := db.get_list(tbl.rhs(id))
+    ptr_id := db.interner.intern(Str.of("ptr"))
+    len_id := db.interner.intern(Str.of("len"))
+    index_id := db.interner.intern(Str.of("index"))
+
+    iter_names := Vec(Str).new()
+    i: u64 = 0
+    while i < iters.len {
+        iter := *(iters.ptr + i)
+        iter_ty := get_node_type(db, iter)
+        add_type_to_queue(db, iter_ty, type_queue)
+        value := lower_expr(db, ccg, arena, iter, visited, queue, type_queue)
+        name_fmt := Fmt.new(arena)
+        name_fmt.cstr(c"_for_").uint32(id).cstr(c"_").uint32(i as u32)
+        iter_name := name_fmt.as_str()
+        iter_names.push(iter_name)
+        ccg.create_variable(iter_name, ccg.type_str(&(*db).types, arena, iter_ty), value, true)
+        i = i + 1
+    }
+
+    outer_condition := ccg.loop_condition
+    ccg.loop_condition = .{ id: id, breaks: false, continues: false }
+    ccg.start_while(Str.of("1"))
+    ccg.emit_label(arena, ccg.loop_label(arena, id, Str.of("_begin")))
+
+    i = 0
+    while i < iter_names.len {
+        name := iter_names.get(i)
+        cond := Fmt.new(arena)
+        cond.cstr(c"(").str(name).cstr(c"._f").uint32(len_id).cstr(c" <= ").str(name).cstr(c"._f").uint32(index_id).cstr(c")")
+        ccg.start_if(cond.as_str())
+        ccg.expr(Str.of("break"))
+        ccg.end_block()
+        i = i + 1
+    }
+
+    i = 0
+    while i < vars.len {
+        var_node := *(vars.ptr + i)
+        var_sym := db.get_hir_symbol(var_node)
+        var_name := ccg.sym_name(arena, var_sym)
+        var_ty := get_node_type(db, var_node)
+        var_ty_str := ccg.type_str(&(*db).types, arena, var_ty)
+        iter_name := iter_names.get(i)
+        value := Fmt.new(arena)
+        value.cstr(c"*(").str(iter_name).cstr(c"._f").uint32(ptr_id).cstr(c" + ").str(iter_name).cstr(c"._f").uint32(index_id).cstr(c")")
+        ccg.create_variable(var_name, var_ty_str, value.as_str(), true)
+        inc := Fmt.new(arena)
+        inc.str(iter_name).cstr(c"._f").uint32(index_id).cstr(c" = ").str(iter_name).cstr(c"._f").uint32(index_id).cstr(c" + 1")
+        ccg.expr(inc.as_str())
+        i = i + 1
+    }
+
+    body := lower_body(db, ccg, arena, tbl.extra(id), visited, queue, type_queue)
+    if body.len > 0 { ccg.expr(body) }
+    condition := ccg.loop_condition
+    ccg.end_block()
+    if condition.breaks { ccg.emit_label(arena, ccg.loop_label(arena, id, Str.of("_end"))) }
+    ccg.loop_condition = outer_condition
+    iter_names.destroy()
     Str.empty()
 }
 

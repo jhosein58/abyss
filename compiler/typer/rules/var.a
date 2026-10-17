@@ -121,6 +121,15 @@ synth_type_node :: fn(eng &Engine, id u32) u32 {
         ret db.get_const_type(id)
     }
 
+    if curr == k.call {
+        callee := tbl.lhs(id)
+        if tbl.kind(callee) == k.ident {
+            synth_ident(eng, callee)
+        }
+        synth_node(eng, id)
+        ret db.get_const_type(id)
+    }
+
     synth_node(eng, id)
     db.get_const_type(id)
 }

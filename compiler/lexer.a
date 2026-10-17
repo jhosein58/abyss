@@ -22,6 +22,7 @@ match_keyword :: fn(text Str) TokenType {
         if text.eq(Str.of("ret")) { ret t.kw_ret }
         if text.eq(Str.of("and")) { ret t.kw_and }
         if text.eq(Str.of("not")) { ret t.kw_not }
+        if text.eq(Str.of("for")) { ret t.kw_for }
     }
 
     if text.len == 4 {

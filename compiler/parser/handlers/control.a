@@ -2,9 +2,12 @@ import token from "../../token"
 import hir_kind, hir_none from "../../hir"
 import Parser, bump, optional, peek, is_eof, expect, curr_span, prev_span, parse_error_at, peek_preceded_by_newline from "../core"
 import SliceU32 from "std/slice/u32"
+import Vec from "std/collections/vec"
 import span_merge from "../../nexus/nexus"
 import span_of_hir, set_span from "./common"
+import add_list from "./common"
 import parse_expr from "../parser"
+import parse_ident from "./ident"
 
 parse_if :: fn(p &Parser) u32 {
     t := token
@@ -39,6 +42,60 @@ parse_while :: fn(p &Parser) u32 {
 
     node := p.hir.push(k.k_while, cond, body, hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
+}
+
+parse_for :: fn(p &Parser) u32 {
+    t := token
+    k := hir_kind
+    sp_start := curr_span(p)
+    bump(p)
+    env_mark := p.env.mark()
+
+    vars := Vec(u32).new()
+    first := parse_ident(p)
+    first_name := p.hir.lhs(first)
+    first_sym := p.db.alloc_local_symbol(p.file_id, first_name, first)
+    p.env.define(first_name, first_sym)
+    vars.push(first)
+    while optional(p, t.comma) {
+        name := parse_ident(p)
+        name_id := p.hir.lhs(name)
+        sym := p.db.alloc_local_symbol(p.file_id, name_id, name)
+        p.env.define(name_id, sym)
+        vars.push(name)
+    }
+
+    if not expect(p, t.kw_in) {
+        parse_error_at(p, c"expected 'in' after for variables", curr_span(p))
+    }
+
+    iters := Vec(u32).new()
+    iters.push(parse_expr(p, 0 as u8))
+    while optional(p, t.comma) {
+        iters.push(parse_expr(p, 0 as u8))
+    }
+    if vars.len != iters.len {
+        parse_error_at(p, c"for requires one iterator for each loop variable", curr_span(p))
+    }
+
+    if peek(p) != t.o_brace {
+        parse_error_at(p, c"expected '{' after for iterators", curr_span(p))
+    }
+    vars_id := add_list(p, &vars)
+    iters_id := add_list(p, &iters)
+    vars.destroy()
+    iters.destroy()
+
+    node := p.hir.push(k.k_for, vars_id, iters_id, hir_none())
+    set_span(p, node, sp_start)
+
+    body := parse_expr(p, 0 as u8)
+    p.env.reset(env_mark)
+
+    sp_end := span_of_hir(p, body)
+    p.hir.set_extra(node, body)
+    set_span(p, node, span_merge(sp_start, sp_end))
+    node
 }
 
 parse_block :: fn(p &Parser) u32 {

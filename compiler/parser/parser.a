@@ -4,7 +4,7 @@ import Parser, is_eof, peek, bump, peek_n, peek_preceded_by_newline, curr_span, 
 import is_soft, bp_from_infix from "./prec"
 import parse_lit_int, parse_float, parse_str, parse_char, parse_cstr, parse_true, parse_false from "./handlers/lit"
 import parse_ident from "./handlers/ident"
-import parse_if, parse_while, parse_block, parse_return, parse_break, parse_cont from "./handlers/control"
+import parse_if, parse_while, parse_for, parse_block, parse_return, parse_break, parse_cont from "./handlers/control"
 import parse_unary, parse_binary, parse_assign from "./handlers/op"
 import parse_paren, parse_call, parse_fn from "./handlers/fn"
 import parse_binding, parse_var_decl from "./handlers/var"
@@ -58,6 +58,7 @@ dispatch_prefix :: fn(p &Parser, min_bp u8) u32 {
 
     if tk == t.kw_if      { ret parse_if(p) }
     if tk == t.kw_while   { ret parse_while(p) }
+    if tk == t.kw_for     { ret parse_for(p) }
     if tk == t.kw_break   { ret parse_break(p) }
     if tk == t.kw_cont    { ret parse_cont(p) }
     if tk == t.kw_ret     { ret parse_return(p) }

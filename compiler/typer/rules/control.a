@@ -6,6 +6,8 @@ import slot_none from "../../unify"
 import check_value from "./common"
 import synth_type_node from "./var"
 import VecU32 from "std/vec/u32"
+import Str from "std/string"
+import id_none from "../../nexus/pool"
 import fall from "std/sys"
 
 print :: fn(s &u8) unit
@@ -164,6 +166,81 @@ vec_u32_contains :: fn(v &VecU32, value u32) bool {
         i = i + 1
     }
     false
+}
+
+iterator_item_type :: fn(eng &Engine, ty u32, id u32) u32 {
+    db := &(*eng).nexus
+    types := &(*db).types
+    if (ty == ty_id_none()) or (types.kind(ty) != ty_kind().nominal) {
+        match_error(db, c"for expression is not an Iterator", id)
+    }
+    name_id := db.interner.intern(Str.of("Iterator"))
+    iterator_sym := db.find_symbol(db.core_prelude, name_id)
+    origin := types.nominal_origin(ty)
+    creator := types.get_nominal_creator_sym(origin)
+    if (iterator_sym == id_none()) or (db.resolve_sym(creator) != db.resolve_sym(iterator_sym)) {
+        match_error(db, c"for expression is not an Iterator", id)
+    }
+    args := types.get_nominal_creator_args(origin)
+    if args.len != 1 { match_error(db, c"Iterator type has no item type", id) }
+    *(args.ptr + 0)
+}
+
+prepare_for_bindings :: fn(eng &Engine, start u32, len u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    types := &(*db).types
+    unify := &(*db).unify
+    i := start
+    while i < len {
+        if tbl.kind(i) != hir_kind.k_for {
+            i = i + 1
+            cont
+        }
+        vars := db.get_list(tbl.lhs(i))
+        iters := db.get_list(tbl.rhs(i))
+        j: u64 = 0
+        while j < vars.len {
+            iter := *(iters.ptr + j)
+            iter_slot := unify.get_slot(iter)
+            if iter_slot != slot_none() {
+                iter_ty := unify.resolve_type_deep(types, iter_slot)
+                item_ty := iterator_item_type(eng, iter_ty, iter)
+                var_node := *(vars.ptr + j)
+                db.set_const_type(var_node, item_ty)
+                var_slot := unify.get_slot(var_node)
+                if var_slot == slot_none() { var_slot = unify.new_slot(var_node) }
+                unify.bind_type(types, var_slot, item_ty)
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+}
+
+synth_for :: fn(eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    types := &(*db).types
+    unify := &(*db).unify
+    slot := unify.new_slot(id)
+    vars := db.get_list(tbl.lhs(id))
+    iters := db.get_list(tbl.rhs(id))
+    i: u64 = 0
+    while i < iters.len {
+        iter := *(iters.ptr + i)
+        iter_slot := unify.get_slot(iter)
+        if iter_slot == slot_none() { match_error(db, c"for iterator type is unresolved", iter) }
+        iter_ty := unify.resolve_type_deep(types, iter_slot)
+        item_ty := iterator_item_type(eng, iter_ty, iter)
+        var_node := *(vars.ptr + i)
+        var_slot := unify.get_slot(var_node)
+        if var_slot == slot_none() { var_slot = unify.new_slot(var_node) }
+        db.set_const_type(var_node, item_ty)
+        unify.bind_type(types, var_slot, item_ty)
+        i = i + 1
+    }
+    unify.bind_type(types, slot, ty_id_unit())
 }
 
 synth_block :: fn(db &Nexus, tbl &HirTable, id u32) {

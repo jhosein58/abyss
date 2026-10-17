@@ -1,4 +1,5 @@
 import malloc, realloc, free, mem_copy from "../mem.a"
+import Iterator as Iter from "core/iterator.a"
 
 
 Vec :: fn(T type) type {
@@ -123,6 +124,20 @@ Vec :: fn(T type) type {
         
             self.len = last_idx
             removed
+        }
+
+        iter :: fn(self &Self) Iter(T) {
+            .{ ptr: self.ptr, len: self.len, index: 0 }
+        }
+
+        collect :: fn(iter Iter(T)) Self {
+            result := Self.new()
+            while true {
+                item := iter.next()
+                if item.is_none() { break }
+                result.push(item.unwrap())
+            }
+            result
         }
     }
 }
