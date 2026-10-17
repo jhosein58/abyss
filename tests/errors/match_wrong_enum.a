@@ -1,0 +1,13 @@
+Color :: enum { red, green }
+Other :: enum { foo }
+
+pick :: fn(c Color) u32 {
+    match c {
+        Other.foo { 1 }
+        else { 2 }
+    }
+}
+
+main :: fn() {
+    pick(Color.red)
+}

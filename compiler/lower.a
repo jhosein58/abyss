@@ -718,6 +718,9 @@ lower_match_condition :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32
         pat := *(patterns.ptr + i)
         if (&(*db).types).kind(value_ty) == ty_kind().enum_ {
             name_id := tbl.lhs(pat)
+            if tbl.kind(pat) == hir_kind.member {
+                name_id = tbl.lhs(tbl.rhs(pat))
+            }
             val := (&(*db).types).enum_variant_val(value_ty, name_id)
             enum_name := ccg.type_str(&(*db).types, arena, value_ty)
             fmt.cstr(c"(").str(value_str).cstr(c" == ((").str(enum_name).cstr(c")").uint32(val).cstr(c"))")
@@ -739,6 +742,7 @@ lower_match_binding :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, 
     if sym == id_none() { ret }
     bind_ty := get_node_type(db, binder)
     if bind_ty == ty_id_none() { ret }
+    add_type_to_queue(db, bind_ty, type_queue)
     value_str := lower_expr(db, ccg, arena, value_id, visited, queue, type_queue)
     patterns := db.get_list(tbl.lhs(arm))
     if ((&(*db).types).kind(value_ty) == ty_kind().union_) and (patterns.len == 1) {

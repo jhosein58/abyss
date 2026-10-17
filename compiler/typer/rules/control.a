@@ -57,6 +57,14 @@ synth_match :: fn(eng &Engine, id u32) {
             pat := *(patterns.ptr + p_i)
             if value_kind == ty_kind().enum_ {
                 name_id := tbl.lhs(pat)
+                if tbl.kind(pat) == hir_kind.member {
+                    lhs_node := tbl.lhs(pat)
+                    lhs_ty := synth_type_node(eng, lhs_node)
+                    if (lhs_ty != ty_id_none()) and (lhs_ty != value_ty) {
+                        match_error(db, c"enum variant does not belong to the matched enum type", pat)
+                    }
+                    name_id = tbl.lhs(tbl.rhs(pat))
+                }
                 if not types.enum_has_variant(value_ty, name_id) { match_error(db, c"match pattern is not an enum variant", pat) }
                 if vec_u32_contains(&covered, name_id) { match_error(db, c"match pattern is duplicated", pat) }
                 covered.push(name_id)
@@ -75,8 +83,11 @@ synth_match :: fn(eng &Engine, id u32) {
             binder = tbl.extra(arm)
             if binder != hir_none() {
                 bind_ty := value_ty
-                if (value_kind == ty_kind().union_) and (patterns.len == 1) {
-                    bind_ty = synth_type_node(eng, *(patterns.ptr + 0))
+                if patterns.len == 1 {
+                    pat_ty := synth_type_node(eng, *(patterns.ptr + 0))
+                    if pat_ty != ty_id_none() {
+                        bind_ty = pat_ty
+                    }
                 }
                 db.set_const_type(binder, bind_ty)
                 bind_slot := unify.get_slot(binder)
@@ -133,10 +144,30 @@ prepare_match_bindings :: fn(eng &Engine, start u32, len u32) {
         value_ty := ty_id_none()
         if value_slot != slot_none() { value_ty = unify.resolve_type_deep(types, value_slot) }
         if value_ty == ty_id_none() {
-            i = i + 1
-            cont
+            if tbl.kind(value) == hir_kind.ident {
+                sym_id := db.get_hir_symbol(value)
+                if sym_id != id_none() {
+                    decl_hir := db.get_sym_hir(sym_id)
+                    if decl_hir != id_none() {
+                        ty_node := tbl.rhs(decl_hir)
+                        if ty_node != hir_none() {
+                            value_ty = synth_type_node(eng, ty_node)
+                        } else {
+                            val_node := tbl.extra(decl_hir)
+                            if val_node != hir_none() {
+                                synth_node(eng, val_node)
+                                v_slot := unify.get_slot(val_node)
+                                if v_slot != slot_none() { value_ty = unify.resolve_type_deep(types, v_slot) }
+                            }
+                        }
+                    }
+                }
+            } else {
+                synth_node(eng, value)
+                value_slot = unify.get_slot(value)
+                if value_slot != slot_none() { value_ty = unify.resolve_type_deep(types, value_slot) }
+            }
         }
-        value_kind := types.kind(value_ty)
         arms := db.get_list(tbl.rhs(i))
         a: u64 = 0
         while a < arms.len {
@@ -148,13 +179,18 @@ prepare_match_bindings :: fn(eng &Engine, start u32, len u32) {
             }
             patterns := db.get_list(tbl.lhs(arm))
             bind_ty := value_ty
-            if (value_kind == ty_kind().union_) and (patterns.len == 1) {
-                bind_ty = synth_type_node(eng, *(patterns.ptr + 0))
+            if patterns.len == 1 {
+                pat_ty := synth_type_node(eng, *(patterns.ptr + 0))
+                if pat_ty != ty_id_none() {
+                    bind_ty = pat_ty
+                }
             }
-            db.set_const_type(binder, bind_ty)
-            bind_slot := unify.get_slot(binder)
-            if bind_slot == slot_none() { bind_slot = unify.new_slot(binder) }
-            unify.bind_type(types, bind_slot, bind_ty)
+            if bind_ty != ty_id_none() {
+                db.set_const_type(binder, bind_ty)
+                bind_slot := unify.get_slot(binder)
+                if bind_slot == slot_none() { bind_slot = unify.new_slot(binder) }
+                unify.bind_type(types, bind_slot, bind_ty)
+            }
             a = a + 1
         }
         i = i + 1

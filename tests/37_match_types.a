@@ -1,0 +1,67 @@
+import print from "std/io.a"
+import Vec from "std/collections/vec.a"
+
+print_i32 :: fn(v i32) unit
+print_u64 :: fn(v u64) unit
+
+Color :: enum { red, green, blue }
+
+Point :: struct {
+    x i32
+    y i32
+}
+
+match_enum_qualified :: fn(c Color) u32 {
+    match c {
+        Color.red { 100 }
+        Color.green, Color.blue { 200 }
+    }
+}
+
+match_union_generic :: fn(u Vec(i32) | i32) u64 {
+    match val in u {
+        Vec(i32) { val.len }
+        i32 { val as u64 }
+    }
+}
+
+match_union_struct :: fn(u Point | i32) i32 {
+    match val in u {
+        Point { val.x + val.y }
+        i32 { val }
+    }
+}
+
+match_union_ptr :: fn(u &i32 | i32) i32 {
+    match val in u {
+        &i32 { *val }
+        i32 { val }
+    }
+}
+
+main :: fn() {
+    print(match_enum_qualified(Color.red) as u32)
+    print(c"\n")
+    print(match_enum_qualified(Color.blue) as u32)
+    print(c"\n")
+
+    p: Point = .{ x: 15, y: 25 }
+    u_struct: Point | i32 = p
+    print_i32(match_union_struct(u_struct))
+    print(c"\n")
+
+    num := 99 as i32
+    u_ptr: &i32 | i32 = &num
+    print_i32(match_union_ptr(u_ptr))
+    print(c"\n")
+
+    v := Vec(i32).new()
+    v.push(1)
+    v.push(2)
+    v.push(3)
+    u_vec: Vec(i32) | i32 = v
+    print_u64(match_union_generic(u_vec))
+    print(c"\n")
+
+    v.destroy()
+}
