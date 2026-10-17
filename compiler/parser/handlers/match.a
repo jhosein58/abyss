@@ -3,7 +3,6 @@ import hir_kind, hir_none from "../../hir"
 import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core"
 import Vec from "std/collections/vec"
 import span_merge from "../../nexus/nexus"
-import id_none from "../../nexus/pool"
 import add_list, set_span, skip_separators, check_delimiter from "./common"
 import parse_ident from "./ident"
 import parse_expr from "../parser"
@@ -16,19 +15,17 @@ parse_match :: fn(p &Parser) u32 {
 
     first := parse_expr(p, 0 as u8)
     value := first
-    type_hint := hir_none()
     binder_name := hir_none()
     binding_mode := false
     if optional(p, t.kw_in) {
         second := parse_expr(p, 0 as u8)
-        if p.db.get_hir_symbol(first) == id_none() {
-            value = second
-            binder_name = p.hir.push(k.match_binding, p.hir.lhs(first), hir_none(), hir_none())
-            set_span(p, binder_name, p.db.get_hir_span(first))
-            binding_mode = true
-        } else {
-            type_hint = second
+        if p.hir.kind(first) != k.ident {
+            parse_error_at(p, c"match binding must be an identifier", p.db.get_hir_span(first))
         }
+        value = second
+        binder_name = p.hir.push(k.match_binding, p.hir.lhs(first), hir_none(), hir_none())
+        set_span(p, binder_name, p.db.get_hir_span(first))
+        binding_mode = true
     }
     if not expect(p, t.o_brace) {
         parse_error_at(p, c"expected '{' after match value", curr_span(p))
@@ -84,6 +81,6 @@ parse_match :: fn(p &Parser) u32 {
     sp_end := prev_span(p)
     arms_id := add_list(p, &arms)
     arms.destroy()
-    node := p.hir.push(k.k_match, value, arms_id, type_hint)
+    node := p.hir.push(k.k_match, value, arms_id, binder_name)
     set_span(p, node, span_merge(sp_start, sp_end))
 }

@@ -13,7 +13,7 @@ pick_color :: fn(c Color) u32 {
 }
 
 pick_union :: fn(v i32 | bool) u32 {
-    match v in i32 | bool {
+    match v {
         i32 { 1 }
         bool { 2 }
     }
