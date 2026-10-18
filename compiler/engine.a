@@ -16,6 +16,7 @@ import fall from "std/sys"
 
 import CCodeGen, CCodeGen_new, CCodeGen_destroy, CCodeGen_abyss_main, CCodeGen_finish from "./codegen"
 import lower_function from "./lower"
+import HashSet from "std/collections/hash_set.a"
 
 print :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit 
@@ -207,7 +208,7 @@ Engine :: struct {
     }
 
     compile :: fn(self &Self, arena &Arena, sym_id u32) {
-        visited := Vec(u32).new()
+        visited := HashSet(u32).new()
         lower_function(self, arena, sym_id, &visited)
         visited.destroy()
     }

@@ -13,6 +13,7 @@ import type_has_infer, tyck_mono_function, finalize_inferred_types from "./typer
 import func_has_self from "./typer/rules/fn"
 import Engine from "./engine"
 import Worklist from "std/collections/worklist.a"
+import HashSet from "std/collections/hash_set.a"
 
 print :: fn(s &u8) unit
 
@@ -125,7 +126,7 @@ resolve_call_symbol :: fn(db &Nexus, id u32, callee_id u32, queue &Vec(u32)) u32
     target_sym
 }
 
-emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, callee_id u32, call_sym u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, callee_id u32, call_sym u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     if db.hir.kind(callee_id) != hir_kind.member { ret Str.empty() }
     callee_lhs := db.hir.lhs(callee_id)
     lhs_ty := db.get_node_type(callee_lhs)
@@ -189,7 +190,7 @@ emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, calle
     lhs_val
 }
 
-lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     name_id := db.hir.lhs(id)
     name := db.interner.get(name_id)
     args := db.get_list(db.hir.rhs(id))
@@ -238,7 +239,7 @@ lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited
     Str.empty()
 }
 
-lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     match db.hir.kind(id) {
         builtin_call { ret lower_builtin_call(db, ccg, arena, id, visited, queue, type_queue) }
         lit_int { ret ccg.expr_int(arena, db.hir.lhs(id)) }
@@ -565,7 +566,7 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ve
     }
 }
 
-lower_body :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_body :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     if db.hir.kind(id) != hir_kind.block {
         ret lower_expr(db, ccg, arena, id, visited, queue, type_queue)
     }
@@ -590,7 +591,7 @@ lower_body :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u3
     last_val
 }
 
-lower_scoped_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, expected u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_scoped_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, expected u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     mark := ccg.begin_expr()
     value := lower_body(db, ccg, arena, id, visited, queue, type_queue)
     kind := db.types.kind(expected)
@@ -605,7 +606,7 @@ lower_scoped_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, expected
     ccg.end_expr(arena, mark, value)
 }
 
-lower_match_condition :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, value_ty u32, arm u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_match_condition :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, value_ty u32, arm u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     patterns := db.get_list(db.hir.lhs(arm))
     if patterns.len == 0 { ret Str.of("1") }
     value_str := lower_expr(db, ccg, arena, value_id, visited, queue, type_queue)
@@ -632,7 +633,7 @@ lower_match_condition :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32
     fmt.as_str()
 }
 
-lower_match_binding :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, value_ty u32, arm u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) {
+lower_match_binding :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, value_ty u32, arm u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) {
     binder := db.hir.extra(arm)
     if binder == hir_none() { ret }
     sym := db.get_hir_symbol(binder)
@@ -656,7 +657,7 @@ lower_match_binding :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, 
     ccg.create_variable(name, ty_str, value_str, true)
 }
 
-lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     value_id := db.hir.lhs(id)
     value_ty := db.get_node_type(value_id)
     arms := db.get_list(db.hir.rhs(id))
@@ -738,7 +739,7 @@ for_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, call_id u32, s
     receiver
 }
 
-lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     vars := db.get_list(db.hir.lhs(id))
     iters := db.get_list(db.hir.rhs(id))
     ptr_id := db.interner.intern(Str.of("ptr"))
@@ -844,7 +845,7 @@ lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32
     Str.empty()
 }
 
-lower_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     val_str := lower_expr_raw(db, ccg, arena, id, visited, queue, type_queue)
     if val_str.len == 0 { ret val_str }
     if db.has_union_coerce(id) {
@@ -948,7 +949,7 @@ emit_func_body_return :: fn(ccg &CCodeGen, db &Nexus, ret_ty u32, body_val Str) 
     }
 }
 
-lower_one_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &Vec(u32), queue &Vec(u32), type_queue &Vec(u32)) {
+lower_one_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) {
     if sym_id == id_none() { ret }
     db := &eng.nexus
     ccg := &eng.ccg
@@ -996,7 +997,7 @@ lower_one_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &Vec(u32
     if is_mono { db.set_const_type(func_id, saved_orig_ty) }
 }
 
-lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &Vec(u32)) {
+lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet(u32)) {
     if sym_id == id_none() {
         ret
     }
@@ -1010,8 +1011,7 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &Vec(u32)) {
     queue.push(sym_id)
 
     for q_sym in Worklist(u32).new(&queue) {
-        if not visited.contains(q_sym) {
-            visited.push(q_sym)
+        if visited.insert(q_sym) {
             lower_one_function(eng, arena, q_sym, visited, &queue, &type_queue)
         }
     }
