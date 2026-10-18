@@ -1,0 +1,69 @@
+import HashSet from "std/collections/hash_set.a"
+import HashMap from "std/collections/hash_map.a"
+
+print :: fn(s &u8) unit
+print_u32 :: fn(v u32) unit
+print_bool :: fn(b bool) unit
+
+println_u32 :: fn(v u32) {
+    print_u32(v)
+    print(c"\n")
+}
+
+println_bool :: fn(b bool) {
+    print_bool(b)
+    print(c"\n")
+}
+
+main :: fn() {
+    set := HashSet(u32).new()
+    println_bool(set.is_empty())
+    println_bool(set.contains(42 as u32))
+    println_bool(set.insert(42 as u32))
+    println_bool(set.contains(42 as u32))
+    println_bool(set.insert(42 as u32))
+    println_u32(set.len as u32)
+    println_bool(set.remove(42 as u32))
+    println_bool(set.contains(42 as u32))
+    println_bool(set.is_empty())
+
+    i: u32 = 0
+    while i < 100 {
+        set.insert(i)
+        i = i + 1
+    }
+    println_u32(set.len as u32)
+    println_bool(set.contains(50 as u32))
+    println_bool(set.contains(200 as u32))
+    set.clear()
+    println_bool(set.is_empty())
+    set.destroy()
+
+    map := HashMap(u32, u32).new()
+    println_bool(map.is_empty())
+    println_bool(map.contains_key(10 as u32))
+    println_bool(map.insert(10 as u32, 100 as u32))
+    println_bool(map.contains_key(10 as u32))
+    println_bool(map.insert(10 as u32, 200 as u32))
+    val_ptr := map.get(10 as u32)
+    if val_ptr != (0 as &u32) {
+        println_u32(*val_ptr)
+    }
+    println_u32(map.len as u32)
+    println_bool(map.remove(10 as u32))
+    println_bool(map.contains_key(10 as u32))
+
+    j: u32 = 0
+    while j < 50 {
+        map.insert(j, j * 10)
+        j = j + 1
+    }
+    println_u32(map.len as u32)
+    val2 := map.get(25 as u32)
+    if val2 != (0 as &u32) {
+        println_u32(*val2)
+    }
+    map.clear()
+    println_bool(map.is_empty())
+    map.destroy()
+}

@@ -1,3 +1,6 @@
+import Iterator as Iter from "iterator.a"
+import RefIterator as RefIter from "ref_iterator.a"
+
 Slice :: fn(T type) type {
     struct {
         ptr &T
@@ -26,6 +29,14 @@ Slice :: fn(T type) type {
                 ptr: (self.ptr + start),
                 len: len
             }
+        }
+
+        iter :: fn(self &Self) Iter(T) {
+            .{ ptr: self.ptr, len: self.len, index: 0 }
+        }
+
+        iter_ref :: fn(self &Self) RefIter(T) {
+            .{ ptr: self.ptr, len: self.len, index: 0 }
         }
     }
 }

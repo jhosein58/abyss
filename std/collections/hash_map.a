@@ -1,0 +1,174 @@
+import malloc, free, mem_set from "../mem.a"
+
+HashMap :: fn(K type, V type) type {
+    struct {
+        keys &K
+        values &V
+        occupied &bool
+        len u64
+        cap u64
+
+        new :: fn() Self {
+            Self.with_cap(16)
+        }
+
+        with_cap :: fn(initial_cap u64) Self {
+            cap := initial_cap
+            if cap < 16 { cap = 16 }
+            k_mem := malloc(cap * @sizeof(K)) as &K
+            v_mem := malloc(cap * @sizeof(V)) as &V
+            o_mem := malloc(cap * @sizeof(bool)) as &bool
+            mem_set(o_mem as &u8, 0 as u8, cap * @sizeof(bool))
+            .{
+                keys: k_mem,
+                values: v_mem,
+                occupied: o_mem,
+                len: 0,
+                cap: cap
+            }
+        }
+
+        destroy :: fn(self &Self) {
+            free(self.keys as &u8)
+            free(self.values as &u8)
+            free(self.occupied as &u8)
+            self.keys = 0 as &K
+            self.values = 0 as &V
+            self.occupied = 0 as &bool
+            self.len = 0
+            self.cap = 0
+        }
+
+        hash_key :: fn(val &K) u64 {
+            bytes := val as &u8
+            h: u64 = 14695981039346656037
+            i: u64 = 0
+            while i < @sizeof(K) {
+                byte := *(bytes + i) as u64
+                h = (h ^ byte) * 1099511628211
+                i = i + 1
+            }
+            h
+        }
+
+        keys_equal :: fn(a &K, b &K) bool {
+            pa := a as &u8
+            pb := b as &u8
+            i: u64 = 0
+            while i < @sizeof(K) {
+                if *(pa + i) != *(pb + i) { ret false }
+                i = i + 1
+            }
+            true
+        }
+
+        contains_key :: fn(self &Self, key K) bool {
+            if self.cap == 0 { ret false }
+            mask := self.cap - 1
+            idx := Self.hash_key(&key) & mask
+            while *(self.occupied + idx) {
+                if Self.keys_equal(self.keys + idx, &key) {
+                    ret true
+                }
+                idx = (idx + 1) & mask
+            }
+            false
+        }
+
+        get :: fn(self &Self, key K) &V {
+            if self.cap == 0 { ret 0 as &V }
+            mask := self.cap - 1
+            idx := Self.hash_key(&key) & mask
+            while *(self.occupied + idx) {
+                if Self.keys_equal(self.keys + idx, &key) {
+                    ret self.values + idx
+                }
+                idx = (idx + 1) & mask
+            }
+            0 as &V
+        }
+
+        insert :: fn(self &Self, key K, val V) bool {
+            if (self.len + 1) * 2 >= self.cap {
+                self.grow()
+            }
+            mask := self.cap - 1
+            idx := Self.hash_key(&key) & mask
+            while *(self.occupied + idx) {
+                if Self.keys_equal(self.keys + idx, &key) {
+                    *(self.values + idx) = val
+                    ret false
+                }
+                idx = (idx + 1) & mask
+            }
+            *(self.keys + idx) = key
+            *(self.values + idx) = val
+            *(self.occupied + idx) = true
+            self.len = self.len + 1
+            true
+        }
+
+        remove :: fn(self &Self, key K) bool {
+            if self.cap == 0 { ret false }
+            mask := self.cap - 1
+            idx := Self.hash_key(&key) & mask
+            while *(self.occupied + idx) {
+                if Self.keys_equal(self.keys + idx, &key) {
+                    *(self.occupied + idx) = false
+                    self.len = self.len - 1
+                    ret true
+                }
+                idx = (idx + 1) & mask
+            }
+            false
+        }
+
+        is_empty :: fn(self &Self) bool {
+            self.len == 0
+        }
+
+        clear :: fn(self &Self) {
+            if self.cap > 0 {
+                mem_set(self.occupied as &u8, 0 as u8, self.cap * @sizeof(bool))
+                self.len = 0
+            }
+        }
+
+        grow :: fn(self &Self) {
+            old_keys := self.keys
+            old_values := self.values
+            old_occ := self.occupied
+            old_cap := self.cap
+
+            new_cap := old_cap * 2
+            self.keys = malloc(new_cap * @sizeof(K)) as &K
+            self.values = malloc(new_cap * @sizeof(V)) as &V
+            self.occupied = malloc(new_cap * @sizeof(bool)) as &bool
+            mem_set(self.occupied as &u8, 0 as u8, new_cap * @sizeof(bool))
+            self.cap = new_cap
+            self.len = 0
+
+            mask := new_cap - 1
+            i: u64 = 0
+            while i < old_cap {
+                if *(old_occ + i) {
+                    k := *(old_keys + i)
+                    v := *(old_values + i)
+                    idx := Self.hash_key(&k) & mask
+                    while *(self.occupied + idx) {
+                        idx = (idx + 1) & mask
+                    }
+                    *(self.keys + idx) = k
+                    *(self.values + idx) = v
+                    *(self.occupied + idx) = true
+                    self.len = self.len + 1
+                }
+                i = i + 1
+            }
+
+            free(old_keys as &u8)
+            free(old_values as &u8)
+            free(old_occ as &u8)
+        }
+    }
+}
