@@ -6,7 +6,7 @@ import Str from "std/string"
 import Fmt from "std/fmt"
 import Arena from "std/allocator"
 import SliceU32 from "std/slice/u32"
-import TypeStorage, ty_kind, ty_id_none, ty_id_type, ty_id_unit from "./types"
+import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_unit from "./types"
 import topo_sort from "./topo_sort"
 import fall from "std/sys"
 import type_has_infer, tyck_mono_function, finalize_inferred_types from "./typer/tyck"
@@ -23,7 +23,7 @@ get_node_type :: fn(db &Nexus, id u32) u32 {
 
 iterator_is_ref :: fn(db &Nexus, ty_id u32) bool {
     types := &db.types
-    if (ty_id == ty_id_none()) or (types.kind(ty_id) != ty_kind().nominal) { ret false }
+    if (ty_id == ty_id_none()) or (types.kind(ty_id) != TyKind.nominal) { ret false }
     name_id := db.interner.intern(Str.of("RefIterator"))
     ref_sym := db.find_symbol(db.core_prelude, name_id)
     origin := types.nominal_origin(ty_id)
@@ -40,7 +40,7 @@ is_lvalue :: fn(db &Nexus, id u32) bool {
     if kind == hir_kind.member {
         lhs := db.hir.lhs(id)
         if lhs == hir_none() { ret true }
-        if db.types.kind(db.get_node_type(lhs)) == ty_kind().ptr { ret true }
+        if db.types.kind(db.get_node_type(lhs)) == TyKind.ptr { ret true }
         ret is_lvalue(db, lhs)
     }
     false
@@ -49,10 +49,9 @@ is_lvalue :: fn(db &Nexus, id u32) bool {
 add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
     if ty_id == ty_id_none() { ret }
     if type_has_infer(&db.types, ty_id) { ret }
-    k := ty_kind()
     kind := db.types.kind(ty_id)
 
-    if (kind == k.struct_) or (kind == k.nominal) {
+    if (kind == TyKind.struct_) or (kind == TyKind.nominal) {
         if not queue.contains(ty_id) {
             queue.push(ty_id)
             fields := db.types.get_struct_fields(ty_id)
@@ -64,10 +63,10 @@ add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
                 i = i + 1
             }
         }
-    } else if kind == k.ptr {
+    } else if kind == TyKind.ptr {
         inner := db.types.payload(ty_id)
         add_type_to_queue(db, inner, queue)
-    } else if kind == k.func {
+    } else if kind == TyKind.func {
         if not queue.contains(ty_id) {
             queue.push(ty_id)
             ret_ty := db.types.func_return(ty_id)
@@ -79,7 +78,7 @@ add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
                 i = i + 1
             }
         }
-    } else if kind == k.union_ {
+    } else if kind == TyKind.union_ {
         if not queue.contains(ty_id) {
             queue.push(ty_id)
             members := db.types.union_members(ty_id)
@@ -89,7 +88,7 @@ add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
                 i = i + 1
             }
         }
-    } else if kind == k.enum_ {
+    } else if kind == TyKind.enum_ {
         if not queue.contains(ty_id) {
             queue.push(ty_id)
             backing := db.types.enum_backing(ty_id)
@@ -145,21 +144,21 @@ emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, calle
     if func_ty == ty_id_none() { func_ty = db.get_const_type(id) }
     if func_ty == ty_id_none() { func_ty = db.get_node_type(callee_id) }
     if func_ty == ty_id_none() { func_ty = db.get_node_type(func_node) }
-    if (func_ty == ty_id_none()) or (db.types.kind(func_ty) != ty_kind().func) { ret Str.empty() }
+    if (func_ty == ty_id_none()) or (db.types.kind(func_ty) != TyKind.func) { ret Str.empty() }
     params := db.types.func_params(func_ty)
     if params.len == 0 { ret Str.empty() }
     p0_ty := *(params.ptr + 0)
 
     p_depth: u32 = 0
     t_p := p0_ty
-    while db.types.kind(t_p) == ty_kind().ptr {
+    while db.types.kind(t_p) == TyKind.ptr {
         t_p = db.types.payload(t_p)
         p_depth = p_depth + 1
     }
 
     r_depth: u32 = 0
     t_r := lhs_ty
-    while db.types.kind(t_r) == ty_kind().ptr {
+    while db.types.kind(t_r) == TyKind.ptr {
         t_r = db.types.payload(t_r)
         r_depth = r_depth + 1
     }
@@ -212,7 +211,7 @@ lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited
         val_node := *(args.ptr + 0)
         target_ty := db.get_const_type(id)
         val_ty := db.get_node_type(val_node)
-        if db.types.kind(val_ty) == ty_kind().union_ {
+        if db.types.kind(val_ty) == TyKind.union_ {
             if not db.types.union_contains(val_ty, target_ty) {
                 ret ccg.expr_bool(false)
             }
@@ -281,7 +280,7 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ha
             ty := db.get_node_type(id)
             if ty == ty_id_type() { ret Str.empty() }
             sym_id := db.get_hir_symbol(id)
-            if db.types.kind(ty) == ty_kind().func {
+            if db.types.kind(ty) == TyKind.func {
                 if sym_id != id_none() {
                     real_sym := db.resolve_sym(sym_id)
                     if not db.types.func_has_type_param(ty) {
@@ -315,7 +314,7 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ha
             sym_id := db.get_hir_symbol(ident_id)
             var_ty := db.get_node_type(ident_id)
             if (var_ty == ty_id_type()) or db.types.func_has_type_param(var_ty) { ret Str.empty() }
-            if db.types.kind(var_ty) == ty_kind().unit {
+            if db.types.kind(var_ty) == TyKind.unit {
                 print(c"\n[type error] variable cannot have unit type\n       --> ")
                 db.print_loc(id)
                 print(c"\n")
@@ -432,7 +431,7 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ha
         cast {
             lhs_node := db.hir.lhs(id)
             lhs_ty := db.get_node_type(lhs_node)
-            if db.types.kind(lhs_ty) == ty_kind().union_ {
+            if db.types.kind(lhs_ty) == TyKind.union_ {
                 target_ty := db.get_const_type(db.hir.rhs(id))
                 member_idx := db.types.union_member_index(lhs_ty, target_ty)
                 lhs_v := lower_expr(db, ccg, arena, lhs_node, visited, queue, type_queue)
@@ -448,8 +447,8 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ha
             if_ty := db.get_node_type(id)
             elseb_id := db.hir.extra(id)
             is_expr := (elseb_id != hir_none()) and (if_ty != ty_id_none()) and
-                       (db.types.kind(if_ty) != ty_kind().unit) and
-                       (db.types.kind(if_ty) != ty_kind().never)
+                       (db.types.kind(if_ty) != TyKind.unit) and
+                       (db.types.kind(if_ty) != TyKind.never)
             if is_expr {
                 cond_str := lower_expr(db, ccg, arena, db.hir.lhs(id), visited, queue, type_queue)
                 add_type_to_queue(db, if_ty, type_queue)
@@ -533,9 +532,9 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ha
                 fall()
             }
             lhs_ty := db.get_node_type(lhs_id)
-            if db.types.kind(lhs_ty) == ty_kind().type_ {
+            if db.types.kind(lhs_ty) == TyKind.type_ {
                 actual_ty := db.get_const_type(lhs_id)
-                if db.types.kind(actual_ty) == ty_kind().enum_ {
+                if db.types.kind(actual_ty) == TyKind.enum_ {
                     field_name_id := db.hir.lhs(rhs_id)
                     if db.types.enum_has_variant(actual_ty, field_name_id) {
                         var_val := db.types.enum_variant_val(actual_ty, field_name_id)
@@ -550,7 +549,7 @@ lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &Ha
             lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
             field_name_id := db.hir.lhs(rhs_id)
             depth: u32 = 0
-            while db.types.kind(lhs_ty) == ty_kind().ptr {
+            while db.types.kind(lhs_ty) == TyKind.ptr {
                 lhs_ty = db.types.payload(lhs_ty)
                 depth = depth + 1
             }
@@ -595,8 +594,8 @@ lower_scoped_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, expected
     mark := ccg.begin_expr()
     value := lower_body(db, ccg, arena, id, visited, queue, type_queue)
     kind := db.types.kind(expected)
-    if (expected != ty_id_none()) and (kind != ty_kind().unit) and (kind != ty_kind().never) {
-        if (value.len == 0) or (db.types.kind(db.get_node_type(id)) == ty_kind().never) {
+    if (expected != ty_id_none()) and (kind != TyKind.unit) and (kind != TyKind.never) {
+        if (value.len == 0) or (db.types.kind(db.get_node_type(id)) == TyKind.never) {
             ccg.expr(value)
             add_type_to_queue(db, expected, type_queue)
             ty := ccg.type_str(&db.types, arena, expected)
@@ -615,7 +614,7 @@ lower_match_condition :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32
     while i < patterns.len {
         if i > 0 { fmt.cstr(c" || ") }
         pat := *(patterns.ptr + i)
-        if db.types.kind(value_ty) == ty_kind().enum_ {
+        if db.types.kind(value_ty) == TyKind.enum_ {
             name_id := db.hir.lhs(pat)
             if db.hir.kind(pat) == hir_kind.member {
                 name_id = db.hir.lhs(db.hir.rhs(pat))
@@ -643,7 +642,7 @@ lower_match_binding :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, 
     add_type_to_queue(db, bind_ty, type_queue)
     value_str := lower_expr(db, ccg, arena, value_id, visited, queue, type_queue)
     patterns := db.get_list(db.hir.lhs(arm))
-    if (db.types.kind(value_ty) == ty_kind().union_) and (patterns.len == 1) {
+    if (db.types.kind(value_ty) == TyKind.union_) and (patterns.len == 1) {
         pat := *(patterns.ptr + 0)
         pat_ty := db.get_const_type(pat)
         idx := db.types.union_member_index(value_ty, pat_ty)
@@ -663,8 +662,8 @@ lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashS
     arms := db.get_list(db.hir.rhs(id))
     match_ty := db.get_node_type(id)
     is_expr := (match_ty != ty_id_none()) and
-               (db.types.kind(match_ty) != ty_kind().unit) and
-               (db.types.kind(match_ty) != ty_kind().never)
+               (db.types.kind(match_ty) != TyKind.unit) and
+               (db.types.kind(match_ty) != TyKind.never)
 
     if is_expr {
         result := ccg.expr_zero(arena, ccg.type_str(&db.types, arena, match_ty))
@@ -712,18 +711,18 @@ lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashS
 for_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, call_id u32, source_name Str, source_ty u32) Str {
     callee := db.hir.lhs(call_id)
     func_ty := db.get_node_type(callee)
-    if db.types.kind(func_ty) != ty_kind().func { ret source_name }
+    if db.types.kind(func_ty) != TyKind.func { ret source_name }
     params := db.types.func_params(func_ty)
     if params.len == 0 { ret source_name }
     expected := *(params.ptr + 0)
     expected_depth: u32 = 0
-    while db.types.kind(expected) == ty_kind().ptr {
+    while db.types.kind(expected) == TyKind.ptr {
         expected = db.types.payload(expected)
         expected_depth = expected_depth + 1
     }
     source_depth: u32 = 0
     source := source_ty
-    while db.types.kind(source) == ty_kind().ptr {
+    while db.types.kind(source) == TyKind.ptr {
         source = db.types.payload(source)
         source_depth = source_depth + 1
     }
@@ -941,7 +940,7 @@ queue_func_types :: fn(db &Nexus, func_ty u32, type_queue &Vec(u32)) {
 }
 
 emit_func_body_return :: fn(ccg &CCodeGen, db &Nexus, ret_ty u32, body_val Str) {
-    if db.types.kind(ret_ty) == ty_kind().unit {
+    if db.types.kind(ret_ty) == TyKind.unit {
         if body_val.len > 0 { ccg.expr(body_val) }
         ccg.gen_return(Str.empty(), false)
     } else if body_val.len > 0 {
@@ -1020,14 +1019,13 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet(u32
 
     for t in sorted {
         k := db.types.kind(t)
-        tk := ty_kind()
-        if (k == tk.struct_) or (k == tk.nominal) {
+        if (k == TyKind.struct_) or (k == TyKind.nominal) {
             ccg.define_struct(&db.types, arena, t)
-        } else if k == tk.func {
+        } else if k == TyKind.func {
             ccg.define_func_type(&db.types, arena, t)
-        } else if k == tk.union_ {
+        } else if k == TyKind.union_ {
             ccg.define_union(&db.types, arena, t)
-        } else if k == tk.enum_ {
+        } else if k == TyKind.enum_ {
             ccg.define_enum(&db.types, arena, t)
         }
     }

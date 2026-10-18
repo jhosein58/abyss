@@ -1,7 +1,7 @@
 import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../../hir"
 import Str from "std/string"
-import TypeStorage, ty_kind, ty_id_none, ty_id_type from "../../types"
+import TypeStorage, TyKind, ty_id_none, ty_id_type from "../../types"
 import UnifyStorage, slot_none from "../../unify"
 import fall from "std/sys"
 
@@ -76,46 +76,45 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         }
     }
 
-    kind := (&(*types)).kind(expected)
-    if kind == ty_kind().union_ {
-        val_ty := (unify_ptr).resolve_type_deep(types, slot)
+    kind := types.kind(expected)
+    if kind == TyKind.union_ {
+        val_ty := unify_ptr.resolve_type_deep(types, slot)
         if val_ty == expected { ret }
 
-        members := (&(*types)).union_members(expected)
+        members := types.union_members(expected)
         match_count: u32 = 0
         match_idx: u32 = 0
         match_member_ty := ty_id_none()
-        val_k := (&(*types)).kind(val_ty)
+        val_k := types.kind(val_ty)
         infer_count: u32 = 0
         infer_idx: u32 = 0
         infer_member := ty_id_none()
-        k := ty_kind()
 
         m_i: u64 = 0
         while m_i < members.len {
-            members = (&(*types)).union_members(expected)
+            members = types.union_members(expected)
             m_ty := *(members.ptr + m_i)
-            m_k := (&(*types)).kind(m_ty)
-            if m_k == ty_kind().infer {
-                resolved := unify_ptr.resolve_type_deep(types, (&(*types)).infer_slot(m_ty))
+            m_k := types.kind(m_ty)
+            if m_k == TyKind.infer {
+                resolved := unify_ptr.resolve_type_deep(types, types.infer_slot(m_ty))
                 if resolved == ty_id_none() {
                     infer_count = infer_count + 1
                     infer_idx = m_i as u32
                     infer_member = m_ty
                 } else {
                     m_ty = resolved
-                    m_k = (&(*types)).kind(m_ty)
+                    m_k = types.kind(m_ty)
                 }
             }
             matches := false
             if val_ty == m_ty {
                 matches = true
-            } else if val_k == k.untyped_int {
-                if (m_k == k.int) or (m_k == k.uint) {
+            } else if val_k == TyKind.untyped_int {
+                if (m_k == TyKind.int) or (m_k == TyKind.uint) {
                     matches = true
                 }
-            } else if val_k == k.untyped_float {
-                if m_k == k.float {
+            } else if val_k == TyKind.untyped_float {
+                if m_k == TyKind.float {
                     matches = true
                 }
             }
@@ -128,7 +127,7 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         }
 
         if (match_count == 0) and (infer_count == 1) {
-            unify_ptr.bind_type(types, (&(*types)).infer_slot(infer_member), val_ty)
+            unify_ptr.bind_type(types, types.infer_slot(infer_member), val_ty)
             match_count = 1
             match_idx = infer_idx
             match_member_ty = val_ty
@@ -137,8 +136,8 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         }
 
         if match_count == 1 {
-            if (val_k == k.untyped_int) or (val_k == k.untyped_float) {
-                (&(*db).unify).bind_type(&(*db).types, slot, match_member_ty)
+            if (val_k == TyKind.untyped_int) or (val_k == TyKind.untyped_float) {
+                db.unify.bind_type(&db.types, slot, match_member_ty)
             }
             result_slot := unify_ptr.new_slot(expr)
             unify_ptr.bind_type(types, result_slot, expected)
@@ -148,7 +147,7 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
 
         if match_count > 1 {
             print(c"\n\033[1;31m[type error]\033[0m ambiguous coercion into union '")
-            (&(*types)).print_type(expected)
+            types.print_type(expected)
             print(c"'\n       --> ")
             db.print_loc(expr)
             print(c"\n")
@@ -156,23 +155,23 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         }
 
         print(c"\n\033[1;31m[type error]\033[0m type '")
-        (&(*types)).print_type(val_ty)
+        types.print_type(val_ty)
         print(c"' is not a member of union '")
-        (&(*types)).print_type(expected)
+        types.print_type(expected)
         print(c"'\n       --> ")
         db.print_loc(expr)
         print(c"\n")
         fall()
     }
 
-    if ((tbl).kind(expr) == hir_kind.struct_init) and
-       ((kind == ty_kind().nominal) or (kind == ty_kind().struct_)) {
-        target := (&(*types)).get_struct_fields(expected)
-        names := db.get_list((tbl).lhs(expr))
-        values := db.get_list((tbl).rhs(expr))
+    if (tbl.kind(expr) == hir_kind.struct_init) and
+       ((kind == TyKind.nominal) or (kind == TyKind.struct_)) {
+        target := types.get_struct_fields(expected)
+        names := db.get_list(tbl.lhs(expr))
+        values := db.get_list(tbl.rhs(expr))
         if (names.len != target.len / 2) or (values.len != names.len) {
             print(c"\n\033[1;31m[type error]\033[0m struct literal has wrong number of fields for '")
-            (&(*types)).print_type(expected)
+            types.print_type(expected)
             print(c"'\n       --> ")
             db.print_loc(expr)
             print(c"\n")
@@ -181,8 +180,8 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
 
         i: u64 = 0
         while i < names.len {
-            target = (&(*types)).get_struct_fields(expected)
-            name_id := (tbl).lhs(*(names.ptr + i))
+            target = types.get_struct_fields(expected)
+            name_id := tbl.lhs(*(names.ptr + i))
             field_ty := ty_id_none()
             j: u64 = 0
             while j < target.len / 2 {
@@ -196,7 +195,7 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
                 print(c"\n\033[1;31m[type error]\033[0m unexpected field '")
                 db.interner.get(name_id).print()
                 print(c"' in struct literal for '")
-                (&(*types)).print_type(expected)
+                types.print_type(expected)
                 print(c"'\n       --> ")
                 db.print_loc(*(names.ptr + i))
                 print(c"\n")
@@ -206,13 +205,13 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
             i = i + 1
         }
         root := unify_ptr.find(slot)
-        existing := (unify_ptr).resolve_type(slot)
-        if (&(*types)).kind(existing) == ty_kind().nominal {
-            (&(*db).unify).bind_type(&(*db).types, slot, expected)
+        existing := unify_ptr.resolve_type(slot)
+        if types.kind(existing) == TyKind.nominal {
+            db.unify.bind_type(&db.types, slot, expected)
             ret
         }
-        (*unify_ptr).types.set(root as u64, expected)
+        unify_ptr.types.set(root as u64, expected)
         ret
     }
-    (&(*db).unify).bind_type(&(*db).types, slot, expected)
+    db.unify.bind_type(&db.types, slot, expected)
 }

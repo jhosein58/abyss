@@ -1,7 +1,7 @@
 import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../../hir"
 import Str from "std/string"
-import TypeStorage, ty_kind, ty_id_none, ty_id_type from "../../types"
+import TypeStorage, TyKind, ty_id_none, ty_id_type from "../../types"
 import slot_none from "../../unify"
 import id_none from "../../nexus/pool"
 import Engine from "../../engine"
@@ -28,13 +28,13 @@ synth_ident :: fn(eng &Engine, id u32) {
     owner := db.get_method_owner(id)
     if (owner != hir_none()) and name.eq(Str.of("Self")) {
         self_ty := db.get_const_type(owner)
-        if ((&(*types_ptr)).kind(self_ty) != ty_kind().nominal) and ((&(*types_ptr)).kind(self_ty) != ty_kind().enum_) {
+        if (types_ptr.kind(self_ty) != TyKind.nominal) and (types_ptr.kind(self_ty) != TyKind.enum_) {
             print(c"\n\033[1;31m[type error]\033[0m Self requires a named struct or enum method\n       --> ")
             db.print_loc(id)
             print(c"\n")
             fall()
         }
-        (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+        db.unify.bind_type(&db.types, slot, ty_id_type())
         db.set_const_type(id, self_ty)
         ret
     }
@@ -170,27 +170,27 @@ synth_var_or_binding :: fn(db &Nexus, tbl &HirTable, id u32) {
     if value_id != hir_none() {
         if ((tbl).kind(id) == hir_kind.binding) and ((tbl).kind(value_id) == hir_kind.struct_) {
             structural := db.get_const_type(value_id)
-            kind := (&(*types_ptr)).kind(structural)
-            if (kind != ty_kind().struct_) and (kind != ty_kind().nominal) {
+            kind := types_ptr.kind(structural)
+            if (kind != TyKind.struct_) and (kind != TyKind.nominal) {
                 print(c"\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> ")
                 db.print_loc(value_id)
                 print(c"\n")
                 fall()
             }
             named := structural
-            if kind == ty_kind().struct_ {
-                name_id := (tbl).lhs(ident_id)
+            if kind == TyKind.struct_ {
+                name_id := tbl.lhs(ident_id)
                 name := db.interner.get(name_id)
-                named = (&(*types_ptr)).alloc_nominal(structural, name, id)
+                named = types_ptr.alloc_nominal(structural, name, id)
                 db.set_const_type(value_id, named)
             }
             db.set_const_type(ident_id, named)
             db.set_const_type(id, named)
         }
-        val_slot := (unify_ptr).get_slot(value_id)
+        val_slot := unify_ptr.get_slot(value_id)
         if val_slot != slot_none() {
-            val_ty := (unify_ptr).resolve_type(val_slot)
-            if (&(*types_ptr)).kind(val_ty) == ty_kind().type_ {
+            val_ty := unify_ptr.resolve_type(val_slot)
+            if types_ptr.kind(val_ty) == TyKind.type_ {
                 type_val := db.get_const_type(value_id)
                 if type_val == ty_id_none() {
                     print(c"\n\033[1;31m[type error]\033[0m type value cannot be resolved\n       --> ")

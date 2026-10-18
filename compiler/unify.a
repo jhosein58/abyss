@@ -3,7 +3,7 @@ import VecU32 from "std/vec/u32"
 import SliceU32 from "std/slice/u32"
 import U32_MAX from "std/primitive/u32"
 
-import ty_kind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error, TypeStorage from "./types"
+import TyKind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error, TypeStorage from "./types"
 import Str from "std/string"
 import calc_pos from "./nexus/nexus"
 import fall from "std/sys"
@@ -113,39 +113,38 @@ UnifyStorage :: struct {
             i = i + 1
         }
         seen.push(ty)
-        k := ty_kind()
-        kind := (&(*types)).kind(ty)
-        if kind == k.infer {
-            root := self.find((&(*types)).infer_slot(ty))
+        kind := types.kind(ty)
+        if kind == TyKind.infer {
+            root := self.find(types.infer_slot(ty))
             if root == target { ret true }
             ret self.type_contains_slot(types, self.types.get(root as u64), target, seen)
         }
-        if kind == k.ptr {
-            ret self.type_contains_slot(types, (&(*types)).payload(ty), target, seen)
+        if kind == TyKind.ptr {
+            ret self.type_contains_slot(types, types.payload(ty), target, seen)
         }
-        if kind == k.array {
-            ret self.type_contains_slot(types, (&(*types)).get_array_type(ty), target, seen)
+        if kind == TyKind.array {
+            ret self.type_contains_slot(types, types.get_array_type(ty), target, seen)
         }
-        if (kind == k.struct_) or (kind == k.nominal) {
-            if (kind == k.nominal) and ((&(*types)).nominal_base(ty) == ty_id_none()) { ret false }
-            fields := (&(*types)).get_struct_fields(ty)
+        if (kind == TyKind.struct_) or (kind == TyKind.nominal) {
+            if (kind == TyKind.nominal) and (types.nominal_base(ty) == ty_id_none()) { ret false }
+            fields := types.get_struct_fields(ty)
             i = 0
             while i < fields.len / 2 {
                 if self.type_contains_slot(types, *(fields.ptr + i * 2 + 1), target, seen) { ret true }
                 i = i + 1
             }
         }
-        if kind == k.func {
-            if self.type_contains_slot(types, (&(*types)).func_return(ty), target, seen) { ret true }
-            params := (&(*types)).func_params(ty)
+        if kind == TyKind.func {
+            if self.type_contains_slot(types, types.func_return(ty), target, seen) { ret true }
+            params := types.func_params(ty)
             i = 0
             while i < params.len {
                 if self.type_contains_slot(types, *(params.ptr + i), target, seen) { ret true }
                 i = i + 1
             }
         }
-        if kind == k.union_ {
-            members := (&(*types)).union_members(ty)
+        if kind == TyKind.union_ {
+            members := types.union_members(ty)
             i = 0
             while i < members.len {
                 if self.type_contains_slot(types, *(members.ptr + i), target, seen) { ret true }
@@ -157,12 +156,12 @@ UnifyStorage :: struct {
 
     type_mismatch :: fn(self &Self, types &TypeStorage, expected u32, actual u32) {
         print(c"\n\033[1;31m[type error]\033[0m type mismatch: cannot unify '")
-          (&(*types)).print_type( expected)
+        types.print_type(expected)
         print(c"' with '")
-          (&(*types)).print_type( actual)
+        types.print_type(actual)
         print(c"'\n")
-          if ((&(*types)).kind( expected) == ty_kind().nominal) or
-             ((&(*types)).kind( actual) == ty_kind().nominal) {
+        if (types.kind(expected) == TyKind.nominal) or
+           (types.kind(actual) == TyKind.nominal) {
             print(c"       Named structs require the same declaration; only an anonymous struct literal may initialize one.\n")
         }
         self.print_error_location()
@@ -244,9 +243,9 @@ UnifyStorage :: struct {
 
     bind_type :: fn(self &Self, types &TypeStorage, slot u32, ty u32) u32 {
         root := self.find(slot)
-         existing := self.types.get(root as u64)
-        if (&(*types)).kind(ty) == ty_kind().infer {
-            if self.find((&(*types)).infer_slot(ty)) == root { ret existing }
+        existing := self.types.get(root as u64)
+        if types.kind(ty) == TyKind.infer {
+            if self.find(types.infer_slot(ty)) == root { ret existing }
         }
         seen := VecU32.new()
         recursive := self.type_contains_slot(types, ty, root, &seen)
@@ -279,70 +278,69 @@ UnifyStorage :: struct {
             ret a
         }
 
-        k := ty_kind()
-          kind_a := (&(*types)).kind( a)
-          kind_b := (&(*types)).kind( b)
+        kind_a := types.kind(a)
+        kind_b := types.kind(b)
 
-        if kind_a == k.infer and kind_b == k.infer {
-              slot_a := (&(*types)).infer_slot( a)
-              slot_b := (&(*types)).infer_slot( b)
+        if kind_a == TyKind.infer and kind_b == TyKind.infer {
+            slot_a := types.infer_slot(a)
+            slot_b := types.infer_slot(b)
             new_slot := self.union(types, slot_a, slot_b)
-              ret (&(*types)).alloc_infer( new_slot)
-        } else if kind_a == k.infer {
-              slot_a := (&(*types)).infer_slot(a)
+            ret types.alloc_infer(new_slot)
+        } else if kind_a == TyKind.infer {
+            slot_a := types.infer_slot(a)
             if self.bind_type(types, slot_a, b) == ty_id_error() { ret ty_id_error() }
             ret b
-        } else if kind_b == k.infer {
-              slot_b := (&(*types)).infer_slot(b)
+        } else if kind_b == TyKind.infer {
+            slot_b := types.infer_slot(b)
             if self.bind_type(types, slot_b, a) == ty_id_error() { ret ty_id_error() }
             ret a
         }
 
-        if kind_a == k.never { ret b }
-        if kind_b == k.never { ret a }
+        if kind_a == TyKind.never { ret b }
+        if kind_b == TyKind.never { ret a }
 
-        is_num_b := (kind_b == k.int) or (kind_b == k.uint) or (kind_b == k.float) or (kind_b == k.untyped_float)
-        if (kind_a == k.untyped_int) and is_num_b {
+        is_num_b := (kind_b == TyKind.int) or (kind_b == TyKind.uint) or (kind_b == TyKind.float) or (kind_b == TyKind.untyped_float)
+        if (kind_a == TyKind.untyped_int) and is_num_b {
             ret b
         }
 
-        is_num_a := (kind_a == k.int) or (kind_a == k.uint) or (kind_a == k.float) or (kind_a == k.untyped_float)
-        if is_num_a and (kind_b == k.untyped_int) {
+        is_num_a := (kind_a == TyKind.int) or (kind_a == TyKind.uint) or (kind_a == TyKind.float) or (kind_a == TyKind.untyped_float)
+        if is_num_a and (kind_b == TyKind.untyped_int) {
             ret a
         }
 
-        if (kind_a == k.untyped_float) and (kind_b == k.float) { ret b }
-        if (kind_a == k.float) and (kind_b == k.untyped_float) { ret a }
+        if (kind_a == TyKind.untyped_float) and (kind_b == TyKind.float) { ret b }
+        if (kind_a == TyKind.float) and (kind_b == TyKind.untyped_float) { ret a }
 
-        if (kind_a == k.ptr) and (kind_b == k.ptr) {
-              inner_a := (&(*types)).payload( a)
-              inner_b := (&(*types)).payload( b)
+        if (kind_a == TyKind.ptr) and (kind_b == TyKind.ptr) {
+            inner_a := types.payload(a)
+            inner_b := types.payload(b)
             unified_inner := self.unify_types(types, inner_a, inner_b)
             if unified_inner == ty_id_error() {
                 ret ty_id_error()
             }
-              ret (&(*types)).alloc_ptr( unified_inner)
+            ret types.alloc_ptr(unified_inner)
         }
 
-        if (kind_a == k.array) and (kind_b == k.array) {
-              len_a := (&(*types)).get_array_len( a)
-              len_b := (&(*types)).get_array_len( b)
+        if (kind_a == TyKind.array) and (kind_b == TyKind.array) {
+            len_a := types.get_array_len(a)
+            len_b := types.get_array_len(b)
             if len_a != len_b {
                 ret ty_id_error()
             }
 
-              inner_a := (&(*types)).get_array_type( a)
-              inner_b := (&(*types)).get_array_type( b)
+            inner_a := types.get_array_type(a)
+            inner_b := types.get_array_type(b)
             unified_inner := self.unify_types(types, inner_a, inner_b)
             if unified_inner == ty_id_error() {
                 ret ty_id_error()
             }
-              ret (&(*types)).alloc_array( unified_inner, len_a)
+            ret types.alloc_array(unified_inner, len_a)
         }
         
-        if (kind_a == k.struct_) and (kind_b == k.struct_) {
-              fields_a := (&(*types)).get_struct_fields( a)
-              fields_b := (&(*types)).get_struct_fields( b)
+        if (kind_a == TyKind.struct_) and (kind_b == TyKind.struct_) {
+            fields_a := types.get_struct_fields(a)
+            fields_b := types.get_struct_fields(b)
 
             if fields_a.len != fields_b.len {
                 ret ty_id_error()
@@ -354,8 +352,8 @@ UnifyStorage :: struct {
             i: u64 = 0
 
             while (i < count) {
-                fields_a = (&(*types)).get_struct_fields(a)
-                fields_b = (&(*types)).get_struct_fields(b)
+                fields_a = types.get_struct_fields(a)
+                fields_b = types.get_struct_fields(b)
                 idx := i * 2
                 na := *(fields_a.ptr + idx)
                 ta := *(fields_a.ptr + idx + 1)
@@ -388,19 +386,19 @@ UnifyStorage :: struct {
                 len: fields_a.len
             }
 
-              res := (&(*types)).alloc_struct( slice)
+            res := types.alloc_struct(slice)
             local_scratch.destroy()
             ret res
         }
 
-        if (kind_a == k.func) and (kind_b == k.func) {
-            params_a := (&(*types)).func_params(a)
-            params_b := (&(*types)).func_params(b)
+        if (kind_a == TyKind.func) and (kind_b == TyKind.func) {
+            params_a := types.func_params(a)
+            params_b := types.func_params(b)
             if params_a.len != params_b.len {
                 ret ty_id_error()
             }
-            ret_a := (&(*types)).func_return(a)
-            ret_b := (&(*types)).func_return(b)
+            ret_a := types.func_return(a)
+            ret_b := types.func_return(b)
             unified_ret := self.unify_types(types, ret_a, ret_b)
             if unified_ret == ty_id_error() {
                 ret ty_id_error()
@@ -410,8 +408,8 @@ UnifyStorage :: struct {
             has_err := false
             i: u64 = 0
             while i < params_a.len {
-                params_a = (&(*types)).func_params(a)
-                params_b = (&(*types)).func_params(b)
+                params_a = types.func_params(a)
+                params_b = types.func_params(b)
                 pa := *(params_a.ptr + i)
                 pb := *(params_b.ptr + i)
                 unified_p := self.unify_types(types, pa, pb)
@@ -432,22 +430,22 @@ UnifyStorage :: struct {
                 ptr: local_scratch.ptr_at(0),
                 len: params_a.len
             }
-            res := (&(*types)).alloc_func(slice, unified_ret, false)
+            res := types.alloc_func(slice, unified_ret, false)
             local_scratch.destroy()
             ret res
         }
 
-        if (kind_a == k.nominal) and (kind_b == k.nominal) {
-            orig_a := (&(*types)).nominal_origin(a)
-            orig_b := (&(*types)).nominal_origin(b)
+        if (kind_a == TyKind.nominal) and (kind_b == TyKind.nominal) {
+            orig_a := types.nominal_origin(a)
+            orig_b := types.nominal_origin(b)
             if orig_a == orig_b { ret a }
 
-            sym_a := (&(*types)).get_nominal_creator_sym(orig_a)
-            sym_b := (&(*types)).get_nominal_creator_sym(orig_b)
+            sym_a := types.get_nominal_creator_sym(orig_a)
+            sym_b := types.get_nominal_creator_sym(orig_b)
 
             if (sym_a != ty_id_none()) and (sym_a == sym_b) {
-                args_a := (&(*types)).get_nominal_creator_args(orig_a)
-                args_b := (&(*types)).get_nominal_creator_args(orig_b)
+                args_a := types.get_nominal_creator_args(orig_a)
+                args_b := types.get_nominal_creator_args(orig_b)
                 if args_a.len == args_b.len {
                     has_err := false
                     i: u64 = 0
@@ -463,7 +461,7 @@ UnifyStorage :: struct {
                         a_has_inf := false
                         chk_i: u64 = 0
                         while chk_i < args_a.len {
-                            if (&(*types)).kind(*(args_a.ptr + chk_i)) == k.infer {
+                            if types.kind(*(args_a.ptr + chk_i)) == TyKind.infer {
                                 a_has_inf = true
                                 break
                             }
@@ -477,9 +475,9 @@ UnifyStorage :: struct {
             ret ty_id_error()
         }
 
-        if (kind_a == k.enum_) and (kind_b == k.enum_) {
-            orig_a := (&(*types)).enum_origin(a)
-            orig_b := (&(*types)).enum_origin(b)
+        if (kind_a == TyKind.enum_) and (kind_b == TyKind.enum_) {
+            orig_a := types.enum_origin(a)
+            orig_b := types.enum_origin(b)
             if orig_a == orig_b { ret a }
             ret ty_id_error()
         }
@@ -498,63 +496,62 @@ UnifyStorage :: struct {
             ret ty_id_none()
         }
 
-        k := ty_kind()
-          kind := (&(*types)).kind( tyid)
+        kind := types.kind(tyid)
 
-        if kind == k.infer {
-              inner_slot := (&(*types)).infer_slot( tyid)
+        if kind == TyKind.infer {
+            inner_slot := types.infer_slot(tyid)
             resolved := self.resolve_type_deep(types, inner_slot)
             if resolved == ty_id_none() { ret tyid }
             ret resolved
         }
 
-        if kind == k.ptr {
-              inner_ty := (&(*types)).payload( tyid)
-              if (&(*types)).kind( inner_ty) == k.infer {
-                  inner_slot := (&(*types)).infer_slot( inner_ty)
+        if kind == TyKind.ptr {
+            inner_ty := types.payload(tyid)
+            if types.kind(inner_ty) == TyKind.infer {
+                inner_slot := types.infer_slot(inner_ty)
                 resolved := self.resolve_type_deep(types, inner_slot)
                 if resolved == ty_id_none() { ret tyid }
-                  ret (&(*types)).alloc_ptr( resolved)
+                ret types.alloc_ptr(resolved)
             }
             ret tyid
         }
 
-        if kind == k.array {
-              len := (&(*types)).get_array_len( tyid)
-              inner_ty := (&(*types)).get_array_type( tyid)
+        if kind == TyKind.array {
+            len := types.get_array_len(tyid)
+            inner_ty := types.get_array_type(tyid)
 
-              if (&(*types)).kind(inner_ty) == k.infer {
-                  infer_slot := (&(*types)).infer_slot( inner_ty)
+            if types.kind(inner_ty) == TyKind.infer {
+                infer_slot := types.infer_slot(inner_ty)
                 resolved := self.resolve_type_deep(types, infer_slot)
                 if resolved == ty_id_none() { ret tyid }
-                  ret (&(*types)).alloc_array( resolved, len)
+                ret types.alloc_array(resolved, len)
             }
             ret tyid
         }
 
-        if kind == k.union_ {
-            count := (&(*types)).union_members(tyid).len
+        if kind == TyKind.union_ {
+            count := types.union_members(tyid).len
             result := ty_id_none()
             i: u64 = 0
             while i < count {
-                members := (&(*types)).union_members(tyid)
+                members := types.union_members(tyid)
                 member := *(members.ptr + i)
-                if (&(*types)).kind(member) == k.infer {
-                    resolved := self.resolve_type_deep(types, (&(*types)).infer_slot(member))
+                if types.kind(member) == TyKind.infer {
+                    resolved := self.resolve_type_deep(types, types.infer_slot(member))
                     if resolved != ty_id_none() { member = resolved }
                 }
                 if result == ty_id_none() {
                     result = member
                 } else {
-                    result = (&(*types)).make_union_2(result, member)
+                    result = types.make_union_2(result, member)
                 }
                 i = i + 1
             }
             ret result
         }
 
-        if kind == k.struct_ {
-              fields := (&(*types)).get_struct_fields( tyid)
+        if kind == TyKind.struct_ {
+            fields := types.get_struct_fields(tyid)
             count := fields.len / 2
 
             local_scratch := VecU32.new()
@@ -562,13 +559,13 @@ UnifyStorage :: struct {
             i: u64 = 0
 
             while i < count {
-                fields = (&(*types)).get_struct_fields(tyid)
+                fields = types.get_struct_fields(tyid)
                 idx := i * 2
                 name := *(fields.ptr + idx)
                 field_ty := *(fields.ptr + idx + 1)
 
-                  if (&(*types)).kind( field_ty) == k.infer {
-                      field_slot := (&(*types)).infer_slot( field_ty)
+                if types.kind(field_ty) == TyKind.infer {
+                    field_slot := types.infer_slot(field_ty)
                     resolved := self.resolve_type_deep(types, field_slot)
                     if resolved == ty_id_none() { resolved = field_ty }
                     local_scratch.push(name)
@@ -588,7 +585,7 @@ UnifyStorage :: struct {
                     len: fields.len
                 }
 
-                  res = (&(*types)).alloc_struct( slice)
+                res = types.alloc_struct(slice)
             }
 
             local_scratch.destroy()

@@ -3,7 +3,7 @@ import HirTable, hir_kind, hir_none from "../../hir"
 import SliceU32 from "std/slice/u32"
 import VecU32 from "std/vec/u32"
 import Str from "std/string"
-import TypeStorage, ty_kind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error from "../../types"
+import TypeStorage, TyKind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error from "../../types"
 import UnifyStorage, slot_none from "../../unify"
 import id_none from "../../nexus/pool"
 import Engine from "../../engine"
@@ -305,14 +305,14 @@ check_method_receiver :: fn(db &Nexus, callee u32, params &SliceU32, lhs_is_inst
         if struct_ty == ty_id_type() {
             struct_ty = db.get_const_type(callee_lhs)
         } else {
-            while (&(*types_ptr)).kind(struct_ty) == ty_kind().ptr {
-                struct_ty = (&(*types_ptr)).payload(struct_ty)
+            while types_ptr.kind(struct_ty) == TyKind.ptr {
+                struct_ty = types_ptr.payload(struct_ty)
             }
         }
         if struct_ty != ty_id_none() {
-            if (&(*types_ptr)).kind(struct_ty) == ty_kind().nominal {
-                s_origin := (&(*types_ptr)).nominal_origin(struct_ty)
-                if (&(*types_ptr)).get_nominal_creator_sym(s_origin) != ty_id_none() {
+            if types_ptr.kind(struct_ty) == TyKind.nominal {
+                s_origin := types_ptr.nominal_origin(struct_ty)
+                if types_ptr.get_nominal_creator_sym(s_origin) != ty_id_none() {
                     *is_struct_generic = true
                 }
             }
@@ -320,12 +320,12 @@ check_method_receiver :: fn(db &Nexus, callee u32, params &SliceU32, lhs_is_inst
     }
     if *lhs_is_instance {
         base_lhs := unify_ptr.resolve_type_deep(types_ptr, unify_ptr.get_slot(callee_lhs))
-        while (&(*types_ptr)).kind(base_lhs) == ty_kind().ptr {
-            base_lhs = (&(*types_ptr)).payload(base_lhs)
+        while types_ptr.kind(base_lhs) == TyKind.ptr {
+            base_lhs = types_ptr.payload(base_lhs)
         }
         base_p0 := *(params.ptr + 0)
-        while (&(*types_ptr)).kind(base_p0) == ty_kind().ptr {
-            base_p0 = (&(*types_ptr)).payload(base_p0)
+        while types_ptr.kind(base_p0) == TyKind.ptr {
+            base_p0 = types_ptr.payload(base_p0)
         }
         tmp_lhs := unify_ptr.tmp_slot()
         unify_ptr.bind_type(types_ptr, tmp_lhs, base_lhs)
@@ -376,7 +376,7 @@ synth_type_func_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot 
                 print(c"\n")
                 fall()
             }
-            if (unify_ptr.resolve_type(arg_slot) != ty_id_type()) and ((&(*types_ptr)).kind(arg_ty) != ty_kind().infer) {
+            if (unify_ptr.resolve_type(arg_slot) != ty_id_type()) and (types_ptr.kind(arg_ty) != TyKind.infer) {
                 print(c"\n[type error] type function argument must be a type\n       --> ")
                 db.print_loc(arg_node)
                 print(c"\n")
@@ -465,8 +465,8 @@ synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u3
                 p_i: u64 = tp_i
                 while p_i < params.len {
                     p_t := *(params.ptr + p_i)
-                    if (&(*types_ptr)).kind(p_t) == ty_kind().infer {
-                        cand := (&(*types_ptr)).infer_slot(p_t)
+                    if types_ptr.kind(p_t) == TyKind.infer {
+                        cand := types_ptr.infer_slot(p_t)
                         found := false
                         chk_i: u64 = 0
                         while chk_i < tmpl_slots.len {
@@ -582,17 +582,17 @@ synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u3
             } else {
                 param_idx = i + param_start
             }
-            final_params := (&(*types_ptr)).func_params(mono_func_ty)
+            final_params := types_ptr.func_params(mono_func_ty)
             target_ty := *(final_params.ptr + param_idx)
-            if (&(*types_ptr)).kind(target_ty) == ty_kind().union_ {
-                target_idx := (&(*types_ptr)).union_member_index(target_ty, source_ty)
+            if types_ptr.kind(target_ty) == TyKind.union_ {
+                target_idx := types_ptr.union_member_index(target_ty, source_ty)
                 db.set_union_coerce(arg_node, target_ty, target_idx)
             } else {
                 db.set_union_coerce(arg_node, ty_id_none(), 0)
             }
             arg_slot := unify_ptr.get_slot(arg_node)
             arg_root := unify_ptr.find(arg_slot)
-            (*unify_ptr).types.set(arg_root as u64, target_ty)
+            unify_ptr.types.set(arg_root as u64, target_ty)
         }
         i = i + 1
     }
@@ -600,37 +600,37 @@ synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u3
     fn_args_vec.destroy()
     tmpl_slots.destroy()
     fresh_slots.destroy()
-    root := (unify_ptr).find(slot)
-    (*unify_ptr).types.set(root as u64, final_ret)
+    root := unify_ptr.find(slot)
+    unify_ptr.types.set(root as u64, final_ret)
     register_call_mono_sym(db, id, callee, mono_func_ty)
 }
 
 synth_call :: fn(eng &Engine, id u32) {
-    db := &(*eng).nexus
-    tbl := &(*db).hir
-    unify_ptr := &(*db).unify
-    types_ptr := &(*db).types
-    slot := (unify_ptr).get_slot(id)
-    if slot == slot_none() { slot = (unify_ptr).new_slot(id) }
-    callee := (tbl).lhs(id)
-    callee_slot := (unify_ptr).get_slot(callee)
+    db := &eng.nexus
+    tbl := &db.hir
+    unify_ptr := &db.unify
+    types_ptr := &db.types
+    slot := unify_ptr.get_slot(id)
+    if slot == slot_none() { slot = unify_ptr.new_slot(id) }
+    callee := tbl.lhs(id)
+    callee_slot := unify_ptr.get_slot(callee)
     if callee_slot == slot_none() {
         print(c"\n[type error] cannot resolve call target\n       --> ")
         db.print_loc(callee)
         print(c"\n")
         fall()
     }
-    callee_ty := (unify_ptr).resolve_type_deep(types_ptr, callee_slot)
+    callee_ty := unify_ptr.resolve_type_deep(types_ptr, callee_slot)
     if callee_ty == ty_id_none() { callee_ty = db.get_const_type(callee) }
-    if (&(*types_ptr)).kind(callee_ty) != ty_kind().func {
+    if types_ptr.kind(callee_ty) != TyKind.func {
         print(c"\n\033[1;31m[type error]\033[0m cannot call non-function type '")
-        (&(*types_ptr)).print_type(callee_ty)
+        types_ptr.print_type(callee_ty)
         print(c"'\n       --> ")
         db.print_loc(callee)
         print(c"\n\n")
         fall()
     }
-    params_slice := (&(*types_ptr)).func_params(callee_ty)
+    params_slice := types_ptr.func_params(callee_ty)
     params_vec := VecU32.new()
     params_vec.extend(params_slice.ptr, params_slice.len)
     params := params_vec.as_slice()

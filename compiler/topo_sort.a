@@ -1,21 +1,25 @@
 import Nexus from "./nexus/nexus"
-import TypeStorage, ty_kind from "./types"
+import TypeStorage, TyKind from "./types"
 import fall from "std/sys"
 
 print :: fn(s &u8) unit
+
+is_composite_type :: fn(k TyKind) bool {
+    (k == TyKind.struct_) or (k == TyKind.nominal) or (k == TyKind.func) or (k == TyKind.array) or (k == TyKind.union_) or (k == TyKind.enum_)
+}
 
 topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8), ty_id u32) {
     if (ty_id as u64) >= (*states).len { ret }
     st := states.get(ty_id as u64)
     if st == (1 as u8) {
         print(c"\n[type error] recursive value type has infinite size: '")
-        (&(*types)).print_type(ty_id)
+        types.print_type(ty_id)
         print(c"'; use a pointer for the recursive field\n")
-        if (&(*types)).kind(ty_id) == ty_kind().nominal {
-            origin := (&(*types)).nominal_origin(ty_id)
+        if types.kind(ty_id) == TyKind.nominal {
+            origin := types.nominal_origin(ty_id)
             node := origin
             if (origin & 2147483648) != 0 {
-                node = (&(*types)).get_nominal_struct_node(origin)
+                node = types.get_nominal_struct_node(origin)
             }
             print(c"       --> ")
             db.print_loc(node)
@@ -25,60 +29,53 @@ topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8),
     }
     if st != (0 as u8) { ret }
 
-    states.set(ty_id as u64, 1 as u8) 
+    states.set(ty_id as u64, 1 as u8)
 
-    k := ty_kind()
-      kind := (&(*types)).kind( ty_id)
+    kind := types.kind(ty_id)
 
-    if (kind == k.struct_) or (kind == k.nominal) {
-          fields := (&(*types)).get_struct_fields( ty_id)
+    if (kind == TyKind.struct_) or (kind == TyKind.nominal) {
+        fields := types.get_struct_fields(ty_id)
         count := fields.len / 2
         i: u64 = 0
         while i < count {
             f_ty := *(fields.ptr + (i * 2) + 1)
-              f_kind := (&(*types)).kind( f_ty)
-            if (f_kind == k.struct_) or (f_kind == k.nominal) or (f_kind == k.array) or (f_kind == k.func) or (f_kind == k.union_) or (f_kind == k.enum_) {
+            if is_composite_type(types.kind(f_ty)) {
                 topo_dfs(db, types, sorted, states, f_ty)
             }
             i = i + 1
         }
-    } else if kind == k.array {
-        inner_ty := (&(*types)).get_array_type(ty_id)
-        inner_kind := (&(*types)).kind(inner_ty)
-        if (inner_kind == k.struct_) or (inner_kind == k.nominal) or (inner_kind == k.array) or (inner_kind == k.func) or (inner_kind == k.union_) or (inner_kind == k.enum_) {
+    } else if kind == TyKind.array {
+        inner_ty := types.get_array_type(ty_id)
+        if is_composite_type(types.kind(inner_ty)) {
             topo_dfs(db, types, sorted, states, inner_ty)
         }
-    } else if kind == k.func {
-        ret_ty := (&(*types)).func_return(ty_id)
-        ret_kind := (&(*types)).kind(ret_ty)
-        if (ret_kind == k.struct_) or (ret_kind == k.nominal) or (ret_kind == k.func) or (ret_kind == k.array) or (ret_kind == k.union_) or (ret_kind == k.enum_) {
+    } else if kind == TyKind.func {
+        ret_ty := types.func_return(ty_id)
+        if is_composite_type(types.kind(ret_ty)) {
             topo_dfs(db, types, sorted, states, ret_ty)
         }
-        params := (&(*types)).func_params(ty_id)
+        params := types.func_params(ty_id)
         i: u64 = 0
         while i < params.len {
             p_ty := *(params.ptr + i)
-            p_kind := (&(*types)).kind(p_ty)
-            if (p_kind == k.struct_) or (p_kind == k.nominal) or (p_kind == k.func) or (p_kind == k.array) or (p_kind == k.union_) or (p_kind == k.enum_) {
+            if is_composite_type(types.kind(p_ty)) {
                 topo_dfs(db, types, sorted, states, p_ty)
             }
             i = i + 1
         }
-    } else if kind == k.union_ {
-        members := (&(*types)).union_members(ty_id)
+    } else if kind == TyKind.union_ {
+        members := types.union_members(ty_id)
         i: u64 = 0
         while i < members.len {
             m_ty := *(members.ptr + i)
-            m_kind := (&(*types)).kind(m_ty)
-            if (m_kind == k.struct_) or (m_kind == k.nominal) or (m_kind == k.func) or (m_kind == k.array) or (m_kind == k.union_) or (m_kind == k.enum_) {
+            if is_composite_type(types.kind(m_ty)) {
                 topo_dfs(db, types, sorted, states, m_ty)
             }
             i = i + 1
         }
-    } else if kind == k.enum_ {
-        b_ty := (&(*types)).enum_backing(ty_id)
-        b_kind := (&(*types)).kind(b_ty)
-        if (b_kind == k.struct_) or (b_kind == k.nominal) or (b_kind == k.func) or (b_kind == k.array) or (b_kind == k.union_) or (b_kind == k.enum_) {
+    } else if kind == TyKind.enum_ {
+        b_ty := types.enum_backing(ty_id)
+        if is_composite_type(types.kind(b_ty)) {
             topo_dfs(db, types, sorted, states, b_ty)
         }
     }

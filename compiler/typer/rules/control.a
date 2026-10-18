@@ -1,7 +1,7 @@
 import Nexus from "../../nexus/nexus"
 import Engine from "../../engine"
 import HirTable, hir_kind, hir_none from "../../hir"
-import ty_kind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error, ty_id_never from "../../types"
+import TyKind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error, ty_id_never from "../../types"
 import slot_none from "../../unify"
 import check_value from "./common"
 import synth_type_node from "./var"
@@ -35,7 +35,7 @@ synth_match :: fn(eng &Engine, id u32) {
     if value_slot != slot_none() { value_ty = unify.resolve_type_deep(types, value_slot) }
     if value_ty == ty_id_none() { match_error(db, c"match value type is unresolved", value) }
     value_kind := types.kind(value_ty)
-    if (value_kind != ty_kind().enum_) and (value_kind != ty_kind().union_) {
+    if (value_kind != TyKind.enum_) and (value_kind != TyKind.union_) {
         match_error(db, c"match requires an enum or union value", value)
     }
 
@@ -55,7 +55,7 @@ synth_match :: fn(eng &Engine, id u32) {
         p_i: u64 = 0
         while p_i < patterns.len {
             pat := *(patterns.ptr + p_i)
-            if value_kind == ty_kind().enum_ {
+            if value_kind == TyKind.enum_ {
                 name_id := tbl.lhs(pat)
                 if tbl.kind(pat) == hir_kind.member {
                     lhs_node := tbl.lhs(pat)
@@ -117,7 +117,7 @@ synth_match :: fn(eng &Engine, id u32) {
 
     if not has_else {
         required: u32 = 0
-        if value_kind == ty_kind().enum_ { required = types.enum_variant_count(value_ty) }
+        if value_kind == TyKind.enum_ { required = types.enum_variant_count(value_ty) }
         else { required = types.union_members_len(value_ty) }
         if covered.len < (required as u64) { match_error(db, c"non-exhaustive match; add the missing cases or else", id) }
     }
@@ -213,9 +213,9 @@ vec_u32_contains :: fn(v &VecU32, value u32) bool {
 }
 
 iterator_kind :: fn(eng &Engine, ty u32, id u32) u8 {
-    db := &(*eng).nexus
-    types := &(*db).types
-    if (ty == ty_id_none()) or (types.kind(ty) != ty_kind().nominal) { ret 0 }
+    db := &eng.nexus
+    types := &db.types
+    if (ty == ty_id_none()) or (types.kind(ty) != TyKind.nominal) { ret 0 }
     name_id := db.interner.intern(Str.of("Iterator"))
     iterator_sym := db.find_symbol(db.core_prelude, name_id)
     ref_name_id := db.interner.intern(Str.of("RefIterator"))
@@ -233,15 +233,15 @@ iterator_kind :: fn(eng &Engine, ty u32, id u32) u8 {
 }
 
 has_instance_method :: fn(db &Nexus, ty u32, name_id u32) bool {
-    tbl := &(*db).hir
-    types := &(*db).types
-    while types.kind(ty) == ty_kind().ptr {
+    tbl := &db.hir
+    types := &db.types
+    while types.kind(ty) == TyKind.ptr {
         ty = types.payload(ty)
     }
     kind := types.kind(ty)
-    if (kind != ty_kind().nominal) and (kind != ty_kind().enum_) { ret false }
+    if (kind != TyKind.nominal) and (kind != TyKind.enum_) { ret false }
     origin := types.nominal_origin(ty)
-    if kind == ty_kind().enum_ { origin = types.enum_origin(ty) }
+    if kind == TyKind.enum_ { origin = types.enum_origin(ty) }
     struct_id := origin
     if ((origin & 2147483648) == 0) and (tbl.kind(origin) == hir_kind.binding) {
         struct_id = tbl.extra(origin)
@@ -249,7 +249,7 @@ has_instance_method :: fn(db &Nexus, ty u32, name_id u32) bool {
     spec_node := types.get_nominal_struct_node(origin)
     if spec_node != ty_id_none() { struct_id = spec_node }
     methods_id := tbl.extra(struct_id)
-    if kind == ty_kind().enum_ {
+    if kind == TyKind.enum_ {
         meta := db.get_list(methods_id)
         if meta.len < 2 { ret false }
         methods_id = *(meta.ptr + 1)
@@ -283,9 +283,9 @@ iterator_item_type :: fn(eng &Engine, ty u32, id u32) u32 {
 }
 
 maybe_item_type :: fn(eng &Engine, ty u32, id u32) u32 {
-    db := &(*eng).nexus
-    types := &(*db).types
-    if (ty == ty_id_none()) or (types.kind(ty) != ty_kind().nominal) {
+    db := &eng.nexus
+    types := &db.types
+    if (ty == ty_id_none()) or (types.kind(ty) != TyKind.nominal) {
         match_error(db, c"iterator next() must return Maybe(T)", id)
     }
     maybe_name := db.interner.intern(Str.of("Maybe"))
@@ -360,7 +360,7 @@ normalize_for_iter :: fn(eng &Engine, iter u32) u32 {
             match_error(db, c"for reference source type is unresolved", iter)
         }
         source_ty := unify.resolve_type_deep(types, source_slot)
-        if (source_ty == ty_id_none()) or (types.kind(source_ty) != ty_kind().nominal) {
+        if (source_ty == ty_id_none()) or (types.kind(source_ty) != TyKind.nominal) {
             match_error(db, c"for reference source must provide iter_ref", iter)
         }
         call := make_iter_call(eng, source, Str.of("iter_ref"))
@@ -505,17 +505,16 @@ synth_if :: fn(db &Nexus, tbl &HirTable, id u32) {
         }
 
         if (then_ty != ty_id_none()) and (else_ty != ty_id_none()) {
-            unified := (unify_ptr).unify_types(types_ptr, then_ty, else_ty)
-            k := ty_kind()
-            unified_k := (&(*types_ptr)).kind(unified)
-            if (unified != ty_id_error()) and (unified != ty_id_unit()) and (unified_k != k.unit) {
+            unified := unify_ptr.unify_types(types_ptr, then_ty, else_ty)
+            unified_k := types_ptr.kind(unified)
+            if (unified != ty_id_error()) and (unified != ty_id_unit()) and (unified_k != TyKind.unit) {
                 if then_slot != slot_none() {
-                    (&(*db).unify).union(&(*db).types, slot, then_slot)
+                    db.unify.union(&db.types, slot, then_slot)
                 }
                 if else_slot != slot_none() {
-                    (&(*db).unify).union(&(*db).types, slot, else_slot)
+                    db.unify.union(&db.types, slot, else_slot)
                 }
-                (&(*db).unify).bind_type(&(*db).types, slot, unified)
+                db.unify.bind_type(&db.types, slot, unified)
                 ret
             }
         }

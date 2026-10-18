@@ -8,7 +8,7 @@ import parse_expr from "./parser/parser"
 import type_check from "./typer/tyck"
 import id_none from "./nexus/pool"
 import slot_none from "./unify"
-import ty_id_none, ty_kind from "./types"
+import ty_id_none, TyKind from "./types"
 import Str from "std/string"
 import Path from "std/path"
 import Arena from "std/allocator"
@@ -196,7 +196,7 @@ Engine :: struct {
     abyss_main :: fn(self &Self, sym_id u32) {
         ty := self.type_of(sym_id)
         types := &self.nexus.types
-          if (&(*types)).kind( ty) != ty_kind().func {
+        if types.kind(ty) != TyKind.func {
             print(c"\n[type error] main must be a function\n")
             fall()
         }

@@ -1,6 +1,6 @@
 import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind from "../../hir"
-import ty_kind, ty_id_none, ty_id_bool, ty_id_type from "../../types"
+import TyKind, ty_id_none, ty_id_bool, ty_id_type from "../../types"
 import slot_none from "../../unify"
 import fall from "std/sys"
 import check_value from "./common"
@@ -23,13 +23,12 @@ validate_unary_num :: fn(db &Nexus, tbl &HirTable, id u32) {
     child := (tbl).lhs(id)
     child_slot := (&(*db).unify).get_slot(child)
     if child_slot != slot_none() {
-        child_ty := (&(*db).unify).resolve_type_deep(&(*db).types, child_slot)
-        kind := (&(*db).types).kind(child_ty)
-        k := ty_kind()
-        is_int := (kind == k.int) or (kind == k.uint) or (kind == k.untyped_int)
+        child_ty := db.unify.resolve_type_deep(&db.types, child_slot)
+        kind := db.types.kind(child_ty)
+        is_int := (kind == TyKind.int) or (kind == TyKind.uint) or (kind == TyKind.untyped_int)
         if is_int { ret }
-        if ((tbl).kind(id) == hir_kind.unary_neg) and
-           ((kind == k.float) or (kind == k.untyped_float)) { ret }
+        if (tbl.kind(id) == hir_kind.unary_neg) and
+           ((kind == TyKind.float) or (kind == TyKind.untyped_float)) { ret }
     }
     print(c"\n[type error] invalid unary operand\n       --> ")
     db.print_loc(id)
@@ -60,49 +59,49 @@ synth_unary_addr_of :: fn(db &Nexus, tbl &HirTable, id u32) {
 
     child_const := db.get_const_type(child)
     if child_const != ty_id_none() {
-        if (&(*db).types).kind(child_const) == ty_kind().infer {
-            ptr_val := (&(*db).types).alloc_ptr(child_const)
+        if db.types.kind(child_const) == TyKind.infer {
+            ptr_val := db.types.alloc_ptr(child_const)
             db.set_const_type(id, ptr_val)
-            (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+            db.unify.bind_type(&db.types, slot, ty_id_type())
             ret
         }
     }
 
     if child_slot != slot_none() {
-        child_ty := (&(*db).unify).resolve_type_deep(&(*db).types, child_slot)
-        if (&(*db).types).kind(child_ty) == ty_kind().type_ {
-            (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+        child_ty := db.unify.resolve_type_deep(&db.types, child_slot)
+        if db.types.kind(child_ty) == TyKind.type_ {
+            db.unify.bind_type(&db.types, slot, ty_id_type())
             val := db.get_const_type(child)
             if val != ty_id_none() {
-                ptr_val := (&(*db).types).alloc_ptr(val)
+                ptr_val := db.types.alloc_ptr(val)
                 db.set_const_type(id, ptr_val)
             }
             ret
         }
 
         if child_ty != ty_id_none() {
-            ptr_ty := (&(*db).types).alloc_ptr(child_ty)
-            (&(*db).unify).bind_type(&(*db).types, slot, ptr_ty)
+            ptr_ty := db.types.alloc_ptr(child_ty)
+            db.unify.bind_type(&db.types, slot, ptr_ty)
         }
     }
 }
 
 synth_unary_deref :: fn(db &Nexus, tbl &HirTable, id u32) {
-    slot := (&(*db).unify).get_slot(id)
+    slot := db.unify.get_slot(id)
     if slot == slot_none() {
-        slot = (&(*db).unify).new_slot(id)
+        slot = db.unify.new_slot(id)
     }
-    child := (tbl).lhs(id)
-    child_slot := (&(*db).unify).get_slot(child)
+    child := tbl.lhs(id)
+    child_slot := db.unify.get_slot(child)
 
     if child_slot != slot_none() {
-        child_ty := (&(*db).unify).resolve_type_deep(&(*db).types, child_slot)
-        if (&(*db).types).kind(child_ty) == ty_kind().ptr {
-            inner_ty := (&(*db).types).payload(child_ty)
-            (&(*db).unify).bind_type(&(*db).types, slot, inner_ty)
-        } else if child_ty == (*db).str_type {
-            u8_ty := (&(*db).types).alloc_uint(8 as u16)
-            (&(*db).unify).bind_type(&(*db).types, slot, u8_ty)
+        child_ty := db.unify.resolve_type_deep(&db.types, child_slot)
+        if db.types.kind(child_ty) == TyKind.ptr {
+            inner_ty := db.types.payload(child_ty)
+            db.unify.bind_type(&db.types, slot, inner_ty)
+        } else if child_ty == db.str_type {
+            u8_ty := db.types.alloc_uint(8 as u16)
+            db.unify.bind_type(&db.types, slot, u8_ty)
         } else {
             print(c"\n[type error] cannot dereference non-pointer\n       --> ")
             db.print_loc(id)
@@ -130,34 +129,33 @@ synth_binary :: fn(db &Nexus, tbl &HirTable, id u32) {
         lhs_ty := (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
         rhs_ty := (unify_ptr).resolve_type_deep(types_ptr, rhs_slot)
 
-        lhs_k := (&(*types_ptr)).kind(lhs_ty)
-        rhs_k := (&(*types_ptr)).kind(rhs_ty)
+        lhs_k := types_ptr.kind(lhs_ty)
+        rhs_k := types_ptr.kind(rhs_ty)
 
-        k := ty_kind()
-        lhs_int := (lhs_k == k.int) or (lhs_k == k.uint) or (lhs_k == k.untyped_int)
-        rhs_int := (rhs_k == k.int) or (rhs_k == k.uint) or (rhs_k == k.untyped_int)
-        lhs_num := lhs_int or (lhs_k == k.float) or (lhs_k == k.untyped_float)
-        rhs_num := rhs_int or (rhs_k == k.float) or (rhs_k == k.untyped_float)
-        op := (tbl).kind(id)
+        lhs_int := (lhs_k == TyKind.int) or (lhs_k == TyKind.uint) or (lhs_k == TyKind.untyped_int)
+        rhs_int := (rhs_k == TyKind.int) or (rhs_k == TyKind.uint) or (rhs_k == TyKind.untyped_int)
+        lhs_num := lhs_int or (lhs_k == TyKind.float) or (lhs_k == TyKind.untyped_float)
+        rhs_num := rhs_int or (rhs_k == TyKind.float) or (rhs_k == TyKind.untyped_float)
+        op := tbl.kind(id)
 
         if op == hir_kind.binary_bit_or {
             lhs_val := db.get_const_type(lhs)
             rhs_val := db.get_const_type(rhs)
             if (lhs_val != ty_id_none()) and (rhs_val != ty_id_none()) {
-                union_ty := (&(*types_ptr)).make_union_2(lhs_val, rhs_val)
-                (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+                union_ty := types_ptr.make_union_2(lhs_val, rhs_val)
+                db.unify.bind_type(&db.types, slot, ty_id_type())
                 db.set_const_type(id, union_ty)
                 ret
             }
         }
 
-        if (lhs_k == k.ptr) or (rhs_k == k.ptr) {
-            if (lhs_k == k.ptr) and rhs_int and ((op == hir_kind.binary_add) or (op == hir_kind.binary_sub)) {
-                (&(*db).unify).bind_type(&(*db).types, slot, lhs_ty)
+        if (lhs_k == TyKind.ptr) or (rhs_k == TyKind.ptr) {
+            if (lhs_k == TyKind.ptr) and rhs_int and ((op == hir_kind.binary_add) or (op == hir_kind.binary_sub)) {
+                db.unify.bind_type(&db.types, slot, lhs_ty)
                 ret
             }
-            if (rhs_k == k.ptr) and lhs_int and (op == hir_kind.binary_add) {
-                (&(*db).unify).bind_type(&(*db).types, slot, rhs_ty)
+            if (rhs_k == TyKind.ptr) and lhs_int and (op == hir_kind.binary_add) {
+                db.unify.bind_type(&db.types, slot, rhs_ty)
                 ret
             }
         } else if lhs_num and rhs_num {
@@ -165,8 +163,8 @@ synth_binary :: fn(db &Nexus, tbl &HirTable, id u32) {
                        (op == hir_kind.binary_bit_xor) or (op == hir_kind.binary_shl) or
                        (op == hir_kind.binary_shr)
             if (not bitwise) or (lhs_int and rhs_int) {
-                (&(*db).unify).union(&(*db).types, lhs_slot, rhs_slot)
-                (&(*db).unify).union(&(*db).types, slot, lhs_slot)
+                db.unify.union(&db.types, lhs_slot, rhs_slot)
+                db.unify.union(&db.types, slot, lhs_slot)
                 ret
             }
         }
@@ -226,21 +224,20 @@ validate_binary_comp :: fn(db &Nexus, tbl &HirTable, id u32) {
     lhs_slot := (&(*db).unify).get_slot(lhs)
     rhs_slot := (&(*db).unify).get_slot(rhs)
     if (lhs_slot != slot_none()) and (rhs_slot != slot_none()) {
-        lhs_ty := (&(*db).unify).resolve_type_deep(&(*db).types, lhs_slot)
-        rhs_ty := (&(*db).unify).resolve_type_deep(&(*db).types, rhs_slot)
-        lhs_kind := (&(*db).types).kind(lhs_ty)
-        rhs_kind := (&(*db).types).kind(rhs_ty)
-        k := ty_kind()
-        lhs_num := (lhs_kind == k.int) or (lhs_kind == k.uint) or (lhs_kind == k.float) or
-                   (lhs_kind == k.untyped_int) or (lhs_kind == k.untyped_float)
-        rhs_num := (rhs_kind == k.int) or (rhs_kind == k.uint) or (rhs_kind == k.float) or
-                   (rhs_kind == k.untyped_int) or (rhs_kind == k.untyped_float)
+        lhs_ty := db.unify.resolve_type_deep(&db.types, lhs_slot)
+        rhs_ty := db.unify.resolve_type_deep(&db.types, rhs_slot)
+        lhs_kind := db.types.kind(lhs_ty)
+        rhs_kind := db.types.kind(rhs_ty)
+        lhs_num := (lhs_kind == TyKind.int) or (lhs_kind == TyKind.uint) or (lhs_kind == TyKind.float) or
+                   (lhs_kind == TyKind.untyped_int) or (lhs_kind == TyKind.untyped_float)
+        rhs_num := (rhs_kind == TyKind.int) or (rhs_kind == TyKind.uint) or (rhs_kind == TyKind.float) or
+                   (rhs_kind == TyKind.untyped_int) or (rhs_kind == TyKind.untyped_float)
         if lhs_num and rhs_num { ret }
-        op := (tbl).kind(id)
+        op := tbl.kind(id)
         if (op == hir_kind.binary_eq_eq) or (op == hir_kind.binary_neq) {
-            if (lhs_kind == k.bool) and (rhs_kind == k.bool) { ret }
-            if (lhs_kind == k.ptr) and (rhs_kind == k.ptr) { ret }
-            if (lhs_kind == k.enum_) and (rhs_kind == k.enum_) { ret }
+            if (lhs_kind == TyKind.bool) and (rhs_kind == TyKind.bool) { ret }
+            if (lhs_kind == TyKind.ptr) and (rhs_kind == TyKind.ptr) { ret }
+            if (lhs_kind == TyKind.enum_) and (rhs_kind == TyKind.enum_) { ret }
         }
     }
     print(c"\n[type error] invalid comparison operands\n       --> ")
@@ -305,29 +302,28 @@ synth_cast :: fn(eng &Engine, id u32) {
         rhs_type = synth_type_node(eng, rhs)
     }
     if rhs_type != ty_id_none() {
-        lhs_slot := (&(*db).unify).get_slot(lhs)
+        lhs_slot := db.unify.get_slot(lhs)
         lhs_type := ty_id_none()
         if lhs_slot != slot_none() {
-            lhs_type = (&(*db).unify).resolve_type_deep(&(*db).types, lhs_slot)
-            original := (&(*db).unify).resolve_type(lhs_slot)
-            if (&(*db).types).kind(original) == ty_kind().union_ {
-                lhs_type = resolve_ty_id(eng, &(*db).unify, &(*db).types, original)
+            lhs_type = db.unify.resolve_type_deep(&db.types, lhs_slot)
+            original := db.unify.resolve_type(lhs_slot)
+            if db.types.kind(original) == TyKind.union_ {
+                lhs_type = resolve_ty_id(eng, &db.unify, &db.types, original)
             }
         }
-        types := &(*db).types
-        if (&(*types)).kind(lhs_type) == ty_kind().union_ {
-            lhs_type = resolve_ty_id(eng, &(*db).unify, types, lhs_type)
+        types := &db.types
+        if types.kind(lhs_type) == TyKind.union_ {
+            lhs_type = resolve_ty_id(eng, &db.unify, types, lhs_type)
         }
-        src := (&(*types)).kind(lhs_type)
-        dst := (&(*types)).kind(rhs_type)
-        k := ty_kind()
-        src_int := (src == k.int) or (src == k.uint) or (src == k.untyped_int)
-        dst_int := (dst == k.int) or (dst == k.uint) or (dst == k.untyped_int)
-        src_num := src_int or (src == k.float) or (src == k.untyped_float) or (src == k.bool)
-        dst_num := dst_int or (dst == k.float) or (dst == k.untyped_float) or (dst == k.bool)
-        if src == k.union_ {
-            if (&(*types)).union_contains(lhs_type, rhs_type) {
-                (&(*db).unify).bind_type(&(*db).types, slot, rhs_type)
+        src := types.kind(lhs_type)
+        dst := types.kind(rhs_type)
+        src_int := (src == TyKind.int) or (src == TyKind.uint) or (src == TyKind.untyped_int)
+        dst_int := (dst == TyKind.int) or (dst == TyKind.uint) or (dst == TyKind.untyped_int)
+        src_num := src_int or (src == TyKind.float) or (src == TyKind.untyped_float) or (src == TyKind.bool)
+        dst_num := dst_int or (dst == TyKind.float) or (dst == TyKind.untyped_float) or (dst == TyKind.bool)
+        if src == TyKind.union_ {
+            if types.union_contains(lhs_type, rhs_type) {
+                db.unify.bind_type(&db.types, slot, rhs_type)
                 ret
             }
             print(c"\n[type error] union does not contain target type in cast\n       --> ")
@@ -335,23 +331,23 @@ synth_cast :: fn(eng &Engine, id u32) {
             print(c"\n")
             fall()
         }
-        if (src == k.enum_) or (dst == k.enum_) {
-            src_valid := src_int or (src == k.enum_)
-            dst_valid := dst_int or (dst == k.enum_)
+        if (src == TyKind.enum_) or (dst == TyKind.enum_) {
+            src_valid := src_int or (src == TyKind.enum_)
+            dst_valid := dst_int or (dst == TyKind.enum_)
             if src_valid and dst_valid {
-                (&(*db).unify).bind_type(&(*db).types, slot, rhs_type)
+                db.unify.bind_type(&db.types, slot, rhs_type)
                 ret
             }
         }
-        if not ((src_num and dst_num) or ((src == k.ptr) and (dst == k.ptr)) or
-                (src_int and (dst == k.ptr)) or ((src == k.ptr) and dst_int) or
-                ((src == k.ptr) and (dst == k.bool))) {
+        if not ((src_num and dst_num) or ((src == TyKind.ptr) and (dst == TyKind.ptr)) or
+                (src_int and (dst == TyKind.ptr)) or ((src == TyKind.ptr) and dst_int) or
+                ((src == TyKind.ptr) and (dst == TyKind.bool))) {
             print(c"\n[type error] invalid cast\n       --> ")
             db.print_loc(id)
             print(c"\n")
             fall()
         }
-        (&(*db).unify).bind_type(&(*db).types, slot, rhs_type)
+        db.unify.bind_type(&db.types, slot, rhs_type)
     } else {
         print(c"\n[type error] cast target is not a type\n       --> ")
         db.print_loc(id)

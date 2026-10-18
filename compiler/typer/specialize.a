@@ -3,7 +3,7 @@ import HirTable, hir_kind, hir_none from "../hir"
 import SliceU32 from "std/slice/u32"
 import VecU32 from "std/vec/u32"
 import Str from "std/string"
-import TypeStorage, ty_kind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error from "../types"
+import TypeStorage, TyKind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error from "../types"
 import UnifyStorage, slot_none from "../unify"
 import id_none from "../nexus/pool"
 import Engine from "../engine"
@@ -380,95 +380,94 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
 
 transform_type :: fn(eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU32, unify_ptr &UnifyStorage, types &TypeStorage, is_instantiate bool) u32 {
     if ty == ty_id_none() { ret ty_id_none() }
-    db := &(*eng).nexus
-    k := ty_kind()
-    kind := (&(*types)).kind(ty)
+    db := &eng.nexus
+    kind := types.kind(ty)
 
-    if kind == k.infer {
+    if kind == TyKind.infer {
         if is_instantiate {
-            slot := (&(*types)).infer_slot(ty)
+            slot := types.infer_slot(ty)
             i: u64 = 0
             while i < tmpl_slots.len {
                 if tmpl_slots.get(i) == slot {
                     fresh := fresh_slots.get(i)
-                    resolved := (&(*db).unify).resolve_type_deep(types, fresh)
+                    resolved := db.unify.resolve_type_deep(types, fresh)
                     if resolved != ty_id_none() { ret resolved }
-                    ret (&(*types)).alloc_infer(fresh)
+                    ret types.alloc_infer(fresh)
                 }
                 i = i + 1
             }
             ret ty
         } else {
-            s := (&(*types)).infer_slot(ty)
-            resolved := (unify_ptr).resolve_type_deep(types, s)
+            s := types.infer_slot(ty)
+            resolved := unify_ptr.resolve_type_deep(types, s)
             if resolved == ty_id_none() { ret ty }
             if resolved == ty_id_untyped_int() {
-                resolved = (&(*types)).alloc_int(32)
+                resolved = types.alloc_int(32)
                 unify_ptr.bind_type(types, s, resolved)
             } else if resolved == ty_id_untyped_float() {
-                resolved = (&(*types)).alloc_float(64)
+                resolved = types.alloc_float(64)
                 unify_ptr.bind_type(types, s, resolved)
             }
             ret transform_type(eng, resolved, tmpl_slots, fresh_slots, unify_ptr, types, false)
         }
     }
 
-    if kind == k.ptr {
-        inner := (&(*types)).payload(ty)
+    if kind == TyKind.ptr {
+        inner := types.payload(ty)
         res_inner := transform_type(eng, inner, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
-        ret (&(*types)).alloc_ptr(res_inner)
+        ret types.alloc_ptr(res_inner)
     }
 
-    if kind == k.array {
-        inner := (&(*types)).get_array_type(ty)
-        len := (&(*types)).get_array_len(ty)
+    if kind == TyKind.array {
+        inner := types.get_array_type(ty)
+        len := types.get_array_len(ty)
         res_inner := transform_type(eng, inner, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
-        ret (&(*types)).alloc_array(res_inner, len)
+        ret types.alloc_array(res_inner, len)
     }
 
-    if kind == k.func {
-        count := (&(*types)).func_params(ty).len
-        ret_ty := transform_type(eng, (&(*types)).func_return(ty), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
-        is_ext := (&(*types)).func_is_extern(ty)
+    if kind == TyKind.func {
+        count := types.func_params(ty).len
+        ret_ty := transform_type(eng, types.func_return(ty), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+        is_ext := types.func_is_extern(ty)
         params_vec := VecU32.new()
         i: u64 = 0
         while i < count {
-            params := (&(*types)).func_params(ty)
+            params := types.func_params(ty)
             params_vec.push(transform_type(eng, *(params.ptr + i), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate))
             i = i + 1
         }
-        result := (&(*types)).alloc_func(params_vec.as_slice(), ret_ty, is_ext)
+        result := types.alloc_func(params_vec.as_slice(), ret_ty, is_ext)
         params_vec.destroy()
         ret result
     }
 
-    if kind == k.union_ {
-        count := (&(*types)).union_members(ty).len
+    if kind == TyKind.union_ {
+        count := types.union_members(ty).len
         result := ty_id_none()
         i: u64 = 0
         while i < count {
-            members := (&(*types)).union_members(ty)
+            members := types.union_members(ty)
             member := transform_type(eng, *(members.ptr + i), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
             if result == ty_id_none() {
                 result = member
             } else {
-                result = (&(*types)).make_union_2(result, member)
+                result = types.make_union_2(result, member)
             }
             i = i + 1
         }
         ret result
     }
 
-    if kind == k.nominal {
-        orig := (&(*types)).nominal_origin(ty)
-        creator_sym := (&(*types)).get_nominal_creator_sym(orig)
+    if kind == TyKind.nominal {
+        orig := types.nominal_origin(ty)
+        creator_sym := types.get_nominal_creator_sym(orig)
         if creator_sym != ty_id_none() {
-            creator_args := (&(*types)).get_nominal_creator_args(orig)
+            creator_args := types.get_nominal_creator_args(orig)
             res_args := VecU32.new()
             changed := false
             c_i: u64 = 0
             while c_i < creator_args.len {
-                creator_args = (&(*types)).get_nominal_creator_args(orig)
+                creator_args = types.get_nominal_creator_args(orig)
                 c_arg := *(creator_args.ptr + c_i)
                 new_arg := transform_type(eng, c_arg, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
                 if new_arg != c_arg { changed = true }

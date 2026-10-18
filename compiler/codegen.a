@@ -3,7 +3,7 @@ import VecU32 from "std/vec/u32"
 import Str, String from "std/string"
 import Arena from "std/allocator"
 import Fmt from "std/fmt"
-import TypeStorage, ty_kind, ty_id_none from "./types"
+import TypeStorage, TyKind, ty_id_none from "./types"
 import HirExprKind, hir_kind, hir_none from "./hir"
 import fall from "std/sys"
 
@@ -424,14 +424,13 @@ CCodeGen :: struct {
             print(c"\n[codegen error] missing type\n")
             fall()
         }
-        k := ty_kind()
-        kind := (&(*types)).kind(ty_id)
-        payload := (&(*types)).payload(ty_id)
+        kind := types.kind(ty_id)
+        payload := types.payload(ty_id)
 
-        if kind == k.unit { ret Str.of("void") }
-        if kind == k.bool { ret Str.of("bool") }
+        if kind == TyKind.unit { ret Str.of("void") }
+        if kind == TyKind.bool { ret Str.of("bool") }
 
-        if kind == k.int {
+        if kind == TyKind.int {
             if payload == 8   { ret Str.of("int8_t") }
             if payload == 16  { ret Str.of("int16_t") }
             if payload == 32  { ret Str.of("int32_t") }
@@ -442,7 +441,7 @@ CCodeGen :: struct {
             ret Str.empty()
         }
 
-        if kind == k.uint {
+        if kind == TyKind.uint {
             if payload == 8   { ret Str.of("uint8_t") }
             if payload == 16  { ret Str.of("uint16_t") }
             if payload == 32  { ret Str.of("uint32_t") }
@@ -453,7 +452,7 @@ CCodeGen :: struct {
             ret Str.empty()
         }
 
-        if kind == k.float {
+        if kind == TyKind.float {
             if payload == 32 { ret Str.of("float") }
             if payload == 64 { ret Str.of("double") }
             print(c"\n[codegen error] unsupported float width\n")
@@ -461,22 +460,22 @@ CCodeGen :: struct {
             ret Str.empty()
         }
 
-        if kind == k.untyped_int   { ret Str.of("int32_t") }
-        if kind == k.untyped_float { ret Str.of("double") }
+        if kind == TyKind.untyped_int   { ret Str.of("int32_t") }
+        if kind == TyKind.untyped_float { ret Str.of("double") }
 
-        if kind == k.ptr {
-            inner_ty := (&(*types)).payload(ty_id)
+        if kind == TyKind.ptr {
+            inner_ty := types.payload(ty_id)
             inner_str := self.type_str(types, arena, inner_ty)
             fmt := Fmt.new(arena)
             fmt.str(inner_str).cstr(c"*")
             ret fmt.as_str()
         }
 
-        if (kind == k.struct_) or (kind == k.nominal) or (kind == k.func) or (kind == k.enum_) or (kind == k.union_) {
+        if (kind == TyKind.struct_) or (kind == TyKind.nominal) or (kind == TyKind.func) or (kind == TyKind.enum_) or (kind == TyKind.union_) {
             ret TypeStorage.name(arena, ty_id)
         }
 
-        if (kind == k.infer) or (kind == k.unknown) or (kind == k.error) {
+        if (kind == TyKind.infer) or (kind == TyKind.unknown) or (kind == TyKind.error) {
             print(c"\n[codegen error] unresolved type\n")
             fall()
         }

@@ -2,7 +2,7 @@ import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../../hir"
 import SliceU32 from "std/slice/u32"
 import VecU32 from "std/vec/u32"
-import ty_kind, ty_id_none, ty_id_type, ty_id_unit from "../../types"
+import TyKind, ty_id_none, ty_id_type, ty_id_unit from "../../types"
 import slot_none from "../../unify"
 import id_none from "../../nexus/pool"
 import Engine from "../../engine"
@@ -192,43 +192,43 @@ synth_member :: fn(eng &Engine, id u32) {
         lhs_ty = db.get_const_type(lhs_id)
         is_type = true
     } else {
-        while (&(*types_ptr)).kind(lhs_ty) == ty_kind().ptr {
-            lhs_ty = (&(*types_ptr)).payload(lhs_ty)
+        while types_ptr.kind(lhs_ty) == TyKind.ptr {
+            lhs_ty = types_ptr.payload(lhs_ty)
         }
     }
 
-    kind := (&(*types_ptr)).kind(lhs_ty)
-    if (kind != ty_kind().struct_) and (kind != ty_kind().nominal) and (kind != ty_kind().enum_) {
+    kind := types_ptr.kind(lhs_ty)
+    if (kind != TyKind.struct_) and (kind != TyKind.nominal) and (kind != TyKind.enum_) {
         print(c"\n\033[1;31m[type error]\033[0m member receiver must be a struct or enum, got '")
-        (&(*types_ptr)).print_type(lhs_ty)
+        types_ptr.print_type(lhs_ty)
         print(c"'\n       --> ")
         db.print_loc(id)
         print(c"\n")
         fall()
     }
 
-    rhs_id := (tbl).rhs(id)
-    name_id := (tbl).lhs(rhs_id)
+    rhs_id := tbl.rhs(id)
+    name_id := tbl.lhs(rhs_id)
 
-    if kind == ty_kind().enum_ {
+    if kind == TyKind.enum_ {
         if is_type {
-            if (&(*types_ptr)).enum_has_variant(lhs_ty, name_id) {
-                (&(*db).unify).bind_type(&(*db).types, slot, lhs_ty)
+            if types_ptr.enum_has_variant(lhs_ty, name_id) {
+                db.unify.bind_type(&db.types, slot, lhs_ty)
                 ret
             }
         }
     }
 
-    if (not is_type) and (kind != ty_kind().enum_) {
-        fields := (&(*types_ptr)).get_struct_fields(lhs_ty)
+    if (not is_type) and (kind != TyKind.enum_) {
+        fields := types_ptr.get_struct_fields(lhs_ty)
         i: u64 = 0
         while i < fields.len / 2 {
             if *(fields.ptr + i * 2) == name_id {
                 field_ty := *(fields.ptr + i * 2 + 1)
-                if (&(*types_ptr)).kind(field_ty) == ty_kind().infer {
-                    (&(*db).unify).union(&(*db).types, slot, (&(*types_ptr)).payload(field_ty))
+                if types_ptr.kind(field_ty) == TyKind.infer {
+                    db.unify.union(&db.types, slot, types_ptr.payload(field_ty))
                 } else {
-                    (&(*db).unify).bind_type(&(*db).types, slot, field_ty)
+                    db.unify.bind_type(&db.types, slot, field_ty)
                 }
                 ret
             }
@@ -236,21 +236,21 @@ synth_member :: fn(eng &Engine, id u32) {
         }
     }
 
-    if (kind == ty_kind().nominal) or (kind == ty_kind().enum_) {
-        origin := (&(*types_ptr)).nominal_origin(lhs_ty)
-        if kind == ty_kind().enum_ {
-            origin = (&(*types_ptr)).enum_origin(lhs_ty)
+    if (kind == TyKind.nominal) or (kind == TyKind.enum_) {
+        origin := types_ptr.nominal_origin(lhs_ty)
+        if kind == TyKind.enum_ {
+            origin = types_ptr.enum_origin(lhs_ty)
         }
         struct_id := origin
-        if ((origin & 2147483648) == 0) and ((tbl).kind(origin) == hir_kind.binding) {
-            struct_id = (tbl).extra(origin)
+        if ((origin & 2147483648) == 0) and (tbl.kind(origin) == hir_kind.binding) {
+            struct_id = tbl.extra(origin)
         }
-        spec_node := (&(*types_ptr)).get_nominal_struct_node(origin)
+        spec_node := types_ptr.get_nominal_struct_node(origin)
         if spec_node != ty_id_none() {
             struct_id = spec_node
         }
-        methods_id := (tbl).extra(struct_id)
-        if kind == ty_kind().enum_ {
+        methods_id := tbl.extra(struct_id)
+        if kind == TyKind.enum_ {
             meta := db.get_list(methods_id)
             methods_id = *(meta.ptr + 1)
         }

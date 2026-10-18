@@ -1,5 +1,5 @@
 import HirTable, hir_kind, hir_none from "../hir"
-import TypeStorage, ty_kind, ty_id_none, ty_id_type from "../types"
+import TypeStorage, TyKind, ty_id_none, ty_id_type from "../types"
 import slot_none from "../unify"
 import id_none from "../nexus/pool"
 import VecU32 from "std/vec/u32"
@@ -126,39 +126,38 @@ type_has_infer_seen :: fn(types &TypeStorage, ty_id u32, visited &VecU32) bool {
     if ty_id == ty_id_none() { ret true }
     if vec_contains(visited, ty_id) { ret false }
     visited.push(ty_id)
-    k := ty_kind()
-    kind := (&(*types)).kind(ty_id)
-    if (kind == k.infer) or (kind == k.unknown) or (kind == k.error) { ret true }
-    if (kind == k.struct_) or (kind == k.nominal) {
-        if kind == k.nominal {
-            origin := (&(*types)).nominal_origin(ty_id)
-            creator_args := (&(*types)).get_nominal_creator_args(origin)
+    kind := types.kind(ty_id)
+    if (kind == TyKind.infer) or (kind == TyKind.unknown) or (kind == TyKind.error) { ret true }
+    if (kind == TyKind.struct_) or (kind == TyKind.nominal) {
+        if kind == TyKind.nominal {
+            origin := types.nominal_origin(ty_id)
+            creator_args := types.get_nominal_creator_args(origin)
             i: u64 = 0
             while i < creator_args.len {
                 if type_has_infer_seen(types, *(creator_args.ptr + i), visited) { ret true }
                 i = i + 1
             }
         }
-        fields := (&(*types)).get_struct_fields(ty_id)
+        fields := types.get_struct_fields(ty_id)
         i: u64 = 0
         while i < fields.len / 2 {
             if type_has_infer_seen(types, *(fields.ptr + i * 2 + 1), visited) { ret true }
             i = i + 1
         }
-    } else if kind == k.ptr {
-        ret type_has_infer_seen(types, (&(*types)).payload(ty_id), visited)
-    } else if kind == k.array {
-        ret type_has_infer_seen(types, (&(*types)).get_array_type(ty_id), visited)
-    } else if kind == k.func {
-        if type_has_infer_seen(types, (&(*types)).func_return(ty_id), visited) { ret true }
-        params := (&(*types)).func_params(ty_id)
+    } else if kind == TyKind.ptr {
+        ret type_has_infer_seen(types, types.payload(ty_id), visited)
+    } else if kind == TyKind.array {
+        ret type_has_infer_seen(types, types.get_array_type(ty_id), visited)
+    } else if kind == TyKind.func {
+        if type_has_infer_seen(types, types.func_return(ty_id), visited) { ret true }
+        params := types.func_params(ty_id)
         i: u64 = 0
         while i < params.len {
             if type_has_infer_seen(types, *(params.ptr + i), visited) { ret true }
             i = i + 1
         }
-    } else if kind == k.union_ {
-        members := (&(*types)).union_members(ty_id)
+    } else if kind == TyKind.union_ {
+        members := types.union_members(ty_id)
         i: u64 = 0
         while i < members.len {
             if type_has_infer_seen(types, *(members.ptr + i), visited) { ret true }
@@ -232,12 +231,12 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
         }
         if db.has_union_coerce(node) {
             target := db.get_union_coerce_ty(node)
-            members := (&(*db).types).union_members(target)
+            members := db.types.union_members(target)
             member := *(members.ptr + (db.get_union_coerce_idx(node) as u64))
-            resolved_member := resolve_ty_id(eng, &(*db).unify, &(*db).types, member)
-            resolved_target := resolve_ty_id(eng, &(*db).unify, &(*db).types, target)
-            if (&(*db).types).kind(resolved_target) == ty_kind().union_ {
-                idx := (&(*db).types).union_member_index(resolved_target, resolved_member)
+            resolved_member := resolve_ty_id(eng, &db.unify, &db.types, member)
+            resolved_target := resolve_ty_id(eng, &db.unify, &db.types, target)
+            if db.types.kind(resolved_target) == TyKind.union_ {
+                idx := db.types.union_member_index(resolved_target, resolved_member)
                 db.set_union_coerce(node, resolved_target, idx)
             } else {
                 db.set_union_coerce(node, ty_id_none(), 0)
@@ -249,8 +248,8 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
 }
 
 tyck_mono_function :: fn(eng &Engine, sym_id u32) {
-    db := &(*eng).nexus
-    tbl := &(*db).hir
+    db := &eng.nexus
+    tbl := &db.hir
 
     orig_sym := db.get_mono_orig_sym(sym_id)
     mono_func_ty := db.get_mono_type(sym_id)
@@ -258,7 +257,7 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
 
     func_id := db.get_fn_node(real_sym)
     if func_id == id_none() { ret }
-    if (tbl).kind(func_id) != hir_kind.function { ret }
+    if tbl.kind(func_id) != hir_kind.function { ret }
     if mono_func_ty == ty_id_none() { ret }
 
     orig_func_ty := db.get_const_type(func_id)
@@ -268,27 +267,27 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     }
 
     struct_ty := ty_id_none()
-    mono_params := (&(*db).types).func_params(mono_func_ty)
+    mono_params := db.types.func_params(mono_func_ty)
     if mono_params.len > 0 {
         p0 := *(mono_params.ptr + 0)
-        while (&(*db).types).kind(p0) == ty_kind().ptr {
-            p0 = (&(*db).types).payload(p0)
+        while db.types.kind(p0) == TyKind.ptr {
+            p0 = db.types.payload(p0)
         }
-        if (&(*db).types).kind(p0) == ty_kind().nominal {
-            s_origin := (&(*db).types).nominal_origin(p0)
-            if (&(*db).types).get_nominal_creator_sym(s_origin) != ty_id_none() {
+        if db.types.kind(p0) == TyKind.nominal {
+            s_origin := db.types.nominal_origin(p0)
+            if db.types.get_nominal_creator_sym(s_origin) != ty_id_none() {
                 struct_ty = p0
             }
         }
     }
     if struct_ty == ty_id_none() {
-        r0 := (&(*db).types).func_return(mono_func_ty)
-        while (&(*db).types).kind(r0) == ty_kind().ptr {
-            r0 = (&(*db).types).payload(r0)
+        r0 := db.types.func_return(mono_func_ty)
+        while db.types.kind(r0) == TyKind.ptr {
+            r0 = db.types.payload(r0)
         }
-        if (&(*db).types).kind(r0) == ty_kind().nominal {
-            s_origin := (&(*db).types).nominal_origin(r0)
-            if (&(*db).types).get_nominal_creator_sym(s_origin) != ty_id_none() {
+        if db.types.kind(r0) == TyKind.nominal {
+            s_origin := db.types.nominal_origin(r0)
+            if db.types.get_nominal_creator_sym(s_origin) != ty_id_none() {
                 struct_ty = r0
             }
         }
