@@ -19,8 +19,35 @@ Iterator :: fn(T type) type {
             Maybe(T).some(value)
         }
 
+        has_next :: fn(self &Self) bool {
+            self.index < self.len
+        }
+
         is_done :: fn(self &Self) bool {
             self.index >= self.len
+        }
+
+        peek :: fn(self &Self) Maybe(T) {
+            if self.index >= self.len {
+                ret Maybe(T).none()
+            }
+            Maybe(T).some(*(self.ptr + self.index))
+        }
+
+        skip :: fn(self &Self, n u64) {
+            self.index = self.index + n
+            if self.index > self.len {
+                self.index = self.len
+            }
+        }
+
+        reset :: fn(self &Self) {
+            self.index = 0
+        }
+
+        remaining :: fn(self &Self) u64 {
+            if self.index >= self.len { ret 0 }
+            self.len - self.index
         }
     }
 }

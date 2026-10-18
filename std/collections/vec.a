@@ -86,6 +86,15 @@ Vec :: fn(T type) type {
             self.len == 0
         }
 
+        contains :: fn(self &Self, val T) bool {
+            i: u64 = 0
+            while i < self.len {
+                if *(self.ptr + i) == val { ret true }
+                i = i + 1
+            }
+            false
+        }
+
         extend :: fn(self &Self, src &T, count u64) {
             if count == 0 { ret }
 

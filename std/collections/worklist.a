@@ -1,0 +1,31 @@
+import Vec from "./vec.a"
+import Maybe from "core/prelude.a"
+
+Worklist :: fn(T type) type {
+    struct {
+        vec &Vec(T)
+        index u64
+
+        new :: fn(vec &Vec(T)) Self {
+            .{ vec: vec, index: 0 }
+        }
+
+        next :: fn(self &Self) Maybe(T) {
+            if self.index >= self.vec.len {
+                ret Maybe(T).none()
+            }
+            val := self.vec.get(self.index)
+            self.index = self.index + 1
+            Maybe(T).some(val)
+        }
+
+        has_next :: fn(self &Self) bool {
+            self.index < self.vec.len
+        }
+
+        remaining :: fn(self &Self) u64 {
+            if self.index >= self.vec.len { ret 0 }
+            self.vec.len - self.index
+        }
+    }
+}
