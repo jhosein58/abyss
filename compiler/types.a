@@ -6,10 +6,6 @@ import U32_MAX from "std/primitive/u32"
 import Str, String from "std/string"
 import Arena from "std/allocator"
 
-print_char :: fn(c u8) unit
-print_u32  :: fn(n u32) unit
-print      :: fn(s &u8) unit
-
 
 TyKind :: enum u8 {
     unknown,
@@ -36,25 +32,25 @@ TyKind :: enum u8 {
 
 ty_kind_name :: fn(k TyKind) Str {
     match k {
-        unknown       { ret Str.of("Unknown") }
-        infer         { ret Str.of("Infer") }
-        untyped_int   { ret Str.of("UtInt") }
-        untyped_float { ret Str.of("UtFloat") }
-        int           { ret Str.of("Int") }
-        uint          { ret Str.of("UInt") }
-        float         { ret Str.of("Float") }
-        bool          { ret Str.of("Bool") }
-        ptr           { ret Str.of("Ptr") }
-        type_         { ret Str.of("Type") }
-        unit          { ret Str.of("Unit") }
-        func          { ret Str.of("Func") }
-        never         { ret Str.of("Never") }
-        struct_       { ret Str.of("Struct") }
-        array         { ret Str.of("Array") }
-        error         { ret Str.of("Error") }
-        nominal       { ret Str.of("Nominal") }
-        enum_         { ret Str.of("Enum") }
-        union_        { ret Str.of("Union") }
+        unknown       { "Unknown" }
+        infer         { "Infer" }
+        untyped_int   { "UtInt" }
+        untyped_float { "UtFloat" }
+        int           { "Int" }
+        uint          { "UInt" }
+        float         { "Float" }
+        bool          { "Bool" }
+        ptr           { "Ptr" }
+        type_         { "Type" }
+        unit          { "Unit" }
+        func          { "Func" }
+        never         { "Never" }
+        struct_       { "Struct" }
+        array         { "Array" }
+        error         { "Error" }
+        nominal       { "Nominal" }
+        enum_         { "Enum" }
+        union_        { "Union" }
     }
 }
 
