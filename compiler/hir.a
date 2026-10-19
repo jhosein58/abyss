@@ -91,87 +91,81 @@ HirExprKind :: enum u8 {
 hir_kind :: HirExprKind
 
 hir_kind_name :: fn(kind HirExprKind) Str {
-    k := hir_kind
 
-    if kind == k.empty                 { ret Str.of("Empty")         }
-    if kind == k.lit_int               { ret Str.of("LitInt")        }
-    if kind == k.lit_float             { ret Str.of("LitFloat")      }
-    if kind == k.lit_bool_true         { ret Str.of("LitBoolTrue")   }
-    if kind == k.lit_bool_false        { ret Str.of("LitBoolFalse")  }
-    if kind == k.lit_str               { ret Str.of("LitStr")        }
-    if kind == k.lit_char              { ret Str.of("LitChar")       }
-    if kind == k.lit_cstr              { ret Str.of("LitCStr")       }
-    if kind == k.ident                 { ret Str.of("Ident")         }
-
-    if kind == k.binary_assign         { ret Str.of("=")             }
-    if kind == k.binary_assign_add     { ret Str.of("+=")            }
-    if kind == k.binary_assign_sub     { ret Str.of("-=")            }
-    if kind == k.binary_assign_mul     { ret Str.of("*=")            }
-    if kind == k.binary_assign_div     { ret Str.of("/=")            }
-    if kind == k.binary_assign_mod     { ret Str.of("%=")            }
-    if kind == k.binary_assign_bit_and { ret Str.of("&=")            }
-    if kind == k.binary_assign_bit_or  { ret Str.of("|=")            }
-    if kind == k.binary_assign_bit_xor { ret Str.of("^=")            }
-    if kind == k.binary_assign_shl     { ret Str.of("<<=")           }
-    if kind == k.binary_assign_shr     { ret Str.of(">>=")           }
-    if kind == k.binary_add            { ret Str.of("+")             }
-    if kind == k.binary_sub            { ret Str.of("-")             }
-    if kind == k.binary_mul            { ret Str.of("*")             }
-    if kind == k.binary_div            { ret Str.of("/")             }
-    if kind == k.binary_mod            { ret Str.of("%")             }
-    if kind == k.binary_eq_eq          { ret Str.of("==")            }
-    if kind == k.binary_neq            { ret Str.of("!=")            }
-    if kind == k.binary_lt             { ret Str.of("<")             }
-    if kind == k.binary_gt             { ret Str.of(">")             }
-    if kind == k.binary_lt_eq          { ret Str.of("<=")            }
-    if kind == k.binary_gt_eq          { ret Str.of(">=")            }
-    if kind == k.binary_and            { ret Str.of("and")           }
-    if kind == k.binary_or             { ret Str.of("or")            }
-    if kind == k.binary_bit_and        { ret Str.of("&")             }
-    if kind == k.binary_bit_or         { ret Str.of("|")             }
-    if kind == k.binary_bit_xor        { ret Str.of("^")             }
-    if kind == k.binary_shl            { ret Str.of("<<")            }
-    if kind == k.binary_shr            { ret Str.of(">>")            }
-    if kind == k.binary_colon          { ret Str.of(":")             }
-
-    if kind == k.unary_neg             { ret Str.of("UnaryNeg")      }
-    if kind == k.unary_not             { ret Str.of("UnaryNot")      }
-    if kind == k.unary_bit_not         { ret Str.of("UnaryBitNot")   }
-    if kind == k.unary_deref           { ret Str.of("UnaryDeref")    }
-    if kind == k.unary_addr_of         { ret Str.of("UnaryAddrOf")   }
-
-    if kind == k.arg                   { ret Str.of("Arg")           }
-    if kind == k.function              { ret Str.of("Function")      }
-    if kind == k.call                  { ret Str.of("Call")          }
-    if kind == k.binding               { ret Str.of("Binding")       }
-    if kind == k.var                   { ret Str.of("Var")           }
-    if kind == k.k_ret                 { ret Str.of("Ret")           }
-    if kind == k.block                 { ret Str.of("Block")         }
-    if kind == k.k_if                  { ret Str.of("If")            }
-    if kind == k.k_while               { ret Str.of("While")         }
-    if kind == k.k_match               { ret Str.of("Match")         }
-    if kind == k.match_arm             { ret Str.of("MatchArm")       }
-    if kind == k.match_binding         { ret Str.of("MatchBinding")   }
-    if kind == k.k_for                 { ret Str.of("For")            }
-    if kind == k.for_iter              { ret Str.of("ForIter")        }
-    if kind == k.k_break               { ret Str.of("Break")         }
-    if kind == k.k_cont                { ret Str.of("Cont")          }
-
-    if kind == k.cast                  { ret Str.of("Cast")          }
-    if kind == k.struct_              { ret Str.of("Struct")        }
-    if kind == k.struct_init           { ret Str.of("StructInit")    }
-    if kind == k.array                 { ret Str.of("Array")         }
-    if kind == k.array_init            { ret Str.of("ArrayInit")     }
-    if kind == k.index                 { ret Str.of("Index")         }
-    if kind == k.member                { ret Str.of("Member")        }
-    if kind == k.wildcard              { ret Str.of("Wildcard")      }
-
-    if kind == k.error                 { ret Str.of("Error")         }
-    if kind == k.marker_fn_start       { ret Str.of("MarkerFnStart") }
-    if kind == k.builtin_call          { ret Str.of("BuiltinCall")   }
-    if kind == k.enum_                 { ret Str.of("Enum")          }
-
-    Str.of("Unknown")
+    match kind {
+        empty                 { "Empty"         }
+        lit_int               { "LitInt"        }
+        lit_float             { "LitFloat"      }
+        lit_bool_true         { "LitBoolTrue"   }
+        lit_bool_false        { "LitBoolFalse"  }
+        lit_str               { "LitStr"        }
+        lit_char              { "LitChar"       }
+        lit_cstr              { "LitCStr"       }
+        ident                 { "Ident"         }
+        binary_assign         { "="             }
+        binary_assign_add     { "+="            }
+        binary_assign_sub     { "-="            }
+        binary_assign_mul     { "*="            }
+        binary_assign_div     { "/="            }
+        binary_assign_mod     { "%="            }
+        binary_assign_bit_and { "&="            }
+        binary_assign_bit_or  { "|="            }
+        binary_assign_bit_xor { "^="            }
+        binary_assign_shl     { "<<="           }
+        binary_assign_shr     { ">>="           }
+        binary_add            { "+"             }
+        binary_sub            { "-"             }
+        binary_mul            { "*"             }
+        binary_div            { "/"             }
+        binary_mod            { "%"             }
+        binary_eq_eq          { "=="            }
+        binary_neq            { "!="            }
+        binary_lt             { "<"             }
+        binary_gt             { ">"             }
+        binary_lt_eq          { "<="            }
+        binary_gt_eq          { ">="            }
+        binary_and            { "and"           }
+        binary_or             { "or"            }
+        binary_bit_and        { "&"             }
+        binary_bit_or         { "|"             }
+        binary_bit_xor        { "^"             }
+        binary_shl            { "<<"            }
+        binary_shr            { ">>"            }
+        binary_colon          { ":"             }
+        unary_neg             { "UnaryNeg"      }
+        unary_not             { "UnaryNot"      }
+        unary_bit_not         { "UnaryBitNot"   }
+        unary_deref           { "UnaryDeref"    }
+        unary_addr_of         { "UnaryAddrOf"   }
+        arg                   { "Arg"           }
+        function              { "Function"      }
+        call                  { "Call"          }
+        binding               { "Binding"       }
+        var                   { "Var"           }
+        k_ret                 { "Ret"           }
+        block                 { "Block"         }
+        k_if                  { "If"            }
+        k_while               { "While"         }
+        k_match               { "Match"         }
+        match_arm             { "MatchArm"      }
+        match_binding         { "MatchBinding"  }
+        k_for                 { "For"           }
+        for_iter              { "ForIter"       }
+        k_break               { "Break"         }
+        k_cont                { "Cont"          }
+        cast                  { "Cast"          }
+        struct_               { "Struct"        }
+        struct_init           { "StructInit"    }
+        array                 { "Array"         }
+        array_init            { "ArrayInit"     }
+        index                 { "Index"         }
+        member                { "Member"        }
+        wildcard              { "Wildcard"      }
+        error                 { "Error"         }
+        marker_fn_start       { "MarkerFnStart" }
+        builtin_call          { "BuiltinCall"   }
+        enum_                 { "Enum"          }
+    }
 }
 
 
