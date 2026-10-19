@@ -1,4 +1,3 @@
-import VecU8 from "std/vec/u8"
 import VecU32 from "std/vec/u32"
 import Str, String from "std/string"
 import Arena from "std/allocator"
@@ -9,45 +8,20 @@ import fall from "std/sys"
 
 print :: fn(s &u8) unit
 
-vec_push_str :: fn(v &VecU8, s Str) {
-    i: u64 = 0
-    while i < s.len {
-        v.push(*(s.ptr + i))
-        i = i + 1
-    }
+append_str :: fn(v &String, s Str) {
+    v.push_str(s)
 }
 
-vec_push_char :: fn(v &VecU8, c u8) {
-    v.push(c)
+append_char :: fn(v &String, c u8) {
+    v.push_char(c)
 }
 
-vec_push_u32 :: fn(v &VecU8, n u32) {
-    if n == 0 {
-        v.push(48 as u8)
-        ret
-    }
-
-    div: u32 = 1
-    temp := n
-    while temp >= 10 {
-        div = div * 10
-        temp = temp / 10
-    }
-
-    rem := n
-    while div > 0 {
-        d := (rem / div) as u8
-        v.push(48 as u8 + d)
-        rem = rem - ((d as u32) * div)
-        div = div / 10
-    }
+append_u32 :: fn(v &String, n u32) {
+    v.push_u32(n)
 }
 
-vec_as_str :: fn(v &VecU8) Str {
-    .{
-        ptr: (*v).ptr,
-        len: (*v).len
-    }
+string_view :: fn(v &String) Str {
+    v.as_str()
 }
 
 LoopCondition :: struct {
@@ -57,22 +31,24 @@ LoopCondition :: struct {
 }
 
 CCodeGen :: struct {
-    struct_decls    : VecU8,
-    struct_defs     : VecU8,
-    func_decls      : VecU8,
-    code            : VecU8,
+    arena           : &Arena,
+    struct_decls    : String,
+    struct_defs     : String,
+    func_decls      : String,
+    code            : String,
     emitted_structs : VecU32,
     main_sym        : u32,
     has_main        : bool,
     indent          : u32,
     loop_condition  : LoopCondition,
 
-    new :: fn() Self {
+    new :: fn(arena &Arena) Self {
         .{
-            struct_decls    : VecU8.new(),
-            struct_defs     : VecU8.new(),
-            func_decls      : VecU8.new(),
-            code            : VecU8.new(),
+            arena           : arena,
+            struct_decls    : String.new(arena),
+            struct_defs     : String.new(arena),
+            func_decls      : String.new(arena),
+            code            : String.new(arena),
             emitted_structs : VecU32.new(),
             main_sym        : 0,
             has_main        : false,
@@ -82,17 +58,13 @@ CCodeGen :: struct {
     }
 
     destroy :: fn(self &Self) {
-        self.func_decls.destroy()
-        self.code.destroy()
-        self.struct_decls.destroy()
-        self.struct_defs.destroy()
         self.emitted_structs.destroy()
     }
 
     indent_line :: fn(self &Self) {
         i: u32 = 0
         while i < self.indent {
-            vec_push_str(&self.code, Str.of("    "))
+            append_str(&self.code, Str.of("    "))
             i = i + 1
         }
     }
@@ -103,23 +75,23 @@ CCodeGen :: struct {
     }
 
     declare_function :: fn(self &Self, fn_name Str, ret_type Str, params Str) {
-        vec_push_str(&self.func_decls, ret_type)
-        vec_push_char(&self.func_decls, 32 as u8)
-        vec_push_str(&self.func_decls, fn_name)
-        vec_push_char(&self.func_decls, 40 as u8)
-        vec_push_str(&self.func_decls, params)
-        vec_push_str(&self.func_decls, Str.of(");\n"))
+        append_str(&self.func_decls, ret_type)
+        append_char(&self.func_decls, 32 as u8)
+        append_str(&self.func_decls, fn_name)
+        append_char(&self.func_decls, 40 as u8)
+        append_str(&self.func_decls, params)
+        append_str(&self.func_decls, Str.of(");\n"))
     }
 
     start_function :: fn(self &Self, fn_name Str, ret_type Str, params Str) {
         self.declare_function(fn_name, ret_type, params)
 
-        vec_push_str(&self.code, ret_type)
-        vec_push_char(&self.code, 32 as u8)
-        vec_push_str(&self.code, fn_name)
-        vec_push_char(&self.code, 40 as u8)
-        vec_push_str(&self.code, params)
-        vec_push_str(&self.code, Str.of(") {\n"))
+        append_str(&self.code, ret_type)
+        append_char(&self.code, 32 as u8)
+        append_str(&self.code, fn_name)
+        append_char(&self.code, 40 as u8)
+        append_str(&self.code, params)
+        append_str(&self.code, Str.of(") {\n"))
         self.indent = self.indent + 1
     }
 
@@ -127,45 +99,45 @@ CCodeGen :: struct {
         if self.indent > 0 {
             self.indent = self.indent - 1
         }
-        vec_push_str(&self.code, Str.of("}\n\n"))
+        append_str(&self.code, Str.of("}\n\n"))
     }
 
     create_variable :: fn(self &Self, name Str, ty Str, init_val Str, has_init bool) {
         self.indent_line()
-        vec_push_str(&self.code, ty)
-        vec_push_char(&self.code, 32 as u8)
-        vec_push_str(&self.code, name)
+        append_str(&self.code, ty)
+        append_char(&self.code, 32 as u8)
+        append_str(&self.code, name)
         if has_init {
-            vec_push_str(&self.code, Str.of(" = "))
-            vec_push_str(&self.code, init_val)
+            append_str(&self.code, Str.of(" = "))
+            append_str(&self.code, init_val)
         } else {
-            vec_push_str(&self.code, Str.of(" = {0}"))
+            append_str(&self.code, Str.of(" = {0}"))
         }
-        vec_push_str(&self.code, Str.of(";\n"))
+        append_str(&self.code, Str.of(";\n"))
     }
 
     expr :: fn(self &Self, e Str) {
         if e.len == 0 { ret }
         self.indent_line()
-        vec_push_str(&self.code, e)
-        vec_push_str(&self.code, Str.of(";\n"))
+        append_str(&self.code, e)
+        append_str(&self.code, Str.of(";\n"))
     }
 
     gen_return :: fn(self &Self, val Str, has_val bool) {
         self.indent_line()
-        vec_push_str(&self.code, Str.of("return"))
+        append_str(&self.code, Str.of("return"))
         if has_val and (val.len > 0) {
-            vec_push_char(&self.code, 32 as u8)
-            vec_push_str(&self.code, val)
+            append_char(&self.code, 32 as u8)
+            append_str(&self.code, val)
         }
-        vec_push_str(&self.code, Str.of(";\n"))
+        append_str(&self.code, Str.of(";\n"))
     }
 
     start_if :: fn(self &Self, cond Str) {
         self.indent_line()
-        vec_push_str(&self.code, Str.of("if ("))
-        vec_push_str(&self.code, cond)
-        vec_push_str(&self.code, Str.of(") {\n"))
+        append_str(&self.code, Str.of("if ("))
+        append_str(&self.code, cond)
+        append_str(&self.code, Str.of(") {\n"))
         self.indent = self.indent + 1
     }
 
@@ -174,15 +146,15 @@ CCodeGen :: struct {
             self.indent = self.indent - 1
         }
         self.indent_line()
-        vec_push_str(&self.code, Str.of("} else {\n"))
+        append_str(&self.code, Str.of("} else {\n"))
         self.indent = self.indent + 1
     }
 
     start_while :: fn(self &Self, cond Str) {
         self.indent_line()
-        vec_push_str(&self.code, Str.of("while ("))
-        vec_push_str(&self.code, cond)
-        vec_push_str(&self.code, Str.of(") {\n"))
+        append_str(&self.code, Str.of("while ("))
+        append_str(&self.code, cond)
+        append_str(&self.code, Str.of(") {\n"))
         self.indent = self.indent + 1
     }
 
@@ -191,7 +163,7 @@ CCodeGen :: struct {
             self.indent = self.indent - 1
         }
         self.indent_line()
-        vec_push_str(&self.code, Str.of("}\n"))
+        append_str(&self.code, Str.of("}\n"))
     }
 
     loop_label :: fn(self &Self, arena &Arena, id u32, suffix Str) Str {
@@ -235,13 +207,17 @@ CCodeGen :: struct {
         self.code.mark()
     }
 
+    code_len :: fn(self &Self) u64 {
+        self.code.len()
+    }
+
     end_expr :: fn(self &Self, arena &Arena, mark u64, value Str) Str {
-        if (self.code.len == mark) and (value.len > 0) {
+        if (self.code.len() == mark) and (value.len > 0) {
             self.indent = self.indent - 1
             ret value
         }
         self.expr(value)
-        body := Str.new(self.code.ptr_at(mark), self.code.len - mark)
+        body := Str.new(self.code.ptr_at(mark), self.code.len() - mark)
         fmt := Fmt.new(arena)
         fmt.cstr(c"({\n").str(body)
         self.code.reset(mark)
@@ -251,11 +227,11 @@ CCodeGen :: struct {
     }
 
     decl_struct :: fn(self &Self, name Str) {
-        vec_push_str(&self.struct_decls, Str.of("typedef struct "))
-        vec_push_str(&self.struct_decls, name)
-        vec_push_char(&self.struct_decls, 32 as u8)
-        vec_push_str(&self.struct_decls, name)
-        vec_push_str(&self.struct_decls, Str.of(";\n"))
+        append_str(&self.struct_decls, Str.of("typedef struct "))
+        append_str(&self.struct_decls, name)
+        append_char(&self.struct_decls, 32 as u8)
+        append_str(&self.struct_decls, name)
+        append_str(&self.struct_decls, Str.of(";\n"))
     }
 
     def_struct :: fn(self &Self, ty_id u32, name Str, body Str) {
@@ -270,11 +246,11 @@ CCodeGen :: struct {
         self.emitted_structs.push(ty_id)
         self.decl_struct(name)
 
-        vec_push_str(&self.struct_defs, Str.of("struct "))
-        vec_push_str(&self.struct_defs, name)
-        vec_push_str(&self.struct_defs, Str.of(" {\n"))
-        vec_push_str(&self.struct_defs, body)
-        vec_push_str(&self.struct_defs, Str.of("};\n\n"))
+        append_str(&self.struct_defs, Str.of("struct "))
+        append_str(&self.struct_defs, name)
+        append_str(&self.struct_defs, Str.of(" {\n"))
+        append_str(&self.struct_defs, body)
+        append_str(&self.struct_defs, Str.of("};\n\n"))
     }
 
     define_struct :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
@@ -333,13 +309,13 @@ CCodeGen :: struct {
             }
         }
 
-        vec_push_str(&self.struct_decls, Str.of("typedef "))
-        vec_push_str(&self.struct_decls, ret_str)
-        vec_push_str(&self.struct_decls, Str.of(" (*"))
-        vec_push_str(&self.struct_decls, fn_name)
-        vec_push_str(&self.struct_decls, Str.of(")("))
-        vec_push_str(&self.struct_decls, params_fmt.as_str())
-        vec_push_str(&self.struct_decls, Str.of(");\n"))
+        append_str(&self.struct_decls, Str.of("typedef "))
+        append_str(&self.struct_decls, ret_str)
+        append_str(&self.struct_decls, Str.of(" (*"))
+        append_str(&self.struct_decls, fn_name)
+        append_str(&self.struct_decls, Str.of(")("))
+        append_str(&self.struct_decls, params_fmt.as_str())
+        append_str(&self.struct_decls, Str.of(");\n"))
     }
 
     define_enum :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
@@ -356,11 +332,11 @@ CCodeGen :: struct {
         backing_ty := (&(*types)).enum_backing(ty_id)
         backing_str := self.type_str(types, arena, backing_ty)
 
-        vec_push_str(&self.struct_decls, Str.of("typedef "))
-        vec_push_str(&self.struct_decls, backing_str)
-        vec_push_char(&self.struct_decls, 32 as u8)
-        vec_push_str(&self.struct_decls, e_name)
-        vec_push_str(&self.struct_decls, Str.of(";\n"))
+        append_str(&self.struct_decls, Str.of("typedef "))
+        append_str(&self.struct_decls, backing_str)
+        append_char(&self.struct_decls, 32 as u8)
+        append_str(&self.struct_decls, e_name)
+        append_str(&self.struct_decls, Str.of(";\n"))
     }
 
     define_union :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
@@ -388,35 +364,35 @@ CCodeGen :: struct {
         }
         fmt.cstr(c"    } val;\n")
 
-        vec_push_str(&self.struct_defs, Str.of("struct "))
-        vec_push_str(&self.struct_defs, u_name)
-        vec_push_str(&self.struct_defs, Str.of(" {\n"))
-        vec_push_str(&self.struct_defs, fmt.as_str())
-        vec_push_str(&self.struct_defs, Str.of("};\n\n"))
+        append_str(&self.struct_defs, Str.of("struct "))
+        append_str(&self.struct_defs, u_name)
+        append_str(&self.struct_defs, Str.of(" {\n"))
+        append_str(&self.struct_defs, fmt.as_str())
+        append_str(&self.struct_defs, Str.of("};\n\n"))
     }
 
     finish :: fn(self &Self, pre Str) Str {
-        out := VecU8.new()
+        out := String.new(self.arena)
 
-        vec_push_str(&out, pre)
+        append_str(&out, pre)
 
-        vec_push_str(&out, Str.of("// Struct Declarations\n"))
-        vec_push_str(&out, vec_as_str(&self.struct_decls))
-        vec_push_str(&out, Str.of("\n// Struct Definitions\n"))
-        vec_push_str(&out, vec_as_str(&self.struct_defs))
-        vec_push_str(&out, Str.of("\n// Forward Declarations\n"))
-        vec_push_str(&out, vec_as_str(&self.func_decls))
-        vec_push_str(&out, Str.of("\n// Implementations\n"))
+        append_str(&out, Str.of("// Struct Declarations\n"))
+        append_str(&out, string_view(&self.struct_decls))
+        append_str(&out, Str.of("\n// Struct Definitions\n"))
+        append_str(&out, string_view(&self.struct_defs))
+        append_str(&out, Str.of("\n// Forward Declarations\n"))
+        append_str(&out, string_view(&self.func_decls))
+        append_str(&out, Str.of("\n// Implementations\n"))
 
-        vec_push_str(&out, vec_as_str(&self.code))
+        append_str(&out, string_view(&self.code))
 
         if self.has_main {
-            vec_push_str(&out, Str.of("int main(int argc, char **argv) {\n    abyss_argc = argc;\n    abyss_argv = argv;\n    sym_"))
-            vec_push_u32(&out, self.main_sym)
-            vec_push_str(&out, Str.of("();\n    return 0;\n}\n"))
+            append_str(&out, Str.of("int main(int argc, char **argv) {\n    abyss_argc = argc;\n    abyss_argv = argv;\n    sym_"))
+            append_u32(&out, self.main_sym)
+            append_str(&out, Str.of("();\n    return 0;\n}\n"))
         }
 
-        vec_as_str(&out)
+        string_view(&out)
     }
 
     type_str :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) Str {
@@ -614,6 +590,63 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
+    expr_sizeof :: fn(self &Self, arena &Arena, ty Str) Str {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"((uint64_t)sizeof(").str(ty).cstr(c"))")
+        fmt.as_str()
+    }
+
+    expr_union :: fn(self &Self, arena &Arena, union_name Str, tag u32, value Str) Str {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"((").str(union_name).cstr(c"){ .tag = ").uint32(tag).cstr(c", .val = { ._v").uint32(tag).cstr(c" = ").str(value).cstr(c" } })")
+        fmt.as_str()
+    }
+
+    expr_union_member :: fn(self &Self, arena &Arena, value Str, tag u32) Str {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"((").str(value).cstr(c").val._v").uint32(tag).cstr(c")")
+        fmt.as_str()
+    }
+
+    expr_union_tag :: fn(self &Self, arena &Arena, value Str) Str {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"((").str(value).cstr(c").tag)")
+        fmt.as_str()
+    }
+
+    expr_union_is :: fn(self &Self, arena &Arena, value Str, tag u32) Str {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"(").str(self.expr_union_tag(arena, value)).cstr(c" == ").uint32(tag).cstr(c")")
+        fmt.as_str()
+    }
+
+    expr_enum_value :: fn(self &Self, arena &Arena, enum_name Str, value u32) Str {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"((").str(enum_name).cstr(c")").uint32(value).cstr(c")")
+        fmt.as_str()
+    }
+
+    expr_address_of_value :: fn(self &Self, arena &Arena, ty Str, value Str) Str {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"&((").str(ty).cstr(c"[]){").str(value).cstr(c"})[0]")
+        fmt.as_str()
+    }
+
+    expr_field_value :: fn(self &Self, arena &Arena, value Str, field_id u32) Str {
+        self.expr_member(arena, value, 0, field_id)
+    }
+
+    expr_index :: fn(self &Self, arena &Arena, value Str, index Str) Str {
+        fmt := Fmt.new(arena)
+        fmt.char(40 as u8).str(value).char(91 as u8).str(index).char(93 as u8).char(41 as u8)
+        fmt.as_str()
+    }
+
+    append_list_item :: fn(self &Self, list &String, value Str, first bool) {
+        if not first { list.push_str(Str.of(", ")) }
+        list.push_str(value)
+    }
+
     binary_op :: fn(self &Self, kind HirExprKind) Str {
         k := hir_kind
         if kind == k.binary_add     { ret Str.of(" + ") }
@@ -642,8 +675,8 @@ CCodeGen_finish :: fn(self &CCodeGen, pre Str) Str {
     self.finish(pre)
 }
 
-CCodeGen_new :: fn() CCodeGen {
-    CCodeGen.new()
+CCodeGen_new :: fn(arena &Arena) CCodeGen {
+    CCodeGen.new(arena)
 }
 
 CCodeGen_destroy :: fn(self &CCodeGen) {

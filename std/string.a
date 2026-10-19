@@ -32,6 +32,22 @@ String :: struct {
         self.buf.push(c)
     }
 
+    len :: fn(self &Self) u64 {
+        self.buf.len
+    }
+
+    mark :: fn(self &Self) u64 {
+        self.buf.len
+    }
+
+    reset :: fn(self &Self, mark u64) {
+        self.buf.len = mark
+    }
+
+    ptr_at :: fn(self &Self, offset u64) &u8 {
+        self.buf.ptr + offset
+    }
+
     push_u32 :: fn(self &Self, val u32) {
         if val == 0 {
             self.push_char('0')

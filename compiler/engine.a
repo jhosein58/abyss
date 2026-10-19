@@ -26,11 +26,11 @@ Engine :: struct {
     file_count    u32
     ccg           CCodeGen
 
-    new :: fn() Self {
+    new :: fn(arena &Arena) Self {
         .{
             nexus         : Nexus.new(),
             file_count    : 0,
-            ccg           : CCodeGen_new()
+            ccg           : CCodeGen_new(arena)
         }
     }
 

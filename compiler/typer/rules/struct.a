@@ -180,6 +180,7 @@ synth_member :: fn(eng &Engine, id u32) {
 
     is_type := false
     lhs_ty := ty_id_none()
+    deref_depth: u32 = 0
     lhs_slot := (unify_ptr).get_slot(lhs_id)
     if lhs_slot == slot_none() {
         print(c"\n\033[1;31m[type error]\033[0m cannot resolve member receiver\n       --> ")
@@ -194,8 +195,10 @@ synth_member :: fn(eng &Engine, id u32) {
     } else {
         while types_ptr.kind(lhs_ty) == TyKind.ptr {
             lhs_ty = types_ptr.payload(lhs_ty)
+            deref_depth = deref_depth + 1
         }
     }
+    db.set_auto_deref_depth(id, deref_depth)
 
     kind := types_ptr.kind(lhs_ty)
     if (kind != TyKind.struct_) and (kind != TyKind.nominal) and (kind != TyKind.enum_) {

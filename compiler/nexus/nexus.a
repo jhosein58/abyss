@@ -101,6 +101,7 @@ Nexus :: struct {
     mono_nom_res   VecU32
     union_coerce_ty PoolU32
     union_coerce_idx PoolU32
+    auto_deref_depth PoolU32
     str_type       u32
 
     new :: fn() Self {
@@ -144,6 +145,7 @@ Nexus :: struct {
             mono_nom_res   : VecU32.new(),
             union_coerce_ty : PoolU32.new(),
             union_coerce_idx : PoolU32.new(),
+            auto_deref_depth : PoolU32.new(),
             str_type       : ty_id_none()
         }
     }
@@ -557,5 +559,14 @@ Nexus :: struct {
     get_union_coerce_idx :: fn(self &Self, expr u32) u32 {
         if expr >= self.union_coerce_idx.count() { ret 0 }
         self.union_coerce_idx.get(expr)
+    }
+
+    set_auto_deref_depth :: fn(self &Self, expr u32, depth u32) {
+        self.auto_deref_depth.set_safe(expr, depth, 0)
+    }
+
+    get_auto_deref_depth :: fn(self &Self, expr u32) u32 {
+        if expr >= self.auto_deref_depth.count() { ret 0 }
+        self.auto_deref_depth.get(expr)
     }
 }

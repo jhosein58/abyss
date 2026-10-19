@@ -46,7 +46,7 @@ main :: fn() {
 
     source := read_file(&arena, main_path)
 
-    eng := Engine.new()
+    eng := Engine.new(&arena)
 
     fid := eng.add_file(&arena, Str.of(main_path), source)
 
