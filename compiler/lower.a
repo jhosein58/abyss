@@ -1018,15 +1018,24 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet(u32
     sorted := topo_sort(db, &type_queue)
 
     for t in sorted {
-        k := db.types.kind(t)
-        if (k == TyKind.struct_) or (k == TyKind.nominal) {
-            ccg.define_struct(&db.types, arena, t)
-        } else if k == TyKind.func {
-            ccg.define_func_type(&db.types, arena, t)
-        } else if k == TyKind.union_ {
-            ccg.define_union(&db.types, arena, t)
-        } else if k == TyKind.enum_ {
-            ccg.define_enum(&db.types, arena, t)
+        match db.types.kind(t) {
+            struct_, nominal {
+                ccg.define_struct(&db.types, arena, t)
+            }
+
+            func {
+                ccg.define_func_type(&db.types, arena, t)
+            }
+
+            union_ {
+                ccg.define_union(&db.types, arena, t)
+            }
+
+            enum_ {
+                ccg.define_enum(&db.types, arena, t)
+            }
+
+            else {}
         }
     }
 
