@@ -238,7 +238,7 @@ lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited
     Str.empty()
 }
 
-lower_expr_raw :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
     match db.hir.kind(id) {
         builtin_call { ret lower_builtin_call(db, ccg, arena, id, visited, queue, type_queue) }
         lit_int { ret ccg.expr_int(arena, db.hir.lhs(id)) }
@@ -845,7 +845,7 @@ lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet
 }
 
 lower_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
-    val_str := lower_expr_raw(db, ccg, arena, id, visited, queue, type_queue)
+    val_str := lower_expr_node(db, ccg, arena, id, visited, queue, type_queue)
     if val_str.len == 0 { ret val_str }
     if db.has_union_coerce(id) {
         target_union := db.get_union_coerce_ty(id)
@@ -950,8 +950,10 @@ emit_func_body_return :: fn(ccg &CCodeGen, db &Nexus, ret_ty u32, body_val Str) 
 
 lower_one_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) {
     if sym_id == id_none() { ret }
+
     db := &eng.nexus
     ccg := &eng.ccg
+
     is_mono := db.is_mono_sym(sym_id)
     orig_sym := sym_id
     mono_func_ty := ty_id_none()
