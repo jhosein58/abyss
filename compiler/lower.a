@@ -1,9 +1,7 @@
 import Nexus from "./nexus/nexus"
 import HirTable, hir_kind, hir_none, HirExprKind from "./hir"
 import id_none from "./nexus/pool"
-import CCodeGen from "./codegen"
-import Str, String from "std/string"
-import Fmt from "std/fmt"
+import Str from "std/string"
 import Arena from "std/allocator"
 import SliceU32 from "std/slice/u32"
 import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_unit from "./types"
@@ -125,17 +123,17 @@ resolve_call_symbol :: fn(db &Nexus, id u32, callee_id u32, queue &Vec(u32)) u32
     target_sym
 }
 
-emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, callee_id u32, call_sym u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
-    if db.hir.kind(callee_id) != hir_kind.member { ret Str.empty() }
+emit_method_receiver :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, id u32, callee_id u32, call_sym u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) V {
+    if db.hir.kind(callee_id) != hir_kind.member { ret empty }
     callee_lhs := db.hir.lhs(callee_id)
     lhs_ty := db.get_node_type(callee_lhs)
-    if (lhs_ty == ty_id_none()) or (lhs_ty == ty_id_type()) { ret Str.empty() }
+    if (lhs_ty == ty_id_none()) or (lhs_ty == ty_id_type()) { ret empty }
     target_sym := call_sym
     if target_sym == id_none() { target_sym = db.get_hir_symbol(callee_id) }
-    if target_sym == id_none() { ret Str.empty() }
+    if target_sym == id_none() { ret empty }
     real_sym := db.resolve_sym(target_sym)
     func_node := db.get_fn_node(real_sym)
-    if not func_has_self(db, func_node) { ret Str.empty() }
+    if not func_has_self(db, func_node) { ret empty }
 
     func_ty := ty_id_none()
     if (call_sym != id_none()) and db.is_mono_sym(call_sym) {
@@ -144,9 +142,9 @@ emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, calle
     if func_ty == ty_id_none() { func_ty = db.get_const_type(id) }
     if func_ty == ty_id_none() { func_ty = db.get_node_type(callee_id) }
     if func_ty == ty_id_none() { func_ty = db.get_node_type(func_node) }
-    if (func_ty == ty_id_none()) or (db.types.kind(func_ty) != TyKind.func) { ret Str.empty() }
+    if (func_ty == ty_id_none()) or (db.types.kind(func_ty) != TyKind.func) { ret empty }
     params := db.types.func_params(func_ty)
-    if params.len == 0 { ret Str.empty() }
+    if params.len == 0 { ret empty }
     p0_ty := *(params.ptr + 0)
 
     p_depth: u32 = 0
@@ -163,7 +161,7 @@ emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, calle
         r_depth = r_depth + 1
     }
 
-    lhs_val := lower_expr(db, ccg, arena, callee_lhs, visited, queue, type_queue)
+    lhs_val := lower_expr(db, ccg, builder, empty, arena, callee_lhs, visited, queue, type_queue)
     curr_ty := lhs_ty
     is_lv := is_lvalue(db, callee_lhs)
     while r_depth < p_depth {
@@ -172,14 +170,14 @@ emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, calle
             ty_str := ccg.type_str(&db.types, arena, curr_ty)
             lhs_val = ccg.expr_address_of_value(arena, ty_str, lhs_val)
         } else {
-            lhs_val = ccg.expr_unary(arena, Str.of("&"), lhs_val)
+            lhs_val = ccg.expr_address(arena, lhs_val)
         }
         curr_ty = db.types.alloc_ptr(curr_ty)
         is_lv = false
         r_depth = r_depth + 1
     }
     while r_depth > p_depth {
-        lhs_val = ccg.expr_unary(arena, Str.of("*"), lhs_val)
+        lhs_val = ccg.expr_deref(arena, lhs_val)
         curr_ty = db.types.payload(curr_ty)
         is_lv = true
         r_depth = r_depth - 1
@@ -187,7 +185,7 @@ emit_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, calle
     lhs_val
 }
 
-lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_builtin_call :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) V {
     name_id := db.hir.lhs(id)
     name := db.interner.get(name_id)
     args := db.get_list(db.hir.rhs(id))
@@ -200,7 +198,7 @@ lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited
     }
 
     if name.eq(Str.of("typeof")) {
-        ret Str.empty()
+        ret empty
     }
 
     if name.eq(Str.of("is")) {
@@ -212,7 +210,7 @@ lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited
                 ret ccg.expr_bool(false)
             }
             tag_idx := db.types.union_member_index(val_ty, target_ty)
-            val_str := lower_expr(db, ccg, arena, val_node, visited, queue, type_queue)
+            val_str := lower_expr(db, ccg, builder, empty, arena, val_node, visited, queue, type_queue)
             ret ccg.expr_union_is(arena, val_str, tag_idx)
         }
         if val_ty == target_ty {
@@ -223,18 +221,18 @@ lower_builtin_call :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited
 
     if name.eq(Str.of("tag")) {
         val_node := *(args.ptr + 0)
-        val_str := lower_expr(db, ccg, arena, val_node, visited, queue, type_queue)
+        val_str := lower_expr(db, ccg, builder, empty, arena, val_node, visited, queue, type_queue)
         ret ccg.expr_union_tag(arena, val_str)
     }
 
-    Str.empty()
+    empty
 }
 
-lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_expr_node :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) V {
     match db.hir.kind(id) {
-        builtin_call { ret lower_builtin_call(db, ccg, arena, id, visited, queue, type_queue) }
+        builtin_call { ret lower_builtin_call(db, ccg, builder, empty, arena, id, visited, queue, type_queue) }
         lit_int { ret ccg.expr_int(arena, db.hir.lhs(id)) }
-        lit_float { ret db.interner.get(db.hir.lhs(id)) }
+        lit_float { ret ccg.expr_float(db.interner.get(db.hir.lhs(id))) }
         lit_bool_true { ret ccg.expr_bool(true) }
         lit_bool_false { ret ccg.expr_bool(false) }
         lit_char { ret ccg.expr_char_lit(arena, db.interner.get(db.hir.lhs(id))) }
@@ -243,7 +241,7 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
             raw := db.interner.get(db.hir.lhs(id))
             str_ty := db.str_type
             if str_ty == ty_id_none() { str_ty = db.get_node_type(id) }
-            struct_name := Str.empty()
+            struct_name := empty
             ptr_id: u32 = 0
             len_id: u32 = 0
             if str_ty != ty_id_none() {
@@ -256,7 +254,7 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
         }
         function {
             body_id := db.hir.extra(id)
-            if body_id == hir_none() { ret Str.empty() }
+            if body_id == hir_none() { ret empty }
             func_ty := db.get_node_type(id)
             add_type_to_queue(db, func_ty, type_queue)
             sym_id := db.get_hir_symbol(id)
@@ -266,11 +264,11 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
                 }
                 ret ccg.sym_name(arena, sym_id)
             }
-            ret Str.empty()
+            ret empty
         }
         ident {
             ty := db.get_node_type(id)
-            if ty == ty_id_type() { ret Str.empty() }
+            if ty == ty_id_type() { ret empty }
             sym_id := db.get_hir_symbol(id)
             if db.types.kind(ty) == TyKind.func {
                 if sym_id != id_none() {
@@ -279,7 +277,7 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
                         if not queue.contains(real_sym) { queue.push(real_sym) }
                     }
                     if db.types.func_is_extern(ty) and (db.sym_tok_start.get(real_sym) != id_none()) {
-                        ret db.interner.get(db.sym_names.get(real_sym))
+                        ret ccg.extern_name(db.interner.get(db.sym_names.get(real_sym)))
                     }
                     ret ccg.sym_name(arena, real_sym)
                 }
@@ -298,14 +296,14 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
             db.print_loc(id)
             print(c"\n")
             fall()
-            ret Str.empty()
+            ret empty
         }
         var {
             ident_id := db.hir.lhs(id)
             val_id := db.hir.extra(id)
             sym_id := db.get_hir_symbol(ident_id)
             var_ty := db.get_node_type(ident_id)
-            if (var_ty == ty_id_type()) or db.types.func_has_type_param(var_ty) { ret Str.empty() }
+            if (var_ty == ty_id_type()) or db.types.func_has_type_param(var_ty) { ret empty }
             if db.types.kind(var_ty) == TyKind.unit {
                 print(c"\n[type error] variable cannot have unit type\n       --> ")
                 db.print_loc(id)
@@ -315,8 +313,8 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
             ty_str := ccg.type_str(&db.types, arena, var_ty)
             var_name := ccg.sym_name(arena, sym_id)
             if val_id != hir_none() {
-                val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
-                if val_str.len == 0 {
+                val_str := lower_expr(db, ccg, builder, empty, arena, val_id, visited, queue, type_queue)
+                if not ccg.has_value(val_str) {
                     print(c"\n[codegen error] initializer does not produce a value\n       --> ")
                     db.print_loc(id)
                     print(c"\n")
@@ -324,40 +322,39 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
                 }
                 ccg.create_variable(var_name, ty_str, val_str, true)
             } else {
-                ccg.create_variable(var_name, ty_str, Str.empty(), false)
+                ccg.create_variable(var_name, ty_str, empty, false)
             }
             add_type_to_queue(db, var_ty, type_queue)
-            ret Str.empty()
+            ret empty
         }
         binary_assign {
-            lhs_str := lower_expr(db, ccg, arena, db.hir.lhs(id), visited, queue, type_queue)
-            rhs_str := lower_expr(db, ccg, arena, db.hir.rhs(id), visited, queue, type_queue)
+            lhs_str := lower_expr(db, ccg, builder, empty, arena, db.hir.lhs(id), visited, queue, type_queue)
+            rhs_str := lower_expr(db, ccg, builder, empty, arena, db.hir.rhs(id), visited, queue, type_queue)
             ret ccg.expr_assign(arena, lhs_str, rhs_str)
         }
         binary_add, binary_sub, binary_mul, binary_div, binary_mod,
         binary_eq_eq, binary_neq, binary_lt, binary_gt, binary_lt_eq, binary_gt_eq,
         binary_bit_and, binary_bit_or, binary_bit_xor, binary_shl, binary_shr,
         binary_and, binary_or {
-            lhs_val := lower_expr(db, ccg, arena, db.hir.lhs(id), visited, queue, type_queue)
-            rhs_val := lower_expr(db, ccg, arena, db.hir.rhs(id), visited, queue, type_queue)
-            op_str := ccg.binary_op(db.hir.kind(id))
-            ret ccg.expr_binary(arena, op_str, lhs_val, rhs_val)
+            lhs_val := lower_expr(db, ccg, builder, empty, arena, db.hir.lhs(id), visited, queue, type_queue)
+            rhs_val := lower_expr(db, ccg, builder, empty, arena, db.hir.rhs(id), visited, queue, type_queue)
+            ret ccg.expr_binary_kind(arena, db.hir.kind(id), lhs_val, rhs_val)
         }
         call {
             callee_id := db.hir.lhs(id)
-            if db.get_node_type(id) == ty_id_type() { ret Str.empty() }
+            if db.get_node_type(id) == ty_id_type() { ret empty }
             call_sym := resolve_call_symbol(db, id, callee_id, queue)
             callee_str := ccg.sym_name(arena, call_sym)
             if call_sym == id_none() {
-                callee_str = lower_expr(db, ccg, arena, callee_id, visited, queue, type_queue)
+                callee_str = lower_expr(db, ccg, builder, empty, arena, callee_id, visited, queue, type_queue)
             } else if db.types.func_is_extern(db.get_node_type(callee_id)) and (db.sym_tok_start.get(call_sym) != id_none()) {
-                callee_str = db.interner.get(db.sym_names.get(call_sym))
+                callee_str = ccg.extern_name(db.interner.get(db.sym_names.get(call_sym)))
             }
-            args_fmt := String.new(arena)
+            args_fmt := builder.new_list(arena)
             first_arg := true
-            rec_str := emit_method_receiver(db, ccg, arena, id, callee_id, call_sym, visited, queue, type_queue)
-            if rec_str.len > 0 {
-                ccg.append_list_item(&args_fmt, rec_str, first_arg)
+            rec_str := emit_method_receiver(db, ccg, builder, empty, arena, id, callee_id, call_sym, visited, queue, type_queue)
+            if ccg.has_value(rec_str) {
+                builder.append_list_item(&args_fmt, rec_str, first_arg)
                 first_arg = false
             }
             if db.hir.rhs(id) != hir_none() {
@@ -367,55 +364,55 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
                     arg_node := *(args.ptr + i)
                     i = i + 1
                     if db.get_node_type(arg_node) == ty_id_type() { cont }
-                    ccg.append_list_item(&args_fmt, lower_expr(db, ccg, arena, arg_node, visited, queue, type_queue), first_arg)
+                    builder.append_list_item(&args_fmt, lower_expr(db, ccg, builder, empty, arena, arg_node, visited, queue, type_queue), first_arg)
                     first_arg = false
                 }
             }
-            ret ccg.expr_call(arena, callee_str, args_fmt.as_str())
+            ret ccg.expr_call(arena, callee_str, builder.finish_list(&args_fmt))
         }
         block {
-            ret lower_scoped_expr(db, ccg, arena, id, db.get_node_type(id), visited, queue, type_queue)
+            ret lower_scoped_expr(db, ccg, builder, empty, arena, id, db.get_node_type(id), visited, queue, type_queue)
         }
         unary_neg {
-            child_v := lower_expr(db, ccg, arena, db.hir.lhs(id), visited, queue, type_queue)
-            ret ccg.expr_unary(arena, Str.of("-"), child_v)
+            child_v := lower_expr(db, ccg, builder, empty, arena, db.hir.lhs(id), visited, queue, type_queue)
+            ret ccg.expr_neg(arena, child_v)
         }
         unary_not {
-            child_v := lower_expr(db, ccg, arena, db.hir.lhs(id), visited, queue, type_queue)
-            ret ccg.expr_unary(arena, Str.of("!"), child_v)
+            child_v := lower_expr(db, ccg, builder, empty, arena, db.hir.lhs(id), visited, queue, type_queue)
+            ret ccg.expr_not(arena, child_v)
         }
         unary_bit_not {
-            child_v := lower_expr(db, ccg, arena, db.hir.lhs(id), visited, queue, type_queue)
-            ret ccg.expr_unary(arena, Str.of("~"), child_v)
+            child_v := lower_expr(db, ccg, builder, empty, arena, db.hir.lhs(id), visited, queue, type_queue)
+            ret ccg.expr_bit_not(arena, child_v)
         }
         unary_addr_of {
             lhs_node := db.hir.lhs(id)
-            child_v := lower_expr(db, ccg, arena, lhs_node, visited, queue, type_queue)
+            child_v := lower_expr(db, ccg, builder, empty, arena, lhs_node, visited, queue, type_queue)
             if not is_lvalue(db, lhs_node) {
                 ty := db.get_node_type(lhs_node)
                 add_type_to_queue(db, ty, type_queue)
                 ty_str := ccg.type_str(&db.types, arena, ty)
                 ret ccg.expr_address_of_value(arena, ty_str, child_v)
             }
-            ret ccg.expr_unary(arena, Str.of("&"), child_v)
+            ret ccg.expr_address(arena, child_v)
         }
         unary_deref {
             lhs_node := db.hir.lhs(id)
-            child_v := lower_expr(db, ccg, arena, lhs_node, visited, queue, type_queue)
+            child_v := lower_expr(db, ccg, builder, empty, arena, lhs_node, visited, queue, type_queue)
             child_ty := db.get_node_type(lhs_node)
             if (child_ty != ty_id_none()) and (child_ty == db.str_type) {
                 ptr_id := db.interner.intern(Str.of("ptr"))
                 ret ccg.expr_str_deref(arena, child_v, ptr_id)
             }
-            ret ccg.expr_unary(arena, Str.of("*"), child_v)
+            ret ccg.expr_deref(arena, child_v)
         }
         k_break {
             ccg.emit_break(arena)
-            ret Str.empty()
+            ret empty
         }
         k_cont {
             ccg.emit_cont(arena)
-            ret Str.empty()
+            ret empty
         }
         cast {
             lhs_node := db.hir.lhs(id)
@@ -423,10 +420,10 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
             if db.types.kind(lhs_ty) == TyKind.union_ {
                 target_ty := db.get_const_type(db.hir.rhs(id))
                 member_idx := db.types.union_member_index(lhs_ty, target_ty)
-                lhs_v := lower_expr(db, ccg, arena, lhs_node, visited, queue, type_queue)
+                lhs_v := lower_expr(db, ccg, builder, empty, arena, lhs_node, visited, queue, type_queue)
                 ret ccg.expr_union_member(arena, lhs_v, member_idx)
             }
-            lhs_v := lower_expr(db, ccg, arena, lhs_node, visited, queue, type_queue)
+            lhs_v := lower_expr(db, ccg, builder, empty, arena, lhs_node, visited, queue, type_queue)
             ty_str := ccg.type_str(&db.types, arena, db.get_const_type(db.hir.rhs(id)))
             ret ccg.expr_cast(arena, ty_str, lhs_v)
         }
@@ -437,54 +434,44 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
                        (db.types.kind(if_ty) != TyKind.unit) and
                        (db.types.kind(if_ty) != TyKind.never)
             if is_expr {
-                cond_str := lower_expr(db, ccg, arena, db.hir.lhs(id), visited, queue, type_queue)
+                cond_str := lower_expr(db, ccg, builder, empty, arena, db.hir.lhs(id), visited, queue, type_queue)
                 add_type_to_queue(db, if_ty, type_queue)
-                then_val := lower_scoped_expr(db, ccg, arena, db.hir.rhs(id), if_ty, visited, queue, type_queue)
-                else_val := lower_scoped_expr(db, ccg, arena, elseb_id, if_ty, visited, queue, type_queue)
+                then_val := lower_scoped_expr(db, ccg, builder, empty, arena, db.hir.rhs(id), if_ty, visited, queue, type_queue)
+                else_val := lower_scoped_expr(db, ccg, builder, empty, arena, elseb_id, if_ty, visited, queue, type_queue)
                 ret ccg.expr_conditional(arena, cond_str, then_val, else_val)
             }
-            cond_str := lower_expr(db, ccg, arena, db.hir.lhs(id), visited, queue, type_queue)
+            cond_str := lower_expr(db, ccg, builder, empty, arena, db.hir.lhs(id), visited, queue, type_queue)
             ccg.start_if(cond_str)
-            then_val := lower_body(db, ccg, arena, db.hir.rhs(id), visited, queue, type_queue)
-            if then_val.len > 0 { ccg.expr(then_val) }
+            then_val := lower_body(db, ccg, builder, empty, arena, db.hir.rhs(id), visited, queue, type_queue)
+            if ccg.has_value(then_val) { ccg.expr(then_val) }
             if elseb_id != hir_none() {
                 ccg.else_()
-                else_val := lower_body(db, ccg, arena, elseb_id, visited, queue, type_queue)
-                if else_val.len > 0 { ccg.expr(else_val) }
+                else_val := lower_body(db, ccg, builder, empty, arena, elseb_id, visited, queue, type_queue)
+                if ccg.has_value(else_val) { ccg.expr(else_val) }
             }
             ccg.end_block()
-            ret Str.empty()
+            ret empty
         }
-        k_match { ret lower_match(db, ccg, arena, id, visited, queue, type_queue) }
-        k_for { ret lower_for(db, ccg, arena, id, visited, queue, type_queue) }
+        k_match { ret lower_match(db, ccg, builder, empty, arena, id, visited, queue, type_queue) }
+        k_for { ret lower_for(db, ccg, builder, empty, arena, id, visited, queue, type_queue) }
         k_while {
-            outer_condition := ccg.loop_condition
-            ccg.loop_condition = .{ id: id, breaks: false, continues: false }
-            cond_str := lower_expr(db, ccg, arena, db.hir.lhs(id), visited, queue, type_queue)
-            condition := ccg.loop_condition
-            ccg.loop_condition = .{ id: hir_none(), breaks: false, continues: false }
-            if condition.continues {
-                ccg.emit_label(arena, ccg.loop_label(arena, id, Str.of("_begin")))
-            }
-            ccg.start_while(cond_str)
-            body_val := lower_body(db, ccg, arena, db.hir.rhs(id), visited, queue, type_queue)
-            if body_val.len > 0 { ccg.expr(body_val) }
-            ccg.end_block()
-            if condition.breaks {
-                ccg.emit_label(arena, ccg.loop_label(arena, id, Str.of("_end")))
-            }
-            ccg.loop_condition = outer_condition
-            ret Str.empty()
+            scope := ccg.begin_loop(id)
+            condition := lower_expr(db, ccg, builder, empty, arena, db.hir.lhs(id), visited, queue, type_queue)
+            ccg.start_loop(arena, &scope, condition)
+            body := lower_body(db, ccg, builder, empty, arena, db.hir.rhs(id), visited, queue, type_queue)
+            ccg.expr(body)
+            ccg.end_loop(arena, &scope)
+            ret empty
         }
         k_ret {
             val_id := db.hir.lhs(id)
             if val_id != hir_none() {
-                val_str := lower_expr(db, ccg, arena, val_id, visited, queue, type_queue)
+                val_str := lower_expr(db, ccg, builder, empty, arena, val_id, visited, queue, type_queue)
                 ccg.gen_return(val_str, true)
             } else {
-                ccg.gen_return(Str.empty(), false)
+                ccg.gen_return(empty, false)
             }
-            ret Str.empty()
+            ret empty
         }
         struct_init {
             ty_id := db.get_node_type(id)
@@ -496,17 +483,17 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
             struct_name := ccg.type_str(&db.types, arena, ty_id)
             fields := db.get_list(db.hir.lhs(id))
             vals := db.get_list(db.hir.rhs(id))
-            fields_fmt := String.new(arena)
+            fields_fmt := builder.new_list(arena)
             i: u64 = 0
             while (i < fields.len) and (i < vals.len) {
                 f_node := *(fields.ptr + i)
                 v_node := *(vals.ptr + i)
                 f_name_id := db.hir.lhs(f_node)
-                v_str := lower_expr(db, ccg, arena, v_node, visited, queue, type_queue)
-                ccg.append_list_item(&fields_fmt, ccg.expr_struct_init_field(arena, f_name_id, v_str), i == 0)
+                v_str := lower_expr(db, ccg, builder, empty, arena, v_node, visited, queue, type_queue)
+                builder.append_list_item(&fields_fmt, ccg.expr_struct_init_field(arena, f_name_id, v_str), i == 0)
                 i = i + 1
             }
-            ret ccg.expr_struct_init(arena, struct_name, fields_fmt.as_str())
+            ret ccg.expr_struct_init(arena, struct_name, builder.finish_list(&fields_fmt))
         }
         member {
             lhs_id := db.hir.lhs(id)
@@ -530,7 +517,7 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
                     }
                 }
             }
-            lhs_str := lower_expr(db, ccg, arena, lhs_id, visited, queue, type_queue)
+            lhs_str := lower_expr(db, ccg, builder, empty, arena, lhs_id, visited, queue, type_queue)
             field_name_id := db.hir.lhs(rhs_id)
             depth := db.get_auto_deref_depth(id)
             ret ccg.expr_member(arena, lhs_str, depth, field_name_id)
@@ -540,24 +527,24 @@ lower_expr_node :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &H
             db.print_loc(id)
             print(c"\n")
             fall()
-            ret Str.empty()
+            ret empty
         }
     }
 }
 
-lower_body :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_body :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) V {
     if db.hir.kind(id) != hir_kind.block {
-        ret lower_expr(db, ccg, arena, id, visited, queue, type_queue)
+        ret lower_expr(db, ccg, builder, empty, arena, id, visited, queue, type_queue)
     }
     items := db.get_list(db.hir.lhs(id))
     count := items.len
-    last_val := Str.empty()
+    last_val := empty
 
     i: u64 = 0
     while i < count {
         node_id := *(items.ptr + i)
         is_last := (i + 1) == count
-        val := lower_expr(db, ccg, arena, node_id, visited, queue, type_queue)
+        val := lower_expr(db, ccg, builder, empty, arena, node_id, visited, queue, type_queue)
 
         if not is_last {
             ccg.expr(val)
@@ -570,12 +557,12 @@ lower_body :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSe
     last_val
 }
 
-lower_scoped_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, expected u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_scoped_expr :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, id u32, expected u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) V {
     mark := ccg.begin_expr()
-    value := lower_body(db, ccg, arena, id, visited, queue, type_queue)
+    value := lower_body(db, ccg, builder, empty, arena, id, visited, queue, type_queue)
     kind := db.types.kind(expected)
     if (expected != ty_id_none()) and (kind != TyKind.unit) and (kind != TyKind.never) {
-        if (value.len == 0) or (db.types.kind(db.get_node_type(id)) == TyKind.never) {
+        if (not ccg.has_value(value)) or (db.types.kind(db.get_node_type(id)) == TyKind.never) {
             ccg.expr(value)
             add_type_to_queue(db, expected, type_queue)
             ty := ccg.type_str(&db.types, arena, expected)
@@ -585,15 +572,15 @@ lower_scoped_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, expected
     ccg.end_expr(arena, mark, value)
 }
 
-lower_match_condition :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, value_ty u32, arm u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_match_condition :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, value_id u32, value_ty u32, arm u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) V {
     patterns := db.get_list(db.hir.lhs(arm))
-    if patterns.len == 0 { ret Str.of("1") }
-    value_str := lower_expr(db, ccg, arena, value_id, visited, queue, type_queue)
-    result := Str.empty()
+    if patterns.len == 0 { ret ccg.expr_one(arena) }
+    value_str := lower_expr(db, ccg, builder, empty, arena, value_id, visited, queue, type_queue)
+    result := empty
     i: u64 = 0
     while i < patterns.len {
         pat := *(patterns.ptr + i)
-        condition := Str.empty()
+        condition := empty
         if db.types.kind(value_ty) == TyKind.enum_ {
             name_id := db.hir.lhs(pat)
             if db.hir.kind(pat) == hir_kind.member {
@@ -601,20 +588,20 @@ lower_match_condition :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32
             }
             val := db.types.enum_variant_val(value_ty, name_id)
             enum_name := ccg.type_str(&db.types, arena, value_ty)
-            condition = ccg.expr_binary(arena, Str.of(" == "), value_str, ccg.expr_enum_value(arena, enum_name, val))
+            condition = ccg.expr_equal(arena, value_str, ccg.expr_enum_value(arena, enum_name, val))
         } else {
             pat_ty := db.get_const_type(pat)
             idx := db.types.union_member_index(value_ty, pat_ty)
             condition = ccg.expr_union_is(arena, value_str, idx)
         }
         if i == 0 { result = condition }
-        else { result = ccg.expr_binary(arena, Str.of(" || "), result, condition) }
+        else { result = ccg.expr_or(arena, result, condition) }
         i = i + 1
     }
     result
 }
 
-lower_match_binding :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, value_ty u32, arm u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) {
+lower_match_binding :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, value_id u32, value_ty u32, arm u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) {
     binder := db.hir.extra(arm)
     if binder == hir_none() { ret }
     sym := db.get_hir_symbol(binder)
@@ -622,7 +609,7 @@ lower_match_binding :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, 
     bind_ty := db.get_node_type(binder)
     if bind_ty == ty_id_none() { ret }
     add_type_to_queue(db, bind_ty, type_queue)
-    value_str := lower_expr(db, ccg, arena, value_id, visited, queue, type_queue)
+    value_str := lower_expr(db, ccg, builder, empty, arena, value_id, visited, queue, type_queue)
     patterns := db.get_list(db.hir.lhs(arm))
     if (db.types.kind(value_ty) == TyKind.union_) and (patterns.len == 1) {
         pat := *(patterns.ptr + 0)
@@ -635,7 +622,7 @@ lower_match_binding :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, value_id u32, 
     ccg.create_variable(name, ty_str, value_str, true)
 }
 
-lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_match :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) V {
     value_id := db.hir.lhs(id)
     value_ty := db.get_node_type(value_id)
     arms := db.get_list(db.hir.rhs(id))
@@ -650,10 +637,10 @@ lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashS
         while i > 0 {
             i = i - 1
             arm := *(arms.ptr + i)
-            cond := lower_match_condition(db, ccg, arena, value_id, value_ty, arm, visited, queue, type_queue)
+            cond := lower_match_condition(db, ccg, builder, empty, arena, value_id, value_ty, arm, visited, queue, type_queue)
             mark := ccg.begin_expr()
-            lower_match_binding(db, ccg, arena, value_id, value_ty, arm, visited, queue, type_queue)
-            branch := lower_scoped_expr(db, ccg, arena, db.hir.rhs(arm), match_ty, visited, queue, type_queue)
+            lower_match_binding(db, ccg, builder, empty, arena, value_id, value_ty, arm, visited, queue, type_queue)
+            branch := lower_scoped_expr(db, ccg, builder, empty, arena, db.hir.rhs(arm), match_ty, visited, queue, type_queue)
             if ccg.code_len() != mark { branch = ccg.end_expr(arena, mark, branch) }
             result = ccg.expr_conditional(arena, cond, branch, result)
         }
@@ -664,7 +651,7 @@ lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashS
     open_blocks: u32 = 0
     while i < arms.len {
         arm := *(arms.ptr + i)
-        cond := lower_match_condition(db, ccg, arena, value_id, value_ty, arm, visited, queue, type_queue)
+        cond := lower_match_condition(db, ccg, builder, empty, arena, value_id, value_ty, arm, visited, queue, type_queue)
         if i == 0 {
             ccg.start_if(cond)
             open_blocks = open_blocks + 1
@@ -675,19 +662,19 @@ lower_match :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashS
                 open_blocks = open_blocks + 1
             }
         }
-        lower_match_binding(db, ccg, arena, value_id, value_ty, arm, visited, queue, type_queue)
-        branch := lower_body(db, ccg, arena, db.hir.rhs(arm), visited, queue, type_queue)
-        if branch.len > 0 { ccg.expr(branch) }
+        lower_match_binding(db, ccg, builder, empty, arena, value_id, value_ty, arm, visited, queue, type_queue)
+        branch := lower_body(db, ccg, builder, empty, arena, db.hir.rhs(arm), visited, queue, type_queue)
+        if ccg.has_value(branch) { ccg.expr(branch) }
         i = i + 1
     }
     while open_blocks > 0 {
         ccg.end_block()
         open_blocks = open_blocks - 1
     }
-    Str.empty()
+    empty
 }
 
-for_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, call_id u32, source_name Str, source_ty u32) Str {
+for_method_receiver :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, call_id u32, source_name V, source_ty u32) V {
     callee := db.hir.lhs(call_id)
     func_ty := db.get_node_type(callee)
     if db.types.kind(func_ty) != TyKind.func { ret source_name }
@@ -707,17 +694,17 @@ for_method_receiver :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, call_id u32, s
     }
     receiver := source_name
     while source_depth < expected_depth {
-        receiver = ccg.expr_unary(arena, Str.of("&"), receiver)
+        receiver = ccg.expr_address(arena, receiver)
         source_depth = source_depth + 1
     }
     while source_depth > expected_depth {
-        receiver = ccg.expr_unary(arena, Str.of("*"), receiver)
+        receiver = ccg.expr_deref(arena, receiver)
         source_depth = source_depth - 1
     }
     receiver
 }
 
-lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
+lower_for :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) V {
     vars := db.get_list(db.hir.lhs(id))
     iters := db.get_list(db.hir.rhs(id))
     ptr_id := db.interner.intern(Str.of("ptr"))
@@ -726,8 +713,8 @@ lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet
     present_id := db.interner.intern(Str.of("present"))
     value_id := db.interner.intern(Str.of("value"))
 
-    iter_names := Vec(Str).new()
-    value_names := Vec(Str).new()
+    iter_names := Vec(V).new()
+    value_names := Vec(V).new()
     structural_flags := Vec(u8).new()
     i: u64 = 0
     while i < iters.len {
@@ -736,20 +723,16 @@ lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet
         if db.hir.kind(iter) == hir_kind.for_iter { source = db.hir.lhs(iter) }
         iter_ty := db.get_node_type(source)
         add_type_to_queue(db, iter_ty, type_queue)
-        value := lower_expr(db, ccg, arena, source, visited, queue, type_queue)
-        name_fmt := Fmt.new(arena)
-        name_fmt.cstr(c"_for_").uint32(id).cstr(c"_").uint32(i as u32)
-        iter_name := name_fmt.as_str()
+        value := lower_expr(db, ccg, builder, empty, arena, source, visited, queue, type_queue)
+        iter_name := ccg.iterator_name(arena, id, i as u32)
         iter_names.push(iter_name)
         ccg.create_variable(iter_name, ccg.type_str(&db.types, arena, iter_ty), value, true)
         if db.hir.kind(iter) == hir_kind.for_iter { structural_flags.push(1 as u8) } else { structural_flags.push(0 as u8) }
         i = i + 1
     }
 
-    outer_condition := ccg.loop_condition
-    ccg.loop_condition = .{ id: id, breaks: false, continues: false }
-    ccg.start_while(Str.of("1"))
-    ccg.emit_label(arena, ccg.loop_label(arena, id, Str.of("_begin")))
+    scope := ccg.begin_loop(id)
+    ccg.start_iterator_loop(arena, &scope)
 
     i = 0
     while i < iter_names.len {
@@ -761,23 +744,21 @@ lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet
             add_type_to_queue(db, next_ty, type_queue)
             call_sym := resolve_call_symbol(db, next_call, db.hir.lhs(next_call), queue)
             callee_name := ccg.sym_name(arena, call_sym)
-            receiver := for_method_receiver(db, ccg, arena, next_call, name, db.get_node_type(db.hir.lhs(iter)))
+            receiver := for_method_receiver(db, ccg, builder, empty, arena, next_call, name, db.get_node_type(db.hir.lhs(iter)))
             next_expr := ccg.expr_call(arena, callee_name, receiver)
-            next_fmt := Fmt.new(arena)
-            next_fmt.cstr(c"_for_next_").uint32(id).cstr(c"_").uint32(i as u32)
-            next_name := next_fmt.as_str()
+            next_name := ccg.iterator_next_name(arena, id, i as u32)
             ccg.create_variable(next_name, ccg.type_str(&db.types, arena, next_ty), next_expr, true)
             value_names.push(next_name)
             present := ccg.expr_field_value(arena, next_name, present_id)
-            ccg.start_if(ccg.expr_unary(arena, Str.of("!"), present))
-            ccg.expr(Str.of("break"))
+            ccg.start_if(ccg.expr_not(arena, present))
+            ccg.break_statement()
             ccg.end_block()
         } else {
             value_names.push(name)
             length := ccg.expr_field_value(arena, name, len_id)
             index := ccg.expr_field_value(arena, name, index_id)
-            ccg.start_if(ccg.expr_binary(arena, Str.of(" <= "), length, index))
-            ccg.expr(Str.of("break"))
+            ccg.start_if(ccg.expr_less_equal(arena, length, index))
+            ccg.break_statement()
             ccg.end_block()
         }
         i = i + 1
@@ -792,42 +773,39 @@ lower_for :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet
         iter_ty := db.get_node_type(*(iters.ptr + i))
         var_ty_str := ccg.type_str(&db.types, arena, var_ty)
         iter_name := iter_names.get(i)
-        value := Fmt.new(arena)
+        value := empty
         if structural_flags.get(i) != 0 {
             next_name := value_names.get(i)
-            value.str(ccg.expr_field_value(arena, next_name, value_id))
+            value = ccg.expr_field_value(arena, next_name, value_id)
         } else if iterator_is_ref(db, iter_ty) {
             ptr := ccg.expr_field_value(arena, iter_name, ptr_id)
             index := ccg.expr_field_value(arena, iter_name, index_id)
-            value.str(ccg.expr_binary(arena, Str.of(" + "), ptr, index))
+            value = ccg.expr_add(arena, ptr, index)
         } else {
             ptr := ccg.expr_field_value(arena, iter_name, ptr_id)
             index := ccg.expr_field_value(arena, iter_name, index_id)
-            value.str(ccg.expr_unary(arena, Str.of("*"), ccg.expr_binary(arena, Str.of(" + "), ptr, index)))
+            value = ccg.expr_deref(arena, ccg.expr_add(arena, ptr, index))
         }
-        ccg.create_variable(var_name, var_ty_str, value.as_str(), true)
+        ccg.create_variable(var_name, var_ty_str, value, true)
         if structural_flags.get(i) == 0 {
             index := ccg.expr_field_value(arena, iter_name, index_id)
-            ccg.expr(ccg.expr_assign(arena, index, ccg.expr_binary(arena, Str.of(" + "), index, Str.of("1"))))
+            ccg.expr(ccg.expr_assign(arena, index, ccg.expr_add(arena, index, ccg.expr_one(arena))))
         }
         i = i + 1
     }
 
-    body := lower_body(db, ccg, arena, db.hir.extra(id), visited, queue, type_queue)
-    if body.len > 0 { ccg.expr(body) }
-    condition := ccg.loop_condition
-    ccg.end_block()
-    if condition.breaks { ccg.emit_label(arena, ccg.loop_label(arena, id, Str.of("_end"))) }
-    ccg.loop_condition = outer_condition
+    body := lower_body(db, ccg, builder, empty, arena, db.hir.extra(id), visited, queue, type_queue)
+    if ccg.has_value(body) { ccg.expr(body) }
+    ccg.end_loop(arena, &scope)
     iter_names.destroy()
     value_names.destroy()
     structural_flags.destroy()
-    Str.empty()
+    empty
 }
 
-lower_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) Str {
-    val_str := lower_expr_node(db, ccg, arena, id, visited, queue, type_queue)
-    if val_str.len == 0 { ret val_str }
+lower_expr :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) V {
+    val_str := lower_expr_node(db, ccg, builder, empty, arena, id, visited, queue, type_queue)
+    if not ccg.has_value(val_str) { ret val_str }
     if db.has_union_coerce(id) {
         target_union := db.get_union_coerce_ty(id)
         k_idx := db.get_union_coerce_idx(id)
@@ -838,20 +816,22 @@ lower_expr :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, id u32, visited &HashSe
     val_str
 }
 
-FuncSignature :: struct {
-    fn_name Str
-    params_str Str
+FuncSignature :: fn(V type) type {
+    struct {
+        fn_name V
+        params_str V
+    }
 }
 
-format_func_signature :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, real_sym u32, func_id u32, binding_id u32, is_mono bool, is_extern bool, orig_func_ty u32, func_ty u32) FuncSignature {
-    fn_name := Str.empty()
+format_func_signature :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, sym_id u32, real_sym u32, func_id u32, binding_id u32, is_mono bool, is_extern bool, orig_func_ty u32, func_ty u32) FuncSignature(V) {
+    fn_name := empty
     if is_mono {
         fn_name = ccg.sym_name(arena, sym_id)
     } else if is_extern {
         if binding_id != id_none() {
             name_hir := db.hir.lhs(binding_id)
             name_id := db.hir.lhs(name_hir)
-            fn_name = db.interner.get(name_id)
+            fn_name = ccg.extern_name(db.interner.get(name_id))
         } else {
             fn_name = ccg.sym_name(arena, real_sym)
         }
@@ -860,54 +840,35 @@ format_func_signature :: fn(db &Nexus, ccg &CCodeGen, arena &Arena, sym_id u32, 
     }
 
     params_slice := db.types.func_params(func_ty)
-    params_str := Str.of("void")
-
-    if params_slice.len > 0 {
-        p_fmt := String.new(arena)
-        first_p := true
-        orig_params: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
-        if orig_func_ty != ty_id_none() {
-            orig_params = db.types.func_params(orig_func_ty)
-        }
-        i: u64 = 0
-        while i < params_slice.len {
-            if is_mono and (i < orig_params.len) and (*(orig_params.ptr + i) == ty_id_type()) {
-                i = i + 1
-                cont
-            }
-            p_ty := *(params_slice.ptr + i)
-            p_ty_str := ccg.type_str(&db.types, arena, p_ty)
-            if not first_p { p_fmt.push_str(Str.of(", ")) }
-            p_fmt.push_str(p_ty_str)
-            p_fmt.push_char(32 as u8)
-
-            if is_extern {
-                p_fmt.push_str(Str.of("_a"))
-                p_fmt.push_u32(i as u32)
-            } else {
-                args_list_id := db.hir.lhs(func_id)
-                if args_list_id != hir_none() {
-                    args := db.get_list(args_list_id)
-                    arg_node := *(args.ptr + i)
-                    arg_ident := db.hir.lhs(arg_node)
-                    arg_sym := db.get_hir_symbol(arg_ident)
-                    if arg_sym != id_none() {
-                        p_fmt.push_str(ccg.sym_name(arena, arg_sym))
-                    } else {
-                        p_fmt.push_str(Str.of("_a"))
-                        p_fmt.push_u32(i as u32)
-                    }
-                } else {
-                    p_fmt.push_str(Str.of("_a"))
-                    p_fmt.push_u32(i as u32)
-                }
-            }
-            first_p = false
-            i = i + 1
-        }
-        params_str = p_fmt.as_str()
-        if params_str.len == 0 { params_str = Str.of("void") }
+    params := builder.new_list(arena)
+    first := true
+    orig_params: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    if orig_func_ty != ty_id_none() {
+        orig_params = db.types.func_params(orig_func_ty)
     }
+    i: u64 = 0
+    while i < params_slice.len {
+        if is_mono and (i < orig_params.len) and (*(orig_params.ptr + i) == ty_id_type()) {
+            i = i + 1
+            cont
+        }
+        p_ty := ccg.type_str(&db.types, arena, *(params_slice.ptr + i))
+        name := ccg.parameter_name(arena, i as u32)
+        if not is_extern {
+            args_list_id := db.hir.lhs(func_id)
+            if args_list_id != hir_none() {
+                args := db.get_list(args_list_id)
+                arg_ident := db.hir.lhs(*(args.ptr + i))
+                arg_sym := db.get_hir_symbol(arg_ident)
+                if arg_sym != id_none() { name = ccg.sym_name(arena, arg_sym) }
+            }
+        }
+        builder.append_list_item(&params, ccg.parameter(arena, p_ty, name), first)
+        first = false
+        i = i + 1
+    }
+    params_str := builder.finish_list(&params)
+    if first { params_str = ccg.empty_parameters() }
 
     .{ fn_name: fn_name, params_str: params_str }
 }
@@ -922,21 +883,19 @@ queue_func_types :: fn(db &Nexus, func_ty u32, type_queue &Vec(u32)) {
     }
 }
 
-emit_func_body_return :: fn(ccg &CCodeGen, db &Nexus, ret_ty u32, body_val Str) {
+emit_func_body_return :: fn(B type, L type, V type, ccg &B, builder &L, empty V, db &Nexus, ret_ty u32, body_val V) {
     if db.types.kind(ret_ty) == TyKind.unit {
-        if body_val.len > 0 { ccg.expr(body_val) }
-        ccg.gen_return(Str.empty(), false)
-    } else if body_val.len > 0 {
+        if ccg.has_value(body_val) { ccg.expr(body_val) }
+        ccg.gen_return(empty, false)
+    } else if ccg.has_value(body_val) {
         ccg.gen_return(body_val, true)
     }
 }
 
-lower_one_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) {
+lower_one_function :: fn(B type, L type, V type, eng &Engine, ccg &B, builder &L, empty V, arena &Arena, sym_id u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) {
     if sym_id == id_none() { ret }
 
     db := &eng.nexus
-    ccg := &eng.ccg
-
     is_mono := db.is_mono_sym(sym_id)
     orig_sym := sym_id
     mono_func_ty := ty_id_none()
@@ -969,26 +928,24 @@ lower_one_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet
     if func_ty == ty_id_none() { ret }
     body_id := db.hir.extra(func_id)
     is_extern := (body_id == hir_none()) or db.types.func_is_extern(func_ty)
-    sig := format_func_signature(db, ccg, arena, sym_id, real_sym, func_id, binding_id, is_mono, is_extern, orig_func_ty, func_ty)
+    sig := format_func_signature(db, ccg, builder, empty, arena, sym_id, real_sym, func_id, binding_id, is_mono, is_extern, orig_func_ty, func_ty)
     if is_extern { ret }
     queue_func_types(db, func_ty, type_queue)
     ret_ty := db.types.func_return(func_ty)
     ret_str := ccg.type_str(&db.types, arena, ret_ty)
     ccg.start_function(sig.fn_name, ret_str, sig.params_str)
-    body_val := lower_body(db, ccg, arena, body_id, visited, queue, type_queue)
-    emit_func_body_return(ccg, db, ret_ty, body_val)
+    body_val := lower_body(db, ccg, builder, empty, arena, body_id, visited, queue, type_queue)
+    emit_func_body_return(ccg, builder, empty, db, ret_ty, body_val)
     ccg.end_function()
     if is_mono { db.set_const_type(func_id, saved_orig_ty) }
 }
 
-lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet(u32)) {
+lower_function :: fn(B type, L type, V type, eng &Engine, ccg &B, builder &L, empty V, arena &Arena, sym_id u32, visited &HashSet(u32)) {
     if sym_id == id_none() {
         ret
     }
 
     db := &eng.nexus
-    ccg := &eng.ccg
-
     queue := Vec().new()
     type_queue := Vec().new()
 
@@ -996,7 +953,7 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet(u32
 
     for q_sym in Worklist(u32).new(&queue) {
         if visited.insert(q_sym) {
-            lower_one_function(eng, arena, q_sym, visited, &queue, &type_queue)
+            lower_one_function(eng, ccg, builder, empty, arena, q_sym, visited, &queue, &type_queue)
         }
     }
 

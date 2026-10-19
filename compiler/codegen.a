@@ -30,6 +30,30 @@ LoopCondition :: struct {
     continues bool
 }
 
+LoopScope :: struct {
+    outer LoopCondition
+    id u32
+    breaks bool
+    iterator bool
+}
+
+CCodeBuilder :: struct {
+    new :: fn() Self { .{} }
+
+    new_list :: fn(self &Self, arena &Arena) String {
+        String.new(arena)
+    }
+
+    append_list_item :: fn(self &Self, list &String, value Str, first bool) {
+        if not first { list.push_str(Str.of(", ")) }
+        list.push_str(value)
+    }
+
+    finish_list :: fn(self &Self, list &String) Str {
+        list.as_str()
+    }
+}
+
 CCodeGen :: struct {
     arena           : &Arena,
     struct_decls    : String,
@@ -59,6 +83,31 @@ CCodeGen :: struct {
 
     destroy :: fn(self &Self) {
         self.emitted_structs.destroy()
+    }
+
+    empty_value :: fn(self &Self) Str { Str.empty() }
+
+    has_value :: fn(self &Self, value Str) bool { value.len > 0 }
+
+    extern_name :: fn(self &Self, name Str) Str { name }
+
+    expr_float :: fn(self &Self, raw Str) Str { raw }
+
+    empty_parameters :: fn(self &Self) Str { Str.of("void") }
+
+    parameter_name :: fn(self &Self, arena &Arena, index u32) Str {
+        value := String.new(arena)
+        value.push_str(Str.of("_a"))
+        value.push_u32(index)
+        value.as_str()
+    }
+
+    parameter :: fn(self &Self, arena &Arena, ty Str, name Str) Str {
+        value := String.new(arena)
+        value.push_str(ty)
+        value.push_char(32 as u8)
+        value.push_str(name)
+        value.as_str()
     }
 
     indent_line :: fn(self &Self) {
@@ -172,6 +221,26 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
+    loop_begin_label :: fn(self &Self, arena &Arena, id u32) Str {
+        self.loop_label(arena, id, Str.of("_begin"))
+    }
+
+    loop_end_label :: fn(self &Self, arena &Arena, id u32) Str {
+        self.loop_label(arena, id, Str.of("_end"))
+    }
+
+    iterator_name :: fn(self &Self, arena &Arena, id u32, index u32) Str {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"_for_").uint32(id).char(95 as u8).uint32(index)
+        fmt.as_str()
+    }
+
+    iterator_next_name :: fn(self &Self, arena &Arena, id u32, index u32) Str {
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"_for_next_").uint32(id).char(95 as u8).uint32(index)
+        fmt.as_str()
+    }
+
     emit_label :: fn(self &Self, arena &Arena, label Str) {
         fmt := Fmt.new(arena)
         fmt.str(label).char(58 as u8)
@@ -202,6 +271,38 @@ CCodeGen :: struct {
         }
     }
 
+    break_statement :: fn(self &Self) {
+        self.expr(Str.of("break"))
+    }
+
+    begin_loop :: fn(self &Self, id u32) LoopScope {
+        scope: LoopScope = .{ outer: self.loop_condition, id: id, breaks: false, iterator: false }
+        self.set_loop(id, false, false)
+        scope
+    }
+
+    start_loop :: fn(self &Self, arena &Arena, scope &LoopScope, condition Str) {
+        scope.breaks = self.loop_condition.breaks
+        continues := self.loop_condition.continues
+        self.set_loop(hir_none(), false, false)
+        if continues { self.emit_label(arena, self.loop_begin_label(arena, scope.id)) }
+        self.start_while(condition)
+    }
+
+    start_iterator_loop :: fn(self &Self, arena &Arena, scope &LoopScope) {
+        scope.iterator = true
+        self.start_while(self.expr_one(arena))
+        self.emit_label(arena, self.loop_begin_label(arena, scope.id))
+    }
+
+    end_loop :: fn(self &Self, arena &Arena, scope &LoopScope) {
+        breaks := scope.breaks
+        if scope.iterator { breaks = self.loop_condition.breaks }
+        self.end_block()
+        if breaks { self.emit_label(arena, self.loop_end_label(arena, scope.id)) }
+        self.loop_condition = scope.outer
+    }
+
     begin_expr :: fn(self &Self) u64 {
         self.indent = self.indent + 1
         self.code.mark()
@@ -209,6 +310,22 @@ CCodeGen :: struct {
 
     code_len :: fn(self &Self) u64 {
         self.code.len()
+    }
+
+    loop_id :: fn(self &Self) u32 {
+        self.loop_condition.id
+    }
+
+    loop_breaks :: fn(self &Self) bool {
+        self.loop_condition.breaks
+    }
+
+    loop_continues :: fn(self &Self) bool {
+        self.loop_condition.continues
+    }
+
+    set_loop :: fn(self &Self, id u32, breaks bool, continues bool) {
+        self.loop_condition = .{ id: id, breaks: breaks, continues: continues }
     }
 
     end_expr :: fn(self &Self, arena &Arena, mark u64, value Str) Str {
@@ -479,6 +596,10 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
+    expr_one :: fn(self &Self, arena &Arena) Str {
+        self.expr_int(arena, 1)
+    }
+
     expr_str_lit :: fn(self &Self, arena &Arena, struct_name Str, ptr_id u32, len_id u32, raw Str) Str {
         fmt := Fmt.new(arena)
         if struct_name.len == 0 {
@@ -540,6 +661,26 @@ CCodeGen :: struct {
         fmt := Fmt.new(arena)
         fmt.char(40 as u8).str(op).char(40 as u8).str(inner).cstr(c"))")
         fmt.as_str()
+    }
+
+    expr_neg :: fn(self &Self, arena &Arena, inner Str) Str {
+        self.expr_unary(arena, Str.of("-"), inner)
+    }
+
+    expr_not :: fn(self &Self, arena &Arena, inner Str) Str {
+        self.expr_unary(arena, Str.of("!"), inner)
+    }
+
+    expr_bit_not :: fn(self &Self, arena &Arena, inner Str) Str {
+        self.expr_unary(arena, Str.of("~"), inner)
+    }
+
+    expr_address :: fn(self &Self, arena &Arena, inner Str) Str {
+        self.expr_unary(arena, Str.of("&"), inner)
+    }
+
+    expr_deref :: fn(self &Self, arena &Arena, inner Str) Str {
+        self.expr_unary(arena, Str.of("*"), inner)
     }
 
     expr_str_deref :: fn(self &Self, arena &Arena, inner Str, ptr_id u32) Str {
@@ -668,6 +809,26 @@ CCodeGen :: struct {
         if kind == k.binary_and     { ret Str.of(" && ") }
         if kind == k.binary_or      { ret Str.of(" || ") }
         Str.of(" ")
+    }
+
+    expr_binary_kind :: fn(self &Self, arena &Arena, kind HirExprKind, lhs Str, rhs Str) Str {
+        self.expr_binary(arena, self.binary_op(kind), lhs, rhs)
+    }
+
+    expr_equal :: fn(self &Self, arena &Arena, lhs Str, rhs Str) Str {
+        self.expr_binary(arena, Str.of(" == "), lhs, rhs)
+    }
+
+    expr_or :: fn(self &Self, arena &Arena, lhs Str, rhs Str) Str {
+        self.expr_binary(arena, Str.of(" || "), lhs, rhs)
+    }
+
+    expr_less_equal :: fn(self &Self, arena &Arena, lhs Str, rhs Str) Str {
+        self.expr_binary(arena, Str.of(" <= "), lhs, rhs)
+    }
+
+    expr_add :: fn(self &Self, arena &Arena, lhs Str, rhs Str) Str {
+        self.expr_binary(arena, Str.of(" + "), lhs, rhs)
     }
 }
 

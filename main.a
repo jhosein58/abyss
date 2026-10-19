@@ -3,7 +3,7 @@ import Arena from "std/allocator"
 import read_file, write_file from "std/fs"
 import dump_hir from "compiler/dump"
 import Engine from "compiler/engine"
-import CCodeGen_finish from "compiler/codegen"
+import CCodeGen, CCodeBuilder, CCodeGen_new, CCodeGen_destroy, CCodeGen_finish from "compiler/codegen"
 import embedded_runtime from "compiler/embedded"
 import fall from "std/sys"
 import Fmt from "std/fmt"
@@ -47,6 +47,8 @@ main :: fn() {
     source := read_file(&arena, main_path)
 
     eng := Engine.new(&arena)
+    ccg := CCodeGen_new(&arena)
+    builder := CCodeBuilder.new()
 
     fid := eng.add_file(&arena, Str.of(main_path), source)
 
@@ -55,8 +57,10 @@ main :: fn() {
     eng.parse(sym_id)
     eng.type_check(sym_id)
 
-    eng.abyss_main(sym_id)
-    eng.compile(&arena, sym_id)
+    eng.validate_main(sym_id)
+
+    ccg.abyss_main(sym_id)
+    eng.compile(&ccg, &builder, &arena, sym_id)
 
     prelude_source := embedded_runtime()
     env_prelude := get_env(c"ABYSS_PRELUDE")
@@ -90,6 +94,7 @@ main :: fn() {
         }
     }
 
-    c_code := CCodeGen_finish(&eng.ccg, prelude_source)
+    c_code := CCodeGen_finish(&ccg, prelude_source)
     write_file(out_path, c_code)
+    CCodeGen_destroy(&ccg)
 }

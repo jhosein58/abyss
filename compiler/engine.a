@@ -14,7 +14,6 @@ import Path from "std/path"
 import Arena from "std/allocator"
 import fall from "std/sys"
 
-import CCodeGen, CCodeGen_new, CCodeGen_destroy, CCodeGen_abyss_main, CCodeGen_finish from "./codegen"
 import lower_function from "./lower"
 import HashSet from "std/collections/hash_set.a"
 
@@ -24,18 +23,15 @@ print_u32 :: fn(v u32) unit
 Engine :: struct {
     nexus         Nexus
     file_count    u32
-    ccg           CCodeGen
 
     new :: fn(arena &Arena) Self {
         .{
             nexus         : Nexus.new(),
-            file_count    : 0,
-            ccg           : CCodeGen_new(arena)
+            file_count    : 0
         }
     }
 
     destroy :: fn(self &Self) {
-        CCodeGen_destroy(&self.ccg)
     }
 
     add_file :: fn(self &Self, arena &Arena, path Str, source Str) u32 {
@@ -193,7 +189,7 @@ Engine :: struct {
         ty_id_none()
     }
 
-    abyss_main :: fn(self &Self, sym_id u32) {
+    validate_main :: fn(self &Self, sym_id u32) {
         ty := self.type_of(sym_id)
         types := &self.nexus.types
         if types.kind(ty) != TyKind.func {
@@ -204,12 +200,11 @@ Engine :: struct {
             print(c"\n[type error] main must be a defined function with no arguments\n")
             fall()
         }
-        CCodeGen_abyss_main(&self.ccg, sym_id)
     }
 
-    compile :: fn(self &Self, arena &Arena, sym_id u32) {
+    compile :: fn(self &Self, B type, L type, backend &B, builder &L, arena &Arena, sym_id u32) {
         visited := HashSet(u32).new()
-        lower_function(self, arena, sym_id, &visited)
+        lower_function(self, backend, builder, backend.empty_value(), arena, sym_id, &visited)
         visited.destroy()
     }
 

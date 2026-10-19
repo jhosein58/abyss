@@ -1,0 +1,31 @@
+import Str from "std/string"
+import Arena from "std/allocator"
+import read_file, write_file from "std/fs"
+import Engine from "./engine"
+import DummyCodeGen, DummyCodeBuilder, DummyCodeGen_new, DummyCodeGen_destroy, DummyCodeGen_finish from "./dummy_codegen"
+
+get_arg_count :: fn() i32
+get_arg         :: fn(idx i32) &u8
+
+main :: fn() {
+    arena := Arena.new(1024 * 1024 * 16)
+    source_path := c"tests/01_literals.a"
+    output_path := c"dummy.out"
+    if get_arg_count() > 1 { source_path = get_arg(1) }
+    if get_arg_count() > 2 { output_path = get_arg(2) }
+
+    source := read_file(&arena, source_path)
+    eng := Engine.new(&arena)
+    backend := DummyCodeGen_new(&arena)
+    builder := DummyCodeBuilder.new()
+    file_id := eng.add_file(&arena, Str.of(source_path), source)
+    sym_id := eng.get_symbol_id(file_id, Str.of("main"))
+    eng.parse(sym_id)
+    eng.type_check(sym_id)
+    eng.validate_main(sym_id)
+    backend.abyss_main(sym_id)
+    eng.compile(&backend, &builder, &arena, sym_id)
+    output := DummyCodeGen_finish(&backend, Str.empty())
+    write_file(output_path, output)
+    DummyCodeGen_destroy(&backend)
+}
