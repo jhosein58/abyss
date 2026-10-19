@@ -1,7 +1,7 @@
 import Nexus from "../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../hir"
-import SliceU32 from "std/slice/u32"
-import VecU32 from "std/vec/u32"
+import Slice from "core/slice"
+import Vec from "std/collections/vec"
 import Str from "std/string"
 import TypeStorage, TyKind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error from "../types"
 import UnifyStorage, slot_none from "../unify"
@@ -12,7 +12,7 @@ import synth_type_node from "./rules/var"
 
 print :: fn(s &u8) unit
 
-specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args &VecU32) u32 {
+specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args &Vec(u32)) u32 {
     db := &(*eng).nexus
     tbl := &(*db).hir
     types_ptr := &(*db).types
@@ -31,7 +31,7 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
     (*db).type_specialization_depth = (*db).type_specialization_depth + 1
 
     fn_params_list := (tbl).lhs(func_node)
-    fn_params_vec := VecU32.new()
+    fn_params_vec := Vec(u32).new()
     if fn_params_list != hir_none() {
         fn_params := db.get_list(fn_params_list)
         fn_params_vec.extend(fn_params.ptr, fn_params.len)
@@ -85,7 +85,7 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
         names := db.get_list(names_list)
         types_nodes := db.get_list(types_list)
 
-        fields_vec := VecU32.new()
+        fields_vec := Vec(u32).new()
         f_i: u64 = 0
         while (f_i < names.len) and (f_i < types_nodes.len) {
             names = db.get_list(names_list)
@@ -119,7 +119,7 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
 
         f_ptr := 0 as &u32
         if fields_vec.len > 0 { f_ptr = fields_vec.ptr_at(0) }
-        f_slice: SliceU32 = .{ ptr: f_ptr, len: fields_vec.len }
+        f_slice: Slice(u32) = .{ ptr: f_ptr, len: fields_vec.len }
         structural_ty := (&(*types_ptr)).alloc_struct(f_slice)
         fields_vec.destroy()
 
@@ -159,15 +159,15 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
     ty_id_none()
 }
 
-specialize_type_node :: fn(eng &Engine, ty_node u32, fn_params SliceU32, concrete_args &VecU32) u32 {
-    params_vec := VecU32.new()
+specialize_type_node :: fn(eng &Engine, ty_node u32, fn_params Slice(u32), concrete_args &Vec(u32)) u32 {
+    params_vec := Vec(u32).new()
     params_vec.extend(fn_params.ptr, fn_params.len)
     result := specialize_type_node_inner(eng, ty_node, params_vec.as_slice(), concrete_args)
     params_vec.destroy()
     result
 }
 
-specialize_type_node_inner :: fn(eng &Engine, ty_node u32, fn_params SliceU32, concrete_args &VecU32) u32 {
+specialize_type_node_inner :: fn(eng &Engine, ty_node u32, fn_params Slice(u32), concrete_args &Vec(u32)) u32 {
     if ty_node == hir_none() { ret ty_id_none() }
     db := &(*eng).nexus
     tbl := &(*db).hir
@@ -209,7 +209,7 @@ specialize_type_node_inner :: fn(eng &Engine, ty_node u32, fn_params SliceU32, c
     }
 
     if curr == k.function {
-        params_vec := VecU32.new()
+        params_vec := Vec(u32).new()
         params_list := (tbl).lhs(ty_node)
         if params_list != hir_none() {
             count := db.get_list(params_list).len
@@ -243,7 +243,7 @@ specialize_type_node_inner :: fn(eng &Engine, ty_node u32, fn_params SliceU32, c
     if curr == k.call {
         callee := (tbl).lhs(ty_node)
         args_list_id := (tbl).rhs(ty_node)
-        sub_concrete := VecU32.new()
+        sub_concrete := Vec(u32).new()
         if args_list_id != hir_none() {
             args := db.get_list(args_list_id)
             i: u64 = 0
@@ -293,7 +293,7 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
     creator_args := (&(*types_ptr)).get_nominal_creator_args(origin)
     creator_fn := db.get_fn_node(creator_sym)
 
-    fn_params_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    fn_params_slice: Slice(u32) = .{ ptr: 0 as &u32, len: 0 }
     if creator_fn != id_none() {
         cp_list := (tbl).lhs(creator_fn)
         if cp_list != hir_none() {
@@ -321,13 +321,13 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
     }
 
     m_params_list := (tbl).lhs(func_node)
-    c_args_vec := VecU32.new()
+    c_args_vec := Vec(u32).new()
     ca_i: u64 = 0
     while ca_i < creator_args.len {
         c_args_vec.push(*(creator_args.ptr + ca_i))
         ca_i = ca_i + 1
     }
-    method_type_params := VecU32.new()
+    method_type_params := Vec(u32).new()
     method_type_params.extend(fn_params_slice.ptr, fn_params_slice.len)
     if m_params_list != hir_none() {
         count := db.get_list(m_params_list).len
@@ -348,7 +348,7 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
             mp_i = mp_i + 1
         }
     }
-    concrete_params_vec := VecU32.new()
+    concrete_params_vec := Vec(u32).new()
     if m_params_list != hir_none() {
         count := db.get_list(m_params_list).len
         mp_i: u64 = 0
@@ -366,7 +366,7 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
     if m_ret_node != hir_none() {
         concrete_ret = specialize_type_node(eng, m_ret_node, method_type_params.as_slice(), &c_args_vec)
     }
-    c_p_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    c_p_slice: Slice(u32) = .{ ptr: 0 as &u32, len: 0 }
     if concrete_params_vec.len > 0 {
         c_p_slice.ptr = concrete_params_vec.ptr_at(0)
         c_p_slice.len = concrete_params_vec.len
@@ -378,7 +378,7 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
     concrete_method_ty
 }
 
-transform_type :: fn(eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU32, unify_ptr &UnifyStorage, types &TypeStorage, is_instantiate bool) u32 {
+transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec(u32), unify_ptr &UnifyStorage, types &TypeStorage, is_instantiate bool) u32 {
     if ty == ty_id_none() { ret ty_id_none() }
     db := &eng.nexus
     kind := types.kind(ty)
@@ -429,7 +429,7 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU3
         count := types.func_params(ty).len
         ret_ty := transform_type(eng, types.func_return(ty), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
         is_ext := types.func_is_extern(ty)
-        params_vec := VecU32.new()
+        params_vec := Vec(u32).new()
         i: u64 = 0
         while i < count {
             params := types.func_params(ty)
@@ -463,7 +463,7 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU3
         creator_sym := types.get_nominal_creator_sym(orig)
         if creator_sym != ty_id_none() {
             creator_args := types.get_nominal_creator_args(orig)
-            res_args := VecU32.new()
+            res_args := Vec(u32).new()
             changed := false
             c_i: u64 = 0
             while c_i < creator_args.len {
@@ -492,11 +492,11 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU3
     ty
 }
 
-instantiate_type :: fn(eng &Engine, ty u32, tmpl_slots &VecU32, fresh_slots &VecU32) u32 {
+instantiate_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec(u32)) u32 {
     db := &(*eng).nexus
     transform_type(eng, ty, tmpl_slots, fresh_slots, &(*db).unify, &(*db).types, true)
 }
 
 resolve_ty_id :: fn(eng &Engine, unify_ptr &UnifyStorage, types &TypeStorage, ty u32) u32 {
-    transform_type(eng, ty, 0 as &VecU32, 0 as &VecU32, unify_ptr, types, false)
+    transform_type(eng, ty, 0 as &Vec(u32), 0 as &Vec(u32), unify_ptr, types, false)
 }

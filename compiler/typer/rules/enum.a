@@ -6,7 +6,7 @@ import ty_id_none, ty_id_type from "../../types"
 import fall from "std/sys"
 import synth_node from "../tyck"
 import synth_type_node from "./var"
-import VecU32 from "std/vec/u32"
+import Vec from "std/collections/vec"
 import Str from "std/string"
 import id_none from "../../nexus/pool"
 
@@ -47,7 +47,7 @@ synth_enum :: fn(eng &Engine, id u32) {
     names := db.get_list(names_list_id)
     vals := db.get_list(vals_list_id)
 
-    variants := VecU32.new()
+    variants := Vec(u32).new()
     curr_val: u32 = 0
 
     i: u64 = 0

@@ -1,7 +1,4 @@
-import VecU8  from "std/vec/u8"
-import VecU32 from "std/vec/u32"
-import VecStr from "std/vec/str"
-import VecBool from "std/vec/bool"
+import Vec from "std/collections/vec"
 
 import Str from "std/string"
 
@@ -142,19 +139,19 @@ token_name :: fn(tk TokenType) Str {
 }
 
 TokenStream :: struct {
-    kinds           VecU8
-    starts          VecU32
-    lens            VecU32
-    texts           VecStr
-    newline_befores VecBool
+    kinds           Vec(u8)
+    starts          Vec(u32)
+    lens            Vec(u32)
+    texts           Vec(Str)
+    newline_befores Vec(bool)
 
     new :: fn() TokenStream {
         .{
-            kinds          : VecU8.new(),
-            starts         : VecU32.new(),
-            lens           : VecU32.new(),
-            texts          : VecStr.new(),
-            newline_befores: VecBool.new(),
+            kinds          : Vec(u8).new(),
+            starts         : Vec(u32).new(),
+            lens           : Vec(u32).new(),
+            texts          : Vec(Str).new(),
+            newline_befores: Vec(bool).new(),
         }
     }
 

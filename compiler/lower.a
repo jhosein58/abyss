@@ -3,7 +3,7 @@ import HirTable, hir_kind, hir_none, HirExprKind from "./hir"
 import id_none from "./nexus/pool"
 import Str from "std/string"
 import Arena from "std/allocator"
-import SliceU32 from "std/slice/u32"
+import Slice from "core/slice"
 import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_unit, ty_id_bool from "./types"
 import topo_sort from "./topo_sort"
 import fall from "std/sys"
@@ -888,7 +888,7 @@ format_func_signature :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &
     params_slice := db.types.func_params(func_ty)
     params := builder.new_list(arena)
     first := true
-    orig_params: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    orig_params: Slice(u32) = .{ ptr: 0 as &u32, len: 0 }
     if orig_func_ty != ty_id_none() {
         orig_params = db.types.func_params(orig_func_ty)
     }

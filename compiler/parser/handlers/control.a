@@ -1,7 +1,7 @@
 import token from "../../token"
 import hir_kind, hir_none from "../../hir"
 import Parser, bump, optional, peek, is_eof, expect, curr_span, prev_span, parse_error_at, peek_preceded_by_newline from "../core"
-import SliceU32 from "std/slice/u32"
+import Slice from "core/slice"
 import Vec from "std/collections/vec"
 import span_merge from "../../nexus/nexus"
 import span_of_hir, set_span from "./common"
@@ -122,7 +122,7 @@ parse_block :: fn(p &Parser) u32 {
     expect(p, t.c_brace)
     sp_end := prev_span(p)
 
-    slice: SliceU32 = .{
+    slice: Slice(u32) = .{
         ptr: glob_stack.ptr_at(mark),
         len: glob_stack.len - mark
     }

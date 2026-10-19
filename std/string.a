@@ -1,51 +1,70 @@
 import Str from "../core/string.a"
 import Arena  from "allocator.a"
-import AVecU8 from "avec/u8.a"
 
 str_len    :: fn(s &u8) u64
 print_char :: fn(c u8)  unit
 
 
 String :: struct {
-    buf AVecU8
+    arena &Arena
+    ptr   &u8
+    len   u64
+    cap   u64
 
     new :: fn(a &Arena) String {
+        cap: u64 = 4
+        p := a.alloc(cap) as &u8
         .{
-            buf: AVecU8.new(a)
+            arena: a,
+            ptr: p,
+            len: 0,
+            cap: cap
         }
     }
 
-    push_str :: fn(self &Self, s Str) {
-        i := 0
+    grow :: fn(self &Self) {
+        if self.len == self.cap {
+            new_cap := self.cap * 2
+            old_bytes := self.cap
+            new_bytes := new_cap
+            new_ptr := self.arena.realloc(self.ptr, old_bytes, new_bytes) as &u8
+            self.ptr = new_ptr
+            self.cap = new_cap
+        }
+    }
 
+    push_char :: fn(self &Self, c u8) {
+        self.grow()
+        *(self.ptr + self.len) = c
+        self.len = self.len + 1
+    }
+
+    push_str :: fn(self &Self, s Str) {
+        i: u64 = 0
         while i < s.len {
-            self.buf.push(*(s.ptr + i))
+            self.push_char(*(s.ptr + i))
             i = i + 1
         }
     }
 
     as_str :: fn(self &Self) Str {
-        Str.new(self.buf.ptr, self.buf.len)
-    }
-
-    push_char :: fn(self &Self, c u8) {
-        self.buf.push(c)
+        Str.new(self.ptr, self.len)
     }
 
     len :: fn(self &Self) u64 {
-        self.buf.len
+        self.len
     }
 
     mark :: fn(self &Self) u64 {
-        self.buf.len
+        self.len
     }
 
     reset :: fn(self &Self, mark u64) {
-        self.buf.len = mark
+        self.len = mark
     }
 
     ptr_at :: fn(self &Self, offset u64) &u8 {
-        self.buf.ptr + offset
+        self.ptr + offset
     }
 
     push_u32 :: fn(self &Self, val u32) {

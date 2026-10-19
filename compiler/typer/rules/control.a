@@ -5,8 +5,8 @@ import TyKind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error, ty_id_never from
 import slot_none from "../../unify"
 import check_value from "./common"
 import synth_type_node from "./var"
-import VecU32 from "std/vec/u32"
-import SliceU32 from "std/slice/u32"
+import Vec from "std/collections/vec"
+import Slice from "core/slice"
 import Str from "std/string"
 import id_none from "../../nexus/pool"
 import fall from "std/sys"
@@ -40,7 +40,7 @@ synth_match :: fn(eng &Engine, id u32) {
     }
 
     arms := db.get_list(tbl.rhs(id))
-    covered := VecU32.new()
+    covered := Vec(u32).new()
     result_ty := ty_id_none()
     has_else := false
     i: u64 = 0
@@ -203,7 +203,7 @@ prepare_match_bindings :: fn(eng &Engine, start u32, len u32) {
     }
 }
 
-vec_u32_contains :: fn(v &VecU32, value u32) bool {
+vec_u32_contains :: fn(v &Vec(u32), value u32) bool {
     i: u64 = 0
     while i < v.len {
         if v.get(i) == value { ret true }
@@ -307,7 +307,7 @@ make_iter_call :: fn(eng &Engine, source u32, name Str) u32 {
     name_id := db.interner.intern(name)
     rhs := tbl.push(k.ident, name_id, hir_none(), hir_none())
     member := tbl.push(k.member, source, rhs, hir_none())
-    empty: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    empty: Slice(u32) = .{ ptr: 0 as &u32, len: 0 }
     args := db.add_list(empty)
     call := tbl.push(k.call, member, args, hir_none())
     file_id := db.get_hir_file(source)
@@ -411,7 +411,7 @@ synth_for :: fn(eng &Engine, id u32) {
         db.for_sources.set(id, sources)
     }
     count := db.get_list(sources).len
-    normalized := VecU32.new()
+    normalized := Vec(u32).new()
     i: u64 = 0
     while i < count {
         source := *(db.get_list(sources).ptr + i)

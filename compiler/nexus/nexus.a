@@ -1,6 +1,5 @@
-import VecU32 from "std/vec/u32"
-import VecStr from "std/vec/str"
-import SliceU32, SliceU32_new from "std/slice/u32"
+import Vec from "std/collections/vec"
+import Slice from "core/slice"
 import Interner from "std/interner"
 import Str from "std/string"
 
@@ -64,8 +63,8 @@ Nexus :: struct {
     tokens         TokenStream
     hir            HirTable
 
-    glob_stack     VecU32
-    u32_items      VecU32
+    glob_stack     Vec(u32)
+    u32_items      Vec(u32)
     interner       Interner
     types          TypeStorage
     unify          UnifyStorage
@@ -87,18 +86,18 @@ Nexus :: struct {
 
     core_prelude   u32
     std_prelude    u32
-    file_sources   VecStr
-    file_paths     VecStr
+    file_sources   Vec(Str)
+    file_paths     Vec(Str)
     hir_files      PoolU32
     hir_span_start PoolU32
     hir_span_end   PoolU32
     type_specialization_depth u32
-    mono_orig_sym  VecU32
-    mono_type      VecU32
-    mono_sym       VecU32
-    mono_nom_sym   VecU32
-    mono_nom_arg   VecU32
-    mono_nom_res   VecU32
+    mono_orig_sym  Vec(u32)
+    mono_type      Vec(u32)
+    mono_sym       Vec(u32)
+    mono_nom_sym   Vec(u32)
+    mono_nom_arg   Vec(u32)
+    mono_nom_res   Vec(u32)
     union_coerce_ty PoolU32
     union_coerce_idx PoolU32
     auto_deref_depth PoolU32
@@ -110,8 +109,8 @@ Nexus :: struct {
             tokens         : TokenStream.new(),
             hir            : HirTable.new(),
 
-            glob_stack     : VecU32.new(),
-            u32_items      : VecU32.new(),
+            glob_stack     : Vec(u32).new(),
+            u32_items      : Vec(u32).new(),
             interner       : Interner.new(),
              types          : TypeStorage.new(),
             unify          : UnifyStorage.new(),
@@ -132,18 +131,18 @@ Nexus :: struct {
 
             core_prelude   : id_none(),
             std_prelude    : id_none(),
-            file_sources   : VecStr.new(),
-            file_paths     : VecStr.new(),
+            file_sources   : Vec(Str).new(),
+            file_paths     : Vec(Str).new(),
             hir_files      : PoolU32.new(),
             hir_span_start : PoolU32.new(),
             hir_span_end   : PoolU32.new(),
             type_specialization_depth : 0,
-            mono_orig_sym  : VecU32.new(),
-            mono_type      : VecU32.new(),
-            mono_sym       : VecU32.new(),
-            mono_nom_sym   : VecU32.new(),
-            mono_nom_arg   : VecU32.new(),
-            mono_nom_res   : VecU32.new(),
+            mono_orig_sym  : Vec(u32).new(),
+            mono_type      : Vec(u32).new(),
+            mono_sym       : Vec(u32).new(),
+            mono_nom_sym   : Vec(u32).new(),
+            mono_nom_arg   : Vec(u32).new(),
+            mono_nom_res   : Vec(u32).new(),
             union_coerce_ty : PoolU32.new(),
             union_coerce_idx : PoolU32.new(),
             auto_deref_depth : PoolU32.new(),
@@ -152,14 +151,14 @@ Nexus :: struct {
         }
     }
 
-    add_list :: fn(self &Self, items SliceU32) u32 {
+    add_list :: fn(self &Self, items Slice(u32)) u32 {
         start := self.u32_items.len as u32
         self.u32_items.push(items.len as u32)
         self.u32_items.extend(items.ptr, items.len)
         start
     }
 
-    get_list :: fn(self &Self, start u32) SliceU32 {
+    get_list :: fn(self &Self, start u32) Slice(u32) {
         len := self.u32_items.get(start as u64)
 
         .{
@@ -511,7 +510,7 @@ Nexus :: struct {
         self.get_mono_orig_sym(sym) != id_none()
     }
 
-    find_mono_nominal :: fn(self &Self, sym u32, args SliceU32) u32 {
+    find_mono_nominal :: fn(self &Self, sym u32, args Slice(u32)) u32 {
         i: u64 = 0
         while i < self.mono_nom_sym.len {
             if self.mono_nom_sym.get(i) == sym {
@@ -536,7 +535,7 @@ Nexus :: struct {
         ty_id_none()
     }
 
-    add_mono_nominal :: fn(self &Self, sym u32, args SliceU32, res_ty u32) {
+    add_mono_nominal :: fn(self &Self, sym u32, args Slice(u32), res_ty u32) {
         list_id := self.add_list(args)
         self.mono_nom_sym.push(sym)
         self.mono_nom_arg.push(list_id)

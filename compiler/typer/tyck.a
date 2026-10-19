@@ -2,7 +2,7 @@ import HirTable, hir_kind, hir_none from "../hir"
 import TypeStorage, TyKind, ty_id_none, ty_id_type from "../types"
 import slot_none from "../unify"
 import id_none from "../nexus/pool"
-import VecU32 from "std/vec/u32"
+import Vec from "std/collections/vec"
 import fall from "std/sys"
 import Engine from "../engine"
 import synth_func, synth_return, synth_call from "./rules/fn"
@@ -106,7 +106,7 @@ type_check :: fn(eng &Engine, start u32, len u32) {
 
 print :: fn(s &u8) unit
 
-vec_contains :: fn(v &VecU32, val u32) bool {
+vec_contains :: fn(v &Vec(u32), val u32) bool {
     i: u64 = 0
     while i < (*v).len {
         if v.get(i) == val { ret true }
@@ -116,13 +116,13 @@ vec_contains :: fn(v &VecU32, val u32) bool {
 }
 
 type_has_infer :: fn(types &TypeStorage, ty_id u32) bool {
-    visited := VecU32.new()
+    visited := Vec(u32).new()
     result := type_has_infer_seen(types, ty_id, &visited)
     visited.destroy()
     result
 }
 
-type_has_infer_seen :: fn(types &TypeStorage, ty_id u32, visited &VecU32) bool {
+type_has_infer_seen :: fn(types &TypeStorage, ty_id u32, visited &Vec(u32)) bool {
     if ty_id == ty_id_none() { ret true }
     if vec_contains(visited, ty_id) { ret false }
     visited.push(ty_id)
@@ -172,7 +172,7 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
     tbl := &(*db).hir
     body := tbl.extra(func_id)
     if body == hir_none() { ret }
-    skipped := VecU32.new()
+    skipped := Vec(u32).new()
     scan := func_id + 1
     while scan <= body {
         if tbl.kind(scan) == hir_kind.function {
@@ -328,7 +328,7 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     orig_params := (&(*db).types).func_params(orig_func_ty)
     args_list_id := (tbl).lhs(func_id)
     has_type_param := false
-    orig_p_vec := VecU32.new()
+    orig_p_vec := Vec(u32).new()
     if args_list_id != hir_none() {
         fn_args := db.get_list(args_list_id)
         p_idx: u64 = 0

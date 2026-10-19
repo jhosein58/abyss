@@ -1,7 +1,7 @@
 import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../../hir"
-import SliceU32 from "std/slice/u32"
-import VecU32 from "std/vec/u32"
+import Slice from "core/slice"
+import Vec from "std/collections/vec"
 import Str from "std/string"
 import TypeStorage, TyKind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error from "../../types"
 import UnifyStorage, slot_none from "../../unify"
@@ -52,7 +52,7 @@ synth_func :: fn(eng &Engine, id u32) {
     sym_id := db.get_hir_symbol(id)
     is_extern := (body_id == hir_none()) and (sym_id != id_none()) and (db.sym_tok_start.get(sym_id) != id_none())
 
-    params_vec := VecU32.new()
+    params_vec := Vec(u32).new()
     if params_list_id != hir_none() {
         args := db.get_list(params_list_id)
         i: u64 = 0
@@ -138,7 +138,7 @@ synth_func :: fn(eng &Engine, id u32) {
         ret_ty = val
     }
 
-    slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    slice: Slice(u32) = .{ ptr: 0 as &u32, len: 0 }
     if params_vec.len > 0 {
         slice.ptr = params_vec.ptr_at(0)
         slice.len = params_vec.len
@@ -284,7 +284,7 @@ unify_call_arg :: fn(eng &Engine, arg_node u32, expected_ty u32) {
     }
 }
 
-check_method_receiver :: fn(db &Nexus, callee u32, params &SliceU32, lhs_is_instance &bool, is_struct_generic &bool) u64 {
+check_method_receiver :: fn(db &Nexus, callee u32, params &Slice(u32), lhs_is_instance &bool, is_struct_generic &bool) u64 {
     tbl := &db.hir
     types_ptr := &db.types
     unify_ptr := &db.unify
@@ -337,7 +337,7 @@ check_method_receiver :: fn(db &Nexus, callee u32, params &SliceU32, lhs_is_inst
     0
 }
 
-synth_type_func_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u32, args_vec &VecU32, params &SliceU32, args_len u64) {
+synth_type_func_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u32, args_vec &Vec(u32), params &Slice(u32), args_len u64) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     types_ptr := &(*db).types
@@ -354,7 +354,7 @@ synth_type_func_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot 
         print(c"\n")
         fall()
     }
-    concrete_args := VecU32.new()
+    concrete_args := Vec(u32).new()
     if omitted_types {
         type_i: u32 = 0
         while type_i < leading_types {
@@ -411,7 +411,7 @@ synth_type_func_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot 
     unify_ptr.bind_type(types_ptr, slot, ty_id_type())
 }
 
-synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u32, args_vec &VecU32, params &SliceU32, args_len u64, param_start u64, lhs_is_instance bool) {
+synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u32, args_vec &Vec(u32), params &Slice(u32), args_len u64, param_start u64, lhs_is_instance bool) {
     db := &(*eng).nexus
     tbl := &(*db).hir
     types_ptr := &(*db).types
@@ -440,10 +440,10 @@ synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u3
         func_node = callee
     }
 
-    tmpl_slots := VecU32.new()
-    fresh_slots := VecU32.new()
-    fn_args_vec := VecU32.new()
-    fn_args_slice: SliceU32 = .{ ptr: 0 as &u32, len: 0 }
+    tmpl_slots := Vec(u32).new()
+    fresh_slots := Vec(u32).new()
+    fn_args_vec := Vec(u32).new()
+    fn_args_slice: Slice(u32) = .{ ptr: 0 as &u32, len: 0 }
     if func_node != id_none() {
         fn_params_list := (tbl).lhs(func_node)
         if fn_params_list != hir_none() {
@@ -539,7 +539,7 @@ synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u3
         }
         tp_i = tp_i + 1
     }
-    mono_p_vec := VecU32.new()
+    mono_p_vec := Vec(u32).new()
     tp_seen = 0 as u64
     p_i = 0
     while p_i < params.len {
@@ -558,7 +558,7 @@ synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u3
     final_ret := resolve_ty_id(eng, unify_ptr, types_ptr, inst_ret)
     ptr_m := 0 as &u32
     if mono_p_vec.len > 0 { ptr_m = mono_p_vec.ptr_at(0) }
-    m_slice: SliceU32 = .{ ptr: ptr_m, len: mono_p_vec.len }
+    m_slice: Slice(u32) = .{ ptr: ptr_m, len: mono_p_vec.len }
     mono_func_ty := (&(*types_ptr)).alloc_func(m_slice, final_ret, false)
     i: u64 = 0
     while i < args.len {
@@ -631,10 +631,10 @@ synth_call :: fn(eng &Engine, id u32) {
         fall()
     }
     params_slice := types_ptr.func_params(callee_ty)
-    params_vec := VecU32.new()
+    params_vec := Vec(u32).new()
     params_vec.extend(params_slice.ptr, params_slice.len)
     params := params_vec.as_slice()
-    args_vec := VecU32.new()
+    args_vec := Vec(u32).new()
     if (tbl).rhs(id) != hir_none() {
         source_args := db.get_list((tbl).rhs(id))
         args_vec.extend(source_args.ptr, source_args.len)

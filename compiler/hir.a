@@ -1,10 +1,8 @@
-import VecU8 from "std/vec/u8"
-import VecU32 from "std/vec/u32"
-import U32_MAX from "std/primitive/u32"
+import Vec from "std/collections/vec"
 import Str from "std/string"
 
 hir_none :: fn() u32 {
-    U32_MAX()
+    4294967295 as u32
 }
 
 HirExprKind :: enum u8 {
@@ -170,17 +168,17 @@ hir_kind_name :: fn(kind HirExprKind) Str {
 
 
 HirTable :: struct {
-    kinds      VecU8
-    lhs_list   VecU32
-    rhs_list   VecU32
-    extra_list VecU32
+    kinds      Vec(u8)
+    lhs_list   Vec(u32)
+    rhs_list   Vec(u32)
+    extra_list Vec(u32)
 
     new :: fn() HirTable {
         .{
-            kinds : VecU8.new(),
-            lhs_list   : VecU32.new(),
-            rhs_list   : VecU32.new(),
-            extra_list : VecU32.new()
+            kinds : Vec(u8).new(),
+            lhs_list   : Vec(u32).new(),
+            rhs_list   : Vec(u32).new(),
+            extra_list : Vec(u32).new()
         }
     }
 

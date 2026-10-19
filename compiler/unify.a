@@ -1,7 +1,5 @@
-import VecU8 from "std/vec/u8"
-import VecU32 from "std/vec/u32"
-import SliceU32 from "std/slice/u32"
-import U32_MAX from "std/primitive/u32"
+import Vec from "std/collections/vec"
+import Slice from "core/slice"
 
 import TyKind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error, TypeStorage from "./types"
 import Str from "std/string"
@@ -12,7 +10,7 @@ print :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit
 
 slot_none :: fn() u32 {
-    U32_MAX()
+    4294967295 as u32
 }
 
 
@@ -20,24 +18,24 @@ UnifyStorage :: struct {
     error_path Str
     error_source Str
     error_offset u32
-    parents     VecU32
-    ranks       VecU8
-    types       VecU32
-    origins     VecU32
-    hir_to_slot VecU32
-    scratch     VecU32
+    parents     Vec(u32)
+    ranks       Vec(u8)
+    types       Vec(u32)
+    origins     Vec(u32)
+    hir_to_slot Vec(u32)
+    scratch     Vec(u32)
 
     new :: fn() Self {
         .{
             error_path : Str.empty(),
             error_source : Str.empty(),
             error_offset : 0,
-            parents     : VecU32.new(),
-            ranks       : VecU8.new(),
-            types       : VecU32.new(),
-            origins     : VecU32.new(),
-            hir_to_slot : VecU32.new(),
-            scratch     : VecU32.new()
+            parents     : Vec(u32).new(),
+            ranks       : Vec(u8).new(),
+            types       : Vec(u32).new(),
+            origins     : Vec(u32).new(),
+            hir_to_slot : Vec(u32).new(),
+            scratch     : Vec(u32).new()
         }
     }
 
@@ -105,7 +103,7 @@ UnifyStorage :: struct {
         print(c"\n")
     }
 
-    type_contains_slot :: fn(self &Self, types &TypeStorage, ty u32, target u32, seen &VecU32) bool {
+    type_contains_slot :: fn(self &Self, types &TypeStorage, ty u32, target u32, seen &Vec(u32)) bool {
         if ty == ty_id_none() { ret false }
         i: u64 = 0
         while i < (*seen).len {
@@ -247,7 +245,7 @@ UnifyStorage :: struct {
         if types.kind(ty) == TyKind.infer {
             if self.find(types.infer_slot(ty)) == root { ret existing }
         }
-        seen := VecU32.new()
+        seen := Vec(u32).new()
         recursive := self.type_contains_slot(types, ty, root, &seen)
         seen.destroy()
         if recursive {
@@ -346,7 +344,7 @@ UnifyStorage :: struct {
                 ret ty_id_error()
             }
 
-            local_scratch := VecU32.new()
+            local_scratch := Vec(u32).new()
             has_err := false
             count := fields_a.len / 2
             i: u64 = 0
@@ -381,7 +379,7 @@ UnifyStorage :: struct {
                 ret ty_id_error()
             }
 
-            slice: SliceU32 = .{
+            slice: Slice(u32) = .{
                 ptr: local_scratch.ptr_at(0),
                 len: fields_a.len
             }
@@ -404,7 +402,7 @@ UnifyStorage :: struct {
                 ret ty_id_error()
             }
 
-            local_scratch := VecU32.new()
+            local_scratch := Vec(u32).new()
             has_err := false
             i: u64 = 0
             while i < params_a.len {
@@ -426,7 +424,7 @@ UnifyStorage :: struct {
                 ret ty_id_error()
             }
 
-            slice: SliceU32 = .{
+            slice: Slice(u32) = .{
                 ptr: local_scratch.ptr_at(0),
                 len: params_a.len
             }
@@ -554,7 +552,7 @@ UnifyStorage :: struct {
             fields := types.get_struct_fields(tyid)
             count := fields.len / 2
 
-            local_scratch := VecU32.new()
+            local_scratch := Vec(u32).new()
             changed := false
             i: u64 = 0
 
@@ -580,7 +578,7 @@ UnifyStorage :: struct {
 
             res := tyid
             if changed {
-                slice: SliceU32 = .{
+                slice: Slice(u32) = .{
                     ptr: local_scratch.ptr_at(0),
                     len: fields.len
                 }

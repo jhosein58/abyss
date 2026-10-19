@@ -5,12 +5,6 @@ import read_file as Embeddedread_file from "std/fs.a"
 import Interner as EmbeddedInterner from "std/interner.a"
 import String as EmbeddedString from "std/string.a"
 import fall as Embeddedfall from "std/sys.a"
-import VecBool as EmbeddedVecBool from "std/vec/bool.a"
-import VecI32 as EmbeddedVecI32 from "std/vec/i32.a"
-import VecU8 as EmbeddedVecU8 from "std/vec/u8.a"
-import VecU32 as EmbeddedVecU32 from "std/vec/u32.a"
-import VecStr as EmbeddedVecStr from "std/vec/str.a"
-import FastMapU32 as EmbeddedFastMapU32 from "std/fast_map/u32.a"
 
 Box :: fn(T type) type { struct { value T } }
 

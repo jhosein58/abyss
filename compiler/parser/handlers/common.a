@@ -4,7 +4,7 @@ import Parser, peek, peek_n, bump, optional, curr_span, parse_error_at, peek_pre
 import Span, span_merge from "../../nexus/nexus"
 import id_none from "../../nexus/pool"
 import Vec from "std/collections/vec"
-import SliceU32 from "std/slice/u32"
+import Slice from "core/slice"
 import prec from "../prec"
 import parse_expr from "../parser"
 
@@ -19,7 +19,7 @@ set_span :: fn(p &Parser, hir_id u32, sp Span) u32 {
 }
 
 add_list :: fn(p &Parser, v &Vec(u32)) u32 {
-    slice: SliceU32 = .{ ptr: v.ptr, len: v.len }
+    slice: Slice(u32) = .{ ptr: v.ptr, len: v.len }
     p.db.add_list(slice)
 }
 

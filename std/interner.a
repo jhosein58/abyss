@@ -1,16 +1,24 @@
 import Str from "string.a"
-import hash_str from "hash/str.a"
-import VecStr from "vec/str.a"
-import U32_size, U32_MAX from "primitive/u32.a"
+import Vec from "collections/vec.a"
 import malloc, free, mem_set from "mem.a"
 
-intern_none :: fn() u32 {
-    U32_MAX()
+hash_str :: fn(s Str) u32 {
+    h: u32 = 2166136261 as u32
+    i: u64 = 0
+    while i < s.len {
+        c := *(s.ptr + i) as u32
+        h = (h ^ c) * 16777619 as u32
+        i = i + 1
+    }
+    h
 }
 
+intern_none :: fn() u32 {
+    4294967295 as u32
+}
 
 Interner :: struct {
-    strings VecStr
+    strings Vec(Str)
     table   &u32
     cap     u64
     count   u64
@@ -25,13 +33,13 @@ Interner :: struct {
             cap = 64
         }
 
-        bytes := cap * U32_size()
+        bytes := cap * @sizeof(u32)
         ptr := malloc(bytes) as &u32
 
         mem_set(ptr as &u8, 255 as u8, bytes)
 
         .{
-            strings : VecStr.new(),
+            strings : Vec(Str).new(),
             table   : ptr,
             cap     : cap,
             count   : 0
@@ -52,7 +60,7 @@ Interner :: struct {
         old_table := self.table
 
         new_cap := old_cap * 2
-        new_bytes := new_cap * U32_size()
+        new_bytes := new_cap * @sizeof(u32)
         new_table := malloc(new_bytes) as &u32
 
         mem_set(new_table as &u8, 255 as u8, new_bytes)

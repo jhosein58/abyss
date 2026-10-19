@@ -1,4 +1,4 @@
-import VecU32 from "std/vec/u32"
+import Vec from "std/collections/vec"
 import Str, String from "std/string"
 import Arena from "std/allocator"
 import Fmt from "std/fmt"
@@ -60,7 +60,7 @@ CCodeGen :: struct {
     struct_defs     : String,
     func_decls      : String,
     code            : String,
-    emitted_structs : VecU32,
+    emitted_structs : Vec(u32),
     main_sym        : u32,
     has_main        : bool,
     indent          : u32,
@@ -74,7 +74,7 @@ CCodeGen :: struct {
             struct_defs     : String.new(arena),
             func_decls      : String.new(arena),
             code            : String.new(arena),
-            emitted_structs : VecU32.new(),
+            emitted_structs : Vec(u32).new(),
             main_sym        : 0,
             has_main        : false,
             indent          : 0,

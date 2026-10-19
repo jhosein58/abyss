@@ -2,11 +2,7 @@ import print from "std/io.a"
 import Arena from "std/allocator.a"
 import Fmt from "std/fmt.a"
 import Vec from "std/collections/vec.a"
-import VecBool from "std/vec/bool.a"
-import VecI32 from "std/vec/i32.a"
-import VecStr from "std/vec/str.a"
-import VecU8 from "std/vec/u8.a"
-import VecU32 from "std/vec/u32.a"
+import Str from "core/string.a"
 
 Counter :: struct {
     value i32
@@ -69,11 +65,11 @@ main :: fn() {
     print("\n")
     values.destroy()
 
-    bools := VecBool.new()
-    ints := VecI32.new()
-    strings := VecStr.new()
-    bytes := VecU8.new()
-    numbers := VecU32.new()
+    bools := Vec(bool).new()
+    ints := Vec(i32).new()
+    strings := Vec(Str).new()
+    bytes := Vec(u8).new()
+    numbers := Vec(u32).new()
     bools.push(true)
     ints.push(1)
     strings.push("value")

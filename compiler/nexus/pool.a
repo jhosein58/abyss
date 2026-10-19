@@ -1,16 +1,15 @@
-import VecU32 from "std/vec/u32"
-import U32_MAX from "std/primitive/u32"
+import Vec from "std/collections/vec"
 
 id_none :: fn() u32 {
-    U32_MAX()
+    4294967295 as u32
 }
 
 PoolU32 :: struct {
-    data VecU32
+    data Vec(u32)
 
     new :: fn() Self {
         .{
-            data: VecU32.new()
+            data: Vec(u32).new()
         }
     }
 

@@ -1,5 +1,5 @@
 import malloc, realloc, free, mem_copy from "../mem.a"
-import Iterator as Iter, RefIterator as RefIter from "core/prelude.a"
+import Iterator as Iter, RefIterator as RefIter, Slice from "core/prelude.a"
 
 
 Vec :: fn(T type) type {
@@ -133,6 +133,13 @@ Vec :: fn(T type) type {
         
             self.len = last_idx
             removed
+        }
+
+        as_slice :: fn(self &Self) Slice(T) {
+            .{
+                ptr: self.ptr,
+                len: self.len
+            }
         }
 
         iter :: fn(self &Self) Iter(T) {
