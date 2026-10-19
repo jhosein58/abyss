@@ -65,6 +65,7 @@ CCodeGen :: struct {
     has_main        : bool,
     indent          : u32,
     loop_condition  : LoopCondition,
+    temp_count      : u32,
 
     new :: fn(arena &Arena) Self {
         .{
@@ -77,7 +78,8 @@ CCodeGen :: struct {
             main_sym        : 0,
             has_main        : false,
             indent          : 0,
-            loop_condition  : .{ id: hir_none(), breaks: false, continues: false }
+            loop_condition  : .{ id: hir_none(), breaks: false, continues: false },
+            temp_count      : 0
         }
     }
 
@@ -134,6 +136,7 @@ CCodeGen :: struct {
 
     start_function :: fn(self &Self, fn_name Str, ret_type Str, params Str) {
         self.declare_function(fn_name, ret_type, params)
+        self.temp_count = 0
 
         append_str(&self.code, ret_type)
         append_char(&self.code, 32 as u8)
@@ -163,6 +166,15 @@ CCodeGen :: struct {
             append_str(&self.code, Str.of(" = {0}"))
         }
         append_str(&self.code, Str.of(";\n"))
+    }
+
+    new_temp :: fn(self &Self, arena &Arena, ty Str) Str {
+        self.temp_count = self.temp_count + 1
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"_t").uint32(self.temp_count)
+        name := fmt.as_str()
+        self.create_variable(name, ty, Str.empty(), false)
+        name
     }
 
     expr :: fn(self &Self, e Str) {
@@ -281,12 +293,12 @@ CCodeGen :: struct {
         scope
     }
 
-    start_loop :: fn(self &Self, arena &Arena, scope &LoopScope, condition Str) {
+    start_loop :: fn(self &Self, arena &Arena, scope &LoopScope) {
         scope.breaks = self.loop_condition.breaks
         continues := self.loop_condition.continues
         self.set_loop(hir_none(), false, false)
         if continues { self.emit_label(arena, self.loop_begin_label(arena, scope.id)) }
-        self.start_while(condition)
+        self.start_while(self.expr_one(arena))
     }
 
     start_iterator_loop :: fn(self &Self, arena &Arena, scope &LoopScope) {
@@ -303,15 +315,6 @@ CCodeGen :: struct {
         self.loop_condition = scope.outer
     }
 
-    begin_expr :: fn(self &Self) u64 {
-        self.indent = self.indent + 1
-        self.code.mark()
-    }
-
-    code_len :: fn(self &Self) u64 {
-        self.code.len()
-    }
-
     loop_id :: fn(self &Self) u32 {
         self.loop_condition.id
     }
@@ -326,21 +329,6 @@ CCodeGen :: struct {
 
     set_loop :: fn(self &Self, id u32, breaks bool, continues bool) {
         self.loop_condition = .{ id: id, breaks: breaks, continues: continues }
-    }
-
-    end_expr :: fn(self &Self, arena &Arena, mark u64, value Str) Str {
-        if (self.code.len() == mark) and (value.len > 0) {
-            self.indent = self.indent - 1
-            ret value
-        }
-        self.expr(value)
-        body := Str.new(self.code.ptr_at(mark), self.code.len() - mark)
-        fmt := Fmt.new(arena)
-        fmt.cstr(c"({\n").str(body)
-        self.code.reset(mark)
-        self.indent = self.indent - 1
-        fmt.indent(self.indent).cstr(c"})")
-        fmt.as_str()
     }
 
     decl_struct :: fn(self &Self, name Str) {
@@ -645,12 +633,6 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
-    expr_conditional :: fn(self &Self, arena &Arena, cond Str, then_val Str, else_val Str) Str {
-        fmt := Fmt.new(arena)
-        fmt.cstr(c"((").str(cond).cstr(c") ? (").str(then_val).cstr(c") : (").str(else_val).cstr(c"))")
-        fmt.as_str()
-    }
-
     expr_zero :: fn(self &Self, arena &Arena, ty Str) Str {
         fmt := Fmt.new(arena)
         fmt.cstr(c"((").str(ty).cstr(c"){0})")
@@ -806,8 +788,6 @@ CCodeGen :: struct {
         if kind == k.binary_bit_xor { ret Str.of(" ^ ") }
         if kind == k.binary_shl     { ret Str.of(" << ") }
         if kind == k.binary_shr     { ret Str.of(" >> ") }
-        if kind == k.binary_and     { ret Str.of(" && ") }
-        if kind == k.binary_or      { ret Str.of(" || ") }
         Str.of(" ")
     }
 
