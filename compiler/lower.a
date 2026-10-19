@@ -1004,8 +1004,8 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet(u32
     db := &eng.nexus
     ccg := &eng.ccg
 
-    queue := Vec(u32).new()
-    type_queue := Vec(u32).new()
+    queue := Vec().new()
+    type_queue := Vec().new()
 
     queue.push(sym_id)
 
@@ -1018,7 +1018,9 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet(u32
     sorted := topo_sort(db, &type_queue)
 
     for t in sorted {
+
         match db.types.kind(t) {
+            
             struct_, nominal {
                 ccg.define_struct(&db.types, arena, t)
             }
@@ -1037,6 +1039,7 @@ lower_function :: fn(eng &Engine, arena &Arena, sym_id u32, visited &HashSet(u32
 
             else {}
         }
+
     }
 
     sorted.destroy()
