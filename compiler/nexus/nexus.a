@@ -102,6 +102,7 @@ Nexus :: struct {
     union_coerce_ty PoolU32
     union_coerce_idx PoolU32
     auto_deref_depth PoolU32
+    for_sources    PoolU32
     str_type       u32
 
     new :: fn() Self {
@@ -146,6 +147,7 @@ Nexus :: struct {
             union_coerce_ty : PoolU32.new(),
             union_coerce_idx : PoolU32.new(),
             auto_deref_depth : PoolU32.new(),
+            for_sources    : PoolU32.new(),
             str_type       : ty_id_none()
         }
     }
