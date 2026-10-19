@@ -1,7 +1,5 @@
 import Nexus from "../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../hir"
-import Slice from "core/slice"
-import Vec from "std/collections/vec"
 import Str from "std/string"
 import TypeStorage, TyKind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error from "../types"
 import UnifyStorage, slot_none from "../unify"

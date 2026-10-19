@@ -1,7 +1,6 @@
 import token from "../../token"
 import hir_kind, hir_none from "../../hir"
 import Parser, peek, bump, optional, expect, is_eof, peek_n, peek_preceded_by_newline, curr_span, prev_span, parse_error_at from "../core"
-import Vec from "std/collections/vec"
 import Span, span_merge from "../../nexus/nexus"
 import id_none from "../../nexus/pool"
 import span_of_hir, set_span, add_list from "./common"

@@ -1,6 +1,3 @@
-import Vec from "./vec.a"
-import Maybe from "core/prelude.a"
-
 Worklist :: fn(T type) type {
     struct {
         vec &Vec(T)

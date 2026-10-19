@@ -1,5 +1,4 @@
 import Str from "string.a"
-import Vec from "collections/vec.a"
 import malloc, free, mem_set from "mem.a"
 
 hash_str :: fn(s Str) u32 {

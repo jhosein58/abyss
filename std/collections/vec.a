@@ -1,5 +1,5 @@
 import malloc, realloc, free, mem_copy from "../mem.a"
-import Iterator as Iter, RefIterator as RefIter, Slice from "core/prelude.a"
+import Iterator as Iter, RefIterator as RefIter from "core/prelude.a"
 
 
 Vec :: fn(T type) type {

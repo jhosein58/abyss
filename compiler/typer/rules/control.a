@@ -5,8 +5,6 @@ import TyKind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error, ty_id_never from
 import slot_none from "../../unify"
 import check_value from "./common"
 import synth_type_node from "./var"
-import Vec from "std/collections/vec"
-import Slice from "core/slice"
 import Str from "std/string"
 import id_none from "../../nexus/pool"
 import fall from "std/sys"

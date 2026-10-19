@@ -1,7 +1,5 @@
 import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../../hir"
-import Slice from "core/slice"
-import Vec from "std/collections/vec"
 import TyKind, ty_id_none, ty_id_type, ty_id_unit from "../../types"
 import slot_none from "../../unify"
 import id_none from "../../nexus/pool"

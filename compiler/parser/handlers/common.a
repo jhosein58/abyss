@@ -3,8 +3,6 @@ import HirExprKind, hir_kind, hir_none from "../../hir"
 import Parser, peek, peek_n, bump, optional, curr_span, parse_error_at, peek_preceded_by_newline from "../core"
 import Span, span_merge from "../../nexus/nexus"
 import id_none from "../../nexus/pool"
-import Vec from "std/collections/vec"
-import Slice from "core/slice"
 import prec from "../prec"
 import parse_expr from "../parser"
 

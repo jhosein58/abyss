@@ -3,15 +3,12 @@ import HirTable, hir_kind, hir_none, HirExprKind from "./hir"
 import id_none from "./nexus/pool"
 import Str from "std/string"
 import Arena from "std/allocator"
-import Slice from "core/slice"
 import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_unit, ty_id_bool from "./types"
 import topo_sort from "./topo_sort"
 import fall from "std/sys"
 import type_has_infer, tyck_mono_function, finalize_inferred_types from "./typer/tyck"
 import func_has_self from "./typer/rules/fn"
 import Engine from "./engine"
-import Worklist from "std/collections/worklist.a"
-import HashSet from "std/collections/hash_set.a"
 
 print :: fn(s &u8) unit
 
