@@ -2,27 +2,19 @@ import Vec from "std/collections/vec"
 import Worklist from "std/collections/worklist"
 import print from "std/io"
 
-sum :: fn(T type, values Vec(T)) T {
-    total := 0 as T
+sum :: fn(values Vec(i32)) i32 {
+    total := 0 as i32
     for value in values { total = total + value }
     for value in &values { total = total + *value }
-    for value in Worklist(T).new(&values) { total = total + value }
+    for value in Worklist(i32).new(&values) { total = total + value }
     total
 }
 
 main :: fn() {
-    positive := Vec(u32).new()
-    positive.push(3 as u32)
-    positive.push(4 as u32)
-    negative := Vec(i32).new()
-    negative.push(-3 as i32)
-    negative.push(-4 as i32)
-    print(sum(positive))
+    values := Vec(i32).new()
+    values.push(3 as i32)
+    values.push(4 as i32)
+    values.push(5 as i32)
+    print(sum(values))
     print("\n")
-    print(sum(negative))
-    print("\n")
-    print(sum(positive))
-    print("\n")
-    positive.destroy()
-    negative.destroy()
 }
