@@ -1,0 +1,457 @@
+import Chunk from "./chunk"
+import OpCode from "./op"
+
+print :: fn(s &u8) unit
+print_char :: fn(c u8) unit
+print_bool :: fn(v bool) unit
+print_i8 :: fn(v i8) unit
+print_i16 :: fn(v i16) unit
+print_i32 :: fn(v i32) unit
+print_i64 :: fn(v i64) unit
+print_u8 :: fn(v u8) unit
+print_u16 :: fn(v u16) unit
+print_u32 :: fn(v u32) unit
+print_u64 :: fn(v u64) unit
+print_f32 :: fn(v f32) unit
+print_f64 :: fn(v f64) unit
+malloc :: fn(size u64) &u8
+realloc :: fn(ptr &u8, size u64) &u8
+free :: fn(ptr &u8) unit
+mem_copy :: fn(dest &u8, src &u8, n u64) unit
+mem_set :: fn(dest &u8, val u8, n u64) unit
+
+vm_noop :: fn() {}
+
+Vm :: struct {
+    stack     Vec(u64)
+    locals    Vec(u64)
+    frames_ip Vec(u32)
+    frames_fp Vec(u32)
+
+    new :: fn() Self {
+        .{
+            stack: Vec(u64).with_cap(4096),
+            locals: Vec(u64).with_cap(4096),
+            frames_ip: Vec(u32).with_cap(1024),
+            frames_fp: Vec(u32).with_cap(1024)
+        }
+    }
+
+    destroy :: fn(self &Self) {
+        self.stack.destroy()
+        self.locals.destroy()
+        self.frames_ip.destroy()
+        self.frames_fp.destroy()
+    }
+
+    ensure_local_slot :: fn(self &Self, idx u32) {
+        target := idx as u64
+        while self.locals.len <= target {
+            self.locals.push(0)
+        }
+    }
+
+    dispatch_extern :: fn(self &Self, id u8, arg_count u8) {
+        if id == 1 {
+            s := self.stack.pop() as &u8
+            print(s)
+            self.stack.push(0)
+        } else if id == 2 {
+            v := self.stack.pop() as i32
+            print_i32(v)
+            self.stack.push(0)
+        } else if id == 3 {
+            v := self.stack.pop() as u32
+            print_u32(v)
+            self.stack.push(0)
+        } else if id == 4 {
+            v := self.stack.pop()
+            print_bool(v != 0)
+            self.stack.push(0)
+        } else if id == 5 {
+            c := self.stack.pop() as u8
+            print_char(c)
+            self.stack.push(0)
+        } else if id == 6 {
+            sz := self.stack.pop()
+            p := malloc(sz) as u64
+            self.stack.push(p)
+        } else if id == 7 {
+            p := self.stack.pop() as &u8
+            free(p)
+            self.stack.push(0)
+        } else if id == 8 {
+            n := self.stack.pop()
+            src := self.stack.pop() as &u8
+            dst := self.stack.pop() as &u8
+            mem_copy(dst, src, n)
+            self.stack.push(0)
+        } else if id == 9 {
+            n := self.stack.pop()
+            v := self.stack.pop() as u8
+            dst := self.stack.pop() as &u8
+            mem_set(dst, v, n)
+            self.stack.push(0)
+        } else if id == 10 {
+            v := self.stack.pop() as i64
+            print_i64(v)
+            self.stack.push(0)
+        } else if id == 11 {
+            v := self.stack.pop()
+            print_u64(v)
+            self.stack.push(0)
+        } else if id == 12 {
+            v := self.stack.pop() as i8
+            print_i8(v)
+            self.stack.push(0)
+        } else if id == 13 {
+            v := self.stack.pop() as i16
+            print_i16(v)
+            self.stack.push(0)
+        } else if id == 14 {
+            v := self.stack.pop() as u8
+            print_u8(v)
+            self.stack.push(0)
+        } else if id == 15 {
+            v := self.stack.pop() as u16
+            print_u16(v)
+            self.stack.push(0)
+        } else if id == 16 {
+            sz := self.stack.pop()
+            p := self.stack.pop() as &u8
+            res := realloc(p, sz) as u64
+            self.stack.push(res)
+        } else if id == 17 {
+            bits := self.stack.pop()
+            f_val := *(&bits as &f32)
+            print_f32(f_val)
+            self.stack.push(0)
+        } else if id == 18 {
+            bits := self.stack.pop()
+            f_val := *(&bits as &f64)
+            print_f64(f_val)
+            self.stack.push(0)
+        } else {
+            self.stack.push(0)
+        }
+    }
+
+    run :: fn(self &Self, prog &Chunk, entry_ip u32) u64 {
+        ip := entry_ip
+        fp: u32 = 0
+
+        self.frames_ip.clear()
+        self.frames_fp.clear()
+        self.stack.clear()
+        self.locals.clear()
+
+        while ip < (prog.buf.len as u32) {
+            op := prog.buf.get(ip as u64) as OpCode
+            ip = ip + 1
+
+            match op {
+                halt {
+                    break
+                }
+                push_const {
+                    idx := prog.read_u16(ip)
+                    ip = ip + 2
+                    self.stack.push(prog.const.get(idx as u64))
+                }
+                push_0 {
+                    self.stack.push(0)
+                }
+                push_1 {
+                    self.stack.push(1)
+                }
+                pop {
+                    if self.stack.len > 0 {
+                        self.stack.pop()
+                    }
+                }
+                dup {
+                    top := self.stack.get(self.stack.len - 1)
+                    self.stack.push(top)
+                }
+                load_local {
+                    slot := prog.read_u16(ip) as u32
+                    ip = ip + 2
+                    target := (fp + slot) as u64
+                    if target < self.locals.len {
+                        self.stack.push(self.locals.get(target))
+                    } else {
+                        self.stack.push(0)
+                    }
+                }
+                store_local {
+                    slot := prog.read_u16(ip) as u32
+                    ip = ip + 2
+                    val := self.stack.pop()
+                    self.ensure_local_slot(fp + slot)
+                    self.locals.set((fp + slot) as u64, val)
+                }
+                addr_local {
+                    slot := prog.read_u16(ip) as u32
+                    ip = ip + 2
+                    self.ensure_local_slot(fp + slot)
+                    addr := self.locals.ptr_at((fp + slot) as u64) as u64
+                    self.stack.push(addr)
+                }
+                load64 {
+                    ptr := self.stack.pop() as &u64
+                    self.stack.push(*ptr)
+                }
+                store64 {
+                    ptr := self.stack.pop() as &u64
+                    val := self.stack.pop()
+                    *ptr = val
+                    vm_noop()
+                }
+                load32 {
+                    ptr := self.stack.pop() as &u32
+                    self.stack.push(*ptr as u64)
+                }
+                store32 {
+                    ptr := self.stack.pop() as &u32
+                    val := self.stack.pop() as u32
+                    *ptr = val
+                    vm_noop()
+                }
+                load8 {
+                    ptr := self.stack.pop() as &u8
+                    self.stack.push(*ptr as u64)
+                }
+                store8 {
+                    ptr := self.stack.pop() as &u8
+                    val := self.stack.pop() as u8
+                    *ptr = val
+                    vm_noop()
+                }
+                add {
+                    b := self.stack.pop()
+                    a := self.stack.pop()
+                    self.stack.push(a + b)
+                }
+                sub {
+                    b := self.stack.pop()
+                    a := self.stack.pop()
+                    self.stack.push(a - b)
+                }
+                mul {
+                    b := self.stack.pop()
+                    a := self.stack.pop()
+                    self.stack.push(a * b)
+                }
+                div {
+                    b := self.stack.pop() as i64
+                    a := self.stack.pop() as i64
+                    if b == 0 { self.stack.push(0) }
+                    else { self.stack.push((a / b) as u64) }
+                }
+                mod {
+                    b := self.stack.pop() as i64
+                    a := self.stack.pop() as i64
+                    if b == 0 { self.stack.push(0) }
+                    else { self.stack.push((a % b) as u64) }
+                }
+                neg {
+                    a := self.stack.pop() as i64
+                    self.stack.push((-a) as u64)
+                }
+                bit_and {
+                    b := self.stack.pop()
+                    a := self.stack.pop()
+                    self.stack.push(a & b)
+                }
+                bit_or {
+                    b := self.stack.pop()
+                    a := self.stack.pop()
+                    self.stack.push(a | b)
+                }
+                bit_xor {
+                    b := self.stack.pop()
+                    a := self.stack.pop()
+                    self.stack.push(a ^ b)
+                }
+                bit_not {
+                    a := self.stack.pop()
+                    self.stack.push(~a)
+                }
+                shl {
+                    b := self.stack.pop()
+                    a := self.stack.pop()
+                    self.stack.push(a << b)
+                }
+                shr {
+                    b := self.stack.pop()
+                    a := self.stack.pop()
+                    self.stack.push(a >> b)
+                }
+                eq {
+                    b := self.stack.pop()
+                    a := self.stack.pop()
+                    self.stack.push(if a == b { 1 } else { 0 })
+                }
+                ne {
+                    b := self.stack.pop()
+                    a := self.stack.pop()
+                    self.stack.push(if a != b { 1 } else { 0 })
+                }
+                lt {
+                    b := self.stack.pop() as i64
+                    a := self.stack.pop() as i64
+                    self.stack.push(if a < b { 1 } else { 0 })
+                }
+                le {
+                    b := self.stack.pop() as i64
+                    a := self.stack.pop() as i64
+                    self.stack.push(if a <= b { 1 } else { 0 })
+                }
+                gt {
+                    b := self.stack.pop() as i64
+                    a := self.stack.pop() as i64
+                    self.stack.push(if a > b { 1 } else { 0 })
+                }
+                ge {
+                    b := self.stack.pop() as i64
+                    a := self.stack.pop() as i64
+                    self.stack.push(if a >= b { 1 } else { 0 })
+                }
+                l_not {
+                    a := self.stack.pop()
+                    self.stack.push(if a == 0 { 1 } else { 0 })
+                }
+                jmp {
+                    target := prog.read_u32(ip)
+                    ip = target
+                    vm_noop()
+                }
+                jmp_if_false {
+                    target := prog.read_u32(ip)
+                    ip = ip + 4
+                    cond := self.stack.pop()
+                    if cond == 0 {
+                        ip = target
+                    }
+                }
+                jmp_if_true {
+                    target := prog.read_u32(ip)
+                    ip = ip + 4
+                    cond := self.stack.pop()
+                    if cond != 0 {
+                        ip = target
+                    }
+                }
+                call {
+                    target_ip := prog.read_u32(ip)
+                    arg_count := prog.read_u8(ip + 4) as u32
+                    ip = ip + 5
+                    new_fp := self.locals.len as u32
+                    self.frames_ip.push(ip)
+                    self.frames_fp.push(fp)
+                    fp = new_fp
+                    i := arg_count
+                    while self.locals.len < ((new_fp + arg_count) as u64) {
+                        self.locals.push(0)
+                    }
+                    while i > 0 {
+                        i = i - 1
+                        val := self.stack.pop()
+                        self.locals.set((fp + i) as u64, val)
+                    }
+                    ip = target_ip
+                    vm_noop()
+                }
+                call_extern {
+                    ext_id := prog.read_u8(ip)
+                    arg_count := prog.read_u8(ip + 1)
+                    ip = ip + 2
+                    self.dispatch_extern(ext_id, arg_count)
+                }
+                call_ptr {
+                    arg_count := prog.read_u8(ip) as u32
+                    ip = ip + 1
+                    target_ip := self.stack.pop() as u32
+                    if target_ip >= 1000000 {
+                        ext_id := (target_ip - 1000000) as u8
+                        self.dispatch_extern(ext_id, arg_count as u8)
+                    } else {
+                        new_fp := self.locals.len as u32
+                        self.frames_ip.push(ip)
+                        self.frames_fp.push(fp)
+                        fp = new_fp
+                        i := arg_count
+                        while self.locals.len < ((new_fp + arg_count) as u64) {
+                            self.locals.push(0)
+                        }
+                        while i > 0 {
+                            i = i - 1
+                            val := self.stack.pop()
+                            self.locals.set((fp + i) as u64, val)
+                        }
+                        ip = target_ip
+                    }
+                    vm_noop()
+                }
+                call_ptr_stack {
+                    arg_count := prog.read_u8(ip) as u32
+                    ip = ip + 1
+                    target_ip := self.stack.pop() as u32
+                    if target_ip >= 1000000 {
+                        ext_id := (target_ip - 1000000) as u8
+                        self.dispatch_extern(ext_id, arg_count as u8)
+                    } else {
+                        new_fp := self.locals.len as u32
+                        self.frames_ip.push(ip)
+                        self.frames_fp.push(fp)
+                        fp = new_fp
+                        i := arg_count
+                        while self.locals.len < ((new_fp + arg_count) as u64) {
+                            self.locals.push(0)
+                        }
+                        while i > 0 {
+                            i = i - 1
+                            val := self.stack.pop()
+                            self.locals.set((fp + i) as u64, val)
+                        }
+                        ip = target_ip
+                    }
+                    vm_noop()
+                }
+                ret_val {
+                    rv: u64 = 0
+                    if self.stack.len > 0 {
+                        rv = self.stack.pop()
+                    }
+                    if self.frames_ip.len == 0 {
+                        self.stack.push(rv)
+                        break
+                    }
+                    self.locals.reset(fp as u64)
+                    ip = self.frames_ip.pop()
+                    fp = self.frames_fp.pop()
+                    self.stack.push(rv)
+                }
+                f64_to_f32 {
+                    bits := self.stack.pop()
+                    d := *(&bits as &f64)
+                    f := d as f32
+                    f_bits: u64 = 0
+                    *(&f_bits as &f32) = f
+                    self.stack.push(f_bits)
+                }
+                f32_to_i32 {
+                    bits := self.stack.pop()
+                    f := *(&bits as &f32)
+                    self.stack.push((f as i32) as u64)
+                }
+                else {}
+            }
+        }
+
+        if self.stack.len > 0 {
+            ret self.stack.pop()
+        }
+        0
+    }
+}

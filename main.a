@@ -7,11 +7,9 @@ import CCodeGen, CCodeBuilder, CCodeGen_new, CCodeGen_destroy, CCodeGen_finish f
 import embedded_runtime from "compiler/embedded"
 import fall from "std/sys"
 import Fmt from "std/fmt"
-import Vec from "std/collections/vec"
-import print from "std/io"
-
 import Path from "std/path"
-
+import VmCodeGen, VmCodeBuilder from "compiler/vm/codegen"
+import Vm from "compiler/vm/vm"
 
 compile_and_run :: fn(path &u8) i32
 get_arg_count   :: fn() i32
@@ -58,6 +56,21 @@ main :: fn() {
     eng.type_check(sym_id)
 
     eng.validate_main(sym_id)
+
+    env_vm := get_env(c"ABYSS_VM")
+    if env_vm != (0 as &u8) {
+        vcg := VmCodeGen.new(&arena)
+        vcg.init_types(&eng.nexus.types, &arena)
+        vbuilder := VmCodeBuilder.new(&vcg)
+        vcg.abyss_main(sym_id)
+        eng.compile(&vcg, &vbuilder, &arena, sym_id)
+        vcg.finish_linking()
+        vm := Vm.new()
+        vm.run(&vcg.chunk, vcg.main_entry)
+        vm.destroy()
+        vcg.destroy()
+        ret
+    }
 
     ccg.abyss_main(sym_id)
     eng.compile(&ccg, &builder, &arena, sym_id)

@@ -553,9 +553,14 @@ lower_expr_node :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, emp
                     }
                 }
             }
-            lhs_str := lower_expr(db, ccg, builder, empty, arena, lhs_id, visited, queue, type_queue)
-            field_name_id := db.hir.lhs(rhs_id)
             depth := db.get_auto_deref_depth(id)
+            target_lhs := lhs_id
+            while db.hir.kind(target_lhs) == hir_kind.unary_deref {
+                target_lhs = db.hir.lhs(target_lhs)
+                depth = depth + 1
+            }
+            lhs_str := lower_expr(db, ccg, builder, empty, arena, target_lhs, visited, queue, type_queue)
+            field_name_id := db.hir.lhs(rhs_id)
             ret ccg.expr_member(arena, lhs_str, depth, field_name_id)
         }
         else {
@@ -688,16 +693,14 @@ lower_match :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V
     open_blocks: u32 = 0
     while i < arms.len {
         arm := *(arms.ptr + i)
-        cond := lower_match_condition(db, ccg, builder, empty, arena, value_str, value_ty, arm, visited, queue, type_queue)
-        if i == 0 {
+        if i > 0 {
+            ccg.else_()
+        }
+        has_patterns := db.get_list(db.hir.lhs(arm)).len > 0
+        if (i == 0) or has_patterns {
+            cond := lower_match_condition(db, ccg, builder, empty, arena, value_str, value_ty, arm, visited, queue, type_queue)
             ccg.start_if(cond)
             open_blocks = open_blocks + 1
-        } else {
-            ccg.else_()
-            if db.get_list(db.hir.lhs(arm)).len > 0 {
-                ccg.start_if(cond)
-                open_blocks = open_blocks + 1
-            }
         }
         lower_match_binding(db, ccg, builder, empty, arena, value_str, value_ty, arm, visited, queue, type_queue)
         branch := lower_body(db, ccg, builder, empty, arena, db.hir.rhs(arm), visited, queue, type_queue)
@@ -788,7 +791,10 @@ lower_for :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, 
             call_sym := resolve_call_symbol(db, next_call, db.hir.lhs(next_call), queue)
             callee_name := ccg.sym_name(arena, call_sym)
             receiver := for_method_receiver(db, ccg, builder, empty, arena, next_call, name, db.get_node_type(db.hir.lhs(iter)))
-            next_expr := ccg.expr_call(arena, callee_name, receiver)
+            args_list := builder.new_list(arena)
+            builder.append_list_item(&args_list, receiver, true)
+            next_args := builder.finish_list(&args_list)
+            next_expr := ccg.expr_call(arena, callee_name, next_args)
             next_name := ccg.iterator_next_name(arena, id, i as u32)
             ccg.create_variable(next_name, ccg.type_str(&db.types, arena, next_ty), next_expr, true)
             value_names.push(next_name)

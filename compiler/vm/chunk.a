@@ -1,0 +1,82 @@
+import OpCode from "./op"
+
+Chunk :: struct {
+    buf   Vec(u8)
+    const Vec(u64)
+
+    new :: fn() Self {
+        .{
+            buf: Vec(u8).new(),
+            const: Vec(u64).new()
+        }
+    }
+
+    destroy :: fn(self &Self) {
+        self.buf.destroy()
+        self.const.destroy()
+    }
+
+    inst :: fn(self &Self, op OpCode) {
+        self.buf.push(op as u8)
+    }
+
+    emit_u8 :: fn(self &Self, b u8) {
+        self.buf.push(b)
+    }
+
+    emit_u16 :: fn(self &Self, v u16) {
+        self.buf.push(v as u8)
+        self.buf.push((v >> 8) as u8)
+    }
+
+    emit_u32 :: fn(self &Self, v u32) {
+        self.buf.push(v as u8)
+        self.buf.push((v >> 8) as u8)
+        self.buf.push((v >> 16) as u8)
+        self.buf.push((v >> 24) as u8)
+    }
+
+    emit_u64 :: fn(self &Self, v u64) {
+        self.emit_u32(v as u32)
+        self.emit_u32((v >> 32) as u32)
+    }
+
+    alloc_const :: fn(self &Self, c u64) u16 {
+        self.const.push(c)
+        (self.const.len as u16) - 1
+    }
+
+    patch_u32 :: fn(self &Self, offset u32, val u32) {
+        idx := offset as u64
+        self.buf.set(idx, val as u8)
+        self.buf.set(idx + 1, (val >> 8) as u8)
+        self.buf.set(idx + 2, (val >> 16) as u8)
+        self.buf.set(idx + 3, (val >> 24) as u8)
+    }
+
+    read_u8 :: fn(self &Self, ip u32) u8 {
+        self.buf.get(ip as u64)
+    }
+
+    read_u16 :: fn(self &Self, ip u32) u16 {
+        idx := ip as u64
+        b0 := self.buf.get(idx) as u16
+        b1 := self.buf.get(idx + 1) as u16
+        (b1 << 8) | b0
+    }
+
+    read_u32 :: fn(self &Self, ip u32) u32 {
+        idx := ip as u64
+        b0 := self.buf.get(idx) as u32
+        b1 := self.buf.get(idx + 1) as u32
+        b2 := self.buf.get(idx + 2) as u32
+        b3 := self.buf.get(idx + 3) as u32
+        (b3 << 24) | (b2 << 16) | (b1 << 8) | b0
+    }
+
+    read_u64 :: fn(self &Self, ip u32) u64 {
+        low := self.read_u32(ip) as u64
+        high := self.read_u32(ip + 4) as u64
+        (high << 32) | low
+    }
+}
