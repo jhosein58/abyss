@@ -20,17 +20,18 @@ Notice anything missing? There is no `void` or `unit` keyword. If a function doe
 
 ---
 
-## 2. Variables & Constants
+## 2. Variables & Comments
 
-Use `:=` for type inference, or specify types explicitly:
+Comments start with `--`. Use `:=` for type inference, or specify types explicitly:
 
 ```abyss
-x := 42                // Inferred integer
-pi: f32 = 3.14159      // Explicit 32-bit float
-name := "Abyss"        // Inferred string
-active := true         // Boolean
+-- This is a single-line comment
+x := 42                -- Inferred integer
+pi: f32 = 3.14159      -- Explicit 32-bit float
+name := "Abyss"        -- Inferred string
+active := true         -- Boolean
 
-// Variables can be updated with '='
+-- Variables can be updated with '='
 x = x + 10
 ```
 
@@ -63,7 +64,7 @@ while i < 5 {
     print(" ")
     i = i + 1
 }
-// Outputs: 0 1 2 3 4
+-- Outputs: 0 1 2 3 4
 ```
 
 ---
@@ -96,7 +97,7 @@ Structs define custom data types. Field definitions use `name Type` syntax (no c
 Point :: struct {
     x, y i32
 
-    // Methods take 'self &Self' to access instance data
+    -- Methods take 'self &Self' to access instance data
     dist_sq :: fn(self &Self) i32 {
         self.x * self.x + self.y * self.y
     }
@@ -107,7 +108,7 @@ Instantiating a struct is clean and expressive with struct literal syntax (`.{ .
 
 ```abyss
 p: Point = .{ x: 3, y: 4 }
-print(p.dist_sq()) // Prints: 25
+print(p.dist_sq()) -- Prints: 25
 ```
 
 ---
@@ -125,7 +126,7 @@ TABLE_SIZE := cmpt {
     base * factor + 12
 }
 
-// TABLE_SIZE is baked into the binary as an exact constant (268)
+-- TABLE_SIZE is baked into the binary as an exact constant (268)
 ```
 
 ---
@@ -139,7 +140,7 @@ PrecisionType :: fn(high_precision bool) type {
     if high_precision { f64 } else { f32 }
 }
 
-// Computes the type at compile-time without complex template metaprogramming
+-- Computes the type at compile-time without complex template metaprogramming
 coordinate: PrecisionType(true) = 142.857
 ```
 
