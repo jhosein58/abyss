@@ -8,6 +8,7 @@ import Engine from "../../engine"
 import fall from "std/sys"
 import parse_builtin_type, check_value from "./common"
 import synth_node from "../tyck"
+import eval_const from "../../lower"
 
 print :: fn(s &u8) unit
 
@@ -94,6 +95,21 @@ synth_type_node :: fn(eng &Engine, id u32) u32 {
         ret db.get_const_type(id)
     }
 
+    if curr == k.k_cmpt {
+        synth_node(eng, id)
+        ret db.get_const_type(id)
+    }
+
+    if curr == k.k_if {
+        synth_node(eng, id)
+        ret db.get_const_type(id)
+    }
+
+    if curr == k.block {
+        synth_node(eng, id)
+        ret db.get_const_type(id)
+    }
+
     if curr == k.unary_addr_of {
         child := (tbl).lhs(id)
         child_ty := synth_type_node(eng, child)
@@ -144,7 +160,9 @@ synth_type_node :: fn(eng &Engine, id u32) u32 {
     db.get_const_type(id)
 }
 
-synth_var_or_binding :: fn(db &Nexus, tbl &HirTable, id u32) {
+synth_var_or_binding :: fn(eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
@@ -166,6 +184,21 @@ synth_var_or_binding :: fn(db &Nexus, tbl &HirTable, id u32) {
         }
 
         type_value := db.get_const_type(type_id)
+        if type_value == ty_id_none() {
+            type_value = synth_type_node(eng, type_id)
+        }
+        if (type_value == ty_id_none()) and db.is_const(type_id) {
+            type_slot_chk := unify_ptr.get_slot(type_id)
+            if type_slot_chk != slot_none() {
+                if unify_ptr.resolve_type_deep(types_ptr, type_slot_chk) == ty_id_type() {
+                    c_val := eval_const(db, type_id) as u32
+                    if (c_val != ty_id_none()) and (c_val < types_ptr.len()) {
+                        type_value = c_val
+                        db.set_const_type(type_id, type_value)
+                    }
+                }
+            }
+        }
         if type_value == ty_id_none() {
             print(c"\n\033[1;31m[type error]\033[0m declaration annotation is not a resolved type\n       --> ")
             db.print_loc(type_id)

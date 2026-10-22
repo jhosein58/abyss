@@ -2,6 +2,7 @@ import token from "../../token"
 import hir_kind, hir_none from "../../hir"
 import Parser, bump, optional, peek, is_eof, expect, curr_span, prev_span, parse_error_at, peek_preceded_by_newline from "../core"
 import span_merge from "../../nexus/nexus"
+import prec from "../prec"
 import span_of_hir, set_span from "./common"
 import add_list from "./common"
 import parse_expr from "../parser"
@@ -20,7 +21,7 @@ parse_if :: fn(p &Parser) u32 {
 
     elseb := hir_none()
     if optional(p, t.kw_else) {
-        elseb = parse_expr(p, 0 as u8)
+        elseb = parse_expr(p, prec().assignment + (1 as u8))
         sp_end = span_of_hir(p, elseb)
     }
 

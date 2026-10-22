@@ -31,6 +31,7 @@ match_keyword :: fn(text Str) TokenType {
         if text.eq(Str.of("true")) { ret t.kw_true }
         if text.eq(Str.of("from")) { ret t.kw_from }
         if text.eq(Str.of("enum")) { ret t.kw_enum }
+        if text.eq(Str.of("cmpt")) { ret t.kw_cmpt }
     }
 
     if text.len == 5 {

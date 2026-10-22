@@ -1,7 +1,7 @@
 import Nexus from "../../nexus/nexus"
 import Engine from "../../engine"
 import HirTable, hir_kind, hir_none from "../../hir"
-import TyKind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error, ty_id_never from "../../types"
+import TyKind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error, ty_id_never, ty_id_type from "../../types"
 import slot_none from "../../unify"
 import check_value from "./common"
 import synth_type_node from "./var"
@@ -9,6 +9,7 @@ import Str from "std/string"
 import id_none from "../../nexus/pool"
 import fall from "std/sys"
 import synth_node from "../tyck"
+import eval_const from "../../lower"
 
 print :: fn(s &u8) unit
 
@@ -449,9 +450,26 @@ synth_block :: fn(db &Nexus, tbl &HirTable, id u32) {
 
     if items.len > 0 {
         last_id := *(items.ptr + items.len - 1)
-        last_slot := (unify_ptr).get_slot(last_id)
+        target_id := last_id
+        if tbl.kind(last_id) == hir_kind.k_ret {
+            target_id = tbl.lhs(last_id)
+        }
+        last_slot := (unify_ptr).get_slot(target_id)
         if last_slot != slot_none() {
             (&(*db).unify).union(&(*db).types, slot, last_slot)
+        }
+        if (target_id != hir_none()) and db.is_const(target_id) {
+            db.set_is_const(id, true)
+            db.set_const_val(id, db.get_const_val(target_id))
+            target_slot := unify_ptr.get_slot(target_id)
+            if target_slot != slot_none() {
+                if unify_ptr.resolve_type_deep(types_ptr, target_slot) == ty_id_type() {
+                    ty_val := db.get_const_type(target_id)
+                    if ty_val != ty_id_none() {
+                        db.set_const_type(id, ty_val)
+                    }
+                }
+            }
         }
     } else {
         (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
@@ -522,7 +540,30 @@ synth_if :: fn(db &Nexus, tbl &HirTable, id u32) {
                     db.unify.union(&db.types, slot, else_slot)
                 }
                 db.unify.bind_type(&db.types, slot, unified)
-                ret
+            }
+        }
+
+        if db.is_const(cond) {
+            cond_val := eval_const(db, cond)
+            chosen := elseb
+            if cond_val != 0 {
+                chosen = thenb
+            }
+            if chosen != hir_none() {
+                if db.is_const(chosen) {
+                    db.set_is_const(id, true)
+                    db.set_const_val(id, db.get_const_val(chosen))
+                }
+                chosen_slot := unify_ptr.get_slot(chosen)
+                if chosen_slot != slot_none() {
+                    if unify_ptr.resolve_type_deep(types_ptr, chosen_slot) == ty_id_type() {
+                        chosen_ty := db.get_const_type(chosen)
+                        if chosen_ty != ty_id_none() {
+                            db.set_const_type(id, chosen_ty)
+                            db.unify.bind_type(&db.types, slot, ty_id_type())
+                        }
+                    }
+                }
             }
         }
     } else {

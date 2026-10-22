@@ -267,7 +267,15 @@ lower_expr_node :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, emp
         }
         ident {
             ty := db.get_node_type(id)
-            if ty == ty_id_type() { ret empty }
+            if ty == ty_id_type() {
+                if ccg.is_vm() {
+                    c_ty := db.get_const_type(id)
+                    if c_ty != ty_id_none() {
+                        ret ccg.expr_int(arena, c_ty)
+                    }
+                }
+                ret empty
+            }
             sym_id := db.get_hir_symbol(id)
             if db.types.kind(ty) == TyKind.func {
                 if sym_id != id_none() {
@@ -375,7 +383,10 @@ lower_expr_node :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, emp
         }
         call {
             callee_id := db.hir.lhs(id)
-            if db.get_node_type(id) == ty_id_type() { ret empty }
+            callee_ty := db.get_node_type(callee_id)
+            if (db.get_node_type(id) == ty_id_type()) and db.types.func_has_type_param(callee_ty) {
+                ret empty
+            }
             call_sym := resolve_call_symbol(db, id, callee_id, queue)
             callee_str := ccg.sym_name(arena, call_sym)
             if call_sym == id_none() {
@@ -460,12 +471,32 @@ lower_expr_node :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, emp
             ty_str := ccg.type_str(&db.types, arena, db.get_const_type(db.hir.rhs(id)))
             ret ccg.expr_cast(arena, ty_str, lhs_v)
         }
+        k_cmpt {
+            ty := db.get_node_type(id)
+            if (ty == ty_id_type()) or (db.types.kind(ty) == TyKind.type_) {
+                if ccg.is_vm() {
+                    c_ty := db.get_const_type(id)
+                    if c_ty != ty_id_none() {
+                        ret ccg.expr_int(arena, c_ty)
+                    }
+                }
+                ret empty
+            }
+            val := eval_const(db, id)
+            k := db.types.kind(ty)
+            if k == TyKind.bool {
+                if val != 0 { ret ccg.expr_bool(true) }
+                ret ccg.expr_bool(false)
+            }
+            ret ccg.expr_int(arena, val as u32)
+        }
         k_if {
             if_ty := db.get_node_type(id)
             elseb_id := db.hir.extra(id)
             is_expr := (elseb_id != hir_none()) and (if_ty != ty_id_none()) and
                        (db.types.kind(if_ty) != TyKind.unit) and
-                       (db.types.kind(if_ty) != TyKind.never)
+                       (db.types.kind(if_ty) != TyKind.never) and
+                       (ccg.is_vm() or (db.types.kind(if_ty) != TyKind.type_))
             if is_expr {
                 add_type_to_queue(db, if_ty, type_queue)
                 ty_str := ccg.type_str(&db.types, arena, if_ty)
@@ -644,6 +675,13 @@ eval_const :: fn(db &Nexus, id u32) u64 {
         ret val
     }
 
+    if k == hir_kind.k_cmpt {
+        child := db.hir.lhs(id)
+        val := eval_const(db, child)
+        db.set_const_val(id, val)
+        ret val
+    }
+
     if k == hir_kind.ident {
         sym_id := db.get_hir_symbol(id)
         if sym_id != id_none() {
@@ -698,6 +736,11 @@ eval_const :: fn(db &Nexus, id u32) u64 {
     queue := Vec(u32).new()
     type_queue := Vec(u32).new()
     res_val := lower_body(db, db.comptime_cg, &builder, VmVal.empty(), &db.comptime_arena, id, &visited, &queue, &type_queue)
+    for q_sym in Worklist(u32).new(&queue) {
+        if visited.insert(q_sym) {
+            lower_one_function(db as &Engine, db.comptime_cg, &builder, VmVal.empty(), &db.comptime_arena, q_sym, &visited, &queue, &type_queue)
+        }
+    }
     visited.destroy()
     queue.destroy()
     type_queue.destroy()
@@ -1080,7 +1123,7 @@ lower_one_function :: fn(B type, L type, V type, eng &Engine, ccg &B, builder &L
     orig_func_ty := saved_orig_ty
     if (orig_func_ty == ty_id_none()) and is_mono { orig_func_ty = mono_func_ty }
     if (not is_mono) and (orig_func_ty != ty_id_none()) and db.types.func_has_type_param(orig_func_ty) { ret }
-    if (orig_func_ty != ty_id_none()) and (db.types.func_return(orig_func_ty) == ty_id_type()) { ret }
+    if (not ccg.is_vm()) and (orig_func_ty != ty_id_none()) and (db.types.func_return(orig_func_ty) == ty_id_type()) { ret }
     if is_mono {
         tyck_mono_function(eng, sym_id)
         if (db.get_const_type(func_id) != ty_id_none()) and db.types.func_has_type_param(db.get_const_type(func_id)) {

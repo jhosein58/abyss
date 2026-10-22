@@ -88,6 +88,8 @@ CCodeGen :: struct {
 
     empty_value :: fn(self &Self) Str { Str.empty() }
 
+    is_vm :: fn(self &Self) bool { false }
+
     has_value :: fn(self &Self, value Str) bool { value.len > 0 }
 
     extern_name :: fn(self &Self, name Str) Str { name }
@@ -509,6 +511,7 @@ CCodeGen :: struct {
 
         if kind == TyKind.unit { ret Str.of("void") }
         if kind == TyKind.bool { ret Str.of("bool") }
+        if kind == TyKind.type_ { ret Str.of("uint32_t") }
 
         if kind == TyKind.int {
             if payload == 8   { ret Str.of("int8_t") }

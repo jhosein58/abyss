@@ -157,6 +157,8 @@ VmCodeGen :: struct {
 
     empty_value :: fn(self &Self) VmVal { VmVal.empty() }
 
+    is_vm :: fn(self &Self) bool { true }
+
     has_value :: fn(self &Self, val VmVal) bool { val.kind != VmValKind.none }
 
     abyss_main :: fn(self &Self, sym_id u32) {
@@ -446,6 +448,10 @@ VmCodeGen :: struct {
             j = j + 1
         }
         self.main_entry = self.get_fn_entry(self.main_sym)
+        self.call_fixups_ip.clear()
+        self.call_fixups_sym.clear()
+        self.fn_ptr_fixups_idx.clear()
+        self.fn_ptr_fixups_sym.clear()
     }
 
     start_function :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal) {

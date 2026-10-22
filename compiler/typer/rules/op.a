@@ -8,6 +8,7 @@ import check_value from "./common"
 import Engine from "../../engine"
 import synth_type_node from "./var"
 import resolve_ty_id from "../specialize"
+import eval_const from "../../lower"
 
 print :: fn(s &u8) unit
 
@@ -152,6 +153,7 @@ synth_binary :: fn(db &Nexus, tbl &HirTable, id u32) {
                 union_ty := types_ptr.make_union_2(lhs_val, rhs_val)
                 db.unify.bind_type(&db.types, slot, ty_id_type())
                 db.set_const_type(id, union_ty)
+                db.set_is_const(id, true)
                 ret
             }
         }
@@ -337,6 +339,12 @@ synth_cast :: fn(eng &Engine, id u32) {
     rhs_type := db.get_const_type(rhs)
     if rhs_type == ty_id_none() {
         rhs_type = synth_type_node(eng, rhs)
+    }
+    if (rhs_type == ty_id_none()) and db.is_const(rhs) {
+        rhs_type = eval_const(db, rhs) as u32
+        if rhs_type != ty_id_none() {
+            db.set_const_type(rhs, rhs_type)
+        }
     }
     if rhs_type != ty_id_none() {
         lhs_slot := db.unify.get_slot(lhs)

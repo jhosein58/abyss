@@ -82,7 +82,8 @@ HirExprKind :: enum u8 {
     marker_fn_start,
     builtin_call,
     enum_,
-    lit_cstr
+    lit_cstr,
+    k_cmpt
 }
 
 hir_kind :: HirExprKind
@@ -162,6 +163,7 @@ hir_kind_name :: fn(kind HirExprKind) Str {
         marker_fn_start       { "MarkerFnStart" }
         builtin_call          { "BuiltinCall"   }
         enum_                 { "Enum"          }
+        k_cmpt                { "Cmpt"          }
     }
 }
 

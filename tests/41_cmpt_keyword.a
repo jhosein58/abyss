@@ -1,0 +1,50 @@
+import print from "std/io.a"
+
+compute :: fn() i32 {
+    123 + 456
+}
+
+ChosenType :: if true { i32 } else { f32 }
+ComptimeType :: cmpt if false { i32 } else { f32 }
+
+main :: fn() {
+    x := cmpt 2 + 2
+    print(x)
+    print("\n")
+
+    y := cmpt {
+        a := 10
+        b := 25
+        a * b
+    }
+    print(y)
+    print("\n")
+
+    z := cmpt compute()
+    print(z)
+    print("\n")
+
+    a: if true { i32 } else { f32 } = 100
+    print(a)
+    print("\n")
+
+    b: if false { i32 } else { f32 } = 2.5 as f32
+    print(b)
+    print("\n")
+
+    c: cmpt if true { i32 } else { f32 } = 200
+    print(c)
+    print("\n")
+
+    d: ChosenType = 300
+    print(d)
+    print("\n")
+
+    e: ComptimeType = 4.25 as f32
+    print(e)
+    print("\n")
+
+    cond_val := cmpt 5 > 2
+    print(cond_val)
+    print("\n")
+}
