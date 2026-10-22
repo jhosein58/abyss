@@ -12,8 +12,8 @@ import synth_node from "../tyck"
 import specialize_nominal_from_creator, instantiate_type, resolve_ty_id from "../specialize"
 import eval_const from "../../lower"
 
-print :: fn(s &u8) unit
-print_u32 :: fn(v u32) unit
+print :: fn(s &u8)
+print_u32 :: fn(v u32)
 
 func_has_self :: fn(db &Nexus, func_node u32) bool {
     if func_node == hir_none() { ret false }
@@ -80,7 +80,7 @@ synth_func :: fn(eng &Engine, id u32) {
                 fall()
             }
             if param_ty == ty_id_unit() {
-                print(c"\n[type error] unit parameters have no runtime representation\n       --> ")
+                print(c"\n[type error] void parameters have no runtime representation\n       --> ")
                 db.print_loc(arg_id)
                 print(c"\n")
                 fall()
@@ -208,7 +208,7 @@ synth_return :: fn(db &Nexus, tbl &HirTable, id u32) {
         }
     } else {
         if ret_ty != ty_id_unit() {
-            print(c"\n\033[1;31m[type error]\033[0m return with no value in function returning non-unit\n       --> ")
+            print(c"\n\033[1;31m[type error]\033[0m return with no value in function returning a value\n       --> ")
             db.print_loc(id)
             print(c"\n")
             fall()

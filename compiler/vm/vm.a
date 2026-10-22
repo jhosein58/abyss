@@ -1,24 +1,24 @@
 import Chunk from "./chunk"
 import OpCode from "./op"
 
-print :: fn(s &u8) unit
-print_char :: fn(c u8) unit
-print_bool :: fn(v bool) unit
-print_i8 :: fn(v i8) unit
-print_i16 :: fn(v i16) unit
-print_i32 :: fn(v i32) unit
-print_i64 :: fn(v i64) unit
-print_u8 :: fn(v u8) unit
-print_u16 :: fn(v u16) unit
-print_u32 :: fn(v u32) unit
-print_u64 :: fn(v u64) unit
-print_f32 :: fn(v f32) unit
-print_f64 :: fn(v f64) unit
+print :: fn(s &u8)
+print_char :: fn(c u8)
+print_bool :: fn(v bool)
+print_i8 :: fn(v i8)
+print_i16 :: fn(v i16)
+print_i32 :: fn(v i32)
+print_i64 :: fn(v i64)
+print_u8 :: fn(v u8)
+print_u16 :: fn(v u16)
+print_u32 :: fn(v u32)
+print_u64 :: fn(v u64)
+print_f32 :: fn(v f32)
+print_f64 :: fn(v f64)
 malloc :: fn(size u64) &u8
 realloc :: fn(ptr &u8, size u64) &u8
-free :: fn(ptr &u8) unit
-mem_copy :: fn(dest &u8, src &u8, n u64) unit
-mem_set :: fn(dest &u8, val u8, n u64) unit
+free :: fn(ptr &u8)
+mem_copy :: fn(dest &u8, src &u8, n u64)
+mem_set :: fn(dest &u8, val u8, n u64)
 file_open :: fn(path, mode &u8) &u8
 file_close :: fn(handle &u8) i32
 file_seek :: fn(handle &u8, offset i64, w i32) i32
@@ -28,7 +28,7 @@ file_write :: fn(handle, ptr &u8, s, count u64) u64
 get_arg_count :: fn() i32
 get_arg :: fn(idx i32) &u8
 get_env :: fn(name &u8) &u8
-abyss_fall :: fn() unit
+abyss_fall :: fn()
 compile_and_run :: fn(path &u8) i32
 str_len :: fn(s &u8) u64
 abyss_vm_call_dyn :: fn(name &u8, a0, a1, a2, a3, a4, a5 u64, arg_count u32) u64

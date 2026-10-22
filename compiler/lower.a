@@ -12,7 +12,7 @@ import Engine from "./engine"
 import VmCodeGen, VmCodeBuilder, VmVal, VmValKind from "./vm/codegen"
 import OpCode from "./vm/op"
 
-print :: fn(s &u8) unit
+print :: fn(s &u8)
 
 get_node_type :: fn(db &Nexus, id u32) u32 {
     db.get_node_type(id)
@@ -331,7 +331,7 @@ lower_expr_node :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, emp
             var_ty := db.get_node_type(ident_id)
             if (var_ty == ty_id_type()) or db.types.func_has_type_param(var_ty) { ret empty }
             if db.types.kind(var_ty) == TyKind.unit {
-                print(c"\n[type error] variable cannot have unit type\n       --> ")
+                print(c"\n[type error] variable cannot have void type\n       --> ")
                 db.print_loc(id)
                 print(c"\n")
                 fall()

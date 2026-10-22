@@ -998,7 +998,7 @@ TypeStorage :: struct {
         if kind == TyKind.float         { print(c"f") print_u32(payload) ret }
         if kind == TyKind.bool          { print(c"bool")      ret }
         if kind == TyKind.type_         { print(c"Type")      ret }
-        if kind == TyKind.unit          { print(c"unit")      ret }
+        if kind == TyKind.unit          { print(c"void")      ret }
         if kind == TyKind.never         { print(c"!")         ret }
         if kind == TyKind.error         { print(c"Err!")      ret }
         if kind == TyKind.nominal {
@@ -1102,7 +1102,7 @@ TypeStorage :: struct {
 
         if kind == TyKind.bool  { s.push_str(Str.of("bool")) ret }
         if kind == TyKind.type_ { s.push_str(Str.of("Type")) ret }
-        if kind == TyKind.unit  { s.push_str(Str.of("unit")) ret }
+        if kind == TyKind.unit  { s.push_str(Str.of("void")) ret }
         if kind == TyKind.never { s.push_str(Str.of("!"))    ret }
         if kind == TyKind.error { s.push_str(Str.of("Err!")) ret }
         if kind == TyKind.nominal {

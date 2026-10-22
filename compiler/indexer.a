@@ -9,7 +9,7 @@ import id_none from "./nexus/pool"
 import fall from "std/sys"
 import embedded_source from "./embedded"
 
-print :: fn(s &u8) unit
+print :: fn(s &u8)
 get_env :: fn(name &u8) &u8
 file_open :: fn(path, mode &u8) &u8
 file_close :: fn(handle &u8) i32

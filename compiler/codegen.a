@@ -5,7 +5,7 @@ import TypeStorage, TyKind, ty_id_none from "./types"
 import HirExprKind, hir_kind, hir_none from "./hir"
 import fall from "std/sys"
 
-print :: fn(s &u8) unit
+print :: fn(s &u8)
 
 append_str :: fn(v &String, s Str) {
     v.push_str(s)

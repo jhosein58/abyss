@@ -3,7 +3,7 @@ import Str from "string.a"
 import fall               from "sys.a"
 
 
-print :: fn(s &u8) unit
+print :: fn(s &u8)
 
 file_open  :: fn(path, mode &u8) &u8
 file_seek  :: fn(handle &u8, offset i64, w i32) i32

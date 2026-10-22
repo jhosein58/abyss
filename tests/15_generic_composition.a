@@ -1,9 +1,9 @@
 import Vec from "std/collections/vec.a"
 
-print :: fn(s &u8) unit
-print_u32 :: fn(v u32) unit
-print_i32 :: fn(v i32) unit
-print_bool :: fn(v bool) unit
+print :: fn(s &u8)
+print_u32 :: fn(v u32)
+print_i32 :: fn(v i32)
+print_bool :: fn(v bool)
 
 Box :: fn(T type) type {
     struct {

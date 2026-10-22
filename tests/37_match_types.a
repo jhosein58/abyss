@@ -1,8 +1,8 @@
 import print from "std/io.a"
 import Vec from "std/collections/vec.a"
 
-print_i32 :: fn(v i32) unit
-print_u64 :: fn(v u64) unit
+print_i32 :: fn(v i32)
+print_u64 :: fn(v u64)
 
 Color :: enum { red, green, blue }
 

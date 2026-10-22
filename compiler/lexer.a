@@ -4,8 +4,8 @@ import calc_pos from "./nexus/nexus"
 import fall from "std/sys"
 import is_digit, is_hex_digit, is_alpha, is_alphanumeric, is_whitespace, is_newline from "std/ascii"
 
-print :: fn(s &u8) unit
-print_u32 :: fn(v u32) unit
+print :: fn(s &u8)
+print_u32 :: fn(v u32)
 
 match_keyword :: fn(text Str) TokenType {
     t := token

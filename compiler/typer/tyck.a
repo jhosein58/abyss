@@ -139,7 +139,7 @@ type_check :: fn(eng &Engine, start u32, len u32) {
     }
 }
 
-print :: fn(s &u8) unit
+print :: fn(s &u8)
 
 vec_contains :: fn(v &Vec(u32), val u32) bool {
     i: u64 = 0

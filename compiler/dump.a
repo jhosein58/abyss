@@ -6,9 +6,9 @@ import Arena from "std/allocator"
 import TypeStorage, ty_id_none from "./types"
 import UnifyStorage, slot_none from "./unify"
 
-print_char :: fn(c u8)  unit
-print_u32  :: fn(n u32) unit
-print      :: fn(s &u8) unit
+print_char :: fn(c u8)
+print_u32  :: fn(n u32)
+print      :: fn(s &u8)
  
 print_spaces :: fn(count u32) {
     i: u32 = 0

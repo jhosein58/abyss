@@ -2,7 +2,7 @@ import Str from "../core/string.a"
 import Arena  from "allocator.a"
 
 str_len    :: fn(s &u8) u64
-print_char :: fn(c u8)  unit
+print_char :: fn(c u8)
 
 
 String :: struct {

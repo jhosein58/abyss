@@ -11,7 +11,7 @@ import fall from "std/sys"
 import synth_node from "../tyck"
 import eval_const from "../../lower"
 
-print :: fn(s &u8) unit
+print :: fn(s &u8)
 
 match_error :: fn(db &Nexus, msg &u8, id u32) {
     print(c"\n\033[1;31m[type error]\033[0m ")

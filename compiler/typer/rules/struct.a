@@ -9,7 +9,7 @@ import synth_type_node from "./var"
 import synth_func, func_has_self from "./fn"
 import specialize_nominal_method from "../specialize"
 
-print :: fn(s &u8) unit
+print :: fn(s &u8)
 
 synth_struct :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus

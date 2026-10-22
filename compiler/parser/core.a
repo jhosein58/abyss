@@ -8,8 +8,8 @@ import id_none from "../nexus/pool"
 import fall from "std/sys"
 
 
-print     :: fn(s &u8) unit
-print_u32 :: fn(v u32) unit
+print     :: fn(s &u8)
+print_u32 :: fn(v u32)
 
 Parser :: struct {
     db        &Nexus

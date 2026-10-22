@@ -1,7 +1,7 @@
 import Vec from "std/collections/vec.a"
 
-print_u32 :: fn(v u32) unit
-print :: fn(s &u8) unit
+print_u32 :: fn(v u32)
+print :: fn(s &u8)
 
 Marker0 :: struct { value u32 }
 Marker1 :: struct { value u32 }
