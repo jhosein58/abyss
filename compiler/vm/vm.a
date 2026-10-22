@@ -19,6 +19,19 @@ realloc :: fn(ptr &u8, size u64) &u8
 free :: fn(ptr &u8) unit
 mem_copy :: fn(dest &u8, src &u8, n u64) unit
 mem_set :: fn(dest &u8, val u8, n u64) unit
+file_open :: fn(path, mode &u8) &u8
+file_close :: fn(handle &u8) i32
+file_seek :: fn(handle &u8, offset i64, w i32) i32
+file_tell :: fn(handle &u8) i64
+file_read :: fn(handle, ptr &u8, s, count u64) u64
+file_write :: fn(handle, ptr &u8, s, count u64) u64
+get_arg_count :: fn() i32
+get_arg :: fn(idx i32) &u8
+get_env :: fn(name &u8) &u8
+abyss_fall :: fn() unit
+compile_and_run :: fn(path &u8) i32
+str_len :: fn(s &u8) u64
+abyss_vm_call_dyn :: fn(name &u8, a0, a1, a2, a3, a4, a5 u64, arg_count u32) u64
 
 vm_noop :: fn() {}
 
@@ -51,7 +64,7 @@ Vm :: struct {
         }
     }
 
-    dispatch_extern :: fn(self &Self, id u8, arg_count u8) {
+    dispatch_extern :: fn(self &Self, prog &Chunk, id u32, arg_count u8) {
         if id == 1 {
             s := self.stack.pop() as &u8
             print(s)
@@ -131,6 +144,102 @@ Vm :: struct {
             f_val := *(&bits as &f64)
             print_f64(f_val)
             self.stack.push(0)
+        } else if id == 19 {
+            mode := self.stack.pop() as &u8
+            path := self.stack.pop() as &u8
+            res := file_open(path, mode) as u64
+            self.stack.push(res)
+        } else if id == 20 {
+            handle := self.stack.pop() as &u8
+            res := file_close(handle) as u64
+            self.stack.push(res)
+        } else if id == 21 {
+            w := self.stack.pop() as i32
+            offset := self.stack.pop() as i64
+            handle := self.stack.pop() as &u8
+            res := file_seek(handle, offset, w) as u64
+            self.stack.push(res)
+        } else if id == 22 {
+            handle := self.stack.pop() as &u8
+            res := file_tell(handle) as u64
+            self.stack.push(res)
+        } else if id == 23 {
+            count := self.stack.pop()
+            size := self.stack.pop()
+            ptr := self.stack.pop() as &u8
+            handle := self.stack.pop() as &u8
+            res := file_read(handle, ptr, size, count)
+            self.stack.push(res)
+        } else if id == 24 {
+            count := self.stack.pop()
+            size := self.stack.pop()
+            ptr := self.stack.pop() as &u8
+            handle := self.stack.pop() as &u8
+            res := file_write(handle, ptr, size, count)
+            self.stack.push(res)
+        } else if id == 25 {
+            res := get_arg_count() as u64
+            self.stack.push(res)
+        } else if id == 26 {
+            idx := self.stack.pop() as i32
+            res := get_arg(idx) as u64
+            self.stack.push(res)
+        } else if id == 27 {
+            name := self.stack.pop() as &u8
+            res := get_env(name) as u64
+            self.stack.push(res)
+        } else if id == 28 {
+            s := self.stack.pop() as &u8
+            res := str_len(s)
+            self.stack.push(res)
+        } else if id == 29 {
+            abyss_fall()
+            self.stack.push(0)
+        } else if id == 30 {
+            path := self.stack.pop() as &u8
+            res := compile_and_run(path) as u64
+            self.stack.push(res)
+        } else if id == 31 {
+            self.stack.pop()
+            self.stack.push(0)
+        } else if id >= 100 {
+            name_ptr := prog.get_extern_name(id - 100)
+            a0: u64 = 0
+            a1: u64 = 0
+            a2: u64 = 0
+            a3: u64 = 0
+            a4: u64 = 0
+            a5: u64 = 0
+            if arg_count == 1 {
+                a0 = self.stack.pop()
+            } else if arg_count == 2 {
+                a1 = self.stack.pop()
+                a0 = self.stack.pop()
+            } else if arg_count == 3 {
+                a2 = self.stack.pop()
+                a1 = self.stack.pop()
+                a0 = self.stack.pop()
+            } else if arg_count == 4 {
+                a3 = self.stack.pop()
+                a2 = self.stack.pop()
+                a1 = self.stack.pop()
+                a0 = self.stack.pop()
+            } else if arg_count == 5 {
+                a4 = self.stack.pop()
+                a3 = self.stack.pop()
+                a2 = self.stack.pop()
+                a1 = self.stack.pop()
+                a0 = self.stack.pop()
+            } else if arg_count >= 6 {
+                a5 = self.stack.pop()
+                a4 = self.stack.pop()
+                a3 = self.stack.pop()
+                a2 = self.stack.pop()
+                a1 = self.stack.pop()
+                a0 = self.stack.pop()
+            }
+            res := abyss_vm_call_dyn(name_ptr, a0, a1, a2, a3, a4, a5, arg_count as u32)
+            self.stack.push(res)
         } else {
             self.stack.push(0)
         }
@@ -363,18 +472,18 @@ Vm :: struct {
                     vm_noop()
                 }
                 call_extern {
-                    ext_id := prog.read_u8(ip)
-                    arg_count := prog.read_u8(ip + 1)
-                    ip = ip + 2
-                    self.dispatch_extern(ext_id, arg_count)
+                    ext_id := prog.read_u16(ip) as u32
+                    arg_count := prog.read_u8(ip + 2)
+                    ip = ip + 3
+                    self.dispatch_extern(prog, ext_id, arg_count)
                 }
                 call_ptr {
                     arg_count := prog.read_u8(ip) as u32
                     ip = ip + 1
                     target_ip := self.stack.pop() as u32
                     if target_ip >= 1000000 {
-                        ext_id := (target_ip - 1000000) as u8
-                        self.dispatch_extern(ext_id, arg_count as u8)
+                        ext_id := target_ip - 1000000
+                        self.dispatch_extern(prog, ext_id, arg_count as u8)
                     } else {
                         new_fp := self.locals.len as u32
                         self.frames_ip.push(ip)
@@ -398,8 +507,8 @@ Vm :: struct {
                     ip = ip + 1
                     target_ip := self.stack.pop() as u32
                     if target_ip >= 1000000 {
-                        ext_id := (target_ip - 1000000) as u8
-                        self.dispatch_extern(ext_id, arg_count as u8)
+                        ext_id := target_ip - 1000000
+                        self.dispatch_extern(prog, ext_id, arg_count as u8)
                     } else {
                         new_fp := self.locals.len as u32
                         self.frames_ip.push(ip)

@@ -1,19 +1,22 @@
 import OpCode from "./op"
 
 Chunk :: struct {
-    buf   Vec(u8)
-    const Vec(u64)
+    buf          Vec(u8)
+    const        Vec(u64)
+    extern_names Vec(u64)
 
     new :: fn() Self {
         .{
             buf: Vec(u8).new(),
-            const: Vec(u64).new()
+            const: Vec(u64).new(),
+            extern_names: Vec(u64).new()
         }
     }
 
     destroy :: fn(self &Self) {
         self.buf.destroy()
         self.const.destroy()
+        self.extern_names.destroy()
     }
 
     inst :: fn(self &Self, op OpCode) {
@@ -44,6 +47,18 @@ Chunk :: struct {
     alloc_const :: fn(self &Self, c u64) u16 {
         self.const.push(c)
         (self.const.len as u16) - 1
+    }
+
+    add_extern :: fn(self &Self, name_ptr &u8) u32 {
+        self.extern_names.push(name_ptr as u64)
+        (self.extern_names.len as u32) - 1
+    }
+
+    get_extern_name :: fn(self &Self, id u32) &u8 {
+        if (id as u64) < self.extern_names.len {
+            ret self.extern_names.get(id as u64) as &u8
+        }
+        0 as &u8
     }
 
     patch_u32 :: fn(self &Self, offset u32, val u32) {

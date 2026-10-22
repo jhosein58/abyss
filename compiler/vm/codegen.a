@@ -88,6 +88,7 @@ VmCodeBuilder :: struct {
 }
 
 VmCodeGen :: struct {
+    arena               &Arena
     chunk               Chunk
     main_sym            u32
     main_entry          u32
@@ -113,6 +114,7 @@ VmCodeGen :: struct {
 
     new :: fn(arena &Arena) Self {
         .{
+            arena: arena,
             chunk: Chunk.new(),
             main_sym: 0,
             main_entry: 0,
@@ -501,7 +503,7 @@ VmCodeGen :: struct {
                 self.chunk.inst(OpCode.push_const)
                 self.chunk.emit_u16(c_sz)
                 self.chunk.inst(OpCode.call_extern)
-                self.chunk.emit_u8(6)
+                self.chunk.emit_u16(6)
                 self.chunk.emit_u8(1)
                 self.chunk.inst(OpCode.store_local)
                 self.chunk.emit_u16(slot as u16)
@@ -639,6 +641,29 @@ VmCodeGen :: struct {
         else if name.eq(Str.of("realloc")) { ext_id = 16 }
         else if name.eq(Str.of("print_f32")) { ext_id = 17 }
         else if name.eq(Str.of("print_f64")) { ext_id = 18 }
+        else if name.eq(Str.of("file_open")) { ext_id = 19 }
+        else if name.eq(Str.of("file_close")) { ext_id = 20 }
+        else if name.eq(Str.of("file_seek")) { ext_id = 21 }
+        else if name.eq(Str.of("file_tell")) { ext_id = 22 }
+        else if name.eq(Str.of("file_read")) { ext_id = 23 }
+        else if name.eq(Str.of("file_write")) { ext_id = 24 }
+        else if name.eq(Str.of("get_arg_count")) { ext_id = 25 }
+        else if name.eq(Str.of("get_arg")) { ext_id = 26 }
+        else if name.eq(Str.of("get_env")) { ext_id = 27 }
+        else if name.eq(Str.of("str_len")) { ext_id = 28 }
+        else if name.eq(Str.of("abyss_fall")) { ext_id = 29 }
+        else if name.eq(Str.of("compile_and_run")) { ext_id = 30 }
+        else if name.eq(Str.of("print_f16")) { ext_id = 31 }
+        else {
+            buf := self.arena.alloc(name.len + 1)
+            i: u64 = 0
+            while i < name.len {
+                *(buf + i) = *(name.ptr + i)
+                i = i + 1
+            }
+            *(buf + name.len) = 0 as u8
+            ext_id = 100 + self.chunk.add_extern(buf)
+        }
 
         VmVal.global(1000000 + ext_id)
     }
@@ -749,7 +774,7 @@ VmCodeGen :: struct {
         self.chunk.inst(OpCode.push_const)
         self.chunk.emit_u16(c_size)
         self.chunk.inst(OpCode.call_extern)
-        self.chunk.emit_u8(6)
+        self.chunk.emit_u16(6)
         self.chunk.emit_u8(1)
         self.chunk.inst(OpCode.store_local)
         self.chunk.emit_u16(temp_buf as u16)
@@ -1012,7 +1037,7 @@ VmCodeGen :: struct {
             self.chunk.inst(OpCode.push_const)
             self.chunk.emit_u16(c_sz)
             self.chunk.inst(OpCode.call_extern)
-            self.chunk.emit_u8(6)
+            self.chunk.emit_u16(6)
             self.chunk.emit_u8(1)
             self.chunk.inst(OpCode.store_local)
             self.chunk.emit_u16(temp_dst as u16)
@@ -1023,7 +1048,7 @@ VmCodeGen :: struct {
             self.chunk.inst(OpCode.push_const)
             self.chunk.emit_u16(c_sz)
             self.chunk.inst(OpCode.call_extern)
-            self.chunk.emit_u8(8)
+            self.chunk.emit_u16(8)
             self.chunk.emit_u8(3)
             self.chunk.inst(OpCode.pop)
             self.chunk.inst(OpCode.load_local)
@@ -1044,7 +1069,7 @@ VmCodeGen :: struct {
                 self.chunk.inst(OpCode.push_const)
                 self.chunk.emit_u16(c_sz)
                 self.chunk.inst(OpCode.call_extern)
-                self.chunk.emit_u8(6)
+                self.chunk.emit_u16(6)
                 self.chunk.emit_u8(1)
                 self.chunk.inst(OpCode.store_local)
                 self.chunk.emit_u16(temp_dst as u16)
@@ -1055,7 +1080,7 @@ VmCodeGen :: struct {
                 self.chunk.inst(OpCode.push_const)
                 self.chunk.emit_u16(c_sz)
                 self.chunk.inst(OpCode.call_extern)
-                self.chunk.emit_u8(8)
+                self.chunk.emit_u16(8)
                 self.chunk.emit_u8(3)
                 self.chunk.inst(OpCode.pop)
                 self.chunk.inst(OpCode.load_local)
@@ -1109,9 +1134,9 @@ VmCodeGen :: struct {
     expr_call :: fn(self &Self, arena &Arena, callee VmVal, args VmVal) VmVal {
         arg_count := args.id as u8
         if callee.id >= 1000000 {
-            ext_id := (callee.id - 1000000) as u8
+            ext_id := (callee.id - 1000000) as u16
             self.chunk.inst(OpCode.call_extern)
-            self.chunk.emit_u8(ext_id)
+            self.chunk.emit_u16(ext_id)
             self.chunk.emit_u8(arg_count)
             ret VmVal.stack()
         }
@@ -1181,7 +1206,7 @@ VmCodeGen :: struct {
         self.chunk.inst(OpCode.push_const)
         self.chunk.emit_u16(c_size)
         self.chunk.inst(OpCode.call_extern)
-        self.chunk.emit_u8(6)
+        self.chunk.emit_u16(6)
         self.chunk.emit_u8(1)
         self.chunk.inst(OpCode.store_local)
         self.chunk.emit_u16(temp_buf as u16)
@@ -1229,7 +1254,7 @@ VmCodeGen :: struct {
         self.chunk.inst(OpCode.push_const)
         self.chunk.emit_u16(c_size)
         self.chunk.inst(OpCode.call_extern)
-        self.chunk.emit_u8(6)
+        self.chunk.emit_u16(6)
         self.chunk.emit_u8(1)
 
         u_temp := self.alloc_temp()

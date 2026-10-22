@@ -1,3 +1,6 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -5,9 +8,15 @@
 #include <stdlib.h>
 
 #if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
 #define popen _popen
 #define pclose _pclose
+#else
+#include <dlfcn.h>
 #endif
+
+void abyss_vm_shift_args(void);
+uint64_t abyss_vm_call_dyn(uint8_t *name, uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint32_t arg_count);
 
 void print(uint8_t *s) {
     printf("%s", (const char *)s);
@@ -185,16 +194,28 @@ int32_t compile_and_run(uint8_t *path) {
     return (int32_t)system(run_cmd);
 }
 
-// ------> System
-
 int abyss_argc = 0;
 char **abyss_argv = NULL;
+int abyss_vm_argc = 0;
+char **abyss_vm_argv = NULL;
+
+void abyss_vm_shift_args(void) {
+    if (abyss_argc > 2 && (strcmp(abyss_argv[1], "r") == 0 || strcmp(abyss_argv[1], "run") == 0)) {
+        abyss_vm_argc = abyss_argc - 2;
+        abyss_vm_argv = abyss_argv + 2;
+    }
+}
 
 int32_t get_arg_count(void) {
+    if (abyss_vm_argv) return (int32_t)abyss_vm_argc;
     return (int32_t)abyss_argc;
 }
 
 uint8_t *get_arg(int32_t idx) {
+    if (abyss_vm_argv) {
+        if (idx < 0 || idx >= abyss_vm_argc) return NULL;
+        return (uint8_t *)abyss_vm_argv[idx];
+    }
     if (idx < 0 || idx >= abyss_argc) return NULL;
     return (uint8_t *)abyss_argv[idx];
 }
@@ -209,4 +230,25 @@ void abyss_fall(void) {
     fprintf(stderr, "\n\033[1;35m[fall]\033[0m unfathomable.\n\n");
     fflush(stderr);
     exit(1);
+}
+
+uint64_t abyss_vm_call_dyn(uint8_t *name, uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint32_t arg_count) {
+    if (!name) return 0;
+#if defined(_WIN32) || defined(_WIN64)
+    HMODULE mod = GetModuleHandle(NULL);
+    FARPROC sym = GetProcAddress(mod, (const char *)name);
+    if (!sym) {
+        HMODULE crt = GetModuleHandleA("msvcrt.dll");
+        if (crt) sym = GetProcAddress(crt, (const char *)name);
+    }
+#else
+    void *sym = dlsym(RTLD_DEFAULT, (const char *)name);
+#endif
+    if (!sym) {
+        fprintf(stderr, "\n\033[1;31m[vm error]\033[0m undefined external symbol '%s'\n", (const char *)name);
+        abyss_fall();
+        return 0;
+    }
+    typedef uint64_t (*fn_ptr)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+    return ((fn_ptr)sym)(a0, a1, a2, a3, a4, a5);
 }

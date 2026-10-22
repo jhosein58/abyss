@@ -17,6 +17,7 @@ get_arg         :: fn(idx i32) &u8
 get_env         :: fn(name &u8) &u8
 file_open       :: fn(path, mode &u8) &u8
 file_close      :: fn(handle &u8) i32
+abyss_vm_shift_args :: fn() unit
 
 main :: fn() {
 
@@ -99,6 +100,7 @@ main :: fn() {
     eng.validate_main(sym_id)
 
     if is_vm_run {
+        abyss_vm_shift_args()
         vcg := VmCodeGen.new(&arena)
         vcg.init_types(&eng.nexus.types, &arena)
         vbuilder := VmCodeBuilder.new(&vcg)
