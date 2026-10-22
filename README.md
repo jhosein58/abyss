@@ -4,29 +4,59 @@
 
 Abyss is a statically typed systems programming language designed for predictability, mechanical sympathy, and raw performance. It pairs clean, modern ergonomics inspired by Odin and Jai with the transparency of C.
 
-> **Status:** 100% Self-Hosted. Emits deterministic GNU C99.
+> **Status:** 100% Self-Hosted. Emits portable standard C99. Bit-identical fixed-point verified across bootstrap generations.
 
 ---
 
 ## Code at a Glance
 
-```odin
+```abyss
 import print from "std/io.a"
 
 Point :: struct {
-    x i32
-    y i32
+    x, y i32
+
+    dist_sq :: fn(self &Self) i32 {
+        self.x * self.x + self.y * self.y
+    }
+}
+
+TypeByCond :: fn(cond bool) type {
+    if cond { i32 } else { f32 }
 }
 
 main :: fn() {
-    p: Point = .{ x: 10, y: 20 }
-    print("Point: ")
-    print(p.x)
-    print(", ")
-    print(p.y)
+    p: Point = .{ x: 3, y: 4 }
+    print("Distance squared: ")
+    print(p.dist_sq())
+    print("\n")
+
+    val := cmpt {
+        base := 20
+        base * 2 + 2
+    }
+    print("Compile-time evaluated: ")
+    print(val)
+    print("\n")
+
+    x: TypeByCond(true) = 100
+    print("Computed type value: ")
+    print(x)
     print("\n")
 }
 ```
+
+---
+
+## Key Highlights
+
+- **Dual-Engine Architecture:** Instant Bytecode VM for development and testing, alongside an optimizing portable C99 code generator.
+- **Compile-Time Execution (`cmpt`):** Evaluate arbitrary expressions and blocks at compile-time via the VM engine.
+- **First-Class Types:** Types are first-class values that can be passed to functions, returned from type functions, or selected via conditional branches.
+- **Data-Oriented Core (DOP):** Built around dense linear tables and compact integer IDs instead of pointer-heavy AST graphs.
+- **Multiplatform & Standalone:** Native Linux binaries and standalone Windows binaries with zero third-party runtime dependencies (linking only to `KERNEL32.dll` and `msvcrt.dll`).
+- **Deterministic Fixed-Point Self-Hosting:** Verified bit-for-bit identical across bootstrap generations ($G_1 \equiv G_2 \equiv G_3$).
+- **Zero-Dependency Bootstrap:** A single portable C99 source file (`bootstrap.c`) bootstraps the entire compiler from scratch on any machine with a C compiler.
 
 ---
 
@@ -40,42 +70,43 @@ Using the repository's seed compiler:
 ./abyss b
 ```
 
-Or bootstrap directly from the release C source:
+Or bootstrap directly from the standalone C source:
 
 ```sh
-gcc -std=gnu99 -O2 bootstrap.c -o abyssc
+gcc -std=c99 -O3 -rdynamic dist/bootstrap.c -o abyssc
 ```
 
 ### 2. Run a Program
 
+Instant execution on the Bytecode VM:
+
 ```sh
 ./abyss r program.a
+```
+
+Compile and run an optimized native binary:
+
+```sh
+./abyss br program.a
 ```
 
 ---
 
 ## Tooling CLI
 
-The `./abyss` script provides a unified developer workflow:
+The `./abyss` workflow script provides end-to-end tooling:
 
 | Command | Description |
 | :--- | :--- |
-| `./abyss r [file.a]` | Build and run in development mode (live `std` reload) |
-| `./abyss b [file.a]` | Build an optimized binary (`-O3`) |
-| `./abyss b-win` | Cross-compile standalone Windows binary (`.exe`) via MinGW |
-| `./abyss test [filter]` | Run language and compiler regression test suite |
-| `./abyss bootstrap [n]` | Run multi-round fixed-point bootstrap verification |
-| `./abyss release` | Package standalone release artifacts (`bootstrap.c`, Linux, Windows) |
-
----
-
-## Features
-
-- **Ergonomic Grammar:** Clean declaration syntax without header files or preprocessor baggage.
-- **Unification Type System:** Bidirectional type inference with strict numeric sizing.
-- **GNU C99 Target:** Emits clean GNU C99, leveraging GCC and Clang for optimizations.
-- **Data-Oriented Core:** Built around dense linear tables and numeric IDs (`HirId`, `TypeId`) instead of pointer-heavy AST trees.
-- **Zero-Dependency Bootstrap:** A single portable C file (`bootstrap.c`) bootstraps the entire language from scratch.
+| `./abyss r [file.a]` | Run immediately on the Bytecode VM (zero compile latency) |
+| `./abyss b [file.a]` | Compile to an optimized native binary (`-O3`) |
+| `./abyss br [file.a]` | Compile to native binary and run |
+| `./abyss b-win [file.a]` | Cross-compile standalone Windows binary (`.exe`) via MinGW |
+| `./abyss test [filter]` | Run test suite against both C and VM backends |
+| `./abyss test-win [filter]` | Run test suite against Windows binary via Wine |
+| `./abyss bootstrap [n]` | Run multi-round bit-identical bootstrap verification |
+| `./abyss release` | Package and verify release artifacts (`bootstrap.c`, Linux, Windows) |
+| `./abyss clean` | Clean temporary build artifacts |
 
 ---
 
