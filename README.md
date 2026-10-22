@@ -11,7 +11,7 @@ Abyss is a statically typed systems programming language designed for predictabi
 ## Code at a Glance
 
 ```abyss
-import print from "std/io.a"
+import print from "std/io"
 
 Point :: struct {
     x, y i32
