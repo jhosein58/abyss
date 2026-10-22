@@ -292,7 +292,17 @@ lower_expr_node :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, emp
             if sym_id != id_none() {
                 real_sym := db.resolve_sym(sym_id)
                 if db.is_sym_const(real_sym) {
-                    val := eval_const(db, id)
+                    val: u64 = 0
+                    if db.has_const_val(id) {
+                        val = db.get_const_val(id)
+                    } else {
+                        hir_node := db.get_sym_hir(real_sym)
+                        if (hir_node != id_none()) and (hir_node != id) and db.has_const_val(hir_node) {
+                            val = db.get_const_val(hir_node)
+                        } else {
+                            val = eval_const(db, id)
+                        }
+                    }
                     k := db.types.kind(ty)
                     if k == TyKind.bool {
                         if val != 0 { ret ccg.expr_bool(true) }
@@ -668,11 +678,13 @@ eval_const :: fn(db &Nexus, id u32) u64 {
         ret val
     }
 
-    c_ty := db.get_const_type(id)
-    if c_ty != ty_id_none() {
-        val := c_ty as u64
-        db.set_const_val(id, val)
-        ret val
+    if db.get_node_type(id) == ty_id_type() {
+        c_ty := db.get_const_type(id)
+        if c_ty != ty_id_none() {
+            val := c_ty as u64
+            db.set_const_val(id, val)
+            ret val
+        }
     }
 
     if k == hir_kind.k_cmpt {
@@ -686,18 +698,33 @@ eval_const :: fn(db &Nexus, id u32) u64 {
         sym_id := db.get_hir_symbol(id)
         if sym_id != id_none() {
             real_s := db.resolve_sym(sym_id)
-            c_type := db.get_const_type(id)
-            if c_type != ty_id_none() {
-                val := c_type as u64
-                db.set_const_val(id, val)
-                ret val
-            }
             hir_node := db.get_sym_hir(real_s)
             if (hir_node != id_none()) and (hir_node != id) {
+                if db.has_const_val(hir_node) {
+                    val := db.get_const_val(hir_node)
+                    db.set_const_val(id, val)
+                    ret val
+                }
                 if db.hir.kind(hir_node) == hir_kind.binding {
                     rhs := db.hir.extra(hir_node)
                     if rhs != hir_none() {
                         val := eval_const(db, rhs)
+                        db.set_const_val(id, val)
+                        ret val
+                    }
+                }
+            }
+            if db.get_node_type(id) == ty_id_type() {
+                c_type := db.get_const_type(id)
+                if c_type != ty_id_none() {
+                    val := c_type as u64
+                    db.set_const_val(id, val)
+                    ret val
+                }
+                if (hir_node != id_none()) and (hir_node != id) {
+                    c_ty := db.get_const_type(hir_node)
+                    if c_ty != ty_id_none() {
+                        val := c_ty as u64
                         db.set_const_val(id, val)
                         ret val
                     }

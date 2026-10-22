@@ -10,6 +10,7 @@ import synth_type_node from "./var"
 import check_value from "./common"
 import synth_node from "../tyck"
 import specialize_nominal_from_creator, instantiate_type, resolve_ty_id from "../specialize"
+import eval_const from "../../lower"
 
 print :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit
@@ -368,19 +369,42 @@ synth_type_func_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot 
             arg_node := *(args.ptr + i)
             arg_ty := synth_type_node(eng, arg_node)
             arg_slot := unify_ptr.get_slot(arg_node)
-            if (arg_ty == ty_id_none()) or (arg_slot == slot_none()) {
-                print(c"\n[type error] type function argument must be a type\n       --> ")
-                db.print_loc(arg_node)
-                print(c"\n")
-                fall()
+            expected_p_ty := ty_id_none()
+            if i < params.len {
+                expected_p_ty = *(params.ptr + i)
             }
-            if (unify_ptr.resolve_type(arg_slot) != ty_id_type()) and (types_ptr.kind(arg_ty) != TyKind.infer) {
-                print(c"\n[type error] type function argument must be a type\n       --> ")
-                db.print_loc(arg_node)
-                print(c"\n")
-                fall()
+            if expected_p_ty == ty_id_type() {
+                if (arg_ty == ty_id_none()) or (arg_slot == slot_none()) {
+                    print(c"\n[type error] type function argument must be a type\n       --> ")
+                    db.print_loc(arg_node)
+                    print(c"\n")
+                    fall()
+                }
+                if (unify_ptr.resolve_type(arg_slot) != ty_id_type()) and (types_ptr.kind(arg_ty) != TyKind.infer) {
+                    print(c"\n[type error] type function argument must be a type\n       --> ")
+                    db.print_loc(arg_node)
+                    print(c"\n")
+                    fall()
+                }
+                concrete_args.push(arg_ty)
+            } else {
+                if (arg_slot == slot_none()) or (unify_ptr.resolve_type(arg_slot) == ty_id_none()) {
+                    synth_node(eng, arg_node)
+                    arg_slot = unify_ptr.get_slot(arg_node)
+                }
+                if (expected_p_ty != ty_id_none()) and (arg_slot != slot_none()) {
+                    check_value(db, arg_node, expected_p_ty)
+                }
+                if db.is_const(arg_node) {
+                    val := eval_const(db, arg_node) as u32
+                    concrete_args.push(val)
+                } else {
+                    print(c"\n[type error] type function argument must be a compile-time constant\n       --> ")
+                    db.print_loc(arg_node)
+                    print(c"\n")
+                    fall()
+                }
             }
-            concrete_args.push(arg_ty)
             i = i + 1
         }
     }
@@ -395,6 +419,7 @@ synth_type_func_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot 
         concrete_args.destroy()
         db.set_const_type(id, cached)
         unify_ptr.bind_type(types_ptr, slot, ty_id_type())
+        db.set_is_const(id, true)
         ret
     }
     spec_ty := specialize_nominal_from_creator(eng, callee_sym, &concrete_args)
@@ -407,6 +432,7 @@ synth_type_func_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot 
     }
     db.set_const_type(id, spec_ty)
     unify_ptr.bind_type(types_ptr, slot, ty_id_type())
+    db.set_is_const(id, true)
 }
 
 synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u32, args_vec &Vec(u32), params &Slice(u32), args_len u64, param_start u64, lhs_is_instance bool) {

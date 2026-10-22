@@ -69,12 +69,16 @@ synth_ident :: fn(eng &Engine, id u32) {
 
         resolved_hir := db.get_sym_hir(sym_id)
         if resolved_hir != id_none() {
+            if db.is_const(resolved_hir) {
+                db.set_is_const(id, true)
+                if db.has_const_val(resolved_hir) {
+                    db.set_const_val(id, db.get_const_val(resolved_hir))
+                }
+            }
             const_val := db.get_const_type(resolved_hir)
             if const_val != ty_id_none() {
                 db.set_const_type(id, const_val)
-                if db.is_sym_const(real_sym) {
-                    db.set_is_const(id, true)
-                }
+                db.set_is_const(id, true)
             }
         }
     }

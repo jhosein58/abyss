@@ -7,6 +7,7 @@ import id_none from "../nexus/pool"
 import Engine from "../engine"
 import fall from "std/sys"
 import synth_type_node from "./rules/var"
+import type_check from "./tyck"
 
 print :: fn(s &u8) unit
 
@@ -36,26 +37,55 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
     }
     fn_params_slice := fn_params_vec.as_slice()
 
+    body_id := (tbl).extra(func_node)
+    if body_id != hir_none() {
+        n := func_node + 1
+        while n <= body_id {
+            db.set_const_type(n, ty_id_none())
+            db.set_const_val(n, 0)
+            db.set_is_const(n, false)
+            (&(*db).unify).new_slot(n)
+            n = n + 1
+        }
+    }
+
     p_i: u64 = 0
     while p_i < fn_params_slice.len {
         if p_i < concrete_args.len {
             p_arg := *(fn_params_slice.ptr + p_i)
             p_ident := (tbl).lhs(p_arg)
+            p_ty_node := (tbl).rhs(p_arg)
+            p_param_ty := synth_type_node(eng, p_ty_node)
             arg_val := concrete_args.get(p_i)
             if p_ident != hir_none() {
                 type_slot := (&(*db).unify).new_slot(p_ident)
-                (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
-                db.set_const_type(p_ident, arg_val)
+                if p_param_ty == ty_id_type() {
+                    (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
+                    db.set_const_type(p_ident, arg_val)
+                } else if p_param_ty != ty_id_none() {
+                    (&(*db).unify).bind_type(&(*db).types, type_slot, p_param_ty)
+                }
+                db.set_const_val(p_ident, arg_val as u64)
+                db.set_is_const(p_ident, true)
                 p_sym := db.get_hir_symbol(p_ident)
                 if p_sym != id_none() {
                     p_real := db.resolve_sym(p_sym)
+                    db.set_sym_is_const(p_real, true)
                     p_hir := db.get_sym_hir(p_real)
                     if p_hir != id_none() {
-                        db.set_const_type(p_hir, arg_val)
+                        if p_param_ty == ty_id_type() {
+                            db.set_const_type(p_hir, arg_val)
+                        }
+                        db.set_const_val(p_hir, arg_val as u64)
+                        db.set_is_const(p_hir, true)
                     }
                 }
             }
-            db.set_const_type(p_arg, arg_val)
+            if p_param_ty == ty_id_type() {
+                db.set_const_type(p_arg, arg_val)
+            }
+            db.set_const_val(p_arg, arg_val as u64)
+            db.set_is_const(p_arg, true)
         }
         p_i = p_i + 1
     }
@@ -153,7 +183,13 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
     }
 
     if struct_node != hir_none() {
-        res_ty := eval_type_expr(eng, struct_node)
+        if (body_id != hir_none()) and ((tbl).kind(struct_node) != hir_kind.struct_) {
+            type_check(eng, func_node + 1, body_id + 1)
+        }
+        res_ty := db.get_const_type(struct_node)
+        if res_ty == ty_id_none() {
+            res_ty = eval_type_expr(eng, struct_node)
+        }
         db.add_mono_nominal(callee_sym, concrete_args.as_slice(), res_ty)
         fn_params_vec.destroy()
         (*db).type_specialization_depth = (*db).type_specialization_depth - 1
@@ -300,16 +336,23 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
                 type_slot := (&(*db).unify).new_slot(p_ident)
                 (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
                 db.set_const_type(p_ident, arg_val)
+                db.set_const_val(p_ident, arg_val as u64)
+                db.set_is_const(p_ident, true)
                 p_sym := db.get_hir_symbol(p_ident)
                 if p_sym != id_none() {
                     p_real := db.resolve_sym(p_sym)
+                    db.set_sym_is_const(p_real, true)
                     p_hir := db.get_sym_hir(p_real)
                     if p_hir != id_none() {
                         db.set_const_type(p_hir, arg_val)
+                        db.set_const_val(p_hir, arg_val as u64)
+                        db.set_is_const(p_hir, true)
                     }
                 }
             }
             db.set_const_type(p_arg, arg_val)
+            db.set_const_val(p_arg, arg_val as u64)
+            db.set_is_const(p_arg, true)
         }
         p_i = p_i + 1
     }

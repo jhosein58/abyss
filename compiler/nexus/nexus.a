@@ -380,9 +380,12 @@ Nexus :: struct {
     }
 
     set_is_const :: fn(self &Self, hir_id u32, is_c bool) {
-        val: u32 = 0
-        if is_c { val = 1 }
-        self.const_status.set_safe(hir_id, val, 0)
+        if not is_c {
+            self.const_status.set_safe(hir_id, 0, 0)
+            ret
+        }
+        if self.has_const_val(hir_id) { ret }
+        self.const_status.set_safe(hir_id, 1, 0)
     }
 
     is_const :: fn(self &Self, hir_id u32) bool {

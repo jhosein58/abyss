@@ -1,0 +1,46 @@
+import print from "std/io.a"
+
+choose :: fn(c bool) type {
+    if c { i32 } else { f32 }
+}
+
+int_by_size :: fn(sz u32) type {
+    if sz == 1 {
+        u8
+    } else if sz == 2 {
+        u16
+    } else if sz == 4 {
+        u32
+    } else {
+        u64
+    }
+}
+
+TypeA :: choose(true)
+TypeB :: choose(false)
+
+main :: fn() {
+    a: choose(true) = 123
+    print(a)
+    print("\n")
+
+    b: choose(false) = 4.5 as f32
+    print(b)
+    print("\n")
+
+    x: TypeA = 456
+    print(x)
+    print("\n")
+
+    y: TypeB = 7.25 as f32
+    print(y)
+    print("\n")
+
+    c: int_by_size(2) = 1000 as u16
+    print(c as u32)
+    print("\n")
+
+    d: int_by_size(4) = 70000 as u32
+    print(d)
+    print("\n")
+}
