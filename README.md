@@ -1,10 +1,17 @@
-# Abyss
+<p align="center">
+  <img src="assets/logo.svg" alt="Abyss Logo" width="128" height="128" />
+</p>
 
-**High-level Syntax. Low-level Soul.**
+<h1 align="center">Abyss</h1>
 
-Abyss is a statically typed systems programming language designed for predictability, mechanical sympathy, and raw performance. It pairs clean, modern ergonomics inspired by Odin and Jai with the transparency of C.
+<p align="center">
+  <strong>High-level Syntax. Low-level Soul.</strong><br>
+  A statically typed systems programming language designed for mechanical sympathy, predictability, and raw performance.
+</p>
 
-> **Status:** 100% Self-Hosted. Emits portable standard C99. Bit-identical fixed-point verified across bootstrap generations.
+<p align="center">
+  <em>100% Self-Hosted &bull; Pure C99 Target &bull; Integrated Bytecode VM &bull; Bit-Identical Determinism</em>
+</p>
 
 ---
 

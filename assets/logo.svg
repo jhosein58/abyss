@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" width="100%" height="100%">
+  <defs>
+    <filter id="soft-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1" stdDeviation="3.5" flood-color="#000000" flood-opacity="0.16" />
+    </filter>
+    <style>
+      .abyss-glyph {
+        fill: #05070a;
+      }
+      @media (prefers-color-scheme: dark) {
+        .abyss-glyph {
+          fill: #FDFCFD;
+        }
+      }
+    </style>
+  </defs>
+  <g class="abyss-glyph" filter="url(#soft-shadow)">
+    <polygon points="564.2,313.5 692.1,313.5 975.0,939.5 854.0,939.5 627.9,436.3 392.2,939.5 270.6,939.5" />
+    <circle cx="626.3" cy="705.1" r="67.5" />
+  </g>
+</svg>
