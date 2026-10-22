@@ -86,6 +86,20 @@ case "${CMD}" in
     test|t)
         bash "${ROOT_DIR}/scripts/test_compiler.sh" "${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}" "${1:-}"
         ;;
+    test-win|twin)
+        if ! command -v wine >/dev/null 2>&1; then
+            echo "[ERROR] wine is required to run Windows tests."
+            exit 1
+        fi
+        TARGET="${1:-}"
+        WRAPPER="${ROOT_DIR}/tmp/wine_abyssc"
+        cat << EOF > "${WRAPPER}"
+#!/bin/sh
+WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${ROOT_DIR}/dist/abyssc-windows-x86_64.exe" "\$@"
+EOF
+        chmod +x "${WRAPPER}"
+        bash "${ROOT_DIR}/scripts/test_compiler.sh" "${WRAPPER}" "${TARGET}"
+        ;;
     bootstrap|test-bootstrap)
         bash "${ROOT_DIR}/scripts/bootstrap.sh" "$@"
         ;;
@@ -98,9 +112,20 @@ case "${CMD}" in
         "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/main.a" "${DIST_DIR}/bootstrap.c"
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc-linux-x86_64"
         cp "${DIST_DIR}/abyssc-linux-x86_64" "${ROOT_DIR}/abyssc"
+
+        echo "Verifying Linux release binary..."
+        "${DIST_DIR}/abyssc-linux-x86_64" r "${ROOT_DIR}/tests/01_literals.a" >/dev/null 2>&1
+        echo "✔ Linux x86_64 binary verified!"
+
         MINGW_CC="${MINGW_CC:-x86_64-w64-mingw32-gcc}"
         if command -v "${MINGW_CC}" >/dev/null 2>&1; then
             "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc-windows-x86_64.exe"
+            if command -v wine >/dev/null 2>&1; then
+                echo "Verifying Windows binary with Wine..."
+                WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${DIST_DIR}/abyssc-windows-x86_64.exe" r "${ROOT_DIR}/tests/01_literals.a" >/dev/null 2>&1
+                WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${DIST_DIR}/abyssc-windows-x86_64.exe" b "${ROOT_DIR}/tests/01_literals.a" "${ROOT_DIR}/tmp/win_verify.c" >/dev/null 2>&1
+                echo "✔ Windows x86_64 binary verified via Wine (VM + C codegen)!"
+            fi
         fi
         echo "Release artifacts generated in ${DIST_DIR}:"
         ls -lh "${DIST_DIR}"
@@ -119,6 +144,7 @@ case "${CMD}" in
         echo "  b-win [file]      Build Windows binary (default: abyssc.exe)"
         echo "  r-win [file]      Build and run Windows binary with wine"
         echo "  test [filter]     Run language test suite"
+        echo "  test-win [filter] Run language test suite on Windows binary with wine"
         echo "  bootstrap [n]     Run bootstrap stability test"
         echo "  release [n]       Build release packages in dist/ (bootstrap.c, Linux, Windows)"
         echo "  clean             Clean tmp build artifacts"

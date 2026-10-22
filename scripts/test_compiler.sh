@@ -143,7 +143,7 @@ while IFS= read -r TEST_FILE; do
             FAILED=$((FAILED + 1))
             continue
         fi
-        if ! diff -u "${TEST_FILE%.a}.out" "${CASE_DIR}/c_actual.out" > "${CASE_DIR}/c_diff.log"; then
+        if ! diff --strip-trailing-cr -u "${TEST_FILE%.a}.out" "${CASE_DIR}/c_actual.out" > "${CASE_DIR}/c_diff.log"; then
             echo "FAIL ${TEST_NAME}: [C] output mismatch with expected"
             cat "${CASE_DIR}/c_diff.log"
             FAILED=$((FAILED + 1))
@@ -158,13 +158,13 @@ while IFS= read -r TEST_FILE; do
             FAILED=$((FAILED + 1))
             continue
         fi
-        if ! diff -u "${TEST_FILE%.a}.out" "${VM_OUT}" > "${CASE_DIR}/vm_diff.log"; then
+        if ! diff --strip-trailing-cr -u "${TEST_FILE%.a}.out" "${VM_OUT}" > "${CASE_DIR}/vm_diff.log"; then
             echo "FAIL ${TEST_NAME}: [VM] output mismatch with expected"
             cat "${CASE_DIR}/vm_diff.log"
             FAILED=$((FAILED + 1))
             continue
         fi
-        if ! diff -u "${CASE_DIR}/c_actual.out" "${VM_OUT}" > "${CASE_DIR}/c_vm_diff.log"; then
+        if ! diff --strip-trailing-cr -u "${CASE_DIR}/c_actual.out" "${VM_OUT}" > "${CASE_DIR}/c_vm_diff.log"; then
             echo "FAIL ${TEST_NAME}: C and VM outputs diverge"
             cat "${CASE_DIR}/c_vm_diff.log"
             FAILED=$((FAILED + 1))
