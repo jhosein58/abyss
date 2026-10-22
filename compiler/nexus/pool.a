@@ -48,3 +48,50 @@ PoolU32 :: struct {
         self.data.set(idx, val)
     }
 }
+
+PoolU64 :: struct {
+    data Vec(u64)
+
+    new :: fn() Self {
+        .{
+            data: Vec(u64).new()
+        }
+    }
+
+    destroy :: fn(self &Self) {
+        self.data.destroy()
+    }
+
+    count :: fn(self &Self) u32 {
+        self.data.len as u32
+    }
+
+    alloc :: fn(self &Self, val u64) u32 {
+        id := self.count()
+        self.data.push(val)
+        id
+    }
+
+    get :: fn(self &Self, id u32) u64 {
+        self.data.get(id as u64)
+    }
+
+    set :: fn(self &Self, id u32, val u64) {
+        self.data.set(id as u64, val)
+    }
+
+    grow_to :: fn(self &Self, new_len u32, default_val u64) {
+        target := new_len as u64
+        while self.data.len < target {
+            self.data.push(default_val)
+        }
+    }
+
+    set_safe :: fn(self &Self, id u32, val u64, default_val u64) {
+        idx := id as u64
+        if idx >= self.data.len {
+            self.grow_to((id + 1) as u32, default_val)
+        }
+        self.data.set(idx, val)
+    }
+}

@@ -2,6 +2,7 @@ import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind from "../../hir"
 import TyKind, ty_id_none, ty_id_bool, ty_id_type from "../../types"
 import slot_none from "../../unify"
+import id_none from "../../nexus/pool"
 import fall from "std/sys"
 import check_value from "./common"
 import Engine from "../../engine"
@@ -16,6 +17,9 @@ synth_unary_num :: fn(db &Nexus, tbl &HirTable, id u32) {
     child_slot := (&(*db).unify).get_slot(child)
     if child_slot != slot_none() {
         (&(*db).unify).union(&(*db).types, slot, child_slot)
+    }
+    if db.is_const(child) {
+        db.set_is_const(id, true)
     }
 }
 
@@ -44,6 +48,9 @@ synth_unary_not :: fn(db &Nexus, tbl &HirTable, id u32) {
         (&(*db).unify).bind_type(&(*db).types, child_slot, ty_id_bool())
     }
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
+    if db.is_const(child) {
+        db.set_is_const(id, true)
+    }
 }
 
 synth_unary_addr_of :: fn(db &Nexus, tbl &HirTable, id u32) {
@@ -165,6 +172,9 @@ synth_binary :: fn(db &Nexus, tbl &HirTable, id u32) {
             if (not bitwise) or (lhs_int and rhs_int) {
                 db.unify.union(&db.types, lhs_slot, rhs_slot)
                 db.unify.union(&db.types, slot, lhs_slot)
+                if db.is_const(lhs) and db.is_const(rhs) {
+                    db.set_is_const(id, true)
+                }
                 ret
             }
         }
@@ -188,6 +198,24 @@ synth_assign :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := (unify_ptr).new_slot(id)
     lhs := (tbl).lhs(id)
     rhs := (tbl).rhs(id)
+
+    if tbl.kind(lhs) == hir_kind.ident {
+        sym := db.get_hir_symbol(lhs)
+        if sym != id_none() {
+            real_sym := db.resolve_sym(sym)
+            if db.is_sym_const(real_sym) {
+                print(c"\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ")
+                db.print_loc(id)
+                print(c"\n")
+                fall()
+            }
+        }
+    } else if db.is_const(lhs) {
+        print(c"\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ")
+        db.print_loc(id)
+        print(c"\n")
+        fall()
+    }
 
     lhs_slot := (unify_ptr).get_slot(lhs)
     rhs_slot := (unify_ptr).get_slot(rhs)
@@ -216,6 +244,9 @@ synth_binary_comp :: fn(db &Nexus, tbl &HirTable, id u32) {
         (&(*db).unify).union(&(*db).types, lhs_slot, rhs_slot)
     }
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
+    if db.is_const(lhs) and db.is_const(rhs) {
+        db.set_is_const(id, true)
+    }
 }
 
 validate_binary_comp :: fn(db &Nexus, tbl &HirTable, id u32) {
@@ -286,6 +317,9 @@ synth_logic_and_or :: fn(db &Nexus, tbl &HirTable, id u32) {
     }
 
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
+    if db.is_const(lhs) and db.is_const(rhs) {
+        db.set_is_const(id, true)
+    }
 }
 
 synth_cast :: fn(eng &Engine, id u32) {
@@ -297,6 +331,9 @@ synth_cast :: fn(eng &Engine, id u32) {
     }
     lhs := (tbl).lhs(id)
     rhs := (tbl).rhs(id)
+    if db.is_const(lhs) {
+        db.set_is_const(id, true)
+    }
     rhs_type := db.get_const_type(rhs)
     if rhs_type == ty_id_none() {
         rhs_type = synth_type_node(eng, rhs)

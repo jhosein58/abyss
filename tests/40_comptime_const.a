@@ -1,0 +1,58 @@
+import print from "std/io.a"
+
+A :: 10
+B :: 20
+C :: A * B + 5
+
+X :: 1 + 2 + 3 + 4 + 5
+
+FLAG1 :: (10 > 5) and (3 < 4)
+FLAG2 :: (5 == 6) or (7 != 7)
+
+VAL :: {
+    a := 3
+    b := 4
+    a * a + b * b
+}
+
+FACT5 :: {
+    res := 1
+    i := 1
+    while i <= 5 {
+        res = res * i
+        i = i + 1
+    }
+    res
+}
+
+MyInt :: i32
+
+Pair :: struct {
+    first MyInt
+    second u64
+}
+
+main :: fn() {
+    print(C)
+    print("\n")
+    print(X)
+    print("\n")
+    print(FLAG1)
+    print("\n")
+    print(FLAG2)
+    print("\n")
+    print(VAL)
+    print("\n")
+    print(FACT5)
+    print("\n")
+    print(@sizeof(MyInt))
+    print("\n")
+    print(@sizeof(Pair))
+    print("\n")
+
+    p: Pair = .{ first: 42, second: 100 }
+    print(p.first)
+    print("\n")
+    print(p.second)
+    print("\n")
+}

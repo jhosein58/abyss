@@ -36,6 +36,7 @@ synth_ident :: fn(eng &Engine, id u32) {
         }
         db.unify.bind_type(&db.types, slot, ty_id_type())
         db.set_const_type(id, self_ty)
+        db.set_is_const(id, true)
         ret
     }
 
@@ -43,12 +44,18 @@ synth_ident :: fn(eng &Engine, id u32) {
     if builtin_ty != ty_id_none() {
         (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
         db.set_const_type(id, builtin_ty)
+        db.set_is_const(id, true)
         ret
     }
 
     sym_id := db.get_hir_symbol(id)
 
     if sym_id != id_none() {
+        real_sym := db.resolve_sym(sym_id)
+        if db.is_sym_const(real_sym) {
+            db.set_is_const(id, true)
+        }
+
         origin_hir := db.get_sym_hir(sym_id)
         if origin_hir == id {
             ret
@@ -64,6 +71,9 @@ synth_ident :: fn(eng &Engine, id u32) {
             const_val := db.get_const_type(resolved_hir)
             if const_val != ty_id_none() {
                 db.set_const_type(id, const_val)
+                if db.is_sym_const(real_sym) {
+                    db.set_is_const(id, true)
+                }
             }
         }
     }
@@ -211,6 +221,22 @@ synth_var_or_binding :: fn(db &Nexus, tbl &HirTable, id u32) {
     }
 
     (&(*db).unify).union(&(*db).types, slot, ident_slot)
+
+    if (tbl).kind(id) == hir_kind.binding {
+        db.set_is_const(id, true)
+        db.set_is_const(ident_id, true)
+        sym_id := db.get_hir_symbol(ident_id)
+        if sym_id != id_none() {
+            db.set_sym_is_const(sym_id, true)
+        }
+    } else {
+        db.set_is_const(id, false)
+        db.set_is_const(ident_id, false)
+        sym_id := db.get_hir_symbol(ident_id)
+        if sym_id != id_none() {
+            db.set_sym_is_const(sym_id, false)
+        }
+    }
 }
 
 synth_arg :: fn(db &Nexus, tbl &HirTable, id u32) {

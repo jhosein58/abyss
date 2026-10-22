@@ -9,6 +9,8 @@ import fall from "std/sys"
 import type_has_infer, tyck_mono_function, finalize_inferred_types from "./typer/tyck"
 import func_has_self from "./typer/rules/fn"
 import Engine from "./engine"
+import VmCodeGen, VmCodeBuilder, VmVal, VmValKind from "./vm/codegen"
+import OpCode from "./vm/op"
 
 print :: fn(s &u8) unit
 
@@ -281,6 +283,15 @@ lower_expr_node :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, emp
             }
             if sym_id != id_none() {
                 real_sym := db.resolve_sym(sym_id)
+                if db.is_sym_const(real_sym) {
+                    val := eval_const(db, id)
+                    k := db.types.kind(ty)
+                    if k == TyKind.bool {
+                        if val != 0 { ret ccg.expr_bool(true) }
+                        ret ccg.expr_bool(false)
+                    }
+                    ret ccg.expr_int(arena, val as u32)
+                }
                 if db.sym_tok_start.get(real_sym) != id_none() {
                     print(c"\n[codegen error] unsupported global value\n       --> ")
                     db.print_loc(id)
@@ -596,6 +607,111 @@ lower_body :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V,
     }
 
     last_val
+}
+
+eval_const :: fn(db &Nexus, id u32) u64 {
+    if id == hir_none() { ret 0 }
+    if db.has_const_val(id) {
+        ret db.get_const_val(id)
+    }
+
+    k := db.hir.kind(id)
+    if k == hir_kind.lit_int {
+        val := db.hir.lhs(id) as u64
+        db.set_const_val(id, val)
+        ret val
+    }
+    if k == hir_kind.lit_bool_true {
+        db.set_const_val(id, 1)
+        ret 1
+    }
+    if k == hir_kind.lit_bool_false {
+        db.set_const_val(id, 0)
+        ret 0
+    }
+    if k == hir_kind.lit_char {
+        raw := db.interner.get(db.hir.lhs(id))
+        val: u64 = 0
+        if raw.len > 0 { val = (*raw.ptr) as u64 }
+        db.set_const_val(id, val)
+        ret val
+    }
+
+    c_ty := db.get_const_type(id)
+    if c_ty != ty_id_none() {
+        val := c_ty as u64
+        db.set_const_val(id, val)
+        ret val
+    }
+
+    if k == hir_kind.ident {
+        sym_id := db.get_hir_symbol(id)
+        if sym_id != id_none() {
+            real_s := db.resolve_sym(sym_id)
+            c_type := db.get_const_type(id)
+            if c_type != ty_id_none() {
+                val := c_type as u64
+                db.set_const_val(id, val)
+                ret val
+            }
+            hir_node := db.get_sym_hir(real_s)
+            if (hir_node != id_none()) and (hir_node != id) {
+                if db.hir.kind(hir_node) == hir_kind.binding {
+                    rhs := db.hir.extra(hir_node)
+                    if rhs != hir_none() {
+                        val := eval_const(db, rhs)
+                        db.set_const_val(id, val)
+                        ret val
+                    }
+                }
+            }
+            hir_end := db.sym_hir_end.get(real_s)
+            if (hir_end != 0) and (hir_end != id_none()) {
+                b_id := hir_end - 1
+                if db.hir.kind(b_id) == hir_kind.binding {
+                    rhs := db.hir.extra(b_id)
+                    if rhs != hir_none() {
+                        val := eval_const(db, rhs)
+                        db.set_const_val(id, val)
+                        ret val
+                    }
+                }
+            }
+            if (real_s & 2147483648) != 0 {
+                b_id := real_s & 2147483647
+                if db.hir.kind(b_id) == hir_kind.binding {
+                    rhs := db.hir.extra(b_id)
+                    if rhs != hir_none() {
+                        val := eval_const(db, rhs)
+                        db.set_const_val(id, val)
+                        ret val
+                    }
+                }
+            }
+        }
+    }
+
+    db.init_comptime()
+    builder := VmCodeBuilder.new(db.comptime_cg)
+    start_ip := db.comptime_cg.chunk.buf.len as u32
+    visited := HashSet(u32).new()
+    queue := Vec(u32).new()
+    type_queue := Vec(u32).new()
+    res_val := lower_body(db, db.comptime_cg, &builder, VmVal.empty(), &db.comptime_arena, id, &visited, &queue, &type_queue)
+    visited.destroy()
+    queue.destroy()
+    type_queue.destroy()
+
+    if res_val.kind != VmValKind.none {
+        db.comptime_cg.ensure_on_stack(res_val)
+    } else {
+        db.comptime_cg.chunk.inst(OpCode.push_0)
+    }
+    db.comptime_cg.chunk.inst(OpCode.ret_val)
+    db.comptime_cg.finish_linking()
+    res := db.comptime_vm.run(&db.comptime_cg.chunk, start_ip)
+    db.set_const_val(id, res)
+    res
 }
 
 lower_scoped_expr :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, id u32, expected u32, visited &HashSet(u32), queue &Vec(u32), type_queue &Vec(u32)) V {

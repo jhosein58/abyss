@@ -44,6 +44,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
         u64_ty := (&(*types_ptr)).alloc_uint(64)
         (&(*db).unify).bind_type(&(*db).types, slot, u64_ty)
         db.set_const_type(id, target_ty)
+        db.set_is_const(id, true)
         ret
     }
 
@@ -72,6 +73,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
         }
         (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
         db.set_const_type(id, arg_ty)
+        db.set_is_const(id, true)
         ret
     }
 

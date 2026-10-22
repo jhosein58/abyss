@@ -1,5 +1,5 @@
 import Nexus from "../../nexus/nexus"
-import HirTable from "../../hir"
+import HirTable, hir_kind from "../../hir"
 import ty_id_untyped_int, ty_id_untyped_float, ty_id_bool, ty_id_none from "../../types"
 import Engine from "../../engine"
 
@@ -9,16 +9,23 @@ synth_lit_int :: fn(db &Nexus, tbl &HirTable, id u32) {
 
     slot := (unify_ptr).new_slot(id)
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_untyped_int())
+    db.set_is_const(id, true)
+    db.set_const_val(id, tbl.lhs(id) as u64)
 }
 
 synth_lit_float :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := (&(*db).unify).new_slot(id)
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_untyped_float())
+    db.set_is_const(id, true)
 }
 
 synth_lit_bool :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := (&(*db).unify).new_slot(id)
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
+    db.set_is_const(id, true)
+    b_val: u64 = 0
+    if tbl.kind(id) == hir_kind.lit_bool_true { b_val = 1 }
+    db.set_const_val(id, b_val)
 }
 
 synth_lit_str :: fn(eng &Engine, id u32) {
@@ -29,6 +36,7 @@ synth_lit_str :: fn(eng &Engine, id u32) {
         (&(*db).unify).bind_type(&(*db).types, slot, str_ty)
         db.set_const_type(id, str_ty)
     }
+    db.set_is_const(id, true)
 }
 
 synth_lit_char :: fn(db &Nexus, tbl &HirTable, id u32) {
@@ -36,6 +44,11 @@ synth_lit_char :: fn(db &Nexus, tbl &HirTable, id u32) {
     u8_ty := (&(*db).types).alloc_uint(8 as u16)
     (&(*db).unify).bind_type(&(*db).types, slot, u8_ty)
     db.set_const_type(id, u8_ty)
+    db.set_is_const(id, true)
+    raw := db.interner.get(tbl.lhs(id))
+    c_val: u64 = 0
+    if raw.len > 0 { c_val = (*raw.ptr) as u64 }
+    db.set_const_val(id, c_val)
 }
 
 synth_lit_cstr :: fn(db &Nexus, tbl &HirTable, id u32) {
@@ -44,4 +57,5 @@ synth_lit_cstr :: fn(db &Nexus, tbl &HirTable, id u32) {
     ptr_ty := (&(*db).types).alloc_ptr(u8_ty)
     (&(*db).unify).bind_type(&(*db).types, slot, ptr_ty)
     db.set_const_type(id, ptr_ty)
+    db.set_is_const(id, true)
 }

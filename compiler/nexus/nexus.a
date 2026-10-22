@@ -5,7 +5,10 @@ import TypeStorage, ty_id_none from "../types"
 import UnifyStorage, slot_none from "../unify"
 import TokenStream from "../token"
 import HirTable, hir_kind, hir_none from "../hir"
-import PoolU32, id_none from "./pool"
+import PoolU32, PoolU64, id_none from "./pool"
+import Arena from "std/allocator"
+import VmCodeGen from "../vm/codegen"
+import Vm from "../vm/vm"
 
 print :: fn(s &u8) unit
 print_u32 :: fn(v u32) unit
@@ -101,6 +104,12 @@ Nexus :: struct {
     auto_deref_depth PoolU32
     for_sources    PoolU32
     str_type       u32
+    const_status   PoolU32
+    const_vals     PoolU64
+    sym_is_const   PoolU32
+    comptime_arena Arena
+    comptime_cg    &VmCodeGen
+    comptime_vm    &Vm
 
     new :: fn() Self {
         .{
@@ -145,7 +154,13 @@ Nexus :: struct {
             union_coerce_idx : PoolU32.new(),
             auto_deref_depth : PoolU32.new(),
             for_sources    : PoolU32.new(),
-            str_type       : ty_id_none()
+            str_type       : ty_id_none(),
+            const_status   : PoolU32.new(),
+            const_vals     : PoolU64.new(),
+            sym_is_const   : PoolU32.new(),
+            comptime_arena : Arena.new(65536),
+            comptime_cg    : 0 as &VmCodeGen,
+            comptime_vm    : 0 as &Vm
         }
     }
 
@@ -362,6 +377,61 @@ Nexus :: struct {
     is_sym_resolving :: fn(self &Self, sym_id u32) bool {
         if sym_id >= self.sym_resolving.count() { ret false }
         self.sym_resolving.get(sym_id) == 1
+    }
+
+    set_is_const :: fn(self &Self, hir_id u32, is_c bool) {
+        val: u32 = 0
+        if is_c { val = 1 }
+        self.const_status.set_safe(hir_id, val, 0)
+    }
+
+    is_const :: fn(self &Self, hir_id u32) bool {
+        if hir_id == id_none() { ret false }
+        if hir_id >= self.const_status.count() { ret false }
+        self.const_status.get(hir_id) != 0
+    }
+
+    set_sym_is_const :: fn(self &Self, sym_id u32, is_c bool) {
+        val: u32 = 0
+        if is_c { val = 1 }
+        self.sym_is_const.set_safe(sym_id, val, 0)
+    }
+
+    is_sym_const :: fn(self &Self, sym_id u32) bool {
+        if sym_id == id_none() { ret false }
+        real_s := self.resolve_sym(sym_id)
+        if real_s == id_none() { ret false }
+        if real_s >= self.sym_is_const.count() { ret false }
+        self.sym_is_const.get(real_s) != 0
+    }
+
+    set_const_val :: fn(self &Self, hir_id u32, val u64) {
+        self.const_vals.set_safe(hir_id, val, 0)
+        self.const_status.set_safe(hir_id, 2, 0)
+    }
+
+    has_const_val :: fn(self &Self, hir_id u32) bool {
+        if hir_id == id_none() { ret false }
+        if hir_id >= self.const_status.count() { ret false }
+        self.const_status.get(hir_id) == 2
+    }
+
+    get_const_val :: fn(self &Self, hir_id u32) u64 {
+        if hir_id == id_none() { ret 0 }
+        if hir_id >= self.const_vals.count() { ret 0 }
+        self.const_vals.get(hir_id)
+    }
+
+    init_comptime :: fn(self &Self) {
+        if self.comptime_cg != (0 as &VmCodeGen) { ret }
+        cg_mem := self.comptime_arena.alloc(@sizeof(VmCodeGen)) as &VmCodeGen
+        *cg_mem = VmCodeGen.new(&self.comptime_arena)
+        cg_mem.init_types(&self.types, &self.comptime_arena)
+        self.comptime_cg = cg_mem
+
+        vm_mem := self.comptime_arena.alloc(@sizeof(Vm)) as &Vm
+        *vm_mem = Vm.new()
+        self.comptime_vm = vm_mem
     }
 
     add_file_source :: fn(self &Self, source Str) u32 {
