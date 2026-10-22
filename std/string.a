@@ -124,3 +124,15 @@ parse_u32 :: fn(s Str) Maybe(u32) {
     }
     Maybe(u32).some(res)
 }
+
+to_cstr :: fn(arena &Arena, s Str) &u8 {
+    buf := arena.alloc(s.len + 1)
+    i: u64 = 0
+    while i < s.len {
+        *(buf + i) = *(s.ptr + i)
+        i = i + 1
+    }
+    *(buf + s.len) = 0 as u8
+    buf
+}
+

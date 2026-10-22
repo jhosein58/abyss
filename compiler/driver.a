@@ -1,0 +1,126 @@
+import Str, to_cstr from "std/string"
+import Arena from "std/allocator"
+import read_file, write_file, file_exists from "std/fs"
+import Env from "std/env"
+import Path from "std/path"
+import Engine from "compiler/engine"
+import CCodeGen, CCodeBuilder, CCodeGen_new, CCodeGen_destroy, CCodeGen_finish from "compiler/codegen"
+import embedded_runtime from "compiler/embedded"
+import VmCodeGen, VmCodeBuilder from "compiler/vm/codegen"
+import Vm from "compiler/vm/vm"
+
+CompilerConfig :: struct {
+    src_path  &u8
+    out_path  &u8
+    is_vm_run bool
+
+    from_env :: fn() Self {
+        argc := Env.args_len()
+        src := Env.get_or(c"ABYSS_SRC", c"main.a")
+        out := Env.get_or(c"ABYSS_OUT", c"out.c")
+        vm_run := Env.has(c"ABYSS_VM")
+
+        if argc > 1 {
+            arg1 := Str.of(Env.arg(1))
+            if arg1.eq(Str.of("r")) or arg1.eq(Str.of("run")) {
+                vm_run = true
+                if argc > 2 {
+                    src = Env.arg(2)
+                }
+            } else if arg1.eq(Str.of("b")) or arg1.eq(Str.of("build")) {
+                vm_run = false
+                if argc > 2 {
+                    src = Env.arg(2)
+                }
+                if argc > 3 {
+                    out = Env.arg(3)
+                }
+            } else {
+                src = Env.arg(1)
+                if argc > 2 {
+                    out = Env.arg(2)
+                }
+            }
+        }
+
+        .{
+            src_path  : src,
+            out_path  : out,
+            is_vm_run : vm_run,
+        }
+    }
+}
+
+Driver :: struct {
+    arena  &Arena
+    config CompilerConfig
+
+    new :: fn(arena &Arena) Self {
+        .{
+            arena  : arena,
+            config : CompilerConfig.from_env(),
+        }
+    }
+
+    with_config :: fn(arena &Arena, config CompilerConfig) Self {
+        .{
+            arena  : arena,
+            config : config,
+        }
+    }
+
+    resolve_prelude :: fn(self &Self) Str {
+        prelude_source := embedded_runtime()
+        env_prelude := Env.get(c"ABYSS_PRELUDE")
+        if env_prelude != (0 as &u8) {
+            if file_exists(env_prelude) {
+                prelude_source = read_file(self.arena, env_prelude)
+            }
+        } else {
+            env_dev := Env.get(c"ABYSS_DEV")
+            if env_dev != (0 as &u8) {
+                prelude_path := c"runtime/prelude.c"
+                dev_str := Str.of(env_dev)
+                if (not dev_str.eq(Str.of("1"))) and (not dev_str.eq(Str.of("true"))) {
+                    p_str := Path.join(self.arena, dev_str, Str.of("runtime/prelude.c"))
+                    prelude_path = to_cstr(self.arena, p_str)
+                }
+                if file_exists(prelude_path) {
+                    prelude_source = read_file(self.arena, prelude_path)
+                }
+            }
+        }
+        prelude_source
+    }
+
+    run :: fn(self &Self) {
+        source := read_file(self.arena, self.config.src_path)
+        eng := Engine.new(self.arena)
+        fid := eng.add_file(self.arena, Str.of(self.config.src_path), source)
+        sym_id := eng.build_main(fid)
+
+        if self.config.is_vm_run {
+            Env.shift_args()
+            vcg := VmCodeGen.new(self.arena)
+            vcg.init_types(&eng.nexus.types, self.arena)
+            vbuilder := VmCodeBuilder.new(&vcg)
+            vcg.abyss_main(sym_id)
+            eng.compile(&vcg, &vbuilder, self.arena, sym_id)
+            vcg.finish_linking()
+            vm := Vm.new()
+            vm.run(&vcg.chunk, vcg.main_entry)
+            vm.destroy()
+            vcg.destroy()
+            ret
+        }
+
+        ccg := CCodeGen_new(self.arena)
+        builder := CCodeBuilder.new()
+        ccg.abyss_main(sym_id)
+        eng.compile(&ccg, &builder, self.arena, sym_id)
+        prelude_source := self.resolve_prelude()
+        c_code := CCodeGen_finish(&ccg, prelude_source)
+        write_file(self.config.out_path, c_code)
+        CCodeGen_destroy(&ccg)
+    }
+}

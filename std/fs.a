@@ -104,3 +104,12 @@ append_file :: fn(path &u8, content Str) bool {
 
     true
 }
+
+file_exists :: fn(path &u8) bool {
+    file_handle := file_open(path, c"rb")
+    if file_handle != (0 as &u8) {
+        file_close(file_handle)
+        ret true
+    }
+    false
+}

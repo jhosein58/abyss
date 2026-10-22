@@ -201,6 +201,15 @@ Engine :: struct {
         }
     }
 
+    build_main :: fn(self &Self, fid u32) u32 {
+        sym_id := self.get_symbol_id(fid, Str.of("main"))
+        self.parse(sym_id)
+        self.type_check(sym_id)
+        self.validate_main(sym_id)
+        sym_id
+    }
+
+
     compile :: fn(self &Self, B type, L type, backend &B, builder &L, arena &Arena, sym_id u32) {
         visited := HashSet(u32).new()
         lower_function(self, backend, builder, backend.empty_value(), arena, sym_id, &visited)
