@@ -36,6 +36,30 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
     }
     fn_params_slice := fn_params_vec.as_slice()
 
+    p_i: u64 = 0
+    while p_i < fn_params_slice.len {
+        if p_i < concrete_args.len {
+            p_arg := *(fn_params_slice.ptr + p_i)
+            p_ident := (tbl).lhs(p_arg)
+            arg_val := concrete_args.get(p_i)
+            if p_ident != hir_none() {
+                type_slot := (&(*db).unify).new_slot(p_ident)
+                (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
+                db.set_const_type(p_ident, arg_val)
+                p_sym := db.get_hir_symbol(p_ident)
+                if p_sym != id_none() {
+                    p_real := db.resolve_sym(p_sym)
+                    p_hir := db.get_sym_hir(p_real)
+                    if p_hir != id_none() {
+                        db.set_const_type(p_hir, arg_val)
+                    }
+                }
+            }
+            db.set_const_type(p_arg, arg_val)
+        }
+        p_i = p_i + 1
+    }
+
     body_id := (tbl).extra(func_node)
     struct_node := hir_none()
     if body_id != hir_none() {
@@ -77,7 +101,6 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
         db.add_mono_nominal(callee_sym, concrete_args.as_slice(), nom_ty)
         (&(*types_ptr)).record_nominal_creator(nom_origin, callee_sym, concrete_args.as_slice())
 
-
         names_list := (tbl).lhs(struct_node)
         types_list := (tbl).rhs(struct_node)
         names := db.get_list(names_list)
@@ -103,7 +126,7 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
             }
 
             f_ty_node := *(types_nodes.ptr + f_i)
-            f_ty := specialize_type_node(eng, f_ty_node, fn_params_slice, concrete_args)
+            f_ty := eval_type_expr(eng, f_ty_node)
             if (f_ty == ty_id_none()) or (f_ty == ty_id_unit()) or (f_ty == ty_id_type()) {
                 print(c"\n[type error] generic struct field requires a runtime value type\n       --> ")
                 db.print_loc(f_ty_node)
@@ -124,28 +147,13 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
         base_idx := (&(*types_ptr)).payload(nom_ty)
         (*types_ptr).store.extra.set(base_idx as u64, structural_ty)
 
-        p_i: u64 = 0
-        while p_i < fn_params_slice.len {
-            if p_i < concrete_args.len {
-                p_arg := *(fn_params_slice.ptr + p_i)
-                p_ident := (tbl).lhs(p_arg)
-                arg_val := concrete_args.get(p_i)
-                if p_ident != hir_none() {
-                    type_slot := (&(*db).unify).new_slot(p_ident)
-                    (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
-                    db.set_const_type(p_ident, arg_val)
-                }
-                db.set_const_type(p_arg, arg_val)
-            }
-            p_i = p_i + 1
-        }
         fn_params_vec.destroy()
         (*db).type_specialization_depth = (*db).type_specialization_depth - 1
         ret nom_ty
     }
 
     if struct_node != hir_none() {
-        res_ty := specialize_type_node(eng, struct_node, fn_params_slice, concrete_args)
+        res_ty := eval_type_expr(eng, struct_node)
         db.add_mono_nominal(callee_sym, concrete_args.as_slice(), res_ty)
         fn_params_vec.destroy()
         (*db).type_specialization_depth = (*db).type_specialization_depth - 1
@@ -157,107 +165,89 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
     ty_id_none()
 }
 
-specialize_type_node :: fn(eng &Engine, ty_node u32, fn_params Slice(u32), concrete_args &Vec(u32)) u32 {
-    params_vec := Vec(u32).new()
-    params_vec.extend(fn_params.ptr, fn_params.len)
-    result := specialize_type_node_inner(eng, ty_node, params_vec.as_slice(), concrete_args)
-    params_vec.destroy()
-    result
-}
-
-specialize_type_node_inner :: fn(eng &Engine, ty_node u32, fn_params Slice(u32), concrete_args &Vec(u32)) u32 {
-    if ty_node == hir_none() { ret ty_id_none() }
+eval_type_expr :: fn(eng &Engine, id u32) u32 {
+    if id == hir_none() { ret ty_id_none() }
     db := &(*eng).nexus
     tbl := &(*db).hir
     k := hir_kind
-    curr := (tbl).kind(ty_node)
+    curr := (tbl).kind(id)
 
     if curr == k.ident {
-        ty_name_id := (tbl).lhs(ty_node)
-        ty_name := db.interner.get(ty_name_id)
-        if ty_name.eq(Str.of("Self")) {
-            owner := db.get_method_owner(ty_node)
-            if owner != hir_none() {
+        owner := db.get_method_owner(id)
+        if owner != hir_none() {
+            name := db.interner.get((tbl).lhs(id))
+            if name.eq(Str.of("Self")) {
                 ret db.get_const_type(owner)
             }
         }
-        p_i: u64 = 0
-        while p_i < fn_params.len {
-            param_arg := *(fn_params.ptr + p_i)
-            param_ident := (tbl).lhs(param_arg)
-            if param_ident != hir_none() {
-                if (db.get_hir_symbol(param_ident) != id_none()) and
-                   (db.get_hir_symbol(param_ident) == db.get_hir_symbol(ty_node)) {
-                    if p_i < concrete_args.len {
-                        ret concrete_args.get(p_i)
-                    }
-                }
+        sym := db.get_hir_symbol(id)
+        if sym != id_none() {
+            real_s := db.resolve_sym(sym)
+            hir_node := db.get_sym_hir(real_s)
+            if hir_node != id_none() {
+                c_ty := db.get_const_type(hir_node)
+                if c_ty != ty_id_none() { ret c_ty }
             }
-            p_i = p_i + 1
         }
-        ret synth_type_node(eng, ty_node)
+        ret synth_type_node(eng, id)
+    }
+
+    if curr == k.unary_addr_of {
+        child_ty := eval_type_expr(eng, (tbl).lhs(id))
+        if child_ty != ty_id_none() {
+            ret (&(*db).types).alloc_ptr(child_ty)
+        }
+        ret ty_id_none()
     }
 
     if curr == k.binary_bit_or {
-        lhs_ty := specialize_type_node(eng, (tbl).lhs(ty_node), fn_params, concrete_args)
-        rhs_ty := specialize_type_node(eng, (tbl).rhs(ty_node), fn_params, concrete_args)
+        lhs_ty := eval_type_expr(eng, (tbl).lhs(id))
+        rhs_ty := eval_type_expr(eng, (tbl).rhs(id))
         if (lhs_ty != ty_id_none()) and (rhs_ty != ty_id_none()) {
             ret (&(*db).types).make_union_2(lhs_ty, rhs_ty)
         }
+        ret ty_id_none()
     }
 
     if curr == k.function {
         params_vec := Vec(u32).new()
-        params_list := (tbl).lhs(ty_node)
+        params_list := (tbl).lhs(id)
         if params_list != hir_none() {
             count := db.get_list(params_list).len
             i: u64 = 0
             while i < count {
                 args := db.get_list(params_list)
                 arg := *(args.ptr + i)
-                param_ty := specialize_type_node(eng, (tbl).rhs(arg), fn_params, concrete_args)
+                param_ty := eval_type_expr(eng, (tbl).rhs(arg))
                 params_vec.push(param_ty)
                 i = i + 1
             }
         }
         ret_ty := ty_id_unit()
-        ret_node := (tbl).rhs(ty_node)
+        ret_node := (tbl).rhs(id)
         if ret_node != hir_none() {
-            ret_ty = specialize_type_node(eng, ret_node, fn_params, concrete_args)
+            ret_ty = eval_type_expr(eng, ret_node)
         }
         result := (&(*db).types).alloc_func(params_vec.as_slice(), ret_ty, false)
         params_vec.destroy()
         ret result
     }
 
-    if curr == k.unary_addr_of {
-        child := (tbl).lhs(ty_node)
-        child_ty := specialize_type_node(eng, child, fn_params, concrete_args)
-        if child_ty != ty_id_none() {
-            ret (&(*db).types).alloc_ptr(child_ty)
-        }
-    }
-
     if curr == k.call {
-        callee := (tbl).lhs(ty_node)
-        args_list_id := (tbl).rhs(ty_node)
+        callee := (tbl).lhs(id)
         sub_concrete := Vec(u32).new()
-        if args_list_id != hir_none() {
-            args := db.get_list(args_list_id)
+        if (tbl).rhs(id) != hir_none() {
+            args := db.get_list((tbl).rhs(id))
             i: u64 = 0
             while i < args.len {
-                sub_arg := *(args.ptr + i)
-                sub_ty := specialize_type_node(eng, sub_arg, fn_params, concrete_args)
-                sub_concrete.push(sub_ty)
+                sub_concrete.push(eval_type_expr(eng, *(args.ptr + i)))
                 i = i + 1
             }
         }
         callee_sym := id_none()
         if (tbl).kind(callee) == k.ident {
             sym := db.get_hir_symbol(callee)
-            if sym != id_none() {
-                callee_sym = db.resolve_sym(sym)
-            }
+            if sym != id_none() { callee_sym = db.resolve_sym(sym) }
         }
         if callee_sym != id_none() {
             cached := db.find_mono_nominal(callee_sym, sub_concrete.as_slice())
@@ -267,16 +257,14 @@ specialize_type_node_inner :: fn(eng &Engine, ty_node u32, fn_params Slice(u32),
             }
             spec := specialize_nominal_from_creator(eng, callee_sym, &sub_concrete)
             sub_concrete.destroy()
-            if spec != ty_id_none() {
-                ret spec
-            }
+            if spec != ty_id_none() { ret spec }
         } else {
             sub_concrete.destroy()
         }
-        ret synth_type_node(eng, ty_node)
+        ret synth_type_node(eng, id)
     }
 
-    synth_type_node(eng, ty_node)
+    synth_type_node(eng, id)
 }
 
 specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_node u32, lhs_ty u32) u32 {
@@ -312,6 +300,14 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
                 type_slot := (&(*db).unify).new_slot(p_ident)
                 (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
                 db.set_const_type(p_ident, arg_val)
+                p_sym := db.get_hir_symbol(p_ident)
+                if p_sym != id_none() {
+                    p_real := db.resolve_sym(p_sym)
+                    p_hir := db.get_sym_hir(p_real)
+                    if p_hir != id_none() {
+                        db.set_const_type(p_hir, arg_val)
+                    }
+                }
             }
             db.set_const_type(p_arg, arg_val)
         }
@@ -319,14 +315,6 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
     }
 
     m_params_list := (tbl).lhs(func_node)
-    c_args_vec := Vec(u32).new()
-    ca_i: u64 = 0
-    while ca_i < creator_args.len {
-        c_args_vec.push(*(creator_args.ptr + ca_i))
-        ca_i = ca_i + 1
-    }
-    method_type_params := Vec(u32).new()
-    method_type_params.extend(fn_params_slice.ptr, fn_params_slice.len)
     if m_params_list != hir_none() {
         count := db.get_list(m_params_list).len
         mp_i: u64 = 0
@@ -340,8 +328,14 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
                 m_infer := (&(*types_ptr)).alloc_infer(m_slot)
                 db.set_const_type(m_ident, m_infer)
                 db.set_const_type(m_arg, m_infer)
-                method_type_params.push(m_arg)
-                c_args_vec.push(m_infer)
+                p_sym := db.get_hir_symbol(m_ident)
+                if p_sym != id_none() {
+                    p_real := db.resolve_sym(p_sym)
+                    p_hir := db.get_sym_hir(p_real)
+                    if p_hir != id_none() {
+                        db.set_const_type(p_hir, m_infer)
+                    }
+                }
             }
             mp_i = mp_i + 1
         }
@@ -354,7 +348,7 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
             m_params := db.get_list(m_params_list)
             m_arg := *(m_params.ptr + mp_i)
             m_ty_node := (tbl).rhs(m_arg)
-            concrete_p_ty := specialize_type_node(eng, m_ty_node, method_type_params.as_slice(), &c_args_vec)
+            concrete_p_ty := eval_type_expr(eng, m_ty_node)
             concrete_params_vec.push(concrete_p_ty)
             mp_i = mp_i + 1
         }
@@ -362,7 +356,7 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
     m_ret_node := (tbl).rhs(func_node)
     concrete_ret := ty_id_unit()
     if m_ret_node != hir_none() {
-        concrete_ret = specialize_type_node(eng, m_ret_node, method_type_params.as_slice(), &c_args_vec)
+        concrete_ret = eval_type_expr(eng, m_ret_node)
     }
     c_p_slice: Slice(u32) = .{ ptr: 0 as &u32, len: 0 }
     if concrete_params_vec.len > 0 {
@@ -371,8 +365,6 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
     }
     concrete_method_ty := (&(*types_ptr)).alloc_func(c_p_slice, concrete_ret, false)
     concrete_params_vec.destroy()
-    c_args_vec.destroy()
-    method_type_params.destroy()
     concrete_method_ty
 }
 

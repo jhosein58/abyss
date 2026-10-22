@@ -7,7 +7,7 @@ import Engine from "../../engine"
 import fall from "std/sys"
 import synth_type_node from "./var"
 import synth_func, func_has_self from "./fn"
-import specialize_type_node, specialize_nominal_method from "../specialize"
+import specialize_nominal_method from "../specialize"
 
 print :: fn(s &u8) unit
 

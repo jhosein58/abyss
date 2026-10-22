@@ -5,7 +5,7 @@ import id_none from "../nexus/pool"
 import fall from "std/sys"
 import Engine from "../engine"
 import synth_func, synth_return, synth_call from "./rules/fn"
-import resolve_ty_id, specialize_type_node from "./specialize"
+import resolve_ty_id from "./specialize"
 import synth_lit_int, synth_lit_float, synth_lit_bool, synth_lit_str, synth_lit_char, synth_lit_cstr from "./rules/lit"
 import synth_ident, synth_var_or_binding, synth_arg from "./rules/var"
 import synth_unary_num, validate_unary_num, synth_unary_not, synth_unary_addr_of, synth_unary_deref,
