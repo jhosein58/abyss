@@ -29,20 +29,18 @@ case "${CMD}" in
         export ABYSS_DEV="${ROOT_DIR}"
         TARGET="${1:-}"
         if [ -n "${TARGET}" ]; then
-            "${ROOT_DIR}/abyssc" "${TARGET}" "${ROOT_DIR}/tmp/out.c"
+            "${ROOT_DIR}/abyssc" r "${TARGET}"
         else
-            "${ROOT_DIR}/abyssc"
+            "${ROOT_DIR}/abyssc" r
         fi
-        gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -g1 -pipe -fno-plt "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/tmp/out"
-        "${ROOT_DIR}/tmp/out"
         ;;
     b)
         prepare_compiler
         TARGET="${1:-}"
         if [ -n "${TARGET}" ]; then
-            "${ROOT_DIR}/abyssc" "${TARGET}" "${ROOT_DIR}/tmp/out.c"
+            "${ROOT_DIR}/abyssc" b "${TARGET}" "${ROOT_DIR}/tmp/out.c"
         else
-            "${ROOT_DIR}/abyssc"
+            "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/main.a" "${ROOT_DIR}/tmp/out.c"
         fi
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -march=native -mtune=native -fomit-frame-pointer -funroll-loops "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/tmp/out"
         ;;
@@ -50,9 +48,9 @@ case "${CMD}" in
         prepare_compiler
         TARGET="${1:-}"
         if [ -n "${TARGET}" ]; then
-            "${ROOT_DIR}/abyssc" "${TARGET}" "${ROOT_DIR}/tmp/out.c"
+            "${ROOT_DIR}/abyssc" b "${TARGET}" "${ROOT_DIR}/tmp/out.c"
         else
-            "${ROOT_DIR}/abyssc"
+            "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/main.a" "${ROOT_DIR}/tmp/out.c"
         fi
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -march=native -mtune=native -fomit-frame-pointer -funroll-loops "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/tmp/out"
         "${ROOT_DIR}/tmp/out"
@@ -62,11 +60,11 @@ case "${CMD}" in
         TARGET="${1:-}"
         MINGW_CC="${MINGW_CC:-x86_64-w64-mingw32-gcc}"
         if [ -n "${TARGET}" ]; then
-            "${ROOT_DIR}/abyssc" "${TARGET}" "${ROOT_DIR}/tmp/out.c"
+            "${ROOT_DIR}/abyssc" b "${TARGET}" "${ROOT_DIR}/tmp/out.c"
             "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/tmp/out.exe"
             echo "Built ${ROOT_DIR}/tmp/out.exe"
         else
-            "${ROOT_DIR}/abyssc" "${ROOT_DIR}/main.a" "${ROOT_DIR}/tmp/out.c"
+            "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/main.a" "${ROOT_DIR}/tmp/out.c"
             "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/abyssc.exe"
             echo "Built ${ROOT_DIR}/abyssc.exe"
         fi
@@ -76,11 +74,11 @@ case "${CMD}" in
         TARGET="${1:-}"
         MINGW_CC="${MINGW_CC:-x86_64-w64-mingw32-gcc}"
         if [ -n "${TARGET}" ]; then
-            "${ROOT_DIR}/abyssc" "${TARGET}" "${ROOT_DIR}/tmp/out.c"
+            "${ROOT_DIR}/abyssc" b "${TARGET}" "${ROOT_DIR}/tmp/out.c"
             "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/tmp/out.exe"
             WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${ROOT_DIR}/tmp/out.exe"
         else
-            "${ROOT_DIR}/abyssc" "${ROOT_DIR}/main.a" "${ROOT_DIR}/tmp/out.c"
+            "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/main.a" "${ROOT_DIR}/tmp/out.c"
             "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${ROOT_DIR}/tmp/out.c" -o "${ROOT_DIR}/abyssc.exe"
             WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${ROOT_DIR}/abyssc.exe"
         fi
@@ -97,7 +95,7 @@ case "${CMD}" in
         bash "${ROOT_DIR}/scripts/bootstrap.sh" "${ROUNDS}"
         DIST_DIR="${ROOT_DIR}/dist"
         mkdir -p "${DIST_DIR}"
-        "${ROOT_DIR}/abyssc" "${ROOT_DIR}/main.a" "${DIST_DIR}/bootstrap.c"
+        "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/main.a" "${DIST_DIR}/bootstrap.c"
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc-linux-x86_64"
         cp "${DIST_DIR}/abyssc-linux-x86_64" "${ROOT_DIR}/abyssc"
         MINGW_CC="${MINGW_CC:-x86_64-w64-mingw32-gcc}"
@@ -115,7 +113,7 @@ case "${CMD}" in
         echo "Usage: ./abyss <command> [args]"
         echo ""
         echo "Commands:"
-        echo "  r [file]          Build and run in debug mode"
+        echo "  r [file]          Run in debug mode on VM"
         echo "  b [file]          Build in release mode"
         echo "  br [file]         Build and run in release mode"
         echo "  b-win [file]      Build Windows binary (default: abyssc.exe)"
