@@ -11,6 +11,8 @@ A statically typed, data-oriented systems programming language. Pairs modern erg
 - **First-Class Types:** Compute, return, and pass types dynamically at compile time.
 - **Zero-Dependency Bootstrap:** `dist/bootstrap.c` compiles anywhere with a single `cc` command.
 
+📖 **Guide:** [**Into the Abyss**](docs/README.md) — The official language documentation and book.
+
 ---
 
 ## Code at a Glance
