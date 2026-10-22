@@ -1,6 +1,4 @@
-<img src="assets/logo.svg" alt="Abyss" width="64" height="64" />
-
-# Abyss
+# <img src="assets/logo.svg" alt="Abyss" width="36" height="36" align="middle" /> Abyss
 
 **Built for the deep.**
 
