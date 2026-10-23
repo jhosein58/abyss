@@ -1,4 +1,4 @@
-import Str from "../core/string.a"
+import Str, int_to_str from "../core/string.a"
 import Arena  from "allocator.a"
 
 str_len    :: fn(s &u8) u64

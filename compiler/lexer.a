@@ -193,6 +193,25 @@ Lexer :: struct {
         self.emit(stream, kind, offset)
     }
 
+    scan_raw_str :: fn(self &Self, stream &TokenStream) {
+        offset := self.cursor
+        self.bump()
+
+        while (not self.is_eof()) and (self.current() != '`') {
+            if (self.current() == '\\') and (self.peek() == '`') {
+                self.bump()
+            }
+            self.bump()
+        }
+
+        if self.is_eof() {
+            self.error(c"unterminated multiline string", offset)
+        }
+        self.bump()
+
+        self.emit(stream, token.lit_str, offset)
+    }
+
     scan_char :: fn(self &Self, stream &TokenStream) {
         offset := self.cursor
         self.bump()
@@ -328,6 +347,11 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
 
         if c == '"' {
             lexer.scan_str(stream, false)
+            cont
+        }
+
+        if c == '`' {
+            lexer.scan_raw_str(stream)
             cont
         }
 

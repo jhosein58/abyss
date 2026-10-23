@@ -722,19 +722,29 @@ VmCodeGen :: struct {
         buf := malloc(buf_len)
         dst: u64 = 0
         src := start
+        is_backtick := *(raw.ptr) == 96
         while src < end {
             ch := *(raw.ptr + src)
             if (ch == '\\') and (src + 1 < end) {
-                src = src + 1
-                next := *(raw.ptr + src)
-                if next == 'n' { *(buf + dst) = 10 as u8 }
-                else if next == 't' { *(buf + dst) = 9 as u8 }
-                else if next == 'r' { *(buf + dst) = 13 as u8 }
-                else if next == '0' { *(buf + dst) = 0 as u8 }
-                else { *(buf + dst) = next }
-            } else {
-                *(buf + dst) = ch
+                next := *(raw.ptr + src + 1)
+                if (next == 96) and is_backtick {
+                    *(buf + dst) = 96 as u8
+                    src = src + 2
+                    dst = dst + 1
+                    cont
+                } else if not is_backtick {
+                    src = src + 1
+                    if next == 'n' { *(buf + dst) = 10 as u8 }
+                    else if next == 't' { *(buf + dst) = 9 as u8 }
+                    else if next == 'r' { *(buf + dst) = 13 as u8 }
+                    else if next == '0' { *(buf + dst) = 0 as u8 }
+                    else { *(buf + dst) = next }
+                    dst = dst + 1
+                    src = src + 1
+                    cont
+                }
             }
+            *(buf + dst) = ch
             dst = dst + 1
             src = src + 1
         }
@@ -748,10 +758,18 @@ VmCodeGen :: struct {
         end := raw.len - 1
         dst: u64 = 0
         src := start
+        is_backtick := *(raw.ptr) == 96
         while src < end {
             ch := *(raw.ptr + src)
             if (ch == '\\') and (src + 1 < end) {
-                src = src + 1
+                next := *(raw.ptr + src + 1)
+                if (next == 96) and is_backtick {
+                    src = src + 2
+                    dst = dst + 1
+                    cont
+                } else if not is_backtick {
+                    src = src + 1
+                }
             }
             dst = dst + 1
             src = src + 1

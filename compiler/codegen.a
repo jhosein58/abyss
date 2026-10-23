@@ -590,13 +590,49 @@ CCodeGen :: struct {
         self.expr_int(arena, 1)
     }
 
+    format_raw_str :: fn(arena &Arena, raw Str) Str {
+        if (raw.len < 2) or (*(raw.ptr) != 96) { ret raw }
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"\"")
+        i: u64 = 1
+        end := raw.len - 1
+        while i < end {
+            c := *(raw.ptr + i)
+            if c == 10 {
+                fmt.cstr(c"\\n")
+            } else if c == 13 {
+                fmt.cstr(c"\\r")
+            } else if c == 9 {
+                fmt.cstr(c"\\t")
+            } else if c == 34 {
+                fmt.cstr(c"\\\"")
+            } else if c == 92 {
+                if (i + 1 < end) and (*(raw.ptr + i + 1) == 96) {
+                    fmt.char(96 as u8)
+                    i = i + 1
+                } else {
+                    fmt.cstr(c"\\\\")
+                }
+            } else {
+                fmt.char(c)
+            }
+            i = i + 1
+        }
+        fmt.cstr(c"\"")
+        fmt.as_str()
+    }
+
     expr_str_lit :: fn(self &Self, arena &Arena, struct_name Str, ptr_id u32, len_id u32, raw Str) Str {
+        c_raw := raw
+        if (raw.len >= 2) and (*(raw.ptr) == 96) {
+            c_raw = Self.format_raw_str(arena, raw)
+        }
         fmt := Fmt.new(arena)
         if struct_name.len == 0 {
-            fmt.wrap(Str.of("((uint8_t*)"), raw, Str.of(")"))
+            fmt.wrap(Str.of("((uint8_t*)"), c_raw, Str.of(")"))
             ret fmt.as_str()
         }
-        fmt.cstr(c"((").str(struct_name).cstr(c"){._f").uint32(ptr_id).cstr(c" = ((uint8_t*)").str(raw).cstr(c"), ._f").uint32(len_id).cstr(c" = (sizeof(").str(raw).cstr(c") - 1)})")
+        fmt.cstr(c"((").str(struct_name).cstr(c"){._f").uint32(ptr_id).cstr(c" = ((uint8_t*)").str(c_raw).cstr(c"), ._f").uint32(len_id).cstr(c" = (sizeof(").str(c_raw).cstr(c") - 1)})")
         fmt.as_str()
     }
 
@@ -610,6 +646,8 @@ CCodeGen :: struct {
         c_raw := raw
         if (raw.len >= 2) and (*(raw.ptr) == 99) {
             c_raw = raw.sub(1, raw.len - 1)
+        } else if (raw.len >= 2) and (*(raw.ptr) == 96) {
+            c_raw = Self.format_raw_str(arena, raw)
         }
         fmt := Fmt.new(arena)
         fmt.wrap(Str.of("((uint8_t*)"), c_raw, Str.of(")"))

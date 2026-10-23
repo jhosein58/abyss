@@ -54,7 +54,17 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
     slot := unify_ptr.get_slot(expr)
     if slot == slot_none() { ret }
 
-    if (tbl.kind(expr) == hir_kind.k_cmpt) or (tbl.kind(expr) == hir_kind.k_macro) {
+    if tbl.kind(expr) == hir_kind.k_macro {
+        gen_id := tbl.extra(expr)
+        if gen_id != hir_none() {
+            check_value(db, gen_id, expected)
+        }
+        result_slot := unify_ptr.new_slot(expr)
+        unify_ptr.bind_type(types, result_slot, expected)
+        ret
+    }
+
+    if tbl.kind(expr) == hir_kind.k_cmpt {
         check_value(db, tbl.lhs(expr), expected)
         result_slot := unify_ptr.new_slot(expr)
         unify_ptr.bind_type(types, result_slot, expected)

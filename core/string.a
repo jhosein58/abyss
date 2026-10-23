@@ -1,5 +1,6 @@
-str_len :: fn(s &u8) u64
+str_len    :: fn(s &u8) u64
 print_char :: fn(c u8)
+malloc     :: fn(size u64) &u8
 
 Str :: struct {
     ptr &u8
@@ -84,7 +85,9 @@ Str :: struct {
 
     trim_quotes :: fn(self &Self) Str {
         if self.len >= 2 {
-            if (*(self.ptr) == '"') and (*(self.ptr + self.len - 1) == '"') {
+            first := *(self.ptr)
+            last := *(self.ptr + self.len - 1)
+            if ((first == '"') and (last == '"')) or ((first == '`') and (last == '`')) {
                 ret self.sub(1, self.len - 2)
             }
         }
@@ -93,4 +96,51 @@ Str :: struct {
             len: self.len
         }
     }
+
+    concat :: fn(self &Self, other Str) Str {
+        total := self.len + other.len
+        buf := malloc(total + 1)
+        i: u64 = 0
+        while i < self.len {
+            *(buf + i) = *(self.ptr + i)
+            i = i + 1
+        }
+        j: u64 = 0
+        while j < other.len {
+            *(buf + self.len + j) = *(other.ptr + j)
+            j = j + 1
+        }
+        *(buf + total) = 0 as u8
+        Str.new(buf, total)
+    }
+}
+
+int_to_str :: fn(v i64) Str {
+    buf := malloc(32)
+    if v == 0 {
+        *buf = 48 as u8
+        *(buf + 1) = 0 as u8
+        ret Str.new(buf, 1)
+    }
+    neg := v < 0
+    val: u64 = 0
+    if neg { val = (0 - v) as u64 } else { val = v as u64 }
+    temp := val
+    len: u64 = 0
+    while temp > 0 {
+        len = len + 1
+        temp = temp / 10
+    }
+    if neg { len = len + 1 }
+    *(buf + len) = 0 as u8
+    pos := len
+    while val > 0 {
+        pos = pos - 1
+        *(buf + pos) = ((val % 10) + 48) as u8
+        val = val / 10
+    }
+    if neg {
+        *(buf) = 45 as u8
+    }
+    Str.new(buf, len)
 }

@@ -1,0 +1,77 @@
+import print from "std/io.a"
+import int_to_str from "std/string.a"
+
+gen_expr :: fn(base i64, mul i64) Str {
+    `x + `.concat(int_to_str(base)).concat(` * `).concat(int_to_str(mul))
+}
+
+gen_nested :: fn() Str {
+    `#("500 + 500")`
+}
+
+gen_multiline_fn :: fn(factor i64) Str {
+    `
+        step1 := x * `.concat(int_to_str(factor)).concat(`
+        step2 := step1 + 10
+        step2
+    `)
+}
+
+add_val :: fn(T type, val T) T {
+    val + #("7")
+}
+
+choose_type :: fn(big bool) Str {
+    if big { "i64" } else { "i32" }
+}
+
+main :: fn() {
+    raw_str := `first line
+second line`
+    print(raw_str)
+    print("\n")
+
+    v1 := #`
+        a := 10
+        b := 20
+        a * b
+    `
+    print(v1)
+    print("\n")
+
+    v2 := #`{
+        temp := 50
+        temp * 2
+    }`
+    print(v2)
+    print("\n")
+
+    x := 5
+    v3 := #gen_expr(10, 3)
+    print(v3)
+    print("\n")
+
+    v4 := #gen_nested()
+    print(v4)
+    print("\n")
+
+    v5 := #gen_multiline_fn(4)
+    print(v5)
+    print("\n")
+
+    g1 := add_val(i32, 100)
+    print(g1)
+    print("\n")
+
+    g2 := add_val(i64, 200)
+    print(g2)
+    print("\n")
+
+    t1: #choose_type(true) = 111111
+    print(t1)
+    print("\n")
+
+    t2: #choose_type(false) = 222222
+    print(t2)
+    print("\n")
+}
