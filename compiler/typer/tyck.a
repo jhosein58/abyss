@@ -141,7 +141,16 @@ synth_macro :: fn(eng &Engine, id u32) {
     }
     fid := db.get_hir_file(id)
     sub_p := Parser_new(db, &tokens, tbl, fid, 0, 0, tok_count)
-    n: u32 = 0
+    fn_start: u32 = 0
+    s_idx := id
+    while s_idx > 0 {
+        s_idx = s_idx - 1
+        if tbl.kind(s_idx) == hir_kind.function {
+            fn_start = s_idx
+            break
+        }
+    }
+    n := fn_start
     while n < id {
         nk := tbl.kind(n)
         if (nk == hir_kind.var) or (nk == hir_kind.binding) or (nk == hir_kind.arg) {

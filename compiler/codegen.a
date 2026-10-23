@@ -126,6 +126,9 @@ CCodeGen :: struct {
         self.has_main = true
     }
 
+    reset_locals :: fn(self &Self) {
+    }
+
     declare_function :: fn(self &Self, fn_name Str, ret_type Str, params Str) {
         append_str(&self.func_decls, ret_type)
         append_char(&self.func_decls, 32 as u8)

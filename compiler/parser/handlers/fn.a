@@ -9,7 +9,7 @@ import parse_block from "./control"
 import parse_expr from "../parser"
 import prec from "../prec"
 
-define_param :: fn(p &Parser, name_hir u32) {
+define_param :: fn(p &Parser, name_hir u32) u32 {
     k := hir_kind
     if p.hir.kind(name_hir) != k.ident {
         parse_error_at(p, c"parameter name must be an identifier", span_of_hir(p, name_hir))
@@ -17,17 +17,23 @@ define_param :: fn(p &Parser, name_hir u32) {
     name_id := p.hir.lhs(name_hir)
     sym_id := p.db.alloc_local_symbol(p.file_id, name_id, name_hir)
     p.env.define(name_id, sym_id)
+    p.db.set_hir_symbol(name_hir, sym_id)
+    sym_id
 }
 
 push_arg :: fn(p &Parser, args &Vec(u32), name u32, ty u32) {
     k := hir_kind
     sp := span_of_hir(p, ty)
+    sym_id := id_none()
     if name != hir_none() {
-        define_param(p, name)
+        sym_id = define_param(p, name)
         sp = span_merge(span_of_hir(p, name), sp)
     }
     arg_id := p.hir.push(k.arg, name, ty, hir_none())
     set_span(p, arg_id, sp)
+    if sym_id != id_none() {
+        p.db.set_hir_symbol(arg_id, sym_id)
+    }
     args.push(arg_id)
 }
 

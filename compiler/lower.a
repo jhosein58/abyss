@@ -777,6 +777,7 @@ eval_const :: fn(db &Nexus, id u32) u64 {
     }
 
     db.init_comptime()
+    db.comptime_cg.reset_locals()
     builder := VmCodeBuilder.new(db.comptime_cg)
     start_ip := db.comptime_cg.chunk.buf.len as u32
     visited := HashSet(u32).new()
@@ -1184,6 +1185,7 @@ lower_one_function :: fn(B type, L type, V type, eng &Engine, ccg &B, builder &L
     if func_ty == ty_id_none() { ret }
     body_id := db.hir.extra(func_id)
     is_extern := (body_id == hir_none()) or db.types.func_is_extern(func_ty)
+    ccg.reset_locals()
     sig := format_func_signature(db, ccg, builder, empty, arena, sym_id, real_sym, func_id, binding_id, is_mono, is_extern, orig_func_ty, func_ty)
     if is_extern { ret }
     queue_func_types(db, func_ty, type_queue)

@@ -17,6 +17,66 @@ gen_multiline_fn :: fn(factor i64) Str {
     `)
 }
 
+gen_power :: fn(var_name Str, exp i32) Str {
+    if exp <= 0 { ret "1" }
+    res := var_name
+    i := 1
+    while i < exp {
+        res = res.concat(" * ").concat(var_name)
+        i = i + 1
+    }
+    res
+}
+
+gen_if_dispatcher :: fn(num_cases i32) Str {
+    res := `if op == 0 { val + 0 }`
+    i := 1
+    while i < num_cases {
+        res = res.concat(` else if op == `).concat(int_to_str(i as i64)).concat(` { val + `).concat(int_to_str((i * 10) as i64)).concat(` }`)
+        i = i + 1
+    }
+    res = res.concat(` else { 0 }`)
+    res
+}
+
+gen_even_accumulator :: fn(limit i32) Str {
+    res := `{
+        acc := 0`
+    i := 1
+    while i <= limit {
+        if (i % 2) == 0 {
+            res = res.concat(`
+        acc = acc + `).concat(int_to_str(i as i64))
+        }
+        i = i + 1
+    }
+    res = res.concat(`
+        acc
+    }`)
+    res
+}
+
+stage_inner :: fn(multiplier i64) Str {
+    `val * `.concat(int_to_str(multiplier))
+}
+
+stage_outer :: fn(n i32) Str {
+    `#stage_inner(`.concat(int_to_str((n * 2) as i64)).concat(`)`)
+}
+
+gen_while_loop :: fn(target i32) Str {
+    `{
+        sum := 0
+        curr := 1
+        while true {
+            if curr > `.concat(int_to_str(target as i64)).concat(` { break }
+            sum = sum + curr
+            curr = curr + 1
+        }
+        sum
+    }`)
+}
+
 add_val :: fn(T type, val T) T {
     val + #("7")
 }
@@ -73,5 +133,28 @@ second line`
 
     t2: #choose_type(false) = 222222
     print(t2)
+    print("\n")
+
+    y := 3
+    pow_res := #gen_power("y", 4)
+    print(pow_res)
+    print("\n")
+
+    val := 100
+    op := 2
+    dispatch_res := #gen_if_dispatcher(4)
+    print(dispatch_res)
+    print("\n")
+
+    even_sum := #gen_even_accumulator(10)
+    print(even_sum)
+    print("\n")
+
+    stage_res := #stage_outer(5)
+    print(stage_res)
+    print("\n")
+
+    loop_res := #gen_while_loop(10)
+    print(loop_res)
     print("\n")
 }

@@ -472,6 +472,12 @@ VmCodeGen :: struct {
         self.current_fn_ret_type = 0
     }
 
+    reset_locals :: fn(self &Self) {
+        self.local_syms.clear()
+        self.local_count = 0
+        self.local_types.clear()
+    }
+
     declare_function :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal) {
     }
 
