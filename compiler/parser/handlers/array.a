@@ -1,0 +1,100 @@
+import token from "../../token"
+import hir_kind, hir_none from "../../hir"
+import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at, lookup_sym from "../core"
+import span_merge from "../../nexus/nexus"
+import prec from "../prec"
+import span_of_hir, set_span, skip_separators, add_list from "./common"
+import parse_expr from "../parser"
+import Str from "std/string"
+import id_none from "../../nexus/pool"
+
+parse_array_type :: fn(p &Parser, min_bp u8) u32 {
+    t := token
+    k := hir_kind
+    sp_start := curr_span(p)
+    bump(p)
+
+    if peek(p) == t.c_bracket {
+        bump(p)
+        elem_ty := parse_expr(p, prec().var_def + (1 as u8))
+        if elem_ty == hir_none() {
+            parse_error_at(p, c"expected element type after '[]'", curr_span(p))
+        }
+        sp_end := span_of_hir(p, elem_ty)
+        slice_name := p.db.interner.intern(Str.of("Slice"))
+        slice_ident := p.hir.push(k.ident, slice_name, hir_none(), hir_none())
+        set_span(p, slice_ident, sp_start)
+        sym_id := lookup_sym(p, slice_name)
+        if sym_id != id_none() {
+            p.db.set_hir_symbol(slice_ident, sym_id)
+        }
+
+        args := Vec(u32).new()
+        args.push(elem_ty)
+        list_id := add_list(p, &args)
+        args.destroy()
+
+        node := p.hir.push(k.call, slice_ident, list_id, hir_none())
+        set_span(p, node, span_merge(sp_start, sp_end))
+        ret node
+    }
+
+    len_expr := parse_expr(p, 0 as u8)
+    if not expect(p, t.c_bracket) {
+        parse_error_at(p, c"expected ']' after array length", curr_span(p))
+    }
+    elem_ty := parse_expr(p, prec().var_def + (1 as u8))
+    if elem_ty == hir_none() {
+        parse_error_at(p, c"expected element type after array length", curr_span(p))
+    }
+    sp_end := span_of_hir(p, elem_ty)
+    node := p.hir.push(k.array, len_expr, elem_ty, hir_none())
+    set_span(p, node, span_merge(sp_start, sp_end))
+}
+
+parse_array_lit :: fn(p &Parser) u32 {
+    t := token
+    k := hir_kind
+    sp_start := curr_span(p)
+    bump(p)
+    expect(p, t.o_bracket)
+
+    elements := Vec(u32).new()
+
+    while (peek(p) != t.c_bracket) and (not is_eof(p)) {
+        skip_separators(p)
+        if (peek(p) == t.c_bracket) or (peek(p) == t.eof) { break }
+
+        elem := parse_expr(p, 0 as u8)
+        elements.push(elem)
+
+        skip_separators(p)
+    }
+
+    if is_eof(p) and (peek(p) != t.c_bracket) {
+        parse_error_at(p, c"unclosed array literal, expected ']'", sp_start)
+    }
+
+    expect(p, t.c_bracket)
+    sp_end := prev_span(p)
+
+    list_id := add_list(p, &elements)
+    elements.destroy()
+
+    node := p.hir.push(k.array_init, list_id, hir_none(), hir_none())
+    set_span(p, node, span_merge(sp_start, sp_end))
+}
+
+parse_index :: fn(p &Parser, lhs u32, right_bp u8) u32 {
+    t := token
+    k := hir_kind
+    sp_lhs := span_of_hir(p, lhs)
+    idx := parse_expr(p, 0 as u8)
+    if not expect(p, t.c_bracket) {
+        parse_error_at(p, c"expected ']' after index expression", curr_span(p))
+    }
+    sp_end := prev_span(p)
+
+    node := p.hir.push(k.index, lhs, idx, hir_none())
+    set_span(p, node, span_merge(sp_lhs, sp_end))
+}

@@ -189,6 +189,7 @@ TypeStorage :: struct {
     enum_names Vec(Str)
     enum_by_origin Vec(u32)
     nominal_struct_node Vec(u32)
+    dependent_funcs Vec(u32)
 
     new :: fn() Self {
         store := TyStore.new()
@@ -222,7 +223,8 @@ TypeStorage :: struct {
             nominal_creator_items : Vec(u32).new(),
             enum_names : Vec(Str).new(),
             enum_by_origin : Vec(u32).new(),
-            nominal_struct_node : Vec(u32).new()
+            nominal_struct_node : Vec(u32).new(),
+            dependent_funcs : Vec(u32).new()
         }
     }
 
@@ -271,6 +273,7 @@ TypeStorage :: struct {
         self.enum_names.destroy()
         self.enum_by_origin.destroy()
         self.nominal_struct_node.destroy()
+        self.dependent_funcs.destroy()
     }
 
     len :: fn(self &Self) u32 {
@@ -937,8 +940,19 @@ TypeStorage :: struct {
         }
     }
 
+    record_dependent_func :: fn(self &Self, func u32) {
+        if not self.dependent_funcs.contains(func) {
+            self.dependent_funcs.push(func)
+        }
+    }
+
+    is_dependent_func :: fn(self &Self, func u32) bool {
+        self.dependent_funcs.contains(func)
+    }
+
     func_has_type_param :: fn(self &Self, func u32) bool {
         if self.kind(func) != TyKind.func { ret false }
+        if self.is_dependent_func(func) { ret true }
         params := self.func_params(func)
         i: u64 = 0
         while i < params.len {

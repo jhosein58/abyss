@@ -17,6 +17,7 @@ import parse_struct, parse_struct_init, parse_member from "./handlers/struct"
 import parse_builtin from "./handlers/builtin"
 import parse_enum from "./handlers/enum"
 import parse_match from "./handlers/match"
+import parse_array_type, parse_array_lit, parse_index from "./handlers/array"
 
 parse_expr :: fn(p &Parser, min_bp u8) u32 {
     lhs := dispatch_prefix(p, min_bp)
@@ -74,6 +75,8 @@ dispatch_prefix :: fn(p &Parser, min_bp u8) u32 {
     if tk == t.kw_fn      { ret parse_fn(p, min_bp) }
     if tk == t.at         { ret parse_builtin(p) }
     if (tk == t.dot) and (peek_n(p, 1) == t.o_brace) { ret parse_struct_init(p) }
+    if (tk == t.dot) and (peek_n(p, 1) == t.o_bracket) { ret parse_array_lit(p) }
+    if tk == t.o_bracket  { ret parse_array_type(p, min_bp) }
 
     if tk == t.kw_cmpt    { ret parse_cmpt(p, min_bp) }
     if tk == t.hash       { ret parse_macro(p, min_bp) }
@@ -225,6 +228,7 @@ dispatch_infix :: fn(p &Parser, op TokenType, lhs u32, right_bp u8) u32 {
     if op == t.colon       { ret parse_var_decl(p, lhs, right_bp) }
     if op == t.eq          { ret parse_assign(p, lhs, right_bp) }
     if op == t.o_paren     { ret parse_call(p, lhs, right_bp) }
+    if op == t.o_bracket   { ret parse_index(p, lhs, right_bp) }
     if op == t.dot         { ret parse_member(p, lhs, right_bp) }
 
     parse_binary(p, op, lhs, right_bp)

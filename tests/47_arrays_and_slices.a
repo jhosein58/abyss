@@ -1,0 +1,82 @@
+import print from "std/io.a"
+
+Container :: fn(T type, N u64) type {
+    struct {
+        items: [N]T
+    }
+}
+
+make_arr :: fn(n u64) [n]i32 {
+    res: [n]i32 = .[100, 200, 300, 400]
+    res
+}
+
+N :: 2 + 3
+
+main :: fn() {
+    a := .[1, 2, 3]
+    b: f32 = a[2]
+    print(b)
+    print("\n")
+
+    arr: [4]i32 = .[10, 20, 30, 40]
+    print(arr[0])
+    print("\n")
+    print(arr[1])
+    print("\n")
+    print(arr[2])
+    print("\n")
+    print(arr[3])
+    print("\n")
+
+    arr[1] = 99
+    print(arr[1])
+    print("\n")
+
+    grid: [2][2]i32 = .[ .[11, 22], .[33, 44] ]
+    print(grid[0][0])
+    print("\n")
+    print(grid[0][1])
+    print("\n")
+    print(grid[1][0])
+    print("\n")
+    print(grid[1][1])
+    print("\n")
+
+    grid[1][0] = 77
+    print(grid[1][0])
+    print("\n")
+
+    arr_n: [N]i32 = .[1, 2, 3, 4, 5]
+    print(arr_n[4])
+    print("\n")
+
+    s: []i32 = Slice(i32).new(&arr[0], 4)
+    print(s[0])
+    print("\n")
+    print(s[1])
+    print("\n")
+    s[2] = 55
+    print(arr[2])
+    print("\n")
+    print(s.len)
+    print("\n")
+
+    c: Container(i32, 3) = .{ items: .[5, 10, 15] }
+    print(c.items[0])
+    print("\n")
+    print(c.items[1])
+    print("\n")
+    print(c.items[2])
+    print("\n")
+
+    res := make_arr(4)
+    print(res[0])
+    print("\n")
+    print(res[1])
+    print("\n")
+    print(res[2])
+    print("\n")
+    print(res[3])
+    print("\n")
+}

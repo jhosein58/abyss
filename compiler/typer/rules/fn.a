@@ -146,6 +146,26 @@ synth_func :: fn(eng &Engine, id u32) {
     func_ty := (&(*types_ptr)).alloc_func(slice, ret_ty, is_extern)
     params_vec.destroy()
 
+    if (ret_hir_id != hir_none()) and ((tbl).kind(ret_hir_id) == hir_kind.array) {
+        len_node := (tbl).lhs(ret_hir_id)
+        if (tbl).kind(len_node) == hir_kind.ident {
+            p_name := (tbl).lhs(len_node)
+            if params_list_id != hir_none() {
+                fn_args := db.get_list(params_list_id)
+                p_i: u64 = 0
+                while p_i < fn_args.len {
+                    arg_node := *(fn_args.ptr + p_i)
+                    arg_ident := (tbl).lhs(arg_node)
+                    if (arg_ident != hir_none()) and ((tbl).lhs(arg_ident) == p_name) {
+                        types_ptr.record_dependent_func(func_ty)
+                        break
+                    }
+                    p_i = p_i + 1
+                }
+            }
+        }
+    }
+
     if (body_id == hir_none()) and (not is_extern) {
         (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
     } else {
@@ -580,6 +600,38 @@ synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u3
         p_i = p_i + 1
     }
     final_ret := resolve_ty_id(eng, unify_ptr, types_ptr, inst_ret)
+    ret_hir_id := id_none()
+    if func_node != id_none() {
+        ret_hir_id = tbl.rhs(func_node)
+    }
+    if (ret_hir_id != id_none()) and (tbl.kind(ret_hir_id) == hir_kind.array) {
+        len_node := tbl.lhs(ret_hir_id)
+        if tbl.kind(len_node) == hir_kind.ident {
+            p_name := tbl.lhs(len_node)
+            dep_i: u64 = 0
+            while dep_i < fn_args_slice.len {
+                p_arg := *(fn_args_slice.ptr + dep_i)
+                p_ident := tbl.lhs(p_arg)
+                if (p_ident != hir_none()) and (tbl.lhs(p_ident) == p_name) {
+                    if dep_i < args.len {
+                        arg_node := *(args.ptr + dep_i)
+                        c_val := eval_const(db, arg_node)
+                        if (c_val == 0) and (tbl.kind(arg_node) != hir_kind.lit_int) {
+                            print(c"\n[type error] expected compile-time constant argument\n       --> ")
+                            db.print_loc(arg_node)
+                            print(c"\n")
+                            fall()
+                        }
+                        elem_node := tbl.rhs(ret_hir_id)
+                        elem_ty := synth_type_node(eng, elem_node)
+                        final_ret = types_ptr.alloc_array(elem_ty, c_val as u32)
+                    }
+                    break
+                }
+                dep_i = dep_i + 1
+            }
+        }
+    }
     ptr_m := 0 as &u32
     if mono_p_vec.len > 0 { ptr_m = mono_p_vec.ptr_at(0) }
     m_slice: Slice(u32) = .{ ptr: ptr_m, len: mono_p_vec.len }

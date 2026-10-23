@@ -480,6 +480,33 @@ CCodeGen :: struct {
         append_str(&self.struct_defs, Str.of("};\n\n"))
     }
 
+    define_array :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
+        i: u64 = 0
+        while i < self.emitted_structs.len {
+            if self.emitted_structs.get(i) == ty_id {
+                ret
+            }
+            i = i + 1
+        }
+        self.emitted_structs.push(ty_id)
+
+        a_name := TypeStorage.name(arena, ty_id)
+        self.decl_struct(a_name)
+
+        elem_ty := (&(*types)).get_array_type(ty_id)
+        elem_len := (&(*types)).get_array_len(ty_id)
+        elem_str := self.type_str(types, arena, elem_ty)
+
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"    ").str(elem_str).cstr(c" _v[").uint32(elem_len).cstr(c"];\n")
+
+        append_str(&self.struct_defs, Str.of("struct "))
+        append_str(&self.struct_defs, a_name)
+        append_str(&self.struct_defs, Str.of(" {\n"))
+        append_str(&self.struct_defs, fmt.as_str())
+        append_str(&self.struct_defs, Str.of("};\n\n"))
+    }
+
     finish :: fn(self &Self, pre Str) Str {
         out := String.new(self.arena)
 
@@ -557,7 +584,7 @@ CCodeGen :: struct {
             ret fmt.as_str()
         }
 
-        if (kind == TyKind.struct_) or (kind == TyKind.nominal) or (kind == TyKind.func) or (kind == TyKind.enum_) or (kind == TyKind.union_) {
+        if (kind == TyKind.struct_) or (kind == TyKind.nominal) or (kind == TyKind.func) or (kind == TyKind.enum_) or (kind == TyKind.union_) or (kind == TyKind.array) {
             ret TypeStorage.name(arena, ty_id)
         }
 
@@ -587,6 +614,10 @@ CCodeGen :: struct {
         fmt := Fmt.new(arena)
         fmt.uint32(val)
         fmt.as_str()
+    }
+
+    expr_float_from_int :: fn(self &Self, arena &Arena, val u32, ty_id u32) Str {
+        self.expr_int(arena, val)
     }
 
     expr_one :: fn(self &Self, arena &Arena) Str {
@@ -806,6 +837,42 @@ CCodeGen :: struct {
         fmt := Fmt.new(arena)
         fmt.char(40 as u8).str(value).char(91 as u8).str(index).char(93 as u8).char(41 as u8)
         fmt.as_str()
+    }
+
+    expr_array_index :: fn(self &Self, arena &Arena, value Str, index Str, elem_ty u32, is_ptr bool) Str {
+        fmt := Fmt.new(arena)
+        if is_ptr {
+            fmt.char(40 as u8).str(value).cstr(c"->_v[").str(index).cstr(c"])")
+        } else {
+            fmt.char(40 as u8).str(value).cstr(c"._v[").str(index).cstr(c"])")
+        }
+        fmt.as_str()
+    }
+
+    expr_slice_index :: fn(self &Self, arena &Arena, value Str, index Str, elem_ty u32, ptr_id u32) Str {
+        fmt := Fmt.new(arena)
+        fmt.char(40 as u8).str(value).cstr(c"._f").uint32(ptr_id).cstr(c"[").str(index).cstr(c"])")
+        fmt.as_str()
+    }
+
+    expr_ptr_index :: fn(self &Self, arena &Arena, value Str, index Str, elem_ty u32) Str {
+        fmt := Fmt.new(arena)
+        fmt.char(40 as u8).str(value).cstr(c"[").str(index).cstr(c"])")
+        fmt.as_str()
+    }
+
+    expr_array_init :: fn(self &Self, arena &Arena, arr_name Str, elems Str, elem_ty u32, count u32) Str {
+        fmt := Fmt.new(arena)
+        if count == 0 {
+            fmt.cstr(c"((").str(arr_name).cstr(c"){ 0 })")
+        } else {
+            fmt.cstr(c"((").str(arr_name).cstr(c"){ { ").str(elems).cstr(c" } })")
+        }
+        fmt.as_str()
+    }
+
+    expr_array_init_elem :: fn(self &Self, arena &Arena, val Str) Str {
+        val
     }
 
     append_list_item :: fn(self &Self, list &String, value Str, first bool) {

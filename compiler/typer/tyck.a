@@ -20,6 +20,7 @@ import synth_block, synth_if, synth_while, synth_for, synth_break_cont, synth_ma
 import synth_struct, synth_struct_init, synth_member from "./rules/struct"
 import synth_builtin_call from "./rules/builtin"
 import synth_enum from "./rules/enum"
+import synth_array_type, synth_array_init, synth_index from "./rules/array"
 import eval_const from "../lower"
 
 synth_node :: fn(eng &Engine, id u32) {
@@ -92,6 +93,10 @@ synth_node :: fn(eng &Engine, id u32) {
     if curr == k.k_macro {
         synth_macro(eng, id)
     }
+
+    if curr == k.array_init { synth_array_init(eng, id) }
+    if curr == k.index      { synth_index(eng, id) }
+    if curr == k.array      { synth_array_type(eng, id) }
 }
 
 synth_macro :: fn(eng &Engine, id u32) {
@@ -563,6 +568,32 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
             db.set_union_coerce(n, ty_id_none(), 0)
             (&(*db).unify).new_slot(n)
             n = n + 1
+        }
+        m_ret := db.types.func_return(mono_func_ty)
+        if db.types.kind(m_ret) == TyKind.array {
+            arr_len := db.types.get_array_len(m_ret)
+            ret_hir_id := (tbl).rhs(func_id)
+            if (ret_hir_id != hir_none()) and ((tbl).kind(ret_hir_id) == hir_kind.array) {
+                len_node := (tbl).lhs(ret_hir_id)
+                if (tbl).kind(len_node) == hir_kind.ident {
+                    p_name := (tbl).lhs(len_node)
+                    if args_list_id != hir_none() {
+                        fn_args := db.get_list(args_list_id)
+                        p_i: u64 = 0
+                        while p_i < fn_args.len {
+                            arg_node := *(fn_args.ptr + p_i)
+                            arg_ident := (tbl).lhs(arg_node)
+                            if (arg_ident != hir_none()) and ((tbl).lhs(arg_ident) == p_name) {
+                                db.set_const_val(arg_ident, arr_len as u64)
+                                db.set_const_val(arg_node, arr_len as u64)
+                                db.set_is_const(arg_ident, true)
+                                db.set_is_const(arg_node, true)
+                            }
+                            p_i = p_i + 1
+                        }
+                    }
+                }
+            }
         }
         type_check(eng, func_id + 1, body_id + 1)
     }

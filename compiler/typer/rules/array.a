@@ -1,0 +1,199 @@
+import Engine from "../../engine"
+import Nexus from "../../nexus/nexus"
+import HirTable, hir_kind, hir_none from "../../hir"
+import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_error from "../../types"
+import slot_none from "../../unify"
+import Str from "std/string"
+import eval_const from "../../lower"
+import synth_node from "../tyck"
+import synth_type_node from "./var"
+import id_none from "../../nexus/pool"
+import fall from "std/sys"
+
+print :: fn(s &u8)
+
+synth_array_type_node :: fn(eng &Engine, id u32) u32 {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    types_ptr := &(*db).types
+    unify_ptr := &(*db).unify
+
+    len_node := tbl.lhs(id)
+    elem_node := tbl.rhs(id)
+    elem_ty := synth_type_node(eng, elem_node)
+    if elem_ty == ty_id_none() {
+        print(c"\n[type error] invalid array element type\n       --> ")
+        db.print_loc(elem_node)
+        print(c"\n")
+        fall()
+    }
+
+    synth_node(eng, len_node)
+    len_val := eval_const(db, len_node)
+    if len_val == 0 {
+        if tbl.kind(len_node) == hir_kind.ident {
+            sym := db.get_hir_symbol(len_node)
+            if sym != id_none() {
+                real_s := db.resolve_sym(sym)
+                if db.sym_tok_start.get(real_s) == id_none() {
+                    s := unify_ptr.tmp_slot()
+                    inf_ty := types_ptr.alloc_infer(s)
+                    db.set_const_type(id, inf_ty)
+                    ret inf_ty
+                }
+            }
+        }
+        print(c"\n[type error] array length must be a constant integer > 0\n       --> ")
+        db.print_loc(len_node)
+        print(c"\n")
+        fall()
+    }
+
+    arr_ty := types_ptr.alloc_array(elem_ty, len_val as u32)
+    db.set_const_type(id, arr_ty)
+    slot := unify_ptr.get_slot(id)
+    if slot == slot_none() {
+        slot = unify_ptr.new_slot(id)
+    }
+    unify_ptr.bind_type(types_ptr, slot, ty_id_type())
+    arr_ty
+}
+
+synth_array_type :: fn(eng &Engine, id u32) {
+    synth_array_type_node(eng, id)
+}
+
+synth_array_init :: fn(eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    types_ptr := &(*db).types
+    unify_ptr := &(*db).unify
+
+    list_id := tbl.lhs(id)
+    arr_slot := unify_ptr.new_slot(id)
+    elem_slot := unify_ptr.tmp_slot()
+    elem_infer_ty := types_ptr.alloc_infer(elem_slot)
+
+    if list_id == hir_none() {
+        arr_ty := types_ptr.alloc_array(elem_infer_ty, 0)
+        unify_ptr.bind_type(types_ptr, arr_slot, arr_ty)
+        db.set_const_type(id, arr_ty)
+        ret
+    }
+
+    elements := db.get_list(list_id)
+    len := elements.len as u32
+    i: u64 = 0
+    while i < elements.len {
+        elem_node := *(elements.ptr + i)
+        synth_node(eng, elem_node)
+        e_slot := unify_ptr.get_slot(elem_node)
+        if e_slot != slot_none() {
+            unify_ptr.union(types_ptr, elem_slot, e_slot)
+        }
+        i = i + 1
+    }
+
+    arr_ty := types_ptr.alloc_array(elem_infer_ty, len)
+    unify_ptr.bind_type(types_ptr, arr_slot, arr_ty)
+    db.set_const_type(id, arr_ty)
+}
+
+synth_index :: fn(eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    types_ptr := &(*db).types
+    unify_ptr := &(*db).unify
+
+    lhs := tbl.lhs(id)
+    idx := tbl.rhs(id)
+    synth_node(eng, lhs)
+    synth_node(eng, idx)
+
+    idx_slot := unify_ptr.get_slot(idx)
+    idx_ty := unify_ptr.resolve_type(idx_slot)
+    idx_k := types_ptr.kind(idx_ty)
+    if (idx_k != TyKind.int) and (idx_k != TyKind.uint) and (idx_k != TyKind.untyped_int) and (idx_k != TyKind.infer) {
+        print(c"\n[type error] array index must be an integer\n       --> ")
+        db.print_loc(idx)
+        print(c"\n")
+        fall()
+    }
+    if (idx_k == TyKind.untyped_int) or (idx_k == TyKind.infer) {
+        unify_ptr.bind_type(types_ptr, idx_slot, types_ptr.alloc_uint(64))
+    }
+
+    lhs_slot := unify_ptr.get_slot(lhs)
+    lhs_ty := unify_ptr.resolve_type(lhs_slot)
+    if (lhs_ty == ty_id_none()) or (types_ptr.kind(lhs_ty) == TyKind.infer) {
+        lhs_ty = unify_ptr.resolve_type_deep(types_ptr, lhs_slot)
+    }
+    if lhs_ty == ty_id_none() { lhs_ty = db.get_node_type(lhs) }
+    if lhs_ty == ty_id_none() { lhs_ty = db.get_const_type(lhs) }
+
+    k := types_ptr.kind(lhs_ty)
+    if k == TyKind.array {
+        elem_ty := types_ptr.get_array_type(lhs_ty)
+        arr_len := types_ptr.get_array_len(lhs_ty)
+        if db.has_const_val(idx) or (tbl.kind(idx) == hir_kind.lit_int) {
+            idx_val := eval_const(db, idx)
+            if idx_val >= (arr_len as u64) {
+                print(c"\n[type error] array index out of bounds\n       --> ")
+                db.print_loc(idx)
+                print(c"\n")
+                fall()
+            }
+        }
+        res_slot := unify_ptr.new_slot(id)
+        if types_ptr.kind(elem_ty) == TyKind.infer {
+            elem_s := types_ptr.infer_slot(elem_ty)
+            unify_ptr.union(types_ptr, res_slot, elem_s)
+        } else {
+            unify_ptr.bind_type(types_ptr, res_slot, elem_ty)
+        }
+        db.set_const_type(id, elem_ty)
+        ret
+    }
+
+    if k == TyKind.ptr {
+        elem_ty := types_ptr.payload(lhs_ty)
+        res_slot := unify_ptr.new_slot(id)
+        unify_ptr.bind_type(types_ptr, res_slot, elem_ty)
+        db.set_const_type(id, elem_ty)
+        ret
+    }
+
+    t := lhs_ty
+    while types_ptr.kind(t) == TyKind.nominal {
+        t = types_ptr.nominal_base(t)
+    }
+    if types_ptr.kind(t) == TyKind.struct_ {
+        ptr_name := db.interner.intern(Str.of("ptr"))
+        fields := types_ptr.get_struct_fields(t)
+        count := fields.len / 2
+        found_elem_ty := ty_id_none()
+        f_i: u64 = 0
+        while f_i < count {
+            f_name := *(fields.ptr + (f_i * 2))
+            if f_name == ptr_name {
+                f_ty := *(fields.ptr + (f_i * 2) + 1)
+                if types_ptr.kind(f_ty) == TyKind.ptr {
+                    found_elem_ty = types_ptr.payload(f_ty)
+                    break
+                }
+            }
+            f_i = f_i + 1
+        }
+        if found_elem_ty != ty_id_none() {
+            res_slot := unify_ptr.new_slot(id)
+            unify_ptr.bind_type(types_ptr, res_slot, found_elem_ty)
+            db.set_const_type(id, found_elem_ty)
+            ret
+        }
+    }
+
+    print(c"\n[type error] cannot index non-array type\n       --> ")
+    db.print_loc(lhs)
+    print(c"\n")
+    fall()
+}
