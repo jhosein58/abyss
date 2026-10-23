@@ -1,12 +1,56 @@
 import token from "../../token"
 import hir_kind, hir_none from "../../hir"
-import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core"
+import Parser, bump, optional, expect, peek, peek_n, is_eof, curr_span, prev_span, parse_error_at from "../core"
 import span_merge from "../../nexus/nexus"
 import id_none from "../../nexus/pool"
 import prec from "../prec"
 import span_of_hir, set_span, skip_separators, check_delimiter, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list from "./common"
 import parse_ident from "./ident"
 import parse_expr from "../parser"
+
+is_tuple_struct :: fn(p &Parser) bool {
+    t := token
+    c := p.cursor
+    while (c < p.end) and ((p.tokens.kind(c) == t.semi) or (p.tokens.kind(c) == t.comma)) {
+        c = c + 1
+    }
+    if (c >= p.end) or (p.tokens.kind(c) == t.c_brace) { ret false }
+
+    k0 := p.tokens.kind(c)
+    if k0 != t.ident { ret true }
+
+    if c + 1 >= p.end { ret false }
+    k1 := p.tokens.kind(c + 1)
+    if k1 == t.colon_colon { ret false }
+    if k1 == t.colon { ret false }
+    if (k1 == t.c_brace) or (k1 == t.semi) { ret true }
+
+    if k1 == t.comma {
+        scan := c + 2
+        while scan < p.end {
+            while (scan < p.end) and ((p.tokens.kind(scan) == t.semi) or (p.tokens.kind(scan) == t.comma)) {
+                scan = scan + 1
+            }
+            if scan >= p.end { ret false }
+            if p.tokens.kind(scan) == t.c_brace { ret true }
+            if p.tokens.kind(scan) != t.ident { ret true }
+            scan = scan + 1
+            if scan >= p.end { ret false }
+            k_next := p.tokens.kind(scan)
+            if k_next == t.comma {
+                scan = scan + 1
+                cont
+            }
+            if (k_next == t.c_brace) or (k_next == t.semi) {
+                ret true
+            }
+            ret false
+        }
+        ret false
+    }
+
+    false
+}
 
 parse_struct :: fn(p &Parser) u32 {
     t := token
@@ -26,37 +70,61 @@ parse_struct :: fn(p &Parser) u32 {
     struct_toplv := p.toplv_sym
     p.toplv_sym = id_none()
 
-    while (peek(p) != t.c_brace) and (not is_eof(p)) {
-        skip_separators(p)
-        if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
+    if is_tuple_struct(p) {
+        idx: u32 = 0
+        while (peek(p) != t.c_brace) and (not is_eof(p)) {
+            skip_separators(p)
+            if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
 
-        name := parse_ident(p)
-        if peek(p) == t.colon_colon {
-            ensure_type_node(p, &struct_node, k.struct_, struct_toplv)
-            parse_method(p, name, &methods)
-            cont
-        }
+            sp_ty := curr_span(p)
+            ty := parse_expr(p, prec().var_def + (1 as u8))
+            if ty == hir_none() {
+                parse_error_at(p, c"expected a tuple field type", sp_ty)
+            }
 
-        field_names.push(name)
-        while optional(p, t.comma) {
-            field_names.push(parse_ident(p))
-        }
+            f_name_id := p.db.tuple_field_name(idx)
+            f_ident := p.hir.push(k.ident, f_name_id, hir_none(), hir_none())
+            set_span(p, f_ident, sp_ty)
 
-        optional(p, t.colon)
-        ty := parse_expr(p, prec().var_def + (1 as u8))
-        if ty == hir_none() {
-            parse_error_at(p, c"expected a field type", curr_span(p))
-        }
-
-        f_i: u64 = 0
-        while f_i < field_names.len {
-            names.push(field_names.get(f_i))
+            names.push(f_ident)
             types.push(ty)
-            f_i = f_i + 1
-        }
-        field_names.clear()
+            idx = idx + 1
 
-        check_delimiter(p, c"expected ';' or newline between struct fields")
+            skip_separators(p)
+        }
+    } else {
+        while (peek(p) != t.c_brace) and (not is_eof(p)) {
+            skip_separators(p)
+            if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
+
+            name := parse_ident(p)
+            if peek(p) == t.colon_colon {
+                ensure_type_node(p, &struct_node, k.struct_, struct_toplv)
+                parse_method(p, name, &methods)
+                cont
+            }
+
+            field_names.push(name)
+            while optional(p, t.comma) {
+                field_names.push(parse_ident(p))
+            }
+
+            optional(p, t.colon)
+            ty := parse_expr(p, prec().var_def + (1 as u8))
+            if ty == hir_none() {
+                parse_error_at(p, c"expected a field type", curr_span(p))
+            }
+
+            f_i: u64 = 0
+            while f_i < field_names.len {
+                names.push(field_names.get(f_i))
+                types.push(ty)
+                f_i = f_i + 1
+            }
+            field_names.clear()
+
+            check_delimiter(p, c"expected ';' or newline between struct fields")
+        }
     }
 
     if is_eof(p) and (peek(p) != t.c_brace) {
@@ -86,16 +154,28 @@ parse_struct_init :: fn(p &Parser) u32 {
     fields := Vec(u32).new()
     values := Vec(u32).new()
 
+    tup_idx: u32 = 0
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
         skip_separators(p)
         if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
 
-        f := parse_ident(p)
-        expect(p, t.colon)
-        v := parse_expr(p, prec().var_def + (1 as u8))
-
-        fields.push(f)
-        values.push(v)
+        is_named := (peek(p) == t.ident) and (peek_n(p, 1) == t.colon)
+        if is_named {
+            f := parse_ident(p)
+            expect(p, t.colon)
+            v := parse_expr(p, prec().var_def + (1 as u8))
+            fields.push(f)
+            values.push(v)
+        } else {
+            sp_v := curr_span(p)
+            v := parse_expr(p, prec().var_def + (1 as u8))
+            f_name_id := p.db.tuple_field_name(tup_idx)
+            f := p.hir.push(k.ident, f_name_id, hir_none(), hir_none())
+            set_span(p, f, sp_v)
+            fields.push(f)
+            values.push(v)
+            tup_idx = tup_idx + 1
+        }
 
         skip_separators(p)
     }

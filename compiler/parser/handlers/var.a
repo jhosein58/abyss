@@ -1,10 +1,11 @@
 import token from "../../token"
 import hir_kind, hir_none from "../../hir"
-import Parser, optional, lookup_sym, curr_span, parse_error_at from "../core"
+import Parser, optional, expect, lookup_sym, curr_span, parse_error_at from "../core"
 import prec from "../prec"
 import span_merge from "../../nexus/nexus"
 import id_none from "../../nexus/pool"
-import span_of_hir, set_span from "./common"
+import span_of_hir, set_span, add_list from "./common"
+import parse_ident from "./ident"
 import parse_expr from "../parser"
 
 parse_binding :: fn(p &Parser, lhs u32, right_bp u8) u32 {
@@ -86,4 +87,42 @@ parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     set_span(p, var_id, span_merge(sp_lhs, sp_end))
     p.db.set_hir_symbol(var_id, sym_id)
     var_id
+}
+
+parse_destructure :: fn(p &Parser) u32 {
+    t := token
+    k := hir_kind
+    sp_start := curr_span(p)
+
+    idents := Vec(u32).new()
+
+    first := parse_ident(p)
+    idents.push(first)
+
+    while optional(p, t.comma) {
+        idents.push(parse_ident(p))
+    }
+
+    expect(p, t.colon)
+    expect(p, t.eq)
+
+    rhs := parse_expr(p, 0 as u8)
+    sp_end := span_of_hir(p, rhs)
+
+    i: u64 = 0
+    while i < idents.len {
+        id_node := idents.get(i)
+        name_id := p.hir.lhs(id_node)
+        sym_id := p.db.alloc_local_symbol(p.file_id, name_id, id_node)
+        p.env.define(name_id, sym_id)
+        p.db.set_hir_symbol(id_node, sym_id)
+        i = i + 1
+    }
+
+    list_id := add_list(p, &idents)
+    idents.destroy()
+
+    node := p.hir.push(k.destructure, list_id, hir_none(), rhs)
+    set_span(p, node, span_merge(sp_start, sp_end))
+    node
 }

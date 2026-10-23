@@ -12,7 +12,7 @@ import parse_ident from "./handlers/ident"
 import parse_if, parse_while, parse_for, parse_block, parse_return, parse_break, parse_cont from "./handlers/control"
 import parse_unary, parse_binary, parse_assign from "./handlers/op"
 import parse_paren, parse_call, parse_fn from "./handlers/fn"
-import parse_binding, parse_var_decl from "./handlers/var"
+import parse_binding, parse_var_decl, parse_destructure from "./handlers/var"
 import parse_struct, parse_struct_init, parse_member from "./handlers/struct"
 import parse_builtin from "./handlers/builtin"
 import parse_enum from "./handlers/enum"
@@ -44,6 +44,33 @@ parse_expr :: fn(p &Parser, min_bp u8) u32 {
     lhs
 }
 
+is_destructure_start :: fn(p &Parser) bool {
+    t := token
+    c := p.cursor
+    if p.tokens.kind(c) != t.ident { ret false }
+    if c + 1 >= p.end { ret false }
+    if p.tokens.kind(c + 1) != t.comma { ret false }
+    scan := c + 2
+    while scan < p.end {
+        if p.tokens.kind(scan) != t.ident { ret false }
+        scan = scan + 1
+        if scan >= p.end { ret false }
+        k := p.tokens.kind(scan)
+        if k == t.comma {
+            scan = scan + 1
+            cont
+        }
+        if k == t.colon {
+            if (scan + 1 < p.end) and (p.tokens.kind(scan + 1) == t.eq) {
+                ret true
+            }
+            ret false
+        }
+        ret false
+    }
+    false
+}
+
 dispatch_prefix :: fn(p &Parser, min_bp u8) u32 {
     t := token
     tk := peek(p)
@@ -58,7 +85,12 @@ dispatch_prefix :: fn(p &Parser, min_bp u8) u32 {
     if tk == t.kw_true    { ret parse_true(p) }
     if tk == t.kw_false   { ret parse_false(p) }
 
-    if tk == t.ident      { ret parse_ident(p) }
+    if tk == t.ident {
+        if is_destructure_start(p) {
+            ret parse_destructure(p)
+        }
+        ret parse_ident(p)
+    }
     if tk == t.o_paren    { ret parse_paren(p) }
     if tk == t.o_brace    { ret parse_block(p) }
 

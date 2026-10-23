@@ -416,6 +416,11 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec
     db := &eng.nexus
     kind := types.kind(ty)
 
+    if not is_instantiate {
+        if kind == TyKind.untyped_int { ret types.alloc_int(32) }
+        if kind == TyKind.untyped_float { ret types.alloc_float(64) }
+    }
+
     if kind == TyKind.infer {
         if is_instantiate {
             slot := types.infer_slot(ty)
@@ -456,6 +461,25 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec
         len := types.get_array_len(ty)
         res_inner := transform_type(eng, inner, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
         ret types.alloc_array(res_inner, len)
+    }
+
+    if kind == TyKind.struct_ {
+        fields := types.get_struct_fields(ty)
+        count := fields.len / 2
+        fields_vec := Vec(u32).new()
+        i: u64 = 0
+        while i < count {
+            fields = types.get_struct_fields(ty)
+            f_name := *(fields.ptr + (i * 2))
+            f_ty := *(fields.ptr + (i * 2) + 1)
+            new_f_ty := transform_type(eng, f_ty, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+            fields_vec.push(f_name)
+            fields_vec.push(new_f_ty)
+            i = i + 1
+        }
+        res := types.alloc_struct(fields_vec.as_slice())
+        fields_vec.destroy()
+        ret res
     }
 
     if kind == TyKind.func {

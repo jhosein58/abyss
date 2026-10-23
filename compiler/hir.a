@@ -84,7 +84,8 @@ HirExprKind :: enum u8 {
     enum_,
     lit_cstr,
     k_cmpt,
-    k_macro
+    k_macro,
+    destructure
 }
 
 hir_kind :: HirExprKind
@@ -166,6 +167,7 @@ hir_kind_name :: fn(kind HirExprKind) Str {
         enum_                 { "Enum"          }
         k_cmpt                { "Cmpt"          }
         k_macro               { "Macro"         }
+        destructure           { "Destructure"   }
     }
 }
 

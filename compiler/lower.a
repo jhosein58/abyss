@@ -366,6 +366,50 @@ lower_expr_node :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, emp
             add_type_to_queue(db, var_ty, type_queue)
             ret empty
         }
+        destructure {
+            rhs_node := db.hir.extra(id)
+            rhs_val := lower_expr(db, ccg, builder, empty, arena, rhs_node, visited, queue, type_queue)
+            if not ccg.has_value(rhs_val) {
+                print(c"\n[codegen error] initializer does not produce a value\n       --> ")
+                db.print_loc(id)
+                print(c"\n")
+                fall()
+            }
+            rhs_ty := db.get_node_type(rhs_node)
+            add_type_to_queue(db, rhs_ty, type_queue)
+            rhs_ty_str := ccg.type_str(&db.types, arena, rhs_ty)
+
+            temp_tup := ccg.new_temp(arena, rhs_ty_str)
+            ccg.expr(ccg.expr_assign(arena, temp_tup, rhs_val))
+
+            idents_list := db.hir.lhs(id)
+            idents := db.get_list(idents_list)
+            i: u64 = 0
+            while i < idents.len {
+                ident_node := *(idents.ptr + i)
+                sym_id := db.get_hir_symbol(ident_node)
+                var_ty := db.get_node_type(ident_node)
+                if (var_ty == ty_id_type()) or db.types.func_has_type_param(var_ty) {
+                    i = i + 1
+                    cont
+                }
+                if db.types.kind(var_ty) == TyKind.unit {
+                    print(c"\n[type error] variable cannot have void type\n       --> ")
+                    db.print_loc(id)
+                    print(c"\n")
+                    fall()
+                }
+                add_type_to_queue(db, var_ty, type_queue)
+                ty_str := ccg.type_str(&db.types, arena, var_ty)
+                var_name := ccg.sym_name(arena, sym_id)
+
+                f_name_id := db.tuple_field_name(i as u32)
+                f_val := ccg.expr_member(arena, temp_tup, 0, f_name_id)
+                ccg.create_variable(var_name, ty_str, f_val, true)
+                i = i + 1
+            }
+            ret empty
+        }
         binary_assign {
             lhs_str := lower_expr(db, ccg, builder, empty, arena, db.hir.lhs(id), visited, queue, type_queue)
             rhs_str := lower_expr(db, ccg, builder, empty, arena, db.hir.rhs(id), visited, queue, type_queue)

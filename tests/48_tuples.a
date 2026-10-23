@@ -1,0 +1,124 @@
+import print as emit from "std/io.a"
+import Str from "std/string"
+
+Pair :: struct { i32, Str }
+
+make_pair :: fn(x i32, s Str) struct { i32, Str } {
+    .{ x, s }
+}
+
+make_triplet :: fn(a i32, b bool, c Str) struct { i32, bool, Str } {
+    .{ a, b, c }
+}
+
+swap :: fn(T type, U type, t struct { T, U }) struct { U, T } {
+    .{ t._1, t._0 }
+}
+
+project_first :: fn(T type, U type, t struct { T, U }) T {
+    t._0
+}
+
+bump_and_make :: fn(c &i32) struct { i32, i32 } {
+    *c = *c + 1
+    .{ *c, *c * 10 }
+}
+
+main :: fn() {
+    t1 := .{ 100, 200 }
+    emit(t1._0)
+    emit(" ")
+    emit(t1._1)
+    emit("\n")
+
+    p1: Pair = .{ 42, "hello" }
+    t2: struct { i32, Str } = p1
+    emit(t2._0)
+    emit(" ")
+    emit(t2._1)
+    emit("\n")
+
+    p2: Pair = t2
+    emit(p2._0)
+    emit(" ")
+    emit(p2._1)
+    emit("\n")
+
+    v1, v2 := make_pair(777, "destructured")
+    emit(v1)
+    emit(" ")
+    emit(v2)
+    emit("\n")
+
+    d1, d2, d3 := make_triplet(99, true, "triplet")
+    emit(d1)
+    emit(" ")
+    emit(d2)
+    emit(" ")
+    emit(d3)
+    emit("\n")
+
+    x1, x2 := p1
+    emit(x1)
+    emit(" ")
+    emit(x2)
+    emit("\n")
+
+    s_res, i_res := swap(i32, Str, .{ 50, "world" })
+    emit(s_res)
+    emit(" ")
+    emit(i_res)
+    emit("\n")
+
+    first_val := project_first(Str, i32, .{ "first_val", 123 })
+    emit(first_val)
+    emit("\n")
+
+    nested := .{ 1, .{ 2, 3 }, 4 }
+    emit(nested._0)
+    emit(" ")
+    emit(nested._1._0)
+    emit(" ")
+    emit(nested._1._1)
+    emit(" ")
+    emit(nested._2)
+    emit("\n")
+
+    na, nb, nc := nested
+    nx, ny := nb
+    emit(na)
+    emit(" ")
+    emit(nx)
+    emit(" ")
+    emit(ny)
+    emit(" ")
+    emit(nc)
+    emit("\n")
+
+    arr: [2]struct { i32, i32 } = .[ .{ 10, 20 }, .{ 30, 40 } ]
+    arr_0 := arr[0]
+    emit(arr_0._0)
+    emit(" ")
+    emit(arr_0._1)
+    emit("\n")
+
+    elem0, elem1 := arr[1]
+    emit(elem0)
+    emit(" ")
+    emit(elem1)
+    emit("\n")
+
+    counter: i32 = 0
+    loop_i: i32 = 0
+    while loop_i < 3 {
+        k1, k2 := bump_and_make(&counter)
+        emit(k1)
+        emit(":")
+        emit(k2)
+        emit(" ")
+        loop_i = loop_i + 1
+    }
+    emit("\n")
+    emit(counter)
+    emit("\n")
+}

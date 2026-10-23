@@ -374,6 +374,59 @@ Nexus :: struct {
         self.sym_resolving.set_safe(sym_id, val, 0)
     }
 
+    tuple_field_name :: fn(self &Self, idx u32) u32 {
+        if idx == 0 { ret self.interner.intern(Str.of("_0")) }
+        if idx == 1 { ret self.interner.intern(Str.of("_1")) }
+        if idx == 2 { ret self.interner.intern(Str.of("_2")) }
+        if idx == 3 { ret self.interner.intern(Str.of("_3")) }
+        if idx == 4 { ret self.interner.intern(Str.of("_4")) }
+        if idx == 5 { ret self.interner.intern(Str.of("_5")) }
+        if idx == 6 { ret self.interner.intern(Str.of("_6")) }
+        if idx == 7 { ret self.interner.intern(Str.of("_7")) }
+        if idx == 8 { ret self.interner.intern(Str.of("_8")) }
+        if idx == 9 { ret self.interner.intern(Str.of("_9")) }
+        if idx == 10 { ret self.interner.intern(Str.of("_10")) }
+        if idx == 11 { ret self.interner.intern(Str.of("_11")) }
+        if idx == 12 { ret self.interner.intern(Str.of("_12")) }
+        if idx == 13 { ret self.interner.intern(Str.of("_13")) }
+        if idx == 14 { ret self.interner.intern(Str.of("_14")) }
+        if idx == 15 { ret self.interner.intern(Str.of("_15")) }
+
+        buf := self.comptime_arena.alloc(32) as &u8
+        *buf = 95 as u8
+        temp := idx
+        rev_buf := self.comptime_arena.alloc(16) as &u8
+        d_count: u64 = 0
+        while temp > 0 {
+            *(rev_buf + d_count) = ((temp % 10) + 48) as u8
+            temp = temp / 10
+            d_count = d_count + 1
+        }
+        len: u64 = 1
+        while d_count > 0 {
+            d_count = d_count - 1
+            *(buf + len) = *(rev_buf + d_count)
+            len = len + 1
+        }
+        s: Str = .{ ptr: buf, len: len }
+        self.interner.intern(s)
+    }
+
+    is_tuple_name :: fn(self &Self, name_id u32) bool {
+        if name_id == id_none() { ret false }
+        name := self.interner.get(name_id)
+        if name.len < 2 { ret false }
+        (*(name.ptr) == (95 as u8)) and (*(name.ptr + 1) >= (48 as u8)) and (*(name.ptr + 1) <= (57 as u8))
+    }
+
+    init_tuple_names :: fn(self &Self) {
+        i: u32 = 0
+        while i < 16 {
+            self.tuple_field_name(i)
+            i = i + 1
+        }
+    }
+
     is_sym_resolving :: fn(self &Self, sym_id u32) bool {
         if sym_id >= self.sym_resolving.count() { ret false }
         self.sym_resolving.get(sym_id) == 1

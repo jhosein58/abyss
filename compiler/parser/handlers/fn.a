@@ -46,7 +46,8 @@ parse_params :: fn(p &Parser) u32 {
     while (peek(p) != t.c_paren) and (not is_eof(p)) {
         is_type_token := (peek(p) == t.amp) or (peek(p) == t.star) or
                          (peek(p) == t.o_bracket) or (peek(p) == t.at) or
-                         (peek(p) == t.kw_fn)
+                         (peek(p) == t.kw_fn) or (peek(p) == t.kw_struct) or
+                         (peek(p) == t.kw_enum)
 
         if is_type_token {
             ty := parse_expr(p, prec().var_def + (1 as u8))
@@ -67,7 +68,8 @@ parse_params :: fn(p &Parser) u32 {
         next_tk := peek(p)
         has_explicit_type := (next_tk == t.ident) or (next_tk == t.amp) or
                              (next_tk == t.star) or (next_tk == t.o_bracket) or
-                             (next_tk == t.at) or (next_tk == t.kw_fn)
+                             (next_tk == t.at) or (next_tk == t.kw_fn) or
+                             (next_tk == t.kw_struct) or (next_tk == t.kw_enum)
 
         if has_explicit_type {
             ty := parse_expr(p, prec().var_def + (1 as u8))

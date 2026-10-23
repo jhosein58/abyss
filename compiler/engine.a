@@ -24,10 +24,12 @@ Engine :: struct {
     file_count    u32
 
     new :: fn(arena &Arena) Self {
-        .{
+        res: Self = .{
             nexus         : Nexus.new(),
             file_count    : 0
         }
+        res.nexus.init_tuple_names()
+        res
     }
 
     destroy :: fn(self &Self) {

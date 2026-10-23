@@ -1,7 +1,7 @@
 import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../../hir"
 import Str from "std/string"
-import TypeStorage, TyKind, ty_id_none, ty_id_type from "../../types"
+import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_unit from "../../types"
 import slot_none from "../../unify"
 import id_none from "../../nexus/pool"
 import Engine from "../../engine"
@@ -226,10 +226,18 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
             }
             named := structural
             if kind == TyKind.struct_ {
-                name_id := tbl.lhs(ident_id)
-                name := db.interner.get(name_id)
-                named = types_ptr.alloc_nominal(structural, name, id)
-                db.set_const_type(value_id, named)
+                is_tuple := false
+                fields := types_ptr.get_struct_fields(structural)
+                if fields.len > 0 {
+                    first_name_id := *(fields.ptr + 0)
+                    is_tuple = db.is_tuple_name(first_name_id)
+                }
+                if not is_tuple {
+                    name_id := tbl.lhs(ident_id)
+                    name := db.interner.get(name_id)
+                    named = types_ptr.alloc_nominal(structural, name, id)
+                    db.set_const_type(value_id, named)
+                }
             }
             db.set_const_type(ident_id, named)
             db.set_const_type(id, named)
@@ -311,4 +319,82 @@ synth_arg :: fn(db &Nexus, tbl &HirTable, id u32) {
             }
         }
     }
+}
+
+synth_destructure :: fn(eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    unify_ptr := &(*db).unify
+    types_ptr := &(*db).types
+
+    rhs_node := (tbl).extra(id)
+    synth_node(eng, rhs_node)
+
+    rhs_slot := (unify_ptr).get_slot(rhs_node)
+    rhs_ty := ty_id_none()
+    if rhs_slot != slot_none() {
+        rhs_ty = (unify_ptr).resolve_type_deep(types_ptr, rhs_slot)
+    }
+    if rhs_ty == ty_id_none() {
+        rhs_ty = db.get_node_type(rhs_node)
+    }
+
+    t := rhs_ty
+    while (*types_ptr).kind(t) == TyKind.nominal {
+        t = (*types_ptr).nominal_base(t)
+    }
+
+    if (*types_ptr).kind(t) != TyKind.struct_ {
+        print(c"\n\033[1;31m[type error]\033[0m expected tuple on right-hand side of destructuring\n       --> ")
+        db.print_loc(rhs_node)
+        print(c"\n")
+        fall()
+    }
+
+    fields := (*types_ptr).get_struct_fields(t)
+    field_count := fields.len / 2
+
+    idents_list := (tbl).lhs(id)
+    idents := db.get_list(idents_list)
+
+    if idents.len != field_count {
+        print(c"\n\033[1;31m[type error]\033[0m mismatched number of elements in tuple destructuring\n       --> ")
+        db.print_loc(id)
+        print(c"\n")
+        fall()
+    }
+
+    i: u64 = 0
+    while i < idents.len {
+        ident_node := *(idents.ptr + i)
+        f_name_id := db.tuple_field_name(i as u32)
+
+        f_ty := ty_id_none()
+        f_i: u64 = 0
+        while f_i < field_count {
+            fn_id := *(fields.ptr + (f_i * 2))
+            if fn_id == f_name_id {
+                f_ty = *(fields.ptr + (f_i * 2) + 1)
+                break
+            }
+            f_i = f_i + 1
+        }
+
+        if f_ty == ty_id_none() {
+            f_ty = *(fields.ptr + (i * 2) + 1)
+        }
+
+        ident_slot := (unify_ptr).get_slot(ident_node)
+        if ident_slot == slot_none() {
+            ident_slot = (unify_ptr).new_slot(ident_node)
+        }
+        (unify_ptr).bind_type(types_ptr, ident_slot, f_ty)
+        db.set_const_type(ident_node, f_ty)
+
+        i = i + 1
+    }
+
+    destruct_slot := (unify_ptr).new_slot(id)
+    (unify_ptr).bind_type(types_ptr, destruct_slot, ty_id_unit())
+    db.set_const_type(id, ty_id_unit())
 }
