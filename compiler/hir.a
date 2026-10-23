@@ -83,7 +83,8 @@ HirExprKind :: enum u8 {
     builtin_call,
     enum_,
     lit_cstr,
-    k_cmpt
+    k_cmpt,
+    k_macro
 }
 
 hir_kind :: HirExprKind
@@ -164,6 +165,7 @@ hir_kind_name :: fn(kind HirExprKind) Str {
         builtin_call          { "BuiltinCall"   }
         enum_                 { "Enum"          }
         k_cmpt                { "Cmpt"          }
+        k_macro               { "Macro"         }
     }
 }
 

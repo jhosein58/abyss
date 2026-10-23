@@ -99,7 +99,7 @@ synth_type_node :: fn(eng &Engine, id u32) u32 {
         ret db.get_const_type(id)
     }
 
-    if curr == k.k_cmpt {
+    if (curr == k.k_cmpt) or (curr == k.k_macro) {
         synth_node(eng, id)
         ret db.get_const_type(id)
     }

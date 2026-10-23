@@ -500,6 +500,13 @@ lower_expr_node :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, emp
             }
             ret ccg.expr_int(arena, val as u32)
         }
+        k_macro {
+            gen_id := db.hir.extra(id)
+            if gen_id != hir_none() {
+                ret lower_body(db, ccg, builder, empty, arena, gen_id, visited, queue, type_queue)
+            }
+            ret empty
+        }
         k_if {
             if_ty := db.get_node_type(id)
             elseb_id := db.hir.extra(id)
@@ -677,6 +684,11 @@ eval_const :: fn(db &Nexus, id u32) u64 {
         db.set_const_val(id, val)
         ret val
     }
+    if k == hir_kind.lit_str {
+        val := db.hir.lhs(id) as u64
+        db.set_const_val(id, val)
+        ret val
+    }
 
     if db.get_node_type(id) == ty_id_type() {
         c_ty := db.get_const_type(id)
@@ -692,6 +704,14 @@ eval_const :: fn(db &Nexus, id u32) u64 {
         val := eval_const(db, child)
         db.set_const_val(id, val)
         ret val
+    }
+    if k == hir_kind.k_macro {
+        gen_id := db.hir.extra(id)
+        if gen_id != hir_none() {
+            val := eval_const(db, gen_id)
+            db.set_const_val(id, val)
+            ret val
+        }
     }
 
     if k == hir_kind.ident {
@@ -763,6 +783,13 @@ eval_const :: fn(db &Nexus, id u32) u64 {
     queue := Vec(u32).new()
     type_queue := Vec(u32).new()
     res_val := lower_body(db, db.comptime_cg, &builder, VmVal.empty(), &db.comptime_arena, id, &visited, &queue, &type_queue)
+    if res_val.kind != VmValKind.none {
+        db.comptime_cg.ensure_on_stack(res_val)
+    } else {
+        db.comptime_cg.chunk.inst(OpCode.push_0)
+    }
+    db.comptime_cg.chunk.inst(OpCode.ret_val)
+
     for q_sym in Worklist(u32).new(&queue) {
         if visited.insert(q_sym) {
             lower_one_function(db as &Engine, db.comptime_cg, &builder, VmVal.empty(), &db.comptime_arena, q_sym, &visited, &queue, &type_queue)
@@ -772,12 +799,6 @@ eval_const :: fn(db &Nexus, id u32) u64 {
     queue.destroy()
     type_queue.destroy()
 
-    if res_val.kind != VmValKind.none {
-        db.comptime_cg.ensure_on_stack(res_val)
-    } else {
-        db.comptime_cg.chunk.inst(OpCode.push_0)
-    }
-    db.comptime_cg.chunk.inst(OpCode.ret_val)
     db.comptime_cg.finish_linking()
     res := db.comptime_vm.run(&db.comptime_cg.chunk, start_ip)
     db.set_const_val(id, res)

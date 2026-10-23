@@ -3,6 +3,11 @@ import TypeStorage, TyKind, ty_id_none, ty_id_type from "../types"
 import slot_none from "../unify"
 import id_none from "../nexus/pool"
 import fall from "std/sys"
+import Str from "std/string"
+import token, TokenStream from "../token"
+import lex from "../lexer"
+import Parser_new, is_eof, peek, bump from "../parser/core"
+import parse_expr from "../parser/parser"
 import Engine from "../engine"
 import synth_func, synth_return, synth_call from "./rules/fn"
 import resolve_ty_id from "./specialize"
@@ -82,6 +87,98 @@ synth_node :: fn(eng &Engine, id u32) {
 
     if curr == k.k_cmpt {
         synth_cmpt(eng, id)
+    }
+
+    if curr == k.k_macro {
+        synth_macro(eng, id)
+    }
+}
+
+synth_macro :: fn(eng &Engine, id u32) {
+    db := &(*eng).nexus
+    tbl := &(*db).hir
+    types_ptr := &(*db).types
+    unify_ptr := &(*db).unify
+
+    child := tbl.lhs(id)
+    slot := unify_ptr.new_slot(id)
+
+    synth_node(eng, child)
+    val := eval_const(db, child)
+    if val == 0 {
+        ret
+    }
+
+    buf_ptr := val as &u8
+    buf_len: u64 = 0
+    if tbl.kind(child) == hir_kind.lit_str {
+        raw := db.interner.get(val as u32)
+        buf_ptr = raw.ptr
+        buf_len = raw.len
+    } else {
+        buf_ptr = *(val as &&u8)
+        buf_len = *((val + 8) as &u64)
+    }
+
+    if buf_len == 0 {
+        ret
+    }
+    macro_src := Str.new(buf_ptr, buf_len)
+
+    tokens := TokenStream.new()
+    lex(&tokens, macro_src, Str.of("<macro>"))
+    tok_count := tokens.count() as u32
+    if tok_count > 1 {
+        tok_count = tok_count - 1
+    }
+    fid := db.get_hir_file(id)
+    sub_p := Parser_new(db, &tokens, tbl, fid, 0, 0, tok_count)
+    n: u32 = 0
+    while n < id {
+        nk := tbl.kind(n)
+        if (nk == hir_kind.var) or (nk == hir_kind.binding) or (nk == hir_kind.arg) {
+            ident_node := tbl.lhs(n)
+            if tbl.kind(ident_node) == hir_kind.ident {
+                name_id := tbl.lhs(ident_node)
+                sym_id := db.get_hir_symbol(n)
+                if sym_id != id_none() {
+                    sub_p.env.define(name_id, sym_id)
+                }
+            }
+        }
+        n = n + 1
+    }
+
+    node_start := tbl.len()
+    parsed_node := parse_expr(&sub_p, 0 as u8)
+    node_end := tbl.len()
+    sub_p.env.destroy()
+    tokens.destroy()
+
+    if parsed_node != hir_none() {
+        tbl.set_extra(id, parsed_node)
+        macro_sp := db.get_hir_span(id)
+        prepare_match_bindings(eng, node_start, node_end)
+        m_idx := node_start
+        while m_idx < node_end {
+            sp := db.get_hir_span(m_idx)
+            if (sp.start == 0) and (sp.end == 0) {
+                db.set_hir_span(m_idx, macro_sp.start, macro_sp.end)
+                db.set_hir_file(m_idx, fid)
+            }
+            synth_node(eng, m_idx)
+            m_idx = m_idx + 1
+        }
+        parsed_slot := unify_ptr.get_slot(parsed_node)
+        if parsed_slot != slot_none() {
+            unify_ptr.union(types_ptr, slot, parsed_slot)
+        }
+        if db.has_const_val(parsed_node) {
+            db.set_const_val(id, db.get_const_val(parsed_node))
+        }
+        if db.is_const(parsed_node) {
+            db.set_is_const(id, true)
+        }
     }
 }
 

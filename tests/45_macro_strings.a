@@ -1,0 +1,56 @@
+import print from "std/io.a"
+
+make_expr :: fn() Str {
+    "40 + 2"
+}
+
+get_op :: fn(add bool) Str {
+    if add {
+        "100 + 50"
+    } else {
+        "100 - 50"
+    }
+}
+
+make_block :: fn() Str {
+    "{\n        a := 10\n        b := 20\n        a * b\n    }"
+}
+
+main :: fn() {
+    v1 := #("10 + 20")
+    print(v1)
+    print("\n")
+
+    v2 := #"30 * 2"
+    print(v2)
+    print("\n")
+
+    x := 5
+    v3 := #("x + 100")
+    print(v3)
+    print("\n")
+
+    v4 := #make_expr()
+    print(v4)
+    print("\n")
+
+    v5 := #(make_expr())
+    print(v5)
+    print("\n")
+
+    v6 := #get_op(true)
+    print(v6)
+    print("\n")
+
+    v7 := #get_op(false)
+    print(v7)
+    print("\n")
+
+    v8 := #make_block()
+    print(v8)
+    print("\n")
+
+    v9 := 100 + #("50 * 2")
+    print(v9)
+    print("\n")
+}
