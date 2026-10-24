@@ -19,7 +19,7 @@ A statically typed, data-oriented systems programming language. Pairs modern erg
 ## Code at a Glance
 
 <p align="center">
-  <img src="assets/code-preview.svg" alt="Abyss Code Preview" width="100%" />
+  <img src="assets/code-preview.svg?v=2" alt="Abyss Code Preview" width="100%" />
 </p>
 
 <details>
