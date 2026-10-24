@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 770" width="100%" height="100%" style="background: transparent; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">
+  <defs>
+    <radialGradient id="abyss-glow-1" cx="20%" cy="15%" r="60%">
+      <stop offset="0%" stop-color="#00f5ff" stop-opacity="0.14" />
+      <stop offset="100%" stop-color="#00f5ff" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="abyss-glow-2" cx="80%" cy="85%" r="65%">
+      <stop offset="0%" stop-color="#7928ca" stop-opacity="0.16" />
+      <stop offset="100%" stop-color="#7928ca" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="card-border" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f5ff" stop-opacity="0.45" />
+      <stop offset="50%" stop-color="#3b82f6" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0.35" />
+    </linearGradient>
+    <linearGradient id="header-line" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f5ff" stop-opacity="0.25" />
+      <stop offset="50%" stop-color="#38bdf8" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0.2" />
+    </linearGradient>
+    <filter id="card-shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#020617" flood-opacity="0.8" />
+      <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#00f5ff" flood-opacity="0.06" />
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="880" height="770" fill="url(#abyss-glow-1)" />
+  <rect x="0" y="0" width="880" height="770" fill="url(#abyss-glow-2)" />
+  <rect x="40" y="30" width="800" height="710" rx="16" ry="16" fill="#080d1a" fill-opacity="0.9" stroke="url(#card-border)" stroke-width="1.2" filter="url(#card-shadow)" />
+  <circle cx="70" cy="62" r="6" fill="#ff5f56" />
+  <circle cx="90" cy="62" r="6" fill="#ffbd2e" />
+  <circle cx="110" cy="62" r="6" fill="#27c93f" />
+  <text x="440" y="66" fill="#64748b" font-size="12" font-weight="600" text-anchor="middle" letter-spacing="0.5">main.a — Abyss</text>
+  <rect x="735" y="52" width="75" height="20" rx="10" fill="#0369a1" fill-opacity="0.25" stroke="#38bdf8" stroke-opacity="0.3" stroke-width="0.8" />
+  <text x="772" y="66" fill="#38bdf8" font-size="10.5" font-weight="700" text-anchor="middle" letter-spacing="0.5">v0.15.0</text>
+  <line x1="40" y1="88" x2="840" y2="88" stroke="url(#header-line)" stroke-width="1" />
+  <text x="72" y="120" fill="#334155" font-size="12" text-anchor="end" font-weight="500">1</text>
+  <text x="96" y="120" font-size="13.5" font-weight="500"><tspan fill="#f43f5e">import</tspan>&#160;<tspan fill="#c084fc">print</tspan><tspan fill="#94a3b8">,&#160;</tspan><tspan fill="#c084fc">printf</tspan>&#160;<tspan fill="#f43f5e">from</tspan>&#160;<tspan fill="#34d399">"std/io"</tspan></text>
+  <text x="72" y="142" fill="#334155" font-size="12" text-anchor="end" font-weight="500">2</text>
+  <text x="72" y="164" fill="#334155" font-size="12" text-anchor="end" font-weight="500">3</text>
+  <text x="96" y="164" font-size="13.5" font-weight="500"><tspan fill="#38bdf8">Point</tspan><tspan fill="#94a3b8">&#160;::&#160;</tspan><tspan fill="#f43f5e">struct</tspan><tspan fill="#94a3b8">&#160;{</tspan></text>
+  <text x="72" y="186" fill="#334155" font-size="12" text-anchor="end" font-weight="500">4</text>
+  <text x="96" y="186" font-size="13.5" font-weight="500"><tspan fill="#f1f5f9">&#160;&#160;&#160;&#160;x</tspan><tspan fill="#94a3b8">,&#160;</tspan><tspan fill="#f1f5f9">y</tspan>&#160;<tspan fill="#38bdf8">i32</tspan></text>
+  <text x="72" y="208" fill="#334155" font-size="12" text-anchor="end" font-weight="500">5</text>
+  <text x="72" y="230" fill="#334155" font-size="12" text-anchor="end" font-weight="500">6</text>
+  <text x="96" y="230" font-size="13.5" font-weight="500"><tspan fill="#c084fc">&#160;&#160;&#160;&#160;dist_sq</tspan><tspan fill="#94a3b8">&#160;::&#160;</tspan><tspan fill="#f43f5e">fn</tspan><tspan fill="#f1f5f9">(self&#160;</tspan><tspan fill="#38bdf8">&amp;Self</tspan><tspan fill="#f1f5f9">)&#160;</tspan><tspan fill="#38bdf8">i32</tspan><tspan fill="#94a3b8">&#160;{</tspan></text>
+  <text x="72" y="252" fill="#334155" font-size="12" text-anchor="end" font-weight="500">7</text>
+  <text x="96" y="252" font-size="13.5" font-weight="500"><tspan fill="#f1f5f9">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;self.x&#160;</tspan><tspan fill="#38bdf8">*</tspan><tspan fill="#f1f5f9">&#160;self.x&#160;</tspan><tspan fill="#38bdf8">+</tspan><tspan fill="#f1f5f9">&#160;self.y&#160;</tspan><tspan fill="#38bdf8">*</tspan><tspan fill="#f1f5f9">&#160;self.y</tspan></text>
+  <text x="72" y="274" fill="#334155" font-size="12" text-anchor="end" font-weight="500">8</text>
+  <text x="96" y="274" font-size="13.5" font-weight="500"><tspan fill="#94a3b8">&#160;&#160;&#160;&#160;}</tspan></text>
+  <text x="72" y="296" fill="#334155" font-size="12" text-anchor="end" font-weight="500">9</text>
+  <text x="96" y="296" font-size="13.5" font-weight="500"><tspan fill="#94a3b8">}</tspan></text>
+  <text x="72" y="318" fill="#334155" font-size="12" text-anchor="end" font-weight="500">10</text>
+  <text x="72" y="340" fill="#334155" font-size="12" text-anchor="end" font-weight="500">11</text>
+  <text x="96" y="340" font-size="13.5" font-weight="500"><tspan fill="#38bdf8">TypeByCond</tspan><tspan fill="#94a3b8">&#160;::&#160;</tspan><tspan fill="#f43f5e">fn</tspan><tspan fill="#f1f5f9">(cond&#160;</tspan><tspan fill="#38bdf8">bool</tspan><tspan fill="#f1f5f9">)&#160;</tspan><tspan fill="#f43f5e">type</tspan><tspan fill="#94a3b8">&#160;{</tspan></text>
+  <text x="72" y="362" fill="#334155" font-size="12" text-anchor="end" font-weight="500">12</text>
+  <text x="96" y="362" font-size="13.5" font-weight="500"><tspan fill="#f43f5e">&#160;&#160;&#160;&#160;if</tspan><tspan fill="#f1f5f9">&#160;cond&#160;{&#160;</tspan><tspan fill="#38bdf8">i32</tspan><tspan fill="#f1f5f9">&#160;}&#160;</tspan><tspan fill="#f43f5e">else</tspan><tspan fill="#f1f5f9">&#160;{&#160;</tspan><tspan fill="#38bdf8">f32</tspan><tspan fill="#94a3b8">&#160;}</tspan></text>
+  <text x="72" y="384" fill="#334155" font-size="12" text-anchor="end" font-weight="500">13</text>
+  <text x="96" y="384" font-size="13.5" font-weight="500"><tspan fill="#94a3b8">}</tspan></text>
+  <text x="72" y="406" fill="#334155" font-size="12" text-anchor="end" font-weight="500">14</text>
+  <text x="72" y="428" fill="#334155" font-size="12" text-anchor="end" font-weight="500">15</text>
+  <text x="96" y="428" font-size="13.5" font-weight="500"><tspan fill="#c084fc">main</tspan><tspan fill="#94a3b8">&#160;::&#160;</tspan><tspan fill="#f43f5e">fn</tspan><tspan fill="#94a3b8">()&#160;{</tspan></text>
+  <text x="72" y="450" fill="#334155" font-size="12" text-anchor="end" font-weight="500">16</text>
+  <text x="96" y="450" font-size="13.5" font-weight="500"><tspan fill="#f1f5f9">&#160;&#160;&#160;&#160;p:&#160;</tspan><tspan fill="#38bdf8">Point</tspan><tspan fill="#f1f5f9">&#160;=&#160;.{&#160;x:&#160;</tspan><tspan fill="#fb923c">3</tspan><tspan fill="#f1f5f9">,&#160;y:&#160;</tspan><tspan fill="#fb923c">4</tspan><tspan fill="#94a3b8">&#160;}</tspan></text>
+  <text x="72" y="472" fill="#334155" font-size="12" text-anchor="end" font-weight="500">17</text>
+  <text x="96" y="472" font-size="13.5" font-weight="500"><tspan fill="#c084fc">&#160;&#160;&#160;&#160;printf</tspan><tspan fill="#34d399">("Point&#160;({},&#160;{}),&#160;dist_sq&#160;=&#160;{}\n"</tspan><tspan fill="#f1f5f9">,&#160;.{p.x,&#160;p.y,&#160;p.</tspan><tspan fill="#c084fc">dist_sq</tspan><tspan fill="#f1f5f9">()})</tspan></text>
+  <text x="72" y="494" fill="#334155" font-size="12" text-anchor="end" font-weight="500">18</text>
+  <text x="72" y="516" fill="#334155" font-size="12" text-anchor="end" font-weight="500">19</text>
+  <text x="96" y="516" font-size="13.5" font-weight="500"><tspan fill="#f1f5f9">&#160;&#160;&#160;&#160;val&#160;:=&#160;</tspan><tspan fill="#f43f5e">cmpt</tspan><tspan fill="#94a3b8">&#160;{</tspan></text>
+  <text x="72" y="538" fill="#334155" font-size="12" text-anchor="end" font-weight="500">20</text>
+  <text x="96" y="538" font-size="13.5" font-weight="500"><tspan fill="#f1f5f9">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;base&#160;:=&#160;</tspan><tspan fill="#fb923c">20</tspan></text>
+  <text x="72" y="560" fill="#334155" font-size="12" text-anchor="end" font-weight="500">21</text>
+  <text x="96" y="560" font-size="13.5" font-weight="500"><tspan fill="#f1f5f9">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;base&#160;</tspan><tspan fill="#38bdf8">*</tspan>&#160;<tspan fill="#fb923c">2</tspan><tspan fill="#38bdf8">&#160;+&#160;</tspan><tspan fill="#fb923c">2</tspan></text>
+  <text x="72" y="582" fill="#334155" font-size="12" text-anchor="end" font-weight="500">22</text>
+  <text x="96" y="582" font-size="13.5" font-weight="500"><tspan fill="#94a3b8">&#160;&#160;&#160;&#160;}</tspan></text>
+  <text x="72" y="604" fill="#334155" font-size="12" text-anchor="end" font-weight="500">23</text>
+  <text x="96" y="604" font-size="13.5" font-weight="500"><tspan fill="#c084fc">&#160;&#160;&#160;&#160;printf</tspan><tspan fill="#34d399">("Compile-time&#160;evaluated:&#160;{}\n"</tspan><tspan fill="#f1f5f9">,&#160;.{val})</tspan></text>
+  <text x="72" y="626" fill="#334155" font-size="12" text-anchor="end" font-weight="500">24</text>
+  <text x="72" y="648" fill="#334155" font-size="12" text-anchor="end" font-weight="500">25</text>
+  <text x="96" y="648" font-size="13.5" font-weight="500"><tspan fill="#f1f5f9">&#160;&#160;&#160;&#160;x:&#160;</tspan><tspan fill="#38bdf8">TypeByCond</tspan><tspan fill="#94a3b8">(</tspan><tspan fill="#fb923c">true</tspan><tspan fill="#94a3b8">)&#160;=&#160;</tspan><tspan fill="#fb923c">100</tspan></text>
+  <text x="72" y="670" fill="#334155" font-size="12" text-anchor="end" font-weight="500">26</text>
+  <text x="96" y="670" font-size="13.5" font-weight="500"><tspan fill="#c084fc">&#160;&#160;&#160;&#160;print</tspan><tspan fill="#f1f5f9">(x)</tspan></text>
+  <text x="72" y="692" fill="#334155" font-size="12" text-anchor="end" font-weight="500">27</text>
+  <text x="96" y="692" font-size="13.5" font-weight="500"><tspan fill="#94a3b8">}</tspan></text>
+</svg>
