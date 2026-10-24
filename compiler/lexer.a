@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import Str from "std/string"
 import token, TokenType, TokenStream from "./token"
 import calc_pos from "./nexus/nexus"
@@ -96,7 +97,7 @@ Lexer :: struct {
         print(c"\n[lex error] ")
         print(msg)
         print(c"\n       --> ")
-        self.path.print()
+        write_str(self.path)
         print(c":")
         pos := calc_pos(self.source, offset as u32)
         print_u32(pos.line)

@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../../hir"
 import TyKind, ty_id_none, ty_id_type, ty_id_unit from "../../types"
@@ -332,7 +333,7 @@ synth_member :: fn(eng &Engine, id u32) {
     print(c"\n\033[1;31m[type error]\033[0m type '")
     (&(*types_ptr)).print_type(lhs_ty)
     print(c"' has no field or method named '")
-    db.interner.get(name_id).print()
+    write_str(db.interner.get(name_id))
     print(c"'\n       --> ")
     db.print_loc(id)
     print(c"\n")

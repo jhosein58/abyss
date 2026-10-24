@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import TyKind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error, TypeStorage from "./types"
 import Str from "std/string"
 import calc_pos from "./nexus/nexus"
@@ -92,7 +93,7 @@ UnifyStorage :: struct {
         if self.error_path.len == 0 { ret }
         pos := calc_pos(self.error_source, self.error_offset)
         print(c"       --> ")
-        self.error_path.print()
+        write_str(self.error_path)
         print(c":")
         print_u32(pos.line)
         print(c":")

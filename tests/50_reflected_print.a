@@ -1,4 +1,4 @@
-import print as emit from "std/io"
+import write as emit from "std/io"
 
 Address :: struct { city Str; zip u32 }
 User :: struct {

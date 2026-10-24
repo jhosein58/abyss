@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import Str, String from "std/string"
 import Arena from "std/allocator"
 
@@ -1018,13 +1019,13 @@ TypeStorage :: struct {
         if kind == TyKind.nominal {
             idx := payload as u64
             name_idx := self.store.extra.get(idx + 1)
-            self.nominal_names.get(name_idx as u64).print()
+            write_str(self.nominal_names.get(name_idx as u64))
             ret
         }
         if kind == TyKind.enum_ {
             idx := payload as u64
             name_idx := self.store.extra.get(idx + 1)
-            self.enum_names.get(name_idx as u64).print()
+            write_str(self.enum_names.get(name_idx as u64))
             ret
         }
         if kind == TyKind.union_ {
@@ -1074,7 +1075,7 @@ TypeStorage :: struct {
             ret
         }
 
-        ty_kind_name(kind).print()
+        write_str(ty_kind_name(kind))
     }
 
     name_to_buf :: fn(self &Self, s &String, id u32) {

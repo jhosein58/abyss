@@ -1,6 +1,6 @@
 import Vec from "std/collections/vec"
 import Worklist from "std/collections/worklist"
-import print from "std/io"
+import write as print from "std/io"
 
 sum :: fn(values Vec(i32)) i32 {
     total := 0 as i32

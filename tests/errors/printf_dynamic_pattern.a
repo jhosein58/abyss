@@ -1,0 +1,5 @@
+import printf from "std/io"
+main :: fn() {
+    pattern := "{}"
+    printf(pattern, .{1})
+}

@@ -1,0 +1,9 @@
+import fmt from "std/fmt"
+import Arena from "std/allocator"
+
+main :: fn() {
+    arena := Arena.new(64)
+    pattern := "{}"
+    fmt(&arena, pattern, .{1})
+    arena.destroy()
+}

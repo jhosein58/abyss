@@ -1,5 +1,6 @@
 import Arena  from "allocator.a"
 import Str, String from "string.a"
+import Convert, conversion_error from "convert.a"
 
 Escape :: struct {
     reset     &u8
@@ -127,42 +128,17 @@ Fmt :: struct {
     }
 
     uint64 :: fn(self &Self, v u64) &Self {
-        if v == 0 {
-            self.buf.push_char(48 as u8)
-            ret self
-        }
-        divisor: u64 = 1
-        temp := v
-        while temp >= 10 {
-            divisor = divisor * 10
-            temp = temp / 10
-        }
-        rem := v
-        while divisor > 0 {
-            d := (rem / divisor) as u8
-            self.buf.push_char(48 as u8 + d)
-            rem = rem - ((d as u64) * divisor)
-            divisor = divisor / 10
-        }
+        Convert.unsigned64(&self.buf, v)
         ret self
     }
 
     int32 :: fn(self &Self, v i32) &Self {
-        if v < 0 {
-            self.buf.push_char(45 as u8)
-            self.uint32((0 - v) as u32)
-        } else {
-            self.uint32(v as u32)
-        }
+        Convert.signed64(&self.buf, v as i64)
         ret self
     }
 
     boolean :: fn(self &Self, v bool) &Self {
-        if v {
-            self.str(Str.of("true"))
-        } else {
-            self.str(Str.of("false"))
-        }
+        Convert.boolean(&self.buf, v)
         ret self
     }
 
@@ -229,6 +205,59 @@ Fmt :: struct {
     }
 
     print :: fn(self &Self) {
-        self.as_str().print()
+        print_bytes(self.buf.ptr, self.buf.len)
     }
+}
+
+print_bytes :: fn(ptr &u8, len u64)
+
+format_code :: fn(pattern Str, info &TypeInfo()) Str {
+    if (info.kind != TypeKind.tuple) and ((info.kind != TypeKind.struct_) or (info.field_count != 0)) {
+        conversion_error("[format error] format arguments must be a tuple\n")
+    }
+    arena := Arena.new(4096)
+    out := String.new(&arena)
+    text := String.new(&arena)
+    argument: u64 = 0
+    i: u64 = 0
+    while i < pattern.len {
+        c := *(pattern.ptr + i)
+        if (c == '{') or (c == '}') {
+            if (i + 1 < pattern.len) and (*(pattern.ptr + i + 1) == c) {
+                text.push_char(c)
+                i = i + 2
+                cont
+            }
+            if c == '}' { conversion_error("[format error] unmatched '}' in format string\n") }
+            if (i + 1 >= pattern.len) or (*(pattern.ptr + i + 1) != '}') {
+                conversion_error("[format error] expected '{}' placeholder or '{{' escape\n")
+            }
+            if argument >= info.field_count {
+                conversion_error("[format error] not enough arguments for format string\n")
+            }
+            Convert.literal(&out, text.as_str())
+            text.reset(0)
+            field := *(info.fields + argument)
+            expr := String.new(&arena)
+            expr.push_str("args.")
+            expr.push_str(field.name)
+            Convert.value(&out, field.type_info, expr.as_str(), 0)
+            argument = argument + 1
+            i = i + 2
+        } else {
+            text.push_char(c)
+            i = i + 1
+        }
+    }
+    if argument != info.field_count {
+        conversion_error("[format error] too many arguments for format string\n")
+    }
+    Convert.literal(&out, text.as_str())
+    out.as_str()
+}
+
+fmt :: fn(T type, arena &Arena, cmpt pattern Str, args T) String {
+    out := String.new(arena)
+    #format_code(pattern, @type_info(T))
+    out
 }

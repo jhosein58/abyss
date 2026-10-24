@@ -26,6 +26,12 @@ void print_bytes(uint8_t *s, uint64_t len) {
     if (len) fwrite(s, 1, (size_t)len, stdout);
 }
 
+uint64_t string_float64(uint8_t *ptr, uint64_t capacity, double value) {
+    int length = snprintf((char *)ptr, (size_t)capacity, "%f", value);
+    if (length < 0 || (uint64_t)length >= capacity) abort();
+    return (uint64_t)length;
+}
+
 #if defined(__SIZEOF_INT128__)
 void print_u128(unsigned __int128 v) {
     uint8_t digits[40];

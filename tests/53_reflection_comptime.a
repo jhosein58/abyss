@@ -1,4 +1,6 @@
-import print from "std/io"
+import write as print from "std/io"
+import String from "std/string"
+import Arena from "std/allocator"
 
 Record :: struct { value i32 }
 
@@ -10,7 +12,11 @@ make :: fn(counter &i32) Record {
 compile_name :: fn() Str {
     print("")
     info := @type_info(Record)
-    info.name.concat("!")
+    arena := Arena.new(128)
+    text := String.new(&arena)
+    text.push_str(info.name)
+    text.push_str("!")
+    text.as_str()
 }
 
 main :: fn() {

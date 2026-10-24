@@ -108,6 +108,8 @@ synth_macro :: fn(eng &Engine, id u32) {
     unify_ptr := &(*db).unify
 
     child := tbl.lhs(id)
+    tbl.set_rhs(id, hir_none())
+    tbl.set_extra(id, hir_none())
     slot := unify_ptr.new_slot(id)
 
     synth_node(eng, child)
@@ -550,6 +552,13 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
                     p_slot := (&(*db).unify).new_slot(arg_ident)
                     (&(*db).unify).bind_type(&(*db).types, p_slot, concrete_p_ty)
                     db.set_const_type(arg_ident, concrete_p_ty)
+                    if tbl.extra(arg_node) == 1 {
+                        value := db.const_param_value(mono_func_ty, p_idx as u32)
+                        db.set_const_val(arg_ident, value)
+                        db.set_is_const(arg_ident, true)
+                        param_sym := db.get_hir_symbol(arg_ident)
+                        if param_sym != id_none() { db.set_sym_is_const(param_sym, true) }
+                    }
                 }
             }
             p_idx = p_idx + 1

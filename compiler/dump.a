@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import HirTable, hir_kind_name, hir_kind, hir_none from "./hir"
 import Str from "std/string"
 import Nexus from "./nexus/nexus"
@@ -32,7 +33,7 @@ u32_digits :: fn(val u32) u32 {
 }
 
 print_str_padded :: fn(s Str, width u32) {
-    s.print()
+    write_str(s)
     len := s.len as u32
     if width > len {
         print_spaces(width - len)
@@ -96,10 +97,9 @@ dump_hir :: fn(db &Nexus, hir &HirTable, arena &Arena) {
         print_str_padded(Str.of("| "), 2)
 
         if kind == k.lit_int {
-            Str.of("Int(").print()
+            write_str(Str.of("Int("))
             print_u32(lhs)
-            Str.of(")").print()
-
+            write_str(Str.of(")"))
             len := u32_digits(lhs) + 5
             if 22 > len {
                 print_spaces(22 - len)
@@ -112,8 +112,7 @@ dump_hir :: fn(db &Nexus, hir &HirTable, arena &Arena) {
                 print_str_padded(name, 22)
             }
         } else if kind == k.block {
-            Str.of("[").print()
-
+            write_str(Str.of("["))
             slice := db.get_list(lhs)
 
             len: u32 = 2
@@ -132,8 +131,7 @@ dump_hir :: fn(db &Nexus, hir &HirTable, arena &Arena) {
                 j = j + 1
             }
 
-            Str.of("]").print()
-
+            write_str(Str.of("]"))
             if 22 > len {
                 print_spaces(22 - len)
             }

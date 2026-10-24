@@ -498,7 +498,7 @@ VmCodeGen :: struct {
             self.chunk.inst(OpCode.store_local)
             self.chunk.emit_u16(slot as u16)
         } else {
-            is_struct := false
+            allocation_size: u64 = 0
             ty_id := ty.raw as u32
             if (self.types != (0 as &TypeStorage)) and (ty_id != 0) {
                 t := ty_id
@@ -506,12 +506,13 @@ VmCodeGen :: struct {
                     t = self.types.nominal_base(t)
                 }
                 if self.types.kind(t) == TyKind.struct_ {
-                    is_struct = true
+                    allocation_size = self.struct_alloc_size(ty_id)
+                } else if self.types.kind(t) == TyKind.array {
+                    allocation_size = vm_element_size(self.types, self.types.get_array_type(t)) * (self.types.get_array_len(t) as u64)
                 }
             }
-            if is_struct {
-                sz := self.struct_alloc_size(ty.raw as u32)
-                c_sz := self.chunk.alloc_const(sz)
+            if allocation_size > 0 {
+                c_sz := self.chunk.alloc_const(allocation_size)
                 self.chunk.inst(OpCode.push_const)
                 self.chunk.emit_u16(c_sz)
                 self.chunk.inst(OpCode.call_extern)
@@ -669,6 +670,7 @@ VmCodeGen :: struct {
         else if name.eq(Str.of("print_bytes")) { ext_id = 32 }
         else if name.eq(Str.of("print_i128")) { ext_id = 33 }
         else if name.eq(Str.of("print_u128")) { ext_id = 34 }
+        else if name.eq(Str.of("string_float64")) { ext_id = 35 }
         else {
             buf := self.arena.alloc(name.len + 1)
             i: u64 = 0
@@ -704,6 +706,46 @@ VmCodeGen :: struct {
 
     expr_int :: fn(self &Self, arena &Arena, val u32) VmVal {
         VmVal.const_int(val as u64)
+    }
+
+    expr_u64 :: fn(self &Self, arena &Arena, val u64) VmVal {
+        VmVal.const_int(val)
+    }
+
+    emit_integer_cast :: fn(self &Self, ty u32) {
+        width := self.types.payload(ty)
+        if (width == 0) or (width >= 64) { ret }
+        self.chunk.inst(OpCode.cast_integer)
+        self.chunk.emit_u8(width as u8)
+        self.chunk.emit_u8(if self.types.kind(ty) == TyKind.int { 1 as u8 } else { 0 as u8 })
+    }
+
+    expr_typed_cast :: fn(self &Self, arena &Arena, target VmVal, inner VmVal, source u32) VmVal {
+        ty := target.raw as u32
+        src_kind := self.types.kind(source)
+        dst_kind := self.types.kind(ty)
+        src_float := (src_kind == TyKind.float) or (src_kind == TyKind.untyped_float)
+        dst_float := dst_kind == TyKind.float
+        src_int := (src_kind == TyKind.int) or (src_kind == TyKind.uint) or (src_kind == TyKind.untyped_int)
+        dst_int := (dst_kind == TyKind.int) or (dst_kind == TyKind.uint)
+        if (src_float or src_int) and (dst_float or dst_int) {
+            self.ensure_on_stack(inner)
+            if src_float {
+                width := self.types.payload(source)
+                if width == 32 { self.chunk.inst(OpCode.f32_to_f64) }
+            } else { self.emit_integer_cast(source) }
+            if src_float and dst_int { self.chunk.inst(OpCode.f64_to_i64) }
+            if src_int and dst_float {
+                if src_kind == TyKind.uint { self.chunk.inst(OpCode.u64_to_f64) }
+                else { self.chunk.inst(OpCode.i64_to_f64) }
+            }
+            if dst_float {
+                width := self.types.payload(ty)
+                if width == 32 { self.chunk.inst(OpCode.f64_to_f32) }
+            } else { self.emit_integer_cast(ty) }
+            ret VmVal.stack()
+        }
+        self.expr_cast(arena, target, inner)
     }
 
     expr_float_from_int :: fn(self &Self, arena &Arena, val u32, ty_id u32) VmVal {
@@ -1018,6 +1060,22 @@ VmCodeGen :: struct {
         else if kind == k.binary_shr { self.chunk.inst(OpCode.shr) }
         else { self.chunk.inst(OpCode.add) }
         VmVal.stack()
+    }
+
+    expr_typed_binary_kind :: fn(self &Self, arena &Arena, kind HirExprKind, lhs VmVal, rhs VmVal, ty u32) VmVal {
+        start := self.chunk.buf.len
+        result := self.expr_binary_kind(arena, kind, lhs, rhs)
+        if (self.types != (0 as &TypeStorage)) and (self.types.kind(ty) == TyKind.uint) and (self.chunk.buf.len > start) {
+            op := OpCode.halt
+            if kind == hir_kind.binary_div { op = OpCode.udiv }
+            else if kind == hir_kind.binary_mod { op = OpCode.umod }
+            else if kind == hir_kind.binary_lt { op = OpCode.ult }
+            else if kind == hir_kind.binary_lt_eq { op = OpCode.ule }
+            else if kind == hir_kind.binary_gt { op = OpCode.ugt }
+            else if kind == hir_kind.binary_gt_eq { op = OpCode.uge }
+            if op != OpCode.halt { self.chunk.buf.set(self.chunk.buf.len - 1, op as u8) }
+        }
+        result
     }
 
     expr_neg :: fn(self &Self, arena &Arena, inner VmVal) VmVal {

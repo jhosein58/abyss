@@ -1,0 +1,37 @@
+import fmt from "std/fmt"
+import String from "std/string"
+import Arena from "std/allocator"
+import print, printf from "std/io"
+
+Pattern :: "{} + {} = {}"
+
+advance :: fn(counter &i32) i32 {
+    *counter = *counter + 1
+    *counter
+}
+
+main :: fn() {
+    owner := Arena.new(64)
+    arena := &owner
+    text: String = fmt(arena, "{}", .{100})
+    print(text)
+    print(fmt(arena, Pattern, .{2, 3, 5}))
+    print(fmt(arena, "{{{}}} {{}}", .{42}))
+    print(fmt(arena, "no arguments", .{}))
+    print(fmt(arena, "", .{}))
+    print(fmt(arena, "{} {} {}", .{true, 1.5 as f32, -2.25 as f64}))
+    print(fmt(arena, "{} {}", .{Str.new(c"bounded-extra", 7), c"cstring"}))
+    print(fmt(arena, "quotes: \"{}\"\\end", .{"text"}))
+    print(fmt(arena, "سلام {}", .{7}))
+    printf("without newline:{}", .{10})
+    print(" next line")
+    #print(20)
+    count := 0
+    print(fmt(arena, "{} {}", .{advance(&count), advance(&count)}))
+    print(count)
+    binary := fmt(arena, "<{}>", .{Str.new(c"a\000b", 3)})
+    print(binary.len == 5)
+    print(*(binary.ptr + 2) == 0 as u8)
+    print(text)
+    owner.destroy()
+}

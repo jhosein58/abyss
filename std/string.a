@@ -1,8 +1,7 @@
-import Str, int_to_str from "../core/string.a"
+import Str from "../core/string.a"
+import Convert, value_code from "convert.a"
+import mem_copy from "mem.a"
 import Arena  from "allocator.a"
-
-str_len    :: fn(s &u8) u64
-print_char :: fn(c u8)
 
 
 String :: struct {
@@ -12,39 +11,35 @@ String :: struct {
     cap   u64
 
     new :: fn(a &Arena) String {
-        cap: u64 = 4
-        p := a.alloc(cap) as &u8
-        .{
-            arena: a,
-            ptr: p,
-            len: 0,
-            cap: cap
-        }
+        .{ arena: a, ptr: 0 as &u8, len: 0, cap: 0 }
     }
 
-    grow :: fn(self &Self) {
-        if self.len == self.cap {
-            new_cap := self.cap * 2
-            old_bytes := self.cap
-            new_bytes := new_cap
-            new_ptr := self.arena.realloc(self.ptr, old_bytes, new_bytes) as &u8
-            self.ptr = new_ptr
-            self.cap = new_cap
-        }
+    of :: fn(T type, arena &Arena, value T) Self {
+        out := String.new(arena)
+        #value_code(@type_info(T), "value")
+        out
+    }
+
+    reserve :: fn(self &Self, needed u64) {
+        if needed <= self.cap { ret }
+        capacity := self.cap
+        if capacity < 64 { capacity = 64 }
+        while capacity < needed { capacity = capacity * 2 }
+        self.ptr = self.arena.realloc(self.ptr, self.len, capacity)
+        self.cap = capacity
     }
 
     push_char :: fn(self &Self, c u8) {
-        self.grow()
+        self.reserve(self.len + 1)
         *(self.ptr + self.len) = c
         self.len = self.len + 1
     }
 
     push_str :: fn(self &Self, s Str) {
-        i: u64 = 0
-        while i < s.len {
-            self.push_char(*(s.ptr + i))
-            i = i + 1
-        }
+        if s.len == 0 { ret }
+        self.reserve(self.len + s.len)
+        mem_copy(self.ptr + self.len, s.ptr, s.len)
+        self.len = self.len + s.len
     }
 
     as_str :: fn(self &Self) Str {
@@ -68,32 +63,8 @@ String :: struct {
     }
 
     push_u32 :: fn(self &Self, val u32) {
-        if val == 0 {
-            self.push_char('0')
-            ret
-        }
-
-        v := val
-        divisor: u32 = 1
-
-        while ((v / divisor) >= 10) and (divisor <= 100000000) {
-            divisor = divisor * 10
-        }
-
-        while divisor > 0 {
-            digit := v / divisor
-            self.push_char((digit + 48) as u8)
-        
-            v = v - (digit * divisor)
-            divisor = divisor / 10
-        }
+        Convert.unsigned64(self, val as u64)
     }
-}
-
-u32_to_str :: fn(arena &Arena, val u32) Str {
-    s := String.new(arena)
-    s.push_u32(val)
-    s.as_str()
 }
 
 parse_u32 :: fn(s Str) Maybe(u32) {

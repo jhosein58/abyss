@@ -483,6 +483,7 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec
     }
 
     if kind == TyKind.func {
+        if db.const_func_type.contains(ty) { ret ty }
         count := types.func_params(ty).len
         ret_ty := transform_type(eng, types.func_return(ty), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
         is_ext := types.func_is_extern(ty)

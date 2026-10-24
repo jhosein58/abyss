@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import Vec as List from "std/collections/vec.a"
 import Arena as EmbeddedArena from "std/allocator.a"
 import Fmt as EmbeddedFmt from "std/fmt.a"
@@ -32,7 +33,7 @@ main :: fn() {
     print_bool(absent.unwrap_or(true))
     print(c"\n")
     string := Maybe(Str).some(Str.of("embedded"))
-    string.unwrap_or(Str.empty()).print()
+    write_str(string.unwrap_or(Str.empty()))
     print(c"\n")
     nested := Maybe(Maybe(u32)).some(some)
     print_u32(nested.unwrap_or(none).unwrap_or(0))

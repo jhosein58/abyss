@@ -1,185 +1,43 @@
-import print as print_cstr from "prelude.a"
-import String, int_to_str from "string.a"
 import Arena from "allocator.a"
+import fmt from "fmt.a"
+import String from "string.a"
 
-print_str :: fn(value Str) {
+print_bytes :: fn(ptr &u8, len u64)
+print_char :: fn(value u8)
+
+write_str :: fn(value Str) {
     print_bytes(value.ptr, value.len)
 }
 
-print_quoted_str :: fn(value Str) {
-    print_char('"')
-    i: u64 = 0
-    while i < value.len {
-        c := *(value.ptr + i)
-        if c == '"' { print_cstr(c"\\\"") }
-        else if c == '\\' { print_cstr(c"\\\\") }
-        else if c == '\n' { print_cstr(c"\\n") }
-        else if c == '\r' { print_cstr(c"\\r") }
-        else if c == '\t' { print_cstr(c"\\t") }
-        else { print_char(c) }
-        i = i + 1
+print_body :: fn(newline bool) Str {
+    if newline {
+        ret `{
+            arena := Arena.new(1024)
+            text := fmt(&arena, "{}", .{value})
+            write_str(text.as_str())
+            arena.destroy()
+            print_char('\n')
+        }`
     }
-    print_char('"')
+    `{
+        arena := Arena.new(1024)
+        text := fmt(&arena, "{}", .{value})
+        write_str(text.as_str())
+        arena.destroy()
+    }`
 }
 
-print_literal :: fn(out &String, text Str) {
-    if text.len == 0 { ret }
-    source := out.as_str()
-    if source.ends_with("\")\n") { out.len = out.len - 3 }
-    else { out.push_str(`print_cstr(c"`) }
-    i: u64 = 0
-    while i < text.len {
-        c := *(text.ptr + i)
-        if c == '"' { out.push_str(`\"`) }
-        else if c == '\\' { out.push_char(92 as u8) out.push_char(92 as u8) }
-        else if c == '\n' { out.push_str(`\n`) }
-        else if c == '\r' { out.push_str(`\r`) }
-        else if c == '\t' { out.push_str(`\t`) }
-        else { out.push_char(c) }
-        i = i + 1
-    }
-    out.push_str(`")`)
-    out.push_char('\n')
+write :: fn(T type, value T) {
+    #print_body(false)
 }
 
-print_indent :: fn(out &String, depth u32) {
-    text := Str.empty()
-    i: u32 = 0
-    while i < depth {
-        text = text.concat("    ")
-        i = i + 1
-    }
-    print_literal(out, text)
+print :: fn(T type, value T) {
+    #print_body(true)
 }
 
-print_value_code :: fn(out &String, info &TypeInfo(), value Str, depth u32) {
-    kind := info.kind
-    if (kind == TypeKind.int) or (kind == TypeKind.uint) or (kind == TypeKind.float) or
-       (kind == TypeKind.untyped_int) or (kind == TypeKind.untyped_float) or (kind == TypeKind.bool) {
-        name := info.name
-        if kind == TypeKind.untyped_int { name = "i32" }
-        if kind == TypeKind.untyped_float { name = "f64" }
-        out.push_str("print_")
-        out.push_str(name)
-        out.push_str("(")
-        out.push_str(value)
-        out.push_str(")\n")
-        ret
-    }
-    if kind == TypeKind.string {
-        if depth == 0 { out.push_str("print_str(") }
-        else { out.push_str("print_quoted_str(") }
-        out.push_str(value)
-        out.push_str(")\n")
-        ret
-    }
-    if kind == TypeKind.ptr {
-        if (info.element.kind == TypeKind.uint) and (info.element.bits == 8) {
-            out.push_str("if ")
-            out.push_str(value)
-            out.push_str(" == (0 as &u8) {\n")
-            print_literal(out, "null")
-            out.push_str("} else {\nprint_cstr(")
-            out.push_str(value)
-            out.push_str(")\n}\n")
-        } else {
-            print_literal(out, info.name.concat("("))
-            out.push_str("print_u64(")
-            out.push_str(value)
-            out.push_str(" as u64)\n")
-            print_literal(out, ")")
-        }
-        ret
-    }
-    if kind == TypeKind.enum_ {
-        i: u64 = 0
-        while i < info.field_count {
-            field := *(info.fields + i)
-            if i > 0 { out.push_str("else ") }
-            out.push_str("if ")
-            out.push_str(value)
-            out.push_str(" == @type_from_id(")
-            out.push_str(int_to_str(info.id as i64))
-            out.push_str(").")
-            out.push_str(field.name)
-            out.push_str(" {\n")
-            print_literal(out, info.name.concat(".").concat(field.name))
-            out.push_str("}\n")
-            i = i + 1
-        }
-        if info.field_count > 0 { out.push_str("else {\n") }
-        print_literal(out, info.name.concat("("))
-        out.push_str("print_u64(")
-        out.push_str(value)
-        out.push_str(" as u64)\n")
-        print_literal(out, ")")
-        if info.field_count > 0 { out.push_str("}\n") }
-        ret
-    }
-    if kind == TypeKind.union_ {
-        i: u64 = 0
-        while i < info.member_count {
-            member := *(info.members + i)
-            if i > 0 { out.push_str("else ") }
-            out.push_str("if @tag(")
-            out.push_str(value)
-            out.push_str(") == ")
-            out.push_str(int_to_str(i as i64))
-            out.push_str(" {\n")
-            expr := "(".concat(value).concat(" as @type_from_id(").concat(int_to_str(member.id as i64)).concat("))")
-            print_value_code(out, member, expr, depth)
-            out.push_str("}\n")
-            i = i + 1
-        }
-        ret
-    }
-    if (kind == TypeKind.struct_) or (kind == TypeKind.tuple) or (kind == TypeKind.array) {
-        open := "{"
-        close := "}"
-        count := info.field_count
-        if kind == TypeKind.tuple { open = "(" close = ")" }
-        else if kind == TypeKind.array { open = "[" close = "]" count = info.length }
-        else if not info.name.starts_with("struct {") { open = info.name.concat(" {") }
-        print_literal(out, open)
-        if count > 0 { print_literal(out, "\n") }
-        i: u64 = 0
-        while i < count {
-            print_indent(out, depth + 1)
-            expr := Str.empty()
-            child := info.element
-            if kind == TypeKind.array {
-                expr = "(".concat(value).concat(")[").concat(int_to_str(i as i64)).concat("]")
-            } else {
-                field := *(info.fields + i)
-                child = field.type_info
-                if kind != TypeKind.tuple { print_literal(out, field.name.concat(": ")) }
-                expr = "(".concat(value).concat(").").concat(field.name)
-            }
-            print_value_code(out, child, expr, depth + 1)
-            print_literal(out, ",\n")
-            i = i + 1
-        }
-        if count > 0 { print_indent(out, depth) }
-        print_literal(out, close)
-        ret
-    }
-    if kind == TypeKind.func {
-        print_literal(out, "<".concat(info.name).concat(">"))
-        ret
-    }
-    if kind == TypeKind.unit { print_literal(out, "()") ret }
-    print_literal(out, info.name)
-}
-
-print_code :: fn(info &TypeInfo(), value Str) Str {
-    arena := Arena.new(4096)
-    out := String.new(&arena)
-    out.push_str("{\n")
-    print_value_code(&out, info, value, 0)
-    out.push_str("}\n")
-    out.as_str()
-}
-
-print :: fn(T type, v T) {
-    #print_code(@type_info(T), "v")
+printf :: fn(T type, cmpt pattern Str, args T) {
+    arena := Arena.new(1024)
+    text := fmt(&arena, pattern, args)
+    write_str(text.as_str())
+    arena.destroy()
 }

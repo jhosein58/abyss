@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import token, token_name, TokenType, TokenStream from "../token"
 import HirTable from "../hir"
 import Str from "std/string"
@@ -132,7 +133,7 @@ parse_error_at :: fn(p &Parser, msg &u8, sp Span) {
     print(c"\n\033[1;31m[syntax error]\033[0m ")
     print(msg)
     print(c"\n       --> ")
-    path.print()
+    write_str(path)
     print(c":")
     print_u32(pos.line)
     print(c":")

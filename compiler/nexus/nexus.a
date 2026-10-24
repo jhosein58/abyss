@@ -1,7 +1,8 @@
+import write_str from "std/io"
 import Interner from "std/interner"
 import Str from "std/string"
 
-import TypeStorage, ty_id_none from "../types"
+import TypeStorage, TyKind, ty_id_none from "../types"
 import UnifyStorage, slot_none from "../unify"
 import TokenStream from "../token"
 import HirTable, hir_kind, hir_none from "../hir"
@@ -96,6 +97,11 @@ Nexus :: struct {
     mono_orig_sym  Vec(u32)
     mono_type      Vec(u32)
     mono_sym       Vec(u32)
+    const_func_base Vec(u32)
+    const_func_type Vec(u32)
+    const_func_key Vec(u32)
+    const_func_value Vec(u32)
+    const_call_args PoolU32
     mono_nom_sym   Vec(u32)
     mono_nom_arg   Vec(u32)
     mono_nom_res   Vec(u32)
@@ -148,6 +154,11 @@ Nexus :: struct {
             mono_orig_sym  : Vec(u32).new(),
             mono_type      : Vec(u32).new(),
             mono_sym       : Vec(u32).new(),
+            const_func_base : Vec(u32).new(),
+            const_func_type : Vec(u32).new(),
+            const_func_key : Vec(u32).new(),
+            const_func_value : Vec(u32).new(),
+            const_call_args : PoolU32.new(),
             mono_nom_sym   : Vec(u32).new(),
             mono_nom_arg   : Vec(u32).new(),
             mono_nom_res   : Vec(u32).new(),
@@ -562,11 +573,65 @@ Nexus :: struct {
         path := self.get_file_path(fid)
         pos := self.get_pos(hir_id)
 
-        path.print()
+        write_str(path)
         print(c":")
         print_u32(pos.line)
         print(c":")
         print_u32(pos.col)
+    }
+
+    specialize_const_func :: fn(self &Self, base u32, key Slice(u32), values Slice(u32)) u32 {
+        i: u64 = 0
+        while i < self.const_func_base.len {
+            if self.const_func_base.get(i) == base {
+                stored := self.get_list(self.const_func_key.get(i))
+                same := stored.len == key.len
+                j: u64 = 0
+                while same and (j < key.len) {
+                    if *(stored.ptr + j) != *(key.ptr + j) { same = false }
+                    j = j + 1
+                }
+                if same { ret self.const_func_type.get(i) }
+            }
+            i = i + 1
+        }
+        ty := self.types.store.push(TyKind.func, self.types.payload(base))
+        self.const_func_base.push(base)
+        self.const_func_type.push(ty)
+        self.const_func_key.push(self.add_list(key))
+        self.const_func_value.push(self.add_list(values))
+        ty
+    }
+
+    const_param_value :: fn(self &Self, ty u32, index u32) u64 {
+        i: u64 = 0
+        while i < self.const_func_type.len {
+            if self.const_func_type.get(i) == ty {
+                values := self.get_list(self.const_func_value.get(i))
+                j: u64 = 0
+                while j < values.len {
+                    if *(values.ptr + j) == index {
+                        ret (*(values.ptr + j + 1) as u64) | ((*(values.ptr + j + 2) as u64) << 32)
+                    }
+                    j = j + 3
+                }
+            }
+            i = i + 1
+        }
+        0
+    }
+
+    is_const_call_arg :: fn(self &Self, call u32, index u32) bool {
+        if call >= self.const_call_args.count() { ret false }
+        list := self.const_call_args.get(call)
+        if list == id_none() { ret false }
+        args := self.get_list(list)
+        i: u64 = 0
+        while i < args.len {
+            if *(args.ptr + i) == index { ret true }
+            i = i + 1
+        }
+        false
     }
 
     find_mono_sym :: fn(self &Self, orig_sym u32, mono_ty u32) u32 {

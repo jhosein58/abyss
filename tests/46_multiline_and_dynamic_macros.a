@@ -1,8 +1,11 @@
-import print from "std/io.a"
-import int_to_str from "std/string.a"
+import write as print from "std/io.a"
+import fmt from "std/fmt"
+import String from "std/string"
+import Arena from "std/allocator"
 
 gen_expr :: fn(base i64, mul i64) Str {
-    `x + `.concat(int_to_str(base)).concat(` * `).concat(int_to_str(mul))
+    arena := Arena.new(4096)
+    fmt(&arena, "x + {} * {}", .{base, mul}).as_str()
 }
 
 gen_nested :: fn() Str {
@@ -10,71 +13,67 @@ gen_nested :: fn() Str {
 }
 
 gen_multiline_fn :: fn(factor i64) Str {
-    `
-        step1 := x * `.concat(int_to_str(factor)).concat(`
-        step2 := step1 + 10
-        step2
-    `)
+    arena := Arena.new(4096)
+    fmt(&arena, "step1 := x * {}\nstep2 := step1 + 10\nstep2", .{factor}).as_str()
 }
 
 gen_power :: fn(var_name Str, exp i32) Str {
     if exp <= 0 { ret "1" }
-    res := var_name
+    arena := Arena.new(4096)
+    out := String.new(&arena)
+    out.push_str(var_name)
     i := 1
     while i < exp {
-        res = res.concat(" * ").concat(var_name)
+        out.push_str(" * ")
+        out.push_str(var_name)
         i = i + 1
     }
-    res
+    out.as_str()
 }
 
 gen_if_dispatcher :: fn(num_cases i32) Str {
-    res := `if op == 0 { val + 0 }`
+    arena := Arena.new(4096)
+    out := String.new(&arena)
+    out.push_str("if op == 0 { val + 0 }")
     i := 1
     while i < num_cases {
-        res = res.concat(` else if op == `).concat(int_to_str(i as i64)).concat(` { val + `).concat(int_to_str((i * 10) as i64)).concat(` }`)
+        part := fmt(&arena, " else if op == {} {{ val + {} }}", .{i, i * 10})
+        out.push_str(part.as_str())
         i = i + 1
     }
-    res = res.concat(` else { 0 }`)
-    res
+    out.push_str(" else { 0 }")
+    out.as_str()
 }
 
 gen_even_accumulator :: fn(limit i32) Str {
-    res := `{
-        acc := 0`
+    arena := Arena.new(4096)
+    out := String.new(&arena)
+    out.push_str("{\nacc := 0\n")
     i := 1
     while i <= limit {
         if (i % 2) == 0 {
-            res = res.concat(`
-        acc = acc + `).concat(int_to_str(i as i64))
+            part := fmt(&arena, "acc = acc + {}\n", .{i})
+            out.push_str(part.as_str())
         }
         i = i + 1
     }
-    res = res.concat(`
-        acc
-    }`)
-    res
+    out.push_str("acc\n}")
+    out.as_str()
 }
 
 stage_inner :: fn(multiplier i64) Str {
-    `val * `.concat(int_to_str(multiplier))
+    arena := Arena.new(4096)
+    fmt(&arena, "val * {}", .{multiplier}).as_str()
 }
 
 stage_outer :: fn(n i32) Str {
-    `#stage_inner(`.concat(int_to_str((n * 2) as i64)).concat(`)`)
+    arena := Arena.new(4096)
+    fmt(&arena, "#stage_inner({})", .{n * 2}).as_str()
 }
 
 gen_while_loop :: fn(target i32) Str {
-    `{
-        sum := 0
-        curr := 1
-        while true {
-            if curr > `.concat(int_to_str(target as i64)).concat(` { break }
-            sum = sum + curr
-            curr = curr + 1
-        }
-        sum
-    }`)
+    arena := Arena.new(4096)
+    fmt(&arena, "{{\nsum := 0\ncurr := 1\nwhile true {{\nif curr > {} {{ break }}\nsum = sum + curr\ncurr = curr + 1\n}}\nsum\n}}", .{target}).as_str()
 }
 
 add_val :: fn(T type, val T) T {

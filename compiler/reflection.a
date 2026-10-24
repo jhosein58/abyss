@@ -7,7 +7,8 @@ import synth_node from "./typer/tyck"
 import synth_type_node from "./typer/rules/var"
 import type_has_infer from "./typer/tyck"
 import eval_const from "./lower"
-import Str, String, int_to_str from "std/string"
+import Str, String from "std/string"
+import Convert from "std/convert"
 import fall from "std/sys"
 
 print :: fn(s &u8)
@@ -73,7 +74,7 @@ reflection_name :: fn(db &Nexus, ty u32) Str {
                     }
                 }
                 if type_arg { s.push_str(reflection_name(db, *(args.ptr + i))) }
-                else { s.push_str(int_to_str(*(args.ptr + i) as i64)) }
+                else { Convert.signed64(&s, *(args.ptr + i) as i64) }
                 i = i + 1
             }
             s.push_str(")")

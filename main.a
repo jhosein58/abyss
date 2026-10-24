@@ -1,14 +1,8 @@
-import print from "std/io"
-
-Test :: struct {
-    abc [3]i32
-}
+import Arena from "std/allocator"
+import Driver from "compiler/driver"
 
 main :: fn() {
-    t: Test = .{
-        abc: .[1, 2, 3]
-    }
-
-    #print(t)
-    print("\n")
+    arena := Arena.new(1024 * 1024 * 16)
+    driver := Driver.new(&arena)
+    driver.run()
 }

@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import Str from "core/string.a"
 
 print :: fn(s &u8)
@@ -10,11 +11,11 @@ main :: fn() {
     s := "hello world"
     print_u64(s.len)
     print(c"\n")
-    s.print()
+    write_str(s)
     print(c"\n")
 
     sub := s.sub(6, 5)
-    sub.print()
+    write_str(sub)
     print(c"\n")
 
     print_bool(s.eq("hello world"))

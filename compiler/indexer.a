@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import token, TokenStream from "./token"
 import lex from "./lexer"
 import Nexus from "./nexus/nexus"
@@ -29,7 +30,7 @@ index_error :: fn(path Str, msg &u8) {
     print(c"\n[import error] ")
     print(msg)
     print(c" in ")
-    path.print()
+    write_str(path)
     print(c"\n")
     fall()
 }
@@ -282,7 +283,7 @@ Indexer :: struct {
             if src_fid != id_none() {
                 name_id := self.pending_imports.get(check_i + 2)
                 print(c"\n[import error] symbol not found: ")
-                db.interner.get(name_id).print()
+                write_str(db.interner.get(name_id))
                 print(c"\n")
                 fall()
             }

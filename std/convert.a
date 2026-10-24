@@ -1,0 +1,294 @@
+import String from "string.a"
+import Arena from "allocator.a"
+import fall from "sys.a"
+
+string_float64 :: fn(ptr &u8, capacity u64, value f64) u64
+print_bytes :: fn(ptr &u8, len u64)
+
+Convert :: struct {
+    unsigned64 :: fn(out &String, value u64) {
+        digits: [20]u8
+        pos: u64 = 20
+        remaining := value
+        while true {
+            pos = pos - 1
+            digits[pos] = ((remaining % 10) + 48) as u8
+            remaining = remaining / 10
+            if remaining == 0 { break }
+        }
+        out.push_str(Str.new(&digits[pos], 20 - pos))
+    }
+
+    signed64 :: fn(out &String, value i64) {
+        magnitude := value as u64
+        if value < 0 {
+            out.push_char('-')
+            magnitude = (0 as u64) - magnitude
+        }
+        Convert.unsigned64(out, magnitude)
+    }
+
+    unsigned128 :: fn(out &String, value u128) {
+        digits: [40]u8
+        pos: u64 = 40
+        remaining := value
+        while true {
+            pos = pos - 1
+            digits[pos] = ((remaining % 10) + 48) as u8
+            remaining = remaining / 10
+            if remaining == 0 { break }
+        }
+        out.push_str(Str.new(&digits[pos], 40 - pos))
+    }
+
+    signed128 :: fn(out &String, value i128) {
+        magnitude := value as u128
+        if value < 0 {
+            out.push_char('-')
+            magnitude = (0 as u128) - magnitude
+        }
+        Convert.unsigned128(out, magnitude)
+    }
+
+    float64 :: fn(out &String, value f64) {
+        out.reserve(out.len + 384)
+        count := string_float64(out.ptr + out.len, 384, value)
+        out.len = out.len + count
+    }
+
+    boolean :: fn(out &String, value bool) {
+        if value { out.push_str("true") }
+        else { out.push_str("false") }
+    }
+
+    quoted :: fn(out &String, value Str) {
+        out.push_char('"')
+        i: u64 = 0
+        while i < value.len {
+            c := *(value.ptr + i)
+            if c == '"' { out.push_str(`\"`) }
+            else if c == '\\' { out.push_char(92 as u8) out.push_char(92 as u8) }
+            else if c == '\n' { out.push_str(`\n`) }
+            else if c == '\r' { out.push_str(`\r`) }
+            else if c == '\t' { out.push_str(`\t`) }
+            else { out.push_char(c) }
+            i = i + 1
+        }
+        out.push_char('"')
+    }
+
+    quote_source :: fn(out &String, value Str) {
+        out.push_char('"')
+        i: u64 = 0
+        while i < value.len {
+            c := *(value.ptr + i)
+            if c == '"' { out.push_str(`\"`) }
+            else if c == '\\' { out.push_char(92 as u8) out.push_char(92 as u8) }
+            else if c == '\n' { out.push_str(`\n`) }
+            else if c == '\r' { out.push_str(`\r`) }
+            else if c == '\t' { out.push_str(`\t`) }
+            else if c == 0 { out.push_str(`\000`) }
+            else { out.push_char(c) }
+            i = i + 1
+        }
+        out.push_char('"')
+    }
+
+    literal :: fn(out &String, text Str) {
+        if text.len == 0 { ret }
+        source := out.as_str()
+        if source.ends_with("\")\n") { out.len = out.len - 3 }
+        else { out.push_str("out.push_str(\"") }
+        quoted := String.new(out.arena)
+        Convert.quote_source(&quoted, text)
+        out.push_str(quoted.as_str().sub(1, quoted.len - 2))
+        out.push_str("\")\n")
+    }
+
+    indent :: fn(out &String, depth u32) {
+        i: u32 = 0
+        while i < depth {
+            Convert.literal(out, "    ")
+            i = i + 1
+        }
+    }
+
+    call :: fn(out &String, function Str, value Str) {
+        out.push_str("Convert.")
+        out.push_str(function)
+        out.push_str("(&out, ")
+        out.push_str(value)
+        out.push_str(")\n")
+    }
+
+    value :: fn(out &String, info &TypeInfo(), value Str, depth u32) {
+        kind := info.kind
+        if (kind == TypeKind.int) or (kind == TypeKind.uint) or (kind == TypeKind.untyped_int) {
+            function := "signed64"
+            target := "i64"
+            if kind == TypeKind.uint { function = "unsigned64" target = "u64" }
+            if info.bits == 128 {
+                function = "signed128"
+                target = "i128"
+                if kind == TypeKind.uint { function = "unsigned128" target = "u128" }
+            }
+            expr := String.new(out.arena)
+            expr.push_str("(")
+            expr.push_str(value)
+            expr.push_str(" as ")
+            expr.push_str(target)
+            expr.push_str(")")
+            Convert.call(out, function, expr.as_str())
+            ret
+        }
+        if (kind == TypeKind.float) or (kind == TypeKind.untyped_float) {
+            out.push_str("Convert.float64(&out, ")
+            out.push_str(value)
+            out.push_str(" as f64)\n")
+            ret
+        }
+        if kind == TypeKind.bool { Convert.call(out, "boolean", value) ret }
+        if (kind == TypeKind.string) or (info.id == @type_info(String).id) {
+            expr := String.new(out.arena)
+            expr.push_str(value)
+            if kind != TypeKind.string { expr.push_str(".as_str()") }
+            if depth == 0 {
+                out.push_str("out.push_str(")
+                out.push_str(expr.as_str())
+                out.push_str(")\n")
+            } else { Convert.call(out, "quoted", expr.as_str()) }
+            ret
+        }
+        if kind == TypeKind.ptr {
+            if (info.element.kind == TypeKind.uint) and (info.element.bits == 8) {
+                out.push_str("if ")
+                out.push_str(value)
+                out.push_str(" == (0 as &u8) {\n")
+                Convert.literal(out, "null")
+                out.push_str("} else {\nout.push_str(Str.of(")
+                out.push_str(value)
+                out.push_str("))\n}\n")
+            } else {
+                Convert.literal(out, info.name)
+                Convert.literal(out, "(")
+                out.push_str("Convert.unsigned64(&out, ")
+                out.push_str(value)
+                out.push_str(" as u64)\n")
+                Convert.literal(out, ")")
+            }
+            ret
+        }
+        if kind == TypeKind.enum_ {
+            i: u64 = 0
+            while i < info.field_count {
+                field := *(info.fields + i)
+                if i > 0 { out.push_str("else ") }
+                out.push_str("if ")
+                out.push_str(value)
+                out.push_str(" == @type_from_id(")
+                Convert.unsigned64(out, info.id as u64)
+                out.push_str(").")
+                out.push_str(field.name)
+                out.push_str(" {\n")
+                Convert.literal(out, info.name)
+                Convert.literal(out, ".")
+                Convert.literal(out, field.name)
+                out.push_str("}\n")
+                i = i + 1
+            }
+            if info.field_count > 0 { out.push_str("else {\n") }
+            Convert.literal(out, info.name)
+            Convert.literal(out, "(")
+            out.push_str("Convert.unsigned64(&out, ")
+            out.push_str(value)
+            out.push_str(" as u64)\n")
+            Convert.literal(out, ")")
+            if info.field_count > 0 { out.push_str("}\n") }
+            ret
+        }
+        if kind == TypeKind.union_ {
+            i: u64 = 0
+            while i < info.member_count {
+                member := *(info.members + i)
+                if i > 0 { out.push_str("else ") }
+                out.push_str("if @tag(")
+                out.push_str(value)
+                out.push_str(") == ")
+                Convert.unsigned64(out, i)
+                out.push_str(" {\n")
+                expr := String.new(out.arena)
+                expr.push_str("(")
+                expr.push_str(value)
+                expr.push_str(" as @type_from_id(")
+                Convert.unsigned64(&expr, member.id as u64)
+                expr.push_str("))")
+                Convert.value(out, member, expr.as_str(), depth)
+                out.push_str("}\n")
+                i = i + 1
+            }
+            ret
+        }
+        if (kind == TypeKind.struct_) or (kind == TypeKind.tuple) or (kind == TypeKind.array) {
+            open := "{"
+            close := "}"
+            count := info.field_count
+            if kind == TypeKind.tuple { open = "(" close = ")" }
+            else if kind == TypeKind.array { open = "[" close = "]" count = info.length }
+            else if not info.name.starts_with("struct {") {
+                Convert.literal(out, info.name)
+                Convert.literal(out, " ")
+            }
+            Convert.literal(out, open)
+            if count > 0 { Convert.literal(out, "\n") }
+            i: u64 = 0
+            while i < count {
+                Convert.indent(out, depth + 1)
+                expr := String.new(out.arena)
+                expr.push_str("(")
+                expr.push_str(value)
+                expr.push_str(")")
+                child := info.element
+                if kind == TypeKind.array {
+                    expr.push_str("[")
+                    Convert.unsigned64(&expr, i)
+                    expr.push_str("]")
+                } else {
+                    field := *(info.fields + i)
+                    child = field.type_info
+                    if kind != TypeKind.tuple {
+                        Convert.literal(out, field.name)
+                        Convert.literal(out, ": ")
+                    }
+                    expr.push_str(".")
+                    expr.push_str(field.name)
+                }
+                Convert.value(out, child, expr.as_str(), depth + 1)
+                Convert.literal(out, ",\n")
+                i = i + 1
+            }
+            if count > 0 { Convert.indent(out, depth) }
+            Convert.literal(out, close)
+            ret
+        }
+        if kind == TypeKind.func {
+            Convert.literal(out, "<")
+            Convert.literal(out, info.name)
+            Convert.literal(out, ">")
+            ret
+        }
+        if kind == TypeKind.unit { Convert.literal(out, "()") ret }
+        Convert.literal(out, info.name)
+    }
+}
+
+value_code :: fn(info &TypeInfo(), value Str) Str {
+    arena := Arena.new(4096)
+    out := String.new(&arena)
+    Convert.value(&out, info, value, 0)
+    out.as_str()
+}
+
+conversion_error :: fn(message Str) {
+    print_bytes(message.ptr, message.len)
+    fall()
+}

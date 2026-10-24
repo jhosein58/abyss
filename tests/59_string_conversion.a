@@ -1,0 +1,53 @@
+import String from "std/string"
+import Arena from "std/allocator"
+import print from "std/io"
+
+convert :: fn(T type, value T) {
+    arena := Arena.new(32)
+    text: String = String.of(&arena, value)
+    print(text)
+    arena.destroy()
+}
+
+main :: fn() {
+    convert(0)
+    convert(-128 as i8)
+    convert(255 as u8)
+    convert(-32768 as i16)
+    convert(65535 as u16)
+    convert(-2147483647 - 1)
+    convert(~(0 as u32))
+    minimum := -((2147483648 as i64 * 4294967295 as i64) + 2147483647 as i64) - 1
+    convert(minimum)
+    convert(~(0 as u64))
+    convert(1.5 as f32)
+    convert(-2.25 as f64)
+    convert(true)
+    convert(false)
+    convert("text")
+    convert(Str.empty())
+    convert(Str.new(c"slice-extra", 5))
+    convert(c"cstring")
+    convert(0 as &u8)
+    arena := Arena.new(32)
+    first := String.of(i32, &arena, 42)
+    second := String.of(&arena, first)
+    first.push_str(" changed")
+    print(second)
+    print(first)
+    long := String.new(&arena)
+    i: u32 = 0
+    while i < 5000 {
+        long.push_char('x')
+        i = i + 1
+    }
+    copied := String.of(&arena, long)
+    print(copied.len)
+    print(*(copied.ptr + 4999) == 'x')
+    maximum_bits := ((2146435071 as u64) << 32) | (4294967295 as u64)
+    maximum := *(&maximum_bits as &f64)
+    print(String.of(&arena, maximum).len == 316)
+    negative_zero_bits := (1 as u64) << 63
+    convert(*(&negative_zero_bits as &f64))
+    arena.destroy()
+}

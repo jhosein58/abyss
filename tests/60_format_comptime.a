@@ -1,0 +1,37 @@
+import fmt from "std/fmt"
+import String from "std/string"
+import Arena from "std/allocator"
+import print, printf from "std/io"
+
+emit :: fn(T type, cmpt pattern Str, args T) {
+    printf(pattern, args)
+}
+
+copy :: fn(cmpt text Str) Str { text }
+
+constant :: fn(cmpt number i64, cmpt flag bool) {
+    print(number)
+    print(flag)
+}
+
+main :: fn() {
+    emit("first={}\n", .{10})
+    emit("second={}\n", .{20})
+    emit("first={}\n", .{30})
+    emit(struct { bool }, "explicit={}\n", .{false})
+    print(copy("hello"))
+    print(copy("goodbye"))
+    print(copy("hello"))
+    constant(0, false)
+    constant(4294967295 as i64, true)
+    text := cmpt {
+        arena := Arena.new(64)
+        fmt(&arena, "{}:{}", .{@type_name(i32), 42}).as_str()
+    }
+    print(text)
+    number := cmpt {
+        arena := Arena.new(64)
+        String.of(&arena, -123).as_str()
+    }
+    print(number)
+}

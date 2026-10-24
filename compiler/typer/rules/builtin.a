@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import synth_reflection_builtin from "../../reflection"
 import Engine from "../../engine"
 import Nexus from "../../nexus/nexus"
@@ -117,7 +118,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
     }
 
     print(c"\n\033[1;31m[type error]\033[0m unknown builtin function '@")
-    name.print()
+    write_str(name)
     print(c"'\n       --> ")
     db.print_loc(id)
     print(c"\n")

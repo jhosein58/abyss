@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../../hir"
 import Str from "std/string"
@@ -11,9 +12,35 @@ import check_value from "./common"
 import synth_node from "../tyck"
 import specialize_nominal_from_creator, instantiate_type, resolve_ty_id from "../specialize"
 import eval_const from "../../lower"
+import reflection_read, reflection_error from "../../reflection"
 
 print :: fn(s &u8)
 print_u32 :: fn(v u32)
+
+constant_argument :: fn(db &Nexus, id u32) bool {
+    kind := db.hir.kind(id)
+    k := hir_kind
+    if (kind == k.lit_int) or (kind == k.lit_float) or (kind == k.lit_str) or
+       (kind == k.lit_char) or (kind == k.lit_bool_true) or (kind == k.lit_bool_false) or
+       (kind == k.k_cmpt) { ret true }
+    if kind == k.ident {
+        sym := db.get_hir_symbol(id)
+        ret (sym != id_none()) and db.is_sym_const(db.resolve_sym(sym))
+    }
+    if kind == k.builtin_call { ret db.interner.get(db.hir.lhs(id)).eq("type_name") }
+    if (kind == k.cast) or (kind == k.unary_neg) or (kind == k.unary_not) or (kind == k.unary_bit_not) {
+        ret constant_argument(db, db.hir.lhs(id))
+    }
+    if (kind == k.binary_add) or (kind == k.binary_sub) or (kind == k.binary_mul) or
+       (kind == k.binary_div) or (kind == k.binary_mod) or (kind == k.binary_and) or
+       (kind == k.binary_or) or (kind == k.binary_bit_and) or (kind == k.binary_bit_or) or
+       (kind == k.binary_bit_xor) or (kind == k.binary_shl) or (kind == k.binary_shr) or
+       (kind == k.binary_eq_eq) or (kind == k.binary_neq) or (kind == k.binary_lt) or
+       (kind == k.binary_gt) or (kind == k.binary_lt_eq) or (kind == k.binary_gt_eq) {
+        ret constant_argument(db, db.hir.lhs(id)) and constant_argument(db, db.hir.rhs(id))
+    }
+    false
+}
 
 func_has_self :: fn(db &Nexus, func_node u32) bool {
     if func_node == hir_none() { ret false }
@@ -85,6 +112,12 @@ synth_func :: fn(eng &Engine, id u32) {
                 print(c"\n")
                 fall()
             }
+            if tbl.extra(arg_id) == 1 {
+                pk := types_ptr.kind(param_ty)
+                if (pk != TyKind.int) and (pk != TyKind.uint) and (pk != TyKind.bool) and (param_ty != eng.get_str_type()) {
+                    reflection_error(db, arg_id, c"compile-time parameters require an integer, bool, or Str type")
+                }
+            }
 
             arg_ident := (tbl).lhs(arg_id)
             if param_ty == ty_id_type() {
@@ -144,6 +177,19 @@ synth_func :: fn(eng &Engine, id u32) {
     }
 
     func_ty := (&(*types_ptr)).alloc_func(slice, ret_ty, is_extern)
+    if params_list_id != hir_none() {
+        fn_args := db.get_list(params_list_id)
+        p_i: u64 = 0
+        while p_i < fn_args.len {
+            if tbl.extra(*(fn_args.ptr + p_i)) == 1 {
+                if is_extern { reflection_error(db, id, c"external functions cannot have compile-time parameters") }
+                func_ty = types_ptr.store.push(TyKind.func, types_ptr.payload(func_ty))
+                types_ptr.record_dependent_func(func_ty)
+                break
+            }
+            p_i = p_i + 1
+        }
+    }
     params_vec.destroy()
 
     if (ret_hir_id != hir_none()) and ((tbl).kind(ret_hir_id) == hir_kind.array) {
@@ -249,7 +295,7 @@ report_arg_count_error :: fn(db &Nexus, id u32, callee u32, params_len u64, args
         print(c"method '")
         name_node := (tbl).rhs(callee)
         name_id := (tbl).lhs(name_node)
-        db.interner.get(name_id).print()
+        write_str(db.interner.get(name_id))
         print(c"' expected ")
     } else {
         print(c"function expected ")
@@ -636,6 +682,46 @@ synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u3
     if mono_p_vec.len > 0 { ptr_m = mono_p_vec.ptr_at(0) }
     m_slice: Slice(u32) = .{ ptr: ptr_m, len: mono_p_vec.len }
     mono_func_ty := (&(*types_ptr)).alloc_func(m_slice, final_ret, false)
+    constant_keys := Vec(u32).new()
+    constant_values := Vec(u32).new()
+    constant_args := Vec(u32).new()
+    p_i = param_start
+    arg_idx = 0
+    while p_i < params.len {
+        if is_omitted and (*(params.ptr + p_i) == ty_id_type()) {
+            p_i = p_i + 1
+            cont
+        }
+        if (p_i < fn_args_slice.len) and (tbl.extra(*(fn_args_slice.ptr + p_i)) == 1) {
+            constant_args.push(arg_idx as u32)
+            arg_node := *(args.ptr + arg_idx)
+            if not constant_argument(db, arg_node) {
+                reflection_error(db, arg_node, c"compile-time parameter requires a constant argument")
+            }
+            value := eval_const(db, arg_node)
+            key := value
+            if db.get_node_type(arg_node) == eng.get_str_type() {
+                ptr := reflection_read(db, value, db.str_type, "ptr") as &u8
+                len := reflection_read(db, value, db.str_type, "len")
+                key = db.interner.intern(Str.new(ptr, len)) as u64
+            }
+            constant_keys.push(p_i as u32)
+            constant_keys.push(key as u32)
+            constant_keys.push((key >> 32) as u32)
+            constant_values.push(p_i as u32)
+            constant_values.push(value as u32)
+            constant_values.push((value >> 32) as u32)
+        }
+        arg_idx = arg_idx + 1
+        p_i = p_i + 1
+    }
+    if constant_keys.len > 0 {
+        mono_func_ty = db.specialize_const_func(mono_func_ty, constant_keys.as_slice(), constant_values.as_slice())
+    }
+    db.const_call_args.set_safe(id, db.add_list(constant_args.as_slice()), id_none())
+    constant_args.destroy()
+    constant_keys.destroy()
+    constant_values.destroy()
     i: u64 = 0
     while i < args.len {
         arg_node := *(args.ptr + i)

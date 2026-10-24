@@ -628,6 +628,20 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
+    expr_u64 :: fn(self &Self, arena &Arena, val u64) Str {
+        out := Fmt.new(arena)
+        out.uint64(val).str("ULL")
+        out.as_str()
+    }
+
+    expr_typed_cast :: fn(self &Self, arena &Arena, ty Str, inner Str, source u32) Str {
+        self.expr_cast(arena, ty, inner)
+    }
+
+    expr_typed_binary_kind :: fn(self &Self, arena &Arena, kind HirExprKind, lhs Str, rhs Str, ty u32) Str {
+        self.expr_binary_kind(arena, kind, lhs, rhs)
+    }
+
     expr_float_from_int :: fn(self &Self, arena &Arena, val u32, ty_id u32) Str {
         self.expr_int(arena, val)
     }

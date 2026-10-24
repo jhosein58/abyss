@@ -44,6 +44,19 @@ parse_params :: fn(p &Parser) u32 {
     pending_names := Vec(u32).new()
 
     while (peek(p) != t.c_paren) and (not is_eof(p)) {
+        if optional(p, t.kw_cmpt) {
+            if pending_names.len > 0 {
+                parse_error_at(p, c"compile-time parameters cannot share a type with preceding parameters", curr_span(p))
+            }
+            name := parse_ident(p)
+            ty := parse_expr(p, prec().var_def + (1 as u8))
+            push_arg(p, &args, name, ty)
+            p.hir.set_extra(args.get(args.len - 1), 1)
+            if (peek(p) != t.c_paren) and (not optional(p, t.comma)) {
+                parse_error_at(p, c"expected ',' or ')' after compile-time parameter", curr_span(p))
+            }
+            cont
+        }
         is_type_token := (peek(p) == t.amp) or (peek(p) == t.star) or
                          (peek(p) == t.o_bracket) or (peek(p) == t.at) or
                          (peek(p) == t.kw_fn) or (peek(p) == t.kw_struct) or

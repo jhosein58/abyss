@@ -1,3 +1,4 @@
+import write_str from "std/io"
 import Vec as Buffer from "std/collections/vec.a"
 import Forwarded as OtherBuffer, Choice as Option, forwarded_value as renamed, text from "./modules/reexport"
 import Str as Text from "core/string.a"
@@ -24,13 +25,13 @@ main :: fn() {
     print(c"\n")
     s: Text = text()
     same: SameText = s
-    same.print()
+    write_str(same)
     print(c"\n")
     arena := Memory.new(4096)
     builder := Builder.new(&arena)
     builder.push_str(s)
     builder.push_char('!')
-    builder.as_str().print()
+    write_str(builder.as_str())
     print(c"\n")
     callback := output_number
     callback(7)

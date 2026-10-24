@@ -1,5 +1,6 @@
-import print from "std/io"
-import String, int_to_str from "std/string"
+import write as print from "std/io"
+import String from "std/string"
+import Convert from "std/convert"
 import Arena from "std/allocator"
 
 Address :: struct {
@@ -39,10 +40,12 @@ describe :: fn(info &TypeInfo()) Str {
     i: u64 = 0
     while i < info.field_count {
         field := *(info.fields + i)
-        text := field.name.concat(": ")
-        if info.kind == TypeKind.enum_ { text = text.concat(int_to_str(field.value as i64)) }
-        else { text = text.concat(field.type_info.name) }
-        emit_line(&out, text)
+        text := String.new(&arena)
+        text.push_str(field.name)
+        text.push_str(": ")
+        if info.kind == TypeKind.enum_ { Convert.unsigned64(&text, field.value) }
+        else { text.push_str(field.type_info.name) }
+        emit_line(&out, text.as_str())
         i = i + 1
     }
     out.as_str()
