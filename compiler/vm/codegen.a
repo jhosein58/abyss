@@ -266,7 +266,7 @@ VmCodeGen :: struct {
                     if self.is_struct_type(pointee) {
                         ret 8
                     }
-                    ret type_size(self.types, pointee) as u16
+                    ret vm_element_size(self.types, pointee) as u16
                 }
                 ret 0
             }
@@ -287,7 +287,7 @@ VmCodeGen :: struct {
                 if self.is_struct_type(pointee) {
                     ret 8
                 }
-                ret type_size(self.types, pointee) as u16
+                ret vm_element_size(self.types, pointee) as u16
             }
         }
         0
@@ -383,6 +383,8 @@ VmCodeGen :: struct {
             self.chunk.emit_u16(val.id as u16)
             if val.elem_size == 1 {
                 self.chunk.inst(OpCode.load8)
+            } else if val.elem_size == 2 {
+                self.chunk.inst(OpCode.load16)
             } else if val.elem_size == 4 {
                 self.chunk.inst(OpCode.load32)
             } else {
@@ -480,6 +482,10 @@ VmCodeGen :: struct {
 
     declare_function :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal) {
     }
+
+    begin_inline_scope :: fn(self &Self) {}
+
+    end_inline_scope :: fn(self &Self) {}
 
     create_variable :: fn(self &Self, name VmVal, ty VmVal, init_val VmVal, has_init bool) {
         slot := name.id
@@ -660,6 +666,9 @@ VmCodeGen :: struct {
         else if name.eq(Str.of("abyss_fall")) { ext_id = 29 }
         else if name.eq(Str.of("compile_and_run")) { ext_id = 30 }
         else if name.eq(Str.of("print_f16")) { ext_id = 31 }
+        else if name.eq(Str.of("print_bytes")) { ext_id = 32 }
+        else if name.eq(Str.of("print_i128")) { ext_id = 33 }
+        else if name.eq(Str.of("print_u128")) { ext_id = 34 }
         else {
             buf := self.arena.alloc(name.len + 1)
             i: u64 = 0
@@ -687,6 +696,10 @@ VmCodeGen :: struct {
         }
         self.set_local_type(slot, ty.raw as u32)
         VmVal.empty()
+    }
+
+    expr_comptime_pointer :: fn(self &Self, arena &Arena, value u64) VmVal {
+        VmVal.const_int(value)
     }
 
     expr_int :: fn(self &Self, arena &Arena, val u32) VmVal {
@@ -897,6 +910,8 @@ VmCodeGen :: struct {
             self.chunk.emit_u16(lhs.id as u16)
             if lhs.elem_size == 1 {
                 self.chunk.inst(OpCode.store8)
+            } else if lhs.elem_size == 2 {
+                self.chunk.inst(OpCode.store16)
             } else if lhs.elem_size == 4 {
                 self.chunk.inst(OpCode.store32)
             } else {
@@ -1031,6 +1046,14 @@ VmCodeGen :: struct {
         self.ensure_on_stack(inner)
         self.chunk.inst(OpCode.bit_not)
         VmVal.stack()
+    }
+
+    expr_typed_address :: fn(self &Self, arena &Arena, inner VmVal, ty u32) VmVal {
+        if self.is_struct_type(ty) {
+            self.ensure_on_stack(inner)
+            ret VmVal.stack()
+        }
+        self.expr_address(arena, inner)
     }
 
     expr_address :: fn(self &Self, arena &Arena, inner VmVal) VmVal {
@@ -1217,14 +1240,23 @@ VmCodeGen :: struct {
         if (lhs.kind == VmValKind.local) or (lhs.kind == VmValKind.deref) {
             struct_ty = self.get_local_type(lhs.id)
         }
+        self.expr_typed_member(arena, lhs, depth, field_id, struct_ty)
+    }
+
+    expr_typed_member :: fn(self &Self, arena &Arena, lhs VmVal, depth u32, field_id u32, struct_ty u32) VmVal {
+        value := lhs
+        if (value.kind == VmValKind.deref) and self.is_struct_type(struct_ty) {
+            self.ensure_on_stack(value)
+            value = VmVal.stack()
+        }
         offset := self.find_struct_field_offset(struct_ty, field_id)
         elem_sz := self.find_struct_field_elem_size(struct_ty, field_id)
         if (depth == 0) or (depth == 1) {
-            if (lhs.kind == VmValKind.local) or (lhs.kind == VmValKind.deref) {
-                ret .{ kind: VmValKind.member_local, elem_size: elem_sz, id: lhs.id, raw: offset as u64 }
+            if (value.kind == VmValKind.local) or (value.kind == VmValKind.deref) {
+                ret .{ kind: VmValKind.member_local, elem_size: elem_sz, id: value.id, raw: offset as u64 }
             }
         }
-        self.ensure_on_stack(lhs)
+        self.ensure_on_stack(value)
         d := depth
         while d > 1 {
             self.chunk.inst(OpCode.load64)
@@ -1295,7 +1327,7 @@ VmCodeGen :: struct {
         c := count as u64
         elem_size: u64 = 8
         if (self.types != (0 as &TypeStorage)) and (elem_ty != 0) {
-            elem_size = type_size(self.types, elem_ty)
+            elem_size = vm_element_size(self.types, elem_ty)
         }
         if elem_size == 0 { elem_size = 8 }
         total_size := c * elem_size
@@ -1326,6 +1358,8 @@ VmCodeGen :: struct {
             }
             if elem_size == 1 {
                 self.chunk.inst(OpCode.store8)
+            } else if elem_size == 2 {
+                self.chunk.inst(OpCode.store16)
             } else if elem_size == 4 {
                 self.chunk.inst(OpCode.store32)
             } else {
@@ -1345,7 +1379,7 @@ VmCodeGen :: struct {
     expr_ptr_index :: fn(self &Self, arena &Arena, value VmVal, index VmVal, elem_ty u32) VmVal {
         elem_size: u64 = 8
         if (self.types != (0 as &TypeStorage)) and (elem_ty != 0) {
-            elem_size = type_size(self.types, elem_ty)
+            elem_size = vm_element_size(self.types, elem_ty)
         }
         if elem_size == 0 { elem_size = 8 }
 
@@ -1375,7 +1409,7 @@ VmCodeGen :: struct {
     expr_slice_index :: fn(self &Self, arena &Arena, value VmVal, index VmVal, elem_ty u32, ptr_id u32) VmVal {
         elem_size: u64 = 8
         if (self.types != (0 as &TypeStorage)) and (elem_ty != 0) {
-            elem_size = type_size(self.types, elem_ty)
+            elem_size = vm_element_size(self.types, elem_ty)
         }
         if elem_size == 0 { elem_size = 8 }
 
@@ -1651,6 +1685,16 @@ type_align :: fn(types &TypeStorage, ty_id u32) u64 {
         unknown { 8 }
         infer { 8 }
     }
+}
+
+vm_element_size :: fn(types &TypeStorage, ty u32) u64 {
+    kind := types.kind(ty)
+    while kind == TyKind.nominal {
+        ty = types.nominal_base(ty)
+        kind = types.kind(ty)
+    }
+    if (kind == TyKind.struct_) or (kind == TyKind.array) or (kind == TyKind.union_) { ret 8 }
+    type_size(types, ty)
 }
 
 type_size :: fn(types &TypeStorage, ty_id u32) u64 {

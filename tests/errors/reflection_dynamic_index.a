@@ -1,0 +1,3 @@
+Record :: struct { value i32 }
+main :: fn() { index := 0
+x: @field_type(Record, index) = 1 }

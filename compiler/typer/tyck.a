@@ -18,6 +18,7 @@ import synth_unary_num, validate_unary_num, synth_unary_not, synth_unary_addr_of
        synth_logic_and_or, synth_cast from "./rules/op"
 import synth_block, synth_if, synth_while, synth_for, synth_break_cont, synth_match, prepare_match_bindings from "./rules/control"
 import synth_struct, synth_struct_init, synth_member from "./rules/struct"
+import macro_template, reflection_read from "../reflection"
 import synth_builtin_call from "./rules/builtin"
 import synth_enum from "./rules/enum"
 import synth_array_type, synth_array_init, synth_index from "./rules/array"
@@ -112,6 +113,16 @@ synth_macro :: fn(eng &Engine, id u32) {
     synth_node(eng, child)
     child_ty := db.get_node_type(child)
     str_ty := eng.get_str_type()
+    if (db.types.kind(child_ty) == TyKind.unit) and (tbl.kind(child) == hir_kind.call) {
+        callee := tbl.lhs(child)
+        sym := db.get_hir_symbol(callee)
+        if (sym != id_none()) and (macro_template(db, sym) != hir_none()) {
+            tbl.set_rhs(id, 1)
+            tbl.set_extra(id, child)
+            unify_ptr.bind_type(types_ptr, slot, child_ty)
+            ret
+        }
+    }
     if (child_ty != ty_id_none()) and (str_ty != ty_id_none()) and (child_ty != str_ty) and (tbl.kind(child) != hir_kind.lit_str) {
         print(c"\n[type error] macro expression must evaluate to Str\n       --> ")
         db.print_loc(id)
@@ -123,16 +134,8 @@ synth_macro :: fn(eng &Engine, id u32) {
         ret
     }
 
-    buf_ptr := val as &u8
-    buf_len: u64 = 0
-    if tbl.kind(child) == hir_kind.lit_str {
-        raw := db.interner.get(val as u32)
-        buf_ptr = raw.ptr
-        buf_len = raw.len
-    } else {
-        buf_ptr = *(val as &&u8)
-        buf_len = *((val + 8) as &u64)
-    }
+    buf_ptr := reflection_read(db, val, str_ty, "ptr") as &u8
+    buf_len := reflection_read(db, val, str_ty, "len")
 
     if buf_len == 0 {
         ret
@@ -252,7 +255,7 @@ synth_cmpt :: fn(eng &Engine, id u32) {
     db.set_is_const(id, true)
 
     child_ty_val := db.get_const_type(child)
-    if child_ty_val != ty_id_none() {
+    if (child_ty_val != ty_id_none()) and (db.get_node_type(child) == ty_id_type()) {
         db.set_const_type(id, child_ty_val)
         unify_ptr.bind_type(types_ptr, slot, ty_id_type())
         db.set_const_val(id, child_ty_val as u64)

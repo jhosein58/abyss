@@ -1,0 +1,60 @@
+User {
+    name: "A\"B\\C\nD\tE",
+    address: Address {
+        city: "Tehran",
+        zip: 12345,
+    },
+    scores: [
+        10,
+        -20,
+        30,
+    ],
+    pair: (
+        true,
+        1,
+    ),
+}
+1
+(
+    7,
+    (
+        false,
+        9,
+    ),
+    [
+        1,
+        2,
+    ],
+)
+[
+    [
+        1,
+        2,
+    ],
+    [
+        3,
+        4,
+    ],
+]
+Box(i32) {
+    value: 55,
+}
+Empty {}
+Status.done
+Status(99)
+true
+-17
+Address {
+    city: "nested",
+    zip: 7,
+}
+&i32(0)
+Node(i32) {
+    value: 3,
+    next: &Node(i32)(0),
+}
+C string
+null
+-12
+99
+bounded

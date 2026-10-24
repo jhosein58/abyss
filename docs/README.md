@@ -20,6 +20,7 @@ Get into the mindset behind the language and understand how the compiler works.
 ### Part II: Quick Start
 Start writing and running code in less than ten minutes.
 - [Whirlwind Tour](02-quickstart/whirlwind-tour.md) — Syntax, types, control flow, structs, and compile-time execution at a glance.
+- [Compile-Time Reflection](02-quickstart/reflection.md) — Type metadata, generated printing, and macro templates.
 - [Tooling & Workflow](02-quickstart/workflow.md) — Using the `./abyss` driver for instant VM runs and optimized native builds.
 
 ### Part III: The Guide *(In Progress)*

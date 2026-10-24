@@ -460,7 +460,7 @@ synth_block :: fn(db &Nexus, tbl &HirTable, id u32) {
         }
         if (target_id != hir_none()) and db.is_const(target_id) {
             db.set_is_const(id, true)
-            db.set_const_val(id, db.get_const_val(target_id))
+            if db.has_const_val(target_id) { db.set_const_val(id, db.get_const_val(target_id)) }
             target_slot := unify_ptr.get_slot(target_id)
             if target_slot != slot_none() {
                 if unify_ptr.resolve_type_deep(types_ptr, target_slot) == ty_id_type() {
@@ -552,7 +552,7 @@ synth_if :: fn(db &Nexus, tbl &HirTable, id u32) {
             if chosen != hir_none() {
                 if db.is_const(chosen) {
                     db.set_is_const(id, true)
-                    db.set_const_val(id, db.get_const_val(chosen))
+                    if db.has_const_val(chosen) { db.set_const_val(id, db.get_const_val(chosen)) }
                 }
                 chosen_slot := unify_ptr.get_slot(chosen)
                 if chosen_slot != slot_none() {

@@ -1,4 +1,7 @@
 print :: fn(s &u8)
+print_bytes :: fn(s &u8, len u64)
+print_i128 :: fn(v i128)
+print_u128 :: fn(v u128)
 print_char :: fn(c u8)
 print_bool :: fn(v bool)
 print_i8 :: fn(v i8)

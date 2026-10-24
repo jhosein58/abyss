@@ -1,0 +1,35 @@
+import print from "std/io"
+
+Record :: struct { value i32 }
+
+make :: fn(counter &i32) Record {
+    *counter = *counter + 1
+    .{ value: *counter }
+}
+
+compile_name :: fn() Str {
+    print("")
+    info := @type_info(Record)
+    info.name.concat("!")
+}
+
+main :: fn() {
+    name := cmpt { info := @type_info(Record) info.name }
+    print(name)
+    print("\n")
+    nested := cmpt compile_name()
+    print(nested)
+    print("\n")
+    counter := 0
+    fields := cmpt { info := @type_info(make(&counter)) info.field_count }
+    print(fields)
+    print(" ")
+    print(counter)
+    print("\n")
+    print(cmpt @type_name(&Record))
+    print("\n")
+    print(cmpt "literal")
+    print("\n")
+    print(cmpt { "a\"b\\c\nd" })
+    print("\n")
+}

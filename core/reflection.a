@@ -1,0 +1,32 @@
+TypeKind :: enum u8 {
+    unknown, infer, untyped_int, untyped_float, int, uint, float, bool,
+    ptr, type_, unit, func, never, struct_, array, error, nominal, enum_, union_,
+    tuple, string
+}
+
+TypeInfo :: fn() type {
+    struct {
+        id u32
+        name Str
+        kind TypeKind
+        bits u32
+        length u64
+        fields &&FieldInfo()
+        field_count u64
+        element &TypeInfo()
+        members &&TypeInfo()
+        member_count u64
+        params &&TypeInfo()
+        param_count u64
+        result &TypeInfo()
+        is_extern bool
+    }
+}
+
+FieldInfo :: fn() type {
+    struct {
+        name Str
+        type_info &TypeInfo()
+        value u64
+    }
+}

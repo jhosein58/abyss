@@ -1,0 +1,24 @@
+import print from "std/io"
+
+Tiny :: struct { value u8 }
+
+main :: fn() {
+    unsigned: [3]u16 = .[1, 65535, 1000]
+    unsigned[1] = 42
+    #print(unsigned)
+    print("\n")
+    signed: [3]i16 = .[-1, -32768, 32767]
+    #print(signed)
+    print("\n")
+    first: Tiny = .{ value: 1 }
+    second: Tiny = .{ value: 255 }
+    tiny: [2]Tiny = .[first, second]
+    #print(tiny)
+    print("\n")
+    nested: [2][1]u8 = .[.[7], .[9]]
+    #print(nested)
+    print("\n")
+    tuples: [2]struct { bool, u8 } = .[.{ true, 5 as u8 }, .{ false, 6 as u8 }]
+    #print(tuples)
+    print("\n")
+}

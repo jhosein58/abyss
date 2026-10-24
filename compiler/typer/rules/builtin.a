@@ -1,3 +1,4 @@
+import synth_reflection_builtin from "../../reflection"
 import Engine from "../../engine"
 import Nexus from "../../nexus/nexus"
 import hir_kind, hir_none from "../../hir"
@@ -25,6 +26,8 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
     name := db.interner.get(name_id)
     args_list_id := (tbl).rhs(id)
     args := db.get_list(args_list_id)
+
+    if synth_reflection_builtin(eng, id, name, args) { ret }
 
     if name.eq(Str.of("sizeof")) {
         if args.len != 1 {

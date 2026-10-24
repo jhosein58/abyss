@@ -107,6 +107,7 @@ Nexus :: struct {
     const_status   PoolU32
     const_vals     PoolU64
     sym_is_const   PoolU32
+    comptime_depth u32
     comptime_arena Arena
     comptime_cg    &VmCodeGen
     comptime_vm    &Vm
@@ -158,6 +159,7 @@ Nexus :: struct {
             const_status   : PoolU32.new(),
             const_vals     : PoolU64.new(),
             sym_is_const   : PoolU32.new(),
+            comptime_depth : 0,
             comptime_arena : Arena.new(65536),
             comptime_cg    : 0 as &VmCodeGen,
             comptime_vm    : 0 as &Vm

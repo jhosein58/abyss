@@ -1,0 +1,70 @@
+import print as emit from "std/io"
+
+Address :: struct { city Str; zip u32 }
+User :: struct {
+    name Str
+    address Address
+    scores [3]i32
+    pair struct { bool, i32 }
+}
+Status :: enum u8 { ready = 7, done = 42 }
+Empty :: struct {}
+
+Box :: fn(T type) type { struct { value T } }
+Node :: fn(T type) type { struct { value T; next &Node(T) } }
+
+forward :: fn(T type, value T) {
+    #emit(value)
+    emit("\n")
+}
+
+make :: fn(counter &i32) User {
+    *counter = *counter + 1
+    .{
+        name: "A\"B\\C\nD\tE",
+        address: .{ city: "Tehran", zip: 12345 },
+        scores: .[10, -20, 30],
+        pair: .{ true, *counter }
+    }
+}
+
+main :: fn() {
+    counter := 0
+    #emit(make(&counter))
+    emit("\n")
+    emit(counter)
+    emit("\n")
+    forward(.{ 7, .{ false, 9 }, .[1, 2] })
+    #emit(.[ .[1, 2], .[3, 4] ])
+    emit("\n")
+    box: Box(i32) = .{ value: 55 }
+    forward(box)
+    empty: Empty = .{}
+    forward(empty)
+    forward(Status.done)
+    forward(99 as Status)
+    choice: i32 | bool | Address = true
+    #emit(choice)
+    emit("\n")
+    choice = -17
+    #emit(choice)
+    emit("\n")
+    address: Address = .{ city: "nested", zip: 7 }
+    choice = address
+    #emit(choice)
+    emit("\n")
+    null: &i32 = 0 as &i32
+    #emit(null)
+    emit("\n")
+    node: Node(i32) = .{ value: 3, next: 0 as &Node(i32) }
+    #emit(node)
+    emit("\n")
+    #emit(c"C string")
+    emit("\n")
+    #emit(0 as &u8)
+    emit("\n")
+    forward(-12 as i128)
+    forward(99 as u128)
+    emit(Str.new(c"bounded-extra", 7))
+    emit("\n")
+}

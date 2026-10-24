@@ -22,6 +22,31 @@ void print(uint8_t *s) {
     printf("%s", (const char *)s);
 }
 
+void print_bytes(uint8_t *s, uint64_t len) {
+    if (len) fwrite(s, 1, (size_t)len, stdout);
+}
+
+#if defined(__SIZEOF_INT128__)
+void print_u128(unsigned __int128 v) {
+    uint8_t digits[40];
+    uint32_t count = 0;
+    do {
+        digits[count++] = (uint8_t)('0' + v % 10);
+        v /= 10;
+    } while (v);
+    while (count) putchar(digits[--count]);
+}
+
+void print_i128(__int128 v) {
+    unsigned __int128 magnitude = (unsigned __int128)v;
+    if (v < 0) {
+        putchar('-');
+        magnitude = 0 - magnitude;
+    }
+    print_u128(magnitude);
+}
+#endif
+
 void print_char(uint8_t c) {
     putchar((int)c);
 }

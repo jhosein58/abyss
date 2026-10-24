@@ -2,6 +2,7 @@ import Chunk from "./chunk"
 import OpCode from "./op"
 
 print :: fn(s &u8)
+print_bytes :: fn(s &u8, len u64)
 print_char :: fn(c u8)
 print_bool :: fn(v bool)
 print_i8 :: fn(v i8)
@@ -202,6 +203,17 @@ Vm :: struct {
         } else if id == 31 {
             self.stack.pop()
             self.stack.push(0)
+        } else if id == 32 {
+            len := self.stack.pop()
+            ptr := self.stack.pop() as &u8
+            print_bytes(ptr, len)
+            self.stack.push(0)
+        } else if id == 33 {
+            print_i64(self.stack.pop() as i64)
+            self.stack.push(0)
+        } else if id == 34 {
+            print_u64(self.stack.pop())
+            self.stack.push(0)
         } else if id >= 100 {
             name_ptr := prog.get_extern_name(id - 100)
             a0: u64 = 0
@@ -323,6 +335,16 @@ Vm :: struct {
                 store32 {
                     ptr := self.stack.pop() as &u32
                     val := self.stack.pop() as u32
+                    *ptr = val
+                    vm_noop()
+                }
+                load16 {
+                    ptr := self.stack.pop() as &u16
+                    self.stack.push(*ptr as u64)
+                }
+                store16 {
+                    ptr := self.stack.pop() as &u16
+                    val := self.stack.pop() as u16
                     *ptr = val
                     vm_noop()
                 }

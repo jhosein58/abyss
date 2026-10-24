@@ -1,0 +1,36 @@
+import print from "std/io"
+
+Empty :: struct {}
+foreign :: fn(value &u16, flag bool) i32
+sample :: fn(value i32) bool { value > 0 }
+
+main :: fn() {
+    tuple := .{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 }
+    print(cmpt { info := @type_info(tuple) info.field_count })
+    print("\n")
+    print(cmpt {
+        info := @type_info(tuple)
+        field := *(info.fields + 17)
+        field.name
+    })
+    print("\n")
+    item: @field_type(@typeof(tuple), 17) = 77
+    print(item)
+    print("\n")
+    #print(tuple)
+    print("\n")
+    print(cmpt { info := @type_info(Empty) info.field_count })
+    print("\n")
+    print(cmpt { info := @type_info(foreign) info.is_extern })
+    print("\n")
+    print(cmpt {
+        info := @type_info(foreign)
+        param := *(info.params)
+        param.element.bits
+    })
+    print("\n")
+    #print(sample)
+    print("\n")
+    print(cmpt { info := @type_info(Str) info.kind == TypeKind.string })
+    print("\n")
+}

@@ -1,0 +1,35 @@
+import print from "std/io"
+
+add_code :: fn() Str { "*target = *target + amount" }
+
+add :: fn(T type, target &T, amount T) {
+    #add_code()
+}
+
+next :: fn(counter &i32) i32 {
+    *counter = *counter + 1
+    *counter
+}
+
+sum :: fn(a i32, b i32) i32 { a + b }
+
+main :: fn() {
+    value := 10
+    counter := 0
+    #add(&value, next(&counter))
+    #add(i32, &value, 4)
+    print(value)
+    print(" ")
+    print(counter)
+    print("\n")
+    other: u64 = 100
+    #add(&other, 7 as u64)
+    print(other)
+    print("\n")
+    values: [3]i32 = .[1, 2, 3]
+    #add(&values[1], 10)
+    print(sum({ #add(&value, 1) value }, 10))
+    print("\n")
+    #print(values)
+    print("\n")
+}

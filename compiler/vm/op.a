@@ -42,5 +42,7 @@ OpCode :: enum u8 {
     call_ptr_stack,
     ret_val,
     f64_to_f32,
-    f32_to_i32
+    f32_to_i32,
+    load16,
+    store16
 }

@@ -1,0 +1,95 @@
+import print from "std/io"
+import String, int_to_str from "std/string"
+import Arena from "std/allocator"
+
+Address :: struct {
+    city Str
+    zip u32
+}
+
+User :: struct {
+    id u64
+    address Address
+    flags [3]bool
+}
+
+Box :: fn(T type, N u64) type {
+    struct { values [N]T }
+}
+
+Node :: fn(T type) type {
+    struct { value T; next &Node(T) }
+}
+
+Status :: enum u16 { ready = 7, done = 42 }
+
+sample :: fn(x i32, flag bool) u64 { x as u64 }
+
+emit_line :: fn(out &String, text Str) {
+    out.push_str(`print("`)
+    out.push_str(text)
+    out.push_str(`\n")`)
+    out.push_char('\n')
+}
+
+describe :: fn(info &TypeInfo()) Str {
+    arena := Arena.new(4096)
+    out := String.new(&arena)
+    emit_line(&out, info.name)
+    i: u64 = 0
+    while i < info.field_count {
+        field := *(info.fields + i)
+        text := field.name.concat(": ")
+        if info.kind == TypeKind.enum_ { text = text.concat(int_to_str(field.value as i64)) }
+        else { text = text.concat(field.type_info.name) }
+        emit_line(&out, text)
+        i = i + 1
+    }
+    out.as_str()
+}
+
+main :: fn() {
+    #describe(@type_info(User))
+    #describe(@type_info(Box(u16, 3)))
+    #describe(@type_info(Status))
+    print(@type_name(&[2]i32))
+    print("\n")
+    print(@type_name(@field_type(User, "address")))
+    print("\n")
+    print(@type_name(@field_type(struct { i32, bool }, 1)))
+    print("\n")
+    print(@type_name(@element_type([4]u16)))
+    print("\n")
+    print(@type_name(@element_type(&Address)))
+    print("\n")
+    x: @type_from_id(cmpt { info := @type_info(u32) info.id }) = 99
+    print(x)
+    print("\n")
+    print(cmpt { info := @type_info(User) info.field_count })
+    print("\n")
+    print(cmpt { info := @type_info([7]bool) info.length })
+    print("\n")
+    print(cmpt {
+        info := @type_info(Node(i32))
+        same := false
+        i: u64 = 0
+        while i < info.field_count {
+            field := *(info.fields + i)
+            if field.name.eq("next") { same = field.type_info.element == info }
+            i = i + 1
+        }
+        same
+    })
+    print("\n")
+    print(cmpt { info := @type_info(i32 | Str | bool) info.member_count })
+    print("\n")
+    print(cmpt { info := @type_info(sample) info.param_count })
+    print("\n")
+    print(cmpt {
+        info := @type_info(sample)
+        info.result.kind == TypeKind.uint
+    })
+    print("\n")
+    print(cmpt { info := @type_info(u16) info.bits })
+    print("\n")
+}

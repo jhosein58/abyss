@@ -158,6 +158,18 @@ CCodeGen :: struct {
         append_str(&self.code, Str.of("}\n\n"))
     }
 
+    begin_inline_scope :: fn(self &Self) {
+        self.indent_line()
+        append_str(&self.code, Str.of("{\n"))
+        self.indent = self.indent + 1
+    }
+
+    end_inline_scope :: fn(self &Self) {
+        self.indent = self.indent - 1
+        self.indent_line()
+        append_str(&self.code, Str.of("}\n"))
+    }
+
     create_variable :: fn(self &Self, name Str, ty Str, init_val Str, has_init bool) {
         self.indent_line()
         append_str(&self.code, ty)
@@ -731,6 +743,10 @@ CCodeGen :: struct {
         self.expr_unary(arena, Str.of("~"), inner)
     }
 
+    expr_typed_address :: fn(self &Self, arena &Arena, inner Str, ty u32) Str {
+        self.expr_address(arena, inner)
+    }
+
     expr_address :: fn(self &Self, arena &Arena, inner Str) Str {
         self.expr_unary(arena, Str.of("&"), inner)
     }
@@ -755,6 +771,10 @@ CCodeGen :: struct {
         fmt := Fmt.new(arena)
         fmt.str(callee).char(40 as u8).str(args).char(41 as u8)
         fmt.as_str()
+    }
+
+    expr_typed_member :: fn(self &Self, arena &Arena, lhs Str, depth u32, field_id u32, struct_ty u32) Str {
+        self.expr_member(arena, lhs, depth, field_id)
     }
 
     expr_member :: fn(self &Self, arena &Arena, lhs Str, depth u32, field_id u32) Str {
@@ -785,6 +805,10 @@ CCodeGen :: struct {
         fmt := Fmt.new(arena)
         fmt.cstr(c"((").str(struct_name).cstr(c"){").str(fields_body).cstr(c"})")
         fmt.as_str()
+    }
+
+    expr_comptime_pointer :: fn(self &Self, arena &Arena, value u64) Str {
+        Str.empty()
     }
 
     expr_sizeof :: fn(self &Self, arena &Arena, ty Str) Str {
