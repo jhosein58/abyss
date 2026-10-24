@@ -8,7 +8,6 @@ A statically typed, data-oriented systems programming language. Pairs modern erg
 - **Pure C99 Target:** Emits standard portable C. Compiles with GCC, Clang, or MSVC.
 - **Integrated Bytecode VM:** Instant compile-and-run without external toolchain latency.
 - **Compile-Time Evaluation:** Run arbitrary logic at compile time via `cmpt`.
-- **Compile-Time Reflection:** Inspect types and generate specialized, indented printing with `#print(value)`.
 - **First-Class Types:** Compute, return, and pass types dynamically at compile time.
 - **Zero-Dependency Bootstrap:** `dist/bootstrap.c` compiles anywhere with a single `cc` command.
 
@@ -71,8 +70,6 @@ gcc -std=c99 -O3 -rdynamic dist/bootstrap.c -o abyssc
 # Compile native binary and run
 ./abyss br main.a
 ```
-
-User programs live in `main.a`; the compiler's own entry point is `compiler/main.a`.
 
 ---
 
