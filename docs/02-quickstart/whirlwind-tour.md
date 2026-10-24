@@ -12,11 +12,11 @@ Every Abyss program starts at `main`:
 import print from "std/io"
 
 main :: fn() {
-    print("Hello from the deep!\n")
+    print("Hello from the deep!")
 }
 ```
 
-Notice anything missing? There is no `void` or `unit` keyword. If a function doesn't return anything, you simply don't write a return type. 
+Notice anything missing? There is no `void` or `unit` keyword. If a function doesn't return anything, you simply don't write a return type. `print` automatically appends a newline (`\n`). For custom compile-time formatted strings, `printf` is also available. 
 
 ---
 
@@ -46,24 +46,26 @@ Parentheses around conditions are optional, but braces around blocks are require
 depth := 500
 
 if depth > 1000 {
-    print("Crushing pressure!\n")
+    print("Crushing pressure!")
 } else if depth > 200 {
-    print("The twilight zone.\n")
+    print("The twilight zone.")
 } else {
-    print("Near the surface.\n")
+    print("Near the surface.")
 }
 ```
 
 ### `while`
-Straightforward loops without surprises:
+Straightforward loops without surprises. For formatted, newline-free printing, use `printf`:
 
 ```abyss
+import printf, print from "std/io"
+
 i := 0
 while i < 5 {
-    print(i)
-    print(" ")
+    printf("{} ", .{i})
     i = i + 1
 }
+print("")
 -- Outputs: 0 1 2 3 4
 ```
 
@@ -74,14 +76,14 @@ while i < 5 {
 Functions are declared with `:: fn(...) [ReturnType]`:
 
 ```abyss
+import printf from "std/io"
+
 add :: fn(a i32, b i32) i32 {
     a + b
 }
 
 log_depth :: fn(meters i32) {
-    print("Current depth: ")
-    print(meters)
-    print("m\n")
+    printf("Current depth: {}m\n", .{meters})
 }
 ```
 
@@ -104,16 +106,33 @@ Point :: struct {
 }
 ```
 
-Instantiating a struct is clean and expressive with struct literal syntax (`.{ ... }`):
+Instantiating a struct is clean and expressive with struct literal syntax (`.{ ... }`). Combine with `printf` for zero-cost formatting:
 
 ```abyss
 p: Point = .{ x: 3, y: 4 }
-print(p.dist_sq()) -- Prints: 25
+printf("Point ({}, {}), dist_sq = {}\n", .{p.x, p.y, p.dist_sq()})
+-- Outputs: Point (3, 4), dist_sq = 25
 ```
 
 ---
 
-## 6. Compile-Time Execution (`cmpt`)
+## 6. Tuples & Arrays
+
+Abyss supports structural tuples, destructuring, and fixed-size arrays with minimal syntax:
+
+```abyss
+-- Structural tuples and destructuring:
+origin := .{10, 20}
+x, y := origin
+
+-- Fixed-size arrays:
+numbers: [3]i32 = .[1, 2, 3]
+printf("Item: {}, origin: ({}, {})\n", .{numbers[0], x, y})
+```
+
+---
+
+## 7. Compile-Time Execution (`cmpt`)
 
 Why calculate something at runtime when your CPU can do it once during compilation? 
 
@@ -126,12 +145,13 @@ TABLE_SIZE := cmpt {
     base * factor + 12
 }
 
+print(TABLE_SIZE)
 -- TABLE_SIZE is baked into the binary as an exact constant (268)
 ```
 
 ---
 
-## 7. First-Class Types
+## 8. First-Class Types
 
 In Abyss, types are first-class values. You can pass them as arguments, return them from functions, and choose them conditionally:
 
@@ -142,6 +162,7 @@ PrecisionType :: fn(high_precision bool) type {
 
 -- Computes the type at compile-time without complex template metaprogramming
 coordinate: PrecisionType(true) = 142.857
+print(coordinate)
 ```
 
 No template error messages stretching across five terminal screens. Types are just code.

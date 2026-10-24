@@ -33,8 +33,10 @@ A deep, structured dive into every language feature.
 
 ### Part IV: Reference *(In Progress)*
 Comprehensive API documentation for the standard library.
-- `core` — The foundation: `String`, `Str`, and core intrinsics.
-- `std/io` — Formatted printing and basic I/O.
+- `core` — The foundation: allocation-free `Str` slice view and core intrinsics.
+- `std/fmt` — Compile-time zero-cost format engine and template specialization.
+- `std/convert` — Universal type-to-string conversions (`String.of`).
+- `std/io` — Formatted printing (`print`, `printf`, `write`).
 - `std/fs` — File system operations and path manipulation.
 - `std/mem` — Allocators, manual heap management, and memory blocks.
 - `std/env` — Command-line argument parsing and environment variables.

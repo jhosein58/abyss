@@ -7,7 +7,8 @@ A statically typed, data-oriented systems programming language. Pairs modern erg
 - **100% Self-Hosted:** Bit-for-bit deterministic bootstrap verification.
 - **Pure C99 Target:** Emits standard portable C. Compiles with GCC, Clang, or MSVC.
 - **Integrated Bytecode VM:** Instant compile-and-run without external toolchain latency.
-- **Compile-Time Evaluation:** Run arbitrary logic at compile time via `cmpt`.
+- **Zero-Cost Formatting & Reflection:** Compile-time format verification and type inspection with zero runtime overhead.
+- **Compile-Time Evaluation:** Run arbitrary logic at compile time via `cmpt` and macros.
 - **First-Class Types:** Compute, return, and pass types dynamically at compile time.
 - **Zero-Dependency Bootstrap:** `dist/bootstrap.c` compiles anywhere with a single `cc` command.
 
@@ -18,7 +19,7 @@ A statically typed, data-oriented systems programming language. Pairs modern erg
 ## Code at a Glance
 
 ```abyss
-import print from "std/io"
+import print, printf from "std/io"
 
 Point :: struct {
     x, y i32
@@ -34,22 +35,16 @@ TypeByCond :: fn(cond bool) type {
 
 main :: fn() {
     p: Point = .{ x: 3, y: 4 }
-    print("Distance squared: ")
-    print(p.dist_sq())
-    print("\n")
+    printf("Point ({}, {}), dist_sq = {}\n", .{p.x, p.y, p.dist_sq()})
 
     val := cmpt {
         base := 20
         base * 2 + 2
     }
-    print("Compile-time evaluated: ")
-    print(val)
-    print("\n")
+    printf("Compile-time evaluated: {}\n", .{val})
 
     x: TypeByCond(true) = 100
-    print("Computed type value: ")
     print(x)
-    print("\n")
 }
 ```
 
