@@ -3,6 +3,7 @@ import Arena from "std/allocator"
 import read_file, write_file from "std/fs"
 
 puts :: fn(s &u8) i32
+remove :: fn(path &u8) i32
 
 main :: fn() {
     puts(c"dynamic libc puts")
@@ -10,4 +11,5 @@ main :: fn() {
     write_file(c"vm_dyn_io.txt", Str.of("dynamic fs file content\n"))
     c := read_file(&arena, c"vm_dyn_io.txt")
     print(c)
+    remove(c"vm_dyn_io.txt")
 }

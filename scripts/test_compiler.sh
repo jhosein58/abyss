@@ -6,6 +6,8 @@ COMPILER="${1:-${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}}"
 [[ "${COMPILER}" = /* ]] || COMPILER="${PWD}/${COMPILER}"
 FILTER="${2:-}"
 cd "${ROOT_DIR}"
+rm -f "${ROOT_DIR}/vm_dyn_io.txt"
+trap 'rm -f "${ROOT_DIR}/vm_dyn_io.txt"' EXIT
 python3 "${ROOT_DIR}/scripts/embed_sources.py" --check
 mkdir -p tmp
 WORK_DIR=$(mktemp -d "${ROOT_DIR}/tmp/compiler_test.XXXXXX")
