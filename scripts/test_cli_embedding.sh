@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPILER="${1:-${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}}"
 WORK_DIR=$(mktemp -d "${ROOT_DIR}/tmp/cli_embedding_test.XXXXXX")
 cp -r "${ROOT_DIR}/compiler" "${ROOT_DIR}/core" "${ROOT_DIR}/std" "${ROOT_DIR}/runtime" "${WORK_DIR}/"
-cp "${ROOT_DIR}/abyss" "${ROOT_DIR}/main.a" "${WORK_DIR}/"
+cp "${ROOT_DIR}/abyss" "${WORK_DIR}/"
 cp "${COMPILER}" "${WORK_DIR}/abyssc"
 mkdir -p "${WORK_DIR}/scripts"
 cp "${ROOT_DIR}/scripts/embed_sources.py" "${WORK_DIR}/scripts/"
@@ -13,6 +13,7 @@ cp "${ROOT_DIR}/scripts/embed_sources.py" "${WORK_DIR}/scripts/"
     cd "${WORK_DIR}"
     printf 'import print, embedding_probe from "std/io.a"\nmain :: fn() { print("automatic embedding\\n") print(embedding_probe()) print(" ") print(true) print("\\n") }\n' > program.a
     printf '\nembedding_probe :: fn() i32 { 7 }\n' >> std/io.a
+    printf 'invalid user program\n' > main.a
     printf '\n#define ABYSS_CLI_EMBED_TEST 1\n' >> runtime/prelude.c
     timeout 120s ./abyss b program.a
     rg -q '^#define ABYSS_CLI_EMBED_TEST 1$' tmp/out.c

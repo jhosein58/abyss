@@ -72,6 +72,8 @@ gcc -std=c99 -O3 -rdynamic dist/bootstrap.c -o abyssc
 ./abyss br main.a
 ```
 
+User programs live in `main.a`; the compiler's own entry point is `compiler/main.a`.
+
 ---
 
 ## Tooling

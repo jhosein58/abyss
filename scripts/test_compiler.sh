@@ -17,7 +17,7 @@ if [[ -z "${FILTER}" ]]; then
     echo "Verifying compiler self-hosting fixed-point..."
     SELF_HOST_DIR="${WORK_DIR}/self_host"
     mkdir -p "${SELF_HOST_DIR}"
-    if ! timeout 60s "${COMPILER}" b "${ROOT_DIR}/main.a" "${SELF_HOST_DIR}/stage1.c" > "${SELF_HOST_DIR}/stage1_compile.log" 2>&1; then
+    if ! timeout 60s "${COMPILER}" b "${ROOT_DIR}/compiler/main.a" "${SELF_HOST_DIR}/stage1.c" > "${SELF_HOST_DIR}/stage1_compile.log" 2>&1; then
         echo "FAIL self-hosting: generation 0 compilation failed"
         cat "${SELF_HOST_DIR}/stage1_compile.log"
         exit 1
@@ -27,7 +27,7 @@ if [[ -z "${FILTER}" ]]; then
         cat "${SELF_HOST_DIR}/gcc.log"
         exit 1
     fi
-    if ! timeout 60s "${SELF_HOST_DIR}/stage1_bin" b "${ROOT_DIR}/main.a" "${SELF_HOST_DIR}/stage2.c" > "${SELF_HOST_DIR}/stage2_compile.log" 2>&1; then
+    if ! timeout 60s "${SELF_HOST_DIR}/stage1_bin" b "${ROOT_DIR}/compiler/main.a" "${SELF_HOST_DIR}/stage2.c" > "${SELF_HOST_DIR}/stage2_compile.log" 2>&1; then
         echo "FAIL self-hosting: generation 1 compilation failed"
         cat "${SELF_HOST_DIR}/stage2_compile.log"
         exit 1

@@ -7,6 +7,7 @@ import span_of_hir, set_span from "./common"
 import add_list from "./common"
 import parse_expr from "../parser"
 import parse_ident from "./ident"
+import id_none from "../../nexus/pool"
 
 parse_if :: fn(p &Parser) u32 {
     t := token
@@ -111,7 +112,17 @@ parse_block :: fn(p &Parser) u32 {
     bump(p)
 
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
-        glob_stack.push(parse_expr(p, 0))
+        expr := parse_expr(p, 0)
+        if (peek(p) == t.ident) and (not peek_preceded_by_newline(p)) {
+            first := expr
+            while p.hir.kind(first) == k.index {
+                first = p.hir.lhs(first)
+            }
+            if (p.hir.kind(first) == k.ident) and (p.db.get_hir_symbol(first) == id_none()) {
+                parse_error_at(p, c"field declarations require 'struct { ... }'; use ':' for local variable declarations", span_of_hir(p, first))
+            }
+        }
+        glob_stack.push(expr)
     }
 
     if is_eof(p) and (peek(p) != t.c_brace) {

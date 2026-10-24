@@ -41,7 +41,7 @@ for i in $(seq 1 "${ROUNDS}"); do
     echo -e "\n${YELLOW}>>> [Round ${i}/${ROUNDS}] Compiling compiler with: $(basename "${CURRENT_COMPILER}")...${RESET}"
 
     OUT_C="${WORK_DIR}/gen_${i}.c"
-    if ! "${CURRENT_COMPILER}" "${ROOT_DIR}/main.a" "${OUT_C}"; then
+    if ! "${CURRENT_COMPILER}" "${ROOT_DIR}/compiler/main.a" "${OUT_C}"; then
         echo -e "${RED}[FAIL] Compiler crashed at Generation ${i}!${RESET}"
         exit 1
     fi
@@ -83,7 +83,7 @@ for i in $(seq 1 "${ROUNDS}"); do
     CURRENT_COMPILER="${GEN_BIN}"
 done
 
-if ! "${CURRENT_COMPILER}" "${ROOT_DIR}/main.a" "${WORK_DIR}/final.c"; then
+if ! "${CURRENT_COMPILER}" "${ROOT_DIR}/compiler/main.a" "${WORK_DIR}/final.c"; then
     echo -e "${RED}[FAIL] Final compiler crashed!${RESET}"
     exit 1
 fi

@@ -1,0 +1,7 @@
+Test :: {
+    abc [3]i32
+}
+
+main :: fn() {
+    t: Test = .{ abc: .[1, 2, 3] }
+}

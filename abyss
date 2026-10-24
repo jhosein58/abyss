@@ -13,9 +13,9 @@ prepare_compiler() {
     python3 "${ROOT_DIR}/scripts/embed_sources.py"
     if [[ "${ROOT_DIR}/compiler/embedded.a" -nt "${ROOT_DIR}/abyssc" ]]; then
         BUILD_DIR=$(mktemp -d "${ROOT_DIR}/tmp/embed_build.XXXXXX")
-        "${ROOT_DIR}/abyssc" "${ROOT_DIR}/main.a" "${BUILD_DIR}/stage1.c"
+        "${ROOT_DIR}/abyssc" "${ROOT_DIR}/compiler/main.a" "${BUILD_DIR}/stage1.c"
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 "${BUILD_DIR}/stage1.c" -o "${BUILD_DIR}/stage1"
-        "${BUILD_DIR}/stage1" "${ROOT_DIR}/main.a" "${BUILD_DIR}/stage2.c"
+        "${BUILD_DIR}/stage1" "${ROOT_DIR}/compiler/main.a" "${BUILD_DIR}/stage2.c"
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O2 "${BUILD_DIR}/stage2.c" -o "${BUILD_DIR}/abyssc"
         mv "${BUILD_DIR}/abyssc" "${ROOT_DIR}/abyssc"
     fi
@@ -109,7 +109,7 @@ EOF
         bash "${ROOT_DIR}/scripts/bootstrap.sh" "${ROUNDS}"
         DIST_DIR="${ROOT_DIR}/dist"
         mkdir -p "${DIST_DIR}"
-        "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/main.a" "${DIST_DIR}/bootstrap.c"
+        "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/compiler/main.a" "${DIST_DIR}/bootstrap.c"
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc-linux-x86_64"
         cp "${DIST_DIR}/abyssc-linux-x86_64" "${ROOT_DIR}/abyssc"
 
