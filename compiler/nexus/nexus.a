@@ -595,7 +595,7 @@ Nexus :: struct {
             }
             i = i + 1
         }
-        ty := self.types.store.push(TyKind.func, self.types.payload(base))
+        ty := self.types.push(TyKind.func, self.types.payload(base))
         self.const_func_base.push(base)
         self.const_func_type.push(ty)
         self.const_func_key.push(self.add_list(key))

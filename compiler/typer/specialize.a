@@ -174,8 +174,7 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
         structural_ty := (&(*types_ptr)).alloc_struct(f_slice)
         fields_vec.destroy()
 
-        base_idx := (&(*types_ptr)).payload(nom_ty)
-        (*types_ptr).store.extra.set(base_idx as u64, structural_ty)
+        types_ptr.set_nominal_base(nom_ty, structural_ty)
 
         fn_params_vec.destroy()
         (*db).type_specialization_depth = (*db).type_specialization_depth - 1

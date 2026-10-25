@@ -183,7 +183,7 @@ synth_func :: fn(eng &Engine, id u32) {
         while p_i < fn_args.len {
             if tbl.extra(*(fn_args.ptr + p_i)) == 1 {
                 if is_extern { reflection_error(db, id, c"external functions cannot have compile-time parameters") }
-                func_ty = types_ptr.store.push(TyKind.func, types_ptr.payload(func_ty))
+                func_ty = types_ptr.push(TyKind.func, types_ptr.payload(func_ty))
                 types_ptr.record_dependent_func(func_ty)
                 break
             }

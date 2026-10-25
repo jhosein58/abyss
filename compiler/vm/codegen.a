@@ -1642,7 +1642,7 @@ VmCodeGen :: struct {
     init_types :: fn(self &Self, types &TypeStorage, arena &Arena) {
         self.types = types
         t: u32 = 0
-        total := types.store.len()
+        total := types.len()
         while t < total {
             k := types.kind(t)
             if (k == TyKind.struct_) or (k == TyKind.nominal) {

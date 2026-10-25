@@ -1,0 +1,142 @@
+import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_bool, ty_id_unit from "../../compiler/types"
+import hash_combine from "std/hash"
+import Arena from "std/allocator"
+import String from "std/string"
+import fall from "std/sys"
+
+expect :: fn(condition bool) { if not condition { fall() } }
+
+expect_name :: fn(types &TypeStorage, id u32, expected Str) {
+    arena := Arena.new(64)
+    text := String.new(&arena)
+    types.name_to_buf(&text, id)
+    expect(text.as_str().eq(expected))
+    arena.destroy()
+}
+
+main :: fn() {
+    types := TypeStorage.new()
+    expect(types.len() == 8)
+    expect(types.kind(ty_id_none()) == TyKind.unknown)
+    expect(types.kind(ty_id_type()) == TyKind.type_)
+    int := types.alloc_int(32)
+    uint := types.alloc_uint(32)
+    float := types.alloc_float(64)
+    ptr := types.alloc_ptr(int)
+    expect(types.alloc_int(32) == int)
+    expect(types.alloc_uint(32) == uint)
+    expect(types.alloc_float(64) == float)
+    expect(types.alloc_ptr(int) == ptr)
+    expect(int != uint)
+    expect(types.alloc_infer(7) == types.alloc_infer(7))
+    expect(types.alloc_infer(7) != types.alloc_infer(8))
+
+    params: [3]u32 = .[ty_id_type(), ty_id_type(), int]
+    args := Slice(u32).new(&params[0], 3)
+    func := types.alloc_func(args, ptr, false)
+    expect(types.alloc_func(args, ptr, false) == func)
+    expect(types.alloc_func(args, ptr, true) != func)
+    expect(types.alloc_func(args, int, false) != func)
+    expect(types.alloc_func(args.sub(0, 2), ptr, false) != func)
+    expect(types.func_leading_type_params(func) == 2)
+    expect(types.func_has_type_param(func))
+    dependent := types.alloc_func(args.sub(2, 1), ptr, false)
+    expect(not types.func_has_type_param(dependent))
+    types.record_dependent_func(dependent)
+    expect(types.func_has_type_param(dependent))
+
+    fields: [4]u32 = .[20, ptr, 10, int]
+    fields_slice := Slice(u32).new(&fields[0], 4)
+    structure := types.alloc_struct(fields_slice)
+    expect(fields[0] == 10)
+    expect(fields[1] == int)
+    fields[0] = 20, fields[1] = ptr, fields[2] = 10, fields[3] = int
+    expect(types.alloc_struct(fields_slice) == structure)
+    expect(types.get_struct_fields(structure).get(3) == ptr)
+    expect(types.get_struct_fields_len(structure) == 2)
+    expect(types.alloc_struct(Slice(u32).empty()) != structure)
+
+    nominal := types.alloc_nominal(structure, "Named", 42)
+    expect(types.alloc_nominal(structure, "Other", 42) == nominal)
+    expect(types.alloc_nominal(structure, "Named", 43) != nominal)
+    expect(types.get_struct_fields(nominal).equals(types.get_struct_fields(structure)))
+    origin: u32 = 2147483653
+    generic := types.alloc_nominal(structure, "Generic", origin)
+    expect(types.alloc_nominal(structure, "Generic", origin) != generic)
+    types.record_nominal_creator(origin, 70, args)
+    expect(types.get_nominal_creator_sym(origin) == 70)
+    expect(types.get_nominal_creator_args(origin).equals(args))
+    expect(types.get_nominal_creator_sym(5) == ty_id_none())
+    expect(types.get_nominal_creator_args(5).len == 0)
+    types.record_nominal_struct_node(origin, 71)
+    expect(types.get_nominal_struct_node(origin) == 71)
+    expect(types.get_nominal_struct_node(5) == ty_id_none())
+
+    variants: [4]u32 = .[30, 0, 40, 7]
+    enumeration := types.alloc_enum(uint, "Color", 50, Slice(u32).new(&variants[0], 4))
+    expect(types.alloc_enum(uint, "Color", 50, Slice(u32).empty()) == enumeration)
+    expect(types.enum_has_variant(enumeration, 30))
+    expect(types.enum_has_variant(enumeration, 40))
+    expect(not types.enum_has_variant(enumeration, 50))
+    expect(types.enum_variant_val(enumeration, 40) == 7)
+    expect(types.enum_variant_val(enumeration, 50) == 0)
+    expect(types.enum_backing(enumeration) == uint)
+    expect(types.enum_origin(enumeration) == 50)
+
+    union := types.make_union_2(int, uint)
+    expect(types.make_union_2(uint, int) == union)
+    expect(types.make_union_2(union, int) == union)
+    expect(types.make_union_2(union, union) == union)
+    expect(types.make_union_2(int, int) == int)
+    wider := types.make_union_2(union, ptr)
+    expect(types.union_members_len(wider) == 3)
+    expect(types.union_contains(wider, int))
+    expect(not types.union_contains(wider, float))
+    expect(types.union_member_index(wider, ptr) == 2)
+    expect(types.make_union_2(wider, union) == wider)
+
+    seed := hash_combine(2166136261, TyKind.array as u32)
+    len_a: u32 = 123
+    len_b := hash_combine(seed, int) ^ hash_combine(seed, uint) ^ len_a
+    collision_a := types.alloc_array(int, len_a)
+    collision_b := types.alloc_array(uint, len_b)
+    expect(collision_a != collision_b)
+    expect(types.alloc_array(int, len_a) == collision_a)
+    expect(types.alloc_array(uint, len_b) == collision_b)
+    i: u32 = 0
+    while i < 1000 {
+        types.alloc_array(ptr, i)
+        i = i + 1
+    }
+    expect(types.alloc_array(int, len_a) == collision_a)
+    expect(types.alloc_array(uint, len_b) == collision_b)
+
+    types.extra_data.reserve(types.extra_data.cap)
+    while types.extra_data.len < types.extra_data.cap {
+        types.extra_data.push(0)
+    }
+    borrowed := types.func_params(func)
+    copied := types.alloc_func(borrowed, float, true)
+    expect(types.func_params(copied).equals(args))
+    expect(types.func_is_extern(copied))
+    expect(types.func_return(copied) == float)
+
+    expect_name(&types, ty_id_none(), "None")
+    expect_name(&types, int, "i32")
+    expect_name(&types, ptr, "R_i32")
+    array := types.alloc_array(ptr, 5)
+    expect_name(&types, array, "A_R_i32_5")
+    expect_name(&types, func, "fn(Type, Type, i32) R_i32")
+    expect_name(&types, structure, "S_10_i32_20_R_i32")
+    expect_name(&types, nominal, "Named")
+    expect_name(&types, enumeration, "Color")
+    expect_name(&types, union, "U_i32_u32")
+    expect_name(&types, ty_id_unit(), "void")
+    expect_name(&types, ty_id_bool(), "bool")
+    expect_name(&types, types.alloc_infer(7), "Infer(7)")
+    types.print_type(array), print(c"\n")
+    types.print_type(func), print(c"\n")
+    types.print_type(structure), print(c"\n")
+    types.print_type(union), print(c"\n")
+    types.destroy()
+}
