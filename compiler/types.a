@@ -346,72 +346,77 @@ TypeStorage :: struct {
     }
 
     hash_of :: fn(self &Self, id u32) u32 {
-        kind := self.kind(id)
-        payload := self.payload(id)
-
-        if kind == TyKind.array {
-            extra_idx := payload as u64
-            ty  := self.store.extra.get(extra_idx)
-            len := self.store.extra.get(extra_idx + 1)
-            h := Self.hash_combine(2166136261, kind as u32)
-            h = Self.hash_combine(h, ty)
-            ret Self.hash_combine(h, len)
-        }
-
-        if kind == TyKind.func {
-            extra_idx := payload as u64
-            packed := self.store.extra.get(extra_idx)
-            ret_ty := self.store.extra.get(extra_idx + 1)
-            params_len := packed >> 16
-
-            h := Self.hash_combine(2166136261, kind as u32)
-            h = Self.hash_combine(h, ret_ty)
-            h = Self.hash_combine(h, packed)
-
-            i: u64 = 0
-            while (i < (params_len as u64)) or false {
-                param := self.store.extra.get(extra_idx + 2 + i)
-                h = Self.hash_combine(h, param)
-                i = i + 1
+        td: TypeData = self.data(id)
+        match val in td {
+            ArrayTy {
+                h := Self.hash_combine(2166136261, TyKind.array as u32)
+                h = Self.hash_combine(h, val.elem)
+                ret Self.hash_combine(h, val.len)
             }
-            ret h
-        }
-
-        if kind == TyKind.struct_ {
-            extra_idx := payload as u64
-            fields_count := self.store.extra.get(extra_idx)
-            total_items := (fields_count * 2) as u64
-
-            h := Self.hash_combine(2166136261, kind as u32)
-            h = Self.hash_combine(h, fields_count)
-
-            i: u64 = 0
-            while i < total_items {
-                item := self.store.extra.get(extra_idx + 1 + i)
-                h = Self.hash_combine(h, item)
-                i = i + 1
+            FuncTy {
+                packed := (val.params.len as u32) << 16
+                if val.is_extern { packed = packed | 1 }
+                h := Self.hash_combine(2166136261, TyKind.func as u32)
+                h = Self.hash_combine(h, val.ret_ty)
+                h = Self.hash_combine(h, packed)
+                i: u64 = 0
+                while i < val.params.len {
+                    h = Self.hash_combine(h, *(val.params.ptr + i))
+                    i = i + 1
+                }
+                ret h
             }
-            ret h
-        }
-
-        if kind == TyKind.union_ {
-            extra_idx := payload as u64
-            members_count := self.store.extra.get(extra_idx)
-
-            h := Self.hash_combine(2166136261, kind as u32)
-            h = Self.hash_combine(h, members_count)
-
-            i: u64 = 0
-            while i < (members_count as u64) {
-                item := self.store.extra.get(extra_idx + 1 + i)
-                h = Self.hash_combine(h, item)
-                i = i + 1
+            StructTy {
+                fields_count := (val.fields.len / 2) as u32
+                h := Self.hash_combine(2166136261, TyKind.struct_ as u32)
+                h = Self.hash_combine(h, fields_count)
+                i: u64 = 0
+                while i < val.fields.len {
+                    h = Self.hash_combine(h, *(val.fields.ptr + i))
+                    i = i + 1
+                }
+                ret h
             }
-            ret h
+            UnionTy {
+                members_count := val.members.len as u32
+                h := Self.hash_combine(2166136261, TyKind.union_ as u32)
+                h = Self.hash_combine(h, members_count)
+                i: u64 = 0
+                while i < val.members.len {
+                    h = Self.hash_combine(h, *(val.members.ptr + i))
+                    i = i + 1
+                }
+                ret h
+            }
+            IntTy {
+                h := Self.hash_combine(2166136261, TyKind.int as u32)
+                ret Self.hash_combine(h, val.width as u32)
+            }
+            UintTy {
+                h := Self.hash_combine(2166136261, TyKind.uint as u32)
+                ret Self.hash_combine(h, val.width as u32)
+            }
+            FloatTy {
+                h := Self.hash_combine(2166136261, TyKind.float as u32)
+                ret Self.hash_combine(h, val.width as u32)
+            }
+            PtrTy {
+                h := Self.hash_combine(2166136261, TyKind.ptr as u32)
+                ret Self.hash_combine(h, val.inner)
+            }
+            NominalTy {
+                h := Self.hash_combine(2166136261, TyKind.nominal as u32)
+                ret Self.hash_combine(h, self.payload(id))
+            }
+            EnumTy {
+                h := Self.hash_combine(2166136261, TyKind.enum_ as u32)
+                ret Self.hash_combine(h, self.payload(id))
+            }
+            SimpleTy {
+                h := Self.hash_combine(2166136261, val.kind as u32)
+                ret Self.hash_combine(h, self.payload(id))
+            }
         }
-
-        h := Self.hash_combine(2166136261, kind as u32)
-        Self.hash_combine(h, payload)
     }
 
     grow_table :: fn(self &Self) {
