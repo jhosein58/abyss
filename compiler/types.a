@@ -237,13 +237,10 @@ TypeStorage :: struct {
     table     Vec(u32)
     table_cap u32
     table_len u32
-    nominal_names Vec(Str)
-    nominal_by_origin HashMap(u32, u32)
-    nominal_creator_sym HashMap(u32, u32)
-    nominal_creator_arg HashMap(u32, u32)
+    names Vec(Str)
+    origin_types HashMap(u32, u32)
+    nominal_creators HashMap(u32, u32)
     nominal_creator_items Vec(u32)
-    enum_names Vec(Str)
-    enum_by_origin HashMap(u32, u32)
     nominal_struct_node HashMap(u32, u32)
     dependent_funcs HashSet(u32)
 
@@ -272,13 +269,10 @@ TypeStorage :: struct {
             table     : tbl,
             table_cap : init_cap,
             table_len : 0,
-            nominal_names : Vec(Str).new(),
-            nominal_by_origin : HashMap(u32, u32).new(),
-            nominal_creator_sym : HashMap(u32, u32).new(),
-            nominal_creator_arg : HashMap(u32, u32).new(),
+            names : Vec(Str).new(),
+            origin_types : HashMap(u32, u32).new(),
+            nominal_creators : HashMap(u32, u32).new(),
             nominal_creator_items : Vec(u32).new(),
-            enum_names : Vec(Str).new(),
-            enum_by_origin : HashMap(u32, u32).new(),
             nominal_struct_node : HashMap(u32, u32).new(),
             dependent_funcs : HashSet(u32).new()
         }
@@ -321,13 +315,10 @@ TypeStorage :: struct {
     destroy :: fn(self &Self) {
         self.store.destroy()
         self.table.destroy()
-        self.nominal_names.destroy()
-        self.nominal_by_origin.destroy()
-        self.nominal_creator_sym.destroy()
-        self.nominal_creator_arg.destroy()
+        self.names.destroy()
+        self.origin_types.destroy()
+        self.nominal_creators.destroy()
         self.nominal_creator_items.destroy()
-        self.enum_names.destroy()
-        self.enum_by_origin.destroy()
         self.nominal_struct_node.destroy()
         self.dependent_funcs.destroy()
     }
@@ -611,18 +602,18 @@ TypeStorage :: struct {
     alloc_nominal :: fn(self &Self, base u32, name Str, origin u32) u32 {
         generic_origin := (origin & 2147483648) != 0
         if not generic_origin {
-            existing := self.nominal_by_origin.get(origin)
+            existing := self.origin_types.get(origin)
             if existing != (0 as &u32) { ret *existing }
         }
 
         extra_idx := self.store.extra.len as u32
-        name_idx := self.nominal_names.len as u32
-        self.nominal_names.push(name)
+        name_idx := self.names.len as u32
+        self.names.push(name)
         self.store.extra.push(base)
         self.store.extra.push(name_idx)
         self.store.extra.push(origin)
         nominal := self.store.push(TyKind.nominal, extra_idx)
-        if not generic_origin { self.nominal_by_origin.insert(origin, nominal) }
+        if not generic_origin { self.origin_types.insert(origin, nominal) }
         nominal
     }
 
@@ -639,36 +630,36 @@ TypeStorage :: struct {
     nominal_name :: fn(self &Self, id u32) Str {
         idx := self.payload(id) as u64
         name_idx := self.store.extra.get(idx + 1)
-        self.nominal_names.get(name_idx as u64)
+        self.names.get(name_idx as u64)
     }
 
     record_nominal_creator :: fn(self &Self, origin u32, sym u32, args Slice(u32)) {
         if (origin & 2147483648) == 0 { ret }
         origin = origin & 2147483647
         start := self.nominal_creator_items.len as u32
+        self.nominal_creator_items.push(sym)
         self.nominal_creator_items.push(args.len as u32)
         self.nominal_creator_items.extend(args.ptr, args.len)
-        self.nominal_creator_sym.insert(origin, sym)
-        self.nominal_creator_arg.insert(origin, start)
+        self.nominal_creators.insert(origin, start)
     }
 
     get_nominal_creator_sym :: fn(self &Self, origin u32) u32 {
         if (origin & 2147483648) == 0 { ret ty_id_none() }
         origin = origin & 2147483647
-        sym := self.nominal_creator_sym.get(origin)
-        if sym == (0 as &u32) { ret ty_id_none() }
-        *sym
+        start_ptr := self.nominal_creators.get(origin)
+        if start_ptr == (0 as &u32) { ret ty_id_none() }
+        self.nominal_creator_items.get(*start_ptr as u64)
     }
 
     get_nominal_creator_args :: fn(self &Self, origin u32) Slice(u32) {
         if (origin & 2147483648) == 0 { ret .{ ptr: 0 as &u32, len: 0 } }
         origin = origin & 2147483647
-        start_ptr := self.nominal_creator_arg.get(origin)
+        start_ptr := self.nominal_creators.get(origin)
         if start_ptr == (0 as &u32) { ret .{ ptr: 0 as &u32, len: 0 } }
         start := *start_ptr
-        len := self.nominal_creator_items.get(start as u64)
+        len := self.nominal_creator_items.get((start as u64) + 1)
         .{
-            ptr: self.nominal_creator_items.ptr_at((start as u64) + 1),
+            ptr: self.nominal_creator_items.ptr_at((start as u64) + 2),
             len: len as u64
         }
     }
@@ -737,12 +728,12 @@ TypeStorage :: struct {
     }
 
     alloc_enum :: fn(self &Self, backing_ty u32, name Str, origin u32, variants Slice(u32)) u32 {
-        existing := self.enum_by_origin.get(origin)
+        existing := self.origin_types.get(origin)
         if existing != (0 as &u32) { ret *existing }
 
         extra_idx := self.store.extra.len as u32
-        name_idx := self.enum_names.len as u32
-        self.enum_names.push(name)
+        name_idx := self.names.len as u32
+        self.names.push(name)
         self.store.extra.push(backing_ty)
         self.store.extra.push(name_idx)
         self.store.extra.push(origin)
@@ -754,7 +745,7 @@ TypeStorage :: struct {
             i = i + 1
         }
         enum_id := self.store.push(TyKind.enum_, extra_idx)
-        self.enum_by_origin.insert(origin, enum_id)
+        self.origin_types.insert(origin, enum_id)
         enum_id
     }
 
@@ -766,7 +757,7 @@ TypeStorage :: struct {
     enum_name :: fn(self &Self, id u32) Str {
         idx := self.payload(id) as u64
         name_idx := self.store.extra.get(idx + 1)
-        self.enum_names.get(name_idx as u64)
+        self.names.get(name_idx as u64)
     }
 
     enum_origin :: fn(self &Self, id u32) u32 {
