@@ -560,10 +560,10 @@ synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u3
                         found := false
                         chk_i: u64 = 0
                         while chk_i < tmpl_slots.len {
-                            if tmpl_slots.get(chk_i) == cand { found = true break }
+                            if tmpl_slots.get(chk_i) == cand { found = true, break }
                             chk_i = chk_i + 1
                         }
-                        if not found { t_slot = cand break }
+                        if not found { t_slot = cand, break }
                     }
                     p_i = p_i + 1
                 }
@@ -736,7 +736,7 @@ synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u3
                 rt_seen: u64 = 0
                 while scan_p < params.len {
                     if *(params.ptr + scan_p) != ty_id_type() {
-                        if rt_seen == i { param_idx = scan_p break }
+                        if rt_seen == i { param_idx = scan_p, break }
                         rt_seen = rt_seen + 1
                     }
                     scan_p = scan_p + 1

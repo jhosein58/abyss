@@ -1,5 +1,5 @@
 Color :: enum { red, green }
 
 main :: fn(c Color) u32 {
-    match c { red, red { 1 }; else { 2 } }
+    match c { red, red { 1 }, else { 2 } }
 }

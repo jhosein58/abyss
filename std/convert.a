@@ -67,7 +67,7 @@ Convert :: struct {
         while i < value.len {
             c := *(value.ptr + i)
             if c == '"' { out.push_str(`\"`) }
-            else if c == '\\' { out.push_char(92 as u8) out.push_char(92 as u8) }
+            else if c == '\\' { out.push_char(92 as u8), out.push_char(92 as u8) }
             else if c == '\n' { out.push_str(`\n`) }
             else if c == '\r' { out.push_str(`\r`) }
             else if c == '\t' { out.push_str(`\t`) }
@@ -83,7 +83,7 @@ Convert :: struct {
         while i < value.len {
             c := *(value.ptr + i)
             if c == '"' { out.push_str(`\"`) }
-            else if c == '\\' { out.push_char(92 as u8) out.push_char(92 as u8) }
+            else if c == '\\' { out.push_char(92 as u8), out.push_char(92 as u8) }
             else if c == '\n' { out.push_str(`\n`) }
             else if c == '\r' { out.push_str(`\r`) }
             else if c == '\t' { out.push_str(`\t`) }
@@ -126,11 +126,11 @@ Convert :: struct {
         if (kind == TypeKind.int) or (kind == TypeKind.uint) or (kind == TypeKind.untyped_int) {
             function := "signed64"
             target := "i64"
-            if kind == TypeKind.uint { function = "unsigned64" target = "u64" }
+            if kind == TypeKind.uint { function = "unsigned64", target = "u64" }
             if info.bits == 128 {
                 function = "signed128"
                 target = "i128"
-                if kind == TypeKind.uint { function = "unsigned128" target = "u128" }
+                if kind == TypeKind.uint { function = "unsigned128", target = "u128" }
             }
             expr := String.new(out.arena)
             expr.push_str("(")
@@ -147,7 +147,7 @@ Convert :: struct {
             out.push_str(" as f64)\n")
             ret
         }
-        if kind == TypeKind.bool { Convert.call(out, "boolean", value) ret }
+        if kind == TypeKind.bool { Convert.call(out, "boolean", value), ret }
         if (kind == TypeKind.string) or (info.id == @type_info(String).id) {
             expr := String.new(out.arena)
             expr.push_str(value)
@@ -232,8 +232,8 @@ Convert :: struct {
             open := "{"
             close := "}"
             count := info.field_count
-            if kind == TypeKind.tuple { open = "(" close = ")" }
-            else if kind == TypeKind.array { open = "[" close = "]" count = info.length }
+            if kind == TypeKind.tuple { open = "(", close = ")" }
+            else if kind == TypeKind.array { open = "[", close = "]", count = info.length }
             else if not info.name.starts_with("struct {") {
                 Convert.literal(out, info.name)
                 Convert.literal(out, " ")
@@ -276,7 +276,7 @@ Convert :: struct {
             Convert.literal(out, ">")
             ret
         }
-        if kind == TypeKind.unit { Convert.literal(out, "()") ret }
+        if kind == TypeKind.unit { Convert.literal(out, "()"), ret }
         Convert.literal(out, info.name)
     }
 }

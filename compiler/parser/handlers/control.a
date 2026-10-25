@@ -3,7 +3,7 @@ import hir_kind, hir_none from "../../hir"
 import Parser, bump, optional, peek, is_eof, expect, curr_span, prev_span, parse_error_at, peek_preceded_by_newline from "../core"
 import span_merge from "../../nexus/nexus"
 import prec from "../prec"
-import span_of_hir, set_span from "./common"
+import span_of_hir, set_span, check_separator from "./common"
 import add_list from "./common"
 import parse_expr from "../parser"
 import parse_ident from "./ident"
@@ -57,7 +57,9 @@ parse_for :: fn(p &Parser) u32 {
     first_sym := p.db.alloc_local_symbol(p.file_id, first_name, first)
     p.env.define(first_name, first_sym)
     vars.push(first)
-    while optional(p, t.comma) {
+    while (peek(p) != t.kw_in) and (not is_eof(p)) {
+        check_separator(p, t.kw_in, c"expected ',' or newline between for variables")
+        if peek(p) == t.kw_in { break }
         name := parse_ident(p)
         name_id := p.hir.lhs(name)
         sym := p.db.alloc_local_symbol(p.file_id, name_id, name)
@@ -71,7 +73,9 @@ parse_for :: fn(p &Parser) u32 {
 
     iters := Vec(u32).new()
     iters.push(parse_expr(p, 0 as u8))
-    while optional(p, t.comma) {
+    while (peek(p) != t.o_brace) and (not is_eof(p)) {
+        check_separator(p, t.o_brace, c"expected ',' or newline between for iterators")
+        if peek(p) == t.o_brace { break }
         iters.push(parse_expr(p, 0 as u8))
     }
     if vars.len != iters.len {
@@ -123,6 +127,7 @@ parse_block :: fn(p &Parser) u32 {
             }
         }
         glob_stack.push(expr)
+        check_separator(p, t.c_brace, c"expected ',' or newline between block expressions")
     }
 
     if is_eof(p) and (peek(p) != t.c_brace) {
@@ -153,7 +158,7 @@ parse_return :: fn(p &Parser) u32 {
     bump(p)
 
     val := hir_none()
-    if (not peek_preceded_by_newline(p)) and (peek(p) != t.c_brace) and (peek(p) != t.eof) {
+    if (not peek_preceded_by_newline(p)) and (peek(p) != t.comma) and (peek(p) != t.c_brace) and (peek(p) != t.eof) {
         val = parse_expr(p, 0 as u8)
         sp_end = span_of_hir(p, val)
     }

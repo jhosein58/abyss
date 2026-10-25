@@ -158,13 +158,25 @@ Indexer :: struct {
         while cursor < end_tok {
             tk := db.tokens.kind(cursor)
 
-            if (tk == t.o_brace) or (tk == t.o_paren) {
+            if (tk == t.o_brace) or (tk == t.o_paren) or (tk == t.o_bracket) {
                 depth = depth + 1
-            } else if (tk == t.c_brace) or (tk == t.c_paren) {
+            } else if (tk == t.c_brace) or (tk == t.c_paren) or (tk == t.c_bracket) {
                 if depth > 0 {
                     depth = depth - 1
                 }
+            } else if (depth == 0) and (tk == t.semi) {
+                index_error(curr_path, c"expected ',' or newline between top-level declarations")
+            } else if (depth == 0) and (tk == t.comma) {
+                if has_sym {
+                    db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
+                    has_sym = false
+                } else if (cursor == start_tok) or (db.tokens.kind(cursor - 1) != t.lit_str) {
+                    index_error(curr_path, c"expected declaration before ','")
+                }
             } else if (depth == 0) and (tk == t.kw_import) {
+                if (cursor > start_tok) and (not db.tokens.newline_before(cursor)) and (db.tokens.kind(cursor - 1) != t.comma) {
+                    index_error(curr_path, c"expected ',' or newline between top-level declarations")
+                }
                 if has_sym {
                     db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
                     has_sym = false
@@ -195,10 +207,11 @@ Indexer :: struct {
                         scan = scan + 1
                         break
                     }
-                    if (scan >= end_tok) or (db.tokens.kind(scan) != t.comma) {
+                    if (scan < end_tok) and (db.tokens.kind(scan) == t.comma) {
+                        scan = scan + 1
+                    } else if (scan >= end_tok) or (not db.tokens.newline_before(scan)) {
                         index_error(curr_path, c"expected ',' or 'from' after import name")
                     }
-                    scan = scan + 1
                 }
 
                 if (scan >= end_tok) or (imported_names.len == 0) {
@@ -228,6 +241,9 @@ Indexer :: struct {
             } else if (depth == 0) and (tk == t.ident) {
                 if (cursor + 1) < end_tok {
                     if db.tokens.kind(cursor + 1) == t.colon_colon {
+                        if (cursor > start_tok) and (not db.tokens.newline_before(cursor)) and (db.tokens.kind(cursor - 1) != t.comma) {
+                            index_error(curr_path, c"expected ',' or newline between top-level declarations")
+                        }
                         if has_sym {
                             db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
                         }

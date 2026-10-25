@@ -1004,18 +1004,18 @@ TypeStorage :: struct {
         kind := self.kind(id)
         payload := self.payload(id)
 
-        if kind == TyKind.unknown       { print(c"Unknown")   ret }
-        if kind == TyKind.infer         { print(c"Infer(") print_u32(payload) print(c")") ret }
-        if kind == TyKind.untyped_int   { print(c"UtInt")     ret }
-        if kind == TyKind.untyped_float { print(c"UtFloat")   ret }
-        if kind == TyKind.int           { print(c"i") print_u32(payload) ret }
-        if kind == TyKind.uint          { print(c"u") print_u32(payload) ret }
-        if kind == TyKind.float         { print(c"f") print_u32(payload) ret }
-        if kind == TyKind.bool          { print(c"bool")      ret }
-        if kind == TyKind.type_         { print(c"Type")      ret }
-        if kind == TyKind.unit          { print(c"void")      ret }
-        if kind == TyKind.never         { print(c"!")         ret }
-        if kind == TyKind.error         { print(c"Err!")      ret }
+        if kind == TyKind.unknown       { print(c"Unknown"),   ret }
+        if kind == TyKind.infer         { print(c"Infer("), print_u32(payload), print(c")"), ret }
+        if kind == TyKind.untyped_int   { print(c"UtInt"),     ret }
+        if kind == TyKind.untyped_float { print(c"UtFloat"),   ret }
+        if kind == TyKind.int           { print(c"i"), print_u32(payload), ret }
+        if kind == TyKind.uint          { print(c"u"), print_u32(payload), ret }
+        if kind == TyKind.float         { print(c"f"), print_u32(payload), ret }
+        if kind == TyKind.bool          { print(c"bool"),      ret }
+        if kind == TyKind.type_         { print(c"Type"),      ret }
+        if kind == TyKind.unit          { print(c"void"),      ret }
+        if kind == TyKind.never         { print(c"!"),         ret }
+        if kind == TyKind.error         { print(c"Err!"),      ret }
         if kind == TyKind.nominal {
             idx := payload as u64
             name_idx := self.store.extra.get(idx + 1)
@@ -1087,15 +1087,15 @@ TypeStorage :: struct {
         kind := self.kind(id)
         payload := self.payload(id)
 
-        if kind == TyKind.unknown       { s.push_str(Str.of("Unknown")) ret }
+        if kind == TyKind.unknown       { s.push_str(Str.of("Unknown")), ret }
         if kind == TyKind.infer         {
             s.push_str(Str.of("Infer("))
             s.push_u32(payload)
             s.push_char(*")")
             ret
         }
-        if kind == TyKind.untyped_int   { s.push_str(Str.of("UtInt"))   ret }
-        if kind == TyKind.untyped_float { s.push_str(Str.of("UtFloat")) ret }
+        if kind == TyKind.untyped_int   { s.push_str(Str.of("UtInt")),   ret }
+        if kind == TyKind.untyped_float { s.push_str(Str.of("UtFloat")), ret }
 
         if kind == TyKind.int {
             s.push_char(*"i")
@@ -1115,11 +1115,11 @@ TypeStorage :: struct {
             ret
         }
 
-        if kind == TyKind.bool  { s.push_str(Str.of("bool")) ret }
-        if kind == TyKind.type_ { s.push_str(Str.of("Type")) ret }
-        if kind == TyKind.unit  { s.push_str(Str.of("void")) ret }
-        if kind == TyKind.never { s.push_str(Str.of("!"))    ret }
-        if kind == TyKind.error { s.push_str(Str.of("Err!")) ret }
+        if kind == TyKind.bool  { s.push_str(Str.of("bool")), ret }
+        if kind == TyKind.type_ { s.push_str(Str.of("Type")), ret }
+        if kind == TyKind.unit  { s.push_str(Str.of("void")), ret }
+        if kind == TyKind.never { s.push_str(Str.of("!")),    ret }
+        if kind == TyKind.error { s.push_str(Str.of("Err!")), ret }
         if kind == TyKind.nominal {
             idx := payload as u64
             name_idx := self.store.extra.get(idx + 1)

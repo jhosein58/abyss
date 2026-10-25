@@ -6,7 +6,7 @@ import hir_kind, hir_none from "../hir"
 import Parser, is_eof, peek, bump, peek_n, peek_preceded_by_newline, curr_span, parse_error_at, curr_text, expect, Parser_new from "./core"
 import prec, is_soft, bp_from_infix from "./prec"
 import span_merge from "../nexus/nexus"
-import span_of_hir, set_span from "./handlers/common"
+import span_of_hir, set_span, check_separator from "./handlers/common"
 import parse_lit_int, parse_float, parse_str, parse_char, parse_cstr, parse_true, parse_false from "./handlers/lit"
 import parse_ident from "./handlers/ident"
 import parse_if, parse_while, parse_for, parse_block, parse_return, parse_break, parse_cont from "./handlers/control"
@@ -215,6 +215,7 @@ parse_macro :: fn(p &Parser, min_bp u8) u32 {
         if first_node == hir_none() {
             parse_error_at(p, c"macro string did not produce a valid expression", sp_start)
         }
+        check_separator(&sub_p, t.eof, c"expected ',' or newline between macro expressions")
         if not is_eof(&sub_p) {
             db := p.db
             glob_stack := &db.glob_stack
@@ -222,6 +223,7 @@ parse_macro :: fn(p &Parser, min_bp u8) u32 {
             glob_stack.push(first_node)
             while not is_eof(&sub_p) {
                 glob_stack.push(parse_expr(&sub_p, 0 as u8))
+                check_separator(&sub_p, t.eof, c"expected ',' or newline between macro expressions")
             }
             slice: Slice(u32) = .{
                 ptr: glob_stack.ptr_at(mark),

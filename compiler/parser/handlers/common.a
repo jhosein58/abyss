@@ -1,6 +1,6 @@
 import token, TokenType from "../../token"
 import HirExprKind, hir_kind, hir_none from "../../hir"
-import Parser, peek, peek_n, bump, optional, curr_span, parse_error_at, peek_preceded_by_newline from "../core"
+import Parser, peek, bump, optional, curr_span, parse_error_at, peek_preceded_by_newline from "../core"
 import Span, span_merge from "../../nexus/nexus"
 import id_none from "../../nexus/pool"
 import prec from "../prec"
@@ -19,19 +19,6 @@ set_span :: fn(p &Parser, hir_id u32, sp Span) u32 {
 add_list :: fn(p &Parser, v &Vec(u32)) u32 {
     slice: Slice(u32) = .{ ptr: v.ptr, len: v.len }
     p.db.add_list(slice)
-}
-
-skip_separators :: fn(p &Parser) {
-    while (peek(p) == token.semi) or (peek(p) == token.comma) {
-        bump(p)
-    }
-}
-
-check_delimiter :: fn(p &Parser, msg &u8) {
-    has_sep := optional(p, token.semi) or optional(p, token.comma)
-    if (not has_sep) and (not peek_preceded_by_newline(p)) and (peek(p) != token.c_brace) and (peek(p) != token.eof) and (peek_n(p, 1) != token.colon_colon) {
-        parse_error_at(p, msg, curr_span(p))
-    }
 }
 
 check_separator :: fn(p &Parser, end TokenType, msg &u8) {

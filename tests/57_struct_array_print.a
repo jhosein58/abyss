@@ -16,6 +16,6 @@ main :: fn() {
     #print(t)
     print("\n")
     numbers: [2]i32 = .[4, 5]
-    numbers[0] print(numbers[1])
+    numbers[0], print(numbers[1])
     print("\n")
 }

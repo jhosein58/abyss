@@ -65,12 +65,12 @@ main :: fn() {
     print("\n")
     print(@type_name(@element_type(&Address)))
     print("\n")
-    x: @type_from_id(cmpt { info := @type_info(u32) info.id }) = 99
+    x: @type_from_id(cmpt { info := @type_info(u32), info.id }) = 99
     print(x)
     print("\n")
-    print(cmpt { info := @type_info(User) info.field_count })
+    print(cmpt { info := @type_info(User), info.field_count })
     print("\n")
-    print(cmpt { info := @type_info([7]bool) info.length })
+    print(cmpt { info := @type_info([7]bool), info.length })
     print("\n")
     print(cmpt {
         info := @type_info(Node(i32))
@@ -84,15 +84,15 @@ main :: fn() {
         same
     })
     print("\n")
-    print(cmpt { info := @type_info(i32 | Str | bool) info.member_count })
+    print(cmpt { info := @type_info(i32 | Str | bool), info.member_count })
     print("\n")
-    print(cmpt { info := @type_info(sample) info.param_count })
+    print(cmpt { info := @type_info(sample), info.param_count })
     print("\n")
     print(cmpt {
         info := @type_info(sample)
         info.result.kind == TypeKind.uint
     })
     print("\n")
-    print(cmpt { info := @type_info(u16) info.bits })
+    print(cmpt { info := @type_info(u16), info.bits })
     print("\n")
 }

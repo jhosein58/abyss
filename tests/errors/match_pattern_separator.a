@@ -1,0 +1,2 @@
+Color :: enum { red, blue }
+main :: fn() { value := match Color.red { red blue { 1 } } }

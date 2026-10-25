@@ -1,0 +1,104 @@
+import write as print
+       printf from "std/io"
+import Range from "core/range",
+Base :: 2, Offset :: 3,
+Values :: .[1, 2],
+
+Record :: struct { first i32, second i32 }
+Color :: enum { red, green, blue }
+
+add :: fn(a, b i32) i32 { a + b }
+
+quiet :: fn() { ret, }
+make_code :: fn() Str { "a := 2, a + 3," }
+
+main :: fn() {
+    print({a := 2, a + 1}), print("\n")
+    print({
+        a := 2
+        a + Offset,
+    })
+    print("\n"),
+
+    values: [4]i32 = .[
+        1
+        2, 3
+        4,
+    ]
+    negatives: [3]i32 = .[
+        -1
+        -2
+        -3
+    ]
+    inline: [3]i32 = .[5, 6, 7]
+    nested: [2][2]i32 = .[
+        .[1, 2]
+        .[
+            3
+            4
+        ],
+    ]
+    print(values[0] + values[1] + values[2] + values[3])
+    print(" "), print(negatives[0] + negatives[1] + negatives[2])
+    print(" "), print(inline[0] + inline[1] + inline[2])
+    print(" "), print(nested[0][0] + nested[1][1]), print("\n")
+
+    record: Record = .{
+        first: add(1
+            2)
+        second: { value := 3, value + 1 },
+    }
+    tuple := .{
+        record.first
+        record.second,
+    }
+    print(tuple._0 + tuple._1), print("\n")
+
+    print(add(
+        add(1, 2)
+        add(
+            3,
+            4
+        ),
+    )), print(" ")
+    print(add(
+        -5
+        -6
+    )), print("\n")
+    print(@is(record
+        Record)), print("\n")
+
+    counter := 0
+    while counter < 4 {
+        counter = counter + 1, if counter == 2 { cont, }
+        if counter == 4 { break, }, print(counter)
+    }, print("\n")
+    if counter == 4 { print("yes"), } else { print("no") }, print("\n")
+
+    color := Color.blue
+    print(match color {
+        red { 1 }, green
+        blue { 2 },
+    }), print("\n")
+    print(match color { red { 3 }, else { 4 } }), print("\n")
+
+    total := 0 as i32
+    for a
+        b in Range.new(0, 3)
+             Range.new(3, 6) {
+        total = total + a as i32 + b as i32,
+    }, print(total), print("\n")
+
+    print(#"a := 2, a + 1"), print(" ")
+    print(#"a := 2, a + 1,"), print(" ")
+    print(#`a := 2
+        a + 2`), print("\n")
+    print(#make_code()), print("\n")
+    print(cmpt { a := Base, a + Offset }), print("\n")
+    fixed: @typeof(Values) = .[5, 6]
+    print(fixed[0] + fixed[1]), print("\n")
+    print(1 -
+        2), print("\n")
+    printf("{} {}\n", .{ add(1, 2), { a := 2, a + 1 } }),
+    quiet(),
+}

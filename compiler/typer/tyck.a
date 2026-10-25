@@ -8,6 +8,7 @@ import token, TokenStream from "../token"
 import lex from "../lexer"
 import Parser_new, is_eof, peek, bump from "../parser/core"
 import parse_expr from "../parser/parser"
+import check_separator from "../parser/handlers/common"
 import Engine from "../engine"
 import synth_func, synth_return, synth_call from "./rules/fn"
 import resolve_ty_id from "./specialize"
@@ -179,12 +180,14 @@ synth_macro :: fn(eng &Engine, id u32) {
 
     node_start := tbl.len()
     first_node := parse_expr(&sub_p, 0 as u8)
+    check_separator(&sub_p, token.eof, c"expected ',' or newline between macro expressions")
     if not is_eof(&sub_p) {
         glob_stack := &db.glob_stack
         mark := glob_stack.mark()
         glob_stack.push(first_node)
         while not is_eof(&sub_p) {
             glob_stack.push(parse_expr(&sub_p, 0 as u8))
+            check_separator(&sub_p, token.eof, c"expected ',' or newline between macro expressions")
         }
         slice: Slice(u32) = .{
             ptr: glob_stack.ptr_at(mark),

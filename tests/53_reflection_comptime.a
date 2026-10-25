@@ -20,14 +20,14 @@ compile_name :: fn() Str {
 }
 
 main :: fn() {
-    name := cmpt { info := @type_info(Record) info.name }
+    name := cmpt { info := @type_info(Record), info.name }
     print(name)
     print("\n")
     nested := cmpt compile_name()
     print(nested)
     print("\n")
     counter := 0
-    fields := cmpt { info := @type_info(make(&counter)) info.field_count }
+    fields := cmpt { info := @type_info(make(&counter)), info.field_count }
     print(fields)
     print(" ")
     print(counter)

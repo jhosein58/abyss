@@ -28,7 +28,7 @@ main :: fn() {
     print("\n")
     values: [3]i32 = .[1, 2, 3]
     #add(&values[1], 10)
-    print(sum({ #add(&value, 1) value }, 10))
+    print(sum({ #add(&value, 1), value }, 10))
     print("\n")
     #print(values)
     print("\n")

@@ -3,7 +3,7 @@ import hir_kind, hir_none from "../../hir"
 import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at, lookup_sym from "../core"
 import span_merge from "../../nexus/nexus"
 import prec from "../prec"
-import span_of_hir, set_span, skip_separators, add_list from "./common"
+import span_of_hir, set_span, check_separator, add_list from "./common"
 import parse_expr from "../parser"
 import Str from "std/string"
 import id_none from "../../nexus/pool"
@@ -62,13 +62,10 @@ parse_array_lit :: fn(p &Parser) u32 {
     elements := Vec(u32).new()
 
     while (peek(p) != t.c_bracket) and (not is_eof(p)) {
-        skip_separators(p)
-        if (peek(p) == t.c_bracket) or (peek(p) == t.eof) { break }
-
         elem := parse_expr(p, 0 as u8)
         elements.push(elem)
 
-        skip_separators(p)
+        check_separator(p, t.c_bracket, c"expected ',' or newline between array elements")
     }
 
     if is_eof(p) and (peek(p) != t.c_bracket) {

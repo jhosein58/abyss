@@ -11,7 +11,7 @@ mkdir -p "${WORK_DIR}/scripts"
 cp "${ROOT_DIR}/scripts/embed_sources.py" "${WORK_DIR}/scripts/"
 (
     cd "${WORK_DIR}"
-    printf 'import write as print, embedding_probe from "std/io.a"\nmain :: fn() { print("automatic embedding\\n") print(embedding_probe()) print(" ") print(true) print("\\n") }\n' > program.a
+    printf 'import write as print, embedding_probe from "std/io.a"\nmain :: fn() { print("automatic embedding\\n"), print(embedding_probe()), print(" "), print(true), print("\\n") }\n' > program.a
     printf '\nembedding_probe :: fn() i32 { 7 }\n' >> std/io.a
     printf 'invalid user program\n' > main.a
     printf '\n#define ABYSS_CLI_EMBED_TEST 1\n' >> runtime/prelude.c

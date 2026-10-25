@@ -1,2 +1,2 @@
 import Vec from "../../std/collections/vec.a"
-main :: fn() { v := Vec().new() copy := v copy.push(true) v.push(1 as u32) }
+main :: fn() { v := Vec().new(), copy := v, copy.push(true), v.push(1 as u32) }

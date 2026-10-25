@@ -109,7 +109,7 @@ main :: fn() {
 
     nested := {
         value := 5
-        inner := { value := 6 value }
+        inner := { value := 6, value }
         value + inner
     }
     print(nested)
@@ -156,7 +156,7 @@ main :: fn() {
 
     i := 0
     sum := 0
-    while { i = i + 1 i < 4 } {
+    while { i = i + 1, i < 4 } {
         if i == 2 { cont }
         sum = sum + i
     }

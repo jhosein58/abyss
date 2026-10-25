@@ -6,7 +6,7 @@ sample :: fn(value i32) bool { value > 0 }
 
 main :: fn() {
     tuple := .{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 }
-    print(cmpt { info := @type_info(tuple) info.field_count })
+    print(cmpt { info := @type_info(tuple), info.field_count })
     print("\n")
     print(cmpt {
         info := @type_info(tuple)
@@ -19,9 +19,9 @@ main :: fn() {
     print("\n")
     #print(tuple)
     print("\n")
-    print(cmpt { info := @type_info(Empty) info.field_count })
+    print(cmpt { info := @type_info(Empty), info.field_count })
     print("\n")
-    print(cmpt { info := @type_info(foreign) info.is_extern })
+    print(cmpt { info := @type_info(foreign), info.is_extern })
     print("\n")
     print(cmpt {
         info := @type_info(foreign)
@@ -31,6 +31,6 @@ main :: fn() {
     print("\n")
     #print(sample)
     print("\n")
-    print(cmpt { info := @type_info(Str) info.kind == TypeKind.string })
+    print(cmpt { info := @type_info(Str), info.kind == TypeKind.string })
     print("\n")
 }

@@ -1,0 +1,2 @@
+make_code :: fn() Str { "a := 2 a + 1" }
+main :: fn() { value := #make_code() }
