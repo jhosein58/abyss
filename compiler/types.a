@@ -234,10 +234,8 @@ TyStore :: struct {
 
 TypeStorage :: struct {
     store     TyStore
-    table     Vec(u32)
-    table_cap u32
-    table_len u32
-    names Vec(Str)
+    intern    HashMap(u32, Vec(u32))
+    names     Vec(Str)
     origin_types HashMap(u32, u32)
     nominal_creators HashMap(u32, u32)
     nominal_creator_items Vec(u32)
@@ -256,20 +254,10 @@ TypeStorage :: struct {
         store.push(TyKind.never, 0)
         store.push(TyKind.error, 0)
 
-        init_cap: u32 = 64
-        tbl := Vec(u32).with_cap(init_cap as u64)
-        i: u32 = 0
-        while i < init_cap {
-            tbl.push(ty_id_none())
-            i = i + 1
-        }
-
         .{
             store     : store,
-            table     : tbl,
-            table_cap : init_cap,
-            table_len : 0,
-            names : Vec(Str).new(),
+            intern    : HashMap(u32, Vec(u32)).new(),
+            names     : Vec(Str).new(),
             origin_types : HashMap(u32, u32).new(),
             nominal_creators : HashMap(u32, u32).new(),
             nominal_creator_items : Vec(u32).new(),
@@ -314,7 +302,14 @@ TypeStorage :: struct {
 
     destroy :: fn(self &Self) {
         self.store.destroy()
-        self.table.destroy()
+        i: u64 = 0
+        while i < self.intern.cap {
+            if *(self.intern.occupied + i) {
+                (self.intern.values + i).destroy()
+            }
+            i = i + 1
+        }
+        self.intern.destroy()
         self.names.destroy()
         self.origin_types.destroy()
         self.nominal_creators.destroy()
@@ -410,40 +405,15 @@ TypeStorage :: struct {
         }
     }
 
-    grow_table :: fn(self &Self) {
-        old_cap := self.table_cap
-        new_cap := old_cap * 2
-        new_tbl := Vec(u32).with_cap(new_cap as u64)
-
-        i: u32 = 0
-        while i < new_cap {
-            new_tbl.push(ty_id_none())
-            i = i + 1
+    intern_insert :: fn(self &Self, h u32, id u32) {
+        bucket := self.intern.get(h)
+        if bucket != (0 as &Vec(u32)) {
+            bucket.push(id)
+        } else {
+            v := Vec(u32).new()
+            v.push(id)
+            self.intern.insert(h, v)
         }
-
-        mask := new_cap - 1
-        total_types := self.store.len()
-        id: u32 = ty_builtin_count()
-
-        while id < total_types {
-            if (self.kind(id) == TyKind.nominal) or (self.kind(id) == TyKind.enum_) {
-                id = id + 1
-                cont
-            }
-            h := self.hash_of(id)
-            idx := h & mask
-
-            while new_tbl.get(idx as u64) != ty_id_none() {
-                idx = (idx + 1) & mask
-            }
-
-            new_tbl.set(idx as u64, id)
-            id = id + 1
-        }
-
-        self.table.destroy()
-        self.table = new_tbl
-        self.table_cap = new_cap
     }
 
     alloc_unknown :: fn() u32 { ty_id_unknown()       }
@@ -463,33 +433,24 @@ TypeStorage :: struct {
     alloc_error :: fn() u32 { ty_id_error()         }
 
     get_or_insert_simple :: fn(self &Self, kind TyKind, payload u32) u32 {
-        if (self.table_len + 1) * 10 >= self.table_cap * 7 {
-            self.grow_table()
-        }
-
         h := Self.hash_combine(2166136261, kind as u32)
         h = Self.hash_combine(h, payload)
 
-        mask := self.table_cap - 1
-        idx := h & mask
-
-        while true {
-            existing := self.table.get(idx as u64)
-            if existing == ty_id_none() {
-                new_id := self.store.push(kind, payload)
-                self.table.set(idx as u64, new_id)
-                self.table_len = self.table_len + 1
-                ret new_id
+        bucket := self.intern.get(h)
+        if bucket != (0 as &Vec(u32)) {
+            i: u64 = 0
+            while i < bucket.len {
+                existing := bucket.get(i)
+                if self.store.type_eq_simple(existing, kind, payload) {
+                    ret existing
+                }
+                i = i + 1
             }
-
-            if self.store.type_eq_simple(existing, kind, payload) {
-                ret existing
-            }
-
-            idx = (idx + 1) & mask
         }
 
-        ty_id_error()
+        new_id := self.store.push(kind, payload)
+        self.intern_insert(h, new_id)
+        new_id
     }
 
     alloc_infer :: fn(self &Self, slot u32) u32 {
@@ -513,45 +474,31 @@ TypeStorage :: struct {
     }
 
     alloc_array :: fn(self &Self, ty u32, len u32) u32 {
-        if (self.table_len + 1) * 10 >= self.table_cap * 7 {
-            self.grow_table()
-        }
-
         h := Self.hash_combine(2166136261, TyKind.array as u32)
         h = Self.hash_combine(h, ty)
         h = Self.hash_combine(h, len)
 
-        mask := self.table_cap - 1
-        idx := h & mask
-
-        while true {
-            existing := self.table.get(idx as u64)
-            if existing == ty_id_none() {
-                extra_idx := self.store.extra.len as u32
-                self.store.extra.push(ty)
-                self.store.extra.push(len)
-
-                new_id := self.store.push(TyKind.array, extra_idx)
-                self.table.set(idx as u64, new_id)
-                self.table_len = self.table_len + 1
-                ret new_id
+        bucket := self.intern.get(h)
+        if bucket != (0 as &Vec(u32)) {
+            i: u64 = 0
+            while i < bucket.len {
+                existing := bucket.get(i)
+                if self.store.type_eq_array(existing, TyKind.array, ty, len) {
+                    ret existing
+                }
+                i = i + 1
             }
-
-            if self.store.type_eq_array(existing, TyKind.array, ty, len) {
-                ret existing
-            }
-
-            idx = (idx + 1) & mask
         }
 
-        ty_id_error()
+        extra_idx := self.store.extra.len as u32
+        self.store.extra.push(ty)
+        self.store.extra.push(len)
+        new_id := self.store.push(TyKind.array, extra_idx)
+        self.intern_insert(h, new_id)
+        new_id
     }
 
     alloc_func :: fn(self &Self, params Slice(u32), ret_ty u32, is_extern bool) u32 {
-        if (self.table_len + 1) * 10 >= self.table_cap * 7 {
-            self.grow_table()
-        }
-
         params_len := params.len as u32
         ext_val: u32 = 0
         if is_extern { ext_val = 1 }
@@ -567,36 +514,29 @@ TypeStorage :: struct {
             i = i + 1
         }
 
-        mask := self.table_cap - 1
-        idx := h & mask
-
-        while true {
-            existing := self.table.get(idx as u64)
-            if existing == ty_id_none() {
-                extra_idx := self.store.extra.len as u32
-                self.store.extra.push(packed)
-                self.store.extra.push(ret_ty)
-
-                p_i: u64 = 0
-                while p_i < params.len {
-                    self.store.extra.push(*(params.ptr + p_i))
-                    p_i = p_i + 1
+        bucket := self.intern.get(h)
+        if bucket != (0 as &Vec(u32)) {
+            b_i: u64 = 0
+            while b_i < bucket.len {
+                existing := bucket.get(b_i)
+                if self.store.type_eq_func(existing, TyKind.func, params, ret_ty, packed) {
+                    ret existing
                 }
-
-                new_id := self.store.push(TyKind.func, extra_idx)
-                self.table.set(idx as u64, new_id)
-                self.table_len = self.table_len + 1
-                ret new_id
+                b_i = b_i + 1
             }
-
-            if self.store.type_eq_func(existing, TyKind.func, params, ret_ty, packed) {
-                ret existing
-            }
-
-            idx = (idx + 1) & mask
         }
 
-        ty_id_error()
+        extra_idx := self.store.extra.len as u32
+        self.store.extra.push(packed)
+        self.store.extra.push(ret_ty)
+        p_i: u64 = 0
+        while p_i < params.len {
+            self.store.extra.push(*(params.ptr + p_i))
+            p_i = p_i + 1
+        }
+        new_id := self.store.push(TyKind.func, extra_idx)
+        self.intern_insert(h, new_id)
+        new_id
     }
 
     alloc_nominal :: fn(self &Self, base u32, name Str, origin u32) u32 {
@@ -680,51 +620,37 @@ TypeStorage :: struct {
 
     alloc_struct :: fn(self &Self, fields Slice(u32)) u32 {
         Self.sort_struct_fields(fields)
-
-        if (self.table_len + 1) * 10 >= self.table_cap * 7 {
-            self.grow_table()
-        }
-
         fields_count := (fields.len / 2) as u32
-
         h := Self.hash_combine(2166136261, TyKind.struct_ as u32)
         h = Self.hash_combine(h, fields_count)
-
         i: u64 = 0
         while i < fields.len {
             h = Self.hash_combine(h, *(fields.ptr + i))
             i = i + 1
         }
 
-        mask := self.table_cap - 1
-        idx := h & mask
-
-        while true {
-            existing := self.table.get(idx as u64)
-            if existing == ty_id_none() {
-                extra_idx := self.store.extra.len as u32
-                self.store.extra.push(fields_count)
-
-                f_i: u64 = 0
-                while f_i < fields.len {
-                    self.store.extra.push(*(fields.ptr + f_i))
-                    f_i = f_i + 1
+        bucket := self.intern.get(h)
+        if bucket != (0 as &Vec(u32)) {
+            b_i: u64 = 0
+            while b_i < bucket.len {
+                existing := bucket.get(b_i)
+                if self.store.type_eq_struct(existing, TyKind.struct_, fields, fields_count) {
+                    ret existing
                 }
-
-                new_id := self.store.push(TyKind.struct_, extra_idx)
-                self.table.set(idx as u64, new_id)
-                self.table_len = self.table_len + 1
-                ret new_id
+                b_i = b_i + 1
             }
-
-            if self.store.type_eq_struct(existing, TyKind.struct_, fields, fields_count) {
-                ret existing
-            }
-
-            idx = (idx + 1) & mask
         }
 
-        ty_id_error()
+        extra_idx := self.store.extra.len as u32
+        self.store.extra.push(fields_count)
+        f_i: u64 = 0
+        while f_i < fields.len {
+            self.store.extra.push(*(fields.ptr + f_i))
+            f_i = f_i + 1
+        }
+        new_id := self.store.push(TyKind.struct_, extra_idx)
+        self.intern_insert(h, new_id)
+        new_id
     }
 
     alloc_enum :: fn(self &Self, backing_ty u32, name Str, origin u32, variants Slice(u32)) u32 {
@@ -820,49 +746,37 @@ TypeStorage :: struct {
 
     alloc_union :: fn(self &Self, members Slice(u32)) u32 {
         Self.sort_union_members(members)
-        if (self.table_len + 1) * 10 >= self.table_cap * 7 {
-            self.grow_table()
-        }
-
         members_count := members.len as u32
         h := Self.hash_combine(2166136261, TyKind.union_ as u32)
         h = Self.hash_combine(h, members_count)
-
         i: u64 = 0
         while i < members.len {
             h = Self.hash_combine(h, *(members.ptr + i))
             i = i + 1
         }
 
-        mask := self.table_cap - 1
-        idx := h & mask
-
-        while true {
-            existing := self.table.get(idx as u64)
-            if existing == ty_id_none() {
-                extra_idx := self.store.extra.len as u32
-                self.store.extra.push(members_count)
-
-                m_i: u64 = 0
-                while m_i < members.len {
-                    self.store.extra.push(*(members.ptr + m_i))
-                    m_i = m_i + 1
+        bucket := self.intern.get(h)
+        if bucket != (0 as &Vec(u32)) {
+            b_i: u64 = 0
+            while b_i < bucket.len {
+                existing := bucket.get(b_i)
+                if self.store.type_eq_union(existing, TyKind.union_, members) {
+                    ret existing
                 }
-
-                new_id := self.store.push(TyKind.union_, extra_idx)
-                self.table.set(idx as u64, new_id)
-                self.table_len = self.table_len + 1
-                ret new_id
+                b_i = b_i + 1
             }
-
-            if self.store.type_eq_union(existing, TyKind.union_, members) {
-                ret existing
-            }
-
-            idx = (idx + 1) & mask
         }
 
-        ty_id_error()
+        extra_idx := self.store.extra.len as u32
+        self.store.extra.push(members_count)
+        m_i: u64 = 0
+        while m_i < members.len {
+            self.store.extra.push(*(members.ptr + m_i))
+            m_i = m_i + 1
+        }
+        new_id := self.store.push(TyKind.union_, extra_idx)
+        self.intern_insert(h, new_id)
+        new_id
     }
 
     union_members_len :: fn(self &Self, id u32) u32 {
