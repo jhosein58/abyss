@@ -13,6 +13,8 @@
 #define pclose _pclose
 #else
 #include <dlfcn.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #endif
 
 void abyss_vm_shift_args(void);

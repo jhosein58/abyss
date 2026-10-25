@@ -1,6 +1,6 @@
 import Str, to_cstr from "std/string"
 import Arena from "std/allocator"
-import read_file, write_file, file_exists from "std/fs"
+import File, read_file, write_file from "std/fs"
 import Env from "std/env"
 import Path from "std/path"
 import Engine from "compiler/engine"
@@ -73,8 +73,9 @@ Driver :: struct {
         prelude_source := embedded_runtime()
         env_prelude := Env.get(c"ABYSS_PRELUDE")
         if env_prelude != (0 as &u8) {
-            if file_exists(env_prelude) {
-                prelude_source = read_file(self.arena, env_prelude)
+            opt := File.read_to_string(self.arena, env_prelude)
+            if opt.is_some() {
+                prelude_source = opt.unwrap()
             }
         } else {
             env_dev := Env.get(c"ABYSS_DEV")
@@ -85,8 +86,9 @@ Driver :: struct {
                     p_str := Path.join(self.arena, dev_str, Str.of("runtime/prelude.c"))
                     prelude_path = to_cstr(self.arena, p_str)
                 }
-                if file_exists(prelude_path) {
-                    prelude_source = read_file(self.arena, prelude_path)
+                opt := File.read_to_string(self.arena, prelude_path)
+                if opt.is_some() {
+                    prelude_source = opt.unwrap()
                 }
             }
         }

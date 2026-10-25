@@ -7,8 +7,6 @@ WORK_DIR=$(mktemp -d "${ROOT_DIR}/tmp/cli_embedding_test.XXXXXX")
 cp -r "${ROOT_DIR}/compiler" "${ROOT_DIR}/core" "${ROOT_DIR}/std" "${ROOT_DIR}/runtime" "${WORK_DIR}/"
 cp "${ROOT_DIR}/abyss" "${WORK_DIR}/"
 cp "${COMPILER}" "${WORK_DIR}/abyssc"
-mkdir -p "${WORK_DIR}/scripts"
-cp "${ROOT_DIR}/scripts/embed_sources.py" "${WORK_DIR}/scripts/"
 (
     cd "${WORK_DIR}"
     printf 'import write as print, embedding_probe from "std/io"\nmain :: fn() { print("automatic embedding\\n"), print(embedding_probe()), print(" "), print(true), print("\\n") }\n' > program.a
@@ -20,12 +18,12 @@ cp "${ROOT_DIR}/scripts/embed_sources.py" "${WORK_DIR}/scripts/"
     ./tmp/out > actual.out
     printf 'automatic embedding\n7 true\n' > expected.out
     diff -u expected.out actual.out
-    BEFORE=$(stat -c '%y' abyssc compiler/embedded.a)
+    BEFORE=$(stat -c '%y' abyssc)
     timeout 30s ./abyss r program.a > actual.out
     diff -u expected.out actual.out
     timeout 30s ./abyss br program.a > actual.out
     diff -u expected.out actual.out
-    [[ "${BEFORE}" == "$(stat -c '%y' abyssc compiler/embedded.a)" ]]
+    [[ "${BEFORE}" == "$(stat -c '%y' abyssc)" ]]
     printf '\n#error ABYSS_CLI_EMBED_FAILURE\n' >> runtime/prelude.c
     cp abyssc previous_compiler
     if timeout 120s ./abyss b program.a > failure.log 2>&1; then

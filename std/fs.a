@@ -1,9 +1,13 @@
 import Arena from "allocator"
-import Str from "string"
-import fall               from "sys"
-
+import Str, String from "string"
+import fall from "sys"
+import Maybe from "core/maybe"
+import Vec from "collections/vec"
+import Path from "path"
+import Convert from "convert"
 
 print :: fn(s &u8)
+get_env :: fn(name &u8) &u8
 
 file_open  :: fn(path, mode &u8) &u8
 file_seek  :: fn(handle &u8, offset i64, w i32) i32
@@ -12,8 +16,183 @@ file_read  :: fn(handle, ptr &u8, s, count u64) u64
 file_write :: fn(handle, ptr &u8, s, count u64) u64
 file_close :: fn(handle &u8) i32
 
+opendir  :: fn(path &u8) &u8
+readdir  :: fn(dir &u8) &u8
+closedir :: fn(dir &u8) i32
+
 SEEK_SET :: fn() i32 { 0 }
+SEEK_CUR :: fn() i32 { 1 }
 SEEK_END :: fn() i32 { 2 }
+
+to_cstr :: fn(a &Arena, s Str) &u8 {
+    buf := a.alloc(s.len + 1)
+    i: u64 = 0
+    while i < s.len {
+        *(buf + i) = *(s.ptr + i)
+        i = i + 1
+    }
+    *(buf + s.len) = 0 as u8
+    buf
+}
+
+FileStream :: struct {
+    handle &u8
+
+    open :: fn(path &u8, mode &u8) Maybe(Self) {
+        h := file_open(path, mode)
+        if h == (0 as &u8) {
+            ret Maybe(Self).none()
+        }
+        Maybe(Self).some(.{ handle: h })
+    }
+
+    open_read :: fn(path &u8) Maybe(Self) {
+        Self.open(path, c"rb")
+    }
+
+    create :: fn(path &u8) Maybe(Self) {
+        Self.open(path, c"wb")
+    }
+
+    open_append :: fn(path &u8) Maybe(Self) {
+        Self.open(path, c"ab")
+    }
+
+    is_open :: fn(self &Self) bool {
+        self.handle != (0 as &u8)
+    }
+
+    close :: fn(self &Self) bool {
+        if self.handle == (0 as &u8) { ret false }
+        res := file_close(self.handle)
+        self.handle = 0 as &u8
+        res == 0
+    }
+
+    read :: fn(self &Self, buf &u8, count u64) u64 {
+        if self.handle == (0 as &u8) { ret 0 }
+        file_read(self.handle, buf, 1, count)
+    }
+
+    read_all :: fn(self &Self, a &Arena) Str {
+        if self.handle == (0 as &u8) { ret Str.empty() }
+        file_seek(self.handle, 0, SEEK_END())
+        raw_size := file_tell(self.handle)
+        if raw_size < 0 { ret Str.empty() }
+        file_size := raw_size as u64
+        file_seek(self.handle, 0, SEEK_SET())
+        buf := a.alloc(file_size + 1)
+        if buf == (0 as &u8) { ret Str.empty() }
+        read_bytes := file_read(self.handle, buf, 1, file_size)
+        *(buf + read_bytes) = 0 as u8
+        .{ ptr: buf, len: read_bytes }
+    }
+
+    write :: fn(self &Self, buf &u8, count u64) u64 {
+        if self.handle == (0 as &u8) { ret 0 }
+        file_write(self.handle, buf, 1, count)
+    }
+
+    write_str :: fn(self &Self, s Str) bool {
+        if self.handle == (0 as &u8) { ret false }
+        written := self.write(s.ptr, s.len)
+        written == s.len
+    }
+
+    seek :: fn(self &Self, offset i64, whence i32) bool {
+        if self.handle == (0 as &u8) { ret false }
+        file_seek(self.handle, offset, whence) == 0
+    }
+
+    seek_to_start :: fn(self &Self) bool {
+        self.seek(0, SEEK_SET())
+    }
+
+    seek_to_end :: fn(self &Self) bool {
+        self.seek(0, SEEK_END())
+    }
+
+    tell :: fn(self &Self) i64 {
+        if self.handle == (0 as &u8) { ret -1 }
+        file_tell(self.handle)
+    }
+
+    size :: fn(self &Self) u64 {
+        if self.handle == (0 as &u8) { ret 0 }
+        cur := file_tell(self.handle)
+        file_seek(self.handle, 0, SEEK_END())
+        end := file_tell(self.handle)
+        file_seek(self.handle, cur, SEEK_SET())
+        if end < 0 { ret 0 }
+        end as u64
+    }
+}
+
+File :: struct {
+    open :: fn(path &u8, mode &u8) Maybe(FileStream) {
+        FileStream.open(path, mode)
+    }
+
+    open_read :: fn(path &u8) Maybe(FileStream) {
+        FileStream.open_read(path)
+    }
+
+    create :: fn(path &u8) Maybe(FileStream) {
+        FileStream.create(path)
+    }
+
+    open_append :: fn(path &u8) Maybe(FileStream) {
+        FileStream.open_append(path)
+    }
+
+    read_to_string :: fn(a &Arena, path &u8) Maybe(Str) {
+        stream_opt := FileStream.open_read(path)
+        if stream_opt.is_none() { ret Maybe(Str).none() }
+        stream := stream_opt.unwrap()
+        res := stream.read_all(a)
+        stream.close()
+        Maybe(Str).some(res)
+    }
+
+    write_string :: fn(path &u8, content Str) bool {
+        stream_opt := FileStream.create(path)
+        if stream_opt.is_none() { ret false }
+        stream := stream_opt.unwrap()
+        ok := stream.write_str(content)
+        stream.close()
+        ok
+    }
+
+    append_string :: fn(path &u8, content Str) bool {
+        stream_opt := FileStream.open_append(path)
+        if stream_opt.is_none() { ret false }
+        stream := stream_opt.unwrap()
+        ok := stream.write_str(content)
+        stream.close()
+        ok
+    }
+
+    exists :: fn(path &u8) bool {
+        stream_opt := FileStream.open_read(path)
+        if stream_opt.is_some() {
+            stream := stream_opt.unwrap()
+            stream.close()
+            ret true
+        }
+        false
+    }
+
+    size :: fn(path &u8) u64 {
+        stream_opt := FileStream.open_read(path)
+        if stream_opt.is_some() {
+            stream := stream_opt.unwrap()
+            s := stream.size()
+            stream.close()
+            ret s
+        }
+        0
+    }
+}
 
 read_file :: fn(a &Arena, path &u8) Str {
     source := try_read_file(a, path)
@@ -27,94 +206,227 @@ read_file :: fn(a &Arena, path &u8) Str {
 }
 
 try_read_file :: fn(a &Arena, path &u8) Str {
-    file_handle := file_open(path, c"rb")
-    if file_handle == (0 as &u8) { ret Str.empty() }
-
-    file_seek(file_handle, 0, SEEK_END())
-    raw_size := file_tell(file_handle)
-
-    if raw_size < 0 {
-        print(c"\n\033[1;31merror:\033[0m failed to determine size of file '")
-        print(path)
-        print(c"'\n")
-        file_close(file_handle)
-        fall()
-    }
-
-    file_size := raw_size as u64
-    file_seek(file_handle, 0, SEEK_SET())
-
-    buf := a.alloc(file_size + 1)
-    if buf == (0 as &u8) {
-        print(c"\n\033[1;31merror:\033[0m out of memory allocating buffer for '")
-        print(path)
-        print(c"'\n")
-        file_close(file_handle)
-        fall()
-    }
-
-    read_bytes := file_read(file_handle, buf, 1, file_size)
-    file_close(file_handle)
-
-    *(buf + read_bytes) = 0 as u8
-
-    .{
-        ptr: buf,
-        len: read_bytes
-    }
+    opt := File.read_to_string(a, path)
+    if opt.is_some() { ret opt.unwrap() }
+    Str.empty()
 }
 
 write_file :: fn(path &u8, content Str) bool {
-    file_handle := file_open(path, c"wb")
-
-    if file_handle == (0 as &u8) {
-        print(c"\n\033[1;31merror:\033[0m failed to open file for writing: '")
+    ok := File.write_string(path, content)
+    if not ok {
+        print(c"\n\033[1;31merror:\033[0m failed to write file '")
         print(path)
         print(c"'\n")
         fall()
     }
-
-    written := file_write(file_handle, content.ptr, 1, content.len)
-    file_close(file_handle)
-
-    if written != content.len {
-        print(c"\n\033[1;31merror:\033[0m incomplete write to file '")
-        print(path)
-        print(c"'\n")
-        fall()
-    }
-
     true
 }
 
 append_file :: fn(path &u8, content Str) bool {
-    file_handle := file_open(path, c"ab")
-
-    if file_handle == (0 as &u8) {
-        print(c"\n\033[1;31merror:\033[0m failed to open file for appending: '")
+    ok := File.append_string(path, content)
+    if not ok {
+        print(c"\n\033[1;31merror:\033[0m failed to append to file '")
         print(path)
         print(c"'\n")
         fall()
     }
-
-    written := file_write(file_handle, content.ptr, 1, content.len)
-    file_close(file_handle)
-
-    if written != content.len {
-        print(c"\n\033[1;31merror:\033[0m incomplete append to file '")
-        print(path)
-        print(c"'\n")
-        fall()
-    }
-
     true
 }
 
 file_exists :: fn(path &u8) bool {
-    file_handle := file_open(path, c"rb")
-    if file_handle != (0 as &u8) {
-        file_close(file_handle)
-        ret true
+    File.exists(path)
+}
+
+DirEntryKind :: enum u8 {
+    unknown,
+    file,
+    directory
+}
+
+DirEntry :: struct {
+    name Str
+    kind DirEntryKind
+
+    is_file :: fn(self &Self) bool { self.kind == DirEntryKind.file }
+    is_dir :: fn(self &Self) bool { self.kind == DirEntryKind.directory }
+}
+
+DirStream :: struct {
+    handle &u8
+
+    open :: fn(path &u8) Maybe(Self) {
+        h := opendir(path)
+        if h == (0 as &u8) {
+            ret Maybe(Self).none()
+        }
+        Maybe(Self).some(.{ handle: h })
     }
-    false
+
+    close :: fn(self &Self) bool {
+        if self.handle == (0 as &u8) { ret false }
+        res := closedir(self.handle)
+        self.handle = 0 as &u8
+        res == 0
+    }
+
+    next :: fn(self &Self) Maybe(DirEntry) {
+        if self.handle == (0 as &u8) { ret Maybe(DirEntry).none() }
+        while true {
+            ent := readdir(self.handle)
+            if ent == (0 as &u8) { ret Maybe(DirEntry).none() }
+            name_ptr := ent + 19
+            name := Str.of(name_ptr)
+            if name.eq(Str.of(".")) or name.eq(Str.of("..")) { cont }
+            d_type := *(ent + 18)
+            k := DirEntryKind.unknown
+            if d_type == (4 as u8) {
+                k = DirEntryKind.directory
+            } else if d_type == (8 as u8) {
+                k = DirEntryKind.file
+            }
+            ret Maybe(DirEntry).some(.{ name: name, kind: k })
+        }
+        Maybe(DirEntry).none()
+    }
+}
+
+Dir :: struct {
+    open :: fn(path &u8) Maybe(DirStream) {
+        DirStream.open(path)
+    }
+
+    exists :: fn(path &u8) bool {
+        stream_opt := DirStream.open(path)
+        if stream_opt.is_some() {
+            stream := stream_opt.unwrap()
+            stream.close()
+            ret true
+        }
+        false
+    }
+
+    is_directory :: fn(path &u8) bool {
+        Dir.exists(path)
+    }
+
+    walk :: fn(a &Arena, root Str, ext Str) Vec(Str) {
+        out := Vec(Str).new()
+        Dir.collect_entries(a, &out, Str.empty(), root, ext)
+        out
+    }
+
+    collect_entries :: fn(a &Arena, out &Vec(Str), base_prefix Str, rel_dir Str, ext Str) {
+        full_dir := if base_prefix.len > 0 { Path.join(a, base_prefix, rel_dir) } else { rel_dir }
+        c_dir := to_cstr(a, full_dir)
+        d_opt := DirStream.open(c_dir)
+        if d_opt.is_none() { ret }
+        d := d_opt.unwrap()
+        for entry in d {
+            full_child := Path.join(a, full_dir, entry.name)
+            rel_child := Path.join(a, rel_dir, entry.name)
+            c_child := to_cstr(a, full_child)
+            if Dir.exists(c_child) {
+                Dir.collect_entries(a, out, base_prefix, rel_child, ext)
+            } else if (ext.len == 0) or entry.name.ends_with(ext) {
+                out.push(rel_child)
+            }
+        }
+        d.close()
+    }
+}
+
+str_less :: fn(a Str, b Str) bool {
+    min_len := if a.len < b.len { a.len } else { b.len }
+    i: u64 = 0
+    while i < min_len {
+        ca := *(a.ptr + i)
+        cb := *(b.ptr + i)
+        if ca < cb { ret true }
+        if ca > cb { ret false }
+        i = i + 1
+    }
+    a.len < b.len
+}
+
+sort_strings :: fn(v &Vec(Str)) {
+    i: u64 = 0
+    while i < v.len {
+        j := i + 1
+        while j < v.len {
+            if str_less(v.get(j), v.get(i)) {
+                tmp := v.get(i)
+                v.set(i, v.get(j))
+                v.set(j, tmp)
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+}
+
+Embed :: struct {
+    tree :: fn(a &Arena, root Str, ext Str) Str {
+        files := Dir.walk(a, root, ext)
+        sort_strings(&files)
+        out := String.new(a)
+        out.push_str("{\n")
+        i: u64 = 0
+        while i < files.len {
+            p := files.get(i)
+            c_p := to_cstr(a, p)
+            content := read_file(a, c_p)
+            out.push_str("    if path.eq(Str.of(")
+            Convert.quote_source(&out, p)
+            out.push_str(")) { ret Str.of(")
+            Convert.quote_source(&out, content)
+            out.push_str(") }\n")
+            i = i + 1
+        }
+        out.push_str("    Str.empty()\n}")
+        out.as_str()
+    }
+
+    file :: fn(a &Arena, path Str) Str {
+        c_p := to_cstr(a, path)
+        content := read_file(a, c_p)
+        out := String.new(a)
+        out.push_str("Str.of(")
+        Convert.quote_source(&out, content)
+        out.push_str(")")
+        out.as_str()
+    }
+
+    sources :: fn(a &Arena) Str {
+        root_prefix := Str.empty()
+        env_dev := get_env(c"ABYSS_DEV")
+        if env_dev != (0 as &u8) {
+            dev_str := Str.of(env_dev)
+            if (not dev_str.eq(Str.of("1"))) and (not dev_str.eq(Str.of("true"))) {
+                root_prefix = dev_str
+            }
+        }
+
+        files := Vec(Str).new()
+        Dir.collect_entries(a, &files, root_prefix, Str.of("core"), Str.of(".a"))
+        Dir.collect_entries(a, &files, root_prefix, Str.of("std"), Str.of(".a"))
+        sort_strings(&files)
+
+        out := String.new(a)
+        out.push_str("{\n")
+        i: u64 = 0
+        while i < files.len {
+            rel_p := files.get(i)
+            full_p := if root_prefix.len > 0 { Path.join(a, root_prefix, rel_p) } else { rel_p }
+            c_full := to_cstr(a, full_p)
+            content := read_file(a, c_full)
+            out.push_str("    if path.eq(Str.of(")
+            Convert.quote_source(&out, rel_p)
+            out.push_str(")) { ret Str.of(")
+            Convert.quote_source(&out, content)
+            out.push_str(") }\n")
+            i = i + 1
+        }
+        out.push_str("    Str.empty()\n}")
+        out.as_str()
+    }
 }

@@ -1,5 +1,5 @@
 import Arena from "std/allocator"
-import Driver from "./driver"
+import Driver from "compiler/driver"
 
 main :: fn() {
     arena := Arena.new(1024 * 1024 * 16)

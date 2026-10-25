@@ -2,6 +2,17 @@ import Str, String from "string"
 import Arena from "allocator"
 
 Path :: struct {
+    to_cstr :: fn(arena &Arena, path Str) &u8 {
+        buf := arena.alloc(path.len + 1)
+        i: u64 = 0
+        while i < path.len {
+            *(buf + i) = *(path.ptr + i)
+            i = i + 1
+        }
+        *(buf + path.len) = 0 as u8
+        buf
+    }
+
     ensure_ext :: fn(arena &Arena, path Str, ext Str) Str {
         if path.ends_with(ext) {
             ret path
