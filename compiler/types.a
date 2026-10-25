@@ -63,6 +63,61 @@ ty_id_error         :: fn() u32 { 7 }
 ty_builtin_count    :: fn() u32 { 8 }
 
 
+IntTy :: struct {
+    width u16
+}
+
+UintTy :: struct {
+    width u16
+}
+
+FloatTy :: struct {
+    width u16
+}
+
+PtrTy :: struct {
+    inner u32
+}
+
+ArrayTy :: struct {
+    elem u32
+    len  u32
+}
+
+FuncTy :: struct {
+    params    Slice(u32)
+    ret_ty    u32
+    is_extern bool
+}
+
+StructTy :: struct {
+    fields Slice(u32)
+}
+
+EnumTy :: struct {
+    backing  u32
+    name     Str
+    origin   u32
+    variants Slice(u32)
+}
+
+UnionTy :: struct {
+    members Slice(u32)
+}
+
+NominalTy :: struct {
+    base   u32
+    name   Str
+    origin u32
+}
+
+SimpleTy :: struct {
+    kind TyKind
+}
+
+TypeData :: IntTy | UintTy | FloatTy | PtrTy | ArrayTy | FuncTy | StructTy | EnumTy | UnionTy | NominalTy | SimpleTy
+
+
 TyStore :: struct {
     kinds   Vec(u8)
     payload Vec(u32)
@@ -576,6 +631,12 @@ TypeStorage :: struct {
         self.store.extra.get(idx + 2)
     }
 
+    nominal_name :: fn(self &Self, id u32) Str {
+        idx := self.payload(id) as u64
+        name_idx := self.store.extra.get(idx + 1)
+        self.nominal_names.get(name_idx as u64)
+    }
+
     record_nominal_creator :: fn(self &Self, origin u32, sym u32, args Slice(u32)) {
         if (origin & 2147483648) == 0 { ret }
         origin = origin & 2147483647
@@ -976,6 +1037,76 @@ TypeStorage :: struct {
             ptr: start_ptr,
             len: (fields_count * 2) as u64
         }
+    }
+
+    data :: fn(self &Self, id u32) TypeData {
+        kind := self.kind(id)
+        if kind == TyKind.int {
+            v: IntTy = .{ width: self.payload(id) as u16 }
+            res: TypeData = v
+            ret res
+        }
+        if kind == TyKind.uint {
+            v: UintTy = .{ width: self.payload(id) as u16 }
+            res: TypeData = v
+            ret res
+        }
+        if kind == TyKind.float {
+            v: FloatTy = .{ width: self.payload(id) as u16 }
+            res: TypeData = v
+            ret res
+        }
+        if kind == TyKind.ptr {
+            v: PtrTy = .{ inner: self.payload(id) }
+            res: TypeData = v
+            ret res
+        }
+        if kind == TyKind.array {
+            v: ArrayTy = .{ elem: self.get_array_type(id), len: self.get_array_len(id) }
+            res: TypeData = v
+            ret res
+        }
+        if kind == TyKind.func {
+            v: FuncTy = .{
+                params: self.func_params(id),
+                ret_ty: self.func_return(id),
+                is_extern: self.func_is_extern(id)
+            }
+            res: TypeData = v
+            ret res
+        }
+        if kind == TyKind.struct_ {
+            v: StructTy = .{ fields: self.get_struct_fields(id) }
+            res: TypeData = v
+            ret res
+        }
+        if kind == TyKind.enum_ {
+            v: EnumTy = .{
+                backing: self.enum_backing(id),
+                name: self.enum_name(id),
+                origin: self.enum_origin(id),
+                variants: self.enum_variants(id)
+            }
+            res: TypeData = v
+            ret res
+        }
+        if kind == TyKind.union_ {
+            v: UnionTy = .{ members: self.union_members(id) }
+            res: TypeData = v
+            ret res
+        }
+        if kind == TyKind.nominal {
+            v: NominalTy = .{
+                base: self.nominal_base(id),
+                name: self.nominal_name(id),
+                origin: self.nominal_origin(id)
+            }
+            res: TypeData = v
+            ret res
+        }
+        v: SimpleTy = .{ kind: kind }
+        res: TypeData = v
+        res
     }
 
     print_type :: fn(self &Self, id u32) {
