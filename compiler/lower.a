@@ -1,4 +1,4 @@
-import reflection_value, reflection_error, macro_template, reflection_read, reflection_quote from "./reflection"
+import reflection_value, reflection_error, macro_template, reflection_read, reflection_quote from "./typer/reflection"
 import Nexus from "./nexus/nexus"
 import HirTable, hir_kind, hir_none, HirExprKind from "./hir"
 import id_none from "./nexus/pool"

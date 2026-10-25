@@ -12,7 +12,7 @@ import check_value from "./common"
 import synth_node from "../tyck"
 import specialize_nominal_from_creator, instantiate_type, resolve_ty_id from "../specialize"
 import eval_const from "../../lower"
-import reflection_read, reflection_error from "../../reflection"
+import reflection_read, reflection_error from "../reflection"
 
 print :: fn(s &u8)
 print_u32 :: fn(v u32)

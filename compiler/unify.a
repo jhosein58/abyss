@@ -60,7 +60,7 @@ UnifyStorage :: struct {
 
         self.parents.push(slot)
         self.ranks.push(0 as u8)
-         self.types.push(ty_id_none())
+        self.types.push(ty_id_none())
         self.origins.push(origin)
 
         if origin != slot_none() {
