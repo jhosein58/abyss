@@ -16,14 +16,19 @@ SEEK_SET :: fn() i32 { 0 }
 SEEK_END :: fn() i32 { 2 }
 
 read_file :: fn(a &Arena, path &u8) Str {
-    file_handle := file_open(path, c"rb")
-
-    if file_handle == (0 as &u8) {
+    source := try_read_file(a, path)
+    if source.ptr == (0 as &u8) {
         print(c"\n\033[1;31merror:\033[0m cannot open file '")
         print(path)
         print(c"': file not found or permission denied\n")
         fall()
     }
+    source
+}
+
+try_read_file :: fn(a &Arena, path &u8) Str {
+    file_handle := file_open(path, c"rb")
+    if file_handle == (0 as &u8) { ret Str.empty() }
 
     file_seek(file_handle, 0, SEEK_END())
     raw_size := file_tell(file_handle)

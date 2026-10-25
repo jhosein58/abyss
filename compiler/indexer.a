@@ -1,19 +1,18 @@
 import write_str from "std/io"
 import token, TokenStream from "./token"
 import lex from "./lexer"
-import Nexus from "./nexus/nexus"
+import Nexus, calc_pos from "./nexus/nexus"
 import Str from "std/string"
 import Path from "std/path"
 import Arena from "std/allocator"
-import read_file from "std/fs"
+import try_read_file from "std/fs"
 import id_none from "./nexus/pool"
 import fall from "std/sys"
 import embedded_source from "./embedded"
 
 print :: fn(s &u8)
+print_u32 :: fn(v u32)
 get_env :: fn(name &u8) &u8
-file_open :: fn(path, mode &u8) &u8
-file_close :: fn(handle &u8) i32
 
 to_cstr :: fn(arena &Arena, s Str) &u8 {
     buf := arena.alloc(s.len + 1)
@@ -26,12 +25,21 @@ to_cstr :: fn(arena &Arena, s Str) &u8 {
     buf
 }
 
-index_error :: fn(path Str, msg &u8) {
+index_error :: fn(db &Nexus, file_id u32, offset u32, msg &u8, detail Str) {
     print(c"\n[import error] ")
     print(msg)
-    print(c" in ")
-    write_str(path)
-    print(c"\n")
+    if detail.len > 0 {
+        print(c": ")
+        write_str(detail)
+    }
+    pos := calc_pos(db.get_file_source(file_id), offset)
+    print(c"\n       --> ")
+    write_str(db.get_file_path(file_id))
+    print(c":")
+    print_u32(pos.line)
+    print(c":")
+    print_u32(pos.col)
+    print(c"\n\n")
     fall()
 }
 
@@ -39,9 +47,9 @@ is_embedded_path :: fn(path Str) bool {
     path.starts_with(Str.of("std/")) or path.starts_with(Str.of("core/")) or path.starts_with(Str.of("std\\")) or path.starts_with(Str.of("core\\"))
 }
 
-module_path :: fn(arena &Arena, base Str, path Str) Str {
+module_path :: fn(db &Nexus, arena &Arena, file_id u32, offset u32, base Str, path Str) Str {
     if path.ends_with(".a") {
-        index_error(path, c"import paths must omit the '.a' extension")
+        index_error(db, file_id, offset, c"import paths must omit the '.a' extension", path)
     }
     full_path := Path.ensure_ext(arena, path, Str.of(".a"))
     is_rel := full_path.starts_with(Str.of("./")) or full_path.starts_with(Str.of("../")) or full_path.starts_with(Str.of(".\\")) or full_path.starts_with(Str.of("..\\"))
@@ -57,7 +65,7 @@ module_path :: fn(arena &Arena, base Str, path Str) Str {
         }
     }
     if embedded and (not is_embedded_path(target)) {
-        index_error(path, c"embedded import escapes library root")
+        index_error(db, file_id, offset, c"embedded import escapes library root", path)
     }
     target
 }
@@ -91,9 +99,9 @@ Indexer :: struct {
         self.pending_imports.destroy()
     }
 
-    resolve_and_load :: fn(self &Self, curr_path Str, import_path Str) u32 {
+    resolve_and_load :: fn(self &Self, curr_path Str, import_path Str, file_id u32, offset u32) u32 {
         db := self.db
-        target_path := module_path(self.arena, curr_path, import_path)
+        target_path := module_path(db, self.arena, file_id, offset, curr_path, import_path)
         path_id := db.interner.intern(target_path)
 
         i: u64 = 0
@@ -114,21 +122,20 @@ Indexer :: struct {
                     disk_path = Path.join(self.arena, dev_str, target_path)
                 }
                 c_disk_path := to_cstr(self.arena, disk_path)
-                fh := file_open(c_disk_path, c"rb")
-                if fh != (0 as &u8) {
-                    file_close(fh)
-                    source = read_file(self.arena, c_disk_path)
-                }
+                source = try_read_file(self.arena, c_disk_path)
             }
             if source.ptr == (0 as &u8) {
                 source = embedded_source(target_path)
             }
             if source.ptr == (0 as &u8) {
-                index_error(target_path, c"embedded module not found")
+                index_error(db, file_id, offset, c"embedded module not found", target_path)
             }
         } else {
             c_target_path := to_cstr(self.arena, target_path)
-            source = read_file(self.arena, c_target_path)
+            source = try_read_file(self.arena, c_target_path)
+            if source.ptr == (0 as &u8) {
+                index_error(db, file_id, offset, c"cannot open module", target_path)
+            }
         }
 
         fid := db.add_file(target_path, source)
@@ -168,17 +175,17 @@ Indexer :: struct {
                     depth = depth - 1
                 }
             } else if (depth == 0) and (tk == t.semi) {
-                index_error(curr_path, c"expected ',' or newline between top-level declarations")
+                index_error(db, file_id, db.tokens.start(cursor), c"expected ',' or newline between top-level declarations", Str.empty())
             } else if (depth == 0) and (tk == t.comma) {
                 if has_sym {
                     db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
                     has_sym = false
                 } else if (cursor == start_tok) or (db.tokens.kind(cursor - 1) != t.lit_str) {
-                    index_error(curr_path, c"expected declaration before ','")
+                    index_error(db, file_id, db.tokens.start(cursor), c"expected declaration before ','", Str.empty())
                 }
             } else if (depth == 0) and (tk == t.kw_import) {
                 if (cursor > start_tok) and (not db.tokens.newline_before(cursor)) and (db.tokens.kind(cursor - 1) != t.comma) {
-                    index_error(curr_path, c"expected ',' or newline between top-level declarations")
+                    index_error(db, file_id, db.tokens.start(cursor), c"expected ',' or newline between top-level declarations", Str.empty())
                 }
                 if has_sym {
                     db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
@@ -186,26 +193,29 @@ Indexer :: struct {
                 }
 
                 scan := cursor + 1
-                imported_names := Vec(u32).new()
-                local_names := Vec(u32).new()
+                import_mark := self.pending_imports.len
 
                 while scan < end_tok {
                     if db.tokens.kind(scan) != t.ident {
-                        index_error(curr_path, c"expected import name")
+                        index_error(db, file_id, db.tokens.start(scan), c"expected import name", Str.empty())
                     }
+                    name_tok := scan
                     name_id := db.interner.intern(db.tokens.text(scan))
-                    imported_names.push(name_id)
                     scan = scan + 1
                     local_id := name_id
                     if (scan < end_tok) and (db.tokens.kind(scan) == t.kw_as) {
                         scan = scan + 1
                         if (scan >= end_tok) or (db.tokens.kind(scan) != t.ident) {
-                            index_error(curr_path, c"expected import alias after 'as'")
+                            index_error(db, file_id, db.tokens.start(if scan < end_tok { scan } else { end_tok - 1 }), c"expected import alias after 'as'", Str.empty())
                         }
                         local_id = db.interner.intern(db.tokens.text(scan))
                         scan = scan + 1
                     }
-                    local_names.push(local_id)
+                    self.pending_imports.push(file_id)
+                    self.pending_imports.push(local_id)
+                    self.pending_imports.push(name_id)
+                    self.pending_imports.push(id_none())
+                    self.pending_imports.push(name_tok)
                     if (scan < end_tok) and (db.tokens.kind(scan) == t.kw_from) {
                         scan = scan + 1
                         break
@@ -213,39 +223,34 @@ Indexer :: struct {
                     if (scan < end_tok) and (db.tokens.kind(scan) == t.comma) {
                         scan = scan + 1
                     } else if (scan >= end_tok) or (not db.tokens.newline_before(scan)) {
-                        index_error(curr_path, c"expected ',' or 'from' after import name")
+                        index_error(db, file_id, db.tokens.start(if scan < end_tok { scan } else { end_tok - 1 }), c"expected ',' or 'from' after import name", Str.empty())
                     }
                 }
 
-                if (scan >= end_tok) or (imported_names.len == 0) {
-                    index_error(curr_path, c"expected names, 'from', and a quoted path")
+                if (scan >= end_tok) or (self.pending_imports.len == import_mark) {
+                    index_error(db, file_id, db.tokens.start(if scan < end_tok { scan } else { end_tok - 1 }), c"expected names, 'from', and a quoted path", Str.empty())
                 }
                 if db.tokens.kind(scan) != t.lit_str {
-                    index_error(curr_path, c"expected quoted import path")
+                    index_error(db, file_id, db.tokens.start(scan), c"expected quoted import path", Str.empty())
                 }
 
                 raw_path := db.tokens.text(scan)
                 path_str := raw_path.trim_quotes()
 
-                target_fid := self.resolve_and_load(curr_path, path_str)
+                target_fid := self.resolve_and_load(curr_path, path_str, file_id, db.tokens.start(scan))
 
-                n_i: u64 = 0
-                while n_i < imported_names.len {
-                    self.pending_imports.push(file_id)
-                    self.pending_imports.push(local_names.get(n_i))
-                    self.pending_imports.push(imported_names.get(n_i))
-                    self.pending_imports.push(target_fid)
-                    n_i = n_i + 1
+                n_i := import_mark
+                while n_i < self.pending_imports.len {
+                    self.pending_imports.set(n_i + 3, target_fid)
+                    n_i = n_i + 5
                 }
-                imported_names.destroy()
-                local_names.destroy()
                 cursor = scan + 1
                 cont
             } else if (depth == 0) and (tk == t.ident) {
                 if (cursor + 1) < end_tok {
                     if db.tokens.kind(cursor + 1) == t.colon_colon {
                         if (cursor > start_tok) and (not db.tokens.newline_before(cursor)) and (db.tokens.kind(cursor - 1) != t.comma) {
-                            index_error(curr_path, c"expected ',' or newline between top-level declarations")
+                            index_error(db, file_id, db.tokens.start(cursor), c"expected ',' or newline between top-level declarations", Str.empty())
                         }
                         if has_sym {
                             db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
@@ -283,7 +288,9 @@ Indexer :: struct {
                     if target_sym != id_none() {
                         existing := db.find_local_symbol(src_fid, loc_name)
                         if (existing != id_none()) and (existing != target_sym) {
-                            index_error(db.get_file_path(src_fid), c"import name conflicts with an existing symbol")
+                            name_tok := self.pending_imports.get(p_i + 4)
+                            if db.tokens.kind(name_tok + 1) == token.kw_as { name_tok = name_tok + 2 }
+                            index_error(db, src_fid, db.tokens.start(name_tok), c"import name conflicts with an existing symbol", db.interner.get(loc_name))
                         }
                         if existing == id_none() {
                             db.alloc_symbol_alias(src_fid, loc_name, target_sym)
@@ -292,7 +299,7 @@ Indexer :: struct {
                         changed = true
                     }
                 }
-                p_i = p_i + 4
+                p_i = p_i + 5
             }
         }
 
@@ -301,12 +308,10 @@ Indexer :: struct {
             src_fid := self.pending_imports.get(check_i)
             if src_fid != id_none() {
                 name_id := self.pending_imports.get(check_i + 2)
-                print(c"\n[import error] symbol not found: ")
-                write_str(db.interner.get(name_id))
-                print(c"\n")
-                fall()
+                name_tok := self.pending_imports.get(check_i + 4)
+                index_error(db, src_fid, db.tokens.start(name_tok), c"symbol not found", db.interner.get(name_id))
             }
-            check_i = check_i + 4
+            check_i = check_i + 5
         }
     }
 
@@ -322,8 +327,8 @@ Indexer :: struct {
         self.queue_tok_start.push(start_tok)
         self.queue_tok_end.push(end_tok)
 
-        db.core_prelude = self.resolve_and_load(Str.empty(), Str.of("core/prelude"))
-        db.std_prelude  = self.resolve_and_load(Str.empty(), Str.of("std/prelude"))
+        db.core_prelude = self.resolve_and_load(Str.empty(), Str.of("core/prelude"), root_fid, 0)
+        db.std_prelude  = self.resolve_and_load(Str.empty(), Str.of("std/prelude"), root_fid, 0)
 
         q_head: u64 = 0
         while q_head < self.queue_fids.len {
