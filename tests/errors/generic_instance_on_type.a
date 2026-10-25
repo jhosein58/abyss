@@ -1,2 +1,2 @@
-Box :: fn(T type) type { struct { value T get :: fn(self &Self) T { self.value } } }
+Box :: fn(T type) type { struct { value T, get :: fn(self &Self) T { self.value } } }
 main :: fn() { x := Box(u32).get() }

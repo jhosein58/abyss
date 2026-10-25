@@ -4,51 +4,26 @@ import Parser, bump, optional, expect, peek, peek_n, is_eof, curr_span, prev_spa
 import span_merge from "../../nexus/nexus"
 import id_none from "../../nexus/pool"
 import prec from "../prec"
-import span_of_hir, set_span, skip_separators, check_delimiter, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list from "./common"
+import span_of_hir, set_span, check_separator, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list from "./common"
 import parse_ident from "./ident"
 import parse_expr from "../parser"
 
 is_tuple_struct :: fn(p &Parser) bool {
     t := token
-    c := p.cursor
-    while (c < p.end) and ((p.tokens.kind(c) == t.semi) or (p.tokens.kind(c) == t.comma)) {
-        c = c + 1
+    scan := p.cursor
+    if (scan >= p.end) or (p.tokens.kind(scan) == t.c_brace) { ret false }
+    if p.tokens.kind(scan) != t.ident { ret true }
+
+    while scan + 1 < p.end {
+        scan = scan + 1
+        next := p.tokens.kind(scan)
+        if (next == t.colon_colon) or (next == t.colon) { ret false }
+        if (next == t.c_brace) or (next == t.semi) or p.tokens.newline_before(scan) { ret true }
+        if next != t.comma { ret false }
+        scan = scan + 1
+        if scan >= p.end { ret false }
+        if p.tokens.kind(scan) != t.ident { ret true }
     }
-    if (c >= p.end) or (p.tokens.kind(c) == t.c_brace) { ret false }
-
-    k0 := p.tokens.kind(c)
-    if k0 != t.ident { ret true }
-
-    if c + 1 >= p.end { ret false }
-    k1 := p.tokens.kind(c + 1)
-    if k1 == t.colon_colon { ret false }
-    if k1 == t.colon { ret false }
-    if (k1 == t.c_brace) or (k1 == t.semi) { ret true }
-
-    if k1 == t.comma {
-        scan := c + 2
-        while scan < p.end {
-            while (scan < p.end) and ((p.tokens.kind(scan) == t.semi) or (p.tokens.kind(scan) == t.comma)) {
-                scan = scan + 1
-            }
-            if scan >= p.end { ret false }
-            if p.tokens.kind(scan) == t.c_brace { ret true }
-            if p.tokens.kind(scan) != t.ident { ret true }
-            scan = scan + 1
-            if scan >= p.end { ret false }
-            k_next := p.tokens.kind(scan)
-            if k_next == t.comma {
-                scan = scan + 1
-                cont
-            }
-            if (k_next == t.c_brace) or (k_next == t.semi) {
-                ret true
-            }
-            ret false
-        }
-        ret false
-    }
-
     false
 }
 
@@ -73,9 +48,6 @@ parse_struct :: fn(p &Parser) u32 {
     if is_tuple_struct(p) {
         idx: u32 = 0
         while (peek(p) != t.c_brace) and (not is_eof(p)) {
-            skip_separators(p)
-            if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
-
             sp_ty := curr_span(p)
             ty := parse_expr(p, prec().var_def + (1 as u8))
             if ty == hir_none() {
@@ -90,13 +62,10 @@ parse_struct :: fn(p &Parser) u32 {
             types.push(ty)
             idx = idx + 1
 
-            skip_separators(p)
+            check_separator(p, t.c_brace, c"expected ',' or newline between tuple fields")
         }
     } else {
         while (peek(p) != t.c_brace) and (not is_eof(p)) {
-            skip_separators(p)
-            if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
-
             name := parse_ident(p)
             if peek(p) == t.colon_colon {
                 ensure_type_node(p, &struct_node, k.struct_, struct_toplv)
@@ -109,7 +78,9 @@ parse_struct :: fn(p &Parser) u32 {
                 field_names.push(parse_ident(p))
             }
 
-            optional(p, t.colon)
+            if peek(p) == t.colon {
+                parse_error_at(p, c"struct fields use 'name Type' without ':'", curr_span(p))
+            }
             ty := parse_expr(p, prec().var_def + (1 as u8))
             if ty == hir_none() {
                 parse_error_at(p, c"expected a field type", curr_span(p))
@@ -123,7 +94,7 @@ parse_struct :: fn(p &Parser) u32 {
             }
             field_names.clear()
 
-            check_delimiter(p, c"expected ';' or newline between struct fields")
+            check_separator(p, t.c_brace, c"expected ',' or newline between struct fields")
         }
     }
 
@@ -156,9 +127,6 @@ parse_struct_init :: fn(p &Parser) u32 {
 
     tup_idx: u32 = 0
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
-        skip_separators(p)
-        if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
-
         is_named := (peek(p) == t.ident) and (peek_n(p, 1) == t.colon)
         if is_named {
             f := parse_ident(p)
@@ -177,7 +145,7 @@ parse_struct_init :: fn(p &Parser) u32 {
             tup_idx = tup_idx + 1
         }
 
-        skip_separators(p)
+        check_separator(p, t.c_brace, c"expected ',' or newline between struct values")
     }
 
     if is_eof(p) and (peek(p) != t.c_brace) {

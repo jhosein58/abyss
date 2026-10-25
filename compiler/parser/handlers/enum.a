@@ -4,7 +4,7 @@ import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse
 import span_merge from "../../nexus/nexus"
 import id_none from "../../nexus/pool"
 import prec from "../prec"
-import set_span, skip_separators, check_delimiter, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list from "./common"
+import set_span, check_separator, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list from "./common"
 import parse_ident from "./ident"
 import parse_expr from "../parser"
 
@@ -32,9 +32,6 @@ parse_enum :: fn(p &Parser) u32 {
     p.toplv_sym = id_none()
 
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
-        skip_separators(p)
-        if (peek(p) == t.c_brace) or (peek(p) == t.eof) { break }
-
         name := parse_ident(p)
         if peek(p) == t.colon_colon {
             ensure_type_node(p, &enum_node, k.enum_, enum_toplv)
@@ -50,7 +47,7 @@ parse_enum :: fn(p &Parser) u32 {
         names.push(name)
         vals.push(val_expr)
 
-        check_delimiter(p, c"expected ';' or newline between enum variants")
+        check_separator(p, t.c_brace, c"expected ',' or newline between enum variants")
     }
 
     if is_eof(p) and (peek(p) != t.c_brace) {

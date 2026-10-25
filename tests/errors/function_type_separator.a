@@ -1,0 +1,2 @@
+bad :: fn(&i32 value i32) {}
+main :: fn() { bad(0 as &i32, 1) }

@@ -1,0 +1,139 @@
+import write as print from "std/io"
+
+Record :: struct {
+    first i32
+    second i32, third i32,
+    fourth,
+    fifth i32
+    nested struct {
+        value i32
+    }
+    sum :: fn(self &Self) i32 {
+        self.first + self.second + self.third + self.fourth + self.fifth + self.nested.value
+    }
+    inline :: fn() i32 { 7 }, last :: fn() i32 { 8 },
+}
+
+State :: enum u8 {
+    first = 1
+    second, third = 5,
+    fourth
+    value :: fn(self &Self) u8 { *self as u8 }
+    inline :: fn() i32 { 9 }, last :: fn() i32 { 10 },
+}
+
+Pair :: struct {
+    i32
+    i32,
+}
+
+Mixed :: struct { i32,
+    bool
+}
+
+add :: fn(
+    a i32
+    b i32, c i32,
+    d, e i32
+) i32 { a + b + c + d + e }
+
+apply :: fn(
+    value &i32
+    callback fn(
+        i32
+        i32
+    ) i32
+) i32 { callback(*value, 2) }
+
+sum :: fn(a, b i32) i32 { a + b }
+
+constant :: fn(
+    cmpt value i32
+    offset i32
+) i32 { value + offset }
+
+Box :: fn(
+    T type
+    U type
+) type {
+    struct {
+        left T
+        right U
+    }
+}
+
+main :: fn() {
+    record: Record = .{
+        first: 1
+        second: 2, third: 3,
+        fourth: 4
+        fifth: 5
+        nested: .{ value: 6 }
+    }
+    print(record.sum())
+    print(" ")
+    print(Record.inline() + Record.last())
+    print("\n")
+
+    print(State.second as u8)
+    print(" ")
+    state := State.fourth
+    print(state.value())
+    print(" ")
+    print(State.inline() + State.last())
+    print("\n")
+
+    pair: Pair = .{
+        10
+        20,
+    }
+    mixed: Mixed = .{ 30, true }
+    print(pair._0 + pair._1 + mixed._0)
+    print("\n")
+
+    print(add(
+        1
+        2, 3,
+        4
+        5,
+    ))
+    print(" ")
+    value := 40
+    print(apply(
+        &value
+        sum
+    ))
+    print(" ")
+    print(constant(
+        7
+        8
+    ))
+    print("\n")
+
+    pointer_sum: fn(
+        &i32
+        &i32
+    ) i32 = fn(a &i32
+        b &i32) i32 { *a + *b }
+    mixed_sum: fn(
+        i32
+        &i32
+    ) i32 = fn(a i32
+        b &i32) i32 { a + *b }
+    print(pointer_sum(&value
+        &value))
+    print(" ")
+    print(mixed_sum(2
+        &value))
+    print("\n")
+
+    box: Box(i32
+        bool) = .{
+        left: 50
+        right: true
+    }
+    print(box.left)
+    print(" ")
+    print(box.right)
+    print("\n")
+}

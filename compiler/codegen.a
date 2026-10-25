@@ -54,17 +54,17 @@ CCodeBuilder :: struct {
 }
 
 CCodeGen :: struct {
-    arena           : &Arena,
-    struct_decls    : String,
-    struct_defs     : String,
-    func_decls      : String,
-    code            : String,
-    emitted_structs : Vec(u32),
-    main_sym        : u32,
-    has_main        : bool,
-    indent          : u32,
-    loop_condition  : LoopCondition,
-    temp_count      : u32,
+    arena            &Arena,
+    struct_decls     String,
+    struct_defs      String,
+    func_decls       String,
+    code             String,
+    emitted_structs  Vec(u32),
+    main_sym         u32,
+    has_main         bool,
+    indent           u32,
+    loop_condition   LoopCondition,
+    temp_count       u32,
 
     new :: fn(arena &Arena) Self {
         .{

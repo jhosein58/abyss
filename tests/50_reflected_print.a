@@ -1,6 +1,6 @@
 import write as emit from "std/io"
 
-Address :: struct { city Str; zip u32 }
+Address :: struct { city Str, zip u32 }
 User :: struct {
     name Str
     address Address
@@ -11,7 +11,7 @@ Status :: enum u8 { ready = 7, done = 42 }
 Empty :: struct {}
 
 Box :: fn(T type) type { struct { value T } }
-Node :: fn(T type) type { struct { value T; next &Node(T) } }
+Node :: fn(T type) type { struct { value T, next &Node(T) } }
 
 forward :: fn(T type, value T) {
     #emit(value)

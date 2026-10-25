@@ -19,7 +19,7 @@ Box :: fn(T type, N u64) type {
 }
 
 Node :: fn(T type) type {
-    struct { value T; next &Node(T) }
+    struct { value T, next &Node(T) }
 }
 
 Status :: enum u16 { ready = 7, done = 42 }

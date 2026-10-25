@@ -2,7 +2,7 @@ import write as print from "std/io.a"
 
 Container :: fn(T type, N u64) type {
     struct {
-        items: [N]T
+        items [N]T
     }
 }
 

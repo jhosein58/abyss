@@ -3,7 +3,7 @@ import hir_kind, hir_none from "../../hir"
 import Parser, peek, bump, optional, expect, is_eof, peek_n, peek_preceded_by_newline, curr_span, prev_span, parse_error_at from "../core"
 import Span, span_merge from "../../nexus/nexus"
 import id_none from "../../nexus/pool"
-import span_of_hir, set_span, add_list from "./common"
+import span_of_hir, set_span, add_list, check_separator from "./common"
 import parse_ident from "./ident"
 import parse_block from "./control"
 import parse_expr from "../parser"
@@ -52,9 +52,7 @@ parse_params :: fn(p &Parser) u32 {
             ty := parse_expr(p, prec().var_def + (1 as u8))
             push_arg(p, &args, name, ty)
             p.hir.set_extra(args.get(args.len - 1), 1)
-            if (peek(p) != t.c_paren) and (not optional(p, t.comma)) {
-                parse_error_at(p, c"expected ',' or ')' after compile-time parameter", curr_span(p))
-            }
+            check_separator(p, t.c_paren, c"expected ',' or newline after compile-time parameter")
             cont
         }
         is_type_token := (peek(p) == t.amp) or (peek(p) == t.star) or
@@ -65,9 +63,7 @@ parse_params :: fn(p &Parser) u32 {
         if is_type_token {
             ty := parse_expr(p, prec().var_def + (1 as u8))
             push_arg(p, &args, hir_none(), ty)
-            if (peek(p) != t.c_paren) and (not optional(p, t.comma)) {
-                parse_error_at(p, c"expected ',' or ')' after parameter", curr_span(p))
-            }
+            check_separator(p, t.c_paren, c"expected ',' or newline after parameter")
             cont
         }
 
@@ -84,7 +80,7 @@ parse_params :: fn(p &Parser) u32 {
                              (next_tk == t.at) or (next_tk == t.kw_fn) or
                              (next_tk == t.kw_struct) or (next_tk == t.kw_enum)
 
-        if has_explicit_type {
+        if has_explicit_type and (not peek_preceded_by_newline(p)) {
             ty := parse_expr(p, prec().var_def + (1 as u8))
             p_i: u64 = 0
             while p_i < pending_names.len {
@@ -92,9 +88,7 @@ parse_params :: fn(p &Parser) u32 {
                 p_i = p_i + 1
             }
             pending_names.reset(0)
-            if (peek(p) != t.c_paren) and (not optional(p, t.comma)) {
-                parse_error_at(p, c"expected ',' or ')' after parameter", curr_span(p))
-            }
+            check_separator(p, t.c_paren, c"expected ',' or newline after parameter")
             cont
         }
 
@@ -104,6 +98,16 @@ parse_params :: fn(p &Parser) u32 {
 
         if peek(p) == t.c_paren {
             break
+        }
+
+        if peek_preceded_by_newline(p) {
+            p_i: u64 = 0
+            while p_i < pending_names.len {
+                push_arg(p, &args, hir_none(), pending_names.get(p_i))
+                p_i = p_i + 1
+            }
+            pending_names.reset(0)
+            cont
         }
 
         parse_error_at(p, c"expected parameter type or ','", curr_span(p))
@@ -213,9 +217,7 @@ parse_call :: fn(p &Parser, lhs u32, right_bp u8) u32 {
             args.push(arg)
 
             if peek(p) == t.c_paren { break }
-            if not expect(p, t.comma) {
-                parse_error_at(p, c"expected ',' or ')' after call argument", curr_span(p))
-            }
+            check_separator(p, t.c_paren, c"expected ',' or newline after call argument")
         }
         expect(p, t.c_paren)
     }
