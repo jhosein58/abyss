@@ -40,6 +40,9 @@ is_embedded_path :: fn(path Str) bool {
 }
 
 module_path :: fn(arena &Arena, base Str, path Str) Str {
+    if path.ends_with(".a") {
+        index_error(path, c"import paths must omit the '.a' extension")
+    }
     full_path := Path.ensure_ext(arena, path, Str.of(".a"))
     is_rel := full_path.starts_with(Str.of("./")) or full_path.starts_with(Str.of("../")) or full_path.starts_with(Str.of(".\\")) or full_path.starts_with(Str.of("..\\"))
     embedded := is_embedded_path(full_path) or is_embedded_path(base)
@@ -319,8 +322,8 @@ Indexer :: struct {
         self.queue_tok_start.push(start_tok)
         self.queue_tok_end.push(end_tok)
 
-        db.core_prelude = self.resolve_and_load(Str.empty(), Str.of("core/prelude.a"))
-        db.std_prelude  = self.resolve_and_load(Str.empty(), Str.of("std/prelude.a"))
+        db.core_prelude = self.resolve_and_load(Str.empty(), Str.of("core/prelude"))
+        db.std_prelude  = self.resolve_and_load(Str.empty(), Str.of("std/prelude"))
 
         q_head: u64 = 0
         while q_head < self.queue_fids.len {

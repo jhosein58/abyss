@@ -1,5 +1,5 @@
-import Vec as Items from "std/collections/vec.a"
-import Maybe as Optional from "core/prelude.a"
+import Vec as Items from "std/collections/vec"
+import Maybe as Optional from "core/prelude"
 
 value :: fn() u32 { 73 }
 text :: fn() Str { Str.of("module") }

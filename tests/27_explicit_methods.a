@@ -1,7 +1,7 @@
-import write as print from "std/io.a"
-import Arena from "std/allocator.a"
-import Fmt from "std/fmt.a"
-import Str from "core/string.a"
+import write as print from "std/io"
+import Arena from "std/allocator"
+import Fmt from "std/fmt"
+import Str from "core/string"
 
 Counter :: struct {
     value i32

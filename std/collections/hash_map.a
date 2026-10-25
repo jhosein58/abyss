@@ -1,4 +1,4 @@
-import malloc, free, mem_set from "../mem.a"
+import malloc, free, mem_set from "../mem"
 
 HashMap :: fn(K type, V type) type {
     struct {

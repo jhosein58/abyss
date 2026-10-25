@@ -1,5 +1,5 @@
-import Iterator as Iter from "iterator.a"
-import RefIterator as RefIter from "ref_iterator.a"
+import Iterator as Iter from "iterator"
+import RefIterator as RefIter from "ref_iterator"
 
 Slice :: fn(T type) type {
     struct {

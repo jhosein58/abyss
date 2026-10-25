@@ -1,5 +1,5 @@
-import Str from "string.a"
-import malloc, free, mem_set from "mem.a"
+import Str from "string"
+import malloc, free, mem_set from "mem"
 
 hash_str :: fn(s Str) u32 {
     h: u32 = 2166136261 as u32

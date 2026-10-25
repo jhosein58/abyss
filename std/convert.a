@@ -1,6 +1,6 @@
-import String from "string.a"
-import Arena from "allocator.a"
-import fall from "sys.a"
+import String from "string"
+import Arena from "allocator"
+import fall from "sys"
 
 string_float64 :: fn(ptr &u8, capacity u64, value f64) u64
 print_bytes :: fn(ptr &u8, len u64)

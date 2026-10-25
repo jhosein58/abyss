@@ -1,0 +1,20 @@
+import print from "std/io"
+import write_str as emit from "std/./io"
+import Range as Counter from "core/range"
+import Vec as Buffer from "std/collections/vec"
+import Str as Text from "std\\string"
+
+main :: fn() {
+    print("extensionless")
+    values := Buffer(i32).new()
+    values.push(10), values.push(20)
+    print(values.get(0) + values.get(1))
+    total := 0
+    for value in Counter.new(1, 4) {
+        total = total + value
+    }
+    print(total)
+    text: Text = "normalized"
+    emit(text), emit("\n")
+    values.destroy()
+}

@@ -1,6 +1,6 @@
-import Arena  from "allocator.a"
-import Str, String from "string.a"
-import Convert, conversion_error from "convert.a"
+import Arena  from "allocator"
+import Str, String from "string"
+import Convert, conversion_error from "convert"
 
 Escape :: struct {
     reset     &u8

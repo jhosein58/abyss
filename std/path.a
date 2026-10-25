@@ -1,5 +1,5 @@
-import Str, String from "string.a"
-import Arena from "allocator.a"
+import Str, String from "string"
+import Arena from "allocator"
 
 Path :: struct {
     ensure_ext :: fn(arena &Arena, path Str, ext Str) Str {

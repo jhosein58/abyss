@@ -1,11 +1,11 @@
 import write_str from "std/io"
-import Vec as List from "std/collections/vec.a"
-import Arena as EmbeddedArena from "std/allocator.a"
-import Fmt as EmbeddedFmt from "std/fmt.a"
-import read_file as Embeddedread_file from "std/fs.a"
-import Interner as EmbeddedInterner from "std/interner.a"
-import String as EmbeddedString from "std/string.a"
-import fall as Embeddedfall from "std/sys.a"
+import Vec as List from "std/collections/vec"
+import Arena as EmbeddedArena from "std/allocator"
+import Fmt as EmbeddedFmt from "std/fmt"
+import read_file as Embeddedread_file from "std/fs"
+import Interner as EmbeddedInterner from "std/interner"
+import String as EmbeddedString from "std/string"
+import fall as Embeddedfall from "std/sys"
 
 Box :: fn(T type) type { struct { value T } }
 
