@@ -1115,81 +1115,74 @@ TypeStorage :: struct {
             ret
         }
 
-        kind := self.kind(id)
-        payload := self.payload(id)
-
-        if kind == TyKind.unknown       { print(c"Unknown"),   ret }
-        if kind == TyKind.infer         { print(c"Infer("), print_u32(payload), print(c")"), ret }
-        if kind == TyKind.untyped_int   { print(c"UtInt"),     ret }
-        if kind == TyKind.untyped_float { print(c"UtFloat"),   ret }
-        if kind == TyKind.int           { print(c"i"), print_u32(payload), ret }
-        if kind == TyKind.uint          { print(c"u"), print_u32(payload), ret }
-        if kind == TyKind.float         { print(c"f"), print_u32(payload), ret }
-        if kind == TyKind.bool          { print(c"bool"),      ret }
-        if kind == TyKind.type_         { print(c"Type"),      ret }
-        if kind == TyKind.unit          { print(c"void"),      ret }
-        if kind == TyKind.never         { print(c"!"),         ret }
-        if kind == TyKind.error         { print(c"Err!"),      ret }
-        if kind == TyKind.nominal {
-            idx := payload as u64
-            name_idx := self.store.extra.get(idx + 1)
-            write_str(self.nominal_names.get(name_idx as u64))
-            ret
-        }
-        if kind == TyKind.enum_ {
-            idx := payload as u64
-            name_idx := self.store.extra.get(idx + 1)
-            write_str(self.enum_names.get(name_idx as u64))
-            ret
-        }
-        if kind == TyKind.union_ {
-            members := self.union_members(id)
-            i: u64 = 0
-            while i < members.len {
-                self.print_type(*(members.ptr + i))
-                if (i + 1) < members.len { print(c" | ") }
-                i = i + 1
+        td: TypeData = self.data(id)
+        match val in td {
+            IntTy {
+                print(c"i")
+                print_u32(val.width as u32)
             }
-            ret
-        }
-
-        if kind == TyKind.ptr {
-            print(c"&")
-            self.print_type(payload)
-            ret
-        }
-
-        if kind == TyKind.array {
-            print(c"[")
-            self.print_type(self.get_array_type(id))
-            print(c"; ")
-            print_u32(self.get_array_len(id))
-            print(c"]")
-            ret
-        }
-
-        if kind == TyKind.func {
-            print(c"fn(")
-            params := self.func_params(id)
-            i: u64 = 0
-            while i < params.len {
-                self.print_type(*(params.ptr + i))
-                if i + 1 < params.len { print(c", ") }
-                i = i + 1
+            UintTy {
+                print(c"u")
+                print_u32(val.width as u32)
             }
-            print(c") ")
-            self.print_type(self.func_return(id))
-            ret
+            FloatTy {
+                print(c"f")
+                print_u32(val.width as u32)
+            }
+            PtrTy {
+                print(c"&")
+                self.print_type(val.inner)
+            }
+            ArrayTy {
+                print(c"[")
+                self.print_type(val.elem)
+                print(c"; ")
+                print_u32(val.len)
+                print(c"]")
+            }
+            FuncTy {
+                print(c"fn(")
+                i: u64 = 0
+                while i < val.params.len {
+                    self.print_type(*(val.params.ptr + i))
+                    if i + 1 < val.params.len { print(c", ") }
+                    i = i + 1
+                }
+                print(c") ")
+                self.print_type(val.ret_ty)
+            }
+            StructTy {
+                print(c"struct { count: ")
+                print_u32((val.fields.len / 2) as u32)
+                print(c" }")
+            }
+            EnumTy {
+                write_str(val.name)
+            }
+            UnionTy {
+                i: u64 = 0
+                while i < val.members.len {
+                    self.print_type(*(val.members.ptr + i))
+                    if (i + 1) < val.members.len { print(c" | ") }
+                    i = i + 1
+                }
+            }
+            NominalTy {
+                write_str(val.name)
+            }
+            SimpleTy {
+                if val.kind == TyKind.unknown            { print(c"Unknown") }
+                else if val.kind == TyKind.infer         { print(c"Infer("), print_u32(self.payload(id)), print(c")") }
+                else if val.kind == TyKind.untyped_int   { print(c"UtInt") }
+                else if val.kind == TyKind.untyped_float { print(c"UtFloat") }
+                else if val.kind == TyKind.bool          { print(c"bool") }
+                else if val.kind == TyKind.type_         { print(c"Type") }
+                else if val.kind == TyKind.unit          { print(c"void") }
+                else if val.kind == TyKind.never         { print(c"!") }
+                else if val.kind == TyKind.error         { print(c"Err!") }
+                else { write_str(ty_kind_name(val.kind)) }
+            }
         }
-
-        if kind == TyKind.struct_ {
-            print(c"struct { count: ")
-            print_u32(self.get_struct_fields_len(id))
-            print(c" }")
-            ret
-        }
-
-        write_str(ty_kind_name(kind))
     }
 
     name_to_buf :: fn(self &Self, s &String, id u32) {
@@ -1198,130 +1191,94 @@ TypeStorage :: struct {
             ret
         }
 
-        kind := self.kind(id)
-        payload := self.payload(id)
-
-        if kind == TyKind.unknown       { s.push_str(Str.of("Unknown")), ret }
-        if kind == TyKind.infer         {
-            s.push_str(Str.of("Infer("))
-            s.push_u32(payload)
-            s.push_char(*")")
-            ret
-        }
-        if kind == TyKind.untyped_int   { s.push_str(Str.of("UtInt")),   ret }
-        if kind == TyKind.untyped_float { s.push_str(Str.of("UtFloat")), ret }
-
-        if kind == TyKind.int {
-            s.push_char(*"i")
-            s.push_u32(payload)
-            ret
-        }
-
-        if kind == TyKind.uint {
-            s.push_char(*"u")
-            s.push_u32(payload)
-            ret
-        }
-
-        if kind == TyKind.float {
-            s.push_char(*"f")
-            s.push_u32(payload)
-            ret
-        }
-
-        if kind == TyKind.bool  { s.push_str(Str.of("bool")), ret }
-        if kind == TyKind.type_ { s.push_str(Str.of("Type")), ret }
-        if kind == TyKind.unit  { s.push_str(Str.of("void")), ret }
-        if kind == TyKind.never { s.push_str(Str.of("!")),    ret }
-        if kind == TyKind.error { s.push_str(Str.of("Err!")), ret }
-        if kind == TyKind.nominal {
-            idx := payload as u64
-            name_idx := self.store.extra.get(idx + 1)
-            s.push_str(self.nominal_names.get(name_idx as u64))
-            ret
-        }
-        if kind == TyKind.enum_ {
-            idx := payload as u64
-            name_idx := self.store.extra.get(idx + 1)
-            s.push_str(self.enum_names.get(name_idx as u64))
-            ret
-        }
-        if kind == TyKind.union_ {
-            s.push_str(Str.of("U_"))
-            members := self.union_members(id)
-            i: u64 = 0
-            while i < members.len {
-                self.name_to_buf(s, *(members.ptr + i))
-                if (i + 1) < members.len {
-                    s.push_char(*"_")
-                }
-                i = i + 1
+        td: TypeData = self.data(id)
+        match val in td {
+            IntTy {
+                s.push_char(*"i")
+                s.push_u32(val.width as u32)
             }
-            ret
-        }
-
-        if kind == TyKind.ptr {
-            s.push_str(Str.of("R_"))
-            self.name_to_buf(s, payload)
-            ret
-        }
-
-        if kind == TyKind.array {
-            s.push_str(Str.of("A_"))
-            inner := self.get_array_type(id)
-            len := self.get_array_len(id)
-
-            self.name_to_buf(s, inner)
-            s.push_char(*"_")
-            s.push_u32(len)
-            ret
-        }
-
-        if kind == TyKind.struct_ {
-            s.push_str(Str.of("S_"))
-            fields := self.get_struct_fields(id)
-            count := fields.len / 2
-
-            i: u64 = 0
-            while (i < count) or false {
-                idx := i * 2
-                name_id := *(fields.ptr + idx)
-                field_ty := *(fields.ptr + idx + 1)
-
-                s.push_u32(name_id)
+            UintTy {
+                s.push_char(*"u")
+                s.push_u32(val.width as u32)
+            }
+            FloatTy {
+                s.push_char(*"f")
+                s.push_u32(val.width as u32)
+            }
+            PtrTy {
+                s.push_str(Str.of("R_"))
+                self.name_to_buf(s, val.inner)
+            }
+            ArrayTy {
+                s.push_str(Str.of("A_"))
+                self.name_to_buf(s, val.elem)
                 s.push_char(*"_")
-                self.name_to_buf(s, field_ty)
-
-                if (i + 1 < count) or false {
+                s.push_u32(val.len)
+            }
+            FuncTy {
+                s.push_str(Str.of("fn("))
+                i: u64 = 0
+                while i < val.params.len {
+                    self.name_to_buf(s, *(val.params.ptr + i))
+                    if (i + 1) < val.params.len {
+                        s.push_str(Str.of(", "))
+                    }
+                    i = i + 1
+                }
+                s.push_str(Str.of(") "))
+                self.name_to_buf(s, val.ret_ty)
+            }
+            StructTy {
+                s.push_str(Str.of("S_"))
+                count := val.fields.len / 2
+                i: u64 = 0
+                while i < count {
+                    idx := i * 2
+                    name_id := *(val.fields.ptr + idx)
+                    field_ty := *(val.fields.ptr + idx + 1)
+                    s.push_u32(name_id)
                     s.push_char(*"_")
+                    self.name_to_buf(s, field_ty)
+                    if (i + 1) < count {
+                        s.push_char(*"_")
+                    }
+                    i = i + 1
                 }
-                i = i + 1
             }
-            ret
-        }
-
-        if kind == TyKind.func {
-            s.push_str(Str.of("fn("))
-            params := self.func_params(id)
-
-            i: u64 = 0
-            while (i < params.len) or false {
-                param_ty := *(params.ptr + i)
-                self.name_to_buf(s, param_ty)
-
-                if (i + 1 < params.len) or false {
-                    s.push_str(Str.of(", "))
+            EnumTy {
+                s.push_str(val.name)
+            }
+            UnionTy {
+                s.push_str(Str.of("U_"))
+                i: u64 = 0
+                while i < val.members.len {
+                    self.name_to_buf(s, *(val.members.ptr + i))
+                    if (i + 1) < val.members.len {
+                        s.push_char(*"_")
+                    }
+                    i = i + 1
                 }
-                i = i + 1
             }
-
-            s.push_str(Str.of(") "))
-            ret_ty := self.func_return(id)
-            self.name_to_buf(s, ret_ty)
-            ret
+            NominalTy {
+                s.push_str(val.name)
+            }
+            SimpleTy {
+                if val.kind == TyKind.unknown            { s.push_str(Str.of("Unknown")) }
+                else if val.kind == TyKind.infer {
+                    s.push_str(Str.of("Infer("))
+                    s.push_u32(self.payload(id))
+                    s.push_char(*")")
+                }
+                else if val.kind == TyKind.untyped_int   { s.push_str(Str.of("UtInt")) }
+                else if val.kind == TyKind.untyped_float { s.push_str(Str.of("UtFloat")) }
+                else if val.kind == TyKind.bool          { s.push_str(Str.of("bool")) }
+                else if val.kind == TyKind.type_         { s.push_str(Str.of("Type")) }
+                else if val.kind == TyKind.unit          { s.push_str(Str.of("void")) }
+                else if val.kind == TyKind.never         { s.push_str(Str.of("!")) }
+                else if val.kind == TyKind.error         { s.push_str(Str.of("Err!")) }
+                else { s.push_str(ty_kind_name(val.kind)) }
+            }
         }
-
-        s.push_str(ty_kind_name(kind))
     }
 
     name :: fn(a &Arena, id u32) Str {
