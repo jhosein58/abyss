@@ -1,0 +1,82 @@
+import sort, sort_chunks from "std/sort"
+import hash_combine, hash_words from "std/hash"
+import fall from "std/sys"
+import print from "std/io"
+
+expect :: fn(condition bool) { if not condition { fall() } }
+
+main :: fn() {
+    empty := Slice(u32).empty()
+    sort(empty)
+    sort_chunks(empty, 2)
+    expect(empty.equals(empty))
+    expect(empty.dedup().len == 0)
+    expect(empty.position(0 as u32).is_none())
+    expect(empty.chunks(2).next().is_none())
+
+    values := Vec(u32).new()
+    size: u32 = 0
+    random: u32 = 23
+    while size < 128 {
+        values.clear()
+        sum: u64 = 0
+        i: u32 = 0
+        while i < size {
+            random = random * 1664525 + 1013904223
+            value := random % 17
+            values.push(value)
+            sum = sum + value as u64
+            i = i + 1
+        }
+        sort(values.as_slice())
+        previous: u32 = 0
+        actual: u64 = 0
+        for value in values {
+            expect(value >= previous)
+            actual = actual + value as u64
+            previous = value
+        }
+        expect(actual == sum)
+        sort(values.as_slice())
+        values.dedup()
+        previous = 0
+        i = 0
+        for value in values {
+            if i > 0 { expect(value > previous) }
+            expect(values.as_slice().position(value).unwrap() == i as u64)
+            previous = value
+            i = i + 1
+        }
+        size = size + 1
+    }
+    values.destroy()
+
+    records: [11]u32 = .[4, 40, 1, 10, 3, 30, 1, 11, 2, 20, 999]
+    items := Slice(u32).new(&records[0], 11)
+    sort_chunks(items, 2)
+    previous: u32 = 0
+    count: u32 = 0
+    payload_sum: u32 = 0
+    for record in items.chunks(2) {
+        key := record.get(0)
+        value := record.get(1)
+        expect(key >= previous)
+        expect(value / 10 == key)
+        previous = key
+        payload_sum = payload_sum + value
+        count = count + 1
+    }
+    expect(count == 5)
+    expect(payload_sum == 111)
+    expect(records[10] == 999)
+    expect(items.chunks(0).next().is_none())
+    expect(items.chunks(12).next().is_none())
+    expect(not items.equals(items.sub(0, 10)))
+    expect(items.contains(999 as u32))
+    expect(not items.contains(123 as u32))
+    expect(items.position(1 as u32).unwrap() == 0)
+    h := hash_words(items, 2166136261)
+    expect(h == hash_words(items.sub(5, 6), hash_words(items.sub(0, 5), 2166136261)))
+    expect(hash_combine(2166136261, records[4]) == hash_words(Slice(u32).new(&records[4], 1), 2166136261))
+    print("slice algorithms passed")
+}

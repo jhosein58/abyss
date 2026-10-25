@@ -87,12 +87,11 @@ Vec :: fn(T type) type {
         }
 
         contains :: fn(self &Self, val T) bool {
-            i: u64 = 0
-            while i < self.len {
-                if *(self.ptr + i) == val { ret true }
-                i = i + 1
-            }
-            false
+            self.as_slice().contains(val)
+        }
+
+        dedup :: fn(self &Self) {
+            self.len = self.as_slice().dedup().len
         }
 
         extend :: fn(self &Self, src &T, count u64) {

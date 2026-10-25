@@ -65,6 +65,16 @@ String :: struct {
     push_u32 :: fn(self &Self, val u32) {
         Convert.unsigned64(self, val as u64)
     }
+
+    append :: fn(self &Self, value Str) &Self {
+        self.push_str(value)
+        self
+    }
+
+    append_u32 :: fn(self &Self, value u32) &Self {
+        self.push_u32(value)
+        self
+    }
 }
 
 parse_u32 :: fn(s Str) Maybe(u32) {
@@ -106,4 +116,3 @@ to_cstr :: fn(arena &Arena, s Str) &u8 {
     *(buf + s.len) = 0 as u8
     buf
 }
-

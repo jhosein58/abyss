@@ -1,5 +1,6 @@
 import Iterator as Iter from "iterator"
 import RefIterator as RefIter from "ref_iterator"
+import Chunks from "chunks"
 
 Slice :: fn(T type) type {
     struct {
@@ -29,6 +30,44 @@ Slice :: fn(T type) type {
                 ptr: (self.ptr + start),
                 len: len
             }
+        }
+
+        chunks :: fn(self &Self, width u64) Chunks(T) {
+            .{ ptr: self.ptr, len: self.len, width: width, index: 0 }
+        }
+
+        equals :: fn(self &Self, other Self) bool {
+            if self.len != other.len { ret false }
+            i: u64 = 0
+            for value in self {
+                if value != other.get(i) { ret false }
+                i = i + 1
+            }
+            true
+        }
+
+        position :: fn(self &Self, value T) Maybe(u64) {
+            i: u64 = 0
+            for item in self {
+                if item == value { ret Maybe(u64).some(i) }
+                i = i + 1
+            }
+            Maybe(u64).none()
+        }
+
+        contains :: fn(self &Self, value T) bool {
+            self.position(value).is_some()
+        }
+
+        dedup :: fn(self &Self) Self {
+            count: u64 = 0
+            for value in self {
+                if (count == 0) or (value != self.get(count - 1)) {
+                    *(self.ptr + count) = value
+                    count = count + 1
+                }
+            }
+            self.sub(0, count)
         }
 
         iter :: fn(self &Self) Iter(T) {

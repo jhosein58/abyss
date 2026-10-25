@@ -1,0 +1,18 @@
+import Slice from "slice"
+import Maybe from "maybe"
+
+Chunks :: fn(T type) type {
+    struct {
+        ptr &T
+        len, width, index u64
+
+        next :: fn(self &Self) Maybe(Slice(T)) {
+            if (self.width == 0) or (self.width > self.len - self.index) {
+                ret Maybe(Slice(T)).none()
+            }
+            chunk := Slice(T).new(self.ptr + self.index, self.width)
+            self.index = self.index + self.width
+            Maybe(Slice(T)).some(chunk)
+        }
+    }
+}
