@@ -162,6 +162,27 @@ synth_macro :: fn(eng &Engine, id u32) {
             break
         }
     }
+    if fn_start != 0 {
+        params_id := tbl.lhs(fn_start)
+        if params_id != hir_none() {
+            params := db.get_list(params_id)
+            p_i: u64 = 0
+            while p_i < params.len {
+                arg_node := *(params.ptr + p_i)
+                if tbl.kind(arg_node) == hir_kind.arg {
+                    ident_node := tbl.lhs(arg_node)
+                    if tbl.kind(ident_node) == hir_kind.ident {
+                        name_id := tbl.lhs(ident_node)
+                        sym_id := db.get_hir_symbol(arg_node)
+                        if sym_id != id_none() {
+                            sub_p.env.define(name_id, sym_id)
+                        }
+                    }
+                }
+                p_i = p_i + 1
+            }
+        }
+    }
     n := fn_start
     while n < id {
         nk := tbl.kind(n)

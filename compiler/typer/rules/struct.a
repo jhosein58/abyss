@@ -121,9 +121,10 @@ synth_struct :: fn(eng &Engine, id u32) {
             print(c"\n")
             fall()
         }
-        methods := db.get_list(methods_id)
+        m_count := db.get_list(methods_id).len
         m_i: u64 = 0
-        while m_i < methods.len {
+        while m_i < m_count {
+            methods := db.get_list(methods_id)
             method := *(methods.ptr + m_i)
             func_node := (tbl).extra(method)
             synth_func(eng, func_node)

@@ -82,9 +82,10 @@ synth_enum :: fn(eng &Engine, id u32) {
     db.set_is_const(id, true)
 
     if methods_list_id != hir_none() {
-        methods := db.get_list(methods_list_id)
+        m_count := db.get_list(methods_list_id).len
         m_i: u64 = 0
-        while m_i < methods.len {
+        while m_i < m_count {
+            methods := db.get_list(methods_list_id)
             method := *(methods.ptr + m_i)
             synth_node(eng, method)
             db.set_method_owner(method, id)

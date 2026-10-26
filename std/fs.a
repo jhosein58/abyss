@@ -419,7 +419,7 @@ Embed :: struct {
             full_p := if root_prefix.len > 0 { Path.join(a, root_prefix, rel_p) } else { rel_p }
             c_full := to_cstr(a, full_p)
             content := read_file(a, c_full)
-            out.push_str("    if path.eq(Str.of(")
+            out.push_str("    if mod_path.eq(Str.of(")
             Convert.quote_source(&out, rel_p)
             out.push_str(")) { ret Str.of(")
             Convert.quote_source(&out, content)

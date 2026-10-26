@@ -5,10 +5,9 @@ import Nexus, calc_pos from "./nexus/nexus"
 import Str from "std/string"
 import Path from "std/path"
 import Arena from "std/allocator"
-import File from "std/fs"
+import File, Embed from "std/fs"
 import id_none from "./nexus/pool"
 import fall from "std/sys"
-import embedded_source from "./embedded"
 
 print :: fn(s &u8)
 print_u32 :: fn(v u32)
@@ -45,6 +44,15 @@ index_error :: fn(db &Nexus, file_id u32, offset u32, msg &u8, detail Str) {
 
 is_embedded_path :: fn(path Str) bool {
     path.starts_with(Str.of("std/")) or path.starts_with(Str.of("core/")) or path.starts_with(Str.of("std\\")) or path.starts_with(Str.of("core\\"))
+}
+
+embedded_source_body :: fn() Str {
+    arena := Arena.new(2 * 1024 * 1024)
+    Embed.sources(&arena)
+}
+
+embedded_source :: fn(mod_path Str) Str {
+    #embedded_source_body()
 }
 
 module_path :: fn(db &Nexus, arena &Arena, file_id u32, offset u32, base Str, path Str) Str {

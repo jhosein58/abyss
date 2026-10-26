@@ -1,11 +1,10 @@
 import Str, to_cstr from "std/string"
 import Arena from "std/allocator"
-import File, read_file, write_file from "std/fs"
+import File, read_file, write_file, Embed from "std/fs"
 import Env from "std/env"
 import Path from "std/path"
 import Engine from "compiler/engine"
 import CCodeGen, CCodeBuilder, CCodeGen_new, CCodeGen_destroy, CCodeGen_finish from "compiler/codegen"
-import embedded_runtime from "compiler/embedded"
 import VmCodeGen, VmCodeBuilder from "compiler/vm/codegen"
 import Vm from "compiler/vm/vm"
 
@@ -49,6 +48,15 @@ CompilerConfig :: struct {
             is_vm_run : vm_run,
         }
     }
+}
+
+embedded_runtime_body :: fn() Str {
+    arena := Arena.new(1024 * 1024)
+    Embed.file(&arena, Str.of("runtime/prelude.c"))
+}
+
+embedded_runtime :: fn() Str {
+    #embedded_runtime_body()
 }
 
 Driver :: struct {
