@@ -1,0 +1,72 @@
+import write as print from "std/io"
+
+make_point_type :: fn() Str {
+    "struct { x i32, y i32, get_x :: fn(self &Self) i32 { self.x } }\n"
+}
+
+make_size_type :: fn() Str {
+    "struct { w i32, h i32, area :: fn(self &Self) i32 { self.w * self.h } }\n"
+}
+
+derive_coord_methods :: fn() Str {
+    "scale :: fn(self &Self, factor i32) i32 { (self.x + self.y) * factor }\n"
+}
+
+derive_color_methods :: fn() Str {
+    "is_blue :: fn(self Self) bool { self == Self.blue }\n"
+}
+
+Point :: #make_point_type()
+
+Size :: #(make_size_type())
+
+Coord :: struct {
+    x i32
+    y i32
+
+    #`
+    sum :: fn(self &Self) i32 { self.x + self.y }
+    `
+
+    #derive_coord_methods()
+}
+
+Color :: enum {
+    red
+    green
+    blue
+
+    #`
+    is_red :: fn(self Self) bool { self == Self.red }
+    `
+
+    #derive_color_methods()
+}
+
+main :: fn() {
+    p: Point = .{ x: 10, y: 20 }
+    print(p.x)
+    print("\n")
+    print(p.get_x())
+    print("\n")
+
+    s: Size = .{ w: 6, h: 7 }
+    print(s.area())
+    print("\n")
+
+    c: Coord = .{ x: 15, y: 25 }
+    print(c.sum())
+    print("\n")
+    print(c.scale(2))
+    print("\n")
+
+    clr_r := Color.red
+    if clr_r.is_red() {
+        print("color is red\n")
+    }
+
+    clr_b := Color.blue
+    if clr_b.is_blue() {
+        print("color is blue\n")
+    }
+}
