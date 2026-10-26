@@ -4,10 +4,18 @@ import hir_kind, hir_none from "../../hir"
 import slot_none from "../../unify"
 import ty_id_none, ty_id_type from "../../types"
 import fall from "std/sys"
-import synth_node from "../tyck"
+import synth_node, type_check from "../tyck"
 import synth_type_node from "./var"
+import synth_func from "./fn"
 import Str from "std/string"
 import id_none from "../../nexus/pool"
+import token, TokenStream from "../../token"
+import lex from "../../lexer"
+import Parser_new, is_eof, peek from "../../parser/core"
+import parse_ident from "../../parser/handlers/ident"
+import parse_method, check_separator from "../../parser/handlers/common"
+import reflection_read from "../reflection"
+import eval_const from "../../lower"
 
 print :: fn(s &u8)
 
@@ -82,14 +90,99 @@ synth_enum :: fn(eng &Engine, id u32) {
     db.set_is_const(id, true)
 
     if methods_list_id != hir_none() {
+        final_methods := Vec(u32).new()
         m_count := db.get_list(methods_list_id).len
         m_i: u64 = 0
         while m_i < m_count {
             methods := db.get_list(methods_list_id)
             method := *(methods.ptr + m_i)
-            synth_node(eng, method)
-            db.set_method_owner(method, id)
+            if (tbl).kind(method) == hir_kind.k_macro {
+                child := (tbl).lhs(method)
+                macro_src := Str.empty()
+                if (tbl).kind(child) == hir_kind.lit_str {
+                    raw := db.interner.get((tbl).lhs(child))
+                    macro_src = raw.trim_quotes()
+                } else {
+                    synth_node(eng, child)
+                    val := eval_const(db, child)
+                    if val != 0 {
+                        str_ty := eng.get_str_type()
+                        buf_ptr := reflection_read(db, val, str_ty, "ptr") as &u8
+                        buf_len := reflection_read(db, val, str_ty, "len")
+                        if buf_len > 0 {
+                            macro_src = Str.new(buf_ptr, buf_len)
+                        }
+                    }
+                }
+                if macro_src.len > 0 {
+                    tokens := TokenStream.new()
+                    lex(&tokens, macro_src, Str.of("<macro>"))
+                    tok_count := tokens.count() as u32
+                    if tok_count > 1 {
+                        tok_count = tok_count - 1
+                    }
+                    fid := db.get_hir_file(id)
+                    sub_p := Parser_new(db, &tokens, tbl, fid, sym_id, 0, tok_count)
+                    expanded_methods := Vec(u32).new()
+                    t := token
+                    while (not is_eof(&sub_p)) and (peek(&sub_p) != t.eof) {
+                        m_name := parse_ident(&sub_p)
+                        if peek(&sub_p) == t.colon_colon {
+                            parse_method(&sub_p, m_name, &expanded_methods)
+                        }
+                        check_separator(&sub_p, t.eof, c"expected separator")
+                    }
+                    sub_p.env.destroy()
+                    tokens.destroy()
+                    e_i: u64 = 0
+                    while e_i < expanded_methods.len {
+                        new_m := expanded_methods.get(e_i)
+                        s_start := (tbl).lhs(new_m)
+                        s := s_start
+                        while s <= new_m {
+                            db.set_method_owner(s, id)
+                            s = s + 1
+                        }
+                        type_check(eng, s_start, new_m + 1)
+                        func_node := (tbl).extra(new_m)
+                        method_slot := (unify_ptr).get_slot(new_m)
+                        if method_slot == slot_none() {
+                            method_slot = (unify_ptr).new_slot(new_m)
+                        }
+                        func_slot := (unify_ptr).get_slot(func_node)
+                        func_ty := (unify_ptr).resolve_type(func_slot)
+                        (&(*db).unify).bind_type(&(*db).types, method_slot, func_ty)
+                        final_methods.push(new_m)
+                        e_i = e_i + 1
+                    }
+                    expanded_methods.destroy()
+                }
+            } else {
+                func_node := (tbl).extra(method)
+                db.set_method_owner(func_node, id)
+                db.set_method_owner(method, id)
+                synth_func(eng, func_node)
+                method_slot := (unify_ptr).new_slot(method)
+                func_slot := (unify_ptr).get_slot(func_node)
+                func_ty := (unify_ptr).resolve_type(func_slot)
+                (&(*db).unify).bind_type(&(*db).types, method_slot, func_ty)
+                final_methods.push(method)
+            }
             m_i = m_i + 1
         }
+        slice: Slice(u32) = if final_methods.len > 0 {
+            .{ ptr: final_methods.ptr_at(0), len: final_methods.len }
+        } else {
+            Slice(u32).empty()
+        }
+        new_methods_id := db.add_list(slice)
+        final_methods.destroy()
+        meta_items := Vec(u32).new()
+        meta_items.push(backing_node)
+        meta_items.push(new_methods_id)
+        new_meta_slice: Slice(u32) = .{ ptr: meta_items.ptr_at(0), len: meta_items.len }
+        new_meta_id := db.add_list(new_meta_slice)
+        meta_items.destroy()
+        (tbl).set_extra(id, new_meta_id)
     }
 }

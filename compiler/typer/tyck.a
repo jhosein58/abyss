@@ -104,6 +104,9 @@ synth_node :: fn(eng &Engine, id u32) {
 
 synth_macro :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
+    if db.get_method_owner(id) != id_none() {
+        ret
+    }
     tbl := &(*db).hir
     types_ptr := &(*db).types
     unify_ptr := &(*db).unify
