@@ -215,12 +215,16 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
     }
 
     if value_id != hir_none() {
-        if ((tbl).kind(id) == hir_kind.binding) and ((tbl).kind(value_id) == hir_kind.struct_) {
-            structural := db.get_const_type(value_id)
+        actual_val := value_id
+        if (tbl.kind(actual_val) == hir_kind.k_macro) and (tbl.extra(actual_val) != hir_none()) {
+            actual_val = tbl.extra(actual_val)
+        }
+        if ((tbl).kind(id) == hir_kind.binding) and ((tbl).kind(actual_val) == hir_kind.struct_) {
+            structural := db.get_const_type(actual_val)
             kind := types_ptr.kind(structural)
             if (kind != TyKind.struct_) and (kind != TyKind.nominal) {
                 print(c"\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> ")
-                db.print_loc(value_id)
+                db.print_loc(actual_val)
                 print(c"\n")
                 fall()
             }
@@ -236,7 +240,10 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
                     name_id := tbl.lhs(ident_id)
                     name := db.interner.get(name_id)
                     named = types_ptr.alloc_nominal(structural, name, id)
-                    db.set_const_type(value_id, named)
+                    db.set_const_type(actual_val, named)
+                    if actual_val != value_id {
+                        db.set_const_type(value_id, named)
+                    }
                 }
             }
             db.set_const_type(ident_id, named)
@@ -247,6 +254,12 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
             val_ty := unify_ptr.resolve_type(val_slot)
             if types_ptr.kind(val_ty) == TyKind.type_ {
                 type_val := db.get_const_type(value_id)
+                if (type_val == ty_id_none()) and (tbl.kind(value_id) == hir_kind.k_macro) {
+                    gen_node := tbl.extra(value_id)
+                    if gen_node != hir_none() {
+                        type_val = db.get_const_type(gen_node)
+                    }
+                }
                 if type_val == ty_id_none() {
                     print(c"\n\033[1;31m[type error]\033[0m type value cannot be resolved\n       --> ")
                     db.print_loc(value_id)

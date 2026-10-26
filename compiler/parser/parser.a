@@ -3,6 +3,7 @@ import Str from "std/string"
 import lex from "../lexer"
 import malloc from "std/mem"
 import hir_kind, hir_none from "../hir"
+import id_none from "../nexus/pool"
 import Parser, is_eof, peek, bump, peek_n, peek_preceded_by_newline, curr_span, parse_error_at, curr_text, expect, Parser_new from "./core"
 import prec, is_soft, bp_from_infix from "./prec"
 import span_merge from "../nexus/nexus"
@@ -252,6 +253,9 @@ parse_macro :: fn(p &Parser, min_bp u8) u32 {
     sp_end := span_of_hir(p, expr)
     node := p.hir.push(k.k_macro, expr, hir_none(), hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
+    if p.toplv_sym != id_none() {
+        p.db.set_hir_symbol(node, p.toplv_sym)
+    }
     node
 }
 

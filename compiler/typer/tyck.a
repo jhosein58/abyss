@@ -152,7 +152,8 @@ synth_macro :: fn(eng &Engine, id u32) {
         tok_count = tok_count - 1
     }
     fid := db.get_hir_file(id)
-    sub_p := Parser_new(db, &tokens, tbl, fid, 0, 0, tok_count)
+    macro_sym := db.get_hir_symbol(id)
+    sub_p := Parser_new(db, &tokens, tbl, fid, macro_sym, 0, tok_count)
     fn_start: u32 = 0
     s_idx := id
     while s_idx > 0 {

@@ -1398,6 +1398,9 @@ lower_one_function :: fn(B type, L type, V type, eng &Engine, ccg &B, builder &L
         orig_sym = db.get_mono_orig_sym(sym_id)
         mono_func_ty = db.get_mono_type(sym_id)
     }
+    if not is_mono {
+        eng.ensure_resolved(orig_sym)
+    }
     real_sym := db.resolve_sym(orig_sym)
     func_id := db.get_fn_node(real_sym)
     if (func_id == id_none()) or (db.hir.kind(func_id) != hir_kind.function) { ret }
