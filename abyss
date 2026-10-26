@@ -104,6 +104,26 @@ EOF
     bootstrap|test-bootstrap)
         bash "${ROOT_DIR}/scripts/bootstrap.sh" "$@"
         ;;
+    wasm|b-wasm)
+        DIST_DIR="${ROOT_DIR}/dist"
+        mkdir -p "${DIST_DIR}"
+        if [ ! -f "${DIST_DIR}/bootstrap.c" ]; then
+            prepare_compiler
+            "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/compiler/main.a" "${DIST_DIR}/bootstrap.c"
+        fi
+        clang -w --target=wasm32 -nostdlib -O3 -Wl,--no-entry -Wl,--export-all "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc.wasm"
+        mkdir -p "${ROOT_DIR}/playground"
+        cp "${DIST_DIR}/abyssc.wasm" "${ROOT_DIR}/playground/abyssc.wasm"
+        echo "Built ${DIST_DIR}/abyssc.wasm and copied to playground/abyssc.wasm"
+        ;;
+    playground|play|pg)
+        PORT="${1:-8080}"
+        if [ ! -f "${ROOT_DIR}/playground/abyssc.wasm" ]; then
+            "${ROOT_DIR}/abyss" wasm
+        fi
+        echo "Serving Abyss Playground at http://localhost:${PORT}/"
+        python3 -m http.server "${PORT}" -d "${ROOT_DIR}/playground"
+        ;;
     release)
         ROUNDS="${1:-3}"
         export ABYSS_DEV="${ROOT_DIR}"
@@ -128,6 +148,13 @@ EOF
                 echo "✔ Windows x86_64 binary verified via Wine (VM + C codegen)!"
             fi
         fi
+
+        echo "Building WebAssembly release binary..."
+        clang -w --target=wasm32 -nostdlib -O3 -Wl,--no-entry -Wl,--export-all "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc.wasm"
+        mkdir -p "${ROOT_DIR}/playground"
+        cp "${DIST_DIR}/abyssc.wasm" "${ROOT_DIR}/playground/abyssc.wasm"
+        echo "✔ WebAssembly binary verified and deployed to playground!"
+
         echo "Release artifacts generated in ${DIST_DIR}:"
         ls -lh "${DIST_DIR}"
         ;;
@@ -147,7 +174,9 @@ EOF
         echo "  test [filter]     Run language test suite"
         echo "  test-win [filter] Run language test suite on Windows binary with wine"
         echo "  bootstrap [n]     Run bootstrap stability test"
-        echo "  release [n]       Build release packages in dist/ (bootstrap.c, Linux, Windows)"
+        echo "  wasm              Build WebAssembly binary and copy to playground"
+        echo "  playground [port] Serve in-browser WebAssembly playground"
+        echo "  release [n]       Build release packages in dist/ (bootstrap.c, Linux, Windows, Wasm)"
         echo "  clean             Clean tmp build artifacts"
         exit 1
         ;;

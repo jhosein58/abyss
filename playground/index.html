@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abyss Playground</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 2 22 22 22 12 2"></polygon>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-name">ABYSS</span>
+                    <span class="brand-tag">WebAssembly Playground</span>
+                </div>
+            </div>
+            <div class="header-controls">
+                <div class="select-wrapper">
+                    <select id="example-select" aria-label="Select Example">
+                        <option value="hello">Hello World</option>
+                        <option value="fibonacci">Fibonacci & Recursion</option>
+                        <option value="structs">Structs & Records</option>
+                        <option value="strings">Strings & Iteration</option>
+                        <option value="comptime">Comptime Code Splice</option>
+                    </select>
+                </div>
+                <div id="status-pill" class="status-pill loading">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Loading Wasm...</span>
+                </div>
+                <button id="run-btn" class="btn btn-primary" title="Run (Ctrl+Enter)">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <span>Run</span>
+                    <kbd class="kbd-shortcut">Ctrl+↵</kbd>
+                </button>
+            </div>
+        </header>
+
+        <main class="workspace">
+            <section class="panel editor-panel">
+                <div class="panel-header">
+                    <div class="tab active">
+                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <span>main.a</span>
+                    </div>
+                    <div class="panel-actions">
+                        <button id="copy-btn" class="icon-btn" title="Copy code">
+                            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                        <button id="reset-btn" class="icon-btn" title="Reset code">
+                            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
+                                <polyline points="1 4 1 10 7 10"></polyline>
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="editor-wrapper">
+                    <div id="line-numbers" class="line-numbers"></div>
+                    <textarea id="code-editor" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+                </div>
+            </section>
+
+            <section class="panel terminal-panel">
+                <div class="panel-header terminal-header">
+                    <div class="terminal-dots">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                        <span class="terminal-title">Terminal Console</span>
+                    </div>
+                    <div class="terminal-info">
+                        <span id="exec-time" class="exec-time"></span>
+                        <button id="clear-btn" class="icon-btn" title="Clear console">
+                            <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="terminal" class="terminal-body">
+                    <div class="terminal-welcome">
+                        <div class="welcome-badge">ABYSS VM ENGINE v0.16.0</div>
+                        <div class="welcome-text">In-browser WebAssembly Bytecode VM execution ready.</div>
+                        <div class="welcome-hint">Write your Abyss code on the left and click "Run" (or Ctrl+Enter).</div>
+                    </div>
+                    <pre id="output"></pre>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
