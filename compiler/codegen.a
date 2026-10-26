@@ -5,7 +5,7 @@ import TypeStorage, TyKind, ty_id_none from "./types"
 import HirExprKind, hir_kind, hir_none from "./hir"
 import fall from "std/sys"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 
 append_str :: fn(v &String, s Str) {
     v.push_str(s)
@@ -545,7 +545,7 @@ CCodeGen :: struct {
 
     type_str :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) Str {
         if ty_id == ty_id_none() {
-            print(c"\n[codegen error] missing type\n")
+            print_cstr(c"\n[codegen error] missing type\n")
             fall()
         }
         kind := types.kind(ty_id)
@@ -561,7 +561,7 @@ CCodeGen :: struct {
             if payload == 32  { ret Str.of("int32_t") }
             if payload == 64  { ret Str.of("int64_t") }
             if payload == 128 { ret Str.of("__int128") }
-            print(c"\n[codegen error] unsupported integer width\n")
+            print_cstr(c"\n[codegen error] unsupported integer width\n")
             fall()
             ret Str.empty()
         }
@@ -572,7 +572,7 @@ CCodeGen :: struct {
             if payload == 32  { ret Str.of("uint32_t") }
             if payload == 64  { ret Str.of("uint64_t") }
             if payload == 128 { ret Str.of("unsigned __int128") }
-            print(c"\n[codegen error] unsupported integer width\n")
+            print_cstr(c"\n[codegen error] unsupported integer width\n")
             fall()
             ret Str.empty()
         }
@@ -580,7 +580,7 @@ CCodeGen :: struct {
         if kind == TyKind.float {
             if payload == 32 { ret Str.of("float") }
             if payload == 64 { ret Str.of("double") }
-            print(c"\n[codegen error] unsupported float width\n")
+            print_cstr(c"\n[codegen error] unsupported float width\n")
             fall()
             ret Str.empty()
         }
@@ -601,11 +601,11 @@ CCodeGen :: struct {
         }
 
         if (kind == TyKind.infer) or (kind == TyKind.unknown) or (kind == TyKind.error) {
-            print(c"\n[codegen error] unresolved type\n")
+            print_cstr(c"\n[codegen error] unresolved type\n")
             fall()
         }
 
-        print(c"\n[codegen error] unsupported type\n")
+        print_cstr(c"\n[codegen error] unsupported type\n")
         fall()
         Str.empty()
     }

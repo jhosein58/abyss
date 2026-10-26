@@ -636,7 +636,7 @@ VmCodeGen :: struct {
 
     extern_name :: fn(self &Self, name Str) VmVal {
         ext_id: u32 = 0
-        if name.eq(Str.of("print")) { ext_id = 1 }
+        if name.eq(Str.of("print_cstr")) or name.eq(Str.of("print")) { ext_id = 1 }
         else if name.eq(Str.of("print_i32")) { ext_id = 2 }
         else if name.eq(Str.of("print_u32")) { ext_id = 3 }
         else if name.eq(Str.of("print_bool")) { ext_id = 4 }

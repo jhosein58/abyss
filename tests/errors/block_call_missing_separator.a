@@ -1,2 +1,2 @@
-print :: fn(s &u8)
-main :: fn() { print(c"a") print(c"b") }
+print_cstr :: fn(s &u8)
+main :: fn() { print_cstr(c"a") print_cstr(c"b") }

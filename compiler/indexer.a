@@ -9,7 +9,7 @@ import File, Embed from "std/fs"
 import id_none from "./nexus/pool"
 import fall from "std/sys"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_u32 :: fn(v u32)
 get_env :: fn(name &u8) &u8
 
@@ -25,20 +25,20 @@ to_cstr :: fn(arena &Arena, s Str) &u8 {
 }
 
 index_error :: fn(db &Nexus, file_id u32, offset u32, msg &u8, detail Str) {
-    print(c"\n[import error] ")
-    print(msg)
+    print_cstr(c"\n[import error] ")
+    print_cstr(msg)
     if detail.len > 0 {
-        print(c": ")
+        print_cstr(c": ")
         write_str(detail)
     }
     pos := calc_pos(db.get_file_source(file_id), offset)
-    print(c"\n       --> ")
+    print_cstr(c"\n       --> ")
     write_str(db.get_file_path(file_id))
-    print(c":")
+    print_cstr(c":")
     print_u32(pos.line)
-    print(c":")
+    print_cstr(c":")
     print_u32(pos.col)
-    print(c"\n\n")
+    print_cstr(c"\n\n")
     fall()
 }
 

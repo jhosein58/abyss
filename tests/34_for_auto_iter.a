@@ -1,6 +1,6 @@
 import Vec from "std/collections/vec"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_i32 :: fn(v i32)
 
 main :: fn() {
@@ -14,18 +14,18 @@ main :: fn() {
         total = total + value
     }
     print_i32(total)
-    print(c"\n")
+    print_cstr(c"\n")
 
     refs := 0 as i32
     for value in &values {
         refs = refs + *value
     }
     print_i32(refs)
-    print(c"\n")
+    print_cstr(c"\n")
 
     for value in values.iter() {
         print_i32(value)
-        print(c"\n")
+        print_cstr(c"\n")
     }
 
     values.destroy()

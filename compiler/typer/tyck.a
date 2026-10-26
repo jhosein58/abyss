@@ -142,9 +142,9 @@ synth_splice :: fn(eng &Engine, id u32) {
             }
         }
         if (child_ty != ty_id_none()) and (str_ty != ty_id_none()) and (child_ty != str_ty) and (tbl.kind(child) != hir_kind.lit_str) {
-            print(c"\n[type error] macro expression must evaluate to Str\n       --> ")
+            print_cstr(c"\n[type error] macro expression must evaluate to Str\n       --> ")
             db.print_loc(id)
-            print(c"\n")
+            print_cstr(c"\n")
             fall()
         }
         val := eval_const(db, child)
@@ -242,9 +242,9 @@ synth_splice :: fn(eng &Engine, id u32) {
     tokens.destroy()
 
     if parsed_node == hir_none() {
-        print(c"\n[syntax error] macro expansion produced no expression\n       --> ")
+        print_cstr(c"\n[syntax error] macro expansion produced no expression\n       --> ")
         db.print_loc(id)
-        print(c"\n")
+        print_cstr(c"\n")
         fall()
     }
 
@@ -338,7 +338,7 @@ type_check :: fn(eng &Engine, start u32, len u32) {
     }
 }
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 
 vec_contains :: fn(v &Vec(u32), val u32) bool {
     i: u64 = 0
@@ -443,9 +443,9 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
             if (ty != ty_id_none()) and (not (&(*db).types).func_has_type_param(ty)) {
                 resolved := resolve_ty_id(eng, &(*db).unify, &(*db).types, ty)
                 if type_has_infer(&(*db).types, resolved) {
-                    print(c"\n[type error] cannot infer generic type argument; pass the type explicitly\n       --> ")
+                    print_cstr(c"\n[type error] cannot infer generic type argument; pass the type explicitly\n       --> ")
                     db.print_loc(node)
-                    print(c"\n")
+                    print_cstr(c"\n")
                     fall()
                 }
                 root := (&(*db).unify).find(slot)
@@ -456,9 +456,9 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
         if (value_ty != ty_id_none()) and (not (&(*db).types).func_has_type_param(value_ty)) {
             resolved := resolve_ty_id(eng, &(*db).unify, &(*db).types, value_ty)
             if type_has_infer(&(*db).types, resolved) {
-                print(c"\n[type error] cannot infer generic type argument; pass the type explicitly\n       --> ")
+                print_cstr(c"\n[type error] cannot infer generic type argument; pass the type explicitly\n       --> ")
                 db.print_loc(node)
-                print(c"\n")
+                print_cstr(c"\n")
                 fall()
             }
             db.set_const_type(node, resolved)

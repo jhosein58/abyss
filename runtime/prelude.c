@@ -20,8 +20,12 @@
 void abyss_vm_shift_args(void);
 uint64_t abyss_vm_call_dyn(uint8_t *name, uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint32_t arg_count);
 
-void print(uint8_t *s) {
+void print_cstr(uint8_t *s) {
     printf("%s", (const char *)s);
+}
+
+void print(uint8_t *s) {
+    print_cstr(s);
 }
 
 void print_bytes(uint8_t *s, uint64_t len) {

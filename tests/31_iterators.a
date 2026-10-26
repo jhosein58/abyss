@@ -1,6 +1,6 @@
 import Vec from "std/collections/vec"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_i32 :: fn(v i32)
 print_bool :: fn(v bool)
 
@@ -13,21 +13,21 @@ main :: fn() {
     direct := values.iter()
     first := direct.next()
     print_bool(first.is_some())
-    print(c"\n")
+    print_cstr(c"\n")
     print_i32(first.unwrap())
-    print(c"\n")
+    print_cstr(c"\n")
 
     total := 0 as i32
     for value in values.iter() {
         total = total + value
     }
     print_i32(total)
-    print(c"\n")
+    print_cstr(c"\n")
 
     copied := Vec(i32).collect(values.iter())
     for a, b in values.iter(), copied.iter() {
         print_i32(a + b)
-        print(c"\n")
+        print_cstr(c"\n")
     }
 
     copied.destroy()

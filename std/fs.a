@@ -6,7 +6,7 @@ import Vec from "collections/vec"
 import Path from "path"
 import Convert from "convert"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 get_env :: fn(name &u8) &u8
 
 file_open  :: fn(path, mode &u8) &u8
@@ -197,9 +197,9 @@ File :: struct {
 read_file :: fn(a &Arena, path &u8) Str {
     source := try_read_file(a, path)
     if source.ptr == (0 as &u8) {
-        print(c"\n\033[1;31merror:\033[0m cannot open file '")
-        print(path)
-        print(c"': file not found or permission denied\n")
+        print_cstr(c"\n\033[1;31merror:\033[0m cannot open file '")
+        print_cstr(path)
+        print_cstr(c"': file not found or permission denied\n")
         fall()
     }
     source
@@ -214,9 +214,9 @@ try_read_file :: fn(a &Arena, path &u8) Str {
 write_file :: fn(path &u8, content Str) bool {
     ok := File.write_string(path, content)
     if not ok {
-        print(c"\n\033[1;31merror:\033[0m failed to write file '")
-        print(path)
-        print(c"'\n")
+        print_cstr(c"\n\033[1;31merror:\033[0m failed to write file '")
+        print_cstr(path)
+        print_cstr(c"'\n")
         fall()
     }
     true
@@ -225,9 +225,9 @@ write_file :: fn(path &u8, content Str) bool {
 append_file :: fn(path &u8, content Str) bool {
     ok := File.append_string(path, content)
     if not ok {
-        print(c"\n\033[1;31merror:\033[0m failed to append to file '")
-        print(path)
-        print(c"'\n")
+        print_cstr(c"\n\033[1;31merror:\033[0m failed to append to file '")
+        print_cstr(path)
+        print_cstr(c"'\n")
         fall()
     }
     true

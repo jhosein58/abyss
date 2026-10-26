@@ -9,7 +9,7 @@ import id_none from "../nexus/pool"
 import fall from "std/sys"
 
 
-print     :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_u32 :: fn(v u32)
 
 Parser :: struct {
@@ -130,15 +130,15 @@ parse_error_at :: fn(p &Parser, msg &u8, sp Span) {
     src := (*p).db.get_file_source((*p).file_id)
     pos := calc_pos(src, sp.start)
 
-    print(c"\n\033[1;31m[syntax error]\033[0m ")
-    print(msg)
-    print(c"\n       --> ")
+    print_cstr(c"\n\033[1;31m[syntax error]\033[0m ")
+    print_cstr(msg)
+    print_cstr(c"\n       --> ")
     write_str(path)
-    print(c":")
+    print_cstr(c":")
     print_u32(pos.line)
-    print(c":")
+    print_cstr(c":")
     print_u32(pos.col)
-    print(c"\n\n")
+    print_cstr(c"\n\n")
     fall()
 }
 

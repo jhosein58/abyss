@@ -9,7 +9,7 @@ import UnifyStorage, slot_none from "./unify"
 
 print_char :: fn(c u8)
 print_u32  :: fn(n u32)
-print      :: fn(s &u8)
+print_cstr :: fn(s &u8)
  
 print_spaces :: fn(count u32) {
     i: u32 = 0
@@ -124,7 +124,7 @@ dump_hir :: fn(db &Nexus, hir &HirTable, arena &Arena) {
                 len = len + u32_digits(node_id)
 
                 if (j + 1) < slice.len {
-                    print(c", ")
+                    print_cstr(c", ")
                     len = len + 2
                 }
 

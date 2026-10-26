@@ -1,7 +1,7 @@
 import Vec from "std/collections/vec"
 
 print_u32 :: fn(v u32)
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 
 Marker0 :: struct { value u32 }
 Marker1 :: struct { value u32 }
@@ -209,5 +209,5 @@ main :: fn() {
     total = total + identity(v39.get(0)).value
     v39.destroy()
     print_u32(total)
-    print(c"\n")
+    print_cstr(c"\n")
 }

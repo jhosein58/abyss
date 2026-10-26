@@ -1,15 +1,15 @@
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_u32 :: fn(v u32)
 print_bool :: fn(b bool)
 
 println_u32 :: fn(v u32) {
     print_u32(v)
-    print(c"\n")
+    print_cstr(c"\n")
 }
 
 println_bool :: fn(b bool) {
     print_bool(b)
-    print(c"\n")
+    print_cstr(c"\n")
 }
 
 main :: fn() {

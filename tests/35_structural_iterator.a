@@ -1,4 +1,4 @@
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_i32 :: fn(v i32)
 
 main :: fn() {
@@ -7,10 +7,10 @@ main :: fn() {
         total = total + value
     }
     print_i32(total)
-    print(c"\n")
+    print_cstr(c"\n")
 
     for a, b in Range.new(1, 4), Range.new(10, 13) {
         print_i32(a + b)
-        print(c"\n")
+        print_cstr(c"\n")
     }
 }

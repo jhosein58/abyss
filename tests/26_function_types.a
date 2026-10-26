@@ -1,13 +1,13 @@
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_i32 :: fn(v i32)
 
 println_i32 :: fn(v i32) {
     print_i32(v)
-    print(c"\n")
+    print_cstr(c"\n")
 }
 
 greet :: fn() {
-    print(c"hello\n")
+    print_cstr(c"hello\n")
 }
 
 print_sum :: fn(a, b i32) {

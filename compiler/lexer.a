@@ -5,7 +5,7 @@ import calc_pos from "./nexus/nexus"
 import fall from "std/sys"
 import is_digit, is_hex_digit, is_alpha, is_alphanumeric, is_whitespace, is_newline from "std/ascii"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_u32 :: fn(v u32)
 
 match_keyword :: fn(text Str) TokenType {
@@ -94,16 +94,16 @@ Lexer :: struct {
     }
 
     error :: fn(self &Self, msg &u8, offset u64) {
-        print(c"\n[lex error] ")
-        print(msg)
-        print(c"\n       --> ")
+        print_cstr(c"\n[lex error] ")
+        print_cstr(msg)
+        print_cstr(c"\n       --> ")
         write_str(self.path)
-        print(c":")
+        print_cstr(c":")
         pos := calc_pos(self.source, offset as u32)
         print_u32(pos.line)
-        print(c":")
+        print_cstr(c":")
         print_u32(pos.col)
-        print(c"\n")
+        print_cstr(c"\n")
         fall()
     }
 

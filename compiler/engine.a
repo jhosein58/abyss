@@ -16,7 +16,7 @@ import fall from "std/sys"
 import lower_function from "./lower"
 
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_u32 :: fn(v u32) 
 
 Engine :: struct {
@@ -55,7 +55,7 @@ Engine :: struct {
 
     parse :: fn(self &Self, sym_id u32) {
         if sym_id == id_none() {
-            print(c"\n[syntax error] symbol not found\n")
+            print_cstr(c"\n[syntax error] symbol not found\n")
             fall()
         }
 
@@ -194,11 +194,11 @@ Engine :: struct {
         ty := self.type_of(sym_id)
         types := &self.nexus.types
         if types.kind(ty) != TyKind.func {
-            print(c"\n[type error] main must be a function\n")
+            print_cstr(c"\n[type error] main must be a function\n")
             fall()
         }
           if ((&(*types)).func_params_len( ty) != 0) or (&(*types)).func_is_extern( ty) {
-            print(c"\n[type error] main must be a defined function with no arguments\n")
+            print_cstr(c"\n[type error] main must be a defined function with no arguments\n")
             fall()
         }
     }

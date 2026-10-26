@@ -11,14 +11,14 @@ import fall from "std/sys"
 import synth_node from "../tyck"
 import eval_const from "../../lower"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 
 match_error :: fn(db &Nexus, msg &u8, id u32) {
-    print(c"\n\033[1;31m[type error]\033[0m ")
-    print(msg)
-    print(c"\n       --> ")
+    print_cstr(c"\n\033[1;31m[type error]\033[0m ")
+    print_cstr(msg)
+    print_cstr(c"\n       --> ")
     db.print_loc(id)
-    print(c"\n")
+    print_cstr(c"\n")
     fall()
 }
 
@@ -505,11 +505,11 @@ synth_if :: fn(db &Nexus, tbl &HirTable, id u32) {
     if cond_slot != slot_none() {
         cond_ty := (unify_ptr).resolve_type_deep(types_ptr, cond_slot)
         if (cond_ty != ty_id_none()) and (cond_ty != ty_id_bool()) {
-            print(c"\n\033[1;31m[type error]\033[0m 'if' condition must be bool, got '")
+            print_cstr(c"\n\033[1;31m[type error]\033[0m 'if' condition must be bool, got '")
             (&(*types_ptr)).print_type(cond_ty)
-            print(c"'\n       --> ")
+            print_cstr(c"'\n       --> ")
             db.print_loc(cond)
-            print(c"\n")
+            print_cstr(c"\n")
             fall()
         }
         (&(*db).unify).bind_type(&(*db).types, cond_slot, ty_id_bool())
@@ -583,11 +583,11 @@ synth_while :: fn(db &Nexus, tbl &HirTable, id u32) {
     if cond_slot != slot_none() {
         cond_ty := (unify_ptr).resolve_type_deep(types_ptr, cond_slot)
         if (cond_ty != ty_id_none()) and (cond_ty != ty_id_bool()) {
-            print(c"\n\033[1;31m[type error]\033[0m 'while' condition must be bool, got '")
+            print_cstr(c"\n\033[1;31m[type error]\033[0m 'while' condition must be bool, got '")
             (&(*types_ptr)).print_type(cond_ty)
-            print(c"'\n       --> ")
+            print_cstr(c"'\n       --> ")
             db.print_loc(cond)
-            print(c"\n")
+            print_cstr(c"\n")
             fall()
         }
         (&(*db).unify).bind_type(&(*db).types, cond_slot, ty_id_bool())

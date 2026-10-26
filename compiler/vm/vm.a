@@ -1,7 +1,7 @@
 import Chunk from "./chunk"
 import OpCode from "./op"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_bytes :: fn(s &u8, len u64)
 print_char :: fn(c u8)
 print_bool :: fn(v bool)
@@ -69,7 +69,7 @@ Vm :: struct {
     dispatch_extern :: fn(self &Self, prog &Chunk, id u32, arg_count u8) {
         if id == 1 {
             s := self.stack.pop() as &u8
-            print(s)
+            print_cstr(s)
             self.stack.push(0)
         } else if id == 2 {
             v := self.stack.pop() as i32

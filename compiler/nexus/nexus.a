@@ -11,7 +11,7 @@ import Arena from "std/allocator"
 import VmCodeGen from "../vm/codegen"
 import Vm from "../vm/vm"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_u32 :: fn(v u32)
 
 Span :: struct {
@@ -574,9 +574,9 @@ Nexus :: struct {
         pos := self.get_pos(hir_id)
 
         write_str(path)
-        print(c":")
+        print_cstr(c":")
         print_u32(pos.line)
-        print(c":")
+        print_cstr(c":")
         print_u32(pos.col)
     }
 

@@ -10,7 +10,7 @@ import synth_type_node from "./var"
 import resolve_ty_id from "../specialize"
 import eval_const from "../../lower"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 
 synth_unary_num :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := (&(*db).unify).new_slot(id)
@@ -35,9 +35,9 @@ validate_unary_num :: fn(db &Nexus, tbl &HirTable, id u32) {
         if (tbl.kind(id) == hir_kind.unary_neg) and
            ((kind == TyKind.float) or (kind == TyKind.untyped_float)) { ret }
     }
-    print(c"\n[type error] invalid unary operand\n       --> ")
+    print_cstr(c"\n[type error] invalid unary operand\n       --> ")
     db.print_loc(id)
-    print(c"\n")
+    print_cstr(c"\n")
     fall()
 }
 
@@ -111,9 +111,9 @@ synth_unary_deref :: fn(db &Nexus, tbl &HirTable, id u32) {
             u8_ty := db.types.alloc_uint(8 as u16)
             db.unify.bind_type(&db.types, slot, u8_ty)
         } else {
-            print(c"\n[type error] cannot dereference non-pointer\n       --> ")
+            print_cstr(c"\n[type error] cannot dereference non-pointer\n       --> ")
             db.print_loc(id)
-            print(c"\n")
+            print_cstr(c"\n")
             fall()
         }
     }
@@ -181,14 +181,14 @@ synth_binary :: fn(db &Nexus, tbl &HirTable, id u32) {
             }
         }
 
-        print(c"\n[type error] invalid arithmetic operands\n       --> ")
+        print_cstr(c"\n[type error] invalid arithmetic operands\n       --> ")
         db.print_loc(id)
-        print(c"\n")
+        print_cstr(c"\n")
         fall()
     } else {
-        print(c"\n[type error] missing arithmetic operand\n       --> ")
+        print_cstr(c"\n[type error] missing arithmetic operand\n       --> ")
         db.print_loc(id)
-        print(c"\n")
+        print_cstr(c"\n")
         fall()
     }
 }
@@ -206,16 +206,16 @@ synth_assign :: fn(db &Nexus, tbl &HirTable, id u32) {
         if sym != id_none() {
             real_sym := db.resolve_sym(sym)
             if db.is_sym_const(real_sym) {
-                print(c"\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ")
+                print_cstr(c"\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ")
                 db.print_loc(id)
-                print(c"\n")
+                print_cstr(c"\n")
                 fall()
             }
         }
     } else if db.is_const(lhs) {
-        print(c"\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ")
+        print_cstr(c"\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ")
         db.print_loc(id)
-        print(c"\n")
+        print_cstr(c"\n")
         fall()
     }
 
@@ -273,9 +273,9 @@ validate_binary_comp :: fn(db &Nexus, tbl &HirTable, id u32) {
             if (lhs_kind == TyKind.enum_) and (rhs_kind == TyKind.enum_) { ret }
         }
     }
-    print(c"\n[type error] invalid comparison operands\n       --> ")
+    print_cstr(c"\n[type error] invalid comparison operands\n       --> ")
     db.print_loc(id)
-    print(c"\n")
+    print_cstr(c"\n")
     fall()
 }
 
@@ -294,11 +294,11 @@ synth_logic_and_or :: fn(db &Nexus, tbl &HirTable, id u32) {
     if lhs_slot != slot_none() {
         lhs_ty := (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
         if (lhs_ty != ty_id_none()) and (lhs_ty != ty_id_bool()) {
-            print(c"\n\033[1;31m[type error]\033[0m logical operator operand must be bool, got '")
+            print_cstr(c"\n\033[1;31m[type error]\033[0m logical operator operand must be bool, got '")
             (&(*types_ptr)).print_type(lhs_ty)
-            print(c"'\n       --> ")
+            print_cstr(c"'\n       --> ")
             db.print_loc(lhs)
-            print(c"\n")
+            print_cstr(c"\n")
             fall()
         }
         (&(*db).unify).bind_type(&(*db).types, lhs_slot, ty_id_bool())
@@ -308,11 +308,11 @@ synth_logic_and_or :: fn(db &Nexus, tbl &HirTable, id u32) {
     if rhs_slot != slot_none() {
         rhs_ty := (unify_ptr).resolve_type_deep(types_ptr, rhs_slot)
         if (rhs_ty != ty_id_none()) and (rhs_ty != ty_id_bool()) {
-            print(c"\n\033[1;31m[type error]\033[0m logical operator operand must be bool, got '")
+            print_cstr(c"\n\033[1;31m[type error]\033[0m logical operator operand must be bool, got '")
             (&(*types_ptr)).print_type(rhs_ty)
-            print(c"'\n       --> ")
+            print_cstr(c"'\n       --> ")
             db.print_loc(rhs)
-            print(c"\n")
+            print_cstr(c"\n")
             fall()
         }
         (&(*db).unify).bind_type(&(*db).types, rhs_slot, ty_id_bool())
@@ -371,9 +371,9 @@ synth_cast :: fn(eng &Engine, id u32) {
                 db.unify.bind_type(&db.types, slot, rhs_type)
                 ret
             }
-            print(c"\n[type error] union does not contain target type in cast\n       --> ")
+            print_cstr(c"\n[type error] union does not contain target type in cast\n       --> ")
             db.print_loc(id)
-            print(c"\n")
+            print_cstr(c"\n")
             fall()
         }
         if (src == TyKind.enum_) or (dst == TyKind.enum_) {
@@ -387,16 +387,16 @@ synth_cast :: fn(eng &Engine, id u32) {
         if not ((src_num and dst_num) or ((src == TyKind.ptr) and (dst == TyKind.ptr)) or
                 (src_int and (dst == TyKind.ptr)) or ((src == TyKind.ptr) and dst_int) or
                 ((src == TyKind.ptr) and (dst == TyKind.bool))) {
-            print(c"\n[type error] invalid cast\n       --> ")
+            print_cstr(c"\n[type error] invalid cast\n       --> ")
             db.print_loc(id)
-            print(c"\n")
+            print_cstr(c"\n")
             fall()
         }
         db.unify.bind_type(&db.types, slot, rhs_type)
     } else {
-        print(c"\n[type error] cast target is not a type\n       --> ")
+        print_cstr(c"\n[type error] cast target is not a type\n       --> ")
         db.print_loc(id)
-        print(c"\n")
+        print_cstr(c"\n")
         fall()
     }
 }

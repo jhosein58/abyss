@@ -2,7 +2,7 @@ import Nexus from "./nexus/nexus"
 import TypeStorage, TyKind from "./types"
 import fall from "std/sys"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 
 is_composite_type :: fn(k TyKind) bool {
     (k == TyKind.struct_) or (k == TyKind.nominal) or (k == TyKind.func) or (k == TyKind.array) or (k == TyKind.union_) or (k == TyKind.enum_)
@@ -12,18 +12,18 @@ topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8),
     if (ty_id as u64) >= (*states).len { ret }
     st := states.get(ty_id as u64)
     if st == (1 as u8) {
-        print(c"\n[type error] recursive value type has infinite size: '")
+        print_cstr(c"\n[type error] recursive value type has infinite size: '")
         types.print_type(ty_id)
-        print(c"'; use a pointer for the recursive field\n")
+        print_cstr(c"'; use a pointer for the recursive field\n")
         if types.kind(ty_id) == TyKind.nominal {
             origin := types.nominal_origin(ty_id)
             node := origin
             if (origin & 2147483648) != 0 {
                 node = types.get_nominal_struct_node(origin)
             }
-            print(c"       --> ")
+            print_cstr(c"       --> ")
             db.print_loc(node)
-            print(c"\n")
+            print_cstr(c"\n")
         }
         fall()
     }

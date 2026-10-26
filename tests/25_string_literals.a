@@ -1,7 +1,7 @@
 import write_str from "std/io"
 import Str from "core/string"
 
-print :: fn(s &u8)
+print_cstr :: fn(s &u8)
 print_char :: fn(c u8)
 print_u32 :: fn(v u32)
 print_u64 :: fn(v u64)
@@ -10,31 +10,31 @@ print_bool :: fn(v bool)
 main :: fn() {
     s := "hello world"
     print_u64(s.len)
-    print(c"\n")
+    print_cstr(c"\n")
     write_str(s)
-    print(c"\n")
+    print_cstr(c"\n")
 
     sub := s.sub(6, 5)
     write_str(sub)
-    print(c"\n")
+    print_cstr(c"\n")
 
     print_bool(s.eq("hello world"))
-    print(c"\n")
+    print_cstr(c"\n")
     print_bool(s.eq("hello"))
-    print(c"\n")
+    print_cstr(c"\n")
 
     c: u8 = 'A'
     print_u32(c as u32)
-    print(c"\n")
+    print_cstr(c"\n")
     print_char('Z')
-    print(c"\n")
+    print_cstr(c"\n")
     print_char('\n')
 
     cs := c"c-string content"
-    print(cs)
-    print(c"\n")
+    print_cstr(cs)
+    print_cstr(c"\n")
 
     ch := 'x'
     print_char(ch)
-    print(c"\n")
+    print_cstr(c"\n")
 }
