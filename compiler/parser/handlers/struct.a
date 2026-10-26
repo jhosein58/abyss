@@ -81,7 +81,7 @@ parse_struct :: fn(p &Parser) u32 {
                         parse_error_at(p, c"expected ')' after macro expression", curr_span(p))
                     }
                 }
-                macro_node := p.hir.push(k.k_macro, expr, hir_none(), hir_none())
+                macro_node := p.hir.push(k.k_macro, expr, struct_node, hir_none())
                 set_span(p, macro_node, span_merge(sp_start, prev_span(p)))
                 if struct_toplv != id_none() {
                     p.db.set_hir_symbol(macro_node, struct_toplv)
