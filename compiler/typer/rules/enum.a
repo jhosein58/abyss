@@ -15,6 +15,7 @@ import Parser_new, is_eof, peek from "../../parser/core"
 import parse_ident from "../../parser/handlers/ident"
 import parse_method, check_separator from "../../parser/handlers/common"
 import reflection_read from "../reflection"
+import unescape_splice_str from "./common"
 import eval_const from "../../lower"
 
 print :: fn(s &u8)
@@ -96,12 +97,17 @@ synth_enum :: fn(eng &Engine, id u32) {
         while m_i < m_count {
             methods := db.get_list(methods_list_id)
             method := *(methods.ptr + m_i)
-            if (tbl).kind(method) == hir_kind.k_macro {
+            if (tbl).kind(method) == hir_kind.splice {
                 child := (tbl).lhs(method)
                 macro_src := Str.empty()
                 if (tbl).kind(child) == hir_kind.lit_str {
                     raw := db.interner.get((tbl).lhs(child))
-                    macro_src = raw.trim_quotes()
+                    content := raw.trim_quotes()
+                    if (raw.len > 0) and (*(raw.ptr) != 96) {
+                        macro_src = unescape_splice_str(content)
+                    } else {
+                        macro_src = content
+                    }
                 } else {
                     synth_node(eng, child)
                     val := eval_const(db, child)
@@ -116,7 +122,7 @@ synth_enum :: fn(eng &Engine, id u32) {
                 }
                 if macro_src.len > 0 {
                     tokens := TokenStream.new()
-                    lex(&tokens, macro_src, Str.of("<macro>"))
+                    lex(&tokens, macro_src, Str.of("<splice>"))
                     tok_count := tokens.count() as u32
                     if tok_count > 1 {
                         tok_count = tok_count - 1

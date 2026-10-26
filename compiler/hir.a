@@ -84,7 +84,7 @@ HirExprKind :: enum u8 {
     enum_,
     lit_cstr,
     k_cmpt,
-    k_macro,
+    splice,
     destructure
 }
 
@@ -166,7 +166,7 @@ hir_kind_name :: fn(kind HirExprKind) Str {
         builtin_call          { "BuiltinCall"   }
         enum_                 { "Enum"          }
         k_cmpt                { "Cmpt"          }
-        k_macro               { "Macro"         }
+        splice                { "Splice"        }
         destructure           { "Destructure"   }
     }
 }
@@ -180,10 +180,10 @@ HirTable :: struct {
 
     new :: fn() HirTable {
         .{
-            kinds : Vec(u8).new(),
-            lhs_list   : Vec(u32).new(),
-            rhs_list   : Vec(u32).new(),
-            extra_list : Vec(u32).new()
+            kinds:      Vec(u8).new()
+            lhs_list:   Vec(u32).new()
+            rhs_list:   Vec(u32).new()
+            extra_list: Vec(u32).new()
         }
     }
 

@@ -1,13 +1,11 @@
-import token, TokenType, TokenStream from "../token"
+import token, TokenType from "../token"
 import Str from "std/string"
-import lex from "../lexer"
-import malloc from "std/mem"
 import hir_kind, hir_none from "../hir"
 import id_none from "../nexus/pool"
-import Parser, is_eof, peek, bump, peek_n, peek_preceded_by_newline, curr_span, parse_error_at, curr_text, expect, Parser_new from "./core"
+import Parser, is_eof, peek, bump, peek_n, peek_preceded_by_newline, curr_span, parse_error_at, expect from "./core"
 import prec, is_soft, bp_from_infix from "./prec"
 import span_merge from "../nexus/nexus"
-import span_of_hir, set_span, check_separator from "./handlers/common"
+import span_of_hir, set_span from "./handlers/common"
 import parse_lit_int, parse_float, parse_str, parse_char, parse_cstr, parse_true, parse_false from "./handlers/lit"
 import parse_ident from "./handlers/ident"
 import parse_if, parse_while, parse_for, parse_block, parse_return, parse_break, parse_cont from "./handlers/control"
@@ -112,7 +110,7 @@ dispatch_prefix :: fn(p &Parser, min_bp u8) u32 {
     if tk == t.o_bracket  { ret parse_array_type(p, min_bp) }
 
     if tk == t.kw_cmpt    { ret parse_cmpt(p, min_bp) }
-    if tk == t.hash       { ret parse_macro(p, min_bp) }
+    if tk == t.hash       { ret parse_splice(p, min_bp) }
 
     if (tk == t.minus) or (tk == t.kw_not) or (tk == t.tilde) or (tk == t.amp) or (tk == t.star) {
         ret parse_unary(p, tk)
@@ -135,41 +133,7 @@ parse_cmpt :: fn(p &Parser, min_bp u8) u32 {
     set_span(p, node, span_merge(sp_start, sp_end))
 }
 
-unescape_macro_str :: fn(s Str) Str {
-    if s.len == 0 { ret s }
-    has_esc := false
-    i: u64 = 0
-    while i < s.len {
-        if *(s.ptr + i) == 92 {
-            has_esc = true
-            break
-        }
-        i = i + 1
-    }
-    if not has_esc { ret s }
-
-    buf := malloc(s.len) as &u8
-    out_len: u64 = 0
-    i = 0
-    while i < s.len {
-        c := *(s.ptr + i)
-        if (c == 92) and (i + 1 < s.len) {
-            next_c := *(s.ptr + i + 1)
-            if (next_c == 34) or (next_c == 92) {
-                *(buf + out_len) = next_c
-                out_len = out_len + 1
-                i = i + 2
-                cont
-            }
-        }
-        *(buf + out_len) = c
-        out_len = out_len + 1
-        i = i + 1
-    }
-    Str.new(buf, out_len)
-}
-
-parse_macro :: fn(p &Parser, min_bp u8) u32 {
+parse_splice :: fn(p &Parser, min_bp u8) u32 {
     k := hir_kind
     t := token
     sp_start := curr_span(p)
@@ -181,77 +145,17 @@ parse_macro :: fn(p &Parser, min_bp u8) u32 {
         bump(p)
     }
 
-    if peek(p) == t.lit_str {
-        raw := curr_text(p)
-        bump(p)
-        if has_paren {
-            if not expect(p, t.c_paren) {
-                parse_error_at(p, c"expected ')' after macro string", curr_span(p))
-            }
-        }
-        content := raw
-        if raw.len >= 2 {
-            content = Str.new(raw.ptr + 1, raw.len - 2)
-        }
-        unescaped := content
-        if *(raw.ptr) != 96 {
-            unescaped = unescape_macro_str(content)
-        }
-        if unescaped.len == 0 {
-            ret hir_none()
-        }
-        tokens := TokenStream.new()
-        lex(&tokens, unescaped, Str.of("<macro>"))
-        tok_count := tokens.count() as u32
-        if tok_count > 1 {
-            tok_count = tok_count - 1
-        }
-        sub_p := Parser_new(p.db, &tokens, p.hir, p.file_id, p.toplv_sym, 0, tok_count)
-        i: u64 = 0
-        while i < p.env.names.len {
-            sub_p.env.define(p.env.names.get(i), p.env.syms.get(i))
-            i = i + 1
-        }
-        first_node := parse_expr(&sub_p, 0 as u8)
-        if first_node == hir_none() {
-            parse_error_at(p, c"macro string did not produce a valid expression", sp_start)
-        }
-        check_separator(&sub_p, t.eof, c"expected ',' or newline between macro expressions")
-        if not is_eof(&sub_p) {
-            db := p.db
-            glob_stack := &db.glob_stack
-            mark := glob_stack.mark()
-            glob_stack.push(first_node)
-            while not is_eof(&sub_p) {
-                glob_stack.push(parse_expr(&sub_p, 0 as u8))
-                check_separator(&sub_p, t.eof, c"expected ',' or newline between macro expressions")
-            }
-            slice: Slice(u32) = .{
-                ptr: glob_stack.ptr_at(mark),
-                len: glob_stack.len - mark
-            }
-            list_id := db.add_list(slice)
-            glob_stack.reset(mark)
-            node := p.hir.push(k.block, list_id, hir_none(), hir_none())
-            set_span(p, node, span_of_hir(p, first_node))
-            first_node = node
-        }
-        sub_p.env.destroy()
-        tokens.destroy()
-        ret first_node
-    }
-
     min := min_bp
     pr := prec().assignment + (1 as u8)
     if min < pr { min = pr }
     expr := parse_expr(p, if has_paren { 0 as u8 } else { min })
     if has_paren {
         if not expect(p, t.c_paren) {
-            parse_error_at(p, c"expected ')' after macro expression", curr_span(p))
+            parse_error_at(p, c"expected ')' after '#' expression", curr_span(p))
         }
     }
     sp_end := span_of_hir(p, expr)
-    node := p.hir.push(k.k_macro, expr, hir_none(), hir_none())
+    node := p.hir.push(k.splice, expr, hir_none(), hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
     if p.toplv_sym != id_none() {
         p.db.set_hir_symbol(node, p.toplv_sym)

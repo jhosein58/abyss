@@ -607,7 +607,7 @@ lower_expr_node :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, emp
             }
             ret ccg.expr_int(arena, val as u32)
         }
-        k_macro {
+        splice {
             if db.hir.rhs(id) == 1 {
                 ret lower_macro_template(db, ccg, builder, empty, arena, db.hir.extra(id), visited, queue, type_queue)
             }
@@ -884,7 +884,7 @@ eval_const :: fn(db &Nexus, id u32) u64 {
         db.set_const_val(id, val)
         ret val
     }
-    if k == hir_kind.k_macro {
+    if k == hir_kind.splice {
         gen_id := db.hir.extra(id)
         if gen_id != hir_none() {
             val := eval_const(db, gen_id)

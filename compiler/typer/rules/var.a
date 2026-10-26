@@ -99,7 +99,7 @@ synth_type_node :: fn(eng &Engine, id u32) u32 {
         ret db.get_const_type(id)
     }
 
-    if (curr == k.k_cmpt) or (curr == k.k_macro) {
+    if (curr == k.k_cmpt) or (curr == k.splice) {
         synth_node(eng, id)
         ret db.get_const_type(id)
     }
@@ -216,7 +216,7 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
 
     if value_id != hir_none() {
         actual_val := value_id
-        if (tbl.kind(actual_val) == hir_kind.k_macro) and (tbl.extra(actual_val) != hir_none()) {
+        if (tbl.kind(actual_val) == hir_kind.splice) and (tbl.extra(actual_val) != hir_none()) {
             actual_val = tbl.extra(actual_val)
         }
         if ((tbl).kind(id) == hir_kind.binding) and ((tbl).kind(actual_val) == hir_kind.struct_) {
@@ -254,7 +254,7 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
             val_ty := unify_ptr.resolve_type(val_slot)
             if types_ptr.kind(val_ty) == TyKind.type_ {
                 type_val := db.get_const_type(value_id)
-                if (type_val == ty_id_none()) and (tbl.kind(value_id) == hir_kind.k_macro) {
+                if (type_val == ty_id_none()) and (tbl.kind(value_id) == hir_kind.splice) {
                     gen_node := tbl.extra(value_id)
                     if gen_node != hir_none() {
                         type_val = db.get_const_type(gen_node)

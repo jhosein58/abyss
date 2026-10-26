@@ -432,7 +432,7 @@ macro_template :: fn(db &Nexus, sym u32) u32 {
         if items.len != 1 { ret hir_none() }
         body = *(items.ptr)
     }
-    if db.hir.kind(body) == hir_kind.k_macro { ret body }
+    if db.hir.kind(body) == hir_kind.splice { ret body }
     hir_none()
 }
 

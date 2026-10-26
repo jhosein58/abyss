@@ -1,0 +1,22 @@
+import write as print from "std/io"
+
+make_inner :: fn() Str {
+    "\"100 + 200\""
+}
+
+make_struct_src :: fn() Str {
+    "struct { val i32, #(\"get_val :: fn(self &Self) i32 { self.val }\") }"
+}
+
+NestedStruct :: #make_struct_src()
+
+main :: fn() {
+    ##`"print(\"nested 1\\n\")"`
+    v := ##make_inner()
+    print(v)
+    print("\n")
+    ###`"\"print(\\\"nested 3\\\\n\\\")\""`
+    s: NestedStruct = .{ val: 42 }
+    print(s.get_val())
+    print("\n")
+}
