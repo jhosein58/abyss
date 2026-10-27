@@ -1,4 +1,4 @@
-import token, TokenStream from "./token"
+import Token, TokenStream from "./token"
 import lex from "./lexer"
 import Nexus, calc_pos from "./nexus/nexus"
 import Str from "std/string"
@@ -160,7 +160,7 @@ Indexer :: struct {
 
     scan_symbols :: fn(self &Self, file_id u32, curr_path Str, start_tok u32, end_tok u32) {
         db := self.db
-        t := token
+        t := Token
         cursor := start_tok
         depth: u32 = 0
 
@@ -292,7 +292,7 @@ Indexer :: struct {
                         existing := db.find_local_symbol(src_fid, loc_name)
                         if (existing != id_none()) and (existing != target_sym) {
                             name_tok := self.pending_imports.get(p_i + 4)
-                            if db.tokens.kind(name_tok + 1) == token.kw_as { name_tok = name_tok + 2 }
+                            if db.tokens.kind(name_tok + 1) == Token.kw_as { name_tok = name_tok + 2 }
                             index_error(db, src_fid, db.tokens.start(name_tok), c"import name conflicts with an existing symbol", db.interner.get(loc_name))
                         }
                         if existing == id_none() {

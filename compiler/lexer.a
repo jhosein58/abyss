@@ -1,11 +1,11 @@
 import Str from "std/string"
-import token, TokenType, TokenStream from "./token"
+import Token, TokenStream from "./token"
 import calc_pos from "./nexus/nexus"
 import fall from "std/sys"
 import is_digit, is_hex_digit, is_alpha, is_alphanumeric, is_whitespace, is_newline from "std/ascii"
 
-match_keyword :: fn(text Str) TokenType {
-    t := token
+match_keyword :: fn(text Str) Token {
+    t := Token
 
     if text.len == 2 {
         if text.eq(Str.of("if")) { ret t.kw_if }
@@ -95,7 +95,7 @@ Lexer :: struct {
         fall()
     }
 
-    emit :: fn(self &Self, stream &TokenStream, kind TokenType, offset u64) {
+    emit :: fn(self &Self, stream &TokenStream, kind Token, offset u64) {
         len := (self.cursor - offset) as u32
         text := Str.new(self.source.ptr + offset, len as u64)
         stream.push(kind, offset as u32, len, text, self.had_newline)
@@ -173,7 +173,7 @@ is_oct_digit :: fn(c u8) bool {
                         break
                     }
                 }
-                self.emit(stream, token.lit_int, offset)
+                self.emit(stream, Token.lit_int, offset)
                 ret
             }
         }
@@ -249,8 +249,8 @@ is_oct_digit :: fn(c u8) bool {
             }
         }
 
-        kind := token.lit_int
-        if is_float { kind = token.lit_float }
+        kind := Token.lit_int
+        if is_float { kind = Token.lit_float }
         self.emit(stream, kind, offset)
     }
 
@@ -277,8 +277,8 @@ is_oct_digit :: fn(c u8) bool {
         }
         self.bump()
 
-        kind := token.lit_str
-        if is_c { kind = token.lit_cstr }
+        kind := Token.lit_str
+        if is_c { kind = Token.lit_cstr }
         self.emit(stream, kind, offset)
     }
 
@@ -298,7 +298,7 @@ is_oct_digit :: fn(c u8) bool {
         }
         self.bump()
 
-        self.emit(stream, token.lit_str, offset)
+        self.emit(stream, Token.lit_str, offset)
     }
 
     scan_char :: fn(self &Self, stream &TokenStream) {
@@ -330,7 +330,7 @@ is_oct_digit :: fn(c u8) bool {
         }
         self.bump()
 
-        self.emit(stream, token.lit_char, offset)
+        self.emit(stream, Token.lit_char, offset)
     }
 
     scan_identifier :: fn(self &Self, stream &TokenStream) {
@@ -343,8 +343,8 @@ is_oct_digit :: fn(c u8) bool {
         self.emit(stream, match_keyword(text), offset)
     }
 
-    scan_symbol :: fn(self &Self) TokenType {
-        t := token
+    scan_symbol :: fn(self &Self) Token {
+        t := Token
         c := self.current()
         self.bump()
 
@@ -456,11 +456,11 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
 
         offset := lexer.cursor
         kind := lexer.scan_symbol()
-        if kind == token.unknown {
+        if kind == Token.unknown {
             lexer.error(c"unknown character", offset)
         }
         lexer.emit(stream, kind, offset)
     }
 
-    stream.push(token.eof, lexer.cursor as u32, 0, Str.empty(), lexer.had_newline)
+    stream.push(Token.eof, lexer.cursor as u32, 0, Str.empty(), lexer.had_newline)
 }

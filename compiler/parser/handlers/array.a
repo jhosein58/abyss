@@ -1,4 +1,4 @@
-import token from "../../token"
+import Token from "../../token"
 import hir_kind, hir_none from "../../hir"
 import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at, lookup_sym from "../core"
 import span_merge from "../../nexus/nexus"
@@ -9,7 +9,7 @@ import Str from "std/string"
 import id_none from "../../nexus/pool"
 
 parse_array_type :: fn(p &Parser, min_bp u8) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_start := curr_span(p)
     bump(p)
@@ -53,7 +53,7 @@ parse_array_type :: fn(p &Parser, min_bp u8) u32 {
 }
 
 parse_array_lit :: fn(p &Parser) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_start := curr_span(p)
     bump(p)
@@ -83,7 +83,7 @@ parse_array_lit :: fn(p &Parser) u32 {
 }
 
 parse_index :: fn(p &Parser, lhs u32, right_bp u8) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_lhs := span_of_hir(p, lhs)
     idx := parse_expr(p, 0 as u8)

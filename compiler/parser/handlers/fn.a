@@ -1,4 +1,4 @@
-import token from "../../token"
+import Token from "../../token"
 import hir_kind, hir_none from "../../hir"
 import Parser, peek, bump, optional, expect, is_eof, peek_n, peek_preceded_by_newline, curr_span, prev_span, parse_error_at from "../core"
 import Span, span_merge from "../../nexus/nexus"
@@ -38,7 +38,7 @@ push_arg :: fn(p &Parser, args &Vec(u32), name u32, ty u32) {
 }
 
 parse_params :: fn(p &Parser) u32 {
-    t := token
+    t := Token
     k := hir_kind
     args := Vec(u32).new()
     pending_names := Vec(u32).new()
@@ -131,7 +131,7 @@ parse_params :: fn(p &Parser) u32 {
 }
 
 parse_fn :: fn(p &Parser, min_bp u8) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_start := curr_span(p)
     bump(p)
@@ -189,7 +189,7 @@ parse_fn :: fn(p &Parser, min_bp u8) u32 {
 }
 
 parse_paren :: fn(p &Parser) u32 {
-    t := token
+    t := Token
     sp_start := curr_span(p)
     bump(p)
     expr := parse_expr(p, 0 as u8)
@@ -199,7 +199,7 @@ parse_paren :: fn(p &Parser) u32 {
 }
 
 parse_call :: fn(p &Parser, lhs u32, right_bp u8) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_lhs := span_of_hir(p, lhs)
 

@@ -1,6 +1,6 @@
 import Nexus from "./nexus/nexus"
 
-import token, TokenStream from "./token"
+import Token, TokenStream from "./token"
 import lex from "./lexer"
 import index_file from "./indexer"
 import Parser_new, peek, curr_span, parse_error_at from "./parser/core"
@@ -73,7 +73,7 @@ Engine :: struct {
         )
 
         parse_expr(&parser, 0)
-        if peek(&parser) != token.eof {
+        if peek(&parser) != Token.eof {
             parse_error_at(&parser, c"unexpected token after declaration", curr_span(&parser))
         }
         parser.env.destroy()

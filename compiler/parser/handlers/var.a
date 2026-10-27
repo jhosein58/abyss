@@ -1,4 +1,4 @@
-import token from "../../token"
+import Token from "../../token"
 import hir_kind, hir_none from "../../hir"
 import Parser, optional, expect, lookup_sym, curr_span, parse_error_at from "../core"
 import prec from "../prec"
@@ -40,7 +40,7 @@ parse_binding :: fn(p &Parser, lhs u32, right_bp u8) u32 {
 }
 
 parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
-    t := token
+    t := Token
     k := hir_kind
 
     if p.hir.kind(lhs) != k.ident {
@@ -90,7 +90,7 @@ parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
 }
 
 parse_destructure :: fn(p &Parser) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_start := curr_span(p)
 

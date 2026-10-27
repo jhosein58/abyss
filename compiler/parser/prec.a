@@ -1,4 +1,4 @@
-import token, TokenType from "../token"
+import Token from "../token"
 
 Precedence :: struct {
     none       u8
@@ -62,8 +62,8 @@ bp_none :: fn() BindingPower {
     .{ left: 0, right: 0, is_some: false }
 }
 
-bp_from_infix :: fn(kind TokenType) BindingPower {
-    t := token
+bp_from_infix :: fn(kind Token) BindingPower {
+    t := Token
     pr := prec()
 
     if kind == t.colon       { ret bp_right(pr.var_def) }
@@ -99,8 +99,8 @@ bp_from_infix :: fn(kind TokenType) BindingPower {
     bp_none()
 }
 
-is_soft :: fn(kind TokenType) bool {
-    t := token
+is_soft :: fn(kind Token) bool {
+    t := Token
 
     if kind == t.plus or kind == t.slash or kind == t.percent { ret true }
     if kind == t.colon or kind == t.colon_colon { ret true }

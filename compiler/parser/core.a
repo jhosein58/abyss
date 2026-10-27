@@ -1,4 +1,4 @@
-import token, token_name, TokenType, TokenStream from "../token"
+import Token, TokenStream from "../token"
 import HirTable from "../hir"
 import Str from "std/string"
 import Nexus,
@@ -44,17 +44,17 @@ is_eof :: fn(p &Parser) bool {
     p.cursor >= p.end
 }
 
-peek :: fn(p &Parser) TokenType {
+peek :: fn(p &Parser) Token {
     if p.cursor >= p.end {
-        ret token.eof
+        ret Token.eof
     }
     p.tokens.kind(p.cursor)
 }
 
-peek_n :: fn(p &Parser, n u32) TokenType {
+peek_n :: fn(p &Parser, n u32) Token {
     target := (*p).cursor + n
     if target >= (*p).end {
-        ret token.eof
+        ret Token.eof
     }
     p.tokens.kind(target)
 }
@@ -67,7 +67,7 @@ bump :: fn(p &Parser) u32 {
     c
 }
 
-optional :: fn(p &Parser, kind TokenType) bool {
+optional :: fn(p &Parser, kind Token) bool {
     if peek(p) == kind {
         bump(p)
         ret true
@@ -128,7 +128,7 @@ parse_error_at :: fn(p &Parser, msg &u8, sp Span) {
     fall()
 }
 
-expect :: fn(p &Parser, kind TokenType) bool {
+expect :: fn(p &Parser, kind Token) bool {
     if peek(p) == kind {
         bump(p)
         ret true

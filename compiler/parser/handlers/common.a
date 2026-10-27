@@ -1,4 +1,4 @@
-import token, TokenType from "../../token"
+import Token from "../../token"
 import HirExprKind, hir_kind, hir_none from "../../hir"
 import Parser, peek, bump, optional, curr_span, parse_error_at, peek_preceded_by_newline from "../core"
 import Span, span_merge from "../../nexus/nexus"
@@ -21,10 +21,10 @@ add_list :: fn(p &Parser, v &Vec(u32)) u32 {
     p.db.add_list(slice)
 }
 
-check_separator :: fn(p &Parser, end TokenType, msg &u8) {
-    if optional(p, token.comma) { ret }
+check_separator :: fn(p &Parser, end Token, msg &u8) {
+    if optional(p, Token.comma) { ret }
     next := peek(p)
-    if (next != end) and (next != token.eof) and (not peek_preceded_by_newline(p)) {
+    if (next != end) and (next != Token.eof) and (not peek_preceded_by_newline(p)) {
         parse_error_at(p, msg, curr_span(p))
     }
 }
@@ -53,7 +53,7 @@ parse_method :: fn(p &Parser, name u32, methods &Vec(u32)) {
     set_span(p, method, span_merge(span_of_hir(p, name), span_of_hir(p, func)))
     p.db.set_hir_symbol(method, method_sym)
     methods.push(method)
-    check_separator(p, token.c_brace, c"expected ',' or newline after method")
+    check_separator(p, Token.c_brace, c"expected ',' or newline after method")
 }
 
 add_methods_id :: fn(p &Parser, methods &Vec(u32)) u32 {

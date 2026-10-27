@@ -9,7 +9,7 @@ import fall from "std/sys"
 import synth_type_node from "./var"
 import synth_func, func_has_self from "./fn"
 import specialize_nominal_method from "../specialize"
-import token, TokenStream from "../../token"
+import Token, TokenStream from "../../token"
 import lex from "../../lexer"
 import Parser_new, is_eof, peek from "../../parser/core"
 import parse_ident from "../../parser/handlers/ident"
@@ -167,7 +167,7 @@ synth_struct :: fn(eng &Engine, id u32) {
                     fid := db.get_hir_file(id)
                     sub_p := Parser_new(db, &tokens, tbl, fid, sym_id, 0, tok_count)
                     expanded_methods := Vec(u32).new()
-                    t := token
+                    t := Token
                     while (not is_eof(&sub_p)) and (peek(&sub_p) != t.eof) {
                         m_name := parse_ident(&sub_p)
                         if peek(&sub_p) == t.colon_colon {

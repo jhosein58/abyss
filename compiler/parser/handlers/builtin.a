@@ -1,4 +1,4 @@
-import token from "../../token"
+import Token from "../../token"
 import hir_kind, hir_none from "../../hir"
 import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at from "../core"
 import span_merge from "../../nexus/nexus"
@@ -7,7 +7,7 @@ import parse_ident from "./ident"
 import parse_expr from "../parser"
 
 parse_builtin :: fn(p &Parser) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_start := curr_span(p)
     bump(p)

@@ -1,4 +1,4 @@
-import token from "../../token"
+import Token from "../../token"
 import hir_kind, hir_none from "../../hir"
 import Parser, peek, bump, curr_text, curr_span, parse_error_at, lookup_sym from "../core"
 import id_none from "../../nexus/pool"
@@ -6,7 +6,7 @@ import set_span from "./common"
 
 parse_ident :: fn(p &Parser) u32 {
     k := hir_kind
-    t := token
+    t := Token
 
     if peek(p) != t.ident {
         parse_error_at(p, c"expected identifier", curr_span(p))

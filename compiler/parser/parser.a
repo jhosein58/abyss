@@ -1,4 +1,4 @@
-import token, TokenType from "../token"
+import Token from "../token"
 import Str from "std/string"
 import hir_kind, hir_none from "../hir"
 import id_none from "../nexus/pool"
@@ -44,7 +44,7 @@ parse_expr :: fn(p &Parser, min_bp u8) u32 {
 }
 
 is_destructure_start :: fn(p &Parser) bool {
-    t := token
+    t := Token
     c := p.cursor
     if p.tokens.kind(c) != t.ident { ret false }
     if c + 1 >= p.end { ret false }
@@ -71,7 +71,7 @@ is_destructure_start :: fn(p &Parser) bool {
 }
 
 dispatch_prefix :: fn(p &Parser, min_bp u8) u32 {
-    t := token
+    t := Token
     tk := peek(p)
 
     if tk == t.eof        { ret hir_none() }
@@ -135,7 +135,7 @@ parse_cmpt :: fn(p &Parser, min_bp u8) u32 {
 
 parse_splice :: fn(p &Parser, min_bp u8) u32 {
     k := hir_kind
-    t := token
+    t := Token
     sp_start := curr_span(p)
     bump(p)
 
@@ -163,8 +163,8 @@ parse_splice :: fn(p &Parser, min_bp u8) u32 {
     node
 }
 
-dispatch_infix :: fn(p &Parser, op TokenType, lhs u32, right_bp u8) u32 {
-    t := token
+dispatch_infix :: fn(p &Parser, op Token, lhs u32, right_bp u8) u32 {
+    t := Token
 
     if op == t.colon_colon { ret parse_binding(p, lhs, right_bp) }
     if op == t.colon       { ret parse_var_decl(p, lhs, right_bp) }

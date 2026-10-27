@@ -1,4 +1,4 @@
-import token from "../../token"
+import Token from "../../token"
 import hir_kind, hir_none from "../../hir"
 import Parser, bump, optional, peek, is_eof, expect, curr_span, prev_span, parse_error_at, peek_preceded_by_newline from "../core"
 import span_merge from "../../nexus/nexus"
@@ -10,7 +10,7 @@ import parse_ident from "./ident"
 import id_none from "../../nexus/pool"
 
 parse_if :: fn(p &Parser) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_start := curr_span(p)
     bump(p)
@@ -45,7 +45,7 @@ parse_while :: fn(p &Parser) u32 {
 }
 
 parse_for :: fn(p &Parser) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_start := curr_span(p)
     bump(p)
@@ -104,7 +104,7 @@ parse_for :: fn(p &Parser) u32 {
 
 parse_block :: fn(p &Parser) u32 {
     k := hir_kind
-    t := token
+    t := Token
 
     db := &p.db
     glob_stack := &db.glob_stack
@@ -151,7 +151,7 @@ parse_block :: fn(p &Parser) u32 {
 }
 
 parse_return :: fn(p &Parser) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_start := curr_span(p)
     sp_end := sp_start

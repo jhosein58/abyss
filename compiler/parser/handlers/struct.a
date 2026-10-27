@@ -1,4 +1,4 @@
-import token from "../../token"
+import Token from "../../token"
 import hir_kind, hir_none from "../../hir"
 import Parser, bump, optional, expect, peek, peek_n, is_eof, curr_span, prev_span, parse_error_at from "../core"
 import span_merge from "../../nexus/nexus"
@@ -10,7 +10,7 @@ import parse_expr from "../parser"
 import parse_u32 from "std/string"
 
 is_tuple_struct :: fn(p &Parser) bool {
-    t := token
+    t := Token
     scan := p.cursor
     if (scan >= p.end) or (p.tokens.kind(scan) == t.c_brace) { ret false }
     if p.tokens.kind(scan) != t.ident { ret true }
@@ -29,7 +29,7 @@ is_tuple_struct :: fn(p &Parser) bool {
 }
 
 parse_struct :: fn(p &Parser) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_start := curr_span(p)
     bump(p)
@@ -142,7 +142,7 @@ parse_struct :: fn(p &Parser) u32 {
 }
 
 parse_struct_init :: fn(p &Parser) u32 {
-    t := token
+    t := Token
     k := hir_kind
     sp_start := curr_span(p)
     bump(p)
