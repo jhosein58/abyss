@@ -1,4 +1,3 @@
-import write_str from "std/io"
 import Vec as List from "std/collections/vec"
 import Arena as EmbeddedArena from "std/allocator"
 import Fmt as EmbeddedFmt from "std/fmt"
@@ -12,35 +11,24 @@ Box :: fn(T type) type { struct { value T } }
 main :: fn() {
     inferred := Maybe().some(42 as u32)
     contextual: Maybe(u32) = Maybe().none()
-    print_u32(inferred.unwrap_or(contextual.unwrap_or(9)))
-    print(c"\n")
+    print(inferred.unwrap_or(contextual.unwrap_or(9)))
     some := Maybe(u32).some(42)
     none := Maybe(u32).none()
-    print_bool(some.is_some())
-    print(c"\n")
-    print_bool(none.is_none())
-    print(c"\n")
-    print_u32(some.unwrap_or(9))
-    print(c"\n")
-    print_u32(none.unwrap_or(9))
-    print(c"\n")
+    print(some.is_some())
+    print(none.is_none())
+    print(some.unwrap_or(9))
+    print(none.unwrap_or(9))
     yes := Maybe(bool).some(false)
     absent := Maybe(bool).none()
-    print_bool(yes.is_some())
-    print(c"\n")
-    print_bool(yes.unwrap_or(true))
-    print(c"\n")
-    print_bool(absent.unwrap_or(true))
-    print(c"\n")
+    print(yes.is_some())
+    print(yes.unwrap_or(true))
+    print(absent.unwrap_or(true))
     string := Maybe(Str).some(Str.of("embedded"))
-    write_str(string.unwrap_or(Str.empty()))
-    print(c"\n")
+    print(string.unwrap_or(Str.empty()))
     nested := Maybe(Maybe(u32)).some(some)
-    print_u32(nested.unwrap_or(none).unwrap_or(0))
-    print(c"\n")
+    print(nested.unwrap_or(none).unwrap_or(0))
     record := Maybe(Box(u32)).some(.{ value: 77 })
-    print_u32(record.unwrap_or(.{ value: 0 }).value)
-    print(c"\n")
+    print(record.unwrap_or(.{ value: 0 }).value)
     list := List(Maybe(u32)).new()
     i: u32 = 0
     while i < 1000 {
@@ -54,7 +42,6 @@ main :: fn() {
         total = total + list.get(j).unwrap_or(0)
         j = j + 1
     }
-    print_u32(total)
-    print(c"\n")
+    print(total)
     list.destroy()
 }

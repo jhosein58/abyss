@@ -3,14 +3,11 @@ import Env from "std/env"
 main :: fn() {
     val := Env.get_or(c"NONEXISTENT_ENV_KEY_12345", c"default_value")
     print(val)
-    print(c"\n")
 
     has_non := Env.has(c"NONEXISTENT_ENV_KEY_12345")
-    print_bool(has_non)
-    print_char(10 as u8)
+    print(has_non)
 
     argc := Env.args_len()
     has_args := argc >= 1
-    print_bool(has_args)
-    print_char(10 as u8)
+    print(has_args)
 }

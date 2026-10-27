@@ -134,9 +134,9 @@ main :: fn() {
     expect_name(&types, ty_id_unit(), "void")
     expect_name(&types, ty_id_bool(), "bool")
     expect_name(&types, types.alloc_infer(7), "Infer(7)")
-    types.print_type(array), print(c"\n")
-    types.print_type(func), print(c"\n")
-    types.print_type(structure), print(c"\n")
-    types.print_type(union), print(c"\n")
+    types.print_type(array), print("")
+    types.print_type(func), print("")
+    types.print_type(structure), print("")
+    types.print_type(union), print("")
     types.destroy()
 }

@@ -1,9 +1,8 @@
-import write_str from "std/io"
 import Vec as Buffer from "std/collections/vec"
 import Forwarded as OtherBuffer, Choice as Option, forwarded_value as renamed, text from "./modules/reexport"
 import Str as Text from "core/string"
 import Str as SameText from "std/string"
-import print_u32 as output_number from "std/prelude"
+import print as output_print from "std/prelude"
 import Vec as Buffer from "std/collections/vec"
 import Arena as Memory from "std/allocator"
 import String as Builder from "std/string"
@@ -11,31 +10,29 @@ import String as Builder from "std/string"
 Vec :: fn() u32 { 5 }
 value :: fn() u32 { 6 }
 
+output_number :: fn(n u32) {
+    output_print(n)
+}
+
 main :: fn() {
     first := Buffer(u32).new()
     second := OtherBuffer(u32).new()
     first.push(renamed())
     second.push(Vec() + value())
     output_number(first.get(0))
-    print(c"\n")
-    print_u32(second.get(0))
-    print(c"\n")
+    output_number(second.get(0))
     present := Option(u32).some(first.get(0))
-    print_u32(present.unwrap_or(99))
-    print(c"\n")
+    output_number(present.unwrap_or(99))
     s: Text = text()
     same: SameText = s
-    write_str(same)
-    print(c"\n")
+    output_print(same)
     arena := Memory.new(4096)
     builder := Builder.new(&arena)
     builder.push_str(s)
     builder.push_char('!')
-    write_str(builder.as_str())
-    print(c"\n")
+    output_print(builder.as_str())
     callback := output_number
     callback(7)
-    print(c"\n")
     first.destroy()
     second.destroy()
 }
