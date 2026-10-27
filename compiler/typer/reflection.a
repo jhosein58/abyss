@@ -11,14 +11,10 @@ import Str, String from "std/string"
 import Convert from "std/convert"
 import fall from "std/sys"
 
-print_cstr :: fn(s &u8)
-
 reflection_error :: fn(db &Nexus, id u32, message &u8) {
-    print_cstr(c"\n[type error] ")
-    print_cstr(message)
-    print_cstr(c"\n       --> ")
+    printf("\n[type error] {}\n       --> ", .{message})
     db.print_loc(id)
-    print_cstr(c"\n")
+    print("")
     fall()
 }
 

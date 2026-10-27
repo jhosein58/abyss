@@ -10,8 +10,6 @@ import parse_builtin_type, check_value from "./common"
 import synth_node from "../tyck"
 import eval_const from "../../lower"
 
-print_cstr :: fn(s &u8)
-
 synth_ident :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
@@ -30,9 +28,9 @@ synth_ident :: fn(eng &Engine, id u32) {
     if (owner != hir_none()) and name.eq(Str.of("Self")) {
         self_ty := db.get_const_type(owner)
         if (types_ptr.kind(self_ty) != TyKind.nominal) and (types_ptr.kind(self_ty) != TyKind.enum_) {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m Self requires a named struct or enum method\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m Self requires a named struct or enum method\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         db.unify.bind_type(&db.types, slot, ty_id_type())
@@ -204,9 +202,9 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
             }
         }
         if type_value == ty_id_none() {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m declaration annotation is not a resolved type\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m declaration annotation is not a resolved type\n       --> ", .{})
             db.print_loc(type_id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         (&(*db).unify).bind_type(&(*db).types, ident_slot, type_value)
@@ -223,9 +221,9 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
             structural := db.get_const_type(actual_val)
             kind := types_ptr.kind(structural)
             if (kind != TyKind.struct_) and (kind != TyKind.nominal) {
-                print_cstr(c"\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> ")
+                printf("\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> ", .{})
                 db.print_loc(actual_val)
-                print_cstr(c"\n")
+                print("")
                 fall()
             }
             named := structural
@@ -261,9 +259,9 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
                     }
                 }
                 if type_val == ty_id_none() {
-                    print_cstr(c"\n\033[1;31m[type error]\033[0m type value cannot be resolved\n       --> ")
+                    printf("\n\033[1;31m[type error]\033[0m type value cannot be resolved\n       --> ", .{})
                     db.print_loc(value_id)
-                    print_cstr(c"\n")
+                    print("")
                     fall()
                 }
                 db.set_const_type(ident_id, type_val)
@@ -358,9 +356,9 @@ synth_destructure :: fn(eng &Engine, id u32) {
     }
 
     if (*types_ptr).kind(t) != TyKind.struct_ {
-        print_cstr(c"\n\033[1;31m[type error]\033[0m expected tuple on right-hand side of destructuring\n       --> ")
+        printf("\n\033[1;31m[type error]\033[0m expected tuple on right-hand side of destructuring\n       --> ", .{})
         db.print_loc(rhs_node)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
 
@@ -371,9 +369,9 @@ synth_destructure :: fn(eng &Engine, id u32) {
     idents := db.get_list(idents_list)
 
     if idents.len != field_count {
-        print_cstr(c"\n\033[1;31m[type error]\033[0m mismatched number of elements in tuple destructuring\n       --> ")
+        printf("\n\033[1;31m[type error]\033[0m mismatched number of elements in tuple destructuring\n       --> ", .{})
         db.print_loc(id)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
 

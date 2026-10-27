@@ -18,8 +18,6 @@ import reflection_read from "../reflection"
 import unescape_splice_str from "./common"
 import eval_const from "../../lower"
 
-print_cstr :: fn(s &u8)
-
 synth_enum :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
@@ -43,9 +41,9 @@ synth_enum :: fn(eng &Engine, id u32) {
     if backing_node != hir_none() {
         backing_ty = synth_type_node(eng, backing_node)
         if backing_ty == ty_id_none() {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m enum backing type is invalid\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m enum backing type is invalid\n       --> ", .{})
             db.print_loc(backing_node)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
     } else {

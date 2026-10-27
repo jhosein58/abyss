@@ -11,14 +11,10 @@ import fall from "std/sys"
 import synth_node from "../tyck"
 import eval_const from "../../lower"
 
-print_cstr :: fn(s &u8)
-
 match_error :: fn(db &Nexus, msg &u8, id u32) {
-    print_cstr(c"\n\033[1;31m[type error]\033[0m ")
-    print_cstr(msg)
-    print_cstr(c"\n       --> ")
+    printf("\n\033[1;31m[type error]\033[0m {}\n       --> ", .{msg})
     db.print_loc(id)
-    print_cstr(c"\n")
+    print("")
     fall()
 }
 

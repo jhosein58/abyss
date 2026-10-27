@@ -1,4 +1,3 @@
-import write_str from "std/io"
 import synth_reflection_builtin from "../reflection"
 import Engine from "../../engine"
 import Nexus from "../../nexus/nexus"
@@ -9,8 +8,6 @@ import fall from "std/sys"
 import synth_node from "../tyck"
 import synth_type_node from "./var"
 import Str from "std/string"
-
-print_cstr :: fn(s &u8)
 
 synth_builtin_call :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
@@ -32,17 +29,17 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
 
     if name.eq(Str.of("sizeof")) {
         if args.len != 1 {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m @sizeof expects exactly 1 argument\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m @sizeof expects exactly 1 argument\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         arg_node := *(args.ptr + 0)
         target_ty := synth_type_node(eng, arg_node)
         if target_ty == ty_id_none() {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m @sizeof argument must be a type\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m @sizeof argument must be a type\n       --> ", .{})
             db.print_loc(arg_node)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         u64_ty := (&(*types_ptr)).alloc_uint(64)
@@ -54,9 +51,9 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
 
     if name.eq(Str.of("typeof")) {
         if args.len != 1 {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m @typeof expects exactly 1 argument\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m @typeof expects exactly 1 argument\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         arg_node := *(args.ptr + 0)
@@ -70,9 +67,9 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
             arg_ty = db.get_const_type(arg_node)
         }
         if arg_ty == ty_id_none() {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m cannot determine type for @typeof\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m cannot determine type for @typeof\n       --> ", .{})
             db.print_loc(arg_node)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
@@ -83,9 +80,9 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
 
     if name.eq(Str.of("is")) {
         if args.len != 2 {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m @is expects exactly 2 arguments (val, Type)\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m @is expects exactly 2 arguments (val, Type)\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         val_node := *(args.ptr + 0)
@@ -93,9 +90,9 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
         synth_node(eng, val_node)
         target_ty := synth_type_node(eng, ty_node)
         if target_ty == ty_id_none() {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m second argument to @is must be a type\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m second argument to @is must be a type\n       --> ", .{})
             db.print_loc(ty_node)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
@@ -105,9 +102,9 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
 
     if name.eq(Str.of("tag")) {
         if args.len != 1 {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m @tag expects exactly 1 argument\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m @tag expects exactly 1 argument\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         val_node := *(args.ptr + 0)
@@ -117,10 +114,8 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
         ret
     }
 
-    print_cstr(c"\n\033[1;31m[type error]\033[0m unknown builtin function '@")
-    write_str(name)
-    print_cstr(c"'\n       --> ")
+    printf("\n\033[1;31m[type error]\033[0m unknown builtin function '@{}'\n       --> ", .{name})
     db.print_loc(id)
-    print_cstr(c"\n")
+    print("")
     fall()
 }

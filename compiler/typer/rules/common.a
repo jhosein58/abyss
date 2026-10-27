@@ -1,4 +1,3 @@
-import write_str from "std/io"
 import malloc from "std/allocator"
 import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../../hir"
@@ -6,8 +5,6 @@ import Str from "std/string"
 import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_bool from "../../types"
 import UnifyStorage, slot_none from "../../unify"
 import fall from "std/sys"
-
-print_cstr :: fn(s &u8)
 
 parse_builtin_type :: fn(types &TypeStorage, name Str) u32 {
     if name.eq(Str.of("bool")) { ret TypeStorage.alloc_bool() }
@@ -164,21 +161,21 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         }
 
         if match_count > 1 {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m ambiguous coercion into union '")
+            printf("\n\033[1;31m[type error]\033[0m ambiguous coercion into union '", .{})
             types.print_type(expected)
-            print_cstr(c"'\n       --> ")
+            printf("'\n       --> ", .{})
             db.print_loc(expr)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
 
-        print_cstr(c"\n\033[1;31m[type error]\033[0m type '")
+        printf("\n\033[1;31m[type error]\033[0m type '", .{})
         types.print_type(val_ty)
-        print_cstr(c"' is not a member of union '")
+        printf("' is not a member of union '", .{})
         types.print_type(expected)
-        print_cstr(c"'\n       --> ")
+        printf("'\n       --> ", .{})
         db.print_loc(expr)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
 
@@ -188,11 +185,11 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         names := db.get_list(tbl.lhs(expr))
         values := db.get_list(tbl.rhs(expr))
         if (names.len != target.len / 2) or (values.len != names.len) {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m struct literal has wrong number of fields for '")
+            printf("\n\033[1;31m[type error]\033[0m struct literal has wrong number of fields for '", .{})
             types.print_type(expected)
-            print_cstr(c"'\n       --> ")
+            printf("'\n       --> ", .{})
             db.print_loc(expr)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
 
@@ -210,13 +207,11 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
                 j = j + 1
             }
             if field_ty == ty_id_none() {
-                print_cstr(c"\n\033[1;31m[type error]\033[0m unexpected field '")
-                write_str(db.interner.get(name_id))
-                print_cstr(c"' in struct literal for '")
+                printf("\n\033[1;31m[type error]\033[0m unexpected field '{}' in struct literal for '", .{db.interner.get(name_id)})
                 types.print_type(expected)
-                print_cstr(c"'\n       --> ")
+                printf("'\n       --> ", .{})
                 db.print_loc(*(names.ptr + i))
-                print_cstr(c"\n")
+                print("")
                 fall()
             }
             check_value(db, *(values.ptr + i), field_ty)
@@ -274,13 +269,11 @@ check_bool_operand :: fn(db &Nexus, id u32, desc &u8) {
     if slot != slot_none() {
         ty := db.unify.resolve_type_deep(&db.types, slot)
         if (ty != ty_id_none()) and (ty != ty_id_bool()) {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m ")
-            print_cstr(desc)
-            print_cstr(c" must be bool, got '")
+            printf("\n\033[1;31m[type error]\033[0m {} must be bool, got '", .{desc})
             db.types.print_type(ty)
-            print_cstr(c"'\n       --> ")
+            printf("'\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         db.unify.bind_type(&db.types, slot, ty_id_bool())

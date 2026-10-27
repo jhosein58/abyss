@@ -10,8 +10,6 @@ import synth_type_node from "./var"
 import resolve_ty_id from "../specialize"
 import eval_const from "../../lower"
 
-print_cstr :: fn(s &u8)
-
 synth_unary_num :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := db.unify.new_slot(id)
     child := tbl.lhs(id)
@@ -31,9 +29,9 @@ synth_unary_num :: fn(db &Nexus, tbl &HirTable, id u32) {
             ret
         }
     }
-    print_cstr(c"\n[type error] invalid unary operand\n       --> ")
+    printf("\n[type error] invalid unary operand\n       --> ", .{})
     db.print_loc(id)
-    print_cstr(c"\n")
+    print("")
     fall()
 }
 
@@ -98,9 +96,9 @@ synth_unary_deref :: fn(db &Nexus, tbl &HirTable, id u32) {
             u8_ty := db.types.alloc_uint(8 as u16)
             db.unify.bind_type(&db.types, slot, u8_ty)
         } else {
-            print_cstr(c"\n[type error] cannot dereference non-pointer\n       --> ")
+            printf("\n[type error] cannot dereference non-pointer\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
     }
@@ -161,14 +159,14 @@ synth_binary :: fn(db &Nexus, tbl &HirTable, id u32) {
             }
         }
 
-        print_cstr(c"\n[type error] invalid arithmetic operands\n       --> ")
+        printf("\n[type error] invalid arithmetic operands\n       --> ", .{})
         db.print_loc(id)
-        print_cstr(c"\n")
+        print("")
         fall()
     } else {
-        print_cstr(c"\n[type error] missing arithmetic operand\n       --> ")
+        printf("\n[type error] missing arithmetic operand\n       --> ", .{})
         db.print_loc(id)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
 }
@@ -183,16 +181,16 @@ synth_assign :: fn(db &Nexus, tbl &HirTable, id u32) {
         if sym != id_none() {
             real_sym := db.resolve_sym(sym)
             if db.is_sym_const(real_sym) {
-                print_cstr(c"\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ")
+                printf("\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ", .{})
                 db.print_loc(id)
-                print_cstr(c"\n")
+                print("")
                 fall()
             }
         }
     } else if db.is_const(lhs) {
-        print_cstr(c"\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ")
+        printf("\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ", .{})
         db.print_loc(id)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
 
@@ -237,15 +235,15 @@ synth_binary_comp :: fn(db &Nexus, tbl &HirTable, id u32) {
             }
         }
         if not valid {
-            print_cstr(c"\n[type error] invalid comparison operands\n       --> ")
+            printf("\n[type error] invalid comparison operands\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
     } else {
-        print_cstr(c"\n[type error] invalid comparison operands\n       --> ")
+        printf("\n[type error] invalid comparison operands\n       --> ", .{})
         db.print_loc(id)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
     db.unify.bind_type(&db.types, slot, ty_id_bool())
@@ -301,9 +299,9 @@ synth_cast :: fn(eng &Engine, id u32) {
                 db.unify.bind_type(&db.types, slot, rhs_type)
                 ret
             }
-            print_cstr(c"\n[type error] union does not contain target type in cast\n       --> ")
+            printf("\n[type error] union does not contain target type in cast\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         if (src == TyKind.enum_) or (dst == TyKind.enum_) {
@@ -317,16 +315,16 @@ synth_cast :: fn(eng &Engine, id u32) {
         if not ((src_num and dst_num) or ((src == TyKind.ptr) and (dst == TyKind.ptr)) or
                 (src_int and (dst == TyKind.ptr)) or ((src == TyKind.ptr) and dst_int) or
                 ((src == TyKind.ptr) and (dst == TyKind.bool))) {
-            print_cstr(c"\n[type error] invalid cast\n       --> ")
+            printf("\n[type error] invalid cast\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         db.unify.bind_type(&db.types, slot, rhs_type)
     } else {
-        print_cstr(c"\n[type error] cast target is not a type\n       --> ")
+        printf("\n[type error] cast target is not a type\n       --> ", .{})
         db.print_loc(id)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
 }

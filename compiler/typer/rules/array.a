@@ -10,8 +10,6 @@ import synth_type_node from "./var"
 import id_none from "../../nexus/pool"
 import fall from "std/sys"
 
-print_cstr :: fn(s &u8)
-
 synth_array_type_node :: fn(eng &Engine, id u32) u32 {
     db := &(*eng).nexus
     tbl := &(*db).hir
@@ -22,9 +20,9 @@ synth_array_type_node :: fn(eng &Engine, id u32) u32 {
     elem_node := tbl.rhs(id)
     elem_ty := synth_type_node(eng, elem_node)
     if elem_ty == ty_id_none() {
-        print_cstr(c"\n[type error] invalid array element type\n       --> ")
+        printf("\n[type error] invalid array element type\n       --> ", .{})
         db.print_loc(elem_node)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
 
@@ -43,9 +41,9 @@ synth_array_type_node :: fn(eng &Engine, id u32) u32 {
                 }
             }
         }
-        print_cstr(c"\n[type error] array length must be a constant integer > 0\n       --> ")
+        printf("\n[type error] array length must be a constant integer > 0\n       --> ", .{})
         db.print_loc(len_node)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
 
@@ -114,9 +112,9 @@ synth_index :: fn(eng &Engine, id u32) {
     idx_ty := unify_ptr.resolve_type(idx_slot)
     idx_k := types_ptr.kind(idx_ty)
     if (idx_k != TyKind.int) and (idx_k != TyKind.uint) and (idx_k != TyKind.untyped_int) and (idx_k != TyKind.infer) {
-        print_cstr(c"\n[type error] array index must be an integer\n       --> ")
+        printf("\n[type error] array index must be an integer\n       --> ", .{})
         db.print_loc(idx)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
     if (idx_k == TyKind.untyped_int) or (idx_k == TyKind.infer) {
@@ -138,9 +136,9 @@ synth_index :: fn(eng &Engine, id u32) {
         if db.has_const_val(idx) or (tbl.kind(idx) == hir_kind.lit_int) {
             idx_val := eval_const(db, idx)
             if idx_val >= (arr_len as u64) {
-                print_cstr(c"\n[type error] array index out of bounds\n       --> ")
+                printf("\n[type error] array index out of bounds\n       --> ", .{})
                 db.print_loc(idx)
-                print_cstr(c"\n")
+                print("")
                 fall()
             }
         }
@@ -192,8 +190,8 @@ synth_index :: fn(eng &Engine, id u32) {
         }
     }
 
-    print_cstr(c"\n[type error] cannot index non-array type\n       --> ")
+    printf("\n[type error] cannot index non-array type\n       --> ", .{})
     db.print_loc(lhs)
-    print_cstr(c"\n")
+    print("")
     fall()
 }

@@ -9,8 +9,6 @@ import fall from "std/sys"
 import synth_type_node from "./rules/var"
 import type_check from "./tyck"
 
-print_cstr :: fn(s &u8)
-
 specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args &Vec(u32)) u32 {
     db := &(*eng).nexus
     tbl := &(*db).hir
@@ -22,9 +20,9 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
     func_node := db.get_fn_node(callee_sym)
     if func_node == id_none() { ret ty_id_none() }
     if (*db).type_specialization_depth >= 128 {
-        print_cstr(c"\n[type error] generic type specialization exceeded recursion limit\n       --> ")
+        printf("\n[type error] generic type specialization exceeded recursion limit\n       --> ", .{})
         db.print_loc(func_node)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
     (*db).type_specialization_depth = (*db).type_specialization_depth + 1
@@ -147,9 +145,9 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
             chk_i: u64 = 0
             while chk_i < fields_vec.len {
                 if fields_vec.get(chk_i) == f_name_id {
-                    print_cstr(c"\n\033[1;31m[type error]\033[0m duplicate field name\n       --> ")
+                    printf("\n\033[1;31m[type error]\033[0m duplicate field name\n       --> ", .{})
                     db.print_loc(f_name_node)
-                    print_cstr(c"\n")
+                    print("")
                     fall()
                 }
                 chk_i = chk_i + 2
@@ -158,9 +156,9 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
             f_ty_node := *(types_nodes.ptr + f_i)
             f_ty := eval_type_expr(eng, f_ty_node)
             if (f_ty == ty_id_none()) or (f_ty == ty_id_unit()) or (f_ty == ty_id_type()) {
-                print_cstr(c"\n[type error] generic struct field requires a runtime value type\n       --> ")
+                printf("\n[type error] generic struct field requires a runtime value type\n       --> ", .{})
                 db.print_loc(f_ty_node)
-                print_cstr(c"\n")
+                print("")
                 fall()
             }
             fields_vec.push(f_name_id)

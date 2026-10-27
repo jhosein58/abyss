@@ -1,4 +1,3 @@
-import write_str from "std/io"
 import Str from "std/string"
 import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../../hir"
@@ -19,8 +18,6 @@ import reflection_read from "../reflection"
 import eval_const from "../../lower"
 import synth_node, type_check from "../tyck"
 import unescape_splice_str from "./common"
-
-print_cstr :: fn(s &u8)
 
 synth_struct :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
@@ -48,9 +45,9 @@ synth_struct :: fn(eng &Engine, id u32) {
         j: u64 = 0
         while j < fields_vec.len {
             if fields_vec.get(j) == name_id {
-                print_cstr(c"\n\033[1;31m[type error]\033[0m duplicate field name\n       --> ")
+                printf("\n\033[1;31m[type error]\033[0m duplicate field name\n       --> ", .{})
                 db.print_loc(name_node)
-                print_cstr(c"\n")
+                print("")
                 fall()
             }
             j = j + 2
@@ -61,9 +58,9 @@ synth_struct :: fn(eng &Engine, id u32) {
             ty_val = synth_type_node(eng, type_node)
         }
         if ty_val == ty_id_none() {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m struct field requires a resolved type\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m struct field requires a resolved type\n       --> ", .{})
             db.print_loc(type_node)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
 
@@ -126,9 +123,9 @@ synth_struct :: fn(eng &Engine, id u32) {
     methods_id := (tbl).extra(id)
     if methods_id != hir_none() {
         if sym_id == id_none() {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m methods require a named struct binding\n       --> ")
+            printf("\n\033[1;31m[type error]\033[0m methods require a named struct binding\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
         }
         final_methods := Vec(u32).new()
@@ -251,9 +248,9 @@ synth_struct_init :: fn(db &Nexus, tbl &HirTable, id u32) {
         j: u64 = 0
         while j < fields_vec.len {
             if fields_vec.get(j) == name_id {
-                print_cstr(c"\n\033[1;31m[type error]\033[0m duplicate field name\n       --> ")
+                printf("\n\033[1;31m[type error]\033[0m duplicate field name\n       --> ", .{})
                 db.print_loc(f_node)
-                print_cstr(c"\n")
+                print("")
                 fall()
             }
             j = j + 2
@@ -296,9 +293,9 @@ synth_member :: fn(eng &Engine, id u32) {
     deref_depth: u32 = 0
     lhs_slot := (unify_ptr).get_slot(lhs_id)
     if lhs_slot == slot_none() {
-        print_cstr(c"\n\033[1;31m[type error]\033[0m cannot resolve member receiver\n       --> ")
+        printf("\n\033[1;31m[type error]\033[0m cannot resolve member receiver\n       --> ", .{})
         db.print_loc(lhs_id)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
     lhs_ty = (unify_ptr).resolve_type_deep(types_ptr, lhs_slot)
@@ -315,11 +312,11 @@ synth_member :: fn(eng &Engine, id u32) {
 
     kind := types_ptr.kind(lhs_ty)
     if (kind != TyKind.struct_) and (kind != TyKind.nominal) and (kind != TyKind.enum_) {
-        print_cstr(c"\n\033[1;31m[type error]\033[0m member receiver must be a struct or enum, got '")
+        printf("\n\033[1;31m[type error]\033[0m member receiver must be a struct or enum, got '", .{})
         types_ptr.print_type(lhs_ty)
-        print_cstr(c"'\n       --> ")
+        printf("'\n       --> ", .{})
         db.print_loc(id)
-        print_cstr(c"\n")
+        print("")
         fall()
     }
 
@@ -380,15 +377,15 @@ synth_member :: fn(eng &Engine, id u32) {
                     func_node := (tbl).extra(method)
                     receiver := func_has_self(db, func_node)
                     if is_type and receiver {
-                        print_cstr(c"\n\033[1;31m[type error]\033[0m instance method requires a value; call it on an instance\n       --> ")
+                        printf("\n\033[1;31m[type error]\033[0m instance method requires a value; call it on an instance\n       --> ", .{})
                         db.print_loc(id)
-                        print_cstr(c"\n")
+                        print("")
                         fall()
                     }
                     if (not is_type) and (not receiver) {
-                        print_cstr(c"\n\033[1;31m[type error]\033[0m static method requires the type\n       --> ")
+                        printf("\n\033[1;31m[type error]\033[0m static method requires the type\n       --> ", .{})
                         db.print_loc(id)
-                        print_cstr(c"\n")
+                        print("")
                         fall()
                     }
                     creator_sym := (&(*types_ptr)).get_nominal_creator_sym(origin)
@@ -421,12 +418,10 @@ synth_member :: fn(eng &Engine, id u32) {
         }
     }
 
-    print_cstr(c"\n\033[1;31m[type error]\033[0m type '")
+    printf("\n\033[1;31m[type error]\033[0m type '", .{})
     (&(*types_ptr)).print_type(lhs_ty)
-    print_cstr(c"' has no field or method named '")
-    write_str(db.interner.get(name_id))
-    print_cstr(c"'\n       --> ")
+    printf("' has no field or method named '{}'\n       --> ", .{db.interner.get(name_id)})
     db.print_loc(id)
-    print_cstr(c"\n")
+    print("")
     fall()
 }
