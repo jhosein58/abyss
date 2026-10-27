@@ -80,60 +80,6 @@ Token :: enum u8 {
     kw_enum        -- enum
     at             -- @
     lit_cstr       -- c"..."
-
-    name :: fn(self Self) Str {
-        match self {
-            eof { "eof" }
-            ident { "ident" }
-            lit_int { "lit_int" }
-            lit_float { "lit_float" }
-            lit_str { "lit_str" }
-            lit_char { "lit_char" }
-            lit_cstr { "lit_cstr" }
-            kw_ret { "kw_ret" }
-            kw_if { "kw_if" }
-            kw_else { "kw_else" }
-            kw_while { "kw_while" }
-            kw_break { "kw_break" }
-            kw_cont { "kw_cont" }
-            kw_struct { "kw_struct" }
-            kw_enum { "kw_enum" }
-            kw_fn { "kw_fn" }
-            kw_match { "kw_match" }
-            kw_in { "kw_in" }
-            kw_for { "kw_for" }
-            kw_cmpt { "kw_cmpt" }
-            at { "@" }
-            kw_import { "kw_import" }
-            kw_from { "kw_from" }
-            kw_true { "kw_true" }
-            kw_false { "kw_false" }
-            kw_as { "kw_as" }
-            kw_and { "kw_and" }
-            kw_or { "kw_or" }
-            kw_not { "kw_not" }
-            plus { "+" }
-            minus { "-" }
-            star { "*" }
-            slash { "/" }
-            eq { "=" }
-            eq_eq { "==" }
-            bang_eq { "!=" }
-            amp { "&" }
-            colon { ":" }
-            colon_colon { "::" }
-            comma { "," }
-            semi { ";" }
-            dot { "." }
-            o_paren { "(" }
-            c_paren { ")" }
-            o_brace { "{" }
-            c_brace { "}" }
-            o_bracket { "[" }
-            c_bracket { "]" }
-            else { "Unknown" }
-        }
-    }
 }
 
 TokenStream :: struct {
