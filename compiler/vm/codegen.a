@@ -305,6 +305,33 @@ VmCodeGen :: struct {
         slot
     }
 
+    alloc_heap_temp :: fn(self &Self, size u64) u32 {
+        slot := self.alloc_temp()
+        c_sz := self.chunk.alloc_const(size)
+        self.chunk.inst(OpCode.push_const)
+        self.chunk.emit_u16(c_sz)
+        self.chunk.inst(OpCode.call_extern)
+        self.chunk.emit_u16(6)
+        self.chunk.emit_u8(1)
+        self.chunk.inst(OpCode.store_local)
+        self.chunk.emit_u16(slot as u16)
+        slot
+    }
+
+    emit_memcpy :: fn(self &Self, dst_slot u32, src_slot u32, size u64) {
+        self.chunk.inst(OpCode.load_local)
+        self.chunk.emit_u16(dst_slot as u16)
+        self.chunk.inst(OpCode.load_local)
+        self.chunk.emit_u16(src_slot as u16)
+        c_sz := self.chunk.alloc_const(size)
+        self.chunk.inst(OpCode.push_const)
+        self.chunk.emit_u16(c_sz)
+        self.chunk.inst(OpCode.call_extern)
+        self.chunk.emit_u16(8)
+        self.chunk.emit_u8(3)
+        self.chunk.inst(OpCode.pop)
+    }
+
     ensure_on_stack :: fn(self &Self, val VmVal) {
         if val.kind == VmValKind.stack {
             ret
@@ -455,10 +482,7 @@ VmCodeGen :: struct {
             allocation_size: u64 = 0
             ty_id := ty.raw as u32
             if (self.types != (0 as &TypeStorage)) and (ty_id != 0) {
-                t := ty_id
-                while self.types.kind(t) == TyKind.nominal {
-                    t = self.types.nominal_base(t)
-                }
+                t := self.unwrap_nominal(ty_id)
                 if self.types.kind(t) == TyKind.struct_ {
                     allocation_size = self.struct_alloc_size(ty_id)
                 } else if self.types.kind(t) == TyKind.array {
@@ -472,13 +496,11 @@ VmCodeGen :: struct {
                 self.chunk.inst(OpCode.call_extern)
                 self.chunk.emit_u16(6)
                 self.chunk.emit_u8(1)
-                self.chunk.inst(OpCode.store_local)
-                self.chunk.emit_u16(slot as u16)
             } else {
                 self.chunk.inst(OpCode.push_0)
-                self.chunk.inst(OpCode.store_local)
-                self.chunk.emit_u16(slot as u16)
             }
+            self.chunk.inst(OpCode.store_local)
+            self.chunk.emit_u16(slot as u16)
         }
     }
 
@@ -782,53 +804,19 @@ VmCodeGen :: struct {
             src = src + 1
         }
         *(buf + dst) = 0 as u8
-        VmVal.const_int(buf as u64)
-    }
-
-    cstr_lit_len :: fn(raw Str) u64 {
-        start: u64 = 1
-        if *(raw.ptr) == 'c' { start = 2 }
-        end := raw.len - 1
-        dst: u64 = 0
-        src := start
-        is_backtick := *(raw.ptr) == 96
-        while src < end {
-            ch := *(raw.ptr + src)
-            if (ch == '\\') and (src + 1 < end) {
-                next := *(raw.ptr + src + 1)
-                if (next == 96) and is_backtick {
-                    src = src + 2
-                    dst = dst + 1
-                    cont
-                } else if not is_backtick {
-                    src = src + 1
-                }
-            }
-            dst = dst + 1
-            src = src + 1
-        }
-        dst
+        .{ kind: VmValKind.const_int, elem_size: 0, id: dst as u32, raw: buf as u64 }
     }
 
     expr_str_lit :: fn(self &Self, arena &Arena, struct_name VmVal, ptr_id u32, len_id u32, raw Str) VmVal {
         cstr_val := self.expr_cstr_lit(arena, raw)
         cstr_ptr := cstr_val.raw
-        str_len := Self.cstr_lit_len(raw)
+        str_len := cstr_val.id as u64
 
         struct_ty := struct_name.raw as u32
         ptr_offset := self.find_struct_field_offset(struct_ty, ptr_id)
         len_offset := self.find_struct_field_offset(struct_ty, len_id)
 
-        temp_buf := self.alloc_temp()
-
-        c_size := self.chunk.alloc_const(16)
-        self.chunk.inst(OpCode.push_const)
-        self.chunk.emit_u16(c_size)
-        self.chunk.inst(OpCode.call_extern)
-        self.chunk.emit_u16(6)
-        self.chunk.emit_u8(1)
-        self.chunk.inst(OpCode.store_local)
-        self.chunk.emit_u16(temp_buf as u16)
+        temp_buf := self.alloc_heap_temp(16)
 
         c_ptr := self.chunk.alloc_const(cstr_ptr)
         self.chunk.inst(OpCode.push_const)
@@ -861,26 +849,25 @@ VmCodeGen :: struct {
         VmVal.stack()
     }
 
-    is_struct_type :: fn(self &Self, ty_id u32) bool {
-        if (self.types == (0 as &TypeStorage)) or (ty_id == 0) { ret false }
-        t := ty_id
-        while self.types.kind(t) == TyKind.nominal {
+    unwrap_nominal :: fn(self &Self, ty u32) u32 {
+        t := ty
+        while (t != 0) and (self.types.kind(t) == TyKind.nominal) {
             t = self.types.nominal_base(t)
         }
-        k := self.types.kind(t)
+        t
+    }
+
+    is_struct_type :: fn(self &Self, ty_id u32) bool {
+        if (self.types == (0 as &TypeStorage)) or (ty_id == 0) { ret false }
+        k := self.types.kind(self.unwrap_nominal(ty_id))
         (k == TyKind.struct_) or (k == TyKind.array)
     }
 
     struct_alloc_size :: fn(self &Self, ty_id u32) u64 {
         if (self.types == (0 as &TypeStorage)) or (ty_id == 0) { ret 8 }
-        t := ty_id
-        while self.types.kind(t) == TyKind.nominal {
-            t = self.types.nominal_base(t)
-        }
+        t := self.unwrap_nominal(ty_id)
         k := self.types.kind(t)
-        if k == TyKind.array {
-            ret type_size(self.types, t)
-        }
+        if k == TyKind.array { ret type_size(self.types, t) }
         if k != TyKind.struct_ { ret 8 }
         fields := self.types.get_struct_fields(t)
         sz := (fields.len / 2) * 8
@@ -1109,27 +1096,10 @@ VmCodeGen :: struct {
             sz := self.struct_alloc_size(ty_id)
             self.ensure_on_stack(value)
             temp_src := self.alloc_temp()
-            temp_dst := self.alloc_temp()
             self.chunk.inst(OpCode.store_local)
             self.chunk.emit_u16(temp_src as u16)
-            c_sz := self.chunk.alloc_const(sz)
-            self.chunk.inst(OpCode.push_const)
-            self.chunk.emit_u16(c_sz)
-            self.chunk.inst(OpCode.call_extern)
-            self.chunk.emit_u16(6)
-            self.chunk.emit_u8(1)
-            self.chunk.inst(OpCode.store_local)
-            self.chunk.emit_u16(temp_dst as u16)
-            self.chunk.inst(OpCode.load_local)
-            self.chunk.emit_u16(temp_dst as u16)
-            self.chunk.inst(OpCode.load_local)
-            self.chunk.emit_u16(temp_src as u16)
-            self.chunk.inst(OpCode.push_const)
-            self.chunk.emit_u16(c_sz)
-            self.chunk.inst(OpCode.call_extern)
-            self.chunk.emit_u16(8)
-            self.chunk.emit_u8(3)
-            self.chunk.inst(OpCode.pop)
+            temp_dst := self.alloc_heap_temp(sz)
+            self.emit_memcpy(temp_dst, temp_src, sz)
             self.chunk.inst(OpCode.load_local)
             self.chunk.emit_u16(temp_dst as u16)
             ret VmVal.stack()
@@ -1143,25 +1113,8 @@ VmCodeGen :: struct {
             pointee_ty := self.get_local_pointee_type(inner.id)
             if self.is_struct_type(pointee_ty) {
                 sz := self.struct_alloc_size(pointee_ty)
-                temp_dst := self.alloc_temp()
-                c_sz := self.chunk.alloc_const(sz)
-                self.chunk.inst(OpCode.push_const)
-                self.chunk.emit_u16(c_sz)
-                self.chunk.inst(OpCode.call_extern)
-                self.chunk.emit_u16(6)
-                self.chunk.emit_u8(1)
-                self.chunk.inst(OpCode.store_local)
-                self.chunk.emit_u16(temp_dst as u16)
-                self.chunk.inst(OpCode.load_local)
-                self.chunk.emit_u16(temp_dst as u16)
-                self.chunk.inst(OpCode.load_local)
-                self.chunk.emit_u16(inner.id as u16)
-                self.chunk.inst(OpCode.push_const)
-                self.chunk.emit_u16(c_sz)
-                self.chunk.inst(OpCode.call_extern)
-                self.chunk.emit_u16(8)
-                self.chunk.emit_u8(3)
-                self.chunk.inst(OpCode.pop)
+                temp_dst := self.alloc_heap_temp(sz)
+                self.emit_memcpy(temp_dst, inner.id, sz)
                 self.chunk.inst(OpCode.load_local)
                 self.chunk.emit_u16(temp_dst as u16)
                 ret VmVal.stack()
@@ -1287,17 +1240,7 @@ VmCodeGen :: struct {
         count := fields_body.id as u64
         size := count * 8
         if size == 0 { size = 8 }
-
-        temp_buf := self.alloc_temp()
-
-        c_size := self.chunk.alloc_const(size)
-        self.chunk.inst(OpCode.push_const)
-        self.chunk.emit_u16(c_size)
-        self.chunk.inst(OpCode.call_extern)
-        self.chunk.emit_u16(6)
-        self.chunk.emit_u8(1)
-        self.chunk.inst(OpCode.store_local)
-        self.chunk.emit_u16(temp_buf as u16)
+        temp_buf := self.alloc_heap_temp(size)
 
         i := count
         while i > 0 {
@@ -1336,17 +1279,7 @@ VmCodeGen :: struct {
         if elem_size == 0 { elem_size = 8 }
         total_size := c * elem_size
         if total_size == 0 { total_size = 8 }
-
-        temp_buf := self.alloc_temp()
-
-        c_size := self.chunk.alloc_const(total_size)
-        self.chunk.inst(OpCode.push_const)
-        self.chunk.emit_u16(c_size)
-        self.chunk.inst(OpCode.call_extern)
-        self.chunk.emit_u16(6)
-        self.chunk.emit_u8(1)
-        self.chunk.inst(OpCode.store_local)
-        self.chunk.emit_u16(temp_buf as u16)
+        temp_buf := self.alloc_heap_temp(total_size)
 
         i := c
         while i > 0 {
@@ -1468,16 +1401,7 @@ VmCodeGen :: struct {
         self.chunk.inst(OpCode.store_local)
         self.chunk.emit_u16(val_temp as u16)
 
-        c_size := self.chunk.alloc_const(16)
-        self.chunk.inst(OpCode.push_const)
-        self.chunk.emit_u16(c_size)
-        self.chunk.inst(OpCode.call_extern)
-        self.chunk.emit_u16(6)
-        self.chunk.emit_u8(1)
-
-        u_temp := self.alloc_temp()
-        self.chunk.inst(OpCode.store_local)
-        self.chunk.emit_u16(u_temp as u16)
+        u_temp := self.alloc_heap_temp(16)
 
         c_tag := self.chunk.alloc_const(tag as u64)
         self.chunk.inst(OpCode.push_const)
