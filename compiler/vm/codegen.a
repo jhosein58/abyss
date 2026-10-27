@@ -191,21 +191,22 @@ VmCodeGen :: struct {
         0
     }
 
+    unwrap_base_type :: fn(self &Self, ty u32) u32 {
+        t := ty
+        while true {
+            k := self.types.kind(t)
+            if k == TyKind.nominal { t = self.types.nominal_base(t) }
+            else if k == TyKind.ptr { t = self.types.payload(t) }
+            else { break }
+        }
+        t
+    }
+
     find_struct_field_offset :: fn(self &Self, struct_ty u32, field_id u32) u32 {
         if (self.types == (0 as &TypeStorage)) or (struct_ty == 0) {
             ret self.get_field_offset(field_id)
         }
-        ty := struct_ty
-        while true {
-            k := self.types.kind(ty)
-            if k == TyKind.nominal {
-                ty = self.types.nominal_base(ty)
-            } else if k == TyKind.ptr {
-                ty = self.types.payload(ty)
-            } else {
-                break
-            }
-        }
+        ty := self.unwrap_base_type(struct_ty)
         if self.types.kind(ty) != TyKind.struct_ {
             ret self.get_field_offset(field_id)
         }
@@ -213,10 +214,7 @@ VmCodeGen :: struct {
         count := fields.len / 2
         i: u64 = 0
         while i < count {
-            f_name := *(fields.ptr + (i * 2))
-            if f_name == field_id {
-                ret (i * 8) as u32
-            }
+            if *(fields.ptr + (i * 2)) == field_id { ret (i * 8) as u32 }
             i = i + 1
         }
         self.get_field_offset(field_id)
@@ -238,34 +236,18 @@ VmCodeGen :: struct {
 
     find_struct_field_elem_size :: fn(self &Self, struct_ty u32, field_id u32) u16 {
         if (self.types == (0 as &TypeStorage)) or (struct_ty == 0) { ret 0 }
-        ty := struct_ty
-        while true {
-            k := self.types.kind(ty)
-            if k == TyKind.nominal {
-                ty = self.types.nominal_base(ty)
-            } else if k == TyKind.ptr {
-                ty = self.types.payload(ty)
-            } else {
-                break
-            }
-        }
+        ty := self.unwrap_base_type(struct_ty)
         if self.types.kind(ty) != TyKind.struct_ { ret 0 }
         fields := self.types.get_struct_fields(ty)
         count := fields.len / 2
         i: u64 = 0
         while i < count {
-            f_name := *(fields.ptr + (i * 2))
-            if f_name == field_id {
-                f_ty := *(fields.ptr + (i * 2) + 1)
-                t_f := f_ty
-                while self.types.kind(t_f) == TyKind.nominal {
-                    t_f = self.types.nominal_base(t_f)
-                }
+            if *(fields.ptr + (i * 2)) == field_id {
+                t_f := *(fields.ptr + (i * 2) + 1)
+                while self.types.kind(t_f) == TyKind.nominal { t_f = self.types.nominal_base(t_f) }
                 if self.types.kind(t_f) == TyKind.ptr {
                     pointee := self.types.payload(t_f)
-                    if self.is_struct_type(pointee) {
-                        ret 8
-                    }
+                    if self.is_struct_type(pointee) { ret 8 }
                     ret vm_element_size(self.types, pointee) as u16
                 }
                 ret 0
@@ -275,34 +257,21 @@ VmCodeGen :: struct {
         0
     }
 
-    get_local_elem_size :: fn(self &Self, slot u32) u16 {
-        ty := self.get_local_type(slot)
-        if (self.types != (0 as &TypeStorage)) and (ty != 0) {
-            t := ty
-            while self.types.kind(t) == TyKind.nominal {
-                t = self.types.nominal_base(t)
-            }
-            if self.types.kind(t) == TyKind.ptr {
-                pointee := self.types.payload(t)
-                if self.is_struct_type(pointee) {
-                    ret 8
-                }
-                ret vm_element_size(self.types, pointee) as u16
-            }
-        }
-        0
-    }
-
     get_local_pointee_type :: fn(self &Self, slot u32) u32 {
         ty := self.get_local_type(slot)
         if (self.types != (0 as &TypeStorage)) and (ty != 0) {
             t := ty
-            while self.types.kind(t) == TyKind.nominal {
-                t = self.types.nominal_base(t)
-            }
-            if self.types.kind(t) == TyKind.ptr {
-                ret self.types.payload(t)
-            }
+            while self.types.kind(t) == TyKind.nominal { t = self.types.nominal_base(t) }
+            if self.types.kind(t) == TyKind.ptr { ret self.types.payload(t) }
+        }
+        0
+    }
+
+    get_local_elem_size :: fn(self &Self, slot u32) u16 {
+        pointee := self.get_local_pointee_type(slot)
+        if pointee != 0 {
+            if self.is_struct_type(pointee) { ret 8 }
+            ret vm_element_size(self.types, pointee) as u16
         }
         0
     }
@@ -392,19 +361,7 @@ VmCodeGen :: struct {
             }
             ret
         }
-        if val.kind == VmValKind.member_local {
-            self.chunk.inst(OpCode.load_local)
-            self.chunk.emit_u16(val.id as u16)
-            if val.raw > 0 {
-                c_idx := self.chunk.alloc_const(val.raw)
-                self.chunk.inst(OpCode.push_const)
-                self.chunk.emit_u16(c_idx)
-                self.chunk.inst(OpCode.add)
-            }
-            self.chunk.inst(OpCode.load64)
-            ret
-        }
-        if val.kind == VmValKind.member_deref {
+        if (val.kind == VmValKind.member_local) or (val.kind == VmValKind.member_deref) {
             self.chunk.inst(OpCode.load_local)
             self.chunk.emit_u16(val.id as u16)
             if val.raw > 0 {
@@ -480,11 +437,8 @@ VmCodeGen :: struct {
         self.local_types.clear()
     }
 
-    declare_function :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal) {
-    }
-
+    declare_function :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal) {}
     begin_inline_scope :: fn(self &Self) {}
-
     end_inline_scope :: fn(self &Self) {}
 
     create_variable :: fn(self &Self, name VmVal, ty VmVal, init_val VmVal, has_init bool) {
@@ -961,20 +915,7 @@ VmCodeGen :: struct {
             }
             ret VmVal.stack()
         }
-        if lhs.kind == VmValKind.member_local {
-            self.chunk.inst(OpCode.dup)
-            self.chunk.inst(OpCode.load_local)
-            self.chunk.emit_u16(lhs.id as u16)
-            if lhs.raw > 0 {
-                c_idx := self.chunk.alloc_const(lhs.raw)
-                self.chunk.inst(OpCode.push_const)
-                self.chunk.emit_u16(c_idx)
-                self.chunk.inst(OpCode.add)
-            }
-            self.chunk.inst(OpCode.store64)
-            ret VmVal.stack()
-        }
-        if lhs.kind == VmValKind.member_deref {
+        if (lhs.kind == VmValKind.member_local) or (lhs.kind == VmValKind.member_deref) {
             self.chunk.inst(OpCode.dup)
             self.chunk.inst(OpCode.load_local)
             self.chunk.emit_u16(lhs.id as u16)
@@ -1094,17 +1035,22 @@ VmCodeGen :: struct {
         VmVal.stack()
     }
 
-    expr_not :: fn(self &Self, arena &Arena, inner VmVal) VmVal {
+    expr_unary_op :: fn(self &Self, inner VmVal, op OpCode) VmVal {
         self.ensure_on_stack(inner)
-        self.chunk.inst(OpCode.l_not)
+        self.chunk.inst(op)
         VmVal.stack()
     }
 
-    expr_bit_not :: fn(self &Self, arena &Arena, inner VmVal) VmVal {
-        self.ensure_on_stack(inner)
-        self.chunk.inst(OpCode.bit_not)
+    expr_binary_op :: fn(self &Self, lhs VmVal, rhs VmVal, op OpCode) VmVal {
+        self.ensure_on_stack(lhs)
+        self.ensure_on_stack(rhs)
+        self.chunk.inst(op)
         VmVal.stack()
     }
+
+    expr_not :: fn(self &Self, arena &Arena, inner VmVal) VmVal { self.expr_unary_op(inner, OpCode.l_not) }
+
+    expr_bit_not :: fn(self &Self, arena &Arena, inner VmVal) VmVal { self.expr_unary_op(inner, OpCode.bit_not) }
 
     expr_typed_address :: fn(self &Self, arena &Arena, inner VmVal, ty u32) VmVal {
         if self.is_struct_type(ty) {
@@ -1566,9 +1512,7 @@ VmCodeGen :: struct {
     }
 
     expr_union_tag :: fn(self &Self, arena &Arena, value VmVal) VmVal {
-        self.ensure_on_stack(value)
-        self.chunk.inst(OpCode.load64)
-        VmVal.stack()
+        self.expr_unary_op(value, OpCode.load64)
     }
 
     expr_union_is :: fn(self &Self, arena &Arena, value VmVal, tag u32) VmVal {
@@ -1603,26 +1547,11 @@ VmCodeGen :: struct {
         self.expr_member(arena, value, 0, field_id)
     }
 
-    expr_equal :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal {
-        self.ensure_on_stack(lhs)
-        self.ensure_on_stack(rhs)
-        self.chunk.inst(OpCode.eq)
-        VmVal.stack()
-    }
+    expr_equal :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal { self.expr_binary_op(lhs, rhs, OpCode.eq) }
 
-    expr_or :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal {
-        self.ensure_on_stack(lhs)
-        self.ensure_on_stack(rhs)
-        self.chunk.inst(OpCode.bit_or)
-        VmVal.stack()
-    }
+    expr_or :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal { self.expr_binary_op(lhs, rhs, OpCode.bit_or) }
 
-    expr_less_equal :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal {
-        self.ensure_on_stack(lhs)
-        self.ensure_on_stack(rhs)
-        self.chunk.inst(OpCode.le)
-        VmVal.stack()
-    }
+    expr_less_equal :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal { self.expr_binary_op(lhs, rhs, OpCode.le) }
 
     expr_add :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal {
         self.expr_binary_kind(arena, hir_kind.binary_add, lhs, rhs)
@@ -1652,17 +1581,10 @@ VmCodeGen :: struct {
         }
     }
 
-    define_func_type :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
-    }
-
-    define_union :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
-    }
-
-    define_enum :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
-    }
-
-    define_array :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
-    }
+    define_func_type :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {}
+    define_union :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {}
+    define_enum :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {}
+    define_array :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {}
 
     iterator_name :: fn(self &Self, arena &Arena, id u32, index u32) VmVal {
         slot := self.alloc_temp()
@@ -1679,14 +1601,7 @@ type_align :: fn(types &TypeStorage, ty_id u32) u64 {
     k := types.kind(ty_id)
     match k {
         bool { 1 }
-        int {
-            p := types.payload(ty_id)
-            if p <= 8 { ret 1 }
-            if p <= 16 { ret 2 }
-            if p <= 32 { ret 4 }
-            8
-        }
-        uint {
+        int, uint {
             p := types.payload(ty_id)
             if p <= 8 { ret 1 }
             if p <= 16 { ret 2 }
@@ -1698,18 +1613,11 @@ type_align :: fn(types &TypeStorage, ty_id u32) u64 {
             if p <= 32 { ret 4 }
             8
         }
-        ptr { 8 }
-        func { 8 }
-        type_ { 8 }
-        nominal {
-            type_align(types, types.nominal_base(ty_id))
-        }
-        enum_ {
-            type_align(types, types.enum_backing(ty_id))
-        }
-        array {
-            type_align(types, types.get_array_type(ty_id))
-        }
+        ptr, func, type_, untyped_int, untyped_float, unknown, infer { 8 }
+        unit, never, error { 1 }
+        nominal { type_align(types, types.nominal_base(ty_id)) }
+        enum_ { type_align(types, types.enum_backing(ty_id)) }
+        array { type_align(types, types.get_array_type(ty_id)) }
         struct_ {
             fields := types.get_struct_fields(ty_id)
             count := fields.len / 2
@@ -1735,13 +1643,6 @@ type_align :: fn(types &TypeStorage, ty_id u32) u64 {
             }
             max_a
         }
-        untyped_int { 8 }
-        untyped_float { 8 }
-        unit { 1 }
-        never { 1 }
-        error { 1 }
-        unknown { 8 }
-        infer { 8 }
     }
 }
 
@@ -1759,14 +1660,7 @@ type_size :: fn(types &TypeStorage, ty_id u32) u64 {
     k := types.kind(ty_id)
     match k {
         bool { 1 }
-        int {
-            p := types.payload(ty_id)
-            if p <= 8 { ret 1 }
-            if p <= 16 { ret 2 }
-            if p <= 32 { ret 4 }
-            8
-        }
-        uint {
+        int, uint {
             p := types.payload(ty_id)
             if p <= 8 { ret 1 }
             if p <= 16 { ret 2 }
@@ -1778,20 +1672,14 @@ type_size :: fn(types &TypeStorage, ty_id u32) u64 {
             if p <= 32 { ret 4 }
             8
         }
-        ptr { 8 }
-        func { 8 }
-        type_ { 8 }
-        nominal {
-            type_size(types, types.nominal_base(ty_id))
-        }
-        enum_ {
-            type_size(types, types.enum_backing(ty_id))
-        }
+        ptr, func, type_, untyped_int, untyped_float, unknown, infer { 8 }
+        unit, never, error { 0 }
+        nominal { type_size(types, types.nominal_base(ty_id)) }
+        enum_ { type_size(types, types.enum_backing(ty_id)) }
         array {
             elem_ty := types.get_array_type(ty_id)
             len := types.get_array_len(ty_id)
-            elem_sz := type_size(types, elem_ty)
-            elem_sz * (len as u64)
+            type_size(types, elem_ty) * (len as u64)
         }
         struct_ {
             fields := types.get_struct_fields(ty_id)
@@ -1804,15 +1692,11 @@ type_size :: fn(types &TypeStorage, ty_id u32) u64 {
                 sz := type_size(types, f_ty)
                 a := type_align(types, f_ty)
                 if a > max_a { max_a = a }
-                if a > 0 {
-                    offset = (offset + a - 1) & ~(a - 1)
-                }
+                if a > 0 { offset = (offset + a - 1) & ~(a - 1) }
                 offset = offset + sz
                 i = i + 1
             }
-            if max_a > 0 {
-                offset = (offset + max_a - 1) & ~(max_a - 1)
-            }
+            if max_a > 0 { offset = (offset + max_a - 1) & ~(max_a - 1) }
             offset
         }
         union_ {
@@ -1829,22 +1713,11 @@ type_size :: fn(types &TypeStorage, ty_id u32) u64 {
                 i = i + 1
             }
             offset: u64 = 4
-            if max_a > 0 {
-                offset = (offset + max_a - 1) & ~(max_a - 1)
-            }
+            if max_a > 0 { offset = (offset + max_a - 1) & ~(max_a - 1) }
             offset = offset + max_m_sz
-            if max_a > 0 {
-                offset = (offset + max_a - 1) & ~(max_a - 1)
-            }
+            if max_a > 0 { offset = (offset + max_a - 1) & ~(max_a - 1) }
             offset
         }
-        untyped_int { 8 }
-        untyped_float { 8 }
-        unit { 0 }
-        never { 0 }
-        error { 0 }
-        unknown { 8 }
-        infer { 8 }
     }
 }
 
