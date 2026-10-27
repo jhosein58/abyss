@@ -1,11 +1,7 @@
-import write_str from "std/io"
 import TyKind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error, TypeStorage from "./types"
 import Str from "std/string"
 import calc_pos from "./nexus/nexus"
 import fall from "std/sys"
-
-print_cstr :: fn(s &u8)
-print_u32 :: fn(v u32)
 
 slot_none :: fn() u32 {
     4294967295 as u32
@@ -92,13 +88,7 @@ UnifyStorage :: struct {
     print_error_location :: fn(self &Self) {
         if self.error_path.len == 0 { ret }
         pos := calc_pos(self.error_source, self.error_offset)
-        print_cstr(c"       --> ")
-        write_str(self.error_path)
-        print_cstr(c":")
-        print_u32(pos.line)
-        print_cstr(c":")
-        print_u32(pos.col)
-        print_cstr(c"\n")
+        printf("       --> {}:{}:{}\n", .{self.error_path, pos.line, pos.col})
     }
 
     type_contains_slot :: fn(self &Self, types &TypeStorage, ty u32, target u32, seen &Vec(u32)) bool {
@@ -151,17 +141,17 @@ UnifyStorage :: struct {
     }
 
     type_mismatch :: fn(self &Self, types &TypeStorage, expected u32, actual u32) {
-        print_cstr(c"\n\033[1;31m[type error]\033[0m type mismatch: cannot unify '")
+        printf("\n\033[1;31m[type error]\033[0m type mismatch: cannot unify '", .{})
         types.print_type(expected)
-        print_cstr(c"' with '")
+        printf("' with '", .{})
         types.print_type(actual)
-        print_cstr(c"'\n")
+        print("'")
         if (types.kind(expected) == TyKind.nominal) or
            (types.kind(actual) == TyKind.nominal) {
-            print_cstr(c"       Named structs require the same declaration; only an anonymous struct literal may initialize one.\n")
+            print("       Named structs require the same declaration; only an anonymous struct literal may initialize one.")
         }
         self.print_error_location()
-        print_cstr(c"\n")
+        print("")
         fall()
     }
 
@@ -247,7 +237,7 @@ UnifyStorage :: struct {
         recursive := self.type_contains_slot(types, ty, root, &seen)
         seen.destroy()
         if recursive {
-            print_cstr(c"\n[type error] recursive generic inference would create an infinite type\n")
+            print("\n[type error] recursive generic inference would create an infinite type")
             self.print_error_location()
             fall()
         }

@@ -1,7 +1,6 @@
 import Str, String from "std/string"
 import Arena from "std/allocator"
 import fmt from "std/fmt"
-import write_str from "std/io"
 import sort, sort_chunks from "std/sort"
 import hash_combine, hash_words from "std/hash"
 
@@ -406,7 +405,7 @@ TypeStorage :: struct {
         arena := Arena.new(256)
         out := String.new(&arena)
         self.format_type(&out, id, false)
-        write_str(out.as_str())
+        printf("{}", .{out.as_str()})
         arena.destroy()
     }
 

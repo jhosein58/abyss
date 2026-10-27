@@ -1,4 +1,3 @@
-import write_str from "std/io"
 import Interner from "std/interner"
 import Str from "std/string"
 
@@ -10,9 +9,6 @@ import PoolU32, PoolU64, id_none from "./pool"
 import Arena from "std/allocator"
 import VmCodeGen from "../vm/codegen"
 import Vm from "../vm/vm"
-
-print_cstr :: fn(s &u8)
-print_u32 :: fn(v u32)
 
 Span :: struct {
     start, end u32
@@ -572,12 +568,7 @@ Nexus :: struct {
         fid := self.get_hir_file(hir_id)
         path := self.get_file_path(fid)
         pos := self.get_pos(hir_id)
-
-        write_str(path)
-        print_cstr(c":")
-        print_u32(pos.line)
-        print_cstr(c":")
-        print_u32(pos.col)
+        printf("{}:{}:{}", .{path, pos.line, pos.col})
     }
 
     specialize_const_func :: fn(self &Self, base u32, key Slice(u32), values Slice(u32)) u32 {

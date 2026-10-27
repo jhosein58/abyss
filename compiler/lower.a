@@ -13,8 +13,6 @@ import Engine from "./engine"
 import VmCodeGen, VmCodeBuilder, VmVal, VmValKind from "./vm/codegen"
 import OpCode from "./vm/op"
 
-print_cstr :: fn(s &u8)
-
 LowerCtx :: fn(B type, L type, V type) type {
     struct {
         eng        &Engine
@@ -375,16 +373,16 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                     ret ccg.expr_cast(arena, ccg.type_str(&db.types, arena, ty), ccg.expr_u64(arena, val))
                 }
                 if db.sym_tok_start.get(real_sym) != id_none() {
-                    print_cstr(c"\n[codegen error] unsupported global value\n       --> ")
+                    printf("\n[codegen error] unsupported global value\n       --> ", .{})
                     db.print_loc(id)
-                    print_cstr(c"\n")
+                    print("")
                     fall()
                 }
                 ret ccg.sym_name(arena, sym_id)
             }
-            print_cstr(c"\n[codegen error] undefined identifier\n       --> ")
+            printf("\n[codegen error] undefined identifier\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
             ret empty
         }
@@ -395,9 +393,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             var_ty := db.get_node_type(ident_id)
             if (var_ty == ty_id_type()) or db.types.func_has_type_param(var_ty) { ret empty }
             if db.types.kind(var_ty) == TyKind.unit {
-                print_cstr(c"\n[type error] variable cannot have void type\n       --> ")
+                printf("\n[type error] variable cannot have void type\n       --> ", .{})
                 db.print_loc(id)
-                print_cstr(c"\n")
+                print("")
                 fall()
             }
             ty_str := ccg.type_str(&db.types, arena, var_ty)
@@ -405,9 +403,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             if val_id != hir_none() {
                 val_str := lower_expr(ctx, val_id)
                 if not ccg.has_value(val_str) {
-                    print_cstr(c"\n[codegen error] initializer does not produce a value\n       --> ")
+                    printf("\n[codegen error] initializer does not produce a value\n       --> ", .{})
                     db.print_loc(id)
-                    print_cstr(c"\n")
+                    print("")
                     fall()
                 }
                 ccg.create_variable(var_name, ty_str, val_str, true)
@@ -421,9 +419,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             rhs_node := db.hir.extra(id)
             rhs_val := lower_expr(ctx, rhs_node)
             if not ccg.has_value(rhs_val) {
-                print_cstr(c"\n[codegen error] initializer does not produce a value\n       --> ")
+                printf("\n[codegen error] initializer does not produce a value\n       --> ", .{})
                 db.print_loc(id)
-                print_cstr(c"\n")
+                print("")
                 fall()
             }
             rhs_ty := db.get_node_type(rhs_node)
@@ -445,9 +443,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                     cont
                 }
                 if db.types.kind(var_ty) == TyKind.unit {
-                    print_cstr(c"\n[type error] variable cannot have void type\n       --> ")
+                    printf("\n[type error] variable cannot have void type\n       --> ", .{})
                     db.print_loc(id)
-                    print_cstr(c"\n")
+                    print("")
                     fall()
                 }
                 add_type_to_queue(db, var_ty, type_queue)
@@ -735,9 +733,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             lhs_id := db.hir.lhs(id)
             rhs_id := db.hir.rhs(id)
             if db.get_hir_symbol(id) != id_none() {
-                print_cstr(c"\n[type error] methods must be called directly; method values are not supported\n       --> ")
+                printf("\n[type error] methods must be called directly; method values are not supported\n       --> ", .{})
                 db.print_loc(id)
-                print_cstr(c"\n")
+                print("")
                 fall()
             }
             lhs_ty := db.get_node_type(lhs_id)
@@ -832,9 +830,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             ret ccg.expr_ptr_index(arena, lhs_val, rhs_val, elem_ty)
         }
         else {
-            print_cstr(c"\n[codegen error] unsupported expression\n       --> ")
+            printf("\n[codegen error] unsupported expression\n       --> ", .{})
             db.print_loc(id)
-            print_cstr(c"\n")
+            print("")
             fall()
             ret empty
         }

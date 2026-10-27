@@ -1,4 +1,3 @@
-import write_str from "std/io"
 import token, token_name, TokenType, TokenStream from "../token"
 import HirTable from "../hir"
 import Str from "std/string"
@@ -7,10 +6,6 @@ import Nexus,
 import ScopeEnv from "./env"
 import id_none from "../nexus/pool"
 import fall from "std/sys"
-
-
-print_cstr :: fn(s &u8)
-print_u32 :: fn(v u32)
 
 Parser :: struct {
     db        &Nexus
@@ -129,16 +124,7 @@ parse_error_at :: fn(p &Parser, msg &u8, sp Span) {
     path := (*p).db.get_file_path((*p).file_id)
     src := (*p).db.get_file_source((*p).file_id)
     pos := calc_pos(src, sp.start)
-
-    print_cstr(c"\n\033[1;31m[syntax error]\033[0m ")
-    print_cstr(msg)
-    print_cstr(c"\n       --> ")
-    write_str(path)
-    print_cstr(c":")
-    print_u32(pos.line)
-    print_cstr(c":")
-    print_u32(pos.col)
-    print_cstr(c"\n\n")
+    printf("\n\033[1;31m[syntax error]\033[0m {}\n       --> {}:{}:{}\n\n", .{msg, path, pos.line, pos.col})
     fall()
 }
 
