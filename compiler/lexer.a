@@ -110,42 +110,142 @@ Lexer :: struct {
         (c == 't') or (c == 'v') or (c == '\\') or (c == '\'') or (c == '"') or (c == '?')
     }
 
+is_bin_digit :: fn(c u8) bool {
+    (c == '0') or (c == '1')
+}
+
+is_oct_digit :: fn(c u8) bool {
+    (c >= '0') and (c <= '7')
+}
+
     scan_number :: fn(self &Self, stream &TokenStream) {
         offset := self.cursor
         is_float := false
 
         if self.current() == '0' {
             p := self.peek()
-            if (p == 'x') or (p == 'X') {
+            is_hex := (p == 'x') or (p == 'X')
+            is_bin := (p == 'b') or (p == 'B')
+            is_oct := (p == 'o') or (p == 'O')
+            if is_hex or is_bin or is_oct {
                 self.bump()
                 self.bump()
-                while (not self.is_eof()) and (is_hex_digit(self.current()) or (self.current() == '_')) {
-                    self.bump()
+                if self.is_eof() {
+                    self.error(c"expected digits after base prefix", offset)
+                }
+                first := self.current()
+                valid_first := false
+                if is_hex { valid_first = is_hex_digit(first) }
+                else if is_bin { valid_first = is_bin_digit(first) }
+                else if is_oct { valid_first = is_oct_digit(first) }
+                if not valid_first {
+                    self.error(c"expected digits after base prefix", offset)
+                }
+                self.bump()
+                while not self.is_eof() {
+                    c := self.current()
+                    valid := false
+                    if is_hex { valid = is_hex_digit(c) }
+                    else if is_bin { valid = is_bin_digit(c) }
+                    else if is_oct { valid = is_oct_digit(c) }
+                    if valid {
+                        self.bump()
+                    } else if c == '_' {
+                        prev := *(self.source.ptr + self.cursor - 1)
+                        next := self.peek()
+                        prev_ok := false
+                        next_ok := false
+                        if is_hex {
+                            prev_ok = is_hex_digit(prev)
+                            next_ok = is_hex_digit(next)
+                        } else if is_bin {
+                            prev_ok = is_bin_digit(prev)
+                            next_ok = is_bin_digit(next)
+                        } else if is_oct {
+                            prev_ok = is_oct_digit(prev)
+                            next_ok = is_oct_digit(next)
+                        }
+                        if (not prev_ok) or (not next_ok) {
+                            self.error(c"invalid digit separator '_'", self.cursor)
+                        }
+                        self.bump()
+                    } else {
+                        break
+                    }
                 }
                 self.emit(stream, token.lit_int, offset)
                 ret
             }
         }
 
-        while (not self.is_eof()) and (is_digit(self.current()) or (self.current() == '_')) {
-            self.bump()
+        while not self.is_eof() {
+            c := self.current()
+            if is_digit(c) {
+                self.bump()
+            } else if c == '_' {
+                prev := *(self.source.ptr + self.cursor - 1)
+                next := self.peek()
+                if (not is_digit(prev)) or (not is_digit(next)) {
+                    self.error(c"invalid digit separator '_'", self.cursor)
+                }
+                self.bump()
+            } else {
+                break
+            }
         }
 
         if (self.current() == '.') and (self.peek() != '.') and is_digit(self.peek()) {
             is_float = true
             self.bump()
-            while (not self.is_eof()) and (is_digit(self.current()) or (self.current() == '_')) {
-                self.bump()
+            while not self.is_eof() {
+                c := self.current()
+                if is_digit(c) {
+                    self.bump()
+                } else if c == '_' {
+                    prev := *(self.source.ptr + self.cursor - 1)
+                    next := self.peek()
+                    if (not is_digit(prev)) or (not is_digit(next)) {
+                        self.error(c"invalid digit separator '_'", self.cursor)
+                    }
+                    self.bump()
+                } else {
+                    break
+                }
             }
         }
 
-        if is_float {
-            check := offset
-            while check < self.cursor {
-                if *(self.source.ptr + check) == '_' {
-                    self.error(c"separators in float literals are unsupported", offset)
+        if (self.current() == 'e') or (self.current() == 'E') {
+            has_sign := (self.peek() == '+') or (self.peek() == '-')
+            has_exp_digits := false
+            if has_sign {
+                if (self.cursor + 2 < self.source.len) and is_digit(*(self.source.ptr + self.cursor + 2)) {
+                    has_exp_digits = true
                 }
-                check = check + 1
+            } else if is_digit(self.peek()) {
+                has_exp_digits = true
+            }
+
+            if has_exp_digits {
+                is_float = true
+                self.bump()
+                if (self.current() == '+') or (self.current() == '-') {
+                    self.bump()
+                }
+                while not self.is_eof() {
+                    c := self.current()
+                    if is_digit(c) {
+                        self.bump()
+                    } else if c == '_' {
+                        prev := *(self.source.ptr + self.cursor - 1)
+                        next := self.peek()
+                        if (not is_digit(prev)) or (not is_digit(next)) {
+                            self.error(c"invalid digit separator '_'", self.cursor)
+                        }
+                        self.bump()
+                    } else {
+                        break
+                    }
+                }
             }
         }
 
