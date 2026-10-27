@@ -86,7 +86,7 @@ TokenStream :: struct {
     kinds           Vec(u8)
     starts          Vec(u32)
     lens            Vec(u32)
-    texts           Vec(Str)
+    texts           Vec(Str) -- TODO: drop? slice from src[start..len]
     newline_befores Vec(bool)
 
     new :: fn() TokenStream {
