@@ -3,7 +3,7 @@ import malloc from "std/allocator"
 import Nexus from "../../nexus/nexus"
 import HirTable, hir_kind, hir_none from "../../hir"
 import Str from "std/string"
-import TypeStorage, TyKind, ty_id_none, ty_id_type from "../../types"
+import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_bool from "../../types"
 import UnifyStorage, slot_none from "../../unify"
 import fall from "std/sys"
 
@@ -266,4 +266,23 @@ unescape_splice_str :: fn(s Str) Str {
         i = i + 1
     }
     Str.new(buf, out_len)
+}
+
+check_bool_operand :: fn(db &Nexus, id u32, desc &u8) {
+    check_value(db, id, ty_id_bool())
+    slot := db.unify.get_slot(id)
+    if slot != slot_none() {
+        ty := db.unify.resolve_type_deep(&db.types, slot)
+        if (ty != ty_id_none()) and (ty != ty_id_bool()) {
+            print_cstr(c"\n\033[1;31m[type error]\033[0m ")
+            print_cstr(desc)
+            print_cstr(c" must be bool, got '")
+            db.types.print_type(ty)
+            print_cstr(c"'\n       --> ")
+            db.print_loc(id)
+            print_cstr(c"\n")
+            fall()
+        }
+        db.unify.bind_type(&db.types, slot, ty_id_bool())
+    }
 }

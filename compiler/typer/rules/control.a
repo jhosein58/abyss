@@ -3,7 +3,7 @@ import Engine from "../../engine"
 import HirTable, hir_kind, hir_none from "../../hir"
 import TyKind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error, ty_id_never, ty_id_type from "../../types"
 import slot_none from "../../unify"
-import check_value from "./common"
+import check_value, check_bool_operand from "./common"
 import synth_type_node from "./var"
 import Str from "std/string"
 import id_none from "../../nexus/pool"
@@ -500,20 +500,7 @@ synth_if :: fn(db &Nexus, tbl &HirTable, id u32) {
     thenb := (tbl).rhs(id)
     elseb := (tbl).extra(id)
 
-    check_value(db, cond, ty_id_bool())
-    cond_slot := (unify_ptr).get_slot(cond)
-    if cond_slot != slot_none() {
-        cond_ty := (unify_ptr).resolve_type_deep(types_ptr, cond_slot)
-        if (cond_ty != ty_id_none()) and (cond_ty != ty_id_bool()) {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m 'if' condition must be bool, got '")
-            (&(*types_ptr)).print_type(cond_ty)
-            print_cstr(c"'\n       --> ")
-            db.print_loc(cond)
-            print_cstr(c"\n")
-            fall()
-        }
-        (&(*db).unify).bind_type(&(*db).types, cond_slot, ty_id_bool())
-    }
+    check_bool_operand(db, cond, c"'if' condition")
 
     if elseb != hir_none() {
         then_slot := (unify_ptr).get_slot(thenb)
@@ -578,20 +565,7 @@ synth_while :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := (unify_ptr).new_slot(id)
     cond := (tbl).lhs(id)
 
-    check_value(db, cond, ty_id_bool())
-    cond_slot := (unify_ptr).get_slot(cond)
-    if cond_slot != slot_none() {
-        cond_ty := (unify_ptr).resolve_type_deep(types_ptr, cond_slot)
-        if (cond_ty != ty_id_none()) and (cond_ty != ty_id_bool()) {
-            print_cstr(c"\n\033[1;31m[type error]\033[0m 'while' condition must be bool, got '")
-            (&(*types_ptr)).print_type(cond_ty)
-            print_cstr(c"'\n       --> ")
-            db.print_loc(cond)
-            print_cstr(c"\n")
-            fall()
-        }
-        (&(*db).unify).bind_type(&(*db).types, cond_slot, ty_id_bool())
-    }
+    check_bool_operand(db, cond, c"'while' condition")
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_unit())
 }
 
