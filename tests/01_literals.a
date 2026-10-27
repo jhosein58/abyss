@@ -1,38 +1,49 @@
-print_cstr :: fn(s &u8)
-print_char :: fn(c u8)
-print_i32 :: fn(v i32)
-print_u32 :: fn(v u32)
-print_bool :: fn(b bool)
-
-println_i32 :: fn(v i32) {
-    print_i32(v)
-    print_cstr(c"\n")
-}
-
-println_u32 :: fn(v u32) {
-    print_u32(v)
-    print_cstr(c"\n")
-}
-
-println_bool :: fn(b bool) {
-    print_bool(b)
-    print_cstr(c"\n")
-}
-
 main :: fn() {
-    println_i32(0)
-    println_i32(42)
-    println_i32(-100)
-    println_i32(1_000_000)
+    print(0)
+    print(42)
+    print(-100)
+    print(1_000_000)
+    print(10_00_00)
 
-    println_u32(0x0)
-    println_u32(0xFF)
-    println_u32(0x10_20)
+    print(0x0)
+    print(0X0)
+    print(0xFF)
+    print(0x10_20)
+    print(0x10_ff)
+    print(0XAB_CD)
 
-    println_bool(true)
-    println_bool(false)
+    print(0b0)
+    print(0B0)
+    print(0b1010)
+    print(0B1010_0110)
+    print(0b1_0_1)
+    print(0B1111_0000)
 
-    print_cstr(c"hello abyss\n")
-    print_char(65 as u8)
-    print_char(10 as u8)
+    print(0o0)
+    print(0O0)
+    print(0o77)
+    print(0O77_12)
+    print(0o52)
+    print(0O755)
+
+    print(0.0 as f64)
+    print(1.5 as f64)
+    print(3.25 as f64)
+    print(-2.25 as f64)
+    print(5.1_00_1 as f64)
+    print(1_0.2_5 as f64)
+    print(0.0_0_1 as f64)
+    print(1e6 as f64)
+    print(1.5e-4 as f64)
+    print(3.0e+2 as f64)
+    print(1.2e-3 as f64)
+    print(2.5e1_0 as f64)
+    print(1E3 as f64)
+    print(4.0E-2 as f64)
+
+    print(true)
+    print(false)
+
+    print("hello abyss")
+    print('A')
 }
