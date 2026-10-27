@@ -88,7 +88,7 @@ main :: fn() {
         20,
     }
     mixed: Mixed = .{ 30, true }
-    print(pair._0 + pair._1 + mixed._0)
+    print(pair.0 + pair.1 + mixed.0)
     print("\n")
 
     print(add(

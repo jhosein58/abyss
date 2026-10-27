@@ -52,7 +52,7 @@ main :: fn() {
         record.first
         record.second,
     }
-    print(tuple._0 + tuple._1), print("\n")
+    print(tuple.0 + tuple.1), print("\n")
 
     print(add(
         add(1, 2)

@@ -12,11 +12,11 @@ make_triplet :: fn(a i32, b bool, c Str) struct { i32, bool, Str } {
 }
 
 swap :: fn(T type, U type, t struct { T, U }) struct { U, T } {
-    .{ t._1, t._0 }
+    .{ t.1, t.0 }
 }
 
 project_first :: fn(T type, U type, t struct { T, U }) T {
-    t._0
+    t.0
 }
 
 bump_and_make :: fn(c &i32) struct { i32, i32 } {
@@ -26,22 +26,22 @@ bump_and_make :: fn(c &i32) struct { i32, i32 } {
 
 main :: fn() {
     t1 := .{ 100, 200 }
-    emit(t1._0)
+    emit(t1.0)
     emit(" ")
-    emit(t1._1)
+    emit(t1.1)
     emit("\n")
 
     p1: Pair = .{ 42, "hello" }
     t2: struct { i32, Str } = p1
-    emit(t2._0)
+    emit(t2.0)
     emit(" ")
-    emit(t2._1)
+    emit(t2.1)
     emit("\n")
 
     p2: Pair = t2
-    emit(p2._0)
+    emit(p2.0)
     emit(" ")
-    emit(p2._1)
+    emit(p2.1)
     emit("\n")
 
     v1, v2 := make_pair(777, "destructured")
@@ -75,13 +75,13 @@ main :: fn() {
     emit("\n")
 
     nested := .{ 1, .{ 2, 3 }, 4 }
-    emit(nested._0)
+    emit(nested.0)
     emit(" ")
-    emit(nested._1._0)
+    emit(nested.1.0)
     emit(" ")
-    emit(nested._1._1)
+    emit(nested.1.1)
     emit(" ")
-    emit(nested._2)
+    emit(nested.2)
     emit("\n")
 
     na, nb, nc := nested
@@ -97,9 +97,9 @@ main :: fn() {
 
     arr: [2]struct { i32, i32 } = .[ .{ 10, 20 }, .{ 30, 40 } ]
     arr_0 := arr[0]
-    emit(arr_0._0)
+    emit(arr_0.0)
     emit(" ")
-    emit(arr_0._1)
+    emit(arr_0.1)
     emit("\n")
 
     elem0, elem1 := arr[1]
