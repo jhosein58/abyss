@@ -83,9 +83,18 @@ parse_u32 :: fn(s Str) Maybe(u32) {
     i: u64 = 0
     base: u32 = 10
     if s.len >= 2 {
-        if (*(s.ptr) == 48) and ((*(s.ptr + 1) == 120) or (*(s.ptr + 1) == 88)) {
-            base = 16
-            i = 2
+        if *(s.ptr) == '0' {
+            pref := *(s.ptr + 1)
+            if (pref == 'x') or (pref == 'X') {
+                base = 16
+                i = 2
+            } else if (pref == 'b') or (pref == 'B') {
+                base = 2
+                i = 2
+            } else if (pref == 'o') or (pref == 'O') {
+                base = 8
+                i = 2
+            }
         }
     }
     if i == s.len { ret Maybe(u32).none() }
