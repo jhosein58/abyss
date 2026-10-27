@@ -324,7 +324,7 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
             cont
         }
 
-        if is_digit(c) or (c == '.' and is_digit(lexer.peek())) {
+        if is_digit(c) {
             lexer.scan_number(stream)
             cont
         }
