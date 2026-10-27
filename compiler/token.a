@@ -1,85 +1,85 @@
 import Str from "std/string"
 
 Token :: enum u8 {
-    eof,
-    unknown,
-    ident,
+    eof            -- eof
+    unknown        -- unknown
+    ident          -- identifier
 
-    lit_int,
-    lit_float,
-    lit_str,
-    lit_char,
+    lit_int        -- 123
+    lit_float      -- 1.0
+    lit_str        -- "..."
+    lit_char       -- 'c'
 
-    kw_ret,
-    kw_if,
-    kw_else,
-    kw_while,
-    kw_break,
-    kw_cont,
-    kw_struct,
-    kw_import,
-    kw_from,
-    kw_true,
-    kw_false,
-    kw_as,
-    kw_and,
-    kw_or,
-    kw_not,
-    kw_fn,
-    kw_match,
-    kw_in,
-    kw_for,
-    kw_cmpt,
+    kw_ret         -- ret
+    kw_if          -- if
+    kw_else        -- else
+    kw_while       -- while
+    kw_break       -- break
+    kw_cont        -- cont
+    kw_struct      -- struct
+    kw_import      -- import
+    kw_from        -- from
+    kw_true        -- true
+    kw_false       -- false
+    kw_as          -- as
+    kw_and         -- and
+    kw_or          -- or
+    kw_not         -- not
+    kw_fn          -- fn
+    kw_match       -- match
+    kw_in          -- in
+    kw_for         -- for
+    kw_cmpt        -- cmpt
 
-    plus,
-    minus,
-    star,
-    slash,
-    percent,
-    plus_eq,
-    minus_eq,
-    star_eq,
-    slash_eq,
-    percent_eq,
+    plus           -- +
+    minus          -- -
+    star           -- *
+    slash          -- /
+    percent        -- %
+    plus_eq        -- +=
+    minus_eq       -- -=
+    star_eq        -- *=
+    slash_eq       -- /=
+    percent_eq     -- %=
 
-    amp,
-    pipe,
-    caret,
-    tilde,
-    amp_eq,
-    pipe_eq,
-    caret_eq,
+    amp            -- &
+    pipe           -- |
+    caret          -- ^
+    tilde          -- ~
+    amp_eq         -- &=
+    pipe_eq        -- |=
+    caret_eq       -- ^=
 
-    left_shift,
-    right_shift,
-    left_shift_eq,
-    right_shift_eq,
+    left_shift     -- <<
+    right_shift    -- >>
+    left_shift_eq  -- <<=
+    right_shift_eq -- >>=
 
-    eq,
-    eq_eq,
-    bang_eq,
-    lt,
-    lt_eq,
-    gt,
-    gt_eq,
+    eq             -- =
+    eq_eq          -- ==
+    bang_eq        -- !=
+    lt             -- <
+    lt_eq          -- <=
+    gt             -- >
+    gt_eq          -- >=
 
-    colon,
-    colon_colon,
-    semi,
-    comma,
-    dot,
+    colon          -- :
+    colon_colon    -- ::
+    semi           -- ;
+    comma          -- ,
+    dot            -- .
 
-    hash,
+    hash           -- #
 
-    o_paren,
-    c_paren,
-    o_brace,
-    c_brace,
-    o_bracket,
-    c_bracket,
-    kw_enum,
-    at,
-    lit_cstr,
+    o_paren        -- (
+    c_paren        -- )
+    o_brace        -- {
+    c_brace        -- }
+    o_bracket      -- [
+    c_bracket      -- ]
+    kw_enum        -- enum
+    at             -- @
+    lit_cstr       -- c"..."
 
     name :: fn(self Self) Str {
         match self {
