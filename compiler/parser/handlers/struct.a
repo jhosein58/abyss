@@ -7,6 +7,7 @@ import prec from "../prec"
 import span_of_hir, set_span, check_separator, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list from "./common"
 import parse_ident from "./ident"
 import parse_expr from "../parser"
+import parse_u32 from "std/string"
 
 is_tuple_struct :: fn(p &Parser) bool {
     t := token
@@ -199,7 +200,34 @@ parse_member :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     }
     sp_rhs := span_of_hir(p, rhs)
 
-    if p.hir.kind(rhs) != k.ident {
+    if p.hir.kind(rhs) == k.lit_int {
+        idx := p.hir.lhs(rhs)
+        f_name_id := p.db.tuple_field_name(idx)
+        rhs = p.hir.push(k.ident, f_name_id, hir_none(), hir_none())
+        set_span(p, rhs, sp_rhs)
+    } else if p.hir.kind(rhs) == k.lit_float {
+        name_id := p.hir.lhs(rhs)
+        text := p.db.interner.get(name_id)
+        dot_pos: u64 = 0
+        while (dot_pos < text.len) and (*(text.ptr + dot_pos) != (46 as u8)) {
+            dot_pos = dot_pos + 1
+        }
+        part1 := text.sub(0, dot_pos)
+        part2 := text.sub(dot_pos + 1, text.len - dot_pos - 1)
+        idx1 := parse_u32(part1).unwrap_or(0)
+        idx2 := parse_u32(part2).unwrap_or(0)
+        f1_id := p.db.tuple_field_name(idx1)
+        f1 := p.hir.push(k.ident, f1_id, hir_none(), hir_none())
+        set_span(p, f1, sp_rhs)
+        inner := p.hir.push(k.member, lhs, f1, hir_none())
+        set_span(p, inner, sp_rhs)
+        f2_id := p.db.tuple_field_name(idx2)
+        f2 := p.hir.push(k.ident, f2_id, hir_none(), hir_none())
+        set_span(p, f2, sp_rhs)
+        node := p.hir.push(k.member, inner, f2, hir_none())
+        set_span(p, node, span_merge(sp_lhs, sp_rhs))
+        ret node
+    } else if p.hir.kind(rhs) != k.ident {
         parse_error_at(p, c"member name must be an identifier", sp_rhs)
     }
 
