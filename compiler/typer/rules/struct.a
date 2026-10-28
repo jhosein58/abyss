@@ -37,6 +37,8 @@ synth_struct :: fn(eng &Engine, id u32) {
 
     i: u64 = 0
     while (i < names.len) and (i < types.len) {
+        names = db.get_list(names_list)
+        types = db.get_list(types_list)
         name_node := *(names.ptr + i)
         type_node := *(types.ptr + i)
 

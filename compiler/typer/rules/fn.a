@@ -79,6 +79,7 @@ synth_func :: fn(eng &Engine, id u32) {
         args := db.get_list(params_list_id)
         i: u64 = 0
         while i < args.len {
+            args = db.get_list(params_list_id)
             arg_id := *(args.ptr + i)
             ty_node := (tbl).rhs(arg_id)
             param_ty := ty_id_none()
