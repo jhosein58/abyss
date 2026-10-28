@@ -12,6 +12,7 @@ import func_has_self from "./typer/rules/fn"
 import Engine from "./engine"
 import VmCodeGen, VmCodeBuilder, VmVal, VmValKind from "./vm/codegen"
 import OpCode from "./vm/op"
+import decode_char_lit from "./lexer"
 
 LowerCtx :: fn(B type, L type, V type) type {
     struct {
@@ -588,7 +589,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             }
             lhs_v := lower_expr(ctx, lhs_node)
             ty_str := ccg.type_str(&db.types, arena, db.get_const_type(db.hir.rhs(id)))
-            if db.hir.kind(lhs_node) == hir_kind.lit_int { lhs_ty = ty_id_untyped_int() }
+            if (db.hir.kind(lhs_node) == hir_kind.lit_int) or (db.hir.kind(lhs_node) == hir_kind.lit_char) { lhs_ty = ty_id_untyped_int() }
             if (db.hir.kind(lhs_node) == hir_kind.unary_neg) and (db.hir.kind(db.hir.lhs(lhs_node)) == hir_kind.lit_int) {
                 lhs_ty = ty_id_untyped_int()
             }
@@ -891,8 +892,7 @@ eval_const :: fn(db &Nexus, id u32) u64 {
     }
     if k == hir_kind.lit_char {
         raw := db.interner.get(db.hir.lhs(id))
-        val: u64 = 0
-        if raw.len > 0 { val = (*raw.ptr) as u64 }
+        val: u64 = decode_char_lit(raw) as u64
         db.set_const_val(id, val)
         ret val
     }

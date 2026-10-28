@@ -3,6 +3,7 @@ import Arena from "std/allocator"
 import Fmt from "std/fmt"
 import TypeStorage, TyKind, ty_id_none from "./types"
 import HirExprKind, hir_kind, hir_none from "./hir"
+import decode_char_lit from "./lexer"
 import fall from "std/sys"
 
 append_str :: fn(v &String, s Str) {
@@ -695,9 +696,7 @@ CCodeGen :: struct {
     }
 
     expr_char_lit :: fn(self &Self, arena &Arena, raw Str) Str {
-        fmt := Fmt.new(arena)
-        fmt.wrap(Str.of("((uint8_t)"), raw, Str.of(")"))
-        fmt.as_str()
+        self.expr_int(arena, decode_char_lit(raw))
     }
 
     expr_cstr_lit :: fn(self &Self, arena &Arena, raw Str) Str {

@@ -1,3 +1,69 @@
+import Maybe from "maybe"
+
+CharIter :: struct {
+    ptr &u8
+    len u64
+    index u64
+
+    new :: fn(ptr &u8, len u64) Self {
+        .{ ptr: ptr, len: len, index: 0 }
+    }
+
+    next :: fn(self &Self) Maybe(u32) {
+        if self.index >= self.len {
+            ret Maybe(u32).none()
+        }
+        b0 := *(self.ptr + self.index)
+        cp: u32 = 0
+        step: u64 = 1
+
+        if (b0 & 0x80) == 0 {
+            cp = b0 as u32
+            step = 1
+        } else if (b0 & 0xE0) == 0xC0 {
+            if self.index + 1 < self.len {
+                b1 := *(self.ptr + self.index + 1)
+                cp = (((b0 & 0x1F) as u32) << 6) | ((b1 & 0x3F) as u32)
+                step = 2
+            } else {
+                cp = b0 as u32
+                step = 1
+            }
+        } else if (b0 & 0xF0) == 0xE0 {
+            if self.index + 2 < self.len {
+                b1 := *(self.ptr + self.index + 1)
+                b2 := *(self.ptr + self.index + 2)
+                cp = (((b0 & 0x0F) as u32) << 12) | (((b1 & 0x3F) as u32) << 6) | ((b2 & 0x3F) as u32)
+                step = 3
+            } else {
+                cp = b0 as u32
+                step = 1
+            }
+        } else if (b0 & 0xF8) == 0xF0 {
+            if self.index + 3 < self.len {
+                b1 := *(self.ptr + self.index + 1)
+                b2 := *(self.ptr + self.index + 2)
+                b3 := *(self.ptr + self.index + 3)
+                cp = (((b0 & 0x07) as u32) << 18) | (((b1 & 0x3F) as u32) << 12) | (((b2 & 0x3F) as u32) << 6) | ((b3 & 0x3F) as u32)
+                step = 4
+            } else {
+                cp = b0 as u32
+                step = 1
+            }
+        } else {
+            cp = b0 as u32
+            step = 1
+        }
+
+        self.index = self.index + step
+        Maybe(u32).some(cp)
+    }
+
+    has_next :: fn(self &Self) bool {
+        self.index < self.len
+    }
+}
+
 Str :: struct {
     ptr &u8
     len u64 
@@ -78,6 +144,35 @@ Str :: struct {
             ptr: self.ptr,
             len: self.len
         }
+    }
+
+    iter :: fn(self &Self) CharIter {
+        CharIter.new(self.ptr, self.len)
+    }
+
+    chars :: fn(self &Self) CharIter {
+        CharIter.new(self.ptr, self.len)
+    }
+
+    char_count :: fn(self &Self) u64 {
+        count: u64 = 0
+        it := self.chars()
+        while it.next().is_some() {
+            count = count + 1
+        }
+        count
+    }
+
+    char_at :: fn(self &Self, n u64) Maybe(u32) {
+        it := self.chars()
+        idx: u64 = 0
+        while it.has_next() {
+            m := it.next()
+            if m.is_none() { break }
+            if idx == n { ret m }
+            idx = idx + 1
+        }
+        Maybe(u32).none()
     }
 
 }

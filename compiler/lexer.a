@@ -105,9 +105,10 @@ Lexer :: struct {
     valid_escape :: fn(self &Self) bool {
         c := self.current()
         if c == 'x' { ret is_hex_digit(self.peek()) }
+        if c == 'u' { ret self.peek() == '{' }
         if (c >= '0') and (c <= '7') { ret true }
         (c == 'a') or (c == 'b') or (c == 'f') or (c == 'n') or (c == 'r') or
-        (c == 't') or (c == 'v') or (c == '\\') or (c == '\'') or (c == '"') or (c == '?')
+        (c == 't') or (c == 'v') or (c == '\\') or (c == '\'') or (c == '"') or (c == '?') or (c == '0')
     }
 
 is_bin_digit :: fn(c u8) bool {
@@ -315,6 +316,18 @@ is_oct_digit :: fn(c u8) bool {
                 while is_hex_digit(self.current()) {
                     self.bump()
                 }
+            } else if (self.current() == 'u') and (self.peek() == '{') {
+                self.bump()
+                self.bump()
+                has_hex := false
+                while is_hex_digit(self.current()) {
+                    has_hex = true
+                    self.bump()
+                }
+                if (not has_hex) or (self.current() != '}') {
+                    self.error(c"invalid unicode escape", offset)
+                }
+                self.bump()
             } else {
                 self.bump()
             }
@@ -322,7 +335,42 @@ is_oct_digit :: fn(c u8) bool {
             if self.is_eof() or (self.current() == '\'') {
                 self.error(c"invalid character literal", offset)
             }
-            self.bump()
+            c := self.current()
+            if (c & 0x80) == 0 {
+                self.bump()
+            } else if (c & 0xE0) == 0xC0 {
+                self.bump()
+                if self.is_eof() or ((self.current() & 0xC0) != 0x80) {
+                    self.error(c"invalid utf-8 sequence in character literal", offset)
+                }
+                self.bump()
+            } else if (c & 0xF0) == 0xE0 {
+                self.bump()
+                if self.is_eof() or ((self.current() & 0xC0) != 0x80) {
+                    self.error(c"invalid utf-8 sequence in character literal", offset)
+                }
+                self.bump()
+                if self.is_eof() or ((self.current() & 0xC0) != 0x80) {
+                    self.error(c"invalid utf-8 sequence in character literal", offset)
+                }
+                self.bump()
+            } else if (c & 0xF8) == 0xF0 {
+                self.bump()
+                if self.is_eof() or ((self.current() & 0xC0) != 0x80) {
+                    self.error(c"invalid utf-8 sequence in character literal", offset)
+                }
+                self.bump()
+                if self.is_eof() or ((self.current() & 0xC0) != 0x80) {
+                    self.error(c"invalid utf-8 sequence in character literal", offset)
+                }
+                self.bump()
+                if self.is_eof() or ((self.current() & 0xC0) != 0x80) {
+                    self.error(c"invalid utf-8 sequence in character literal", offset)
+                }
+                self.bump()
+            } else {
+                self.error(c"invalid utf-8 lead byte in character literal", offset)
+            }
         }
 
         if self.current() != '\'' {
@@ -463,4 +511,88 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
     }
 
     stream.push(Token.eof, lexer.cursor as u32, 0, Str.empty(), lexer.had_newline)
+}
+
+decode_char_lit :: fn(raw Str) u32 {
+    if raw.len < 3 { ret 0 }
+    ptr := raw.ptr + 1
+    len := raw.len - 2
+
+    if *ptr == '\\' {
+        if len < 2 { ret 0 }
+        esc := *(ptr + 1)
+        if esc == 'n' { ret 10 }
+        if esc == 'r' { ret 13 }
+        if esc == 't' { ret 9 }
+        if esc == '0' { ret 0 }
+        if esc == 'a' { ret 7 }
+        if esc == 'b' { ret 8 }
+        if esc == 'f' { ret 12 }
+        if esc == 'v' { ret 11 }
+        if esc == '\\' { ret 92 }
+        if esc == '\'' { ret 39 }
+        if esc == '"' { ret 34 }
+        if esc == 'x' {
+            val: u32 = 0
+            i: u64 = 2
+            while i < len {
+                ch := *(ptr + i)
+                digit: u32 = 0
+                if (ch >= '0') and (ch <= '9') { digit = (ch - '0') as u32 }
+                else if (ch >= 'a') and (ch <= 'f') { digit = (ch - 'a' + 10) as u32 }
+                else if (ch >= 'A') and (ch <= 'F') { digit = (ch - 'A' + 10) as u32 }
+                else { break }
+                val = (val << 4) | digit
+                i = i + 1
+            }
+            ret val
+        }
+        if (esc == 'u') and (len >= 4) and (*(ptr + 2) == '{') {
+            val: u32 = 0
+            i: u64 = 3
+            while i < len {
+                ch := *(ptr + i)
+                if ch == '}' { break }
+                digit: u32 = 0
+                if (ch >= '0') and (ch <= '9') { digit = (ch - '0') as u32 }
+                else if (ch >= 'a') and (ch <= 'f') { digit = (ch - 'a' + 10) as u32 }
+                else if (ch >= 'A') and (ch <= 'F') { digit = (ch - 'A' + 10) as u32 }
+                else { break }
+                val = (val << 4) | digit
+                i = i + 1
+            }
+            ret val
+        }
+        ret esc as u32
+    }
+
+    b0 := *ptr
+    if (b0 & 0x80) == 0 {
+        ret b0 as u32
+    }
+    if (b0 & 0xE0) == 0xC0 {
+        if len >= 2 {
+            b1 := *(ptr + 1)
+            ret (((b0 & 0x1F) as u32) << 6) | ((b1 & 0x3F) as u32)
+        }
+        ret b0 as u32
+    }
+    if (b0 & 0xF0) == 0xE0 {
+        if len >= 3 {
+            b1 := *(ptr + 1)
+            b2 := *(ptr + 2)
+            ret (((b0 & 0x0F) as u32) << 12) | (((b1 & 0x3F) as u32) << 6) | ((b2 & 0x3F) as u32)
+        }
+        ret b0 as u32
+    }
+    if (b0 & 0xF8) == 0xF0 {
+        if len >= 4 {
+            b1 := *(ptr + 1)
+            b2 := *(ptr + 2)
+            b3 := *(ptr + 3)
+            ret (((b0 & 0x07) as u32) << 18) | (((b1 & 0x3F) as u32) << 12) | (((b2 & 0x3F) as u32) << 6) | ((b3 & 0x3F) as u32)
+        }
+        ret b0 as u32
+    }
+    b0 as u32
 }

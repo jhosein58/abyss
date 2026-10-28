@@ -35,6 +35,30 @@ String :: struct {
         self.len = self.len + 1
     }
 
+    push_codepoint :: fn(self &Self, cp u32) {
+        if cp < 128 {
+            self.push_char(cp as u8)
+        } else if cp < 2048 {
+            self.reserve(self.len + 2)
+            *(self.ptr + self.len) = (192 | (cp >> 6)) as u8
+            *(self.ptr + self.len + 1) = (128 | (cp & 63)) as u8
+            self.len = self.len + 2
+        } else if cp < 65536 {
+            self.reserve(self.len + 3)
+            *(self.ptr + self.len) = (224 | (cp >> 12)) as u8
+            *(self.ptr + self.len + 1) = (128 | ((cp >> 6) & 63)) as u8
+            *(self.ptr + self.len + 2) = (128 | (cp & 63)) as u8
+            self.len = self.len + 3
+        } else {
+            self.reserve(self.len + 4)
+            *(self.ptr + self.len) = (240 | (cp >> 18)) as u8
+            *(self.ptr + self.len + 1) = (128 | ((cp >> 12) & 63)) as u8
+            *(self.ptr + self.len + 2) = (128 | ((cp >> 6) & 63)) as u8
+            *(self.ptr + self.len + 3) = (128 | (cp & 63)) as u8
+            self.len = self.len + 4
+        }
+    }
+
     push_str :: fn(self &Self, s Str) {
         if s.len == 0 { ret }
         self.reserve(self.len + s.len)

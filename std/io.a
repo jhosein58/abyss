@@ -35,6 +35,14 @@ print :: fn(T type, value T) {
     #print_body(true)
 }
 
+print_codepoint :: fn(cp u32) {
+    arena := Arena.new(64)
+    s := String.new(&arena)
+    s.push_codepoint(cp)
+    write_str(s.as_str())
+    arena.destroy()
+}
+
 printf :: fn(T type, cmpt pattern Str, args T) {
     arena := Arena.new(1024)
     text := fmt(&arena, pattern, args)

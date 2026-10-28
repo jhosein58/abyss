@@ -4,6 +4,7 @@ import TypeStorage, TyKind, ty_id_none from "../types"
 import HirExprKind, hir_kind, hir_none from "../hir"
 import Chunk from "./chunk"
 import OpCode from "./op"
+import decode_char_lit from "../lexer"
 
 malloc :: fn(size u64) &u8
 
@@ -753,20 +754,7 @@ VmCodeGen :: struct {
     }
 
     expr_char_lit :: fn(self &Self, arena &Arena, raw Str) VmVal {
-        c: u64 = 0
-        if raw.len >= 3 {
-            if *(raw.ptr + 1) == '\\' {
-                esc := *(raw.ptr + 2)
-                if esc == 'n' { c = 10 }
-                else if esc == 't' { c = 9 }
-                else if esc == 'r' { c = 13 }
-                else if esc == '0' { c = 0 }
-                else { c = esc as u64 }
-            } else {
-                c = *(raw.ptr + 1) as u64
-            }
-        }
-        VmVal.const_int(c)
+        VmVal.const_int(decode_char_lit(raw) as u64)
     }
 
     expr_cstr_lit :: fn(self &Self, arena &Arena, raw Str) VmVal {
