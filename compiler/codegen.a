@@ -178,7 +178,7 @@ CCodeGen :: struct {
             append_str(&self.code, Str.of(" = "))
             append_str(&self.code, init_val)
         } else {
-            append_str(&self.code, Str.of(" = {0}"))
+            append_str(&self.code, Str.of(" = {}"))
         }
         append_str(&self.code, Str.of(";\n"))
     }
@@ -732,7 +732,7 @@ CCodeGen :: struct {
 
     expr_zero :: fn(self &Self, arena &Arena, ty Str) Str {
         fmt := Fmt.new(arena)
-        fmt.cstr(c"((").str(ty).cstr(c"){0})")
+        fmt.cstr(c"((").str(ty).cstr(c"){})")
         fmt.as_str()
     }
 
