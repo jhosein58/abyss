@@ -1,0 +1,63 @@
+import Arena from "std/allocator"
+import String from "std/string"
+import print_codepoint from "std/io"
+
+main :: fn() {
+    c1: u8 = 'A'
+    c2: u16 = 'س'
+    c3: u32 = '€'
+    c4: u32 = '🦀'
+    c5: u64 = '🚀'
+    c6: u32 = '\u{1F980}'
+    c7: u32 = '\u{633}'
+    c8: u32 = '\u{20AC}'
+
+    print(c1)
+    print(c2)
+    print(c3)
+    print(c4)
+    print(c5)
+    print(c6 == c4)
+    print(c7 == (c2 as u32))
+    print(c8 == c3)
+
+    print('A' + 1 == 'B')
+    print('🦀' > 'A')
+
+    text := "سلام 🚀"
+    print(text.len)
+    print(text.char_count())
+    print(text.char_at(0).unwrap() == 'س')
+    print(text.char_at(1).unwrap() == 'ل')
+    print(text.char_at(2).unwrap() == 'ا')
+    print(text.char_at(3).unwrap() == 'م')
+    print(text.char_at(4).unwrap() == ' ')
+    print(text.char_at(5).unwrap() == '🚀')
+    print(text.char_at(6).is_none())
+
+    iter_count: u64 = 0
+    for ch in text {
+        iter_count = iter_count + 1
+    }
+    print(iter_count)
+
+    arena := Arena.new(1024)
+    buf := String.new(&arena)
+    buf.push_codepoint('A')
+    buf.push_codepoint('س')
+    buf.push_codepoint('€')
+    buf.push_codepoint('🦀')
+
+    res := buf.as_str()
+    print(res.len)
+    print(res.char_count())
+    print(res.eq("Aس€🦀"))
+
+    print(text)
+    print_codepoint('🦀')
+    print("")
+    print_codepoint('س')
+    print("")
+
+    arena.destroy()
+}
