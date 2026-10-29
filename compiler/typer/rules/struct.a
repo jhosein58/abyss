@@ -8,7 +8,7 @@ import Engine from "../../engine"
 import fall from "std/sys"
 import synth_type_node from "./var"
 import synth_func, func_has_self from "./fn"
-import specialize_nominal_method from "../specialize"
+import specialize_nominal_method, specialize_nominal_from_creator from "../specialize"
 import Token, TokenStream from "../../token"
 import lex from "../../lexer"
 import Parser_new, is_eof, peek from "../../parser/core"
@@ -313,7 +313,7 @@ synth_member :: fn(eng &Engine, id u32) {
     db.set_auto_deref_depth(id, deref_depth)
 
     kind := types_ptr.kind(lhs_ty)
-    if (kind != TyKind.struct_) and (kind != TyKind.nominal) and (kind != TyKind.enum_) {
+    if (kind != TyKind.struct_) and (kind != TyKind.nominal) and (kind != TyKind.enum_) and (kind != TyKind.array) {
         printf("\n\033[1;31m[type error]\033[0m member receiver must be a struct or enum, got '", .{})
         types_ptr.print_type(lhs_ty)
         printf("'\n       --> ", .{})
@@ -324,6 +324,45 @@ synth_member :: fn(eng &Engine, id u32) {
 
     rhs_id := tbl.rhs(id)
     name_id := tbl.lhs(rhs_id)
+
+    if kind == TyKind.array {
+        elem_ty := types_ptr.get_array_type(lhs_ty)
+        arr_len := types_ptr.get_array_len(lhs_ty)
+        len_id := db.interner.intern(Str.of("len"))
+        iter_id := db.interner.intern(Str.of("iter"))
+        iter_ref_id := db.interner.intern(Str.of("iter_ref"))
+        if name_id == len_id {
+            u64_ty := types_ptr.alloc_uint(64)
+            db.unify.bind_type(&db.types, slot, u64_ty)
+            db.set_const_type(id, u64_ty)
+            db.set_const_val(id, arr_len as u64)
+            db.set_is_const(id, true)
+            ret
+        }
+        if (name_id == iter_id) or (name_id == iter_ref_id) {
+            is_ref := name_id == iter_ref_id
+            creator_name := if is_ref { Str.of("RefIterator") } else { Str.of("Iterator") }
+            creator_sym := db.resolve_sym(db.find_symbol(db.core_prelude, db.interner.intern(creator_name)))
+            eng.ensure_resolved(creator_sym)
+            c_args := Vec(u32).new()
+            c_args.push(elem_ty)
+            iter_ty := specialize_nominal_from_creator(eng, creator_sym, &c_args)
+            c_args.destroy()
+
+            p_slice := Vec(u32).new()
+            p_slice.push(types_ptr.alloc_ptr(lhs_ty))
+            fn_ty := types_ptr.alloc_func(p_slice.as_slice(), iter_ty, false)
+            p_slice.destroy()
+
+            db.unify.bind_type(&db.types, slot, fn_ty)
+            db.set_const_type(id, fn_ty)
+            ret
+        }
+        printf("\n\033[1;31m[type error]\033[0m array type has no field or method named '{}'\n       --> ", .{db.interner.get(name_id)})
+        db.print_loc(id)
+        print("")
+        fall()
+    }
 
     if kind == TyKind.enum_ {
         if is_type {

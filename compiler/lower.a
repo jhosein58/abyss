@@ -209,6 +209,53 @@ emit_method_receiver :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u3
     lhs_val
 }
 
+lower_array_iter_call :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32, c_lhs u32, arr_ty u32, is_ref bool) V {
+    db := ctx.db
+    ccg := ctx.ccg
+    arena := ctx.arena
+    builder := ctx.builder
+    type_queue := ctx.type_queue
+
+    elem_ty := db.types.get_array_type(arr_ty)
+    arr_len := db.types.get_array_len(arr_ty)
+    iter_ty := db.get_node_type(id)
+    add_type_to_queue(db, iter_ty, type_queue)
+    add_type_to_queue(db, elem_ty, type_queue)
+
+    ptr_id := db.interner.intern(Str.of("ptr"))
+    len_id := db.interner.intern(Str.of("len"))
+    index_id := db.interner.intern(Str.of("index"))
+
+    lhs_val := lower_expr(ctx, c_lhs)
+    curr_ty := db.get_node_type(c_lhs)
+    while (db.types.kind(curr_ty) == TyKind.ptr) and (db.types.kind(db.types.payload(curr_ty)) == TyKind.ptr) {
+        lhs_val = ccg.expr_deref(arena, lhs_val)
+        curr_ty = db.types.payload(curr_ty)
+    }
+    if db.types.kind(curr_ty) != TyKind.ptr {
+        if not is_lvalue(db, c_lhs) {
+            add_type_to_queue(db, curr_ty, type_queue)
+            ty_str := ccg.type_str(&db.types, arena, curr_ty)
+            lhs_val = ccg.expr_address_of_value(arena, ty_str, lhs_val)
+        } else {
+            lhs_val = ccg.expr_typed_address(arena, lhs_val, curr_ty)
+        }
+    }
+
+    ptr_elem_ty := db.types.alloc_ptr(elem_ty)
+    ptr_ty_str := ccg.type_str(&db.types, arena, ptr_elem_ty)
+    ptr_val := ccg.expr_cast(arena, ptr_ty_str, lhs_val)
+    len_val := ccg.expr_u64(arena, arr_len as u64)
+    index_val := ccg.expr_u64(arena, 0)
+
+    struct_name := ccg.type_str(&db.types, arena, iter_ty)
+    fields_fmt := builder.new_list(arena)
+    builder.append_list_item(&fields_fmt, ccg.expr_struct_init_field(arena, ptr_id, ptr_val), true)
+    builder.append_list_item(&fields_fmt, ccg.expr_struct_init_field(arena, len_id, len_val), false)
+    builder.append_list_item(&fields_fmt, ccg.expr_struct_init_field(arena, index_id, index_val), false)
+    ccg.expr_struct_init(arena, struct_name, builder.finish_list(&fields_fmt))
+}
+
 lower_builtin_call :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     db := ctx.db
     ccg := ctx.ccg
@@ -500,6 +547,21 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
         }
         call {
             callee_id := db.hir.lhs(id)
+            if db.hir.kind(callee_id) == hir_kind.member {
+                c_lhs := db.hir.lhs(callee_id)
+                c_lhs_ty := db.get_node_type(c_lhs)
+                while db.types.kind(c_lhs_ty) == TyKind.ptr {
+                    c_lhs_ty = db.types.payload(c_lhs_ty)
+                }
+                if db.types.kind(c_lhs_ty) == TyKind.array {
+                    m_name_id := db.hir.lhs(db.hir.rhs(callee_id))
+                    iter_id := db.interner.intern(Str.of("iter"))
+                    iter_ref_id := db.interner.intern(Str.of("iter_ref"))
+                    if (m_name_id == iter_id) or (m_name_id == iter_ref_id) {
+                        ret lower_array_iter_call(ctx, id, c_lhs, c_lhs_ty, m_name_id == iter_ref_id)
+                    }
+                }
+            }
             callee_ty := db.get_node_type(callee_id)
             if (db.get_node_type(id) == ty_id_type()) and db.types.func_has_type_param(callee_ty) {
                 ret empty
@@ -760,6 +822,15 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             }
             lhs_str := lower_expr(ctx, target_lhs)
             field_name_id := db.hir.lhs(rhs_id)
+            len_id := db.interner.intern(Str.of("len"))
+            base_lhs_ty := lhs_ty
+            while db.types.kind(base_lhs_ty) == TyKind.ptr {
+                base_lhs_ty = db.types.payload(base_lhs_ty)
+            }
+            if (db.types.kind(base_lhs_ty) == TyKind.array) and (field_name_id == len_id) {
+                arr_len := db.types.get_array_len(base_lhs_ty)
+                ret ccg.expr_u64(arena, arr_len as u64)
+            }
             ret ccg.expr_typed_member(arena, lhs_str, depth, field_name_id, lhs_ty)
         }
         array_init {

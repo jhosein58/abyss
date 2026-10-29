@@ -233,6 +233,12 @@ has_instance_method :: fn(db &Nexus, ty u32, name_id u32) bool {
     while types.kind(ty) == TyKind.ptr {
         ty = types.payload(ty)
     }
+    if types.kind(ty) == TyKind.array {
+        iter_id := db.interner.intern(Str.of("iter"))
+        iter_ref_id := db.interner.intern(Str.of("iter_ref"))
+        len_id := db.interner.intern(Str.of("len"))
+        ret (name_id == iter_id) or (name_id == iter_ref_id) or (name_id == len_id)
+    }
     kind := types.kind(ty)
     if (kind != TyKind.nominal) and (kind != TyKind.enum_) { ret false }
     origin := types.nominal_origin(ty)
@@ -355,7 +361,10 @@ normalize_for_iter :: fn(eng &Engine, iter u32) u32 {
             match_error(db, c"for reference source type is unresolved", iter)
         }
         source_ty := unify.resolve_type_deep(types, source_slot)
-        if (source_ty == ty_id_none()) or (types.kind(source_ty) != TyKind.nominal) {
+        while types.kind(source_ty) == TyKind.ptr {
+            source_ty = types.payload(source_ty)
+        }
+        if (source_ty == ty_id_none()) or ((types.kind(source_ty) != TyKind.nominal) and (types.kind(source_ty) != TyKind.array)) {
             match_error(db, c"for reference source must provide iter_ref", iter)
         }
         call := make_iter_call(eng, source, Str.of("iter_ref"))

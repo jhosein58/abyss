@@ -79,4 +79,28 @@ main :: fn() {
     print("\n")
     print(res[3])
     print("\n")
+
+    arr_iter: [3]i32 = .[111, 222, 333]
+    print(arr_iter.len)
+    print("\n")
+
+    for x in arr_iter {
+        print(x)
+        print("\n")
+    }
+
+    for x in arr_iter.iter() {
+        print(x)
+        print("\n")
+    }
+
+    for x in &arr_iter {
+        print(*x)
+        print("\n")
+    }
+
+    for x in arr_iter.iter_ref() {
+        print(*x)
+        print("\n")
+    }
 }
