@@ -1,37 +1,39 @@
 import printf from "std/io"
 
 Op :: enum {
-    push,
-    add,
-    sub,
-    mul,
-    print,
-    halt,
+    halt
+    push
+    add
+    sub
+    mul
+    print
 }
 
-Inst :: struct { Op, i32 }
-
 main :: fn() {
-    program: [7]Inst = .[
-        .{ Op.push,  15 },
-        .{ Op.push,  25 },
-        .{ Op.add,   0 },
-        .{ Op.push,  2 },
-        .{ Op.mul,   0 },
-        .{ Op.print, 0 },
-        .{ Op.halt,  0 },
+    program := .[
+        Op.push
+        Op.push
+        Op.add
+        Op.push
+        Op.mul
+        Op.print
+        Op.halt
     ]
 
-    stack := Vec(i32).new()
+    s := Vec(i32).new()
 
     for inst in program {
-        match inst.0 {
-            push  { stack.push(inst.1) }
-            add   { stack.push(stack.pop() + stack.pop()) }
-            sub   { stack.push(stack.pop() - stack.pop()) }
-            mul   { stack.push(stack.pop() * stack.pop()) }
-            print { printf("result = {}\n", .{stack.pop()}) }
+        match inst {
             halt  { break }
+
+            push  { s.push(42) }
+            add   { s.push(s.pop() + s.pop()) }
+            sub   { s.push(s.pop() - s.pop()) }
+            mul   { s.push(s.pop() * s.pop()) }
+
+            print { 
+                printf("result = {}\n", .{s.pop()}) 
+            }
         }
     }
 }
