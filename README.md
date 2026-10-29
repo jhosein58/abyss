@@ -32,66 +32,29 @@ Op :: enum {
     halt,
 }
 
-Inst :: struct {
-    op  Op
-    arg i32
-
-    push :: fn(val i32) Self {
-        res: Inst = .{ op: Op.push, arg: val }
-        res
-    }
-
-    op :: fn(kind Op) Self {
-        res: Inst = .{ op: kind, arg: 0 }
-        res
-    }
-}
-
-VM :: struct {
-    stack [8]i32
-    sp    u64
-
-    new :: fn() Self {
-        res: VM = .{ stack: .[0, 0, 0, 0, 0, 0, 0, 0], sp: 0 }
-        res
-    }
-
-    push :: fn(self &Self, val i32) {
-        self.stack[self.sp] = val
-        self.sp = self.sp + 1
-    }
-
-    pop :: fn(self &Self) i32 {
-        self.sp = self.sp - 1
-        self.stack[self.sp]
-    }
-}
+Inst :: struct { Op, i32 }
 
 main :: fn() {
     program: [7]Inst = .[
-        Inst.push(15),
-        Inst.push(25),
-        Inst.op(Op.add),
-        Inst.push(2),
-        Inst.op(Op.mul),
-        Inst.op(Op.print),
-        Inst.op(Op.halt),
+        .{ Op.push,  15 },
+        .{ Op.push,  25 },
+        .{ Op.add,   0 },
+        .{ Op.push,  2 },
+        .{ Op.mul,   0 },
+        .{ Op.print, 0 },
+        .{ Op.halt,  0 },
     ]
 
-    vm := VM.new()
+    stack := Vec(i32).new()
 
     for inst in program {
-        match inst.op {
-            push { vm.push(inst.arg) }
-            add  { vm.push(vm.pop() + vm.pop()) }
-            sub  {
-                b := vm.pop()
-                a := vm.pop()
-                vm.push(a - b)
-            }
-            mul  { vm.push(vm.pop() * vm.pop()) }
-            print { printf("result = {}\n", .{vm.pop()}) }
-            halt { break }
+        match inst.0 {
+            push  { stack.push(inst.1) }
+            add   { stack.push(stack.pop() + stack.pop()) }
+            sub   { stack.push(stack.pop() - stack.pop()) }
+            mul   { stack.push(stack.pop() * stack.pop()) }
+            print { printf("result = {}\n", .{stack.pop()}) }
+            halt  { break }
         }
     }
 }
