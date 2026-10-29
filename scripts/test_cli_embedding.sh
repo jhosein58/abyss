@@ -33,5 +33,4 @@ cp "${COMPILER}" "${WORK_DIR}/abyssc"
     rg -q ABYSS_CLI_EMBED_FAILURE failure.log
     cmp abyssc previous_compiler
 )
-echo 'PASS CLI automatic embedding, cached builds, and failed rebuild preservation'
-echo "Artifacts: ${WORK_DIR}"
+printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[CLI]\033[0m\n" "cli_embedding_and_cache"

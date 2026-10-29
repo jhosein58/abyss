@@ -127,6 +127,11 @@ case "${CMD}" in
         prepare_compiler
         bash "${ROOT_DIR}/scripts/test_compiler.sh" "${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}" "${1:-}"
         ;;
+    test-all|t-all|test-full)
+        prepare_compiler
+        export ABYSS_TEST_FULL=true
+        bash "${ROOT_DIR}/scripts/test_compiler.sh" "${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}" "${1:-}"
+        ;;
     test-win|twin)
         if ! command -v wine >/dev/null 2>&1; then
             echo "[ERROR] wine is required to run Windows tests."
@@ -204,7 +209,8 @@ EOF
         echo "  br [file]         Build and run in release mode"
         echo "  b-win [file]      Build Windows binary (default: abyssc.exe)"
         echo "  r-win [file]      Build and run Windows binary with wine"
-        echo "  test [filter]     Run language test suite with latest compiler sources"
+        echo "  test [filter]     Run fast dev test suite (C + VM backends via TCC/GCC)"
+        echo "  test-all [filter] Run full test suite (fixed-point, reflection, standalone, CLI)"
         echo "  test-win [filter] Run language test suite on Windows binary with wine"
         echo "  bootstrap [n]     Run multi-generation fixed-point stability test"
         echo "  promote [n]       Verify multi-stage bootstrap & tests then promote to ./abyssc"

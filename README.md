@@ -61,17 +61,20 @@ main :: fn() {
 ## Quick Start
 
 ```sh
-# Build compiler (using seed binary)
-./abyss b
-
-# Or bootstrap from standalone C99 source
-gcc -std=c99 -O3 -rdynamic dist/bootstrap.c -o abyssc
-
-# Run immediately via VM
+# Run immediately via VM (zero compile latency)
 ./abyss r main.a
 
-# Compile native binary and run
+# Compile and run native binary with full optimization (-O3)
 ./abyss br main.a
+
+# Fast test suite (C + VM backends via TCC/GCC)
+./abyss test
+
+# Full deep verification suite
+./abyss test-all
+
+# Or bootstrap from zero-dependency standalone C99 source
+gcc -std=c99 -O3 -rdynamic dist/bootstrap.c -o abyssc
 ```
 
 ---
@@ -80,13 +83,19 @@ gcc -std=c99 -O3 -rdynamic dist/bootstrap.c -o abyssc
 
 | Command | Description |
 | :--- | :--- |
-| `./abyss r <file>` | Run on Bytecode VM (zero compile latency) |
-| `./abyss b <file>` | Compile to native binary (`-O3`) |
+| `./abyss r <file>` | Run on Bytecode VM (auto-rebuilds compiler if sources changed) |
+| `./abyss b <file>` | Compile to optimized native binary (`-O3 -march=native`) |
 | `./abyss br <file>` | Compile and run native binary |
+| `./abyss test [filter]` | Fast dev test suite with instant sub-second feedback |
+| `./abyss test-all [filter]` | Full verification suite (fixed-point, reflection, isolation, CLI) |
+| `./abyss promote [rounds]` | Multi-stage bootstrap & test verification before promoting to `./abyssc` |
+| `./abyss bootstrap [rounds]` | Multi-generation bit-identical fixed-point stability test |
 | `./abyss b-win <file>` | Cross-compile standalone Windows `.exe` |
-| `./abyss test` | Run test suite (C + VM backends) |
-| `./abyss test-win` | Run Windows test suite via Wine |
-| `./abyss release` | Package release binaries and `bootstrap.c` |
+| `./abyss r-win <file>` | Cross-compile and run Windows binary via Wine |
+| `./abyss test-win [filter]` | Run test suite on Windows binary via Wine |
+| `./abyss wasm` | Build WebAssembly standalone compiler (`abyssc.wasm`) |
+| `./abyss release [rounds]` | Package release artifacts (`bootstrap.c`, Linux, Windows, Wasm) |
+| `./abyss clean` | Clean temporary build artifacts |
 
 ---
 

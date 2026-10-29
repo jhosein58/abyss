@@ -25,11 +25,13 @@ else
     C_FLAGS="-std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -Werror=implicit-function-declaration -Werror=incompatible-pointer-types"
 fi
 
+T_START=$(date +%s%3N)
 timeout 30s "${COMPILER}" b "${SOURCE}" "${WORK_DIR}/out.c"
 "${C_COMPILER}" ${C_FLAGS} "${WORK_DIR}/out.c" -o "${WORK_DIR}/program"
 timeout 10s "${WORK_DIR}/program" > "${WORK_DIR}/c.out"
 diff -u "${EXPECTED}" "${WORK_DIR}/c.out"
 timeout 30s "${COMPILER}" r "${SOURCE}" > "${WORK_DIR}/vm.out"
 diff -u "${EXPECTED}" "${WORK_DIR}/vm.out"
-echo 'PASS type interning, collisions, borrowed slices, and formatting [C+VM]'
-echo "Artifacts: ${WORK_DIR}"
+T_END=$(date +%s%3N)
+T_MS=$((T_END - T_START))
+printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[Unit]\033[0m \033[0;90m(%sms)\033[0m\n" "type_storage_unit_tests" "${T_MS}"

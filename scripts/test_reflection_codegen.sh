@@ -48,7 +48,7 @@ gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -Werror=implicit-function-declarati
 "${WORK_DIR}/program" > "${WORK_DIR}/actual.out"
 printf '__FMT_STATIC_OPEN__ [\n    7,\n    8,\n    9,\n] true __FMT_STATIC_CLOSE__\n' > "${WORK_DIR}/expected.out"
 cmp "${WORK_DIR}/expected.out" "${WORK_DIR}/actual.out"
-echo 'PASS format parsing, reflection, and fixed-shape traversal execute only at compile time'
+printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[Comptime]\033[0m\n" "format_and_reflection_metadata"
 cat > "${WORK_DIR}/wide.a" <<'ABYSS'
 import print from "std/io"
 main :: fn() {
@@ -63,7 +63,7 @@ gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -Werror=implicit-function-declarati
 "${WORK_DIR}/wide" > "${WORK_DIR}/wide.out"
 printf '340282366920938463463374607431768211455\n-170141183460469231731687303715884105728\n' > "${WORK_DIR}/wide.expected"
 cmp "${WORK_DIR}/wide.expected" "${WORK_DIR}/wide.out"
-echo 'PASS native String conversion preserves all 128 bits'
+printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[Precision]\033[0m\n" "wide_128bit_integer_preservation"
 cat > "${WORK_DIR}/balance.a" <<'ABYSS'
 import print, printf from "std/io"
 import fall from "std/sys"
@@ -99,5 +99,4 @@ printf '#include <stdint.h>\nuint64_t allocation_balance(void);\n' > "${WORK_DIR
 "${COMPILER}" b "${WORK_DIR}/balance.a" "${WORK_DIR}/balance_program.c"
 gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -include "${WORK_DIR}/balance.h" "${WORK_DIR}/balance_program.c" "${WORK_DIR}/balance.c" -Wl,--wrap=malloc,--wrap=free -o "${WORK_DIR}/balance"
 "${WORK_DIR}/balance" > "${WORK_DIR}/balance.out"
-echo 'PASS print and printf release every temporary arena allocation'
-echo "Artifacts: ${WORK_DIR}"
+printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[Memory]\033[0m\n" "temporary_arena_allocation_balance"

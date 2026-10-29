@@ -105,6 +105,7 @@ if ! cmp -s "${WORK_DIR}/final.c" "${WORK_DIR}/gen_${ROUNDS}.c"; then
     exit 1
 fi
 
+export ABYSS_TEST_FULL=true
 bash "${ROOT_DIR}/scripts/test_compiler.sh" "${CURRENT_COMPILER}"
 
 echo -e "\n${CYAN}====================================================${RESET}"
