@@ -1,0 +1,229 @@
+import Token as Tk, TokenStream from "../../compiler/token"
+import lex, decode_char_lit from "../../compiler/lexer"
+import fall from "std/sys"
+
+expect :: fn(cond bool) {
+    if not cond { fall() }
+}
+
+check_tok :: fn(s &TokenStream, idx u32, kind Tk, text Str, newline bool) {
+    expect(s.kind(idx) == kind)
+    expect(s.text(idx).eq(text))
+    expect(s.newline_before(idx) == newline)
+}
+
+test_keywords :: fn() {
+    s := TokenStream.new()
+    src := "ret if else while break cont struct import from true false as and or not fn match in for cmpt enum"
+    lex(&s, src, "test")
+
+    expect(s.count() == 22)
+    check_tok(&s, 0, Tk.kw_ret, "ret", true)
+    check_tok(&s, 1, Tk.kw_if, "if", false)
+    check_tok(&s, 2, Tk.kw_else, "else", false)
+    check_tok(&s, 3, Tk.kw_while, "while", false)
+    check_tok(&s, 4, Tk.kw_break, "break", false)
+    check_tok(&s, 5, Tk.kw_cont, "cont", false)
+    check_tok(&s, 6, Tk.kw_struct, "struct", false)
+    check_tok(&s, 7, Tk.kw_import, "import", false)
+    check_tok(&s, 8, Tk.kw_from, "from", false)
+    check_tok(&s, 9, Tk.kw_true, "true", false)
+    check_tok(&s, 10, Tk.kw_false, "false", false)
+    check_tok(&s, 11, Tk.kw_as, "as", false)
+    check_tok(&s, 12, Tk.kw_and, "and", false)
+    check_tok(&s, 13, Tk.kw_or, "or", false)
+    check_tok(&s, 14, Tk.kw_not, "not", false)
+    check_tok(&s, 15, Tk.kw_fn, "fn", false)
+    check_tok(&s, 16, Tk.kw_match, "match", false)
+    check_tok(&s, 17, Tk.kw_in, "in", false)
+    check_tok(&s, 18, Tk.kw_for, "for", false)
+    check_tok(&s, 19, Tk.kw_cmpt, "cmpt", false)
+    check_tok(&s, 20, Tk.kw_enum, "enum", false)
+    check_tok(&s, 21, Tk.eof, "", false)
+
+    s.destroy()
+}
+
+test_identifiers :: fn() {
+    s := TokenStream.new()
+    src := "ret1 if_cond else_while breaker continues structural importing from_start truth falsy async android ordered notice fn_ptr matching into former cmpt_val enumerated _ __ _a a_b_123 A_B"
+    lex(&s, src, "test")
+
+    expect(s.count() == 26)
+    i: u32 = 0
+    while i < 25 {
+        expect(s.kind(i) == Tk.ident)
+        i = i + 1
+    }
+    check_tok(&s, 0, Tk.ident, "ret1", true)
+    check_tok(&s, 1, Tk.ident, "if_cond", false)
+    check_tok(&s, 19, Tk.ident, "enumerated", false)
+    check_tok(&s, 20, Tk.ident, "_", false)
+    check_tok(&s, 21, Tk.ident, "__", false)
+    check_tok(&s, 22, Tk.ident, "_a", false)
+    check_tok(&s, 23, Tk.ident, "a_b_123", false)
+    check_tok(&s, 24, Tk.ident, "A_B", false)
+    check_tok(&s, 25, Tk.eof, "", false)
+
+    s.destroy()
+}
+
+test_numbers :: fn() {
+    s := TokenStream.new()
+    src := "0 42 1_000_000 0x0 0x1a2F 0XFF 0x1_2_a_B 0b0 0b1010 0B11_00 0o0 0o755 0O12_34 0.0 3.14159 123_456.789 1e5 1E+5 1e-5 3.14e+2 0.5e-3"
+    lex(&s, src, "test")
+
+    expect(s.count() == 22)
+    check_tok(&s, 0, Tk.lit_int, "0", true)
+    check_tok(&s, 1, Tk.lit_int, "42", false)
+    check_tok(&s, 2, Tk.lit_int, "1_000_000", false)
+    check_tok(&s, 3, Tk.lit_int, "0x0", false)
+    check_tok(&s, 4, Tk.lit_int, "0x1a2F", false)
+    check_tok(&s, 5, Tk.lit_int, "0XFF", false)
+    check_tok(&s, 6, Tk.lit_int, "0x1_2_a_B", false)
+    check_tok(&s, 7, Tk.lit_int, "0b0", false)
+    check_tok(&s, 8, Tk.lit_int, "0b1010", false)
+    check_tok(&s, 9, Tk.lit_int, "0B11_00", false)
+    check_tok(&s, 10, Tk.lit_int, "0o0", false)
+    check_tok(&s, 11, Tk.lit_int, "0o755", false)
+    check_tok(&s, 12, Tk.lit_int, "0O12_34", false)
+    check_tok(&s, 13, Tk.lit_float, "0.0", false)
+    check_tok(&s, 14, Tk.lit_float, "3.14159", false)
+    check_tok(&s, 15, Tk.lit_float, "123_456.789", false)
+    check_tok(&s, 16, Tk.lit_float, "1e5", false)
+    check_tok(&s, 17, Tk.lit_float, "1E+5", false)
+    check_tok(&s, 18, Tk.lit_float, "1e-5", false)
+    check_tok(&s, 19, Tk.lit_float, "3.14e+2", false)
+    check_tok(&s, 20, Tk.lit_float, "0.5e-3", false)
+    check_tok(&s, 21, Tk.eof, "", false)
+    s.destroy()
+
+    s2 := TokenStream.new()
+    lex(&s2, "0..10 0.foo", "test")
+    expect(s2.count() == 8)
+    check_tok(&s2, 0, Tk.lit_int, "0", true)
+    check_tok(&s2, 1, Tk.dot, ".", false)
+    check_tok(&s2, 2, Tk.dot, ".", false)
+    check_tok(&s2, 3, Tk.lit_int, "10", false)
+    check_tok(&s2, 4, Tk.lit_int, "0", false)
+    check_tok(&s2, 5, Tk.dot, ".", false)
+    check_tok(&s2, 6, Tk.ident, "foo", false)
+    check_tok(&s2, 7, Tk.eof, "", false)
+    s2.destroy()
+}
+
+test_operators_and_symbols :: fn() {
+    s := TokenStream.new()
+    src := "+ += - -= * *= / /= % %= & &= | |= ^ ^= ~ = == != : :: < <= << <<= > >= >> >>= ( ) { } [ ] , ; . # @"
+    lex(&s, src, "test")
+
+    expect(s.count() == 42)
+    check_tok(&s, 0, Tk.plus, "+", true)
+    check_tok(&s, 1, Tk.plus_eq, "+=", false)
+    check_tok(&s, 2, Tk.minus, "-", false)
+    check_tok(&s, 3, Tk.minus_eq, "-=", false)
+    check_tok(&s, 4, Tk.star, "*", false)
+    check_tok(&s, 5, Tk.star_eq, "*=", false)
+    check_tok(&s, 6, Tk.slash, "/", false)
+    check_tok(&s, 7, Tk.slash_eq, "/=", false)
+    check_tok(&s, 8, Tk.percent, "%", false)
+    check_tok(&s, 9, Tk.percent_eq, "%=", false)
+    check_tok(&s, 10, Tk.amp, "&", false)
+    check_tok(&s, 11, Tk.amp_eq, "&=", false)
+    check_tok(&s, 12, Tk.pipe, "|", false)
+    check_tok(&s, 13, Tk.pipe_eq, "|=", false)
+    check_tok(&s, 14, Tk.caret, "^", false)
+    check_tok(&s, 15, Tk.caret_eq, "^=", false)
+    check_tok(&s, 16, Tk.tilde, "~", false)
+    check_tok(&s, 17, Tk.eq, "=", false)
+    check_tok(&s, 18, Tk.eq_eq, "==", false)
+    check_tok(&s, 19, Tk.bang_eq, "!=", false)
+    check_tok(&s, 20, Tk.colon, ":", false)
+    check_tok(&s, 21, Tk.colon_colon, "::", false)
+    check_tok(&s, 22, Tk.lt, "<", false)
+    check_tok(&s, 23, Tk.lt_eq, "<=", false)
+    check_tok(&s, 24, Tk.left_shift, "<<", false)
+    check_tok(&s, 25, Tk.left_shift_eq, "<<=", false)
+    check_tok(&s, 26, Tk.gt, ">", false)
+    check_tok(&s, 27, Tk.gt_eq, ">=", false)
+    check_tok(&s, 28, Tk.right_shift, ">>", false)
+    check_tok(&s, 29, Tk.right_shift_eq, ">>=", false)
+    check_tok(&s, 30, Tk.o_paren, "(", false)
+    check_tok(&s, 31, Tk.c_paren, ")", false)
+    check_tok(&s, 32, Tk.o_brace, "{", false)
+    check_tok(&s, 33, Tk.c_brace, "}", false)
+    check_tok(&s, 34, Tk.o_bracket, "[", false)
+    check_tok(&s, 35, Tk.c_bracket, "]", false)
+    check_tok(&s, 36, Tk.comma, ",", false)
+    check_tok(&s, 37, Tk.semi, ";", false)
+    check_tok(&s, 38, Tk.dot, ".", false)
+    check_tok(&s, 39, Tk.hash, "#", false)
+    check_tok(&s, 40, Tk.at, "@", false)
+    check_tok(&s, 41, Tk.eof, "", false)
+    s.destroy()
+}
+
+test_strings_and_chars :: fn() {
+    s := TokenStream.new()
+    src := "\"hello world\" \"with \\\"escapes\\\" and \\\\\" c\"cstring\" `raw string with \\n` 'a' '\\n' '\\t' '\\'' '\\\\' '\\x41' '\\u{2764}' 'α' '❤' '🚀'"
+    lex(&s, src, "test")
+
+    expect(s.count() == 15)
+    check_tok(&s, 0, Tk.lit_str, "\"hello world\"", true)
+    check_tok(&s, 1, Tk.lit_str, "\"with \\\"escapes\\\" and \\\\\"", false)
+    check_tok(&s, 2, Tk.lit_cstr, "c\"cstring\"", false)
+    check_tok(&s, 3, Tk.lit_str, "`raw string with \\n`", false)
+    check_tok(&s, 4, Tk.lit_char, "'a'", false)
+    check_tok(&s, 5, Tk.lit_char, "'\\n'", false)
+    check_tok(&s, 6, Tk.lit_char, "'\\t'", false)
+    check_tok(&s, 7, Tk.lit_char, "'\\''", false)
+    check_tok(&s, 8, Tk.lit_char, "'\\\\'", false)
+    check_tok(&s, 9, Tk.lit_char, "'\\x41'", false)
+    check_tok(&s, 10, Tk.lit_char, "'\\u{2764}'", false)
+    check_tok(&s, 11, Tk.lit_char, "'α'", false)
+    check_tok(&s, 12, Tk.lit_char, "'❤'", false)
+    check_tok(&s, 13, Tk.lit_char, "'🚀'", false)
+    check_tok(&s, 14, Tk.eof, "", false)
+    s.destroy()
+
+    expect(decode_char_lit("'a'") == 97)
+    expect(decode_char_lit("'\\n'") == 10)
+    expect(decode_char_lit("'\\r'") == 13)
+    expect(decode_char_lit("'\\t'") == 9)
+    expect(decode_char_lit("'\\0'") == 0)
+    expect(decode_char_lit("'\\\\'") == 92)
+    expect(decode_char_lit("'\\''") == 39)
+    expect(decode_char_lit("'\\\"'") == 34)
+    expect(decode_char_lit("'\\x41'") == 65)
+    expect(decode_char_lit("'\\u{41}'") == 65)
+    expect(decode_char_lit("'\\u{03b1}'") == 945)
+    expect(decode_char_lit("'\\u{2764}'") == 10084)
+    expect(decode_char_lit("'α'") == 945)
+    expect(decode_char_lit("'❤'") == 10084)
+    expect(decode_char_lit("'🚀'") == 128640)
+}
+
+test_comments_and_newlines :: fn() {
+    s := TokenStream.new()
+    src := "first\n-- comment here\nsecond\r\nthird   fourth\n\n\nfifth -- end comment\n"
+    lex(&s, src, "test")
+
+    expect(s.count() == 6)
+    check_tok(&s, 0, Tk.ident, "first", true)
+    check_tok(&s, 1, Tk.ident, "second", true)
+    check_tok(&s, 2, Tk.ident, "third", true)
+    check_tok(&s, 3, Tk.ident, "fourth", false)
+    check_tok(&s, 4, Tk.ident, "fifth", true)
+    check_tok(&s, 5, Tk.eof, "", true)
+    s.destroy()
+}
+
+main :: fn() {
+    test_keywords()
+    test_identifiers()
+    test_numbers()
+    test_operators_and_symbols()
+    test_strings_and_chars()
+    test_comments_and_newlines()
+    printf("PASS compiler lexer unit tests\n", .{})
+}
