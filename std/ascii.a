@@ -6,6 +6,21 @@ is_hex_digit :: fn(c u8) bool {
     (c >= '0' and c <= '9') or (c >= 'A' and c <= 'F') or (c >= 'a' and c <= 'f')
 }
 
+is_bin_digit :: fn(c u8) bool {
+    (c == '0') or (c == '1')
+}
+
+is_oct_digit :: fn(c u8) bool {
+    (c >= '0') and (c <= '7')
+}
+
+hex_digit_value :: fn(c u8) u32 {
+    if (c >= '0') and (c <= '9') { ret (c - '0') as u32 }
+    if (c >= 'a') and (c <= 'f') { ret (c - 'a' + 10) as u32 }
+    if (c >= 'A') and (c <= 'F') { ret (c - 'A' + 10) as u32 }
+    0
+}
+
 is_alpha :: fn(c u8) bool {
     (c >= 'A' and c <= 'Z') or (c >= 'a' and c <= 'z') or (c == '_')
 }
