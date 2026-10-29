@@ -178,7 +178,7 @@ CCodeGen :: struct {
             append_str(&self.code, Str.of(" = "))
             append_str(&self.code, init_val)
         } else {
-            append_str(&self.code, Str.of(" = {}"))
+            append_str(&self.code, Str.of(" = {0}"))
         }
         append_str(&self.code, Str.of(";\n"))
     }
@@ -386,6 +386,10 @@ CCodeGen :: struct {
         fmt := Fmt.new(arena)
         s_fields := (&(*types)).get_struct_fields(ty_id)
         f_count := s_fields.len / 2
+
+        if f_count == 0 {
+            fmt.cstr(c"    uint8_t _dummy;\n")
+        }
 
         f_i: u64 = 0
         while f_i < f_count {
@@ -732,7 +736,7 @@ CCodeGen :: struct {
 
     expr_zero :: fn(self &Self, arena &Arena, ty Str) Str {
         fmt := Fmt.new(arena)
-        fmt.cstr(c"((").str(ty).cstr(c"){})")
+        fmt.cstr(c"((").str(ty).cstr(c"){0})")
         fmt.as_str()
     }
 

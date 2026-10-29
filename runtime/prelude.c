@@ -403,6 +403,10 @@ uint64_t string_float64(uint8_t *ptr, uint64_t capacity, double value) {
     return (uint64_t)length;
 }
 
+#ifdef __TINYC__
+#define __int128 long long
+#endif
+
 #if defined(__SIZEOF_INT128__)
 void print_u128(unsigned __int128 v) {
     uint8_t digits[40];
@@ -459,6 +463,10 @@ void print_u32(uint32_t v) {
 void print_u64(uint64_t v) {
     printf("%llu", (unsigned long long)v);
 }
+
+#ifdef __TINYC__
+typedef uint16_t _Float16;
+#endif
 
 void print_f16(_Float16 v) {
     printf("%f", (double)v);
