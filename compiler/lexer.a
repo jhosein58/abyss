@@ -1,49 +1,46 @@
-import Str from "std/string"
-import Token, TokenStream from "./token"
+import Token, Token as Tk, TokenStream from "./token"
 import calc_pos from "./nexus/nexus"
 import fall from "std/sys"
 import is_digit, is_hex_digit, is_alpha, is_alphanumeric, is_whitespace, is_newline from "std/ascii"
 
-match_keyword :: fn(text Str) Token {
-    t := Token
-
+match_keyword :: fn(text Str) Tk {
     if text.len == 2 {
-        if text.eq(Str.of("if")) { ret t.kw_if }
-        if text.eq(Str.of("as")) { ret t.kw_as }
-        if text.eq(Str.of("or")) { ret t.kw_or }
-        if text.eq(Str.of("fn")) { ret t.kw_fn }
-        if text.eq(Str.of("in")) { ret t.kw_in }
+        if text.eq("if") { ret Tk.kw_if }
+        if text.eq("as") { ret Tk.kw_as }
+        if text.eq("or") { ret Tk.kw_or }
+        if text.eq("fn") { ret Tk.kw_fn }
+        if text.eq("in") { ret Tk.kw_in }
     }
 
     if text.len == 3 {
-        if text.eq(Str.of("ret")) { ret t.kw_ret }
-        if text.eq(Str.of("and")) { ret t.kw_and }
-        if text.eq(Str.of("not")) { ret t.kw_not }
-        if text.eq(Str.of("for")) { ret t.kw_for }
+        if text.eq("ret") { ret Tk.kw_ret }
+        if text.eq("and") { ret Tk.kw_and }
+        if text.eq("not") { ret Tk.kw_not }
+        if text.eq("for") { ret Tk.kw_for }
     }
 
     if text.len == 4 {
-        if text.eq(Str.of("else")) { ret t.kw_else }
-        if text.eq(Str.of("cont")) { ret t.kw_cont }
-        if text.eq(Str.of("true")) { ret t.kw_true }
-        if text.eq(Str.of("from")) { ret t.kw_from }
-        if text.eq(Str.of("enum")) { ret t.kw_enum }
-        if text.eq(Str.of("cmpt")) { ret t.kw_cmpt }
+        if text.eq("else") { ret Tk.kw_else }
+        if text.eq("cont") { ret Tk.kw_cont }
+        if text.eq("true") { ret Tk.kw_true }
+        if text.eq("from") { ret Tk.kw_from }
+        if text.eq("enum") { ret Tk.kw_enum }
+        if text.eq("cmpt") { ret Tk.kw_cmpt }
     }
 
     if text.len == 5 {
-        if text.eq(Str.of("while")) { ret t.kw_while }
-        if text.eq(Str.of("break")) { ret t.kw_break }
-        if text.eq(Str.of("false")) { ret t.kw_false }
-        if text.eq(Str.of("match")) { ret t.kw_match }
+        if text.eq("while") { ret Tk.kw_while }
+        if text.eq("break") { ret Tk.kw_break }
+        if text.eq("false") { ret Tk.kw_false }
+        if text.eq("match") { ret Tk.kw_match }
     }
 
     if text.len == 6 {
-        if text.eq(Str.of("struct")) { ret t.kw_struct }
-        if text.eq(Str.of("import")) { ret t.kw_import }
+        if text.eq("struct") { ret Tk.kw_struct }
+        if text.eq("import") { ret Tk.kw_import }
     }
 
-    t.ident
+    Tk.ident
 }
 
 Lexer :: struct {
