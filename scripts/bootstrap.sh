@@ -42,12 +42,16 @@ for i in $(seq 1 "${ROUNDS}"); do
 
     OUT_C="${WORK_DIR}/gen_${i}.c"
     if ! "${CURRENT_COMPILER}" "${ROOT_DIR}/compiler/main.a" "${OUT_C}"; then
-        echo -e "${RED}[FAIL] Compiler crashed at Generation ${i}!${RESET}"
+        if [ "${i}" -eq 1 ]; then
+            echo -e "${RED}[FAIL] Seed compiler failed to compile Generation 1!${RESET}"
+        else
+            echo -e "${RED}[FAIL] Generation $((i-1)) compiler crashed while compiling Generation ${i} (self-hosting regression)!${RESET}"
+        fi
         exit 1
     fi
 
-    if [ ! -f "${OUT_C}" ]; then
-        echo -e "${RED}[FAIL] Generation ${i} did not produce '${OUT_C}'!${RESET}"
+    if [ ! -s "${OUT_C}" ]; then
+        echo -e "${RED}[FAIL] Generation ${i} did not produce '${OUT_C}' or file is empty!${RESET}"
         exit 1
     fi
 
@@ -56,7 +60,7 @@ for i in $(seq 1 "${ROUNDS}"); do
     GEN_BIN="${WORK_DIR}/abyss_gen_${i}"
     echo -e "    Compiling C output via GCC..."
     if ! gcc ${GCC_FLAGS} "${GEN_C}" -o "${GEN_BIN}"; then
-        echo -e "${RED}[FAIL] GCC compilation failed for Generation ${i}!${RESET}"
+        echo -e "${RED}[FAIL] GCC compilation failed for Generation ${i} C output!${RESET}"
         exit 1
     fi
 
@@ -99,8 +103,15 @@ echo -e "\n${CYAN}====================================================${RESET}"
 if [ "${FIXED_POINT_REACHED}" = true ]; then
     echo -e "${GREEN}SUCCESS: Fixed-point bootstrap verified across generations!${RESET}"
     echo -e "Artifacts kept safe inside: ${WORK_DIR}"
-    echo -e "To promote the verified compiler, run:"
-    echo -e "  ${YELLOW}cp ${WORK_DIR}/abyss_gen_${ROUNDS} ./abyssc${RESET}"
+    if [ "${PROMOTE:-false}" = "true" ]; then
+        cp "${ROOT_DIR}/abyssc" "${ROOT_DIR}/tmp/abyssc.bak" 2>/dev/null || true
+        cp "${WORK_DIR}/abyss_gen_${ROUNDS}" "${ROOT_DIR}/abyssc"
+        chmod +x "${ROOT_DIR}/abyssc"
+        echo -e "${GREEN}✔ Successfully promoted verified Generation ${ROUNDS} compiler to ./abyssc!${RESET}"
+    else
+        echo -e "To promote the verified compiler, run:"
+        echo -e "  ${YELLOW}./abyss promote ${ROUNDS}${RESET}"
+    fi
 else
     echo -e "${RED}[FAIL] Completed rounds without reaching a stable fixed-point.${RESET}"
     exit 1
