@@ -18,43 +18,84 @@ A statically typed, data-oriented systems programming language. Pairs modern erg
 
 ## Code at a Glance
 
-<p align="center">
-  <img src="assets/code-preview.svg?v=2" alt="Abyss Code Preview" width="100%" />
-</p>
+A stack-based bytecode virtual machine in Abyss:
 
-<details>
-<summary><b>📄 View raw code</b></summary>
+```zig
+import printf from "std/io"
 
-```abyss
-import print, printf from "std/io"
+Op :: enum {
+    push,
+    add,
+    sub,
+    mul,
+    print,
+    halt,
+}
 
-Point :: struct {
-    x, y i32
+Inst :: struct {
+    op  Op
+    arg i32
 
-    dist_sq :: fn(self &Self) i32 {
-        self.x * self.x + self.y * self.y
+    push :: fn(val i32) Self {
+        res: Inst = .{ op: Op.push, arg: val }
+        res
+    }
+
+    op :: fn(kind Op) Self {
+        res: Inst = .{ op: kind, arg: 0 }
+        res
     }
 }
 
-TypeByCond :: fn(cond bool) type {
-    if cond { i32 } else { f32 }
+VM :: struct {
+    stack [8]i32
+    sp    u64
+
+    new :: fn() Self {
+        res: VM = .{ stack: .[0, 0, 0, 0, 0, 0, 0, 0], sp: 0 }
+        res
+    }
+
+    push :: fn(self &Self, val i32) {
+        self.stack[self.sp] = val
+        self.sp = self.sp + 1
+    }
+
+    pop :: fn(self &Self) i32 {
+        self.sp = self.sp - 1
+        self.stack[self.sp]
+    }
 }
 
 main :: fn() {
-    p: Point = .{ x: 3, y: 4 }
-    printf("Point ({}, {}), dist_sq = {}\n", .{p.x, p.y, p.dist_sq()})
+    program: [7]Inst = .[
+        Inst.push(15),
+        Inst.push(25),
+        Inst.op(Op.add),
+        Inst.push(2),
+        Inst.op(Op.mul),
+        Inst.op(Op.print),
+        Inst.op(Op.halt),
+    ]
 
-    val := cmpt {
-        base := 20
-        base * 2 + 2
+    vm := VM.new()
+
+    for inst in program {
+        match inst.op {
+            push { vm.push(inst.arg) }
+            add  { vm.push(vm.pop() + vm.pop()) }
+            sub  {
+                b := vm.pop()
+                a := vm.pop()
+                vm.push(a - b)
+            }
+            mul  { vm.push(vm.pop() * vm.pop()) }
+            print { printf("result = {}\n", .{vm.pop()}) }
+            halt { break }
+        }
     }
-    printf("Compile-time evaluated: {}\n", .{val})
-
-    x: TypeByCond(true) = 100
-    print(x)
 }
 ```
-</details>
 
 ---
 
