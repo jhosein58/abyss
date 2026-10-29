@@ -14,22 +14,39 @@ PASSED=0
 FAILED=0
 TOTAL=0
 
+C_COMPILER="${ABYSS_C_COMPILER:-}"
+if [[ -z "${C_COMPILER}" ]]; then
+    if command -v tcc >/dev/null 2>&1; then
+        C_COMPILER="tcc"
+    elif command -v gcc >/dev/null 2>&1; then
+        C_COMPILER="gcc"
+    elif command -v clang >/dev/null 2>&1; then
+        C_COMPILER="clang"
+    fi
+fi
+
+if [[ "${C_COMPILER}" == *"tcc"* ]]; then
+    C_FLAGS="-std=c99 -D_POSIX_C_SOURCE=200809L"
+else
+    C_FLAGS="-std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -Werror=implicit-function-declaration -Werror=incompatible-pointer-types"
+fi
+
 if [[ -z "${FILTER}" ]]; then
     echo "Verifying compiler self-hosting fixed-point..."
     SELF_HOST_DIR="${WORK_DIR}/self_host"
     mkdir -p "${SELF_HOST_DIR}"
     if ! timeout 60s "${COMPILER}" b "${ROOT_DIR}/compiler/main.a" "${SELF_HOST_DIR}/stage1.c" > "${SELF_HOST_DIR}/stage1_compile.log" 2>&1; then
-        echo "FAIL self-hosting: generation 0 compilation failed"
+        echo "FAIL self-hosting: stage 1 compilation failed"
         cat "${SELF_HOST_DIR}/stage1_compile.log"
         exit 1
     fi
     if ! gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O2 "${SELF_HOST_DIR}/stage1.c" -o "${SELF_HOST_DIR}/stage1_bin" > "${SELF_HOST_DIR}/gcc.log" 2>&1; then
-        echo "FAIL self-hosting: gcc build of stage1 failed"
+        echo "FAIL self-hosting: gcc build of stage 1 failed"
         cat "${SELF_HOST_DIR}/gcc.log"
         exit 1
     fi
     if ! timeout 60s "${SELF_HOST_DIR}/stage1_bin" b "${ROOT_DIR}/compiler/main.a" "${SELF_HOST_DIR}/stage2.c" > "${SELF_HOST_DIR}/stage2_compile.log" 2>&1; then
-        echo "FAIL self-hosting: generation 1 compilation failed"
+        echo "FAIL self-hosting: stage 2 self-hosting compilation failed (stage 1 compiler failed compiling itself)"
         cat "${SELF_HOST_DIR}/stage2_compile.log"
         exit 1
     fi
@@ -127,9 +144,9 @@ while IFS= read -r TEST_FILE; do
             FAILED=$((FAILED + 1))
             continue
         fi
-        if ! gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -Werror=implicit-function-declaration -Werror=incompatible-pointer-types "${C_OUT}" -o "${CASE_DIR}/c_program" > "${CASE_DIR}/gcc.log" 2>&1; then
+        if ! "${C_COMPILER}" ${C_FLAGS} "${C_OUT}" -o "${CASE_DIR}/c_program" > "${CASE_DIR}/c_build.log" 2>&1; then
             echo "FAIL ${TEST_NAME}: [C] C compilation"
-            cat "${CASE_DIR}/gcc.log"
+            cat "${CASE_DIR}/c_build.log"
             FAILED=$((FAILED + 1))
             continue
         fi
