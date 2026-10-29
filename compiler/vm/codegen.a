@@ -57,10 +57,11 @@ VmVal :: struct {
 }
 
 VmLoopScope :: struct {
-    loop_start_ip u32
-    id            u32
-    break_mark    u32
-    iterator      bool
+    loop_start_ip   u32
+    prev_loop_start u32
+    id              u32
+    break_mark      u32
+    iterator        bool
 }
 
 VmCodeBuilder :: struct {
@@ -557,6 +558,7 @@ VmCodeGen :: struct {
     begin_loop :: fn(self &Self, id u32) VmLoopScope {
         .{
             loop_start_ip: 0,
+            prev_loop_start: self.current_loop_start,
             id: id,
             break_mark: self.loop_breaks.len as u32,
             iterator: false
@@ -582,6 +584,7 @@ VmCodeGen :: struct {
             i = i + 1
         }
         self.loop_breaks.reset(scope.break_mark as u64)
+        self.current_loop_start = scope.prev_loop_start
     }
 
     emit_break :: fn(self &Self, arena &Arena) {
