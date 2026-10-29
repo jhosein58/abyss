@@ -29,7 +29,13 @@ prepare_compiler() {
             rm -rf "${BUILD_DIR}"
             exit 1
         fi
-        if ! gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 "${BUILD_DIR}/stage1.c" -o "${BUILD_DIR}/stage1" 2>"${BUILD_DIR}/stage1_c.log"; then
+        STAGE1_CC="gcc"
+        STAGE1_FLAGS="-std=gnu99 -D_POSIX_C_SOURCE=200809L -O0"
+        if command -v tcc >/dev/null 2>&1; then
+            STAGE1_CC="tcc"
+            STAGE1_FLAGS="-std=c99 -D_POSIX_C_SOURCE=200809L"
+        fi
+        if ! ${STAGE1_CC} ${STAGE1_FLAGS} "${BUILD_DIR}/stage1.c" -o "${BUILD_DIR}/stage1" 2>"${BUILD_DIR}/stage1_c.log"; then
             echo "[ERROR] Stage 1 failed: C compiler failed to build stage1 binary!" >&2
             cat "${BUILD_DIR}/stage1_c.log" >&2
             rm -rf "${BUILD_DIR}"

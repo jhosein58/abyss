@@ -42,9 +42,9 @@ if [[ -z "${FILTER}" ]]; then
         cat "${SELF_HOST_DIR}/stage1_compile.log"
         exit 1
     fi
-    if ! gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O2 "${SELF_HOST_DIR}/stage1.c" -o "${SELF_HOST_DIR}/stage1_bin" > "${SELF_HOST_DIR}/gcc.log" 2>&1; then
-        echo "FAIL self-hosting: gcc build of stage 1 failed"
-        cat "${SELF_HOST_DIR}/gcc.log"
+    if ! "${C_COMPILER}" ${C_FLAGS} "${SELF_HOST_DIR}/stage1.c" -o "${SELF_HOST_DIR}/stage1_bin" > "${SELF_HOST_DIR}/stage1_c.log" 2>&1; then
+        echo "FAIL self-hosting: C compiler build of stage 1 failed"
+        cat "${SELF_HOST_DIR}/stage1_c.log"
         exit 1
     fi
     if ! timeout 60s "${SELF_HOST_DIR}/stage1_bin" b "${ROOT_DIR}/compiler/main.a" "${SELF_HOST_DIR}/stage2.c" > "${SELF_HOST_DIR}/stage2_compile.log" 2>&1; then

@@ -58,10 +58,18 @@ for i in $(seq 1 "${ROUNDS}"); do
     GEN_C="${WORK_DIR}/gen_${i}.c"
 
     GEN_BIN="${WORK_DIR}/abyss_gen_${i}"
-    echo -e "    Compiling C output via GCC..."
-    if ! gcc ${GCC_FLAGS} "${GEN_C}" -o "${GEN_BIN}"; then
-        echo -e "${RED}[FAIL] GCC compilation failed for Generation ${i} C output!${RESET}"
-        exit 1
+    if [ "${i}" -lt "${ROUNDS}" ] && command -v tcc >/dev/null 2>&1; then
+        echo -e "    Compiling C output via TCC..."
+        if ! tcc -std=c99 -D_POSIX_C_SOURCE=200809L "${GEN_C}" -o "${GEN_BIN}"; then
+            echo -e "${RED}[FAIL] TCC compilation failed for Generation ${i} C output!${RESET}"
+            exit 1
+        fi
+    else
+        echo -e "    Compiling C output via GCC..."
+        if ! gcc ${GCC_FLAGS} "${GEN_C}" -o "${GEN_BIN}"; then
+            echo -e "${RED}[FAIL] GCC compilation failed for Generation ${i} C output!${RESET}"
+            exit 1
+        fi
     fi
 
     CURR_C_HASH=$(sha256sum "${GEN_C}" | awk '{print $1}')
