@@ -20,7 +20,7 @@ A statically typed, data-oriented systems programming language. Pairs modern erg
 
 A stack-based bytecode virtual machine in Abyss:
 
-```odin
+```rust
 Op :: enum {
     halt
     push
