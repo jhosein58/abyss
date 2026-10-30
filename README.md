@@ -105,4 +105,4 @@ gcc -std=c99 -O3 -rdynamic dist/bootstrap.c -o abyssc
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICNSE)
