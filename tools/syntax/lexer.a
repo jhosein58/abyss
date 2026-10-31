@@ -1,0 +1,500 @@
+import TokenKind, Token, TokenList from "./token"
+import Ascii from "std/ascii"
+
+match_keyword :: fn(text Str) TokenKind {
+    if text.len == 2 {
+        if text.eq("if") { ret TokenKind.kw_if }
+        if text.eq("as") { ret TokenKind.kw_as }
+        if text.eq("or") { ret TokenKind.kw_or }
+        if text.eq("fn") { ret TokenKind.kw_fn }
+        if text.eq("in") { ret TokenKind.kw_in }
+    }
+
+    if text.len == 3 {
+        if text.eq("ret") { ret TokenKind.kw_ret }
+        if text.eq("and") { ret TokenKind.kw_and }
+        if text.eq("not") { ret TokenKind.kw_not }
+        if text.eq("for") { ret TokenKind.kw_for }
+    }
+
+    if text.len == 4 {
+        if text.eq("else") { ret TokenKind.kw_else }
+        if text.eq("cont") { ret TokenKind.kw_cont }
+        if text.eq("true") { ret TokenKind.kw_true }
+        if text.eq("from") { ret TokenKind.kw_from }
+        if text.eq("enum") { ret TokenKind.kw_enum }
+        if text.eq("cmpt") { ret TokenKind.kw_cmpt }
+    }
+
+    if text.len == 5 {
+        if text.eq("while") { ret TokenKind.kw_while }
+        if text.eq("break") { ret TokenKind.kw_break }
+        if text.eq("false") { ret TokenKind.kw_false }
+        if text.eq("match") { ret TokenKind.kw_match }
+    }
+
+    if text.len == 6 {
+        if text.eq("struct") { ret TokenKind.kw_struct }
+        if text.eq("import") { ret TokenKind.kw_import }
+    }
+
+    TokenKind.ident
+}
+
+is_base_digit :: fn(c u8, base u32) bool {
+    if base == 10 { ret Ascii.is_digit(c) }
+    if base == 16 { ret Ascii.is_hex_digit(c) }
+    if base == 2 { ret Ascii.is_bin_digit(c) }
+    if base == 8 { ret Ascii.is_oct_digit(c) }
+    false
+}
+
+utf8_len :: fn(b0 u8) u32 {
+    if (b0 & 0x80) == 0 { ret 1 }
+    if (b0 & 0xE0) == 0xC0 { ret 2 }
+    if (b0 & 0xF0) == 0xE0 { ret 3 }
+    if (b0 & 0xF8) == 0xF0 { ret 4 }
+    1
+}
+
+Lexer :: struct {
+    source Str
+    cursor u64
+
+    new :: fn(source Str) Self {
+        .{
+            source: source,
+            cursor: 0
+        }
+    }
+
+    is_eof :: fn(self &Self) bool {
+        self.cursor >= self.source.len
+    }
+
+    current :: fn(self &Self) u8 {
+        if self.is_eof() { ret 0 as u8 }
+        *(self.source.ptr + self.cursor)
+    }
+
+    peek :: fn(self &Self) u8 {
+        if self.cursor + 1 >= self.source.len { ret 0 as u8 }
+        *(self.source.ptr + self.cursor + 1)
+    }
+
+    peek_at :: fn(self &Self, offset u64) u8 {
+        if self.cursor + offset >= self.source.len { ret 0 as u8 }
+        *(self.source.ptr + self.cursor + offset)
+    }
+
+    bump :: fn(self &Self) {
+        if not self.is_eof() {
+            self.cursor = self.cursor + 1
+        }
+    }
+
+    consume :: fn(self &Self, expected u8) bool {
+        if (not self.is_eof()) and (self.current() == expected) {
+            self.bump()
+            ret true
+        }
+        false
+    }
+
+    slice :: fn(self &Self, start u64) Str {
+        len := self.cursor - start
+        self.source.sub(start, len)
+    }
+
+    emit :: fn(self &Self, tokens &TokenList, kind TokenKind, start u64) {
+        len := (self.cursor - start) as u32
+        text := self.slice(start)
+        tokens.push(Token.new(kind, text, start as u32, len))
+    }
+
+    scan_whitespace :: fn(self &Self, tokens &TokenList) {
+        start := self.cursor
+        while (not self.is_eof()) and Ascii.is_whitespace(self.current()) {
+            self.bump()
+        }
+        self.emit(tokens, TokenKind.whitespace, start)
+    }
+
+    scan_newline :: fn(self &Self, tokens &TokenList) {
+        start := self.cursor
+        if self.current() == '\r' {
+            self.bump()
+            if (not self.is_eof()) and (self.current() == '\n') {
+                self.bump()
+            }
+        } else if self.current() == '\n' {
+            self.bump()
+        }
+        self.emit(tokens, TokenKind.newline, start)
+    }
+
+    scan_comment :: fn(self &Self, tokens &TokenList) {
+        start := self.cursor
+        self.bump()
+        self.bump()
+        while (not self.is_eof()) and (not Ascii.is_newline(self.current())) {
+            self.bump()
+        }
+        self.emit(tokens, TokenKind.comment, start)
+    }
+
+    scan_digits :: fn(self &Self, base u32) {
+        while not self.is_eof() {
+            c := self.current()
+            if is_base_digit(c, base) {
+                self.bump()
+            } else if c == '_' {
+                self.bump()
+            } else {
+                break
+            }
+        }
+    }
+
+    scan_number :: fn(self &Self, tokens &TokenList) {
+        start := self.cursor
+        is_float := false
+
+        if self.current() == '0' {
+            p := self.peek()
+            base: u32 = 0
+            if (p == 'x') or (p == 'X') { base = 16 }
+            else if (p == 'b') or (p == 'B') { base = 2 }
+            else if (p == 'o') or (p == 'O') { base = 8 }
+
+            if base != 0 {
+                self.bump()
+                self.bump()
+                self.scan_digits(base)
+                self.emit(tokens, TokenKind.lit_int, start)
+                ret
+            }
+        }
+
+        self.scan_digits(10)
+
+        if (self.current() == '.') and (self.peek() != '.') and Ascii.is_digit(self.peek()) {
+            is_float = true
+            self.bump()
+            self.scan_digits(10)
+        }
+
+        if (self.current() == 'e') or (self.current() == 'E') {
+            has_sign := (self.peek() == '+') or (self.peek() == '-')
+            has_exp_digits := false
+            if has_sign {
+                if (self.cursor + 2 < self.source.len) and Ascii.is_digit(self.peek_at(2)) {
+                    has_exp_digits = true
+                }
+            } else if Ascii.is_digit(self.peek()) {
+                has_exp_digits = true
+            }
+
+            if has_exp_digits {
+                is_float = true
+                self.bump()
+                if (self.current() == '+') or (self.current() == '-') {
+                    self.bump()
+                }
+                self.scan_digits(10)
+            }
+        }
+
+        kind := if is_float { TokenKind.lit_float } else { TokenKind.lit_int }
+        self.emit(tokens, kind, start)
+    }
+
+    scan_str :: fn(self &Self, tokens &TokenList, is_c bool) {
+        start := self.cursor
+        if is_c { self.bump() }
+        self.bump()
+
+        while (not self.is_eof()) and (self.current() != '"') and (not Ascii.is_newline(self.current())) {
+            if self.current() == '\\' {
+                self.bump()
+                if not self.is_eof() {
+                    self.bump()
+                }
+            } else {
+                self.bump()
+            }
+        }
+
+        if (not self.is_eof()) and (self.current() == '"') {
+            self.bump()
+        }
+
+        kind := if is_c { TokenKind.lit_cstr } else { TokenKind.lit_str }
+        self.emit(tokens, kind, start)
+    }
+
+    scan_raw_str :: fn(self &Self, tokens &TokenList) {
+        start := self.cursor
+        self.bump()
+
+        while (not self.is_eof()) and (self.current() != '`') {
+            if (self.current() == '\\') and (self.peek() == '`') {
+                self.bump()
+            }
+            self.bump()
+        }
+
+        if (not self.is_eof()) and (self.current() == '`') {
+            self.bump()
+        }
+
+        self.emit(tokens, TokenKind.lit_raw_str, start)
+    }
+
+    scan_char :: fn(self &Self, tokens &TokenList) {
+        start := self.cursor
+        self.bump()
+
+        if self.current() == '\\' {
+            self.bump()
+            if self.current() == 'x' {
+                self.bump()
+                while (not self.is_eof()) and Ascii.is_hex_digit(self.current()) {
+                    self.bump()
+                }
+            } else if (self.current() == 'u') and (self.peek() == '{') {
+                self.bump()
+                self.bump()
+                while (not self.is_eof()) and (self.current() != '}') and (not Ascii.is_newline(self.current())) {
+                    self.bump()
+                }
+                if (not self.is_eof()) and (self.current() == '}') {
+                    self.bump()
+                }
+            } else if not self.is_eof() {
+                self.bump()
+            }
+        } else if (not self.is_eof()) and (self.current() != '\'') and (not Ascii.is_newline(self.current())) {
+            len := utf8_len(self.current())
+            self.bump()
+            i: u32 = 1
+            while (i < len) and (not self.is_eof()) and ((self.current() & 0xC0) == 0x80) {
+                self.bump()
+                i = i + 1
+            }
+        }
+
+        if (not self.is_eof()) and (self.current() == '\'') {
+            self.bump()
+        }
+
+        self.emit(tokens, TokenKind.lit_char, start)
+    }
+
+    scan_identifier :: fn(self &Self, tokens &TokenList) {
+        start := self.cursor
+        while (not self.is_eof()) and Ascii.is_alphanumeric(self.current()) {
+            self.bump()
+        }
+        text := self.slice(start)
+        self.emit(tokens, match_keyword(text), start)
+    }
+
+    scan_symbol :: fn(self &Self, tokens &TokenList) {
+        start := self.cursor
+        c := self.current()
+        self.bump()
+
+        if c == '+' {
+            kind := if self.consume('=') { TokenKind.plus_eq } else { TokenKind.plus }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == '-' {
+            kind := if self.consume('=') { TokenKind.minus_eq } else { TokenKind.minus }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == '*' {
+            kind := if self.consume('=') { TokenKind.star_eq } else { TokenKind.star }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == '/' {
+            kind := if self.consume('=') { TokenKind.slash_eq } else { TokenKind.slash }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == '%' {
+            kind := if self.consume('=') { TokenKind.percent_eq } else { TokenKind.percent }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == '&' {
+            kind := if self.consume('=') { TokenKind.amp_eq } else { TokenKind.amp }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == '|' {
+            kind := if self.consume('=') { TokenKind.pipe_eq } else { TokenKind.pipe }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == '^' {
+            kind := if self.consume('=') { TokenKind.caret_eq } else { TokenKind.caret }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == '~' {
+            self.emit(tokens, TokenKind.tilde, start)
+            ret
+        }
+        if c == '=' {
+            kind := if self.consume('=') { TokenKind.eq_eq } else { TokenKind.eq }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == '!' {
+            if self.consume('=') {
+                self.emit(tokens, TokenKind.bang_eq, start)
+            } else {
+                self.emit(tokens, TokenKind.unknown, start)
+            }
+            ret
+        }
+        if c == ':' {
+            kind := if self.consume(':') { TokenKind.colon_colon } else { TokenKind.colon }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == '.' {
+            self.emit(tokens, TokenKind.dot, start)
+            ret
+        }
+        if c == '<' {
+            if self.consume('<') {
+                kind := if self.consume('=') { TokenKind.left_shift_eq } else { TokenKind.left_shift }
+                self.emit(tokens, kind, start)
+                ret
+            }
+            kind := if self.consume('=') { TokenKind.lt_eq } else { TokenKind.lt }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == '>' {
+            if self.consume('>') {
+                kind := if self.consume('=') { TokenKind.right_shift_eq } else { TokenKind.right_shift }
+                self.emit(tokens, kind, start)
+                ret
+            }
+            kind := if self.consume('=') { TokenKind.gt_eq } else { TokenKind.gt }
+            self.emit(tokens, kind, start)
+            ret
+        }
+        if c == ',' {
+            self.emit(tokens, TokenKind.comma, start)
+            ret
+        }
+        if c == ';' {
+            self.emit(tokens, TokenKind.semi, start)
+            ret
+        }
+        if c == '(' {
+            self.emit(tokens, TokenKind.o_paren, start)
+            ret
+        }
+        if c == ')' {
+            self.emit(tokens, TokenKind.c_paren, start)
+            ret
+        }
+        if c == '{' {
+            self.emit(tokens, TokenKind.o_brace, start)
+            ret
+        }
+        if c == '}' {
+            self.emit(tokens, TokenKind.c_brace, start)
+            ret
+        }
+        if c == '[' {
+            self.emit(tokens, TokenKind.o_bracket, start)
+            ret
+        }
+        if c == ']' {
+            self.emit(tokens, TokenKind.c_bracket, start)
+            ret
+        }
+        if c == '#' {
+            self.emit(tokens, TokenKind.hash, start)
+            ret
+        }
+        if c == '@' {
+            self.emit(tokens, TokenKind.at, start)
+            ret
+        }
+
+        self.emit(tokens, TokenKind.unknown, start)
+    }
+
+    tokenize :: fn(self &Self) TokenList {
+        tokens := TokenList.new()
+
+        while not self.is_eof() {
+            c := self.current()
+
+            if Ascii.is_whitespace(c) {
+                self.scan_whitespace(&tokens)
+                cont
+            }
+
+            if Ascii.is_newline(c) {
+                self.scan_newline(&tokens)
+                cont
+            }
+
+            if (c == '-') and (self.peek() == '-') {
+                self.scan_comment(&tokens)
+                cont
+            }
+
+            if Ascii.is_digit(c) {
+                self.scan_number(&tokens)
+                cont
+            }
+
+            if (c == 'c') and (self.peek() == '"') {
+                self.scan_str(&tokens, true)
+                cont
+            }
+
+            if c == '"' {
+                self.scan_str(&tokens, false)
+                cont
+            }
+
+            if c == '`' {
+                self.scan_raw_str(&tokens)
+                cont
+            }
+
+            if c == '\'' {
+                self.scan_char(&tokens)
+                cont
+            }
+
+            if Ascii.is_alpha(c) {
+                self.scan_identifier(&tokens)
+                cont
+            }
+
+            self.scan_symbol(&tokens)
+        }
+
+        tokens.push(Token.new(TokenKind.eof, Str.empty(), self.cursor as u32, 0))
+        tokens
+    }
+}
+
+tokenize :: fn(source Str) TokenList {
+    lexer := Lexer.new(source)
+    lexer.tokenize()
+}

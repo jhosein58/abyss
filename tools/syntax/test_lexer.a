@@ -1,0 +1,156 @@
+import TokenKind, Token, TokenList from "./token"
+import Lexer, tokenize from "./lexer"
+import free from "std/mem"
+import Arena from "std/allocator"
+import File from "std/fs"
+
+assert_true :: fn(cond bool, msg Str) {
+    if not cond {
+        printf("assertion failed: {}\n", .{msg})
+        ret
+    }
+}
+
+test_basic_tokens :: fn() {
+    src := "x := 42 + 3.14\n"
+    tokens := tokenize(src)
+
+    assert_true(tokens.len() == 12, "basic token count")
+    assert_true(tokens.get(0).kind == TokenKind.ident, "ident x")
+    assert_true(tokens.get(1).kind == TokenKind.whitespace, "space")
+    assert_true(tokens.get(2).kind == TokenKind.colon, "colon")
+    assert_true(tokens.get(3).kind == TokenKind.eq, "eq")
+    assert_true(tokens.get(4).kind == TokenKind.whitespace, "space")
+    assert_true(tokens.get(5).kind == TokenKind.lit_int, "lit_int 42")
+    assert_true(tokens.get(6).kind == TokenKind.whitespace, "space")
+    assert_true(tokens.get(7).kind == TokenKind.plus, "plus")
+    assert_true(tokens.get(8).kind == TokenKind.whitespace, "space")
+    assert_true(tokens.get(9).kind == TokenKind.lit_float, "lit_float 3.14")
+    assert_true(tokens.get(10).kind == TokenKind.newline, "newline")
+    assert_true(tokens.get(11).kind == TokenKind.eof, "eof")
+
+    tokens.destroy()
+}
+
+test_keywords_and_symbols :: fn() {
+    src := "fn add(a i32, b i32) i32 { ret a + b; }"
+    tokens := tokenize(src)
+
+    assert_true(tokens.get(0).kind == TokenKind.kw_fn, "kw_fn")
+    assert_true(tokens.get(0).is_keyword(), "is_keyword")
+    assert_true(tokens.get(2).kind == TokenKind.ident, "add")
+    assert_true(tokens.get(3).kind == TokenKind.o_paren, "o_paren")
+    assert_true(tokens.get(3).is_symbol(), "is_symbol")
+
+    tokens.destroy()
+}
+
+test_strings_and_comments :: fn() {
+    src := "-- this is a comment\ns := \"hello world\"\nc := c\"cstr\"\nr := `raw`\nch := 'x'\n"
+    tokens := tokenize(src)
+
+    assert_true(tokens.get(0).kind == TokenKind.comment, "comment")
+    assert_true(tokens.get(0).is_trivia(), "comment is trivia")
+    assert_true(tokens.get(0).text.eq("-- this is a comment"), "comment text")
+    assert_true(tokens.get(1).kind == TokenKind.newline, "newline after comment")
+
+    tokens.destroy()
+}
+
+test_number_bases :: fn() {
+    src := "0xFF 0b1010 0o77 1_000_000 1.5e+3"
+    tokens := tokenize(src)
+
+    assert_true(tokens.get(0).kind == TokenKind.lit_int, "hex")
+    assert_true(tokens.get(0).text.eq("0xFF"), "hex text")
+    assert_true(tokens.get(2).kind == TokenKind.lit_int, "bin")
+    assert_true(tokens.get(2).text.eq("0b1010"), "bin text")
+    assert_true(tokens.get(4).kind == TokenKind.lit_int, "oct")
+    assert_true(tokens.get(4).text.eq("0o77"), "oct text")
+    assert_true(tokens.get(6).kind == TokenKind.lit_int, "dec separator")
+    assert_true(tokens.get(6).text.eq("1_000_000"), "dec separator text")
+    assert_true(tokens.get(8).kind == TokenKind.lit_float, "scientific float")
+    assert_true(tokens.get(8).text.eq("1.5e+3"), "scientific float text")
+
+    tokens.destroy()
+}
+
+test_lossless_roundtrip :: fn() {
+    src := "import Arena from \"std/allocator\"\n\n-- Lossless CST test\nPoint :: struct {\n    x i32\n    y i32\n\n    new :: fn(x, y i32) Self {\n        .{ x: x, y: y }\n    }\n}\n\nmain :: fn() {\n    p := Point.new(10, 20)\n    if p.x > 0 and p.y > 0 {\n        printf(\"ok\\n\", .{})\n    }\n}\n"
+    tokens := tokenize(src)
+
+    reconstructed := tokens.reconstruct()
+
+    assert_true(reconstructed.eq(src), "exact lossless roundtrip")
+    assert_true(reconstructed.len == src.len, "exact length match")
+
+    free(reconstructed.ptr)
+    tokens.destroy()
+}
+
+test_resilience :: fn() {
+    src := "$ @ ~ != # \"unterminated"
+    tokens := tokenize(src)
+
+    assert_true(tokens.get(0).kind == TokenKind.unknown, "unknown $")
+    assert_true(tokens.get(0).text.eq("$"), "unknown text $")
+    assert_true(tokens.get(2).kind == TokenKind.at, "at")
+    assert_true(tokens.get(4).kind == TokenKind.tilde, "tilde")
+    assert_true(tokens.get(6).kind == TokenKind.bang_eq, "bang_eq")
+    assert_true(tokens.get(8).kind == TokenKind.hash, "hash")
+    assert_true(tokens.get(10).kind == TokenKind.lit_str, "unterminated str")
+
+    tokens.destroy()
+}
+
+test_operators :: fn() {
+    src := "<<= >>= += -= *= /= %= &= |= ^= != == <= >= ::"
+    tokens := tokenize(src)
+
+    assert_true(tokens.get(0).kind == TokenKind.left_shift_eq, "left_shift_eq")
+    assert_true(tokens.get(2).kind == TokenKind.right_shift_eq, "right_shift_eq")
+    assert_true(tokens.get(4).kind == TokenKind.plus_eq, "plus_eq")
+    assert_true(tokens.get(6).kind == TokenKind.minus_eq, "minus_eq")
+    assert_true(tokens.get(8).kind == TokenKind.star_eq, "star_eq")
+    assert_true(tokens.get(10).kind == TokenKind.slash_eq, "slash_eq")
+    assert_true(tokens.get(12).kind == TokenKind.percent_eq, "percent_eq")
+    assert_true(tokens.get(14).kind == TokenKind.amp_eq, "amp_eq")
+    assert_true(tokens.get(16).kind == TokenKind.pipe_eq, "pipe_eq")
+    assert_true(tokens.get(18).kind == TokenKind.caret_eq, "caret_eq")
+    assert_true(tokens.get(20).kind == TokenKind.bang_eq, "bang_eq")
+    assert_true(tokens.get(22).kind == TokenKind.eq_eq, "eq_eq")
+    assert_true(tokens.get(24).kind == TokenKind.lt_eq, "lt_eq")
+    assert_true(tokens.get(26).kind == TokenKind.gt_eq, "gt_eq")
+    assert_true(tokens.get(28).kind == TokenKind.colon_colon, "colon_colon")
+
+    tokens.destroy()
+}
+
+test_real_file_roundtrip :: fn() {
+    arena := Arena.new(1024 * 64)
+    file_opt := File.read_to_string(&arena, c"std/ascii.a")
+    assert_true(file_opt.is_some(), "read std/ascii.a")
+    src := file_opt.unwrap()
+
+    tokens := tokenize(src)
+    reconstructed := tokens.reconstruct()
+
+    assert_true(reconstructed.eq(src), "std/ascii.a exact roundtrip")
+    assert_true(reconstructed.len == src.len, "std/ascii.a exact length")
+
+    free(reconstructed.ptr)
+    tokens.destroy()
+    arena.destroy()
+}
+
+main :: fn() {
+    test_basic_tokens()
+    test_keywords_and_symbols()
+    test_strings_and_comments()
+    test_number_bases()
+    test_operators()
+    test_lossless_roundtrip()
+    test_real_file_roundtrip()
+    test_resilience()
+    print("all syntax lexer tests passed\n")
+}

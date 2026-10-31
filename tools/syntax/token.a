@@ -1,0 +1,306 @@
+import Str from "core/string"
+import malloc, free, mem_copy from "std/mem"
+
+TokenKind :: enum u8 {
+    eof
+    unknown
+    whitespace
+    newline
+    comment
+
+    ident
+
+    lit_int
+    lit_float
+    lit_str
+    lit_cstr
+    lit_raw_str
+    lit_char
+
+    kw_if
+    kw_else
+    kw_while
+    kw_break
+    kw_cont
+    kw_ret
+    kw_fn
+    kw_struct
+    kw_enum
+    kw_match
+    kw_in
+    kw_for
+    kw_as
+    kw_and
+    kw_or
+    kw_not
+    kw_true
+    kw_false
+    kw_from
+    kw_import
+    kw_cmpt
+
+    plus
+    minus
+    star
+    slash
+    percent
+    plus_eq
+    minus_eq
+    star_eq
+    slash_eq
+    percent_eq
+
+    amp
+    pipe
+    caret
+    tilde
+    amp_eq
+    pipe_eq
+    caret_eq
+
+    left_shift
+    right_shift
+    left_shift_eq
+    right_shift_eq
+
+    eq
+    eq_eq
+    bang_eq
+    lt
+    lt_eq
+    gt
+    gt_eq
+
+    colon
+    colon_colon
+    semi
+    comma
+    dot
+
+    hash
+    at
+
+    o_paren
+    c_paren
+    o_brace
+    c_brace
+    o_bracket
+    c_bracket
+}
+
+kind_name :: fn(kind TokenKind) Str {
+    if kind == TokenKind.whitespace { ret "whitespace" }
+    if kind == TokenKind.newline { ret "newline" }
+    if kind == TokenKind.comment { ret "comment" }
+    if kind == TokenKind.ident { ret "ident" }
+    if kind == TokenKind.lit_int { ret "lit_int" }
+    if kind == TokenKind.lit_float { ret "lit_float" }
+    if kind == TokenKind.lit_str { ret "lit_str" }
+    if kind == TokenKind.lit_cstr { ret "lit_cstr" }
+    if kind == TokenKind.lit_raw_str { ret "lit_raw_str" }
+    if kind == TokenKind.lit_char { ret "lit_char" }
+    if kind == TokenKind.kw_if { ret "kw_if" }
+    if kind == TokenKind.kw_else { ret "kw_else" }
+    if kind == TokenKind.kw_while { ret "kw_while" }
+    if kind == TokenKind.kw_break { ret "kw_break" }
+    if kind == TokenKind.kw_cont { ret "kw_cont" }
+    if kind == TokenKind.kw_ret { ret "kw_ret" }
+    if kind == TokenKind.kw_fn { ret "kw_fn" }
+    if kind == TokenKind.kw_struct { ret "kw_struct" }
+    if kind == TokenKind.kw_enum { ret "kw_enum" }
+    if kind == TokenKind.kw_match { ret "kw_match" }
+    if kind == TokenKind.kw_in { ret "kw_in" }
+    if kind == TokenKind.kw_for { ret "kw_for" }
+    if kind == TokenKind.kw_as { ret "kw_as" }
+    if kind == TokenKind.kw_and { ret "kw_and" }
+    if kind == TokenKind.kw_or { ret "kw_or" }
+    if kind == TokenKind.kw_not { ret "kw_not" }
+    if kind == TokenKind.kw_true { ret "kw_true" }
+    if kind == TokenKind.kw_false { ret "kw_false" }
+    if kind == TokenKind.kw_from { ret "kw_from" }
+    if kind == TokenKind.kw_import { ret "kw_import" }
+    if kind == TokenKind.kw_cmpt { ret "kw_cmpt" }
+    if kind == TokenKind.plus { ret "+" }
+    if kind == TokenKind.minus { ret "-" }
+    if kind == TokenKind.star { ret "*" }
+    if kind == TokenKind.slash { ret "/" }
+    if kind == TokenKind.percent { ret "%" }
+    if kind == TokenKind.plus_eq { ret "+=" }
+    if kind == TokenKind.minus_eq { ret "-=" }
+    if kind == TokenKind.star_eq { ret "*=" }
+    if kind == TokenKind.slash_eq { ret "/=" }
+    if kind == TokenKind.percent_eq { ret "%=" }
+    if kind == TokenKind.amp { ret "&" }
+    if kind == TokenKind.pipe { ret "|" }
+    if kind == TokenKind.caret { ret "^" }
+    if kind == TokenKind.tilde { ret "~" }
+    if kind == TokenKind.amp_eq { ret "&=" }
+    if kind == TokenKind.pipe_eq { ret "|=" }
+    if kind == TokenKind.caret_eq { ret "^=" }
+    if kind == TokenKind.left_shift { ret "<<" }
+    if kind == TokenKind.right_shift { ret ">>" }
+    if kind == TokenKind.left_shift_eq { ret "<<=" }
+    if kind == TokenKind.right_shift_eq { ret ">>=" }
+    if kind == TokenKind.eq { ret "=" }
+    if kind == TokenKind.eq_eq { ret "==" }
+    if kind == TokenKind.bang_eq { ret "!=" }
+    if kind == TokenKind.lt { ret "<" }
+    if kind == TokenKind.lt_eq { ret "<=" }
+    if kind == TokenKind.gt { ret ">" }
+    if kind == TokenKind.gt_eq { ret ">=" }
+    if kind == TokenKind.colon { ret ":" }
+    if kind == TokenKind.colon_colon { ret "::" }
+    if kind == TokenKind.semi { ret ";" }
+    if kind == TokenKind.comma { ret "," }
+    if kind == TokenKind.dot { ret "." }
+    if kind == TokenKind.hash { ret "#" }
+    if kind == TokenKind.at { ret "@" }
+    if kind == TokenKind.o_paren { ret "(" }
+    if kind == TokenKind.c_paren { ret ")" }
+    if kind == TokenKind.o_brace { ret "{" }
+    if kind == TokenKind.c_brace { ret "}" }
+    if kind == TokenKind.o_bracket { ret "[" }
+    if kind == TokenKind.c_bracket { ret "]" }
+    if kind == TokenKind.eof { ret "eof" }
+    "unknown"
+}
+
+Token :: struct {
+    kind  TokenKind
+    text  Str
+    start u32
+    len   u32
+
+    new :: fn(kind TokenKind, text Str, start u32, len u32) Self {
+        .{
+            kind: kind,
+            text: text,
+            start: start,
+            len: len,
+        }
+    }
+
+    is_trivia :: fn(self &Self) bool {
+        (self.kind == TokenKind.whitespace) or (self.kind == TokenKind.newline) or (self.kind == TokenKind.comment)
+    }
+
+    is_whitespace :: fn(self &Self) bool {
+        self.kind == TokenKind.whitespace
+    }
+
+    is_newline :: fn(self &Self) bool {
+        self.kind == TokenKind.newline
+    }
+
+    is_comment :: fn(self &Self) bool {
+        self.kind == TokenKind.comment
+    }
+
+    is_ident :: fn(self &Self) bool {
+        self.kind == TokenKind.ident
+    }
+
+    is_literal :: fn(self &Self) bool {
+        k := self.kind as u8
+        (k >= (TokenKind.lit_int as u8)) and (k <= (TokenKind.lit_char as u8))
+    }
+
+    is_keyword :: fn(self &Self) bool {
+        k := self.kind as u8
+        (k >= (TokenKind.kw_if as u8)) and (k <= (TokenKind.kw_cmpt as u8))
+    }
+
+    is_symbol :: fn(self &Self) bool {
+        k := self.kind as u8
+        (k >= (TokenKind.plus as u8)) and (k <= (TokenKind.c_bracket as u8))
+    }
+
+    is_eof :: fn(self &Self) bool {
+        self.kind == TokenKind.eof
+    }
+
+    is_unknown :: fn(self &Self) bool {
+        self.kind == TokenKind.unknown
+    }
+
+    kind_name :: fn(self &Self) Str {
+        kind_name(self.kind)
+    }
+}
+
+TokenList :: struct {
+    tokens Vec(Token)
+
+    new :: fn() Self {
+        .{
+            tokens: Vec(Token).new(),
+        }
+    }
+
+    with_capacity :: fn(cap u64) Self {
+        .{
+            tokens: Vec(Token).with_cap(cap),
+        }
+    }
+
+    destroy :: fn(self &Self) {
+        self.tokens.destroy()
+    }
+
+    push :: fn(self &Self, token Token) {
+        self.tokens.push(token)
+    }
+
+    len :: fn(self &Self) u64 {
+        self.tokens.len
+    }
+
+    is_empty :: fn(self &Self) bool {
+        self.tokens.len == 0
+    }
+
+    get :: fn(self &Self, idx u64) Token {
+        self.tokens.get(idx)
+    }
+
+    get_ref :: fn(self &Self, idx u64) &Token {
+        self.tokens.ptr_at(idx)
+    }
+
+    iter :: fn(self &Self) Iterator(Token) {
+        self.tokens.iter()
+    }
+
+    iter_ref :: fn(self &Self) RefIterator(Token) {
+        self.tokens.iter_ref()
+    }
+
+    reconstruct :: fn(self &Self) Str {
+        total_len: u64 = 0
+        i: u64 = 0
+        while i < self.len() {
+            tok := self.get(i)
+            if not tok.is_eof() {
+                total_len = total_len + (tok.len as u64)
+            }
+            i = i + 1
+        }
+        if total_len == 0 {
+            ret Str.empty()
+        }
+        buf := malloc(total_len)
+        offset: u64 = 0
+        i = 0
+        while i < self.len() {
+            tok := self.get(i)
+            if not tok.is_eof() {
+                if tok.len > 0 {
+                    mem_copy(buf + offset, tok.text.ptr, tok.len as u64)
+                    offset = offset + (tok.len as u64)
+                }
+            }
+            i = i + 1
+        }
+        Str.new(buf, total_len)
+    }
+}
