@@ -1,48 +1,62 @@
-is_digit :: fn(c u8) bool {
-    (c >= '0') and (c <= '9')
+Ascii :: struct {
+    is_digit :: fn(c u8) bool {
+        (c >= '0') and (c <= '9')
+    }
+
+    is_hex_digit :: fn(c u8) bool {
+        (c >= '0' and c <= '9') or (c >= 'A' and c <= 'F') or (c >= 'a' and c <= 'f')
+    }
+
+    is_bin_digit :: fn(c u8) bool {
+        (c == '0') or (c == '1')
+    }
+
+    is_oct_digit :: fn(c u8) bool {
+        (c >= '0') and (c <= '7')
+    }
+
+    hex_digit_value :: fn(c u8) u32 {
+        if (c >= '0') and (c <= '9') { ret (c - '0') as u32 }
+        if (c >= 'a') and (c <= 'f') { ret (c - 'a' + 10) as u32 }
+        if (c >= 'A') and (c <= 'F') { ret (c - 'A' + 10) as u32 }
+        0
+    }
+
+    is_alpha :: fn(c u8) bool {
+        (c >= 'A' and c <= 'Z') or (c >= 'a' and c <= 'z') or (c == '_')
+    }
+
+    is_alphanumeric :: fn(c u8) bool {
+        Self.is_alpha(c) or Self.is_digit(c)
+    }
+
+    is_whitespace :: fn(c u8) bool {
+        (c == ' ') or (c == '\t')
+    }
+
+    is_newline :: fn(c u8) bool {
+        (c == '\n') or (c == '\r')
+    }
+
+    to_lower :: fn(c u8) u8 {
+        if (c >= 'A') and (c <= 'Z') { ret (c + 32) as u8 }
+        c
+    }
+
+    to_upper :: fn(c u8) u8 {
+        if (c >= 'a') and (c <= 'z') { ret (c - 32) as u8 }
+        c
+    }
 }
 
-is_hex_digit :: fn(c u8) bool {
-    (c >= '0' and c <= '9') or (c >= 'A' and c <= 'F') or (c >= 'a' and c <= 'f')
-}
-
-is_bin_digit :: fn(c u8) bool {
-    (c == '0') or (c == '1')
-}
-
-is_oct_digit :: fn(c u8) bool {
-    (c >= '0') and (c <= '7')
-}
-
-hex_digit_value :: fn(c u8) u32 {
-    if (c >= '0') and (c <= '9') { ret (c - '0') as u32 }
-    if (c >= 'a') and (c <= 'f') { ret (c - 'a' + 10) as u32 }
-    if (c >= 'A') and (c <= 'F') { ret (c - 'A' + 10) as u32 }
-    0
-}
-
-is_alpha :: fn(c u8) bool {
-    (c >= 'A' and c <= 'Z') or (c >= 'a' and c <= 'z') or (c == '_')
-}
-
-is_alphanumeric :: fn(c u8) bool {
-    is_alpha(c) or is_digit(c)
-}
-
-is_whitespace :: fn(c u8) bool {
-    (c == ' ') or (c == '\t')
-}
-
-is_newline :: fn(c u8) bool {
-    (c == '\n') or (c == '\r')
-}
-
-to_lower :: fn(c u8) u8 {
-    if (c >= 'A') and (c <= 'Z') { ret (c + 32) as u8 }
-    c
-}
-
-to_upper :: fn(c u8) u8 {
-    if (c >= 'a') and (c <= 'z') { ret (c - 32) as u8 }
-    c
-}
+is_digit :: fn(c u8) bool { Ascii.is_digit(c) }
+is_hex_digit :: fn(c u8) bool { Ascii.is_hex_digit(c) }
+is_bin_digit :: fn(c u8) bool { Ascii.is_bin_digit(c) }
+is_oct_digit :: fn(c u8) bool { Ascii.is_oct_digit(c) }
+hex_digit_value :: fn(c u8) u32 { Ascii.hex_digit_value(c) }
+is_alpha :: fn(c u8) bool { Ascii.is_alpha(c) }
+is_alphanumeric :: fn(c u8) bool { Ascii.is_alphanumeric(c) }
+is_whitespace :: fn(c u8) bool { Ascii.is_whitespace(c) }
+is_newline :: fn(c u8) bool { Ascii.is_newline(c) }
+to_lower :: fn(c u8) u8 { Ascii.to_lower(c) }
+to_upper :: fn(c u8) u8 { Ascii.to_upper(c) }

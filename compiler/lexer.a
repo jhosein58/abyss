@@ -1,7 +1,7 @@
 import Token as Tk, TokenStream from "./token"
 import calc_pos from "./nexus/nexus"
 import fall from "std/sys"
-import is_digit, is_hex_digit, is_bin_digit, is_oct_digit, hex_digit_value, is_alpha, is_alphanumeric, is_whitespace, is_newline from "std/ascii"
+import Ascii from "std/ascii"
 
 match_keyword :: fn(text Str) Tk {
     if text.len == 2 {
@@ -44,10 +44,10 @@ match_keyword :: fn(text Str) Tk {
 }
 
 is_base_digit :: fn(c u8, base u32) bool {
-    if base == 10 { ret is_digit(c) }
-    if base == 16 { ret is_hex_digit(c) }
-    if base == 2 { ret is_bin_digit(c) }
-    if base == 8 { ret is_oct_digit(c) }
+    if base == 10 { ret Ascii.is_digit(c) }
+    if base == 16 { ret Ascii.is_hex_digit(c) }
+    if base == 2 { ret Ascii.is_bin_digit(c) }
+    if base == 8 { ret Ascii.is_oct_digit(c) }
     false
 }
 
@@ -137,7 +137,7 @@ Lexer :: struct {
 
     valid_escape :: fn(self &Self) bool {
         c := self.current()
-        if c == 'x' { ret is_hex_digit(self.peek()) }
+        if c == 'x' { ret Ascii.is_hex_digit(self.peek()) }
         if c == 'u' { ret self.peek() == '{' }
         simple_escape(c) >= 0
     }
@@ -185,7 +185,7 @@ Lexer :: struct {
 
         self.scan_digits(10)
 
-        if (self.current() == '.') and (self.peek() != '.') and is_digit(self.peek()) {
+        if (self.current() == '.') and (self.peek() != '.') and Ascii.is_digit(self.peek()) {
             is_float = true
             self.bump()
             self.scan_digits(10)
@@ -195,10 +195,10 @@ Lexer :: struct {
             has_sign := (self.peek() == '+') or (self.peek() == '-')
             has_exp_digits := false
             if has_sign {
-                if (self.cursor + 2 < self.source.len) and is_digit(*(self.source.ptr + self.cursor + 2)) {
+                if (self.cursor + 2 < self.source.len) and Ascii.is_digit(*(self.source.ptr + self.cursor + 2)) {
                     has_exp_digits = true
                 }
-            } else if is_digit(self.peek()) {
+            } else if Ascii.is_digit(self.peek()) {
                 has_exp_digits = true
             }
 
@@ -222,7 +222,7 @@ Lexer :: struct {
         self.bump()
 
         while (not self.is_eof()) and (self.current() != '"') {
-            if is_newline(self.current()) {
+            if Ascii.is_newline(self.current()) {
                 self.error(c"newline in string literal", offset)
             }
             if self.current() == '\\' {
@@ -273,14 +273,14 @@ Lexer :: struct {
             }
             if self.current() == 'x' {
                 self.bump()
-                while is_hex_digit(self.current()) {
+                while Ascii.is_hex_digit(self.current()) {
                     self.bump()
                 }
             } else if (self.current() == 'u') and (self.peek() == '{') {
                 self.bump()
                 self.bump()
                 has_hex := false
-                while is_hex_digit(self.current()) {
+                while Ascii.is_hex_digit(self.current()) {
                     has_hex = true
                     self.bump()
                 }
@@ -321,7 +321,7 @@ Lexer :: struct {
 
     scan_identifier :: fn(self &Self, stream &TokenStream) {
         offset := self.cursor
-        while (not self.is_eof()) and is_alphanumeric(self.current()) {
+        while (not self.is_eof()) and Ascii.is_alphanumeric(self.current()) {
             self.bump()
         }
         len := (self.cursor - offset) as u32
@@ -382,18 +382,18 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
     while not lexer.is_eof() {
         c := lexer.current()
 
-        if is_whitespace(c) {
+        if Ascii.is_whitespace(c) {
             lexer.bump()
-            while (not lexer.is_eof()) and is_whitespace(lexer.current()) {
+            while (not lexer.is_eof()) and Ascii.is_whitespace(lexer.current()) {
                 lexer.bump()
             }
             cont
         }
 
-        if is_newline(c) {
+        if Ascii.is_newline(c) {
             lexer.had_newline = true
             lexer.bump()
-            while (not lexer.is_eof()) and is_newline(lexer.current()) {
+            while (not lexer.is_eof()) and Ascii.is_newline(lexer.current()) {
                 lexer.bump()
             }
             cont
@@ -402,13 +402,13 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
         if (c == '-') and (lexer.peek() == '-') {
             lexer.bump()
             lexer.bump()
-            while (not lexer.is_eof()) and (not is_newline(lexer.current())) {
+            while (not lexer.is_eof()) and (not Ascii.is_newline(lexer.current())) {
                 lexer.bump()
             }
             cont
         }
 
-        if is_digit(c) {
+        if Ascii.is_digit(c) {
             lexer.scan_number(stream)
             cont
         }
@@ -433,7 +433,7 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
             cont
         }
 
-        if is_alpha(c) {
+        if Ascii.is_alpha(c) {
             lexer.scan_identifier(stream)
             cont
         }
@@ -464,8 +464,8 @@ decode_char_lit :: fn(raw Str) u32 {
             i: u64 = 2
             while i < len {
                 ch := *(ptr + i)
-                if not is_hex_digit(ch) { break }
-                val = (val << 4) | hex_digit_value(ch)
+                if not Ascii.is_hex_digit(ch) { break }
+                val = (val << 4) | Ascii.hex_digit_value(ch)
                 i = i + 1
             }
             ret val
@@ -476,8 +476,8 @@ decode_char_lit :: fn(raw Str) u32 {
             while i < len {
                 ch := *(ptr + i)
                 if ch == '}' { break }
-                if not is_hex_digit(ch) { break }
-                val = (val << 4) | hex_digit_value(ch)
+                if not Ascii.is_hex_digit(ch) { break }
+                val = (val << 4) | Ascii.hex_digit_value(ch)
                 i = i + 1
             }
             ret val
