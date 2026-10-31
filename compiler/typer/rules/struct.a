@@ -33,6 +33,37 @@ synth_struct :: fn(eng &Engine, id u32) {
     names := db.get_list(names_list)
     types := db.get_list(types_list)
 
+    is_tuple := false
+    if names.len > 0 {
+        first_ident := *(names.ptr)
+        if (tbl).kind(first_ident) == hir_kind.ident {
+            first_name_id := (tbl).lhs(first_ident)
+            if db.is_tuple_name(first_name_id) {
+                is_tuple = true
+            }
+        }
+    }
+
+    sym_id := db.get_hir_symbol(id)
+    named := db.get_const_type(id)
+    if (sym_id != id_none()) and (not is_tuple) {
+        if named == ty_id_none() {
+            name_id := db.sym_names.get(sym_id)
+            name := db.interner.get(name_id)
+            named = (&(*types_ptr)).alloc_nominal(ty_id_none(), name, id)
+            db.set_const_type(id, named)
+            sym_hir := db.get_sym_hir(sym_id)
+            if sym_hir != id_none() {
+                db.set_const_type(sym_hir, named)
+                sym_slot := (&(*db).unify).get_slot(sym_hir)
+                if sym_slot == slot_none() {
+                    sym_slot = (&(*db).unify).new_slot(sym_hir)
+                }
+                (&(*db).unify).bind_type(&(*db).types, sym_slot, ty_id_type())
+            }
+        }
+    }
+
     fields_vec := Vec(u32).new()
 
     i: u64 = 0
@@ -78,32 +109,8 @@ synth_struct :: fn(eng &Engine, id u32) {
     tyid := (&(*types_ptr)).alloc_struct(slice)
     fields_vec.destroy()
 
-    is_tuple := false
-    if names.len > 0 {
-        first_ident := *(names.ptr)
-        if (tbl).kind(first_ident) == hir_kind.ident {
-            first_name_id := (tbl).lhs(first_ident)
-            if db.is_tuple_name(first_name_id) {
-                is_tuple = true
-            }
-        }
-    }
-
-    sym_id := db.get_hir_symbol(id)
     if (sym_id != id_none()) and (not is_tuple) {
-        name_id := db.sym_names.get(sym_id)
-        name := db.interner.get(name_id)
-        named := (&(*types_ptr)).alloc_nominal(tyid, name, id)
-        db.set_const_type(id, named)
-        sym_hir := db.get_sym_hir(sym_id)
-        if sym_hir != id_none() {
-            db.set_const_type(sym_hir, named)
-            sym_slot := (&(*db).unify).get_slot(sym_hir)
-            if sym_slot == slot_none() {
-                sym_slot = (&(*db).unify).new_slot(sym_hir)
-            }
-            (&(*db).unify).bind_type(&(*db).types, sym_slot, ty_id_type())
-        }
+        types_ptr.set_nominal_base(named, tyid)
     } else {
         db.set_const_type(id, tyid)
         if sym_id != id_none() {

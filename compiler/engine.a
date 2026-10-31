@@ -8,7 +8,8 @@ import parse_expr from "./parser/parser"
 import type_check from "./typer/tyck"
 import id_none from "./nexus/pool"
 import slot_none from "./unify"
-import ty_id_none, TyKind from "./types"
+import ty_id_none, ty_id_type, TyKind from "./types"
+import hir_kind from "./hir"
 import Str from "std/string"
 import Path from "std/path"
 import Arena from "std/allocator"
@@ -91,6 +92,52 @@ Engine :: struct {
         type_check(self, hir_start, hir_end)
     }
 
+    predeclare_nominal :: fn(self &Self, sym_id u32) {
+        db := &self.nexus
+        decl_hir := db.get_sym_hir(sym_id)
+        if decl_hir == id_none() { ret }
+
+        hir_end := db.sym_hir_end.get(sym_id)
+        if (hir_end == id_none()) or (hir_end == 0) { ret }
+
+        root := hir_end - 1
+        if db.hir.kind(root) != hir_kind.binding { ret }
+
+        value_node := db.hir.extra(root)
+        if (value_node == id_none()) or (db.hir.kind(value_node) != hir_kind.struct_) { ret }
+
+        names_list := db.hir.lhs(value_node)
+        if names_list != id_none() {
+            names := db.get_list(names_list)
+            if names.len > 0 {
+                first_ident := *(names.ptr)
+                if (first_ident != id_none()) and (db.hir.kind(first_ident) == hir_kind.ident) {
+                    first_name_id := db.hir.lhs(first_ident)
+                    if db.is_tuple_name(first_name_id) {
+                        ret
+                    }
+                }
+            }
+        }
+
+        existing := db.get_const_type(decl_hir)
+        if existing != ty_id_none() { ret }
+
+        name_id := db.sym_names.get(sym_id)
+        name := db.interner.get(name_id)
+        named := db.types.alloc_nominal(ty_id_none(), name, value_node)
+
+        db.set_const_type(value_node, named)
+        db.set_const_type(decl_hir, named)
+        db.set_is_const(decl_hir, true)
+
+        slot := (&db.unify).get_slot(decl_hir)
+        if slot == slot_none() {
+            slot = (&db.unify).new_slot(decl_hir)
+        }
+        (&db.unify).bind_type(&db.types, slot, ty_id_type())
+    }
+
     ensure_resolved :: fn(self &Self, sym_id u32) {
         if sym_id == id_none() { ret }
         db := &self.nexus
@@ -131,6 +178,8 @@ Engine :: struct {
                 (&db.unify).new_slot(decl_hir)
             }
         }
+
+        self.predeclare_nominal(real_sym)
 
         db.set_sym_resolving(real_sym, true)
         self.type_check(real_sym)

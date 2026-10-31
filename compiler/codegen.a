@@ -374,6 +374,9 @@ CCodeGen :: struct {
     }
 
     define_struct :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
+        if (types.kind(ty_id) == TyKind.nominal) and (types.nominal_base(ty_id) == ty_id_none()) {
+            ret
+        }
         i: u64 = 0
         while i < self.emitted_structs.len {
             if self.emitted_structs.get(i) == ty_id {

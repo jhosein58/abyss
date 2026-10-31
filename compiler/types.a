@@ -392,11 +392,13 @@ TypeStorage :: struct {
     }
 
     get_struct_fields_len :: fn(self &Self, id u32) u32 {
+        if id == ty_id_none() { ret 0 }
         if self.kind(id) == TyKind.nominal { ret self.get_struct_fields_len(self.nominal_base(id)) }
         self.extra(id, 0)
     }
 
     get_struct_fields :: fn(self &Self, id u32) Slice(u32) {
+        if id == ty_id_none() { ret Slice(u32).empty() }
         if self.kind(id) == TyKind.nominal { ret self.get_struct_fields(self.nominal_base(id)) }
         self.items(id, 1, self.get_struct_fields_len(id) as u64 * 2)
     }

@@ -1473,6 +1473,9 @@ VmCodeGen :: struct {
     }
 
     define_struct :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
+        if (types.kind(ty_id) == TyKind.nominal) and (types.nominal_base(ty_id) == ty_id_none()) {
+            ret
+        }
         fields := types.get_struct_fields(ty_id)
         count := fields.len / 2
         i: u64 = 0
@@ -1489,7 +1492,7 @@ VmCodeGen :: struct {
         total := types.len()
         while t < total {
             k := types.kind(t)
-            if (k == TyKind.struct_) or (k == TyKind.nominal) {
+            if (k == TyKind.struct_) or ((k == TyKind.nominal) and (types.nominal_base(t) != ty_id_none())) {
                 self.define_struct(types, arena, t)
             }
             t = t + 1
