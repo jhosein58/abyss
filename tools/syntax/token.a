@@ -1,4 +1,5 @@
-import malloc, free, mem_copy from "std/mem"
+import Arena from "std/allocator"
+import String from "std/string"
 
 TokenKind :: enum u8 {
     eof
@@ -87,84 +88,6 @@ TokenKind :: enum u8 {
     c_bracket
 }
 
-kind_name :: fn(kind TokenKind) Str {
-    match kind {
-        whitespace     { "whitespace" }
-        newline        { "newline" }
-        comment        { "comment" }
-        ident          { "ident" }
-        lit_int        { "lit_int" }
-        lit_float      { "lit_float" }
-        lit_str        { "lit_str" }
-        lit_cstr       { "lit_cstr" }
-        lit_raw_str    { "lit_raw_str" }
-        lit_char       { "lit_char" }
-        kw_if          { "kw_if" }
-        kw_else        { "kw_else" }
-        kw_while       { "kw_while" }
-        kw_break       { "kw_break" }
-        kw_cont        { "kw_cont" }
-        kw_ret         { "kw_ret" }
-        kw_fn          { "kw_fn" }
-        kw_struct      { "kw_struct" }
-        kw_enum        { "kw_enum" }
-        kw_match       { "kw_match" }
-        kw_in          { "kw_in" }
-        kw_for         { "kw_for" }
-        kw_as          { "kw_as" }
-        kw_and         { "kw_and" }
-        kw_or          { "kw_or" }
-        kw_not         { "kw_not" }
-        kw_true        { "kw_true" }
-        kw_false       { "kw_false" }
-        kw_from        { "kw_from" }
-        kw_import      { "kw_import" }
-        kw_cmpt        { "kw_cmpt" }
-        plus           { "+" }
-        minus          { "-" }
-        star           { "*" }
-        slash          { "/" }
-        percent        { "%" }
-        plus_eq        { "+=" }
-        minus_eq       { "-=" }
-        star_eq        { "*=" }
-        slash_eq       { "/=" }
-        percent_eq     { "%=" }
-        amp            { "&" }
-        pipe           { "|" }
-        caret          { "^" }
-        tilde          { "~" }
-        amp_eq         { "&=" }
-        pipe_eq        { "|=" }
-        caret_eq       { "^=" }
-        left_shift     { "<<" }
-        right_shift    { ">>" }
-        left_shift_eq  { "<<=" }
-        right_shift_eq { ">>=" }
-        eq             { "=" }
-        eq_eq          { "==" }
-        bang_eq        { "!=" }
-        lt             { "<" }
-        lt_eq          { "<=" }
-        gt             { ">" }
-        gt_eq          { ">=" }
-        colon          { ":" }
-        colon_colon    { "::" }
-        semi           { ";" }
-        comma          { "," }
-        dot            { "." }
-        hash           { "#" }
-        at             { "@" }
-        o_paren        { "(" }
-        c_paren        { ")" }
-        o_brace        { "{" }
-        c_brace        { "}" }
-        o_bracket      { "[" }
-        c_bracket      { "]" }
-        eof            { "eof" }
-        else           { "unknown" }
-    }
-}
 
 Token :: struct {
     kind  TokenKind
@@ -223,10 +146,6 @@ Token :: struct {
     is_unknown :: fn(self &Self) bool {
         self.kind == TokenKind.unknown
     }
-
-    kind_name :: fn(self &Self) Str {
-        kind_name(self.kind)
-    }
 }
 
 TokenList :: struct {
@@ -276,32 +195,16 @@ TokenList :: struct {
         self.tokens.iter_ref()
     }
 
-    reconstruct :: fn(self &Self) Str {
-        total_len: u64 = 0
+    reconstruct :: fn(self &Self, arena &Arena) String {
+        s := String.new(arena)
         i: u64 = 0
         while i < self.len() {
             tok := self.get(i)
             if not tok.is_eof() {
-                total_len = total_len + (tok.len as u64)
+                s.push_str(tok.text)
             }
             i = i + 1
         }
-        if total_len == 0 {
-            ret Str.empty()
-        }
-        buf := malloc(total_len)
-        offset: u64 = 0
-        i = 0
-        while i < self.len() {
-            tok := self.get(i)
-            if not tok.is_eof() {
-                if tok.len > 0 {
-                    mem_copy(buf + offset, tok.text.ptr, tok.len as u64)
-                    offset = offset + (tok.len as u64)
-                }
-            }
-            i = i + 1
-        }
-        Str.new(buf, total_len)
+        s
     }
 }

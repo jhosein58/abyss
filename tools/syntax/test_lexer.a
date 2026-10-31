@@ -1,6 +1,5 @@
 import TokenKind, Token, TokenList from "./token"
 import Lexer, tokenize from "./lexer"
-import free from "std/mem"
 import Arena from "std/allocator"
 import File from "std/fs"
 
@@ -79,12 +78,13 @@ test_lossless_roundtrip :: fn() {
     src := "import Arena from \"std/allocator\"\n\n-- Lossless CST test\nPoint :: struct {\n    x i32\n    y i32\n\n    new :: fn(x, y i32) Self {\n        .{ x: x, y: y }\n    }\n}\n\nmain :: fn() {\n    p := Point.new(10, 20)\n    if p.x > 0 and p.y > 0 {\n        printf(\"ok\\n\", .{})\n    }\n}\n"
     tokens := tokenize(src)
 
-    reconstructed := tokens.reconstruct()
+    arena := Arena.new(1024 * 64)
+    reconstructed := tokens.reconstruct(&arena)
 
-    assert_true(reconstructed.eq(src), "exact lossless roundtrip")
+    assert_true(reconstructed.as_str().eq(src), "exact lossless roundtrip")
     assert_true(reconstructed.len == src.len, "exact length match")
 
-    free(reconstructed.ptr)
+    arena.destroy()
     tokens.destroy()
 }
 
@@ -133,12 +133,11 @@ test_real_file_roundtrip :: fn() {
     src := file_opt.unwrap()
 
     tokens := tokenize(src)
-    reconstructed := tokens.reconstruct()
+    reconstructed := tokens.reconstruct(&arena)
 
-    assert_true(reconstructed.eq(src), "std/ascii.a exact roundtrip")
+    assert_true(reconstructed.as_str().eq(src), "std/ascii.a exact roundtrip")
     assert_true(reconstructed.len == src.len, "std/ascii.a exact length")
 
-    free(reconstructed.ptr)
     tokens.destroy()
     arena.destroy()
 }
