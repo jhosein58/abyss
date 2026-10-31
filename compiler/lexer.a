@@ -43,10 +43,11 @@ match_keyword :: fn(text Str) Tk {
     Tk.ident
 }
 
-check_base_digit :: fn(c u8, is_hex, is_bin, is_oct bool) bool {
-    if is_hex { ret is_hex_digit(c) }
-    if is_bin { ret is_bin_digit(c) }
-    if is_oct { ret is_oct_digit(c) }
+is_base_digit :: fn(c u8, base u32) bool {
+    if base == 10 { ret is_digit(c) }
+    if base == 16 { ret is_hex_digit(c) }
+    if base == 2 { ret is_bin_digit(c) }
+    if base == 8 { ret is_oct_digit(c) }
     false
 }
 
@@ -141,40 +142,15 @@ Lexer :: struct {
         simple_escape(c) >= 0
     }
 
-    scan_decimal_digits :: fn(self &Self) {
+    scan_digits :: fn(self &Self, base u32) {
         while not self.is_eof() {
             c := self.current()
-            if is_digit(c) {
+            if is_base_digit(c, base) {
                 self.bump()
             } else if c == '_' {
                 prev := *(self.source.ptr + self.cursor - 1)
                 next := self.peek()
-                if (not is_digit(prev)) or (not is_digit(next)) {
-                    self.error(c"invalid digit separator '_'", self.cursor)
-                }
-                self.bump()
-            } else {
-                break
-            }
-        }
-    }
-
-    scan_base_digits :: fn(self &Self, is_hex, is_bin, is_oct bool) {
-        offset := self.cursor
-        self.bump()
-        self.bump()
-        if self.is_eof() or (not check_base_digit(self.current(), is_hex, is_bin, is_oct)) {
-            self.error(c"expected digits after base prefix", offset)
-        }
-        self.bump()
-        while not self.is_eof() {
-            c := self.current()
-            if check_base_digit(c, is_hex, is_bin, is_oct) {
-                self.bump()
-            } else if c == '_' {
-                prev := *(self.source.ptr + self.cursor - 1)
-                next := self.peek()
-                if (not check_base_digit(prev, is_hex, is_bin, is_oct)) or (not check_base_digit(next, is_hex, is_bin, is_oct)) {
+                if (not is_base_digit(prev, base)) or (not is_base_digit(next, base)) {
                     self.error(c"invalid digit separator '_'", self.cursor)
                 }
                 self.bump()
@@ -190,22 +166,29 @@ Lexer :: struct {
 
         if self.current() == '0' {
             p := self.peek()
-            is_hex := (p == 'x') or (p == 'X')
-            is_bin := (p == 'b') or (p == 'B')
-            is_oct := (p == 'o') or (p == 'O')
-            if is_hex or is_bin or is_oct {
-                self.scan_base_digits(is_hex, is_bin, is_oct)
+            base: u32 = 0
+            if (p == 'x') or (p == 'X') { base = 16 }
+            else if (p == 'b') or (p == 'B') { base = 2 }
+            else if (p == 'o') or (p == 'O') { base = 8 }
+
+            if base != 0 {
+                self.bump()
+                self.bump()
+                if self.is_eof() or (not is_base_digit(self.current(), base)) {
+                    self.error(c"expected digits after base prefix", offset)
+                }
+                self.scan_digits(base)
                 self.emit(stream, Tk.lit_int, offset)
                 ret
             }
         }
 
-        self.scan_decimal_digits()
+        self.scan_digits(10)
 
         if (self.current() == '.') and (self.peek() != '.') and is_digit(self.peek()) {
             is_float = true
             self.bump()
-            self.scan_decimal_digits()
+            self.scan_digits(10)
         }
 
         if (self.current() == 'e') or (self.current() == 'E') {
@@ -225,7 +208,7 @@ Lexer :: struct {
                 if (self.current() == '+') or (self.current() == '-') {
                     self.bump()
                 }
-                self.scan_decimal_digits()
+                self.scan_digits(10)
             }
         }
 
