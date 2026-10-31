@@ -1,0 +1,166 @@
+print_cstr :: fn(s &u8)
+print_i32 :: fn(v i32)
+print_u32 :: fn(v u32)
+
+println_i32 :: fn(v i32) {
+    print_i32(v)
+    print_cstr(c"\n")
+}
+
+println_u32 :: fn(v u32) {
+    print_u32(v)
+    print_cstr(c"\n")
+}
+
+ListNode :: struct {
+    val i32
+    next &ListNode
+
+    len :: fn(self &Self) i32 {
+        if self.next == (0 as &ListNode) {
+            ret 1
+        }
+        1 + self.next.len()
+    }
+
+    sum :: fn(self &Self) i32 {
+        if self.next == (0 as &ListNode) {
+            ret self.val
+        }
+        self.val + self.next.sum()
+    }
+}
+
+Alpha :: struct {
+    val i32
+    beta &Beta
+
+    ping :: fn(self &Self, count i32) i32 {
+        if count <= 0 {
+            ret self.val
+        }
+        if self.beta == (0 as &Beta) {
+            ret self.val
+        }
+        self.val + self.beta.pong(count - 1)
+    }
+}
+
+Beta :: struct {
+    val i32
+    alpha &Alpha
+
+    pong :: fn(self &Self, count i32) i32 {
+        if count <= 0 {
+            ret self.val
+        }
+        if self.alpha == (0 as &Alpha) {
+            ret self.val
+        }
+        self.val + self.alpha.ping(count - 1)
+    }
+}
+
+NodeA :: struct {
+    val i32
+    b &NodeB
+
+    walk :: fn(self &Self, steps i32) i32 {
+        if steps <= 0 {
+            ret self.val
+        }
+        if self.b == (0 as &NodeB) {
+            ret self.val
+        }
+        self.val + self.b.walk(steps - 1)
+    }
+}
+
+NodeB :: struct {
+    val i32
+    c &NodeC
+
+    walk :: fn(self &Self, steps i32) i32 {
+        if steps <= 0 {
+            ret self.val
+        }
+        if self.c == (0 as &NodeC) {
+            ret self.val
+        }
+        self.val + self.c.walk(steps - 1)
+    }
+}
+
+NodeC :: struct {
+    val i32
+    a &NodeA
+
+    walk :: fn(self &Self, steps i32) i32 {
+        if steps <= 0 {
+            ret self.val
+        }
+        if self.a == (0 as &NodeA) {
+            ret self.val
+        }
+        self.val + self.a.walk(steps - 1)
+    }
+}
+
+TreeNode :: struct {
+    val i32
+    left &TreeNode
+    right &TreeNode
+
+    sum :: fn(self &Self) i32 {
+        total := self.val
+        if self.left != (0 as &TreeNode) {
+            total = total + self.left.sum()
+        }
+        if self.right != (0 as &TreeNode) {
+            total = total + self.right.sum()
+        }
+        total
+    }
+}
+
+DNode :: struct {
+    val i32
+    prev &DNode
+    next &DNode
+}
+
+main :: fn() {
+    n3: ListNode = .{ val: 30, next: 0 as &ListNode }
+    n2: ListNode = .{ val: 20, next: &n3 }
+    n1: ListNode = .{ val: 10, next: &n2 }
+    println_i32(n1.len())
+    println_i32(n1.sum())
+
+    a: Alpha = .{ val: 100, beta: 0 as &Beta }
+    b: Beta = .{ val: 200, alpha: &a }
+    a.beta = &b
+    println_i32(b.pong(3))
+
+    na: NodeA = .{ val: 1, b: 0 as &NodeB }
+    nb: NodeB = .{ val: 2, c: 0 as &NodeC }
+    nc: NodeC = .{ val: 3, a: &na }
+    na.b = &nb
+    nb.c = &nc
+    println_i32(na.walk(6))
+
+    tl: TreeNode = .{ val: 5, left: 0 as &TreeNode, right: 0 as &TreeNode }
+    tr: TreeNode = .{ val: 15, left: 0 as &TreeNode, right: 0 as &TreeNode }
+    root: TreeNode = .{ val: 10, left: &tl, right: &tr }
+    println_i32(root.sum())
+
+    d1: DNode = .{ val: 111, prev: 0 as &DNode, next: 0 as &DNode }
+    d2: DNode = .{ val: 222, prev: &d1, next: 0 as &DNode }
+    d1.next = &d2
+    println_i32(d2.prev.val)
+    println_i32(d1.next.val)
+
+    println_u32(@sizeof(ListNode) as u32)
+    println_u32(@sizeof(Alpha) as u32)
+    println_u32(@sizeof(TreeNode) as u32)
+    println_u32(@sizeof(DNode) as u32)
+}

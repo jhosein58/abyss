@@ -1,0 +1,11 @@
+Ping :: struct {
+    pong Pong
+}
+
+Pong :: struct {
+    ping Ping
+}
+
+main :: fn() {
+    p: Ping
+}

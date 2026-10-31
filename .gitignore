@@ -3,6 +3,8 @@ abyssc
 *.o
 *.obj
 *.out
+!tests/*.out
+!tests/**/*.out
 /tmp/
 /dist/
 main.c
