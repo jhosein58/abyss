@@ -50,6 +50,30 @@ check_base_digit :: fn(c u8, is_hex, is_bin, is_oct bool) bool {
     false
 }
 
+simple_escape :: fn(c u8) i32 {
+    if c == 'n' { ret 10 }
+    if c == 'r' { ret 13 }
+    if c == 't' { ret 9 }
+    if c == '0' { ret 0 }
+    if c == 'a' { ret 7 }
+    if c == 'b' { ret 8 }
+    if c == 'f' { ret 12 }
+    if c == 'v' { ret 11 }
+    if c == '\\' { ret 92 }
+    if c == '\'' { ret 39 }
+    if c == '"' { ret 34 }
+    if c == '?' { ret 63 }
+    -1
+}
+
+utf8_len :: fn(b0 u8) u32 {
+    if (b0 & 0x80) == 0 { ret 1 }
+    if (b0 & 0xE0) == 0xC0 { ret 2 }
+    if (b0 & 0xF0) == 0xE0 { ret 3 }
+    if (b0 & 0xF8) == 0xF0 { ret 4 }
+    0
+}
+
 Lexer :: struct {
     source, path Str
     cursor u64
@@ -114,9 +138,7 @@ Lexer :: struct {
         c := self.current()
         if c == 'x' { ret is_hex_digit(self.peek()) }
         if c == 'u' { ret self.peek() == '{' }
-        if (c >= '0') and (c <= '7') { ret true }
-        (c == 'a') or (c == 'b') or (c == 'f') or (c == 'n') or (c == 'r') or
-        (c == 't') or (c == 'v') or (c == '\\') or (c == '\'') or (c == '"') or (c == '?') or (c == '0')
+        simple_escape(c) >= 0
     }
 
     scan_decimal_digits :: fn(self &Self) {
