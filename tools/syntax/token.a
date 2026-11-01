@@ -1,5 +1,5 @@
-import Arena from "std/allocator"
-import String from "std/string"
+import std.allocator: Arena
+import std.string: String
 
 TokenKind :: enum u8 {
     eof

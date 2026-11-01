@@ -1,7 +1,7 @@
-import TokenKind, Token, TokenList from "./token"
-import Lexer, tokenize from "./lexer"
-import Arena from "std/allocator"
-import File from "std/fs"
+import .token: TokenKind, Token, TokenList
+import .lexer: Lexer, tokenize
+import std.allocator: Arena
+import std.fs: File
 
 assert_true :: fn(cond bool, msg Str) {
     if not cond {
