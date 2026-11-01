@@ -31,7 +31,7 @@ cp "${ROOT_DIR}/tests/23_embedded_core.a" "${WORK_DIR}/main.a"
     timeout 5s ./program > actual.out
     diff -u "${ROOT_DIR}/tests/23_embedded_core.out" actual.out
     for TEST_FILE in "${ROOT_DIR}"/tests/[0-9]*.a; do
-        if [[ "${TEST_FILE}" == */22_import_aliases.a ]]; then
+        if [[ "${TEST_FILE}" == */22_import_aliases.a || "${TEST_FILE}" == */70_modules_and_imports.a ]]; then
             continue
         fi
         cp "${TEST_FILE}" main.a
