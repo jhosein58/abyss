@@ -1,5 +1,5 @@
-import Slice from "slice"
-import Maybe from "maybe"
+import core.slice: Slice
+import core.maybe: Maybe
 
 Chunks :: fn(T type) type {
     struct {

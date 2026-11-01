@@ -1,6 +1,6 @@
-import Iterator as Iter from "iterator"
-import RefIterator as RefIter from "ref_iterator"
-import Chunks from "chunks"
+import core.iterator: Iterator as Iter
+import core.ref_iterator: RefIterator as RefIter
+import core.chunks: Chunks
 
 Slice :: fn(T type) type {
     struct {
