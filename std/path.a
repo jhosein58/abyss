@@ -1,5 +1,5 @@
-import Str, String from "string"
-import Arena from "allocator"
+import std.string: Str, String
+import std.allocator: Arena
 
 Path :: struct {
     to_cstr :: fn(arena &Arena, path Str) &u8 {

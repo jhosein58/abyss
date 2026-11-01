@@ -1,6 +1,6 @@
-import Arena from "allocator"
-import fmt from "fmt"
-import String from "string"
+import std.allocator: Arena
+import std.fmt: fmt
+import std.string: String
 
 print_bytes :: fn(ptr &u8, len u64)
 print_char :: fn(value u8)

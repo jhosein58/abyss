@@ -1,6 +1,6 @@
-import print, printf from "./io"
+import std.io: print, printf
 
-import Vec from "./collections/vec"
-import HashSet from "./collections/hash_set"
-import HashMap from "./collections/hash_map"
-import Worklist from "./collections/worklist"
+import std.collections.vec: Vec
+import std.collections.hash_set: HashSet
+import std.collections.hash_map: HashMap
+import std.collections.worklist: Worklist

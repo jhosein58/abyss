@@ -1,10 +1,10 @@
-import Arena from "allocator"
-import Str, String from "string"
-import fall from "sys"
-import Maybe from "core/maybe"
-import Vec from "collections/vec"
-import Path from "path"
-import Convert from "convert"
+import std.allocator: Arena
+import std.string: Str, String
+import std.sys: fall
+import core.maybe: Maybe
+import std.collections.vec: Vec
+import std.path: Path
+import std.convert: Convert
 
 print_cstr :: fn(s &u8)
 get_env :: fn(name &u8) &u8
