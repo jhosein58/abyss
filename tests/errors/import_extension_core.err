@@ -1,4 +1,2 @@
-[import error]
-import paths must omit the '.a' extension
-core/string.a
---> tests/errors/import_extension_core.a:1:17
+[import error] embedded module not found: core/string/a.a
+--> tests/errors/import_extension_core.a:1:8

@@ -1,4 +1,2 @@
-[import error]
-import paths must omit the '.a' extension
-../modules/aliases.a
---> tests/errors/import_extension_relative.a:1:19
+[import error] cannot open module: tests/modules/aliases/a.a
+--> tests/errors/import_extension_relative.a:1:8

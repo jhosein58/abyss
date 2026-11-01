@@ -166,7 +166,7 @@ parse_scoped_import :: fn(p &Parser) {
     mod_alias := last_seg_id
     if peek(p) == t.kw_as {
         bump(p)
-        if peek(p) != t.ident {
+        if (peek(p) != t.ident) or peek_preceded_by_newline(p) {
             arena.destroy()
             parse_error_at(p, c"expected import alias after 'as'", curr_span(p))
         }
@@ -194,7 +194,7 @@ parse_scoped_import :: fn(p &Parser) {
             sym_local_id := sym_name_id
             if peek(p) == t.kw_as {
                 bump(p)
-                if peek(p) != t.ident {
+                if (peek(p) != t.ident) or peek_preceded_by_newline(p) {
                     arena.destroy()
                     parse_error_at(p, c"expected symbol alias after 'as'", curr_span(p))
                 }

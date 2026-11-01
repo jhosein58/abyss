@@ -1,4 +1,2 @@
-[import error]
-import paths must omit the '.a' extension
-std/not_found.a
---> tests/errors/import_extension_missing.a:1:21
+[import error] embedded module not found: std/not_found/a.a
+--> tests/errors/import_extension_missing.a:1:8

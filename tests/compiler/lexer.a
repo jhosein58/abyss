@@ -14,10 +14,10 @@ check_tok :: fn(s &TokenStream, idx u32, kind Tk, text Str, newline bool) {
 
 test_keywords :: fn() {
     s := TokenStream.new()
-    src := "ret if else while break cont struct import from true false as and or not fn match in for cmpt enum"
+    src := "ret if else while break cont struct import true false as and or not fn match in for cmpt enum"
     lex(&s, src, "test")
 
-    expect(s.count() == 22)
+    expect(s.count() == 21)
     check_tok(&s, 0, Tk.kw_ret, "ret", true)
     check_tok(&s, 1, Tk.kw_if, "if", false)
     check_tok(&s, 2, Tk.kw_else, "else", false)
@@ -26,20 +26,19 @@ test_keywords :: fn() {
     check_tok(&s, 5, Tk.kw_cont, "cont", false)
     check_tok(&s, 6, Tk.kw_struct, "struct", false)
     check_tok(&s, 7, Tk.kw_import, "import", false)
-    check_tok(&s, 8, Tk.kw_from, "from", false)
-    check_tok(&s, 9, Tk.kw_true, "true", false)
-    check_tok(&s, 10, Tk.kw_false, "false", false)
-    check_tok(&s, 11, Tk.kw_as, "as", false)
-    check_tok(&s, 12, Tk.kw_and, "and", false)
-    check_tok(&s, 13, Tk.kw_or, "or", false)
-    check_tok(&s, 14, Tk.kw_not, "not", false)
-    check_tok(&s, 15, Tk.kw_fn, "fn", false)
-    check_tok(&s, 16, Tk.kw_match, "match", false)
-    check_tok(&s, 17, Tk.kw_in, "in", false)
-    check_tok(&s, 18, Tk.kw_for, "for", false)
-    check_tok(&s, 19, Tk.kw_cmpt, "cmpt", false)
-    check_tok(&s, 20, Tk.kw_enum, "enum", false)
-    check_tok(&s, 21, Tk.eof, "", false)
+    check_tok(&s, 8, Tk.kw_true, "true", false)
+    check_tok(&s, 9, Tk.kw_false, "false", false)
+    check_tok(&s, 10, Tk.kw_as, "as", false)
+    check_tok(&s, 11, Tk.kw_and, "and", false)
+    check_tok(&s, 12, Tk.kw_or, "or", false)
+    check_tok(&s, 13, Tk.kw_not, "not", false)
+    check_tok(&s, 14, Tk.kw_fn, "fn", false)
+    check_tok(&s, 15, Tk.kw_match, "match", false)
+    check_tok(&s, 16, Tk.kw_in, "in", false)
+    check_tok(&s, 17, Tk.kw_for, "for", false)
+    check_tok(&s, 18, Tk.kw_cmpt, "cmpt", false)
+    check_tok(&s, 19, Tk.kw_enum, "enum", false)
+    check_tok(&s, 20, Tk.eof, "", false)
 
     s.destroy()
 }

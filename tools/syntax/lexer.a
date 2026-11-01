@@ -21,7 +21,6 @@ match_keyword :: fn(text Str) TokenKind {
         if text.eq("else") { ret TokenKind.kw_else }
         if text.eq("cont") { ret TokenKind.kw_cont }
         if text.eq("true") { ret TokenKind.kw_true }
-        if text.eq("from") { ret TokenKind.kw_from }
         if text.eq("enum") { ret TokenKind.kw_enum }
         if text.eq("cmpt") { ret TokenKind.kw_cmpt }
     }

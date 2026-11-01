@@ -23,7 +23,6 @@ match_keyword :: fn(text Str) Tk {
         if text.eq("else") { ret Tk.kw_else }
         if text.eq("cont") { ret Tk.kw_cont }
         if text.eq("true") { ret Tk.kw_true }
-        if text.eq("from") { ret Tk.kw_from }
         if text.eq("enum") { ret Tk.kw_enum }
         if text.eq("cmpt") { ret Tk.kw_cmpt }
     }
