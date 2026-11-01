@@ -1,10 +1,10 @@
-import ..token: Token
+import compiler.token: Token
 import std.string: Str
-import ..hir: hir_kind, hir_none
-import ..nexus.pool: id_none
+import compiler.hir: hir_kind, hir_none
+import compiler.nexus.pool: id_none
 import .core: Parser, is_eof, peek, bump, peek_n, peek_preceded_by_newline, curr_span, parse_error_at, expect
 import .prec: prec, is_soft, bp_from_infix
-import ..nexus.nexus: span_merge
+import compiler.nexus.nexus: span_merge
 import .handlers.common: span_of_hir, set_span
 import .handlers.lit: parse_lit_int, parse_float, parse_str, parse_char, parse_cstr, parse_true, parse_false
 import .handlers.ident: parse_ident

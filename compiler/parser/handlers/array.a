@@ -1,12 +1,12 @@
-import ...token: Token
-import ...hir: hir_kind, hir_none
-import ..core: Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at, lookup_sym
-import ...nexus.nexus: span_merge
-import ..prec: prec
+import compiler.token: Token
+import compiler.hir: hir_kind, hir_none
+import compiler.parser.core: Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at, lookup_sym
+import compiler.nexus.nexus: span_merge
+import compiler.parser.prec: prec
 import .common: span_of_hir, set_span, check_separator, add_list
-import ..parser: parse_expr
+import compiler.parser.parser: parse_expr
 import std.string: Str
-import ...nexus.pool: id_none
+import compiler.nexus.pool: id_none
 
 parse_array_type :: fn(p &Parser, min_bp u8) u32 {
     t := Token

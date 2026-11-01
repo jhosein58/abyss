@@ -1,12 +1,12 @@
-import ..engine: Engine
-import ..nexus.nexus: Nexus
-import ..hir: hir_kind, hir_none
-import ..nexus.pool: id_none
-import ..types: TyKind, ty_id_none, ty_id_type
+import compiler.engine: Engine
+import compiler.nexus.nexus: Nexus
+import compiler.hir: hir_kind, hir_none
+import compiler.nexus.pool: id_none
+import compiler.types: TyKind, ty_id_none, ty_id_type
 import .tyck: synth_node
 import .rules.var: synth_type_node
 import .tyck: type_has_infer
-import ..lower: eval_const
+import compiler.lower: eval_const
 import std.string: Str, String
 import std.convert: Convert
 import std.sys: fall

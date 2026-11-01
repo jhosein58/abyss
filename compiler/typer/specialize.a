@@ -1,10 +1,10 @@
-import ..nexus.nexus: Nexus
-import ..hir: HirTable, hir_kind, hir_none
+import compiler.nexus.nexus: Nexus
+import compiler.hir: HirTable, hir_kind, hir_none
 import std.string: Str
-import ..types: TypeStorage, TyKind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error
-import ..unify: UnifyStorage, slot_none
-import ..nexus.pool: id_none
-import ..engine: Engine
+import compiler.types: TypeStorage, TyKind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error
+import compiler.unify: UnifyStorage, slot_none
+import compiler.nexus.pool: id_none
+import compiler.engine: Engine
 import std.sys: fall
 import .rules.var: synth_type_node
 import .tyck: type_check

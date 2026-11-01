@@ -50,7 +50,7 @@ module_path :: fn(db &Nexus, arena &Arena, file_id u32, offset u32, base Str, pa
         index_error(db, file_id, offset, c"import paths must omit the '.a' extension", path)
     }
     full_path := Path.ensure_ext(arena, path, Str.of(".a"))
-    is_rel := full_path.starts_with(Str.of("./")) or full_path.starts_with(Str.of("../")) or full_path.starts_with(Str.of(".\\")) or full_path.starts_with(Str.of("..\\"))
+    is_rel := full_path.starts_with(Str.of("./")) or full_path.starts_with(Str.of(".\\"))
     embedded := is_embedded_path(full_path) or is_embedded_path(base)
     target := Str.empty()
     if is_rel {
@@ -234,15 +234,13 @@ Indexer :: struct {
                     scan = scan + 1
                 }
 
+                if dot_count > 1 {
+                    index_error(db, file_id, db.tokens.start(path_start_tok), c"parent directory imports ('..') are not allowed; use absolute paths", Str.empty())
+                }
+
                 path_buf := String.new(self.arena)
                 if dot_count == 1 {
                     path_buf.push_str(Str.of("./"))
-                } else if dot_count > 1 {
-                    d_i: u32 = 1
-                    while d_i < dot_count {
-                        path_buf.push_str(Str.of("../"))
-                        d_i = d_i + 1
-                    }
                 }
 
                 if (scan >= end_tok) or (not is_path_ident(db.tokens.kind(scan))) {

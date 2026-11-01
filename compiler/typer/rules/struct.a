@@ -1,22 +1,22 @@
 import std.string: Str
-import ...nexus.nexus: Nexus
-import ...hir: HirTable, hir_kind, hir_none
-import ...types: TyKind, ty_id_none, ty_id_type, ty_id_unit
-import ...unify: slot_none
-import ...nexus.pool: id_none
-import ...engine: Engine
+import compiler.nexus.nexus: Nexus
+import compiler.hir: HirTable, hir_kind, hir_none
+import compiler.types: TyKind, ty_id_none, ty_id_type, ty_id_unit
+import compiler.unify: slot_none
+import compiler.nexus.pool: id_none
+import compiler.engine: Engine
 import std.sys: fall
 import .var: synth_type_node
 import .fn: synth_func, func_has_self
-import ..specialize: specialize_nominal_method, specialize_nominal_from_creator
-import ...token: Token, TokenStream
-import ...lexer: lex
-import ...parser.core: Parser_new, is_eof, peek
-import ...parser.handlers.ident: parse_ident
-import ...parser.handlers.common: parse_method, check_separator
-import ..reflection: reflection_read
-import ...lower: eval_const
-import ..tyck: synth_node, type_check
+import compiler.typer.specialize: specialize_nominal_method, specialize_nominal_from_creator
+import compiler.token: Token, TokenStream
+import compiler.lexer: lex
+import compiler.parser.core: Parser_new, is_eof, peek
+import compiler.parser.handlers.ident: parse_ident
+import compiler.parser.handlers.common: parse_method, check_separator
+import compiler.typer.reflection: reflection_read
+import compiler.lower: eval_const
+import compiler.typer.tyck: synth_node, type_check
 import .common: unescape_splice_str
 
 synth_struct :: fn(eng &Engine, id u32) {

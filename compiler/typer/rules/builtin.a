@@ -1,11 +1,11 @@
-import ..reflection: synth_reflection_builtin
-import ...engine: Engine
-import ...nexus.nexus: Nexus
-import ...hir: hir_kind, hir_none
-import ...unify: slot_none
-import ...types: ty_id_none, ty_id_type, ty_id_bool, TyKind
+import compiler.typer.reflection: synth_reflection_builtin
+import compiler.engine: Engine
+import compiler.nexus.nexus: Nexus
+import compiler.hir: hir_kind, hir_none
+import compiler.unify: slot_none
+import compiler.types: ty_id_none, ty_id_type, ty_id_bool, TyKind
 import std.sys: fall
-import ..tyck: synth_node
+import compiler.typer.tyck: synth_node
 import .var: synth_type_node
 import std.string: Str
 

@@ -1,15 +1,15 @@
-import ...nexus.nexus: Nexus
-import ...engine: Engine
-import ...hir: HirTable, hir_kind, hir_none
-import ...types: TyKind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error, ty_id_never, ty_id_type
-import ...unify: slot_none
+import compiler.nexus.nexus: Nexus
+import compiler.engine: Engine
+import compiler.hir: HirTable, hir_kind, hir_none
+import compiler.types: TyKind, ty_id_none, ty_id_unit, ty_id_bool, ty_id_error, ty_id_never, ty_id_type
+import compiler.unify: slot_none
 import .common: check_value, check_bool_operand
 import .var: synth_type_node
 import std.string: Str
-import ...nexus.pool: id_none
+import compiler.nexus.pool: id_none
 import std.sys: fall
-import ..tyck: synth_node
-import ...lower: eval_const
+import compiler.typer.tyck: synth_node
+import compiler.lower: eval_const
 
 match_error :: fn(db &Nexus, msg &u8, id u32) {
     printf("\n\033[1;31m[type error]\033[0m {}\n       --> ", .{msg})

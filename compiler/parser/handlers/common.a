@@ -1,11 +1,11 @@
-import ...token: Token, is_path_ident
-import ...hir: HirExprKind, hir_kind, hir_none
-import ..core: Parser, peek, peek_n, bump, optional, curr_span, parse_error_at, peek_preceded_by_newline
-import ...nexus.nexus: Span, span_merge
-import ...nexus.pool: id_none
-import ..prec: prec
-import ..parser: parse_expr
-import ...indexer: module_path
+import compiler.token: Token, is_path_ident
+import compiler.hir: HirExprKind, hir_kind, hir_none
+import compiler.parser.core: Parser, peek, peek_n, bump, optional, curr_span, parse_error_at, peek_preceded_by_newline
+import compiler.nexus.nexus: Span, span_merge
+import compiler.nexus.pool: id_none
+import compiler.parser.prec: prec
+import compiler.parser.parser: parse_expr
+import compiler.indexer: module_path
 import std.string: Str, String
 import std.path: Path
 import std.allocator: Arena
@@ -107,20 +107,20 @@ parse_scoped_import :: fn(p &Parser) {
     t := Token
     bump(p)
     dot_count: u32 = 0
+    path_start_span := curr_span(p)
     while peek(p) == t.dot {
         dot_count = dot_count + 1
         bump(p)
     }
 
+    if dot_count > 1 {
+        arena.destroy()
+        parse_error_at(p, c"parent directory imports ('..') are not allowed; use absolute paths", path_start_span)
+    }
+
     path_buf := String.new(&arena)
     if dot_count == 1 {
         path_buf.push_str(Str.of("./"))
-    } else if dot_count > 1 {
-        d_i: u32 = 1
-        while d_i < dot_count {
-            path_buf.push_str(Str.of("../"))
-            d_i = d_i + 1
-        }
     }
 
     if not is_path_ident(peek(p)) {

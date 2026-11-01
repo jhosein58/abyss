@@ -1,8 +1,8 @@
-import ...nexus.nexus: Nexus
-import ...hir: HirTable, hir_kind
-import ...types: ty_id_untyped_int, ty_id_untyped_float, ty_id_bool, ty_id_none
-import ...engine: Engine
-import ...lexer: decode_char_lit
+import compiler.nexus.nexus: Nexus
+import compiler.hir: HirTable, hir_kind
+import compiler.types: ty_id_untyped_int, ty_id_untyped_float, ty_id_bool, ty_id_none
+import compiler.engine: Engine
+import compiler.lexer: decode_char_lit
 
 synth_lit_int :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify

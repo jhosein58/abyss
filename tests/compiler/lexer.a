@@ -1,5 +1,5 @@
-import ...compiler.token: Token as Tk, TokenStream
-import ...compiler.lexer: lex, decode_char_lit
+import compiler.token: Token as Tk, TokenStream
+import compiler.lexer: lex, decode_char_lit
 import std.sys: fall
 
 expect :: fn(cond bool) {

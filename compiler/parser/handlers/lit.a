@@ -1,5 +1,5 @@
-import ...hir: hir_kind, hir_none
-import ..core: Parser, bump, curr_text, curr_span
+import compiler.hir: hir_kind, hir_none
+import compiler.parser.core: Parser, bump, curr_text, curr_span
 import std.string: parse_u32
 import .common: set_span
 

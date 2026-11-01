@@ -1,17 +1,17 @@
-import ...nexus.nexus: Nexus
-import ...hir: HirTable, hir_kind, hir_none
+import compiler.nexus.nexus: Nexus
+import compiler.hir: HirTable, hir_kind, hir_none
 import std.string: Str
-import ...types: TypeStorage, TyKind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error
-import ...unify: UnifyStorage, slot_none
-import ...nexus.pool: id_none
-import ...engine: Engine
+import compiler.types: TypeStorage, TyKind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error
+import compiler.unify: UnifyStorage, slot_none
+import compiler.nexus.pool: id_none
+import compiler.engine: Engine
 import std.sys: fall
 import .var: synth_type_node
 import .common: check_value
-import ..tyck: synth_node
-import ..specialize: specialize_nominal_from_creator, instantiate_type, resolve_ty_id
-import ...lower: eval_const
-import ..reflection: reflection_read, reflection_error
+import compiler.typer.tyck: synth_node
+import compiler.typer.specialize: specialize_nominal_from_creator, instantiate_type, resolve_ty_id
+import compiler.lower: eval_const
+import compiler.typer.reflection: reflection_read, reflection_error
 
 constant_argument :: fn(db &Nexus, id u32) bool {
     kind := db.hir.kind(id)

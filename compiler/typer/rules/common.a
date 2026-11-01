@@ -1,9 +1,9 @@
 import std.allocator: malloc
-import ...nexus.nexus: Nexus
-import ...hir: HirTable, hir_kind, hir_none
+import compiler.nexus.nexus: Nexus
+import compiler.hir: HirTable, hir_kind, hir_none
 import std.string: Str
-import ...types: TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_bool
-import ...unify: UnifyStorage, slot_none
+import compiler.types: TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_bool
+import compiler.unify: UnifyStorage, slot_none
 import std.sys: fall
 
 parse_builtin_type :: fn(types &TypeStorage, name Str) u32 {

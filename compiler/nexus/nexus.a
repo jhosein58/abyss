@@ -1,14 +1,14 @@
 import std.interner: Interner
 import std.string: Str
 
-import ..types: TypeStorage, TyKind, ty_id_none
-import ..unify: UnifyStorage, slot_none
-import ..token: TokenStream
-import ..hir: HirTable, hir_kind, hir_none
+import compiler.types: TypeStorage, TyKind, ty_id_none
+import compiler.unify: UnifyStorage, slot_none
+import compiler.token: TokenStream
+import compiler.hir: HirTable, hir_kind, hir_none
 import .pool: PoolU32, PoolU64, id_none
 import std.allocator: Arena
-import ..vm.codegen: VmCodeGen
-import ..vm.vm: Vm
+import compiler.vm.codegen: VmCodeGen
+import compiler.vm.vm: Vm
 
 Span :: struct {
     start, end u32

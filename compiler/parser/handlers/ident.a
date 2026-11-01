@@ -1,7 +1,7 @@
-import ...token: Token
-import ...hir: hir_kind, hir_none
-import ..core: Parser, peek, bump, curr_text, curr_span, parse_error_at, lookup_sym
-import ...nexus.pool: id_none
+import compiler.token: Token
+import compiler.hir: hir_kind, hir_none
+import compiler.parser.core: Parser, peek, bump, curr_text, curr_span, parse_error_at, lookup_sym
+import compiler.nexus.pool: id_none
 import .common: set_span
 
 parse_ident :: fn(p &Parser) u32 {

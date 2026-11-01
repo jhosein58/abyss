@@ -1,10 +1,10 @@
-import ...token: Token
-import ...hir: hir_kind, hir_none
-import ..core: Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at
-import ...nexus.nexus: span_merge
+import compiler.token: Token
+import compiler.hir: hir_kind, hir_none
+import compiler.parser.core: Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse_error_at
+import compiler.nexus.nexus: span_merge
 import .common: span_of_hir, set_span, add_list, check_separator
 import .ident: parse_ident
-import ..parser: parse_expr
+import compiler.parser.parser: parse_expr
 
 parse_builtin :: fn(p &Parser) u32 {
     t := Token
