@@ -38,13 +38,12 @@ parse_method :: fn(p &Parser, name u32, methods &Vec(u32)) {
     func := parse_expr(p, prec().const_def)
     p.toplv_sym = id_none()
     if func == hir_none() {
-        parse_error_at(p, c"expected a method function after '::'", curr_span(p))
+        parse_error_at(p, c"expected a declaration after '::'", curr_span(p))
     }
-    if p.hir.kind(func) != k.function {
-        parse_error_at(p, c"method must be a function", span_of_hir(p, func))
-    }
-    if p.hir.extra(func) == hir_none() {
-        parse_error_at(p, c"method requires a body", span_of_hir(p, func))
+    if p.hir.kind(func) == k.function {
+        if p.hir.extra(func) == hir_none() {
+            parse_error_at(p, c"method requires a body", span_of_hir(p, func))
+        }
     }
     p.db.set_sym_hir(method_sym, func)
     p.db.set_hir_symbol(name, method_sym)

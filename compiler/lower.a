@@ -795,7 +795,41 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
         member {
             lhs_id := db.hir.lhs(id)
             rhs_id := db.hir.rhs(id)
+            if db.get_node_type(id) == ty_id_type() {
+                if ccg.is_vm() {
+                    c_ty := db.get_const_type(id)
+                    if c_ty != ty_id_none() {
+                        ret ccg.expr_int(arena, c_ty)
+                    }
+                }
+                ret empty
+            }
             if db.get_hir_symbol(id) != id_none() {
+                method_sym := db.get_hir_symbol(id)
+                real_sym := db.resolve_sym(method_sym)
+                method_hir := db.get_sym_hir(real_sym)
+                if (method_hir != id_none()) and (db.hir.kind(method_hir) != hir_kind.function) {
+                    if db.is_const(id) and db.has_const_val(id) {
+                        ty := db.get_node_type(id)
+                        val := db.get_const_val(id)
+                        k := db.types.kind(ty)
+                        if ty == db.str_type {
+                            ptr := reflection_read(db, val, ty, "ptr") as &u8
+                            len := reflection_read(db, val, ty, "len")
+                            raw := reflection_quote(db, Str.new(ptr, len))
+                            add_type_to_queue(db, ty, type_queue)
+                            ret ccg.expr_str_lit(arena, ccg.type_str(&db.types, arena, ty), db.interner.intern("ptr"), db.interner.intern("len"), raw)
+                        }
+                        if k == TyKind.bool {
+                            if val != 0 { ret ccg.expr_bool(true) }
+                            ret ccg.expr_bool(false)
+                        }
+                        if (k == TyKind.int) or (k == TyKind.uint) or (k == TyKind.untyped_int) {
+                            ret ccg.expr_cast(arena, ccg.type_str(&db.types, arena, ty), ccg.expr_u64(arena, val))
+                        }
+                    }
+                    ret lower_expr(ctx, method_hir)
+                }
                 printf("\n[type error] methods must be called directly; method values are not supported\n       --> ", .{})
                 db.print_loc(id)
                 print("")
