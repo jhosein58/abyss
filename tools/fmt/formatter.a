@@ -1,0 +1,667 @@
+import tools.fmt.cst: CstKind, CstNode
+import std.allocator: Arena
+import std.collections.vec: Vec
+import std.string: Str, String
+
+Formatter :: struct {
+    buf   String
+    arena &Arena
+
+    new :: fn(arena &Arena) Self {
+        .{
+            buf:   String.new(arena),
+            arena: arena
+        }
+    }
+
+    indent :: fn(self &Self, level u32) {
+        i: u32 = 0
+        while i < level {
+            self.buf.push_str(Str.of("    "))
+            i = i + 1
+        }
+    }
+
+    format_node :: fn(self &Self, node &CstNode, level u32) {
+        if node == (0 as &CstNode) { ret }
+        k := node.kind
+
+        if k == CstKind.file {
+            self.format_file(node)
+            ret
+        }
+
+        if k == CstKind.import_stmt {
+            self.format_import(node)
+            ret
+        }
+
+        if k == CstKind.binding_stmt {
+            self.format_binding(node, level)
+            ret
+        }
+
+        if k == CstKind.var_decl_stmt {
+            self.format_var_decl(node, level)
+            ret
+        }
+
+        if k == CstKind.destructure_stmt {
+            self.format_destructure(node, level)
+            ret
+        }
+
+        if k == CstKind.fn_def {
+            self.format_fn(node, level)
+            ret
+        }
+
+        if k == CstKind.struct_def {
+            self.format_struct(node, level)
+            ret
+        }
+
+        if k == CstKind.enum_def {
+            self.format_enum(node, level)
+            ret
+        }
+
+        if k == CstKind.if_expr {
+            self.format_if(node, level)
+            ret
+        }
+
+        if k == CstKind.while_expr {
+            self.format_while(node, level)
+            ret
+        }
+
+        if k == CstKind.for_expr {
+            self.format_for(node, level)
+            ret
+        }
+
+        if k == CstKind.match_expr {
+            self.format_match(node, level)
+            ret
+        }
+
+        if k == CstKind.block_expr {
+            self.format_block(node, level)
+            ret
+        }
+
+        if k == CstKind.empty_line {
+            self.buf.push_char('\n' as u8)
+            ret
+        }
+
+        if k == CstKind.comment_stmt {
+            self.buf.push_str(node.text)
+            ret
+        }
+
+        if k == CstKind.binary_expr or k == CstKind.assign_expr {
+            self.format_binary(node, level)
+            ret
+        }
+
+        if k == CstKind.unary_expr {
+            self.format_unary(node, level)
+            ret
+        }
+
+        if k == CstKind.call_expr {
+            self.format_call(node, level)
+            ret
+        }
+
+        if k == CstKind.member_expr {
+            self.format_member(node, level)
+            ret
+        }
+
+        if k == CstKind.index_expr {
+            self.format_index(node, level)
+            ret
+        }
+
+        if k == CstKind.struct_init {
+            self.format_struct_init(node, level)
+            ret
+        }
+
+        if k == CstKind.array_lit {
+            self.format_array_lit(node, level)
+            ret
+        }
+
+        if k == CstKind.paren_expr {
+            self.buf.push_char('(' as u8)
+            if node.child_count() > 0 {
+                self.format_node(node.child(0), level)
+            }
+            self.buf.push_char(')' as u8)
+            ret
+        }
+
+        if k == CstKind.ret_expr {
+            self.buf.push_str(Str.of("ret"))
+            if node.child_count() > 0 {
+                self.buf.push_char(' ' as u8)
+                self.format_node(node.child(0), level)
+            }
+            ret
+        }
+
+        if k == CstKind.break_expr {
+            self.buf.push_str(Str.of("break"))
+            ret
+        }
+
+        if k == CstKind.cont_expr {
+            self.buf.push_str(Str.of("cont"))
+            ret
+        }
+
+        if k == CstKind.cmpt_expr {
+            self.buf.push_str(Str.of("cmpt "))
+            if node.child_count() > 0 {
+                self.format_node(node.child(0), level)
+            }
+            ret
+        }
+
+        if k == CstKind.splice_expr {
+            self.buf.push_char('#' as u8)
+            if node.text.eq("paren") {
+                self.buf.push_char('(' as u8)
+                if node.child_count() > 0 {
+                    self.format_node(node.child(0), level)
+                }
+                self.buf.push_char(')' as u8)
+            } else {
+                if node.child_count() > 0 {
+                    self.format_node(node.child(0), level)
+                }
+            }
+            ret
+        }
+
+        if k == CstKind.builtin_expr {
+            self.buf.push_char('@' as u8)
+            self.buf.push_str(node.text)
+            self.buf.push_char('(' as u8)
+            i: u64 = 0
+            while i < node.child_count() {
+                if i > 0 { self.buf.push_str(Str.of(", ")) }
+                self.format_node(node.child(i), level)
+                i = i + 1
+            }
+            self.buf.push_char(')' as u8)
+            ret
+        }
+
+        if k == CstKind.type_ptr {
+            self.buf.push_char('&' as u8)
+            if node.child_count() > 0 {
+                self.format_node(node.child(0), level)
+            }
+            ret
+        }
+
+        if k == CstKind.type_slice {
+            self.buf.push_str(Str.of("[]"))
+            if node.child_count() > 0 {
+                self.format_node(node.child(0), level)
+            }
+            ret
+        }
+
+        if k == CstKind.type_array {
+            self.buf.push_char('[' as u8)
+            self.buf.push_str(node.text)
+            self.buf.push_char(']' as u8)
+            if node.child_count() > 0 {
+                self.format_node(node.child(0), level)
+            }
+            ret
+        }
+
+        if k == CstKind.type_generic {
+            self.buf.push_str(node.text)
+            self.buf.push_char('(' as u8)
+            i: u64 = 0
+            while i < node.child_count() {
+                if i > 0 { self.buf.push_str(Str.of(", ")) }
+                self.format_node(node.child(i), level)
+                i = i + 1
+            }
+            self.buf.push_char(')' as u8)
+            ret
+        }
+
+        self.buf.push_str(node.text)
+    }
+
+    format_file :: fn(self &Self, node &CstNode) {
+        i: u64 = 0
+        while i < node.child_count() {
+            c := node.child(i)
+            if c.kind == CstKind.empty_line {
+                self.buf.push_char('\n' as u8)
+            } else if c.kind == CstKind.comment_stmt {
+                self.buf.push_str(c.text)
+                self.buf.push_char('\n' as u8)
+            } else {
+                self.format_node(c, 0)
+                self.buf.push_char('\n' as u8)
+            }
+            i = i + 1
+        }
+    }
+
+    format_import :: fn(self &Self, node &CstNode) {
+        self.buf.push_str(Str.of("import "))
+        self.buf.push_str(node.text)
+
+        if node.child_count() == 1 and node.child(0).kind == CstKind.ident {
+            self.buf.push_str(Str.of(" as "))
+            self.buf.push_str(node.child(0).text)
+            ret
+        }
+
+        if node.child_count() > 0 {
+            self.buf.push_str(Str.of(": "))
+            i: u64 = 0
+            while i < node.child_count() {
+                if i > 0 { self.buf.push_str(Str.of(", ")) }
+                sym := node.child(i)
+                self.buf.push_str(sym.text)
+                if sym.child_count() > 0 {
+                    self.buf.push_str(Str.of(" as "))
+                    self.buf.push_str(sym.child(0).text)
+                }
+                i = i + 1
+            }
+        }
+    }
+
+    format_binding :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_str(node.text)
+        self.buf.push_str(Str.of(" :: "))
+        if node.child_count() > 0 {
+            self.format_node(node.child(0), level)
+        }
+    }
+
+    format_var_decl :: fn(self &Self, node &CstNode, level u32) {
+        if node.child_count() > 0 {
+            self.format_node(node.child(0), level)
+        }
+        if node.text.eq(":=") {
+            self.buf.push_str(Str.of(" := "))
+            if node.child_count() > 1 {
+                self.format_node(node.child(1), level)
+            }
+        } else {
+            self.buf.push_str(Str.of(": "))
+            if node.child_count() > 1 {
+                self.format_node(node.child(1), level)
+            }
+            if node.child_count() > 2 {
+                self.buf.push_str(Str.of(" = "))
+                self.format_node(node.child(2), level)
+            }
+        }
+    }
+
+    format_destructure :: fn(self &Self, node &CstNode, level u32) {
+        n := node.child_count()
+        if n == 0 { ret }
+        i: u64 = 0
+        while i < n - 1 {
+            if i > 0 { self.buf.push_str(Str.of(", ")) }
+            self.format_node(node.child(i), level)
+            i = i + 1
+        }
+        self.buf.push_str(Str.of(" := "))
+        self.format_node(node.child(n - 1), level)
+    }
+
+    format_fn :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_str(Str.of("fn("))
+        n := node.child_count()
+        has_body := (n > 0) and (node.child(n - 1).kind == CstKind.block_expr)
+        param_end := if has_body { n - 1 } else { n }
+
+        has_ret := false
+        if has_body and (param_end > 0) {
+            last_before_body := node.child(param_end - 1)
+            if last_before_body.kind != CstKind.fn_param {
+                has_ret = true
+                param_end = param_end - 1
+            }
+        }
+
+        i: u64 = 0
+        while i < param_end {
+            if i > 0 { self.buf.push_str(Str.of(", ")) }
+            p := node.child(i)
+            if p.text.eq("cmpt") {
+                self.buf.push_str(Str.of("cmpt "))
+            }
+            p_len := p.child_count()
+            if p_len > 1 {
+                j: u64 = 0
+                while j < p_len - 1 {
+                    if j > 0 { self.buf.push_str(Str.of(", ")) }
+                    self.format_node(p.child(j), level)
+                    j = j + 1
+                }
+                self.buf.push_char(' ' as u8)
+                self.format_node(p.child(p_len - 1), level)
+            }
+            i = i + 1
+        }
+        self.buf.push_char(')' as u8)
+
+        if has_ret {
+            self.buf.push_char(' ' as u8)
+            self.format_node(node.child(param_end), level)
+        }
+
+        if has_body {
+            self.buf.push_char(' ' as u8)
+            self.format_block(node.child(n - 1), level)
+        }
+    }
+
+    format_struct :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_str(Str.of("struct {"))
+        if node.child_count() == 0 {
+            self.buf.push_char('}' as u8)
+            ret
+        }
+
+        self.buf.push_char('\n' as u8)
+        inner_level := level + 1
+
+        i: u64 = 0
+        while i < node.child_count() {
+            c := node.child(i)
+            if c.kind == CstKind.empty_line {
+                self.buf.push_char('\n' as u8)
+            } else if c.kind == CstKind.comment_stmt {
+                self.indent(inner_level)
+                self.buf.push_str(c.text)
+                self.buf.push_char('\n' as u8)
+            } else if c.kind == CstKind.struct_field {
+                self.indent(inner_level)
+                f_len := c.child_count()
+                if f_len > 1 {
+                    j: u64 = 0
+                    while j < f_len - 1 {
+                        if j > 0 { self.buf.push_str(Str.of(", ")) }
+                        self.format_node(c.child(j), inner_level)
+                        j = j + 1
+                    }
+                    self.buf.push_char(' ' as u8)
+                    self.format_node(c.child(f_len - 1), inner_level)
+                }
+                self.buf.push_char('\n' as u8)
+            } else {
+                self.indent(inner_level)
+                self.format_node(c, inner_level)
+                self.buf.push_char('\n' as u8)
+            }
+            i = i + 1
+        }
+
+        self.indent(level)
+        self.buf.push_char('}' as u8)
+    }
+
+    format_enum :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_str(Str.of("enum"))
+        start_idx: u64 = 0
+        if (node.child_count() > 0) and (node.child(0).kind != CstKind.enum_variant) and (node.child(0).kind != CstKind.binding_stmt) and (node.child(0).kind != CstKind.comment_stmt) and (node.child(0).kind != CstKind.empty_line) {
+            self.buf.push_char(' ' as u8)
+            self.format_node(node.child(0), level)
+            start_idx = 1
+        }
+
+        self.buf.push_str(Str.of(" {"))
+        if node.child_count() <= start_idx {
+            self.buf.push_char('}' as u8)
+            ret
+        }
+
+        self.buf.push_char('\n' as u8)
+        inner_level := level + 1
+
+        i := start_idx
+        while i < node.child_count() {
+            c := node.child(i)
+            if c.kind == CstKind.empty_line {
+                self.buf.push_char('\n' as u8)
+            } else if c.kind == CstKind.comment_stmt {
+                self.indent(inner_level)
+                self.buf.push_str(c.text)
+                self.buf.push_char('\n' as u8)
+            } else if c.kind == CstKind.enum_variant {
+                self.indent(inner_level)
+                self.buf.push_str(c.text)
+                if c.child_count() > 0 {
+                    self.buf.push_str(Str.of(" = "))
+                    self.format_node(c.child(0), inner_level)
+                }
+                self.buf.push_char('\n' as u8)
+            } else {
+                self.indent(inner_level)
+                self.format_node(c, inner_level)
+                self.buf.push_char('\n' as u8)
+            }
+            i = i + 1
+        }
+
+        self.indent(level)
+        self.buf.push_char('}' as u8)
+    }
+
+    format_if :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_str(Str.of("if "))
+        self.format_node(node.child(0), level)
+        self.buf.push_char(' ' as u8)
+        self.format_block(node.child(1), level)
+
+        if node.child_count() > 2 {
+            else_branch := node.child(2)
+            if else_branch.kind == CstKind.if_expr {
+                self.buf.push_str(Str.of(" else "))
+                self.format_if(else_branch, level)
+            } else {
+                self.buf.push_str(Str.of(" else "))
+                self.format_block(else_branch, level)
+            }
+        }
+    }
+
+    format_while :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_str(Str.of("while "))
+        self.format_node(node.child(0), level)
+        self.buf.push_char(' ' as u8)
+        self.format_block(node.child(1), level)
+    }
+
+    format_for :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_str(Str.of("for "))
+        vars := node.child(0)
+        i: u64 = 0
+        while i < vars.child_count() {
+            if i > 0 { self.buf.push_str(Str.of(", ")) }
+            self.format_node(vars.child(i), level)
+            i = i + 1
+        }
+        self.buf.push_str(Str.of(" in "))
+        self.format_node(node.child(1), level)
+        self.buf.push_char(' ' as u8)
+        self.format_block(node.child(2), level)
+    }
+
+    format_match :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_str(Str.of("match "))
+        self.format_node(node.child(0), level)
+        self.buf.push_str(Str.of(" {"))
+        self.buf.push_char('\n' as u8)
+
+        inner_level := level + 1
+        i: u64 = 1
+        while i < node.child_count() {
+            arm := node.child(i)
+            if arm.kind == CstKind.comment_stmt {
+                self.indent(inner_level)
+                self.buf.push_str(arm.text)
+                self.buf.push_char('\n' as u8)
+            } else if arm.kind == CstKind.match_arm {
+                self.indent(inner_level)
+                if arm.text.eq("else") {
+                    self.buf.push_str(Str.of("else "))
+                    self.format_block(arm.child(0), inner_level)
+                } else {
+                    n := arm.child_count()
+                    j: u64 = 0
+                    while j < n - 1 {
+                        if j > 0 { self.buf.push_str(Str.of(", ")) }
+                        self.format_node(arm.child(j), inner_level)
+                        j = j + 1
+                    }
+                    self.buf.push_char(' ' as u8)
+                    self.format_block(arm.child(n - 1), inner_level)
+                }
+                self.buf.push_char('\n' as u8)
+            }
+            i = i + 1
+        }
+
+        self.indent(level)
+        self.buf.push_char('}' as u8)
+    }
+
+    format_block :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_char('{' as u8)
+        if node.child_count() == 0 {
+            self.buf.push_char('}' as u8)
+            ret
+        }
+
+        self.buf.push_char('\n' as u8)
+        inner_level := level + 1
+
+        i: u64 = 0
+        while i < node.child_count() {
+            c := node.child(i)
+            if c.kind == CstKind.empty_line {
+                self.buf.push_char('\n' as u8)
+            } else if c.kind == CstKind.comment_stmt {
+                self.indent(inner_level)
+                self.buf.push_str(c.text)
+                self.buf.push_char('\n' as u8)
+            } else {
+                self.indent(inner_level)
+                self.format_node(c, inner_level)
+                self.buf.push_char('\n' as u8)
+            }
+            i = i + 1
+        }
+
+        self.indent(level)
+        self.buf.push_char('}' as u8)
+    }
+
+    format_binary :: fn(self &Self, node &CstNode, level u32) {
+        self.format_node(node.child(0), level)
+        self.buf.push_char(' ' as u8)
+        self.buf.push_str(node.text)
+        self.buf.push_char(' ' as u8)
+        self.format_node(node.child(1), level)
+    }
+
+    format_unary :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_str(node.text)
+        if node.text.eq("not") {
+            self.buf.push_char(' ' as u8)
+        }
+        self.format_node(node.child(0), level)
+    }
+
+    format_call :: fn(self &Self, node &CstNode, level u32) {
+        self.format_node(node.child(0), level)
+        self.buf.push_char('(' as u8)
+        i: u64 = 1
+        while i < node.child_count() {
+            if i > 1 { self.buf.push_str(Str.of(", ")) }
+            self.format_node(node.child(i), level)
+            i = i + 1
+        }
+        self.buf.push_char(')' as u8)
+    }
+
+    format_member :: fn(self &Self, node &CstNode, level u32) {
+        self.format_node(node.child(0), level)
+        self.buf.push_char('.' as u8)
+        self.buf.push_str(node.text)
+    }
+
+    format_index :: fn(self &Self, node &CstNode, level u32) {
+        self.format_node(node.child(0), level)
+        self.buf.push_char('[' as u8)
+        self.format_node(node.child(1), level)
+        self.buf.push_char(']' as u8)
+    }
+
+    format_struct_init :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_str(Str.of(".{"))
+        if node.child_count() == 0 {
+            self.buf.push_char('}' as u8)
+            ret
+        }
+
+        self.buf.push_char(' ' as u8)
+        i: u64 = 0
+        while i < node.child_count() {
+            if i > 0 { self.buf.push_str(Str.of(", ")) }
+            f := node.child(i)
+            self.buf.push_str(f.text)
+            self.buf.push_str(Str.of(": "))
+            if f.child_count() > 0 {
+                self.format_node(f.child(0), level)
+            }
+            i = i + 1
+        }
+        self.buf.push_str(Str.of(" }"))
+    }
+
+    format_array_lit :: fn(self &Self, node &CstNode, level u32) {
+        self.buf.push_str(Str.of(".["))
+        if node.child_count() == 0 {
+            self.buf.push_char(']' as u8)
+            ret
+        }
+
+        self.buf.push_char(' ' as u8)
+        i: u64 = 0
+        while i < node.child_count() {
+            if i > 0 { self.buf.push_str(Str.of(", ")) }
+            self.format_node(node.child(i), level)
+            i = i + 1
+        }
+        self.buf.push_str(Str.of(" ]"))
+    }
+}
+
+format_cst :: fn(arena &Arena, root &CstNode) Str {
+    fmt := Formatter.new(arena)
+    fmt.format_node(root, 0)
+    fmt.buf.as_str()
+}
