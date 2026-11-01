@@ -9,7 +9,7 @@ cp "${ROOT_DIR}/abyss" "${WORK_DIR}/"
 cp "${COMPILER}" "${WORK_DIR}/abyssc"
 (
     cd "${WORK_DIR}"
-    printf 'import write as print, embedding_probe from "std/io"\nmain :: fn() { print("automatic embedding\\n"), print(embedding_probe()), print(" "), print(true), print("\\n") }\n' > program.a
+    printf 'import std.io: write as print, embedding_probe\nmain :: fn() { print("automatic embedding\\n"), print(embedding_probe()), print(" "), print(true), print("\\n") }\n' > program.a
     printf '\nembedding_probe :: fn() i32 { 7 }\n' >> std/io.a
     printf 'invalid user program\n' > main.a
     printf '\n#define ABYSS_CLI_EMBED_TEST 1\n' >> runtime/prelude.c

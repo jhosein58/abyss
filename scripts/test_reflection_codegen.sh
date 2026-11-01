@@ -5,9 +5,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPILER="${1:-${ROOT_DIR}/abyssc}"
 WORK_DIR=$(mktemp -d "${ROOT_DIR}/tmp/reflection_codegen.XXXXXX")
 cat > "${WORK_DIR}/format.a" <<'ABYSS'
-import fmt from "std/fmt"
-import Arena from "std/allocator"
-import print from "std/io"
+import std.fmt: fmt
+import std.allocator: Arena
+import std.io: print
 main :: fn() {
     arena := Arena.new(64)
     values: [3]u16 = .[7, 8, 9]
@@ -50,7 +50,7 @@ printf '__FMT_STATIC_OPEN__ [\n    7,\n    8,\n    9,\n] true __FMT_STATIC_CLOSE
 cmp "${WORK_DIR}/expected.out" "${WORK_DIR}/actual.out"
 printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[Comptime]\033[0m\n" "format_and_reflection_metadata"
 cat > "${WORK_DIR}/wide.a" <<'ABYSS'
-import print from "std/io"
+import std.io: print
 main :: fn() {
     maximum := ~(0 as u128)
     minimum := ((1 as u128) << 127) as i128
@@ -65,8 +65,8 @@ printf '340282366920938463463374607431768211455\n-170141183460469231731687303715
 cmp "${WORK_DIR}/wide.expected" "${WORK_DIR}/wide.out"
 printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[Precision]\033[0m\n" "wide_128bit_integer_preservation"
 cat > "${WORK_DIR}/balance.a" <<'ABYSS'
-import print, printf from "std/io"
-import fall from "std/sys"
+import std.io: print, printf
+import std.sys: fall
 allocation_balance :: fn() u64
 main :: fn() {
     i: u32 = 0

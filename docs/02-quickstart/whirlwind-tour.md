@@ -9,7 +9,7 @@ This tour will get you comfortable with Abyss syntax in less than ten minutes.
 Every Abyss program starts at `main`:
 
 ```abyss
-import print from "std/io"
+import std.io: print
 
 main :: fn() {
     print("Hello from the deep!")
@@ -58,7 +58,7 @@ if depth > 1000 {
 Straightforward loops without surprises. For formatted, newline-free printing, use `printf`:
 
 ```abyss
-import printf, print from "std/io"
+import std.io: printf, print
 
 i := 0
 while i < 5 {
@@ -76,7 +76,7 @@ print("")
 Functions are declared with `:: fn(...) [ReturnType]`:
 
 ```abyss
-import printf from "std/io"
+import std.io: printf
 
 add :: fn(a i32, b i32) i32 {
     a + b
