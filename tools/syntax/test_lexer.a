@@ -75,7 +75,7 @@ test_number_bases :: fn() {
 }
 
 test_lossless_roundtrip :: fn() {
-    src := "import Arena from \"std/allocator\"\n\n-- Lossless CST test\nPoint :: struct {\n    x i32\n    y i32\n\n    new :: fn(x, y i32) Self {\n        .{ x: x, y: y }\n    }\n}\n\nmain :: fn() {\n    p := Point.new(10, 20)\n    if p.x > 0 and p.y > 0 {\n        printf(\"ok\\n\", .{})\n    }\n}\n"
+    src := "import std.allocator: Arena\n\n-- Lossless CST test\nPoint :: struct {\n    x i32\n    y i32\n\n    new :: fn(x, y i32) Self {\n        .{ x: x, y: y }\n    }\n}\n\nmain :: fn() {\n    p := Point.new(10, 20)\n    if p.x > 0 and p.y > 0 {\n        printf(\"ok\\n\", .{})\n    }\n}\n"
     tokens := tokenize(src)
 
     arena := Arena.new(1024 * 64)
