@@ -1,0 +1,7 @@
+import .circ_b
+
+A_CONST :: 100
+
+get_from_b :: fn() i32 {
+    circ_b.B_CONST + 1
+}

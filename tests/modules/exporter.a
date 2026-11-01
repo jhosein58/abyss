@@ -1,0 +1,11 @@
+PI :: 31415
+MSG :: "hello modules"
+
+Pair :: struct {
+    x i32
+    y i32
+}
+
+calc :: fn(a i32, b i32) i32 {
+    a * b + 1
+}

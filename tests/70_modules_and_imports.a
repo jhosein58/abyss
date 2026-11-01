@@ -1,0 +1,66 @@
+import .modules.exporter as exp
+import .modules.pkg
+import .modules.circ_a
+import .modules.circ_b
+import std.ascii: is_digit, is_alpha
+import std.ascii as asc
+import .modules.exporter:
+    PI
+    calc
+
+test_scoped :: fn() {
+    import .modules.pkg: PKG_VAL
+    print(PKG_VAL)
+    print("\n")
+    val := 10
+    {
+        import .modules.circ_a: A_CONST as val
+        print(val)
+        print("\n")
+        {
+            import .modules.circ_b: B_CONST as val
+            print(val)
+            print("\n")
+        }
+        print(val)
+        print("\n")
+    }
+    print(val)
+    print("\n")
+}
+
+main :: fn() {
+    print(exp.PI)
+    print("\n")
+    print(exp.MSG)
+    print("\n")
+    print(exp.calc(3, 4))
+    print("\n")
+    p: exp.Pair = .{ x: 10, y: 20 }
+    print(p.x + p.y)
+    print("\n")
+
+    print(pkg.PKG_VAL)
+    print("\n")
+    print(pkg.pkg_fn())
+    print("\n")
+
+    print(circ_a.get_from_b())
+    print("\n")
+    print(circ_b.get_from_a())
+    print("\n")
+
+    print(is_digit('7'))
+    print("\n")
+    print(is_alpha('z'))
+    print("\n")
+    print(asc.is_digit('x'))
+    print("\n")
+
+    print(PI)
+    print("\n")
+    print(calc(5, 6))
+    print("\n")
+
+    test_scoped()
+}
