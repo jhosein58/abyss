@@ -5,6 +5,7 @@ import core.maybe: Maybe
 import std.collections.vec: Vec
 import std.path: Path
 import std.convert: Convert
+import std.mem: malloc, free
 
 print_cstr :: fn(s &u8)
 get_env :: fn(name &u8) &u8
@@ -26,6 +27,17 @@ SEEK_END :: fn() i32 { 2 }
 
 to_cstr :: fn(a &Arena, s Str) &u8 {
     buf := a.alloc(s.len + 1)
+    i: u64 = 0
+    while i < s.len {
+        *(buf + i) = *(s.ptr + i)
+        i = i + 1
+    }
+    *(buf + s.len) = 0 as u8
+    buf
+}
+
+str_to_cstr :: fn(s Str) &u8 {
+    buf := malloc(s.len + 1)
     i: u64 = 0
     while i < s.len {
         *(buf + i) = *(s.ptr + i)
@@ -129,24 +141,37 @@ FileStream :: struct {
 }
 
 File :: struct {
-    open :: fn(path &u8, mode &u8) Maybe(FileStream) {
-        FileStream.open(path, mode)
+    open :: fn(path Str, mode &u8) Maybe(FileStream) {
+        c_path := str_to_cstr(path)
+        stream_opt := FileStream.open(c_path, mode)
+        free(c_path)
+        stream_opt
     }
 
-    open_read :: fn(path &u8) Maybe(FileStream) {
-        FileStream.open_read(path)
+    open_read :: fn(path Str) Maybe(FileStream) {
+        c_path := str_to_cstr(path)
+        stream_opt := FileStream.open_read(c_path)
+        free(c_path)
+        stream_opt
     }
 
-    create :: fn(path &u8) Maybe(FileStream) {
-        FileStream.create(path)
+    create :: fn(path Str) Maybe(FileStream) {
+        c_path := str_to_cstr(path)
+        stream_opt := FileStream.create(c_path)
+        free(c_path)
+        stream_opt
     }
 
-    open_append :: fn(path &u8) Maybe(FileStream) {
-        FileStream.open_append(path)
+    open_append :: fn(path Str) Maybe(FileStream) {
+        c_path := str_to_cstr(path)
+        stream_opt := FileStream.open_append(c_path)
+        free(c_path)
+        stream_opt
     }
 
-    read_to_string :: fn(a &Arena, path &u8) Maybe(Str) {
-        stream_opt := FileStream.open_read(path)
+    read_to_string :: fn(a &Arena, path Str) Maybe(Str) {
+        c_path := to_cstr(a, path)
+        stream_opt := FileStream.open_read(c_path)
         if stream_opt.is_none() { ret Maybe(Str).none() }
         stream := stream_opt.unwrap()
         res := stream.read_all(a)
@@ -154,8 +179,8 @@ File :: struct {
         Maybe(Str).some(res)
     }
 
-    write_string :: fn(path &u8, content Str) bool {
-        stream_opt := FileStream.create(path)
+    write_string :: fn(path Str, content Str) bool {
+        stream_opt := File.create(path)
         if stream_opt.is_none() { ret false }
         stream := stream_opt.unwrap()
         ok := stream.write_str(content)
@@ -163,8 +188,8 @@ File :: struct {
         ok
     }
 
-    append_string :: fn(path &u8, content Str) bool {
-        stream_opt := FileStream.open_append(path)
+    append_string :: fn(path Str, content Str) bool {
+        stream_opt := File.open_append(path)
         if stream_opt.is_none() { ret false }
         stream := stream_opt.unwrap()
         ok := stream.write_str(content)
@@ -172,8 +197,8 @@ File :: struct {
         ok
     }
 
-    exists :: fn(path &u8) bool {
-        stream_opt := FileStream.open_read(path)
+    exists :: fn(path Str) bool {
+        stream_opt := File.open_read(path)
         if stream_opt.is_some() {
             stream := stream_opt.unwrap()
             stream.close()
@@ -182,8 +207,8 @@ File :: struct {
         false
     }
 
-    size :: fn(path &u8) u64 {
-        stream_opt := FileStream.open_read(path)
+    size :: fn(path Str) u64 {
+        stream_opt := File.open_read(path)
         if stream_opt.is_some() {
             stream := stream_opt.unwrap()
             s := stream.size()
@@ -206,13 +231,13 @@ read_file :: fn(a &Arena, path &u8) Str {
 }
 
 try_read_file :: fn(a &Arena, path &u8) Str {
-    opt := File.read_to_string(a, path)
+    opt := File.read_to_string(a, Str.of(path))
     if opt.is_some() { ret opt.unwrap() }
     Str.empty()
 }
 
 write_file :: fn(path &u8, content Str) bool {
-    ok := File.write_string(path, content)
+    ok := File.write_string(Str.of(path), content)
     if not ok {
         print_cstr(c"\n\033[1;31merror:\033[0m failed to write file '")
         print_cstr(path)
@@ -223,7 +248,7 @@ write_file :: fn(path &u8, content Str) bool {
 }
 
 append_file :: fn(path &u8, content Str) bool {
-    ok := File.append_string(path, content)
+    ok := File.append_string(Str.of(path), content)
     if not ok {
         print_cstr(c"\n\033[1;31merror:\033[0m failed to append to file '")
         print_cstr(path)
@@ -234,7 +259,7 @@ append_file :: fn(path &u8, content Str) bool {
 }
 
 file_exists :: fn(path &u8) bool {
-    File.exists(path)
+    File.exists(Str.of(path))
 }
 
 DirEntryKind :: enum u8 {

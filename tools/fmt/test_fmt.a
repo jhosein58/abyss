@@ -82,11 +82,11 @@ test_idempotency :: fn() {
 
 test_file_replace :: fn() {
     arena := Arena.new(65536)
-    path := c"tmp/fmt_file_test.a"
+    path := "tmp/fmt_file_test.a"
     messy := "main::fn(){\nx:=42\nret x\n}\n"
     File.write_string(path, messy)
 
-    ok := format_file_in_place(path)
+    ok := format_file_in_place(c"tmp/fmt_file_test.a")
     assert_true(ok, Str.of("file replacement succeeded"))
 
     read_back := File.read_to_string(&arena, path).unwrap()

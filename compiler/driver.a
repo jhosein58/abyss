@@ -1,4 +1,4 @@
-import std.string: Str, to_cstr
+import std.string: Str
 import std.allocator: Arena
 import std.fs: File, read_file, write_file, Embed
 import std.env: Env
@@ -81,18 +81,17 @@ Driver :: struct {
         prelude_source := embedded_runtime()
         env_prelude := Env.get(c"ABYSS_PRELUDE")
         if env_prelude != (0 as &u8) {
-            opt := File.read_to_string(self.arena, env_prelude)
+            opt := File.read_to_string(self.arena, Str.of(env_prelude))
             if opt.is_some() {
                 prelude_source = opt.unwrap()
             }
         } else {
             env_dev := Env.get(c"ABYSS_DEV")
             if env_dev != (0 as &u8) {
-                prelude_path := c"runtime/prelude.c"
+                prelude_path := Str.of("runtime/prelude.c")
                 dev_str := Str.of(env_dev)
                 if (not dev_str.eq(Str.of("1"))) and (not dev_str.eq(Str.of("true"))) {
-                    p_str := Path.join(self.arena, dev_str, Str.of("runtime/prelude.c"))
-                    prelude_path = to_cstr(self.arena, p_str)
+                    prelude_path = Path.join(self.arena, dev_str, Str.of("runtime/prelude.c"))
                 }
                 opt := File.read_to_string(self.arena, prelude_path)
                 if opt.is_some() {

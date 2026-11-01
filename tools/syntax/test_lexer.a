@@ -128,7 +128,7 @@ test_operators :: fn() {
 
 test_real_file_roundtrip :: fn() {
     arena := Arena.new(1024 * 64)
-    file_opt := File.read_to_string(&arena, c"std/ascii.a")
+    file_opt := File.read_to_string(&arena, "std/ascii.a")
     assert_true(file_opt.is_some(), "read std/ascii.a")
     src := file_opt.unwrap()
 

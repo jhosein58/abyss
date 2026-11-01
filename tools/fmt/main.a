@@ -3,6 +3,7 @@ import tools.fmt.formatter: format_cst
 import std.allocator: Arena
 import std.fs: File
 import std.env: Env
+import std.string: Str
 
 format_source :: fn(arena &Arena, source Str) Str {
     tree := parse_to_cst(arena, source)
@@ -11,14 +12,14 @@ format_source :: fn(arena &Arena, source Str) Str {
 
 format_file_in_place :: fn(path &u8) bool {
     arena := Arena.new(1024 * 128)
-    file_opt := File.read_to_string(&arena, path)
+    file_opt := File.read_to_string(&arena, Str.of(path))
     if file_opt.is_none() {
         arena.destroy()
         ret false
     }
     source := file_opt.unwrap()
     formatted := format_source(&arena, source)
-    ok := File.write_string(path, formatted)
+    ok := File.write_string(Str.of(path), formatted)
     arena.destroy()
     ok
 }
