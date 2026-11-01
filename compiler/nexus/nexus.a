@@ -1,14 +1,14 @@
-import Interner from "std/interner"
-import Str from "std/string"
+import std.interner: Interner
+import std.string: Str
 
-import TypeStorage, TyKind, ty_id_none from "../types"
-import UnifyStorage, slot_none from "../unify"
-import TokenStream from "../token"
-import HirTable, hir_kind, hir_none from "../hir"
-import PoolU32, PoolU64, id_none from "./pool"
-import Arena from "std/allocator"
-import VmCodeGen from "../vm/codegen"
-import Vm from "../vm/vm"
+import ..types: TypeStorage, TyKind, ty_id_none
+import ..unify: UnifyStorage, slot_none
+import ..token: TokenStream
+import ..hir: HirTable, hir_kind, hir_none
+import .pool: PoolU32, PoolU64, id_none
+import std.allocator: Arena
+import ..vm.codegen: VmCodeGen
+import ..vm.vm: Vm
 
 Span :: struct {
     start, end u32

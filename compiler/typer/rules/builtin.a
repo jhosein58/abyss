@@ -1,13 +1,13 @@
-import synth_reflection_builtin from "../reflection"
-import Engine from "../../engine"
-import Nexus from "../../nexus/nexus"
-import hir_kind, hir_none from "../../hir"
-import slot_none from "../../unify"
-import ty_id_none, ty_id_type, ty_id_bool, TyKind from "../../types"
-import fall from "std/sys"
-import synth_node from "../tyck"
-import synth_type_node from "./var"
-import Str from "std/string"
+import ..reflection: synth_reflection_builtin
+import ...engine: Engine
+import ...nexus.nexus: Nexus
+import ...hir: hir_kind, hir_none
+import ...unify: slot_none
+import ...types: ty_id_none, ty_id_type, ty_id_bool, TyKind
+import std.sys: fall
+import ..tyck: synth_node
+import .var: synth_type_node
+import std.string: Str
 
 synth_builtin_call :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus

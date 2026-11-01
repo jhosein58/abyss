@@ -1,7 +1,7 @@
-import Token as Tk, TokenStream from "./token"
-import calc_pos from "./nexus/nexus"
-import fall from "std/sys"
-import Ascii from "std/ascii"
+import .token: Token as Tk, TokenStream
+import .nexus.nexus: calc_pos
+import std.sys: fall
+import std.ascii: Ascii
 
 match_keyword :: fn(text Str) Tk {
     if text.len == 2 {

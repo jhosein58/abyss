@@ -1,10 +1,10 @@
-import HirTable, hir_kind_name, hir_kind, hir_none from "./hir"
-import Str from "std/string"
-import Nexus from "./nexus/nexus"
-import Arena from "std/allocator"
+import .hir: HirTable, hir_kind_name, hir_kind, hir_none
+import std.string: Str
+import .nexus.nexus: Nexus
+import std.allocator: Arena
 
-import TypeStorage, ty_id_none from "./types"
-import UnifyStorage, slot_none from "./unify"
+import .types: TypeStorage, ty_id_none
+import .unify: UnifyStorage, slot_none
 
 print_spaces :: fn(count u32) {
     i: u32 = 0

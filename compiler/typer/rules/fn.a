@@ -1,17 +1,17 @@
-import Nexus from "../../nexus/nexus"
-import HirTable, hir_kind, hir_none from "../../hir"
-import Str from "std/string"
-import TypeStorage, TyKind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error from "../../types"
-import UnifyStorage, slot_none from "../../unify"
-import id_none from "../../nexus/pool"
-import Engine from "../../engine"
-import fall from "std/sys"
-import synth_type_node from "./var"
-import check_value from "./common"
-import synth_node from "../tyck"
-import specialize_nominal_from_creator, instantiate_type, resolve_ty_id from "../specialize"
-import eval_const from "../../lower"
-import reflection_read, reflection_error from "../reflection"
+import ...nexus.nexus: Nexus
+import ...hir: HirTable, hir_kind, hir_none
+import std.string: Str
+import ...types: TypeStorage, TyKind, ty_id_none, ty_id_unit, ty_id_never, ty_id_type, ty_id_untyped_int, ty_id_untyped_float, ty_id_error
+import ...unify: UnifyStorage, slot_none
+import ...nexus.pool: id_none
+import ...engine: Engine
+import std.sys: fall
+import .var: synth_type_node
+import .common: check_value
+import ..tyck: synth_node
+import ..specialize: specialize_nominal_from_creator, instantiate_type, resolve_ty_id
+import ...lower: eval_const
+import ..reflection: reflection_read, reflection_error
 
 constant_argument :: fn(db &Nexus, id u32) bool {
     kind := db.hir.kind(id)

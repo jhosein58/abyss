@@ -1,22 +1,22 @@
-import Token from "../token"
-import Str from "std/string"
-import hir_kind, hir_none from "../hir"
-import id_none from "../nexus/pool"
-import Parser, is_eof, peek, bump, peek_n, peek_preceded_by_newline, curr_span, parse_error_at, expect from "./core"
-import prec, is_soft, bp_from_infix from "./prec"
-import span_merge from "../nexus/nexus"
-import span_of_hir, set_span from "./handlers/common"
-import parse_lit_int, parse_float, parse_str, parse_char, parse_cstr, parse_true, parse_false from "./handlers/lit"
-import parse_ident from "./handlers/ident"
-import parse_if, parse_while, parse_for, parse_block, parse_return, parse_break, parse_cont from "./handlers/control"
-import parse_unary, parse_binary, parse_assign from "./handlers/op"
-import parse_paren, parse_call, parse_fn from "./handlers/fn"
-import parse_binding, parse_var_decl, parse_destructure from "./handlers/var"
-import parse_struct, parse_struct_init, parse_member from "./handlers/struct"
-import parse_builtin from "./handlers/builtin"
-import parse_enum from "./handlers/enum"
-import parse_match from "./handlers/match"
-import parse_array_type, parse_array_lit, parse_index from "./handlers/array"
+import ..token: Token
+import std.string: Str
+import ..hir: hir_kind, hir_none
+import ..nexus.pool: id_none
+import .core: Parser, is_eof, peek, bump, peek_n, peek_preceded_by_newline, curr_span, parse_error_at, expect
+import .prec: prec, is_soft, bp_from_infix
+import ..nexus.nexus: span_merge
+import .handlers.common: span_of_hir, set_span
+import .handlers.lit: parse_lit_int, parse_float, parse_str, parse_char, parse_cstr, parse_true, parse_false
+import .handlers.ident: parse_ident
+import .handlers.control: parse_if, parse_while, parse_for, parse_block, parse_return, parse_break, parse_cont
+import .handlers.op: parse_unary, parse_binary, parse_assign
+import .handlers.fn: parse_paren, parse_call, parse_fn
+import .handlers.var: parse_binding, parse_var_decl, parse_destructure
+import .handlers.struct: parse_struct, parse_struct_init, parse_member
+import .handlers.builtin: parse_builtin
+import .handlers.enum: parse_enum
+import .handlers.match: parse_match
+import .handlers.array: parse_array_type, parse_array_lit, parse_index
 
 parse_expr :: fn(p &Parser, min_bp u8) u32 {
     lhs := dispatch_prefix(p, min_bp)

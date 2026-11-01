@@ -1,31 +1,31 @@
-import HirTable, hir_kind, hir_none from "../hir"
-import TypeStorage, TyKind, ty_id_none, ty_id_type from "../types"
-import slot_none from "../unify"
-import id_none from "../nexus/pool"
-import fall from "std/sys"
-import malloc from "std/mem"
-import Str from "std/string"
-import Token, TokenStream from "../token"
-import lex from "../lexer"
-import Parser_new, is_eof, peek, bump from "../parser/core"
-import parse_expr from "../parser/parser"
-import check_separator from "../parser/handlers/common"
-import Engine from "../engine"
-import synth_func, synth_return, synth_call from "./rules/fn"
-import resolve_ty_id from "./specialize"
-import synth_lit_int, synth_lit_float, synth_lit_bool, synth_lit_str, synth_lit_char, synth_lit_cstr from "./rules/lit"
-import synth_ident, synth_var_or_binding, synth_arg, synth_destructure from "./rules/var"
-import synth_unary_num, synth_unary_not, synth_unary_addr_of, synth_unary_deref,
+import ..hir: HirTable, hir_kind, hir_none
+import ..types: TypeStorage, TyKind, ty_id_none, ty_id_type
+import ..unify: slot_none
+import ..nexus.pool: id_none
+import std.sys: fall
+import std.mem: malloc
+import std.string: Str
+import ..token: Token, TokenStream
+import ..lexer: lex
+import ..parser.core: Parser_new, is_eof, peek, bump
+import ..parser.parser: parse_expr
+import ..parser.handlers.common: check_separator
+import ..engine: Engine
+import .rules.fn: synth_func, synth_return, synth_call
+import .specialize: resolve_ty_id
+import .rules.lit: synth_lit_int, synth_lit_float, synth_lit_bool, synth_lit_str, synth_lit_char, synth_lit_cstr
+import .rules.var: synth_ident, synth_var_or_binding, synth_arg, synth_destructure
+import .rules.op: synth_unary_num, synth_unary_not, synth_unary_addr_of, synth_unary_deref,
        synth_binary, synth_assign, synth_binary_comp,
-       synth_logic_and_or, synth_cast from "./rules/op"
-import synth_block, synth_if, synth_while, synth_for, synth_break_cont, synth_match, prepare_match_bindings from "./rules/control"
-import synth_struct, synth_struct_init, synth_member from "./rules/struct"
-import macro_template, reflection_read from "./reflection"
-import synth_builtin_call from "./rules/builtin"
-import synth_enum from "./rules/enum"
-import synth_array_type, synth_array_init, synth_index from "./rules/array"
-import unescape_splice_str from "./rules/common"
-import eval_const from "../lower"
+       synth_logic_and_or, synth_cast
+import .rules.control: synth_block, synth_if, synth_while, synth_for, synth_break_cont, synth_match, prepare_match_bindings
+import .rules.struct: synth_struct, synth_struct_init, synth_member
+import .reflection: macro_template, reflection_read
+import .rules.builtin: synth_builtin_call
+import .rules.enum: synth_enum
+import .rules.array: synth_array_type, synth_array_init, synth_index
+import .rules.common: unescape_splice_str
+import ..lower: eval_const
 
 synth_node :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus

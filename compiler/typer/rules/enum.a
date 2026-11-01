@@ -1,22 +1,22 @@
-import Engine from "../../engine"
-import Nexus from "../../nexus/nexus"
-import hir_kind, hir_none from "../../hir"
-import slot_none from "../../unify"
-import ty_id_none, ty_id_type from "../../types"
-import fall from "std/sys"
-import synth_node, type_check from "../tyck"
-import synth_type_node from "./var"
-import synth_func from "./fn"
-import Str from "std/string"
-import id_none from "../../nexus/pool"
-import Token, TokenStream from "../../token"
-import lex from "../../lexer"
-import Parser_new, is_eof, peek from "../../parser/core"
-import parse_ident from "../../parser/handlers/ident"
-import parse_method, check_separator from "../../parser/handlers/common"
-import reflection_read from "../reflection"
-import unescape_splice_str from "./common"
-import eval_const from "../../lower"
+import ...engine: Engine
+import ...nexus.nexus: Nexus
+import ...hir: hir_kind, hir_none
+import ...unify: slot_none
+import ...types: ty_id_none, ty_id_type
+import std.sys: fall
+import ..tyck: synth_node, type_check
+import .var: synth_type_node
+import .fn: synth_func
+import std.string: Str
+import ...nexus.pool: id_none
+import ...token: Token, TokenStream
+import ...lexer: lex
+import ...parser.core: Parser_new, is_eof, peek
+import ...parser.handlers.ident: parse_ident
+import ...parser.handlers.common: parse_method, check_separator
+import ..reflection: reflection_read
+import .common: unescape_splice_str
+import ...lower: eval_const
 
 synth_enum :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus

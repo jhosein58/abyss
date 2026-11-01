@@ -80,6 +80,11 @@ Token :: enum u8 {
     lit_cstr       -- c"..."
 }
 
+is_path_ident :: fn(tk Token) bool {
+    k := tk as u8
+    (tk == Token.ident) or ((k >= (Token.kw_ret as u8)) and (k <= (Token.kw_cmpt as u8))) or (tk == Token.kw_enum)
+}
+
 TokenStream :: struct {
     kinds           Vec(u8)
     starts          Vec(u32)

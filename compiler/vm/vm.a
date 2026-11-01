@@ -1,5 +1,5 @@
-import Chunk from "./chunk"
-import OpCode from "./op"
+import .chunk: Chunk
+import .op: OpCode
 
 print_cstr :: fn(s &u8)
 print_bytes :: fn(s &u8, len u64)

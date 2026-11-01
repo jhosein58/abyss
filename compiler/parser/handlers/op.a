@@ -1,10 +1,10 @@
-import Token from "../../token"
-import hir_kind, hir_none from "../../hir"
-import Parser, bump, curr_span, parse_error_at from "../core"
-import prec from "../prec"
-import span_merge from "../../nexus/nexus"
-import span_of_hir, set_span from "./common"
-import parse_expr from "../parser"
+import ...token: Token
+import ...hir: hir_kind, hir_none
+import ..core: Parser, bump, curr_span, parse_error_at
+import ..prec: prec
+import ...nexus.nexus: span_merge
+import .common: span_of_hir, set_span
+import ..parser: parse_expr
 
 parse_unary :: fn(p &Parser, op Token) u32 {
     t := Token

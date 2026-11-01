@@ -1,7 +1,7 @@
-import TyKind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error, TypeStorage from "./types"
-import Str from "std/string"
-import calc_pos from "./nexus/nexus"
-import fall from "std/sys"
+import .types: TyKind, ty_id_none, ty_id_never, ty_id_unknown, ty_id_error, TypeStorage
+import std.string: Str
+import .nexus.nexus: calc_pos
+import std.sys: fall
 
 slot_none :: fn() u32 {
     4294967295 as u32

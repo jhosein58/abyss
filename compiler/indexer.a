@@ -1,12 +1,12 @@
-import Token, TokenStream from "./token"
-import lex from "./lexer"
-import Nexus, calc_pos from "./nexus/nexus"
-import Str, String from "std/string"
-import Path from "std/path"
-import Arena from "std/allocator"
-import File, Embed from "std/fs"
-import id_none from "./nexus/pool"
-import fall from "std/sys"
+import .token: Token, TokenStream, is_path_ident
+import .lexer: lex
+import .nexus.nexus: Nexus, calc_pos
+import std.string: Str, String
+import std.path: Path
+import std.allocator: Arena
+import std.fs: File, Embed
+import .nexus.pool: id_none
+import std.sys: fall
 
 get_env :: fn(name &u8) &u8
 
@@ -328,7 +328,7 @@ Indexer :: struct {
                     }
                 }
 
-                if (scan >= end_tok) or (db.tokens.kind(scan) != t.ident) {
+                if (scan >= end_tok) or (not is_path_ident(db.tokens.kind(scan))) {
                     index_error(db, file_id, db.tokens.start(if scan < end_tok { scan } else { end_tok - 1 }), c"expected module path", Str.empty())
                 }
 
@@ -339,7 +339,7 @@ Indexer :: struct {
 
                 while (scan < end_tok) and (db.tokens.kind(scan) == t.dot) {
                     scan = scan + 1
-                    if (scan >= end_tok) or (db.tokens.kind(scan) != t.ident) {
+                    if (scan >= end_tok) or (not is_path_ident(db.tokens.kind(scan))) {
                         index_error(db, file_id, db.tokens.start(if scan < end_tok { scan } else { end_tok - 1 }), c"expected module path segment after '.'", Str.empty())
                     }
                     path_buf.push_char(47 as u8)

@@ -1,14 +1,14 @@
-import Nexus from "../../nexus/nexus"
-import HirTable, hir_kind from "../../hir"
-import TyKind, ty_id_none, ty_id_bool, ty_id_type from "../../types"
-import slot_none from "../../unify"
-import id_none from "../../nexus/pool"
-import fall from "std/sys"
-import check_value, check_bool_operand from "./common"
-import Engine from "../../engine"
-import synth_type_node from "./var"
-import resolve_ty_id from "../specialize"
-import eval_const from "../../lower"
+import ...nexus.nexus: Nexus
+import ...hir: HirTable, hir_kind
+import ...types: TyKind, ty_id_none, ty_id_bool, ty_id_type
+import ...unify: slot_none
+import ...nexus.pool: id_none
+import std.sys: fall
+import .common: check_value, check_bool_operand
+import ...engine: Engine
+import .var: synth_type_node
+import ..specialize: resolve_ty_id
+import ...lower: eval_const
 
 synth_unary_num :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := db.unify.new_slot(id)

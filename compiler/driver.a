@@ -1,12 +1,12 @@
-import Str, to_cstr from "std/string"
-import Arena from "std/allocator"
-import File, read_file, write_file, Embed from "std/fs"
-import Env from "std/env"
-import Path from "std/path"
-import Engine from "compiler/engine"
-import CCodeGen, CCodeBuilder, CCodeGen_new, CCodeGen_destroy, CCodeGen_finish from "compiler/codegen"
-import VmCodeGen, VmCodeBuilder from "compiler/vm/codegen"
-import Vm from "compiler/vm/vm"
+import std.string: Str, to_cstr
+import std.allocator: Arena
+import std.fs: File, read_file, write_file, Embed
+import std.env: Env
+import std.path: Path
+import compiler.engine: Engine
+import compiler.codegen: CCodeGen, CCodeBuilder, CCodeGen_new, CCodeGen_destroy, CCodeGen_finish
+import compiler.vm.codegen: VmCodeGen, VmCodeBuilder
+import compiler.vm.vm: Vm
 
 CompilerConfig :: struct {
     src_path  &u8

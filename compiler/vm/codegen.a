@@ -1,10 +1,10 @@
-import Str, String from "std/string"
-import Arena from "std/allocator"
-import TypeStorage, TyKind, ty_id_none from "../types"
-import HirExprKind, hir_kind, hir_none from "../hir"
-import Chunk from "./chunk"
-import OpCode from "./op"
-import decode_char_lit from "../lexer"
+import std.string: Str, String
+import std.allocator: Arena
+import ..types: TypeStorage, TyKind, ty_id_none
+import ..hir: HirExprKind, hir_kind, hir_none
+import .chunk: Chunk
+import .op: OpCode
+import ..lexer: decode_char_lit
 
 malloc :: fn(size u64) &u8
 

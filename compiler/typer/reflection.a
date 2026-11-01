@@ -1,15 +1,15 @@
-import Engine from "../engine"
-import Nexus from "../nexus/nexus"
-import hir_kind, hir_none from "../hir"
-import id_none from "../nexus/pool"
-import TyKind, ty_id_none, ty_id_type from "../types"
-import synth_node from "./tyck"
-import synth_type_node from "./rules/var"
-import type_has_infer from "./tyck"
-import eval_const from "../lower"
-import Str, String from "std/string"
-import Convert from "std/convert"
-import fall from "std/sys"
+import ..engine: Engine
+import ..nexus.nexus: Nexus
+import ..hir: hir_kind, hir_none
+import ..nexus.pool: id_none
+import ..types: TyKind, ty_id_none, ty_id_type
+import .tyck: synth_node
+import .rules.var: synth_type_node
+import .tyck: type_has_infer
+import ..lower: eval_const
+import std.string: Str, String
+import std.convert: Convert
+import std.sys: fall
 
 reflection_error :: fn(db &Nexus, id u32, message &u8) {
     printf("\n[type error] {}\n       --> ", .{message})

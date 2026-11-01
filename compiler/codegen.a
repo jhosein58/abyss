@@ -1,10 +1,10 @@
-import Str, String from "std/string"
-import Arena from "std/allocator"
-import Fmt from "std/fmt"
-import TypeStorage, TyKind, ty_id_none from "./types"
-import HirExprKind, hir_kind, hir_none from "./hir"
-import decode_char_lit from "./lexer"
-import fall from "std/sys"
+import std.string: Str, String
+import std.allocator: Arena
+import std.fmt: Fmt
+import .types: TypeStorage, TyKind, ty_id_none
+import .hir: HirExprKind, hir_kind, hir_none
+import .lexer: decode_char_lit
+import std.sys: fall
 
 append_str :: fn(v &String, s Str) {
     v.push_str(s)

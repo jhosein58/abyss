@@ -1,10 +1,10 @@
-import malloc from "std/allocator"
-import Nexus from "../../nexus/nexus"
-import HirTable, hir_kind, hir_none from "../../hir"
-import Str from "std/string"
-import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_bool from "../../types"
-import UnifyStorage, slot_none from "../../unify"
-import fall from "std/sys"
+import std.allocator: malloc
+import ...nexus.nexus: Nexus
+import ...hir: HirTable, hir_kind, hir_none
+import std.string: Str
+import ...types: TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_bool
+import ...unify: UnifyStorage, slot_none
+import std.sys: fall
 
 parse_builtin_type :: fn(types &TypeStorage, name Str) u32 {
     if name.eq(Str.of("bool")) { ret TypeStorage.alloc_bool() }

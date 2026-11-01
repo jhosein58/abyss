@@ -1,7 +1,7 @@
-import hir_kind, hir_none from "../../hir"
-import Parser, bump, curr_text, curr_span from "../core"
-import parse_u32 from "std/string"
-import set_span from "./common"
+import ...hir: hir_kind, hir_none
+import ..core: Parser, bump, curr_text, curr_span
+import std.string: parse_u32
+import .common: set_span
 
 parse_lit_int :: fn(p &Parser) u32 {
     k := hir_kind

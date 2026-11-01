@@ -1,14 +1,14 @@
-import Nexus from "../../nexus/nexus"
-import HirTable, hir_kind, hir_none from "../../hir"
-import Str from "std/string"
-import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_unit from "../../types"
-import slot_none from "../../unify"
-import id_none from "../../nexus/pool"
-import Engine from "../../engine"
-import fall from "std/sys"
-import parse_builtin_type, check_value from "./common"
-import synth_node from "../tyck"
-import eval_const from "../../lower"
+import ...nexus.nexus: Nexus
+import ...hir: HirTable, hir_kind, hir_none
+import std.string: Str
+import ...types: TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_unit
+import ...unify: slot_none
+import ...nexus.pool: id_none
+import ...engine: Engine
+import std.sys: fall
+import .common: parse_builtin_type, check_value
+import ..tyck: synth_node
+import ...lower: eval_const
 
 synth_ident :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
