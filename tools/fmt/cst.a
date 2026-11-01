@@ -1,0 +1,113 @@
+import std.allocator: Arena
+import std.collections.vec: Vec
+
+CstKind :: enum u16 {
+    file
+    import_stmt
+    import_symbol
+    binding_stmt
+    var_decl_stmt
+    destructure_stmt
+    expr_stmt
+    empty_line
+    comment_stmt
+
+    type_named
+    type_ptr
+    type_slice
+    type_array
+    type_generic
+    type_fn
+
+    fn_def
+    fn_param
+    struct_def
+    struct_field
+    struct_init
+    struct_init_field
+    array_lit
+    enum_def
+    enum_variant
+
+    if_expr
+    while_expr
+    for_expr
+    match_expr
+    match_arm
+    block_expr
+    ret_expr
+    break_expr
+    cont_expr
+    cmpt_expr
+    splice_expr
+
+    lit_int
+    lit_float
+    lit_str
+    lit_cstr
+    lit_raw_str
+    lit_char
+    lit_bool
+    ident
+    self_expr
+    paren_expr
+    call_expr
+    index_expr
+    member_expr
+    unary_expr
+    binary_expr
+    assign_expr
+    builtin_expr
+}
+
+CstNode :: struct {
+    kind     CstKind
+    text     Str
+    children Vec(&CstNode)
+
+    alloc :: fn(arena &Arena, kind CstKind, text Str) &Self {
+        ptr := arena.alloc(@sizeof(Self)) as &Self
+        (*ptr).kind = kind
+        (*ptr).text = text
+        (*ptr).children = Vec(&CstNode).new()
+        ptr
+    }
+
+    add_child :: fn(self &Self, child &CstNode) {
+        if child != (0 as &CstNode) {
+            self.children.push(child)
+        }
+    }
+
+    child :: fn(self &Self, idx u64) &CstNode {
+        if idx < self.children.len {
+            ret self.children.get(idx)
+        }
+        0 as &CstNode
+    }
+
+    child_count :: fn(self &Self) u64 {
+        self.children.len
+    }
+}
+
+cst_new :: fn(arena &Arena, kind CstKind, text Str) &CstNode {
+    CstNode.alloc(arena, kind, text)
+}
+
+cst_leaf :: fn(arena &Arena, kind CstKind, text Str) &CstNode {
+    CstNode.alloc(arena, kind, text)
+}
+
+cst_unary :: fn(arena &Arena, kind CstKind, op Str, operand &CstNode) &CstNode {
+    node := CstNode.alloc(arena, kind, op)
+    node.add_child(operand)
+    node
+}
+
+cst_binary :: fn(arena &Arena, kind CstKind, op Str, lhs &CstNode, rhs &CstNode) &CstNode {
+    node := CstNode.alloc(arena, kind, op)
+    node.add_child(lhs)
+    node.add_child(rhs)
+    node
+}
