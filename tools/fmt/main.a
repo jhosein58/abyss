@@ -1,0 +1,43 @@
+import tools.fmt.parser: parse_to_cst
+import tools.fmt.formatter: format_cst
+import std.allocator: Arena
+import std.fs: File
+import std.env: Env
+
+format_source :: fn(arena &Arena, source Str) Str {
+    tree := parse_to_cst(arena, source)
+    format_cst(arena, tree)
+}
+
+format_file_in_place :: fn(path &u8) bool {
+    arena := Arena.new(1024 * 128)
+    file_opt := File.read_to_string(&arena, path)
+    if file_opt.is_none() {
+        arena.destroy()
+        ret false
+    }
+    source := file_opt.unwrap()
+    formatted := format_source(&arena, source)
+    ok := File.write_string(path, formatted)
+    arena.destroy()
+    ok
+}
+
+main :: fn() {
+    count := Env.args_len()
+    if count < 2 {
+        printf("usage: abyss r tools/fmt/main.a <file.a> ...\n", .{})
+        ret
+    }
+
+    i: i32 = 1
+    while i < count {
+        path := Env.arg(i)
+        if format_file_in_place(path) {
+            printf("formatted {}\n", .{path})
+        } else {
+            printf("error: failed to format {}\n", .{path})
+        }
+        i = i + 1
+    }
+}

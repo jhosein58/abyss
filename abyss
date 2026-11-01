@@ -68,8 +68,9 @@ case "${CMD}" in
         prepare_compiler
         export ABYSS_DEV="${ROOT_DIR}"
         TARGET="${1:-}"
+        shift || true
         if [ -n "${TARGET}" ]; then
-            "${ROOT_DIR}/abyssc" r "${TARGET}"
+            "${ROOT_DIR}/abyssc" r "${TARGET}" "$@"
         else
             "${ROOT_DIR}/abyssc" r
         fi
@@ -195,6 +196,9 @@ EOF
 
         echo "Release artifacts generated in ${DIST_DIR}:"
         ls -lh "${DIST_DIR}"
+        ;;
+    fmt)
+        "${ROOT_DIR}/abyssc" r "${ROOT_DIR}/tools/fmt/main.a" "$@"
         ;;
     clean)
         rm -rf "${ROOT_DIR}/tmp"/*

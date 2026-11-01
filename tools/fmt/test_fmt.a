@@ -1,0 +1,106 @@
+import tools.fmt.main: format_source, format_file_in_place
+import std.allocator: Arena
+import std.fs: File
+import std.sys: fall
+
+assert_true :: fn(cond bool, msg Str) {
+    if not cond {
+        printf("assertion failed: {}\n", .{msg})
+        fall()
+    }
+}
+
+test_imports :: fn() {
+    arena := Arena.new(65536)
+
+    src1 := "import std.allocator: Arena\n"
+    res1 := format_source(&arena, src1)
+    assert_true(res1.eq(src1), Str.of("import basic"))
+
+    src2 := "import .path.to: x as y, z\n"
+    res2 := format_source(&arena, src2)
+    assert_true(res2.eq(src2), Str.of("import relative alias"))
+
+    src3 := "import std.mem as mem\n"
+    res3 := format_source(&arena, src3)
+    assert_true(res3.eq(src3), Str.of("import module alias"))
+
+    src4 := "import std.mem\n"
+    res4 := format_source(&arena, src4)
+    assert_true(res4.eq(src4), Str.of("import whole module"))
+
+    arena.destroy()
+}
+
+test_struct_and_enum :: fn() {
+    arena := Arena.new(65536)
+
+    src := "Point :: struct {\n    x, y i32\n    dist :: fn(self &Self) i32 {\n        self.x * self.x + self.y * self.y\n    }\n}\n"
+    res := format_source(&arena, src)
+    assert_true(res.eq(src), Str.of("struct with method"))
+
+    src_enum := "Color :: enum u32 {\n    Red\n    Green = 10\n    Blue\n}\n"
+    res_enum := format_source(&arena, src_enum)
+    assert_true(res_enum.eq(src_enum), Str.of("enum with values"))
+
+    arena.destroy()
+}
+
+test_control_flow :: fn() {
+    arena := Arena.new(65536)
+
+    src_if := "main :: fn() {\n    if x > 0 {\n        print(1)\n    } else if x < 0 {\n        print(2)\n    } else {\n        print(0)\n    }\n}\n"
+    res_if := format_source(&arena, src_if)
+    assert_true(res_if.eq(src_if), Str.of("if else if else"))
+
+    src_while := "main :: fn() {\n    while i < 10 {\n        i = i + 1\n    }\n}\n"
+    res_while := format_source(&arena, src_while)
+    assert_true(res_while.eq(src_while), Str.of("while loop"))
+
+    src_for := "main :: fn() {\n    for x in items {\n        print(x)\n    }\n}\n"
+    res_for := format_source(&arena, src_for)
+    assert_true(res_for.eq(src_for), Str.of("for loop"))
+
+    src_match := "main :: fn() {\n    match val {\n        1 {\n            print(10)\n        }\n        2, 3 {\n            print(20)\n        }\n        else {\n            print(0)\n        }\n    }\n}\n"
+    res_match := format_source(&arena, src_match)
+    assert_true(res_match.eq(src_match), Str.of("match expression"))
+
+    arena.destroy()
+}
+
+test_idempotency :: fn() {
+    arena := Arena.new(65536)
+
+    messy := "import   std.io :print ,printf as log\n\nPoint::struct{\nx,y i32\n}\n\nmain::fn(){\nx:=10+20*3\np:Point=.{x:1,y:2}\nprint(x)\n}\n"
+    pass1 := format_source(&arena, messy)
+    pass2 := format_source(&arena, pass1)
+
+    assert_true(pass1.eq(pass2), Str.of("formatting is idempotent"))
+
+    arena.destroy()
+}
+
+test_file_replace :: fn() {
+    arena := Arena.new(65536)
+    path := c"tmp/fmt_file_test.a"
+    messy := "main::fn(){\nx:=42\nret x\n}\n"
+    File.write_string(path, messy)
+
+    ok := format_file_in_place(path)
+    assert_true(ok, Str.of("file replacement succeeded"))
+
+    read_back := File.read_to_string(&arena, path).unwrap()
+    expected := "main :: fn() {\n    x := 42\n    ret x\n}\n"
+    assert_true(read_back.eq(expected), Str.of("file formatted correctly in place"))
+
+    arena.destroy()
+}
+
+main :: fn() {
+    test_imports()
+    test_struct_and_enum()
+    test_control_flow()
+    test_idempotency()
+    test_file_replace()
+    printf("all fmt tests passed\n", .{})
+}
