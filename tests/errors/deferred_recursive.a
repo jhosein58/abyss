@@ -1,4 +1,4 @@
-import Vec from "../../std/collections/vec"
+import std.collections.vec: Vec
 main :: fn() {
     v := Vec().new()
     v.push(v)

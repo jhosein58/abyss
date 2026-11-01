@@ -1,2 +1,2 @@
-import Range from "core/range"
+import core.range: Range
 main :: fn() { for a b in Range.new(0, 1), Range.new(0, 1) {} }

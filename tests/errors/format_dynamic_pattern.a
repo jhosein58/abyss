@@ -1,5 +1,5 @@
-import fmt from "std/fmt"
-import Arena from "std/allocator"
+import std.fmt: fmt
+import std.allocator: Arena
 
 main :: fn() {
     arena := Arena.new(64)
