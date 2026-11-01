@@ -1,6 +1,6 @@
-import Arena from "std/allocator"
-import String from "std/string"
-import print_codepoint from "std/io"
+import std.allocator: Arena
+import std.string: String
+import std.io: print_codepoint
 
 main :: fn() {
     c1: u8 = 'A'

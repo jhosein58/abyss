@@ -1,7 +1,7 @@
-import sort, sort_chunks from "std/sort"
-import hash_combine, hash_words from "std/hash"
-import fall from "std/sys"
-import print from "std/io"
+import std.sort: sort, sort_chunks
+import std.hash: hash_combine, hash_words
+import std.sys: fall
+import std.io: print
 
 expect :: fn(condition bool) { if not condition { fall() } }
 

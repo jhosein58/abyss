@@ -1,6 +1,6 @@
-import write as print from "std/io"
-import Arena from "std/allocator"
-import read_file, write_file from "std/fs"
+import std.io: write as print
+import std.allocator: Arena
+import std.fs: read_file, write_file
 
 puts :: fn(s &u8) i32
 remove :: fn(path &u8) i32

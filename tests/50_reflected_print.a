@@ -1,4 +1,4 @@
-import write as emit from "std/io"
+import std.io: write as emit
 
 Address :: struct { city Str, zip u32 }
 User :: struct {

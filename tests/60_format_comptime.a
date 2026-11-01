@@ -1,7 +1,7 @@
-import fmt from "std/fmt"
-import String from "std/string"
-import Arena from "std/allocator"
-import print, printf from "std/io"
+import std.fmt: fmt
+import std.string: String
+import std.allocator: Arena
+import std.io: print, printf
 
 emit :: fn(T type, cmpt pattern Str, args T) {
     printf(pattern, args)

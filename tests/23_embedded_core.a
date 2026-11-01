@@ -1,10 +1,10 @@
-import Vec as List from "std/collections/vec"
-import Arena as EmbeddedArena from "std/allocator"
-import Fmt as EmbeddedFmt from "std/fmt"
-import read_file as Embeddedread_file from "std/fs"
-import Interner as EmbeddedInterner from "std/interner"
-import String as EmbeddedString from "std/string"
-import fall as Embeddedfall from "std/sys"
+import std.collections.vec: Vec as List
+import std.allocator: Arena as EmbeddedArena
+import std.fmt: Fmt as EmbeddedFmt
+import std.fs: read_file as Embeddedread_file
+import std.interner: Interner as EmbeddedInterner
+import std.string: String as EmbeddedString
+import std.sys: fall as Embeddedfall
 
 Box :: fn(T type) type { struct { value T } }
 

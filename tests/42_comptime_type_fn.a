@@ -1,4 +1,4 @@
-import write as print from "std/io"
+import std.io: write as print
 
 choose :: fn(c bool) type {
     if c { i32 } else { f32 }

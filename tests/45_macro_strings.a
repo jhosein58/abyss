@@ -1,4 +1,4 @@
-import write as print from "std/io"
+import std.io: write as print
 
 make_expr :: fn() Str {
     "40 + 2"

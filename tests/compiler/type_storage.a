@@ -1,8 +1,8 @@
-import TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_bool, ty_id_unit from "../../compiler/types"
-import hash_combine from "std/hash"
-import Arena from "std/allocator"
-import String from "std/string"
-import fall from "std/sys"
+import ...compiler.types: TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_bool, ty_id_unit
+import std.hash: hash_combine
+import std.allocator: Arena
+import std.string: String
+import std.sys: fall
 
 expect :: fn(condition bool) { if not condition { fall() } }
 

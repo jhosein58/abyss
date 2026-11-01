@@ -1,6 +1,6 @@
-import write as print
-       printf from "std/io"
-import Range from "core/range",
+import std.io: write as print
+       printf
+import core.range: Range,
 Base :: 2, Offset :: 3,
 Values :: .[1, 2],
 

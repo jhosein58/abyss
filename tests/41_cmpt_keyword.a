@@ -1,4 +1,4 @@
-import write as print from "std/io"
+import std.io: write as print
 
 compute :: fn() i32 {
     123 + 456

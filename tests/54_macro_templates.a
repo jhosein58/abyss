@@ -1,4 +1,4 @@
-import write as print from "std/io"
+import std.io: write as print
 
 add_code :: fn() Str { "*target = *target + amount" }
 

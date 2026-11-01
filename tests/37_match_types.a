@@ -1,5 +1,5 @@
-import write as print from "std/io"
-import Vec from "std/collections/vec"
+import std.io: write as print
+import std.collections.vec: Vec
 
 print_i32 :: fn(v i32)
 print_u64 :: fn(v u64)

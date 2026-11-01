@@ -1,6 +1,6 @@
-import Token as Tk, TokenStream from "../../compiler/token"
-import lex, decode_char_lit from "../../compiler/lexer"
-import fall from "std/sys"
+import ...compiler.token: Token as Tk, TokenStream
+import ...compiler.lexer: lex, decode_char_lit
+import std.sys: fall
 
 expect :: fn(cond bool) {
     if not cond { fall() }

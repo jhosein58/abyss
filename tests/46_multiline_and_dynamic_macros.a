@@ -1,7 +1,7 @@
-import write as print from "std/io"
-import fmt from "std/fmt"
-import String from "std/string"
-import Arena from "std/allocator"
+import std.io: write as print
+import std.fmt: fmt
+import std.string: String
+import std.allocator: Arena
 
 gen_expr :: fn(base i64, mul i64) Str {
     arena := Arena.new(4096)

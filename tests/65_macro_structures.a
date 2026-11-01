@@ -1,4 +1,4 @@
-import write as print from "std/io"
+import std.io: write as print
 
 make_point_type :: fn() Str {
     "struct { x i32, y i32, get_x :: fn(self &Self) i32 { self.x } }"

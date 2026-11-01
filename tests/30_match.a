@@ -1,4 +1,4 @@
-import write as print from "std/io"
+import std.io: write as print
 
 print_i32 :: fn(v i32)
 print_bool :: fn(v bool)
