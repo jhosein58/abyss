@@ -4,7 +4,7 @@ import Parser, bump, optional, expect, peek, is_eof, curr_span, prev_span, parse
 import span_merge from "../../nexus/nexus"
 import id_none from "../../nexus/pool"
 import prec from "../prec"
-import set_span, check_separator, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list from "./common"
+import set_span, check_separator, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list, parse_scoped_import from "./common"
 import parse_ident from "./ident"
 import parse_expr from "../parser"
 
@@ -23,6 +23,8 @@ parse_enum :: fn(p &Parser) u32 {
         parse_error_at(p, c"expected '{' after enum", curr_span(p))
     }
 
+    env_mark := p.env.mark()
+
     names := Vec(u32).new()
     vals := Vec(u32).new()
     methods := Vec(u32).new()
@@ -32,6 +34,11 @@ parse_enum :: fn(p &Parser) u32 {
     p.toplv_sym = id_none()
 
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
+        if peek(p) == t.kw_import {
+            parse_scoped_import(p)
+            check_separator(p, t.c_brace, c"expected ',' or newline after import in enum")
+            cont
+        }
         if peek(p) == t.hash {
             ensure_type_node(p, &enum_node, k.enum_, enum_toplv)
             bump(p)
@@ -94,5 +101,6 @@ parse_enum :: fn(p &Parser) u32 {
     meta_id := add_list(p, &meta)
     meta.destroy()
 
+    p.env.reset(env_mark)
     finish_type_node(p, &enum_node, k.enum_, names_id, vals_id, meta_id, enum_toplv, &methods, span_merge(sp_start, sp_end))
 }

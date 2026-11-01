@@ -345,6 +345,64 @@ synth_member :: fn(eng &Engine, id u32) {
     }
     db.set_auto_deref_depth(id, deref_depth)
 
+    lhs_sym := db.get_hir_symbol(lhs_id)
+    if (lhs_sym != id_none()) and db.is_module_sym(lhs_sym) {
+        rhs_id := tbl.rhs(id)
+        name_id := tbl.lhs(rhs_id)
+        target_fid := db.get_module_fid(lhs_sym)
+        target_sym := db.find_local_symbol(target_fid, name_id)
+        if target_sym == id_none() {
+            printf("\n\033[1;31m[type error]\033[0m module has no member '{}'\n       --> ", .{db.interner.get(name_id)})
+            db.print_loc(id)
+            print("")
+            fall()
+        }
+        eng.ensure_resolved(target_sym)
+        target_slot := eng.slot_of(target_sym)
+        target_hir := db.get_sym_hir(target_sym)
+        if db.is_module_sym(target_sym) {
+            sub_fid := db.get_module_fid(target_sym)
+            sub_ty := db.get_module_type(sub_fid)
+            if sub_ty == ty_id_none() {
+                sub_name := db.interner.get(name_id)
+                sub_ty = db.types.alloc_nominal(ty_id_none(), sub_name, id_none())
+                db.set_module_type(sub_fid, sub_ty)
+            }
+            db.set_hir_symbol(id, target_sym)
+            db.set_const_type(id, sub_ty)
+            db.set_is_const(id, true)
+            db.unify.bind_type(&db.types, slot, ty_id_type())
+            ret
+        }
+        if db.is_sym_const(target_sym) {
+            db.set_is_const(id, true)
+            if (target_hir != id_none()) and db.has_const_val(target_hir) {
+                db.set_const_val(id, db.get_const_val(target_hir))
+            }
+            if target_hir != id_none() {
+                c_ty := db.get_const_type(target_hir)
+                if c_ty != ty_id_none() {
+                    db.set_const_type(id, c_ty)
+                }
+            }
+            if target_slot != slot_none() {
+                sym_ty := db.unify.resolve_type(target_slot)
+                if sym_ty == ty_id_type() {
+                    db.unify.bind_type(&db.types, slot, ty_id_type())
+                } else if sym_ty != ty_id_none() {
+                    db.unify.union(&db.types, slot, target_slot)
+                }
+            }
+            db.set_hir_symbol(id, target_sym)
+            ret
+        }
+        db.set_hir_symbol(id, target_sym)
+        if target_slot != slot_none() {
+            db.unify.union(&db.types, slot, target_slot)
+        }
+        ret
+    }
+
     kind := types_ptr.kind(lhs_ty)
     if (kind != TyKind.struct_) and (kind != TyKind.nominal) and (kind != TyKind.enum_) and (kind != TyKind.array) {
         printf("\n\033[1;31m[type error]\033[0m member receiver must be a struct or enum, got '", .{})

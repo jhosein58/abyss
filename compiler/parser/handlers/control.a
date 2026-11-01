@@ -3,7 +3,7 @@ import hir_kind, hir_none from "../../hir"
 import Parser, bump, optional, peek, is_eof, expect, curr_span, prev_span, parse_error_at, peek_preceded_by_newline from "../core"
 import span_merge from "../../nexus/nexus"
 import prec from "../prec"
-import span_of_hir, set_span, check_separator from "./common"
+import span_of_hir, set_span, check_separator, parse_scoped_import from "./common"
 import add_list from "./common"
 import parse_expr from "../parser"
 import parse_ident from "./ident"
@@ -116,6 +116,11 @@ parse_block :: fn(p &Parser) u32 {
     bump(p)
 
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
+        if peek(p) == t.kw_import {
+            parse_scoped_import(p)
+            check_separator(p, t.c_brace, c"expected ',' or newline between block expressions")
+            cont
+        }
         expr := parse_expr(p, 0)
         if (peek(p) == t.ident) and (not peek_preceded_by_newline(p)) {
             first := expr

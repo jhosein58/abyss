@@ -81,6 +81,8 @@ Nexus :: struct {
     const_types    PoolU32
     method_owner   PoolU32
     sym_resolving  PoolU32
+    sym_mod_fid    PoolU32
+    mod_types      PoolU32
 
     core_prelude   u32
     std_prelude    u32
@@ -138,6 +140,8 @@ Nexus :: struct {
             const_types    : PoolU32.new(),
             method_owner   : PoolU32.new(),
             sym_resolving  : PoolU32.new(),
+            sym_mod_fid    : PoolU32.new(),
+            mod_types      : PoolU32.new(),
 
             core_prelude   : id_none(),
             std_prelude    : id_none(),
@@ -233,6 +237,54 @@ Nexus :: struct {
         self.sym_target.alloc(target_sym)
 
         sym_id
+    }
+
+    alloc_module_symbol :: fn(self &Self, file_id u32, name_id u32, target_fid u32) u32 {
+        sym_id := self.sym_names.alloc(name_id)
+        self.sym_files.alloc(file_id)
+        self.sym_tok_start.alloc(id_none())
+        self.sym_tok_end.alloc(id_none())
+        self.sym_hir_start.alloc(id_none())
+        self.sym_hir_end.alloc(id_none())
+        self.sym_nodes.alloc(id_none())
+        self.sym_resolving.alloc(0)
+        self.sym_target.alloc(id_none())
+        self.sym_mod_fid.set_safe(sym_id, target_fid, id_none())
+        sym_id
+    }
+
+    is_module_sym :: fn(self &Self, sym_id u32) bool {
+        if sym_id == id_none() { ret false }
+        real_s := self.resolve_sym(sym_id)
+        if real_s >= self.sym_mod_fid.count() { ret false }
+        self.sym_mod_fid.get(real_s) != id_none()
+    }
+
+    get_module_fid :: fn(self &Self, sym_id u32) u32 {
+        if sym_id == id_none() { ret id_none() }
+        real_s := self.resolve_sym(sym_id)
+        if real_s >= self.sym_mod_fid.count() { ret id_none() }
+        self.sym_mod_fid.get(real_s)
+    }
+
+    get_module_type :: fn(self &Self, fid u32) u32 {
+        if fid >= self.mod_types.count() { ret ty_id_none() }
+        self.mod_types.get(fid)
+    }
+
+    set_module_type :: fn(self &Self, fid u32, ty u32) {
+        self.mod_types.set_safe(fid, ty, ty_id_none())
+    }
+
+    find_file_id :: fn(self &Self, path Str) u32 {
+        i: u64 = 0
+        while i < self.file_paths.len {
+            if self.file_paths.get(i).eq(path) {
+                ret i as u32
+            }
+            i = i + 1
+        }
+        id_none()
     }
 
     find_symbol :: fn(self &Self, file_id u32, name_id u32) u32 {
@@ -466,6 +518,7 @@ Nexus :: struct {
         if sym_id == id_none() { ret false }
         real_s := self.resolve_sym(sym_id)
         if real_s == id_none() { ret false }
+        if self.is_module_sym(real_s) { ret true }
         if real_s >= self.sym_is_const.count() { ret false }
         self.sym_is_const.get(real_s) != 0
     }

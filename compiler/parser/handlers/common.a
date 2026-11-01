@@ -1,10 +1,14 @@
 import Token from "../../token"
 import HirExprKind, hir_kind, hir_none from "../../hir"
-import Parser, peek, bump, optional, curr_span, parse_error_at, peek_preceded_by_newline from "../core"
+import Parser, peek, peek_n, bump, optional, curr_span, parse_error_at, peek_preceded_by_newline from "../core"
 import Span, span_merge from "../../nexus/nexus"
 import id_none from "../../nexus/pool"
 import prec from "../prec"
 import parse_expr from "../parser"
+import module_path from "../../indexer"
+import Str, String from "std/string"
+import Path from "std/path"
+import Arena from "std/allocator"
 
 span_of_hir :: fn(p &Parser, hir_id u32) Span {
     p.db.get_hir_span(hir_id)
@@ -96,4 +100,137 @@ finish_type_node :: fn(p &Parser, node &u32, kind HirExprKind, lhs u32, rhs u32,
     }
     bind_method_owners(p, *node, methods)
     set_span(p, *node, sp)
+}
+
+parse_scoped_import :: fn(p &Parser) {
+    arena := Arena.new(4096)
+    t := Token
+    bump(p)
+    dot_count: u32 = 0
+    while peek(p) == t.dot {
+        dot_count = dot_count + 1
+        bump(p)
+    }
+
+    path_buf := String.new(&arena)
+    if dot_count == 1 {
+        path_buf.push_str(Str.of("./"))
+    } else if dot_count > 1 {
+        d_i: u32 = 1
+        while d_i < dot_count {
+            path_buf.push_str(Str.of("../"))
+            d_i = d_i + 1
+        }
+    }
+
+    if peek(p) != t.ident {
+        arena.destroy()
+        parse_error_at(p, c"expected module path", curr_span(p))
+    }
+
+    last_seg_name := p.tokens.text(p.cursor)
+    last_seg_id := p.db.interner.intern(last_seg_name)
+    path_buf.push_str(last_seg_name)
+    bump(p)
+
+    while peek(p) == t.dot {
+        bump(p)
+        if peek(p) != t.ident {
+            arena.destroy()
+            parse_error_at(p, c"expected module path segment after '.'", curr_span(p))
+        }
+        path_buf.push_char(47 as u8)
+        last_seg_name = p.tokens.text(p.cursor)
+        last_seg_id = p.db.interner.intern(last_seg_name)
+        path_buf.push_str(last_seg_name)
+        bump(p)
+    }
+
+    import_path := path_buf.as_str()
+    curr_path := p.db.get_file_path(p.file_id)
+    target_path := module_path(p.db, &arena, p.file_id, p.tokens.start(p.cursor), curr_path, import_path)
+    target_fid := p.db.find_file_id(target_path)
+    if target_fid == id_none() {
+        if target_path.ends_with(".a") {
+            no_ext := target_path.sub(0, target_path.len - 2)
+            dir_name := Path.base(no_ext)
+            folder_file := Path.join(&arena, no_ext, Path.ensure_ext(&arena, dir_name, Str.of(".a")))
+            target_fid = p.db.find_file_id(folder_file)
+        }
+    }
+    if target_fid == id_none() {
+        arena.destroy()
+        parse_error_at(p, c"cannot find loaded module for scoped import", curr_span(p))
+    }
+
+    mod_alias := last_seg_id
+    if peek(p) == t.kw_as {
+        bump(p)
+        if peek(p) != t.ident {
+            arena.destroy()
+            parse_error_at(p, c"expected import alias after 'as'", curr_span(p))
+        }
+        mod_alias = p.db.interner.intern(p.tokens.text(p.cursor))
+        bump(p)
+        mod_sym := p.db.alloc_module_symbol(p.file_id, mod_alias, target_fid)
+        p.env.define(mod_alias, mod_sym)
+        arena.destroy()
+        ret
+    }
+
+    if peek(p) == t.colon {
+        bump(p)
+        while (peek(p) != t.c_brace) and (peek(p) != t.eof) {
+            if peek(p) != t.ident {
+                break
+            }
+            sym_name := p.tokens.text(p.cursor)
+            sym_name_id := p.db.interner.intern(sym_name)
+            sym := p.db.find_local_symbol(target_fid, sym_name_id)
+            if sym == id_none() {
+                break
+            }
+            bump(p)
+            sym_local_id := sym_name_id
+            if peek(p) == t.kw_as {
+                bump(p)
+                if peek(p) != t.ident {
+                    arena.destroy()
+                    parse_error_at(p, c"expected symbol alias after 'as'", curr_span(p))
+                }
+                sym_local_id = p.db.interner.intern(p.tokens.text(p.cursor))
+                bump(p)
+            }
+            p.env.define(sym_local_id, sym)
+            if optional(p, t.comma) {
+                if peek_preceded_by_newline(p) {
+                    if peek(p) == t.ident {
+                        next_name := p.db.interner.intern(p.tokens.text(p.cursor))
+                        if p.db.find_local_symbol(target_fid, next_name) == id_none() {
+                            break
+                        }
+                    } else {
+                        break
+                    }
+                }
+            } else if peek_preceded_by_newline(p) {
+                if peek(p) == t.ident {
+                    next_name := p.db.interner.intern(p.tokens.text(p.cursor))
+                    if p.db.find_local_symbol(target_fid, next_name) == id_none() {
+                        break
+                    }
+                } else {
+                    break
+                }
+            } else {
+                break
+            }
+        }
+        arena.destroy()
+        ret
+    }
+
+    mod_sym := p.db.alloc_module_symbol(p.file_id, last_seg_id, target_fid)
+    p.env.define(last_seg_id, mod_sym)
+    arena.destroy()
 }
