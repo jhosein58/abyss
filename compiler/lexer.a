@@ -3,6 +3,7 @@ import .nexus.nexus: calc_pos
 import std.sys: fall
 import std.ascii: Ascii
 
+-- Fast keyword lookup grouped by token length
 match_keyword :: fn(text Str) Tk {
     if text.len == 2 {
         if text.eq("if") { ret Tk.kw_if }
@@ -43,31 +44,34 @@ match_keyword :: fn(text Str) Tk {
 }
 
 is_base_digit :: fn(c u8, base u32) bool {
-    if base == 10 { ret Ascii.is_digit(c) }
+    if base == 10 { ret Ascii.is_digit(c)     }
     if base == 16 { ret Ascii.is_hex_digit(c) }
-    if base == 2 { ret Ascii.is_bin_digit(c) }
-    if base == 8 { ret Ascii.is_oct_digit(c) }
+    if base == 2  { ret Ascii.is_bin_digit(c) }
+    if base == 8  { ret Ascii.is_oct_digit(c) }
     false
 }
 
+-- Maps standard C/ASCII escape chars to byte values
+-- ex: simple_escape('n') == '\n'
 simple_escape :: fn(c u8) i32 {
-    if c == 'n' { ret 10 }
-    if c == 'r' { ret 13 }
-    if c == 't' { ret 9 }
-    if c == '0' { ret 0 }
-    if c == 'a' { ret 7 }
-    if c == 'b' { ret 8 }
-    if c == 'f' { ret 12 }
-    if c == 'v' { ret 11 }
+    if c == 'n'  { ret 10 }
+    if c == 'r'  { ret 13 }
+    if c == 't'  { ret 9  }
+    if c == '0'  { ret 0  }
+    if c == 'a'  { ret 7  }
+    if c == 'b'  { ret 8  }
+    if c == 'f'  { ret 12 }
+    if c == 'v'  { ret 11 }
     if c == '\\' { ret 92 }
     if c == '\'' { ret 39 }
-    if c == '"' { ret 34 }
-    if c == '?' { ret 63 }
-    -1
+    if c == '"'  { ret 34 }
+    if c == '?'  { ret 63 }
+    -1 -- returns -1 on unhandled
 }
 
+-- Inspects leading byte bitmask to determine UTF-8 sequence width (1 to 4 bytes)
 utf8_len :: fn(b0 u8) u32 {
-    if (b0 & 0x80) == 0 { ret 1 }
+    if (b0 & 0x80) == 0    { ret 1 }
     if (b0 & 0xE0) == 0xC0 { ret 2 }
     if (b0 & 0xF0) == 0xE0 { ret 3 }
     if (b0 & 0xF8) == 0xF0 { ret 4 }
@@ -77,13 +81,13 @@ utf8_len :: fn(b0 u8) u32 {
 Lexer :: struct {
     source, path Str
     cursor u64
-    had_newline bool
+    had_newline bool -- Tracks preceding newline for statement separation
 
     new :: fn(source, path Str) Self {
         .{
-            source: source,
-            path: path,
-            cursor: 0,
+            source:      source,
+            path:        path,
+            cursor:      0,
             had_newline: true
         }
     }
@@ -116,12 +120,13 @@ Lexer :: struct {
         false
     }
 
+    -- Turns single operator into compound assignment if followed by '=' (e.g. + vs +=)
     match_eq :: fn(self &Self, base Tk, with_eq Tk) Tk {
         if self.consume_char('=') { ret with_eq }
         base
     }
 
-    error :: fn(self &Self, msg &u8, offset u64) {
+    error :: fn(self &Self, msg Str, offset u64) {
         pos := calc_pos(self.source, offset as u32)
         printf("\n[lex error] {}\n       --> {}:{}:{}\n", .{msg, self.path, pos.line, pos.col})
         fall()
@@ -147,10 +152,11 @@ Lexer :: struct {
             if is_base_digit(c, base) {
                 self.bump()
             } else if c == '_' {
+                -- Underscore must sit strictly between two valid digits
                 prev := *(self.source.ptr + self.cursor - 1)
                 next := self.peek()
                 if (not is_base_digit(prev, base)) or (not is_base_digit(next, base)) {
-                    self.error(c"invalid digit separator '_'", self.cursor)
+                    self.error("invalid digit separator '_'", self.cursor)
                 }
                 self.bump()
             } else {
@@ -163,9 +169,10 @@ Lexer :: struct {
         offset := self.cursor
         is_float := false
 
+        -- 1. Radix prefix handling (0x, 0b, 0o)
         if self.current() == '0' {
             p := self.peek()
-            base: u32 = 0
+            base := 0
             if (p == 'x') or (p == 'X') { base = 16 }
             else if (p == 'b') or (p == 'B') { base = 2 }
             else if (p == 'o') or (p == 'O') { base = 8 }
@@ -174,7 +181,7 @@ Lexer :: struct {
                 self.bump()
                 self.bump()
                 if self.is_eof() or (not is_base_digit(self.current(), base)) {
-                    self.error(c"expected digits after base prefix", offset)
+                    self.error("expected digits after base prefix", offset)
                 }
                 self.scan_digits(base)
                 self.emit(stream, Tk.lit_int, offset)
@@ -184,12 +191,14 @@ Lexer :: struct {
 
         self.scan_digits(10)
 
+        -- 2. Fractional part (requires a following digit to disambiguate from member access '.')
         if (self.current() == '.') and (self.peek() != '.') and Ascii.is_digit(self.peek()) {
             is_float = true
             self.bump()
             self.scan_digits(10)
         }
 
+        -- 3. Exponent notation (e.g. 1e-4, 2E+10)
         if (self.current() == 'e') or (self.current() == 'E') {
             has_sign := (self.peek() == '+') or (self.peek() == '-')
             has_exp_digits := false
@@ -222,19 +231,19 @@ Lexer :: struct {
 
         while (not self.is_eof()) and (self.current() != '"') {
             if Ascii.is_newline(self.current()) {
-                self.error(c"newline in string literal", offset)
+                self.error("newline in string literal", offset)
             }
             if self.current() == '\\' {
                 self.bump()
                 if self.is_eof() or (not self.valid_escape()) {
-                    self.error(c"invalid string escape", offset)
+                    self.error("invalid string escape", offset)
                 }
             }
             self.bump()
         }
 
         if self.is_eof() {
-            self.error(c"unterminated string", offset)
+            self.error("unterminated string", offset)
         }
         self.bump()
 
@@ -242,6 +251,7 @@ Lexer :: struct {
         self.emit(stream, kind, offset)
     }
 
+    -- Raw string literal; only escaped backtick (\`) is unescaped
     scan_raw_str :: fn(self &Self, stream &TokenStream) {
         offset := self.cursor
         self.bump()
@@ -254,13 +264,14 @@ Lexer :: struct {
         }
 
         if self.is_eof() {
-            self.error(c"unterminated multiline string", offset)
+            self.error("unterminated multiline string", offset)
         }
         self.bump()
 
         self.emit(stream, Tk.lit_str, offset)
     }
 
+    -- Character literal; supports \xNN, \u{...}, and multibyte UTF-8
     scan_char :: fn(self &Self, stream &TokenStream) {
         offset := self.cursor
         self.bump()
@@ -268,7 +279,7 @@ Lexer :: struct {
         if self.current() == '\\' {
             self.bump()
             if self.is_eof() or (not self.valid_escape()) {
-                self.error(c"invalid character escape", offset)
+                self.error("invalid character escape", offset)
             }
             if self.current() == 'x' {
                 self.bump()
@@ -284,7 +295,7 @@ Lexer :: struct {
                     self.bump()
                 }
                 if (not has_hex) or (self.current() != '}') {
-                    self.error(c"invalid unicode escape", offset)
+                    self.error("invalid unicode escape", offset)
                 }
                 self.bump()
             } else {
@@ -292,18 +303,18 @@ Lexer :: struct {
             }
         } else {
             if self.is_eof() or (self.current() == '\'') {
-                self.error(c"invalid character literal", offset)
+                self.error("invalid character literal", offset)
             }
             c := self.current()
             len := utf8_len(c)
             if len == 0 {
-                self.error(c"invalid utf-8 lead byte in character literal", offset)
+                self.error("invalid utf-8 lead byte in character literal", offset)
             }
             self.bump()
             i: u32 = 1
             while i < len {
                 if self.is_eof() or ((self.current() & 0xC0) != 0x80) {
-                    self.error(c"invalid utf-8 sequence in character literal", offset)
+                    self.error("invalid utf-8 sequence in character literal", offset)
                 }
                 self.bump()
                 i = i + 1
@@ -311,7 +322,7 @@ Lexer :: struct {
         }
 
         if self.current() != '\'' {
-            self.error(c"unterminated or oversized character literal", offset)
+            self.error("unterminated or oversized character literal", offset)
         }
         self.bump()
 
@@ -328,6 +339,7 @@ Lexer :: struct {
         self.emit(stream, match_keyword(text), offset)
     }
 
+    -- Scans single/multi-char operator symbols (e.g. '::', '<<=')
     scan_symbol :: fn(self &Self) Tk {
         c := self.current()
         self.bump()
@@ -375,6 +387,7 @@ Lexer :: struct {
     }
 }
 
+-- Main entry point: converts source code into a token stream
 lex :: fn(stream &TokenStream, source Str, path Str) {
     lexer := Lexer.new(source, path)
 
@@ -440,7 +453,7 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
         offset := lexer.cursor
         kind := lexer.scan_symbol()
         if kind == Tk.unknown {
-            lexer.error(c"unknown character", offset)
+            lexer.error("unknown character", offset)
         }
         lexer.emit(stream, kind, offset)
     }
@@ -448,6 +461,8 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
     stream.push(Tk.eof, lexer.cursor as u32, 0, Str.empty(), lexer.had_newline)
 }
 
+-- Decodes character literal escape or UTF-8 sequence to unicode codepoint
+-- ex: decode_char_lit("'\\n'") == 10
 decode_char_lit :: fn(raw Str) u32 {
     if raw.len < 3 { ret 0 }
     ptr := raw.ptr + 1
