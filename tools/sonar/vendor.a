@@ -1,0 +1,100 @@
+import std.string: Str, String
+import std.allocator: Arena
+import std.collections.vec: Vec
+import std.fs: File, Dir, to_cstr
+import std.path: Path
+import .resolver: ResolvedPackage
+
+mkdir :: fn(path &u8, mode u32) i32
+
+ensure_dir_all :: fn(a &Arena, path Str) {
+    i: u64 = 0
+    while i < path.len {
+        c := *(path.ptr + i)
+        if (c == ('/' as u8)) or (c == ('\\' as u8)) {
+            if i > 0 {
+                sub := path.sub(0, i)
+                c_sub := to_cstr(a, sub)
+                mkdir(c_sub, 493 as u32)
+            }
+        }
+        i = i + 1
+    }
+    c_full := to_cstr(a, path)
+    mkdir(c_full, 493 as u32)
+}
+
+copy_file :: fn(a &Arena, src Str, dst Str) bool {
+    opt := File.read_to_string(a, src)
+    if opt.is_none() { ret false }
+    dst_dir := Path.dir(dst)
+    if dst_dir.len > 0 {
+        ensure_dir_all(a, dst_dir)
+    }
+    File.write_string(dst, opt.unwrap())
+}
+
+VendorManager :: struct {
+    arena      &Arena
+    vendor_dir Str
+
+    new :: fn(arena &Arena, vendor_dir Str) Self {
+        .{
+            arena: arena
+            vendor_dir: vendor_dir
+        }
+    }
+
+    vendor_all :: fn(self &Self, packages Vec(ResolvedPackage)) Vec(Str) {
+        ensure_dir_all(self.arena, self.vendor_dir)
+        map_args := Vec(Str).new()
+
+        manifest_buf := String.new(self.arena)
+        manifest_buf.push_str("{\n  \"packages\": [\n")
+
+        i: u64 = 0
+        while i < packages.len {
+            pkg := packages.get(i)
+            target_pkg_dir := Path.join(self.arena, self.vendor_dir, pkg.name)
+            ensure_dir_all(self.arena, target_pkg_dir)
+
+            files := Dir.walk(self.arena, pkg.root_dir, Str.empty())
+            fi: u64 = 0
+            while fi < files.len {
+                f_path := files.get(fi)
+                sub_rel := if f_path.starts_with(pkg.root_dir) and (f_path.len > pkg.root_dir.len) {
+                    f_path.sub(pkg.root_dir.len + 1, f_path.len - pkg.root_dir.len - 1)
+                } else {
+                    Path.base(f_path)
+                }
+                dst_path := Path.join(self.arena, target_pkg_dir, sub_rel)
+                copy_file(self.arena, f_path, dst_path)
+                fi = fi + 1
+            }
+
+            map_arg := String.new(self.arena)
+            map_arg.push_str(pkg.name)
+            map_arg.push_char('=' as u8)
+            map_arg.push_str(target_pkg_dir)
+            map_args.push(map_arg.as_str())
+
+            manifest_buf.push_str("    {\"name\": \"")
+            manifest_buf.push_str(pkg.name)
+            manifest_buf.push_str("\", \"version\": \"")
+            manifest_buf.push_str(pkg.version.format(self.arena))
+            manifest_buf.push_str("\"}")
+            if i + 1 < packages.len {
+                manifest_buf.push_char(',' as u8)
+            }
+            manifest_buf.push_char('\n' as u8)
+
+            i = i + 1
+        }
+
+        manifest_buf.push_str("  ]\n}\n")
+        vendor_json_path := Path.join(self.arena, self.vendor_dir, "vendor.json")
+        File.write_string(vendor_json_path, manifest_buf.as_str())
+
+        map_args
+    }
+}

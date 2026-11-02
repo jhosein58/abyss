@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
+ORIG_PWD="${PWD}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${ROOT_DIR}"
 mkdir -p tmp
@@ -200,6 +201,16 @@ EOF
     fmt)
         "${ROOT_DIR}/abyssc" r "${ROOT_DIR}/tools/fmt/main.a" "$@"
         ;;
+    sonar)
+        CALLER_DIR="${ORIG_PWD}"
+        prepare_compiler
+        cd "${CALLER_DIR}"
+        export ABYSS_COMPILER="${ROOT_DIR}/abyssc"
+        "${ROOT_DIR}/abyssc" r "${ROOT_DIR}/tools/sonar/main.a" "$@"
+        ;;
+    sonar-test)
+        "${ROOT_DIR}/abyssc" r "${ROOT_DIR}/tools/sonar/test_sonar.a" "$@"
+        ;;
     clean)
         rm -rf "${ROOT_DIR}/tmp"/*
         echo "Cleaned tmp directory."
@@ -211,6 +222,8 @@ EOF
         echo "  r [file]          Run on VM (auto-rebuilds compiler if sources changed)"
         echo "  b [file]          Build in release mode (auto-rebuilds compiler if sources changed)"
         echo "  br [file]         Build and run in release mode"
+        echo "  sonar             Run Sonar package manager (init, vendor, build, run)"
+        echo "  sonar-test        Run Sonar package manager test suite"
         echo "  b-win [file]      Build Windows binary (default: abyssc.exe)"
         echo "  r-win [file]      Build and run Windows binary with wine"
         echo "  test [filter]     Run fast dev test suite (C + VM backends via TCC/GCC)"

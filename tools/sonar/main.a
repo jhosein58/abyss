@@ -1,0 +1,159 @@
+import std.string: Str, String
+import std.allocator: Arena
+import std.collections.vec: Vec
+import std.fs: File, to_cstr
+import std.env: Env
+import std.path: Path
+import std.io: print
+import std.sys: fall
+import .manifest: PackageManifest
+import .resolver: Resolver
+import .vendor: VendorManager
+import .builder: Builder
+
+system :: fn(cmd &u8) i32
+
+print_str :: fn(s Str) {
+    print(s)
+}
+
+print_line :: fn(s Str) {
+    print(s)
+    print("\n")
+}
+
+cmd_init :: fn(arena &Arena, name Str) {
+    pkg_name := if name.len > 0 { name } else { "my-project" }
+    manifest_buf := String.new(arena)
+    manifest_buf.push_str("{\n  \"name\": \"")
+    manifest_buf.push_str(pkg_name)
+    manifest_buf.push_str("\",\n  \"version\": \"0.1.0\",\n  \"entry\": \"main.a\",\n  \"dependencies\": {},\n  \"c_build\": {\n    \"sources\": [],\n    \"include_dirs\": [],\n    \"c_flags\": [],\n    \"ld_flags\": []\n  }\n}\n")
+    File.write_string("package.json", manifest_buf.as_str())
+    print_line("initialized package.json")
+}
+
+cmd_vendor :: fn(arena &Arena) Vec(Str) {
+    manifest_opt := PackageManifest.load_file(arena, "package.json")
+    if manifest_opt.is_none() {
+        print_line("error: cannot find or parse package.json in current directory")
+        fall()
+    }
+    manifest := manifest_opt.unwrap()
+
+    resolver := Resolver.new(arena)
+    res := resolver.resolve_root(".", manifest)
+    if not res.ok() {
+        i: u64 = 0
+        while i < res.errors.len {
+            print_str("[sonar error] ")
+            print_line(res.errors.get(i))
+            i = i + 1
+        }
+        fall()
+    }
+
+    vm := VendorManager.new(arena, ".vendor")
+    map_args := vm.vendor_all(res.packages)
+    print_line("[sonar] vendored dependencies into .vendor/")
+    map_args
+}
+
+cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
+    manifest_opt := PackageManifest.load_file(arena, "package.json")
+    if manifest_opt.is_none() {
+        print_line("error: cannot find or parse package.json in current directory")
+        fall()
+    }
+    manifest := manifest_opt.unwrap()
+
+    target_src := if target_arg.len > 0 { target_arg } else { manifest.entry }
+    out_bin := if out_arg.len > 0 { out_arg } else { Path.join(arena, "bin", manifest.name) }
+
+    resolver := Resolver.new(arena)
+    res := resolver.resolve_root(".", manifest)
+    if not res.ok() {
+        i: u64 = 0
+        while i < res.errors.len {
+            print_str("[sonar error] ")
+            print_line(res.errors.get(i))
+            i = i + 1
+        }
+        fall()
+    }
+
+    vm := VendorManager.new(arena, ".vendor")
+    map_args := vm.vendor_all(res.packages)
+
+    builder := Builder.new(arena, ".vendor")
+    objects := Vec(Str).new()
+    ld_flags := Vec(Str).new()
+
+    c_ok := builder.compile_c_sources(res.packages, &objects, &ld_flags)
+    if not c_ok {
+        print_line("[sonar error] failed to compile native C sources")
+        fall()
+    }
+
+    abyssc_bin := Env.get_or(c"ABYSS_COMPILER", c"./abyssc")
+    ok := builder.build_target(Str.of(abyssc_bin), target_src, out_bin, map_args, objects, ld_flags)
+    if not ok {
+        print_line("[sonar error] build failed")
+        fall()
+    }
+
+    print_str("[sonar] successfully built ")
+    print_line(out_bin)
+    out_bin
+}
+
+cmd_run :: fn(arena &Arena, target_arg Str) {
+    out_bin := cmd_build(arena, target_arg, Str.empty())
+    print_str("[sonar] running ")
+    print_line(out_bin)
+    run_cmd := String.new(arena)
+    run_cmd.push_str("./")
+    run_cmd.push_str(out_bin)
+    system(to_cstr(arena, run_cmd.as_str()))
+}
+
+cmd_help :: fn() {
+    print_line("Sonar: The Abyss Package Manager")
+    print_line("")
+    print_line("Usage:")
+    print_line("  sonar init [name]        Initialize a new package.json")
+    print_line("  sonar vendor             Resolve and vendor dependencies into .vendor/")
+    print_line("  sonar build [src] [out]  Build package and its native dependencies")
+    print_line("  sonar run [src]          Build and execute package binary")
+    print_line("  sonar help               Show this help message")
+}
+
+main :: fn() {
+    arena := Arena.new(8 * 1024 * 1024)
+    argc := Env.args_len()
+    if argc < 2 {
+        cmd_help()
+        ret
+    }
+
+    cmd := Str.of(Env.arg(1))
+    if cmd.eq("init") {
+        name := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
+        cmd_init(&arena, name)
+    } else if cmd.eq("vendor") {
+        cmd_vendor(&arena)
+    } else if cmd.eq("build") {
+        target := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
+        out := if argc > 3 { Str.of(Env.arg(3)) } else { Str.empty() }
+        cmd_build(&arena, target, out)
+    } else if cmd.eq("run") {
+        target := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
+        cmd_run(&arena, target)
+    } else if cmd.eq("help") or cmd.eq("--help") or cmd.eq("-h") {
+        cmd_help()
+    } else {
+        print_str("unknown command '")
+        print_str(cmd)
+        print_line("'. Run 'sonar help' for usage.")
+        fall()
+    }
+}
