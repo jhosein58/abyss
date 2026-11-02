@@ -1,0 +1,17 @@
+{
+  "name": "std",
+  "version": "0.1.0",
+  "entry": "prelude.a",
+  "description": "Standard library for Abyss",
+  "dependencies": {
+    "core": {
+      "path": "../core"
+    }
+  },
+  "c_build": {
+    "sources": [],
+    "include_dirs": [],
+    "c_flags": [],
+    "ld_flags": []
+  }
+}

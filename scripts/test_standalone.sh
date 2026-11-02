@@ -23,6 +23,7 @@ else
     C_FLAGS="-std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -Werror=implicit-function-declaration -Werror=incompatible-pointer-types"
 fi
 cp "${COMPILER}" "${WORK_DIR}/abyssc"
+cp -r "${ROOT_DIR}/pods" "${WORK_DIR}/pods"
 cp "${ROOT_DIR}/tests/23_embedded_core.a" "${WORK_DIR}/main.a"
 (
     cd "${WORK_DIR}"

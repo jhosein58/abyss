@@ -213,55 +213,253 @@ void mem_set(uint8_t *dest, uint8_t val, uint64_t n) {
     memset(dest, (int)val, (size_t)n);
 }
 
-static const uint8_t *wasm_src_buf = NULL;
-static uint32_t wasm_src_len = 0;
-static uint32_t wasm_src_pos = 0;
+typedef struct {
+    char *path;
+    uint8_t *data;
+    uint32_t size;
+    uint32_t capacity;
+} WasmVfsFile;
+
+#define WASM_VFS_MAX 1024
+static WasmVfsFile wasm_vfs[WASM_VFS_MAX];
+static uint32_t wasm_vfs_count = 0;
+
+static const char *wasm_vfs_norm(const char *p) {
+    if (!p) return "";
+    while (1) {
+        if (p[0] == '.' && p[1] == '/') { p += 2; continue; }
+        if (p[0] == '/') { p += 1; continue; }
+        break;
+    }
+    return p;
+}
+
+static int wasm_vfs_find(const char *path) {
+    if (!path) return -1;
+    const char *norm = wasm_vfs_norm(path);
+    for (uint32_t i = 0; i < wasm_vfs_count; i++) {
+        if (strcmp(wasm_vfs[i].path, norm) == 0) return (int)i;
+    }
+    return -1;
+}
+
+__attribute__((export_name("abyss_vfs_write")))
+int abyss_vfs_write(const uint8_t *path_ptr, const uint8_t *data_ptr, uint32_t size) {
+    if (!path_ptr) return -1;
+    const char *norm = wasm_vfs_norm((const char *)path_ptr);
+    int idx = wasm_vfs_find(norm);
+    if (idx >= 0) {
+        if (size > wasm_vfs[idx].capacity) {
+            wasm_vfs[idx].data = (uint8_t *)realloc(wasm_vfs[idx].data, size + 1);
+            wasm_vfs[idx].capacity = size;
+        }
+        if (size > 0 && data_ptr) memcpy(wasm_vfs[idx].data, data_ptr, size);
+        wasm_vfs[idx].data[size] = 0;
+        wasm_vfs[idx].size = size;
+        return 0;
+    }
+    if (wasm_vfs_count >= WASM_VFS_MAX) return -1;
+    size_t plen = strlen(norm);
+    char *new_path = (char *)malloc(plen + 1);
+    memcpy(new_path, norm, plen + 1);
+    uint8_t *new_data = (uint8_t *)malloc(size + 1);
+    if (size > 0 && data_ptr) memcpy(new_data, data_ptr, size);
+    new_data[size] = 0;
+    wasm_vfs[wasm_vfs_count].path = new_path;
+    wasm_vfs[wasm_vfs_count].data = new_data;
+    wasm_vfs[wasm_vfs_count].size = size;
+    wasm_vfs[wasm_vfs_count].capacity = size;
+    wasm_vfs_count++;
+    return 0;
+}
+
+__attribute__((export_name("abyss_vfs_exists")))
+int abyss_vfs_exists(const uint8_t *path_ptr) {
+    return wasm_vfs_find((const char *)path_ptr) >= 0 ? 1 : 0;
+}
+
+__attribute__((export_name("abyss_vfs_read_size")))
+uint32_t abyss_vfs_read_size(const uint8_t *path_ptr) {
+    int idx = wasm_vfs_find((const char *)path_ptr);
+    if (idx >= 0) return wasm_vfs[idx].size;
+    return 0;
+}
+
+__attribute__((export_name("abyss_vfs_read_ptr")))
+uint8_t *abyss_vfs_read_ptr(const uint8_t *path_ptr) {
+    int idx = wasm_vfs_find((const char *)path_ptr);
+    if (idx >= 0) return wasm_vfs[idx].data;
+    return NULL;
+}
+
+__attribute__((export_name("abyss_vfs_file_count")))
+uint32_t abyss_vfs_file_count(void) {
+    return wasm_vfs_count;
+}
+
+__attribute__((export_name("abyss_vfs_reset")))
+void abyss_vfs_reset(void) {
+    wasm_vfs_count = 0;
+}
+
+typedef struct {
+    int file_idx;
+    uint32_t pos;
+    bool is_open;
+    bool is_write;
+} WasmOpenFile;
+
+#define WASM_MAX_OPEN_FILES 32
+static WasmOpenFile wasm_open_files[WASM_MAX_OPEN_FILES];
 
 uint8_t *file_open(uint8_t *path, uint8_t *mode) {
-    (void)path; (void)mode;
-    wasm_src_pos = 0;
-    return (uint8_t *)1;
+    if (!path) return NULL;
+    const char *p = (const char *)path;
+    const char *m = mode ? (const char *)mode : "r";
+    bool is_write = (m[0] == 'w' || m[0] == 'a');
+    int idx = wasm_vfs_find(p);
+    if (idx < 0) {
+        if (is_write) {
+            if (abyss_vfs_write(path, (const uint8_t *)"", 0) != 0) return NULL;
+            idx = wasm_vfs_find(p);
+        } else {
+            return NULL;
+        }
+    }
+    for (int i = 0; i < WASM_MAX_OPEN_FILES; i++) {
+        if (!wasm_open_files[i].is_open) {
+            wasm_open_files[i].file_idx = idx;
+            wasm_open_files[i].pos = (m[0] == 'a') ? wasm_vfs[idx].size : 0;
+            wasm_open_files[i].is_open = true;
+            wasm_open_files[i].is_write = is_write;
+            return (uint8_t *)(uintptr_t)(i + 1);
+        }
+    }
+    return NULL;
+}
+
+int32_t file_close(uint8_t *handle) {
+    uintptr_t fd = (uintptr_t)handle;
+    if (fd >= 1 && fd <= WASM_MAX_OPEN_FILES) {
+        wasm_open_files[fd - 1].is_open = false;
+        return 0;
+    }
+    return -1;
 }
 
 int32_t file_seek(uint8_t *handle, int64_t offset, int32_t w) {
-    (void)handle;
-    if (w == 0) wasm_src_pos = (uint32_t)offset;
-    else if (w == 1) wasm_src_pos += (uint32_t)offset;
-    else if (w == 2) wasm_src_pos = wasm_src_len + (uint32_t)offset;
-    if (wasm_src_pos > wasm_src_len) wasm_src_pos = wasm_src_len;
+    uintptr_t fd = (uintptr_t)handle;
+    if (fd < 1 || fd > WASM_MAX_OPEN_FILES) return -1;
+    WasmOpenFile *of = &wasm_open_files[fd - 1];
+    if (!of->is_open) return -1;
+    uint32_t fsize = wasm_vfs[of->file_idx].size;
+    if (w == 0) of->pos = (uint32_t)offset;
+    else if (w == 1) of->pos += (uint32_t)offset;
+    else if (w == 2) of->pos = fsize + (uint32_t)offset;
+    if (of->pos > fsize) of->pos = fsize;
     return 0;
 }
 
 int64_t file_tell(uint8_t *handle) {
-    (void)handle;
-    return (int64_t)wasm_src_pos;
+    uintptr_t fd = (uintptr_t)handle;
+    if (fd < 1 || fd > WASM_MAX_OPEN_FILES) return -1;
+    return (int64_t)wasm_open_files[fd - 1].pos;
 }
 
 uint64_t file_read(uint8_t *handle, uint8_t *ptr, uint64_t size, uint64_t count) {
-    (void)handle;
-    uint64_t bytes_to_read = size * count;
-    uint32_t remaining = wasm_src_len - wasm_src_pos;
-    if (bytes_to_read > remaining) bytes_to_read = remaining;
-    if (bytes_to_read > 0) {
-        memcpy(ptr, wasm_src_buf + wasm_src_pos, bytes_to_read);
-        wasm_src_pos += (uint32_t)bytes_to_read;
+    uintptr_t fd = (uintptr_t)handle;
+    if (fd < 1 || fd > WASM_MAX_OPEN_FILES) return 0;
+    WasmOpenFile *of = &wasm_open_files[fd - 1];
+    if (!of->is_open) return 0;
+    uint32_t fsize = wasm_vfs[of->file_idx].size;
+    uint64_t to_read = size * count;
+    if (of->pos + to_read > fsize) to_read = (fsize > of->pos) ? (fsize - of->pos) : 0;
+    if (to_read > 0) {
+        memcpy(ptr, wasm_vfs[of->file_idx].data + of->pos, to_read);
+        of->pos += (uint32_t)to_read;
     }
-    return bytes_to_read / (size ? size : 1);
-}
-
-int32_t file_close(uint8_t *handle) {
-    (void)handle;
-    return 0;
+    return to_read / (size ? size : 1);
 }
 
 uint64_t file_write(uint8_t *handle, uint8_t *ptr, uint64_t size, uint64_t count) {
-    (void)handle; (void)ptr; (void)size; (void)count;
-    return 0;
+    uintptr_t fd = (uintptr_t)handle;
+    if (fd < 1 || fd > WASM_MAX_OPEN_FILES) return 0;
+    WasmOpenFile *of = &wasm_open_files[fd - 1];
+    if (!of->is_open || !of->is_write) return 0;
+    uint64_t to_write = size * count;
+    if (to_write == 0) return 0;
+    WasmVfsFile *vf = &wasm_vfs[of->file_idx];
+    if (of->pos + to_write > vf->capacity) {
+        uint32_t new_cap = (of->pos + (uint32_t)to_write) * 2;
+        vf->data = (uint8_t *)realloc(vf->data, new_cap + 1);
+        vf->capacity = new_cap;
+    }
+    memcpy(vf->data + of->pos, ptr, to_write);
+    of->pos += (uint32_t)to_write;
+    if (of->pos > vf->size) {
+        vf->size = of->pos;
+        vf->data[vf->size] = 0;
+    }
+    return count;
 }
 
-uint8_t *opendir(uint8_t *path) { (void)path; return NULL; }
-uint8_t *readdir(uint8_t *dir) { (void)dir; return NULL; }
-int32_t closedir(uint8_t *dir) { (void)dir; return 0; }
+typedef struct {
+    char prefix[128];
+    uint32_t next_idx;
+    bool is_open;
+    char entry_name[128];
+} WasmDir;
+
+#define WASM_MAX_OPEN_DIRS 8
+static WasmDir wasm_dirs[WASM_MAX_OPEN_DIRS];
+
+uint8_t *opendir(uint8_t *path) {
+    if (!path) return NULL;
+    const char *norm = wasm_vfs_norm((const char *)path);
+    for (int i = 0; i < WASM_MAX_OPEN_DIRS; i++) {
+        if (!wasm_dirs[i].is_open) {
+            wasm_dirs[i].is_open = true;
+            wasm_dirs[i].next_idx = 0;
+            size_t plen = strlen(norm);
+            if (plen >= sizeof(wasm_dirs[i].prefix)) plen = sizeof(wasm_dirs[i].prefix) - 1;
+            memcpy(wasm_dirs[i].prefix, norm, plen);
+            wasm_dirs[i].prefix[plen] = 0;
+            return (uint8_t *)(uintptr_t)(i + 1);
+        }
+    }
+    return NULL;
+}
+
+uint8_t *readdir(uint8_t *dir) {
+    uintptr_t dd = (uintptr_t)dir;
+    if (dd < 1 || dd > WASM_MAX_OPEN_DIRS) return NULL;
+    WasmDir *wd = &wasm_dirs[dd - 1];
+    if (!wd->is_open) return NULL;
+    size_t plen = strlen(wd->prefix);
+    while (wd->next_idx < wasm_vfs_count) {
+        const char *vp = wasm_vfs[wd->next_idx++].path;
+        if (plen == 0 || (strncmp(vp, wd->prefix, plen) == 0 && (vp[plen] == '/' || vp[plen] == 0))) {
+            const char *sub = (plen == 0) ? vp : (vp + plen + (vp[plen] == '/' ? 1 : 0));
+            size_t k = 0;
+            while (sub[k] && sub[k] != '/' && k < sizeof(wd->entry_name) - 1) {
+                wd->entry_name[k] = sub[k];
+                k++;
+            }
+            wd->entry_name[k] = 0;
+            return (uint8_t *)wd->entry_name;
+        }
+    }
+    return NULL;
+}
+
+int32_t closedir(uint8_t *dir) {
+    uintptr_t dd = (uintptr_t)dir;
+    if (dd >= 1 && dd <= WASM_MAX_OPEN_DIRS) {
+        wasm_dirs[dd - 1].is_open = false;
+        return 0;
+    }
+    return -1;
+}
 
 int32_t compile_and_run(uint8_t *path) { (void)path; return -1; }
 
@@ -349,16 +547,24 @@ uint8_t *alloc_source_buffer(uint32_t size) {
     return (uint8_t *)malloc(size);
 }
 
-__attribute__((export_name("run_abyss")))
-int run_abyss(const uint8_t *src, uint32_t len) {
-    wasm_src_buf = src;
-    wasm_src_len = len;
-    wasm_src_pos = 0;
+__attribute__((export_name("run_abyss_file")))
+int run_abyss_file(const uint8_t *path, uint32_t path_len) {
+    static char file_arg[256];
+    if (path_len >= sizeof(file_arg)) path_len = sizeof(file_arg) - 1;
+    memcpy(file_arg, path, path_len);
+    file_arg[path_len] = 0;
+    wasm_args[2] = file_arg;
     abyss_argc = 3;
     abyss_argv = wasm_args;
     abyss_vm_argc = 0;
     abyss_vm_argv = NULL;
     return main(abyss_argc, abyss_argv);
+}
+
+__attribute__((export_name("run_abyss")))
+int run_abyss(const uint8_t *src, uint32_t len) {
+    abyss_vfs_write((const uint8_t *)"main.a", src, len);
+    return run_abyss_file((const uint8_t *)"main.a", 6);
 }
 
 #else

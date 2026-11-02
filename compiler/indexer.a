@@ -4,7 +4,7 @@ import .nexus.nexus: Nexus, calc_pos
 import std.string: Str, String
 import std.path: Path
 import std.allocator: Arena
-import std.fs: File, Embed
+import std.fs: File
 import .nexus.pool: id_none
 import std.sys: fall
 
@@ -44,15 +44,6 @@ index_error :: fn(db &Nexus, file_id u32, offset u32, msg &u8, detail Str) {
 
 is_embedded_path :: fn(path Str) bool {
     path.starts_with("std/") or path.starts_with("core/") or path.starts_with("std\\") or path.starts_with("core\\")
-}
-
-embedded_source_body :: fn() Str {
-    arena := Arena.new(2 * 1024 * 1024)
-    Embed.sources(&arena)
-}
-
-embedded_source :: fn(mod_path Str) Str {
-    #embedded_source_body()
 }
 
 module_path :: fn(db &Nexus, arena &Arena, file_id u32, offset u32, base Str, path Str) Str {
@@ -166,19 +157,30 @@ Indexer :: struct {
     try_load_source :: fn(self &Self, target_path Str) Str {
         if is_embedded_path(target_path) {
             env_dev := get_env(c"ABYSS_DEV")
+            pod_rel := if target_path.starts_with("std/") or target_path.starts_with("std\\") {
+                Path.join(self.arena, Str.of("pods/std"), target_path.sub(4, target_path.len - 4))
+            } else if target_path.starts_with("core/") or target_path.starts_with("core\\") {
+                Path.join(self.arena, Str.of("pods/core"), target_path.sub(5, target_path.len - 5))
+            } else {
+                target_path
+            }
             if env_dev != (0 as &u8) {
                 dev_str := Str.of(env_dev)
-                disk_path := if (not dev_str.eq("1")) and (not dev_str.eq("true")) {
-                    Path.join(self.arena, dev_str, target_path)
-                } else {
-                    target_path
-                }
-                disk_opt := File.read_to_string(self.arena, disk_path)
-                if disk_opt.is_some() {
-                    ret disk_opt.unwrap()
+                if (not dev_str.eq("1")) and (not dev_str.eq("true")) {
+                    dev_pod := Path.join(self.arena, dev_str, pod_rel)
+                    opt_dp := File.read_to_string(self.arena, dev_pod)
+                    if opt_dp.is_some() { ret opt_dp.unwrap() }
                 }
             }
-            ret embedded_source(target_path)
+            opt_pod := File.read_to_string(self.arena, pod_rel)
+            if opt_pod.is_some() { ret opt_pod.unwrap() }
+            env_home := get_env(c"HOME")
+            if env_home != (0 as &u8) {
+                home_pod := Path.join(self.arena, Str.of(env_home), Path.join(self.arena, Str.of(".abyss"), pod_rel))
+                opt_home := File.read_to_string(self.arena, home_pod)
+                if opt_home.is_some() { ret opt_home.unwrap() }
+            }
+            ret Str.empty()
         }
         file_opt := File.read_to_string(self.arena, target_path)
         if file_opt.is_some() { file_opt.unwrap() } else { Str.empty() }

@@ -4,15 +4,15 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPILER="${1:-${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}}"
 WORK_DIR=$(mktemp -d "${ROOT_DIR}/tmp/cli_embedding_test.XXXXXX")
-cp -r "${ROOT_DIR}/compiler" "${ROOT_DIR}/core" "${ROOT_DIR}/std" "${ROOT_DIR}/runtime" "${WORK_DIR}/"
+cp -r "${ROOT_DIR}/compiler" "${ROOT_DIR}/pods" "${WORK_DIR}/"
 cp "${ROOT_DIR}/abyss" "${WORK_DIR}/"
 cp "${COMPILER}" "${WORK_DIR}/abyssc"
 (
     cd "${WORK_DIR}"
     printf 'import std.io: write as print, embedding_probe\nmain :: fn() { print("automatic embedding\\n"), print(embedding_probe()), print(" "), print(true), print("\\n") }\n' > program.a
-    printf '\nembedding_probe :: fn() i32 { 7 }\n' >> std/io.a
+    printf '\nembedding_probe :: fn() i32 { 7 }\n' >> pods/std/io.a
     printf 'invalid user program\n' > main.a
-    printf '\n#define ABYSS_CLI_EMBED_TEST 1\n' >> runtime/prelude.c
+    printf '\n#define ABYSS_CLI_EMBED_TEST 1\n' >> pods/core/runtime/prelude.c
     timeout 120s ./abyss b program.a
     rg -q '^#define ABYSS_CLI_EMBED_TEST 1$' tmp/out.c
     ./tmp/out > actual.out
@@ -24,7 +24,7 @@ cp "${COMPILER}" "${WORK_DIR}/abyssc"
     timeout 30s ./abyss br program.a > actual.out
     diff -u expected.out actual.out
     [[ "${BEFORE}" == "$(stat -c '%y' abyssc)" ]]
-    printf '\n#error ABYSS_CLI_EMBED_FAILURE\n' >> runtime/prelude.c
+    printf '\n#error ABYSS_CLI_EMBED_FAILURE\n' >> pods/core/runtime/prelude.c
     cp abyssc previous_compiler
     if timeout 120s ./abyss b program.a > failure.log 2>&1; then
         echo 'FAIL CLI embedding: invalid runtime was accepted'

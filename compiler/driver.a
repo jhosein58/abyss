@@ -1,6 +1,6 @@
 import std.string: Str
 import std.allocator: Arena
-import std.fs: File, read_file, write_file, Embed
+import std.fs: File, read_file, write_file
 import std.env: Env
 import std.path: Path
 import compiler.engine: Engine
@@ -82,15 +82,6 @@ CompilerConfig :: struct {
     }
 }
 
-embedded_runtime_body :: fn() Str {
-    arena := Arena.new(1024 * 1024)
-    Embed.file(&arena, Str.of("runtime/prelude.c"))
-}
-
-embedded_runtime :: fn() Str {
-    #embedded_runtime_body()
-}
-
 Driver :: struct {
     arena  &Arena
     config CompilerConfig
@@ -110,28 +101,36 @@ Driver :: struct {
     }
 
     resolve_prelude :: fn(self &Self) Str {
-        prelude_source := embedded_runtime()
         env_prelude := Env.get(c"ABYSS_PRELUDE")
         if env_prelude != (0 as &u8) {
             opt := File.read_to_string(self.arena, Str.of(env_prelude))
-            if opt.is_some() {
-                prelude_source = opt.unwrap()
-            }
-        } else {
-            env_dev := Env.get(c"ABYSS_DEV")
-            if env_dev != (0 as &u8) {
-                prelude_path := Str.of("runtime/prelude.c")
-                dev_str := Str.of(env_dev)
-                if (not dev_str.eq(Str.of("1"))) and (not dev_str.eq(Str.of("true"))) {
-                    prelude_path = Path.join(self.arena, dev_str, Str.of("runtime/prelude.c"))
-                }
-                opt := File.read_to_string(self.arena, prelude_path)
-                if opt.is_some() {
-                    prelude_source = opt.unwrap()
-                }
+            if opt.is_some() { ret opt.unwrap() }
+        }
+        env_dev := Env.get(c"ABYSS_DEV")
+        if env_dev != (0 as &u8) {
+            dev_str := Str.of(env_dev)
+            if (not dev_str.eq(Str.of("1"))) and (not dev_str.eq(Str.of("true"))) {
+                p1 := Path.join(self.arena, dev_str, Str.of("pods/core/runtime/prelude.c"))
+                opt1 := File.read_to_string(self.arena, p1)
+                if opt1.is_some() { ret opt1.unwrap() }
+                p2 := Path.join(self.arena, dev_str, Str.of("runtime/prelude.c"))
+                opt2 := File.read_to_string(self.arena, p2)
+                if opt2.is_some() { ret opt2.unwrap() }
             }
         }
-        prelude_source
+        opt_pod := File.read_to_string(self.arena, Str.of("pods/core/runtime/prelude.c"))
+        if opt_pod.is_some() { ret opt_pod.unwrap() }
+        opt_vfs := File.read_to_string(self.arena, Str.of("/pods/core/runtime/prelude.c"))
+        if opt_vfs.is_some() { ret opt_vfs.unwrap() }
+        opt_leg := File.read_to_string(self.arena, Str.of("runtime/prelude.c"))
+        if opt_leg.is_some() { ret opt_leg.unwrap() }
+        env_home := Env.get(c"HOME")
+        if env_home != (0 as &u8) {
+            p_home := Path.join(self.arena, Str.of(env_home), Str.of(".abyss/pods/core/runtime/prelude.c"))
+            opt_h := File.read_to_string(self.arena, p_home)
+            if opt_h.is_some() { ret opt_h.unwrap() }
+        }
+        Str.empty()
     }
 
     run :: fn(self &Self) {

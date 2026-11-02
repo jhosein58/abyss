@@ -24,7 +24,7 @@ import sys
 
 root = Path(sys.argv[1])
 source = Path(sys.argv[2]).read_text()
-runtime = (root / 'runtime/prelude.c').read_text()
+runtime = (root / 'pods/core/runtime/prelude.c').read_text()
 assert source.startswith(runtime), 'generated C must begin with the embedded runtime'
 generated = source[len(runtime):]
 functions = re.findall(r'^([^\n;{}]*\bsym_\d+\([^\n]*\)) \{\n(.*?)^\}', generated, re.M | re.S)
@@ -39,7 +39,7 @@ assert len(converters) == 1, 'expected one unsigned numeric conversion helper'
 assert len(re.findall(r'\b' + converters[0] + r'\(', body)) == 3, 'fixed array elements must convert through three direct calls'
 assert '[format error]' not in generated, 'format parser was emitted at runtime'
 assert 'TypeInfo' not in generated and 'FieldInfo' not in generated, 'reflection metadata leaked into runtime code'
-for path in (root / 'core').rglob('*.a'):
+for path in (root / 'pods/core').rglob('*.a'):
     text = path.read_text()
     assert 'std/' not in text, f'{path} depends on std'
     assert not re.search(r'\b(?:malloc|realloc|free|print_bytes|print_char)\b', text), f'{path} depends on allocation or I/O'
