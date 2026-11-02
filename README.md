@@ -10,9 +10,9 @@ A statically typed, data-oriented systems programming language. Pairs modern erg
 - **Zero-Cost Formatting & Reflection:** Compile-time format verification and type inspection with zero runtime overhead.
 - **Compile-Time Evaluation:** Run arbitrary logic at compile time via `cmpt` and macros.
 - **First-Class Types:** Compute, return, and pass types dynamically at compile time.
-- **Zero-Dependency Bootstrap:** `dist/bootstrap.c` compiles anywhere with a single `cc` command.
+- **Zero-Dependency Bootstrap:** Standalone C99 source compiles anywhere with a single `cc` command.
 
-📖 **Guide:** [**Into the Abyss**](docs/README.md) — The official language documentation and book.
+🌐 **Website & Docs:** [**jhosein58.github.io/abyss**](https://jhosein58.github.io/abyss)
 
 ---
 
@@ -62,48 +62,36 @@ main :: fn() {
 
 ---
 
+## Installation
+
+```sh
+# Linux / macOS
+curl -fsSL https://raw.githubusercontent.com/jhosein58/abyss/main/scripts/install.sh | bash
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/jhosein58/abyss/main/scripts/install.ps1 | iex
+```
+
+---
+
 ## Quick Start
 
 ```sh
 # Run immediately via VM (zero compile latency)
 ./abyss r main.a
 
-# Compile and run native binary with full optimization (-O3)
+# Compile and run optimized native binary (-O3)
 ./abyss br main.a
 
-# Fast test suite (C + VM backends via TCC/GCC)
+# Fast test suite
 ./abyss test
 
-# Full deep verification suite
-./abyss test-all
-
-# Or bootstrap from zero-dependency standalone C99 source
-gcc -std=c99 -O3 -rdynamic dist/bootstrap.c -o abyssc
+# Package manager
+./abyss sonar help
 ```
-
----
-
-## Tooling
-
-| Command | Description |
-| :--- | :--- |
-| `./abyss r <file>` | Run on Bytecode VM (auto-rebuilds compiler if sources changed) |
-| `./abyss b <file>` | Compile to optimized native binary (`-O3 -march=native`) |
-| `./abyss br <file>` | Compile and run native binary |
-| `./abyss test [filter]` | Fast dev test suite with instant sub-second feedback |
-| `./abyss test-all [filter]` | Full verification suite (fixed-point, reflection, isolation, CLI) |
-| `./abyss promote [rounds]` | Multi-stage bootstrap & test verification before promoting to `./abyssc` |
-| `./abyss bootstrap [rounds]` | Multi-generation bit-identical fixed-point stability test |
-| `./abyss b-win <file>` | Cross-compile standalone Windows `.exe` |
-| `./abyss r-win <file>` | Cross-compile and run Windows binary via Wine |
-| `./abyss test-win [filter]` | Run test suite on Windows binary via Wine |
-| `./abyss wasm` | Build WebAssembly standalone compiler (`abyssc.wasm`) |
-| `./abyss release [rounds]` | Package release artifacts (`bootstrap.c`, Linux, Windows, Wasm) |
-| `./abyss clean` | Clean temporary build artifacts |
 
 ---
 
 ## License
 
-[MIT](LICNSE)
-
+[MIT](LICENSE)
