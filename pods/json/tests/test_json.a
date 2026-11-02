@@ -1,0 +1,35 @@
+import std.allocator: Arena
+import json: parse_json, JsonVal, JsonKind
+import test: Suite, Test, assert_true, assert_eq, assert_str_eq
+
+test_parse_object :: fn(t &Test) {
+    arena := Arena.new(2048)
+    src := "{\"name\": \"abyss\", \"version\": 1, \"active\": true}"
+    res := parse_json(&arena, src)
+    t.assert_true(res.is_some(), "json must parse")
+    val := res.unwrap()
+    t.assert_true(val.kind == JsonKind.obj_val, "root is object")
+    name_opt := val.get_str("name")
+    t.assert_true(name_opt.is_some(), "has name")
+    t.assert_str_eq(name_opt.unwrap(), "abyss", "")
+    arena.destroy()
+}
+
+test_parse_array :: fn(t &Test) {
+    arena := Arena.new(2048)
+    src := "[1, 2, 3]"
+    res := parse_json(&arena, src)
+    t.assert_true(res.is_some(), "array must parse")
+    val := res.unwrap()
+    t.assert_true(val.kind == JsonKind.arr_val, "root is array")
+    arena.destroy()
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "JSON Parser Test Suite")
+    suite.add("parse_object", test_parse_object)
+    suite.add("parse_array", test_parse_array)
+    suite.run_and_exit()
+    arena.destroy()
+}
