@@ -1,0 +1,145 @@
+import std.string: Str, String
+import std.allocator: Arena
+import std.collections.vec: Vec
+import std.fs: File
+import core.maybe: Maybe
+import .json: parse_json, JsonVal, JsonKind
+import .semver: SemVer
+
+Dependency :: struct {
+    name        Str
+    version_req Str
+    path        Str
+
+    new :: fn(name Str, version_req Str, path Str) Self {
+        .{
+            name: name
+            version_req: version_req
+            path: path
+        }
+    }
+}
+
+CBuildInfo :: struct {
+    sources      Vec(Str)
+    include_dirs Vec(Str)
+    c_flags      Vec(Str)
+    ld_flags     Vec(Str)
+
+    empty :: fn() Self {
+        .{
+            sources: Vec(Str).new()
+            include_dirs: Vec(Str).new()
+            c_flags: Vec(Str).new()
+            ld_flags: Vec(Str).new()
+        }
+    }
+}
+
+PackageManifest :: struct {
+    name    Str
+    version SemVer
+    entry   Str
+    deps    Vec(Dependency)
+    c_build CBuildInfo
+
+    parse :: fn(arena &Arena, json_src Str) Maybe(Self) {
+        root_opt := parse_json(arena, json_src)
+        if root_opt.is_none() { ret Maybe(Self).none() }
+        root := root_opt.unwrap()
+        if root.kind != JsonKind.obj_val { ret Maybe(Self).none() }
+
+        name_opt := root.get_str("name")
+        name := if name_opt.is_some() { name_opt.unwrap() } else { "unnamed" }
+
+        ver_opt := root.get_str("version")
+        ver_str := if ver_opt.is_some() { ver_opt.unwrap() } else { "0.1.0" }
+        ver := SemVer.parse(ver_str).unwrap_or(SemVer.new(0, 1, 0))
+
+        entry_opt := root.get_str("entry")
+        entry := if entry_opt.is_some() { entry_opt.unwrap() } else { "main.a" }
+
+        deps := Vec(Dependency).new()
+        deps_opt := root.get_obj("dependencies")
+        if deps_opt.is_some() {
+            deps_obj := deps_opt.unwrap()
+            di: u64 = 0
+            while di < deps_obj.keys.len {
+                dep_name := deps_obj.keys.get(di)
+                dep_val := deps_obj.vals.get(di)
+                dep_ver := "*"
+                dep_path := Str.empty()
+                if dep_val.kind == JsonKind.str_val {
+                    dep_ver = dep_val.str_val
+                } else if dep_val.kind == JsonKind.obj_val {
+                    dv_opt := dep_val.get_str("version")
+                    if dv_opt.is_some() { dep_ver = dv_opt.unwrap() }
+                    dp_opt := dep_val.get_str("path")
+                    if dp_opt.is_some() { dep_path = dp_opt.unwrap() }
+                }
+                deps.push(Dependency.new(dep_name, dep_ver, dep_path))
+                di = di + 1
+            }
+        }
+
+        c_build := CBuildInfo.empty()
+        cb_opt := root.get_obj("c_build")
+        if cb_opt.is_some() {
+            cb_obj := cb_opt.unwrap()
+            srcs_opt := cb_obj.get_arr("sources")
+            if srcs_opt.is_some() {
+                srcs := srcs_opt.unwrap()
+                si: u64 = 0
+                while si < srcs.len {
+                    item := srcs.get(si)
+                    if item.kind == JsonKind.str_val { c_build.sources.push(item.str_val) }
+                    si = si + 1
+                }
+            }
+            inc_opt := cb_obj.get_arr("include_dirs")
+            if inc_opt.is_some() {
+                incs := inc_opt.unwrap()
+                ii: u64 = 0
+                while ii < incs.len {
+                    item := incs.get(ii)
+                    if item.kind == JsonKind.str_val { c_build.include_dirs.push(item.str_val) }
+                    ii = ii + 1
+                }
+            }
+            cflags_opt := cb_obj.get_arr("c_flags")
+            if cflags_opt.is_some() {
+                cf := cflags_opt.unwrap()
+                ci: u64 = 0
+                while ci < cf.len {
+                    item := cf.get(ci)
+                    if item.kind == JsonKind.str_val { c_build.c_flags.push(item.str_val) }
+                    ci = ci + 1
+                }
+            }
+            ldflags_opt := cb_obj.get_arr("ld_flags")
+            if ldflags_opt.is_some() {
+                lf := ldflags_opt.unwrap()
+                li: u64 = 0
+                while li < lf.len {
+                    item := lf.get(li)
+                    if item.kind == JsonKind.str_val { c_build.ld_flags.push(item.str_val) }
+                    li = li + 1
+                }
+            }
+        }
+
+        Maybe(Self).some(.{
+            name: name
+            version: ver
+            entry: entry
+            deps: deps
+            c_build: c_build
+        })
+    }
+
+    load_file :: fn(arena &Arena, file_path Str) Maybe(Self) {
+        src_opt := File.read_to_string(arena, file_path)
+        if src_opt.is_none() { ret Maybe(Self).none() }
+        Self.parse(arena, src_opt.unwrap())
+    }
+}
