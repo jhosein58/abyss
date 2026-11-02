@@ -186,7 +186,24 @@ Indexer :: struct {
 
     resolve_and_load :: fn(self &Self, curr_path Str, import_path Str, file_id u32, offset u32) u32 {
         db := self.db
-        target_path := module_path(db, self.arena, file_id, offset, curr_path, import_path)
+        eff_path := import_path
+        mi: u64 = 0
+        while mi < db.map_keys.len {
+            key := db.map_keys.get(mi)
+            val := db.map_values.get(mi)
+            if import_path.eq(key) {
+                eff_path = val
+                break
+            } else if import_path.starts_with(key) and (import_path.len > key.len) {
+                sep := *(import_path.ptr + key.len)
+                if (sep == ('/' as u8)) or (sep == ('.' as u8)) or (sep == ('\\' as u8)) {
+                    eff_path = Path.join(self.arena, val, import_path.sub(key.len + 1, import_path.len - key.len - 1))
+                    break
+                }
+            }
+            mi = mi + 1
+        }
+        target_path := module_path(db, self.arena, file_id, offset, curr_path, eff_path)
         path_id := db.interner.intern(target_path)
 
         fid := self.find_loaded(path_id)
@@ -195,6 +212,23 @@ Indexer :: struct {
         }
 
         source := self.try_load_source(target_path)
+        if source.ptr == (0 as &u8) {
+            di: u64 = 0
+            while (source.ptr == (0 as &u8)) and (di < db.import_dirs.len) {
+                cand := Path.join(self.arena, db.import_dirs.get(di), target_path)
+                cand_id := db.interner.intern(cand)
+                cfid := self.find_loaded(cand_id)
+                if cfid != id_none() { ret cfid }
+                cand_src := self.try_load_source(cand)
+                if cand_src.ptr != (0 as &u8) {
+                    source = cand_src
+                    target_path = cand
+                    path_id = cand_id
+                }
+                di = di + 1
+            }
+        }
+
         if (source.ptr == (0 as &u8)) and target_path.ends_with(".a") {
             no_ext := target_path.sub(0, target_path.len - 2)
             dir_name := Path.base(no_ext)
@@ -209,6 +243,21 @@ Indexer :: struct {
                 source = folder_source
                 target_path = folder_file
                 path_id = f_path_id
+            } else {
+                fdi: u64 = 0
+                while (source.ptr == (0 as &u8)) and (fdi < db.import_dirs.len) {
+                    f_cand := Path.join(self.arena, db.import_dirs.get(fdi), folder_file)
+                    f_cand_id := db.interner.intern(f_cand)
+                    f_cfid := self.find_loaded(f_cand_id)
+                    if f_cfid != id_none() { ret f_cfid }
+                    f_cand_src := self.try_load_source(f_cand)
+                    if f_cand_src.ptr != (0 as &u8) {
+                        source = f_cand_src
+                        target_path = f_cand
+                        path_id = f_cand_id
+                    }
+                    fdi = fdi + 1
+                }
             }
         }
 

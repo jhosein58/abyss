@@ -66,6 +66,9 @@ Nexus :: struct {
     interner       Interner
     types          TypeStorage
     unify          UnifyStorage
+    import_dirs    Vec(Str)
+    map_keys       Vec(Str)
+    map_values     Vec(Str)
 
     sym_names      PoolU32
     sym_files      PoolU32
@@ -126,6 +129,9 @@ Nexus :: struct {
             interner       : Interner.new(),
              types          : TypeStorage.new(),
             unify          : UnifyStorage.new(),
+            import_dirs    : Vec(Str).new(),
+            map_keys       : Vec(Str).new(),
+            map_values     : Vec(Str).new(),
 
             sym_names      : PoolU32.new(),
             sym_files      : PoolU32.new(),

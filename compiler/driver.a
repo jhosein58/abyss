@@ -9,43 +9,75 @@ import compiler.vm.codegen: VmCodeGen, VmCodeBuilder
 import compiler.vm.vm: Vm
 
 CompilerConfig :: struct {
-    src_path  &u8
-    out_path  &u8
-    is_vm_run bool
+    src_path    &u8
+    out_path    &u8
+    is_vm_run   bool
+    import_dirs Vec(Str)
+    map_keys    Vec(Str)
+    map_values  Vec(Str)
 
     from_env :: fn() Self {
         argc := Env.args_len()
         src := Env.get_or(c"ABYSS_SRC", c"main.a")
         out := Env.get_or(c"ABYSS_OUT", c"out.c")
         vm_run := Env.has(c"ABYSS_VM")
+        import_dirs := Vec(Str).new()
+        map_keys := Vec(Str).new()
+        map_values := Vec(Str).new()
 
-        if argc > 1 {
-            arg1 := Str.of(Env.arg(1))
-            if arg1.eq(Str.of("r")) or arg1.eq(Str.of("run")) {
+        pos_idx: i32 = 0
+        i: i32 = 1
+        while i < argc {
+            arg_cstr := Env.arg(i)
+            arg_str := Str.of(arg_cstr)
+            if arg_str.eq("r") or arg_str.eq("run") {
                 vm_run = true
-                if argc > 2 {
-                    src = Env.arg(2)
-                }
-            } else if arg1.eq(Str.of("b")) or arg1.eq(Str.of("build")) {
+            } else if arg_str.eq("b") or arg_str.eq("build") {
                 vm_run = false
-                if argc > 2 {
-                    src = Env.arg(2)
+            } else if arg_str.eq("-I") {
+                if (i + 1) < argc {
+                    i = i + 1
+                    import_dirs.push(Str.of(Env.arg(i)))
                 }
-                if argc > 3 {
-                    out = Env.arg(3)
+            } else if arg_str.starts_with("-I") and (arg_str.len > 2) {
+                import_dirs.push(arg_str.sub(2, arg_str.len - 2))
+            } else if arg_str.eq("--map") {
+                if (i + 1) < argc {
+                    i = i + 1
+                    map_arg := Str.of(Env.arg(i))
+                    eq_idx: u64 = 0
+                    found_eq := false
+                    while eq_idx < map_arg.len {
+                        if *(map_arg.ptr + eq_idx) == ('=' as u8) {
+                            found_eq = true
+                            break
+                        }
+                        eq_idx = eq_idx + 1
+                    }
+                    if found_eq {
+                        map_keys.push(map_arg.sub(0, eq_idx))
+                        map_values.push(map_arg.sub(eq_idx + 1, map_arg.len - eq_idx - 1))
+                    }
                 }
             } else {
-                src = Env.arg(1)
-                if argc > 2 {
-                    out = Env.arg(2)
+                if pos_idx == 0 {
+                    src = arg_cstr
+                    pos_idx = 1
+                } else if pos_idx == 1 {
+                    out = arg_cstr
+                    pos_idx = 2
                 }
             }
+            i = i + 1
         }
 
         .{
-            src_path  : src,
-            out_path  : out,
-            is_vm_run : vm_run,
+            src_path    : src
+            out_path    : out
+            is_vm_run   : vm_run
+            import_dirs : import_dirs
+            map_keys    : map_keys
+            map_values  : map_values
         }
     }
 }
@@ -105,6 +137,17 @@ Driver :: struct {
     run :: fn(self &Self) {
         source := read_file(self.arena, self.config.src_path)
         eng := Engine.new(self.arena)
+        i: u64 = 0
+        while i < self.config.import_dirs.len {
+            eng.nexus.import_dirs.push(self.config.import_dirs.get(i))
+            i = i + 1
+        }
+        j: u64 = 0
+        while j < self.config.map_keys.len {
+            eng.nexus.map_keys.push(self.config.map_keys.get(j))
+            eng.nexus.map_values.push(self.config.map_values.get(j))
+            j = j + 1
+        }
         fid := eng.add_file(self.arena, Str.of(self.config.src_path), source)
         sym_id := eng.build_main(fid)
 
