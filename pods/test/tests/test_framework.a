@@ -1,0 +1,36 @@
+import std.allocator: Arena
+import test: Suite, Test, assert_eq, assert_ne, assert_str_eq, assert_true, assert_false, assert_gt, assert_lt
+
+test_scalar_assertions :: fn(t &Test) {
+    t.assert_eq(i32, 42, 42, "")
+    t.assert_ne(i32, 10, 20, "")
+    t.assert_true(1 < 2, "")
+    t.assert_false(10 < 5, "")
+    t.assert_gt(i32, 100, 50, "")
+    t.assert_lt(i32, 10, 20, "")
+}
+
+test_string_assertions :: fn(t &Test) {
+    t.assert_str_eq("hello world", "hello world", "")
+    t.assert_str_ne("abyss", "rust", "")
+}
+
+test_standalone_assertions :: fn(t &Test) {
+    assert_eq(i64, 1000, 1000, "")
+    assert_ne(i64, 1000, 2000, "")
+    assert_true(true, "")
+    assert_false(false, "")
+    assert_gt(i32, 5, 3, "")
+    assert_lt(i32, 3, 5, "")
+    assert_str_eq("compiler", "compiler", "")
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "Test Framework Self-Test")
+    suite.add("scalar_assertions", test_scalar_assertions)
+    suite.add("string_assertions", test_string_assertions)
+    suite.add("standalone_assertions", test_standalone_assertions)
+    suite.run_and_exit()
+    arena.destroy()
+}

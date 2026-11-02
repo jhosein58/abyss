@@ -1,0 +1,228 @@
+import std.string: Str, String
+import std.allocator: Arena
+import std.fmt: fmt
+
+Test :: struct {
+    name Str
+    arena &Arena
+    failed bool
+    failure_msg String
+    assertion_count u32
+
+    new :: fn(arena &Arena, name Str) Self {
+        .{
+            name: name
+            arena: arena
+            failed: false
+            failure_msg: String.new(arena)
+            assertion_count: 0
+        }
+    }
+
+    fail :: fn(self &Self, msg Str) {
+        self.failed = true
+        if self.failure_msg.len > 0 {
+            self.failure_msg.push_str("\n    ")
+        }
+        self.failure_msg.push_str(msg)
+    }
+
+    assert :: fn(self &Self, cond bool, hint Str) {
+        self.assertion_count = self.assertion_count + 1
+        if not cond {
+            self.failed = true
+            if self.failure_msg.len > 0 {
+                self.failure_msg.push_str("\n    ")
+            }
+            self.failure_msg.push_str("assertion failed (condition false)")
+            if hint.len > 0 {
+                self.failure_msg.push_str(": ")
+                self.failure_msg.push_str(hint)
+            }
+        }
+    }
+
+    assert_true :: fn(self &Self, cond bool, hint Str) {
+        self.assert(cond, hint)
+    }
+
+    assert_false :: fn(self &Self, cond bool, hint Str) {
+        self.assert(not cond, hint)
+    }
+
+    assert_eq :: fn(self &Self, T type, actual T, expected T, hint Str) {
+        self.assertion_count = self.assertion_count + 1
+        if actual != expected {
+            self.failed = true
+            if self.failure_msg.len > 0 {
+                self.failure_msg.push_str("\n    ")
+            }
+            self.failure_msg.push_str("assert_eq failed (left != right)\n      type:  ")
+            self.failure_msg.push_str(@type_name(T))
+            self.failure_msg.push_str("\n      left:  ")
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            self.failure_msg.push_str("\n      right: ")
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{expected}).as_str())
+            if hint.len > 0 {
+                self.failure_msg.push_str("\n      hint:  ")
+                self.failure_msg.push_str(hint)
+            }
+        }
+    }
+
+    assert_ne :: fn(self &Self, T type, actual T, expected T, hint Str) {
+        self.assertion_count = self.assertion_count + 1
+        if actual == expected {
+            self.failed = true
+            if self.failure_msg.len > 0 {
+                self.failure_msg.push_str("\n    ")
+            }
+            self.failure_msg.push_str("assert_ne failed (left == right)\n      type:  ")
+            self.failure_msg.push_str(@type_name(T))
+            self.failure_msg.push_str("\n      value: ")
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            if hint.len > 0 {
+                self.failure_msg.push_str("\n      hint:  ")
+                self.failure_msg.push_str(hint)
+            }
+        }
+    }
+
+    assert_gt :: fn(self &Self, T type, actual T, expected T, hint Str) {
+        self.assertion_count = self.assertion_count + 1
+        if not (actual > expected) {
+            self.failed = true
+            if self.failure_msg.len > 0 {
+                self.failure_msg.push_str("\n    ")
+            }
+            self.failure_msg.push_str("assert_gt failed (left <= right)\n      left:  ")
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            self.failure_msg.push_str("\n      right: ")
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{expected}).as_str())
+            if hint.len > 0 {
+                self.failure_msg.push_str("\n      hint:  ")
+                self.failure_msg.push_str(hint)
+            }
+        }
+    }
+
+    assert_ge :: fn(self &Self, T type, actual T, expected T, hint Str) {
+        self.assertion_count = self.assertion_count + 1
+        if not (actual >= expected) {
+            self.failed = true
+            if self.failure_msg.len > 0 {
+                self.failure_msg.push_str("\n    ")
+            }
+            self.failure_msg.push_str("assert_ge failed (left < right)\n      left:  ")
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            self.failure_msg.push_str("\n      right: ")
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{expected}).as_str())
+            if hint.len > 0 {
+                self.failure_msg.push_str("\n      hint:  ")
+                self.failure_msg.push_str(hint)
+            }
+        }
+    }
+
+    assert_lt :: fn(self &Self, T type, actual T, expected T, hint Str) {
+        self.assertion_count = self.assertion_count + 1
+        if not (actual < expected) {
+            self.failed = true
+            if self.failure_msg.len > 0 {
+                self.failure_msg.push_str("\n    ")
+            }
+            self.failure_msg.push_str("assert_lt failed (left >= right)\n      left:  ")
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            self.failure_msg.push_str("\n      right: ")
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{expected}).as_str())
+            if hint.len > 0 {
+                self.failure_msg.push_str("\n      hint:  ")
+                self.failure_msg.push_str(hint)
+            }
+        }
+    }
+
+    assert_le :: fn(self &Self, T type, actual T, expected T, hint Str) {
+        self.assertion_count = self.assertion_count + 1
+        if not (actual <= expected) {
+            self.failed = true
+            if self.failure_msg.len > 0 {
+                self.failure_msg.push_str("\n    ")
+            }
+            self.failure_msg.push_str("assert_le failed (left > right)\n      left:  ")
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            self.failure_msg.push_str("\n      right: ")
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{expected}).as_str())
+            if hint.len > 0 {
+                self.failure_msg.push_str("\n      hint:  ")
+                self.failure_msg.push_str(hint)
+            }
+        }
+    }
+
+    assert_str_eq :: fn(self &Self, actual Str, expected Str, hint Str) {
+        self.assertion_count = self.assertion_count + 1
+        if not actual.eq(expected) {
+            self.failed = true
+            if self.failure_msg.len > 0 {
+                self.failure_msg.push_str("\n    ")
+            }
+            self.failure_msg.push_str("assert_str_eq failed\n      left:  \"")
+            self.failure_msg.push_str(actual)
+            self.failure_msg.push_str("\"\n      right: \"")
+            self.failure_msg.push_str(expected)
+            self.failure_msg.push_str("\"")
+            if hint.len > 0 {
+                self.failure_msg.push_str("\n      hint:  ")
+                self.failure_msg.push_str(hint)
+            }
+        }
+    }
+
+    assert_str_ne :: fn(self &Self, actual Str, expected Str, hint Str) {
+        self.assertion_count = self.assertion_count + 1
+        if actual.eq(expected) {
+            self.failed = true
+            if self.failure_msg.len > 0 {
+                self.failure_msg.push_str("\n    ")
+            }
+            self.failure_msg.push_str("assert_str_ne failed\n      value: \"")
+            self.failure_msg.push_str(actual)
+            self.failure_msg.push_str("\"")
+            if hint.len > 0 {
+                self.failure_msg.push_str("\n      hint:  ")
+                self.failure_msg.push_str(hint)
+            }
+        }
+    }
+
+    assert_null :: fn(self &Self, T type, ptr &T, hint Str) {
+        self.assertion_count = self.assertion_count + 1
+        if ptr != null {
+            self.failed = true
+            if self.failure_msg.len > 0 {
+                self.failure_msg.push_str("\n    ")
+            }
+            self.failure_msg.push_str("pointer was not null")
+            if hint.len > 0 {
+                self.failure_msg.push_str(": ")
+                self.failure_msg.push_str(hint)
+            }
+        }
+    }
+
+    assert_not_null :: fn(self &Self, T type, ptr &T, hint Str) {
+        self.assertion_count = self.assertion_count + 1
+        if ptr == null {
+            self.failed = true
+            if self.failure_msg.len > 0 {
+                self.failure_msg.push_str("\n    ")
+            }
+            self.failure_msg.push_str("pointer was null")
+            if hint.len > 0 {
+                self.failure_msg.push_str(": ")
+                self.failure_msg.push_str(hint)
+            }
+        }
+    }
+}

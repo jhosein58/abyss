@@ -1,0 +1,99 @@
+import std.string: Str, String
+import std.allocator: Arena
+import std.collections.vec: Vec
+import std.io: write, print
+import std.sys: fall
+import .color: Color
+import .context: Test
+
+TestFunc :: fn(t &Test)
+
+TestEntry :: struct {
+    name Str
+    func TestFunc
+}
+
+Suite :: struct {
+    name Str
+    arena &Arena
+    entries Vec(TestEntry)
+    passed u32
+    failed u32
+
+    new :: fn(arena &Arena, name Str) Self {
+        .{
+            name: name
+            arena: arena
+            entries: Vec(TestEntry).new()
+            passed: 0
+            failed: 0
+        }
+    }
+
+    add :: fn(self &Self, name Str, func TestFunc) {
+        self.entries.push(.{ name: name, func: func })
+    }
+
+    run :: fn(self &Self) bool {
+        Color.blue()
+        write("[SUITE] ")
+        Color.reset()
+        print(self.name)
+
+        i: u64 = 0
+        while i < self.entries.len {
+            entry := self.entries.get(i)
+            t := Test.new(self.arena, entry.name)
+            (entry.func)(&t)
+
+            if t.failed {
+                self.failed = self.failed + 1
+                Color.red()
+                write("  ✗ ")
+                Color.reset()
+                print(entry.name)
+                write("    ")
+                Color.red()
+                write("-> ")
+                Color.reset()
+                print(t.failure_msg.as_str())
+            } else {
+                self.passed = self.passed + 1
+                Color.green()
+                write("  ✓ ")
+                Color.reset()
+                print(entry.name)
+            }
+
+            i = i + 1
+        }
+
+        print("--------------------------------------------------")
+        total := self.passed + self.failed
+        if self.failed == 0 {
+            Color.green()
+            write("[PASS] ")
+            Color.reset()
+            write("All ")
+            write(total)
+            print(" tests passed successfully!")
+        } else {
+            Color.red()
+            write("[FAIL] ")
+            Color.reset()
+            write(self.failed)
+            write(" of ")
+            write(total)
+            print(" tests failed!")
+        }
+
+        self.failed == 0
+    }
+
+    run_and_exit :: fn(self &Self) {
+        ok := self.run()
+        if not ok {
+            fall()
+        }
+    }
+}

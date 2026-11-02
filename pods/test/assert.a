@@ -1,0 +1,269 @@
+import std.string: Str, String
+import std.allocator: Arena
+import std.fmt: fmt
+import std.io: write, print
+import std.sys: fall
+import .color: Color
+
+assert :: fn(cond bool, hint Str) {
+    if not cond {
+        Color.red()
+        write("[assertion failed]")
+        Color.reset()
+        print(": condition was false")
+        if hint.len > 0 {
+            Color.yellow()
+            write("  hint: ")
+            Color.reset()
+            print(hint)
+        }
+        fall()
+    }
+}
+
+assert_true :: fn(cond bool, hint Str) {
+    assert(cond, hint)
+}
+
+assert_false :: fn(cond bool, hint Str) {
+    assert(not cond, hint)
+}
+
+assert_eq :: fn(T type, actual T, expected T, hint Str) {
+    if actual != expected {
+        arena := Arena.new(2048)
+        Color.red()
+        write("\n[assertion failed]")
+        Color.reset()
+        print(": left == right")
+        Color.blue()
+        write("  type:  ")
+        Color.reset()
+        print(@type_name(T))
+        Color.cyan()
+        write("  left:  ")
+        Color.reset()
+        print(fmt(&arena, "{}", .{actual}).as_str())
+        Color.magenta()
+        write("  right: ")
+        Color.reset()
+        print(fmt(&arena, "{}", .{expected}).as_str())
+        if hint.len > 0 {
+            Color.yellow()
+            write("  hint:  ")
+            Color.reset()
+            print(hint)
+        }
+        arena.destroy()
+        fall()
+    }
+}
+
+assert_ne :: fn(T type, actual T, expected T, hint Str) {
+    if actual == expected {
+        arena := Arena.new(2048)
+        Color.red()
+        write("\n[assertion failed]")
+        Color.reset()
+        print(": left != right")
+        Color.blue()
+        write("  type:  ")
+        Color.reset()
+        print(@type_name(T))
+        Color.cyan()
+        write("  value: ")
+        Color.reset()
+        print(fmt(&arena, "{}", .{actual}).as_str())
+        if hint.len > 0 {
+            Color.yellow()
+            write("  hint:  ")
+            Color.reset()
+            print(hint)
+        }
+        arena.destroy()
+        fall()
+    }
+}
+
+assert_gt :: fn(T type, actual T, expected T, hint Str) {
+    if not (actual > expected) {
+        arena := Arena.new(2048)
+        Color.red()
+        write("\n[assertion failed]")
+        Color.reset()
+        print(": left > right")
+        Color.cyan()
+        write("  left:  ")
+        Color.reset()
+        print(fmt(&arena, "{}", .{actual}).as_str())
+        Color.magenta()
+        write("  right: ")
+        Color.reset()
+        print(fmt(&arena, "{}", .{expected}).as_str())
+        if hint.len > 0 {
+            Color.yellow()
+            write("  hint:  ")
+            Color.reset()
+            print(hint)
+        }
+        arena.destroy()
+        fall()
+    }
+}
+
+assert_ge :: fn(T type, actual T, expected T, hint Str) {
+    if not (actual >= expected) {
+        arena := Arena.new(2048)
+        Color.red()
+        write("\n[assertion failed]")
+        Color.reset()
+        print(": left >= right")
+        Color.cyan()
+        write("  left:  ")
+        Color.reset()
+        print(fmt(&arena, "{}", .{actual}).as_str())
+        Color.magenta()
+        write("  right: ")
+        Color.reset()
+        print(fmt(&arena, "{}", .{expected}).as_str())
+        if hint.len > 0 {
+            Color.yellow()
+            write("  hint:  ")
+            Color.reset()
+            print(hint)
+        }
+        arena.destroy()
+        fall()
+    }
+}
+
+assert_lt :: fn(T type, actual T, expected T, hint Str) {
+    if not (actual < expected) {
+        arena := Arena.new(2048)
+        Color.red()
+        write("\n[assertion failed]")
+        Color.reset()
+        print(": left < right")
+        Color.cyan()
+        write("  left:  ")
+        Color.reset()
+        print(fmt(&arena, "{}", .{actual}).as_str())
+        Color.magenta()
+        write("  right: ")
+        Color.reset()
+        print(fmt(&arena, "{}", .{expected}).as_str())
+        if hint.len > 0 {
+            Color.yellow()
+            write("  hint:  ")
+            Color.reset()
+            print(hint)
+        }
+        arena.destroy()
+        fall()
+    }
+}
+
+assert_le :: fn(T type, actual T, expected T, hint Str) {
+    if not (actual <= expected) {
+        arena := Arena.new(2048)
+        Color.red()
+        write("\n[assertion failed]")
+        Color.reset()
+        print(": left <= right")
+        Color.cyan()
+        write("  left:  ")
+        Color.reset()
+        print(fmt(&arena, "{}", .{actual}).as_str())
+        Color.magenta()
+        write("  right: ")
+        Color.reset()
+        print(fmt(&arena, "{}", .{expected}).as_str())
+        if hint.len > 0 {
+            Color.yellow()
+            write("  hint:  ")
+            Color.reset()
+            print(hint)
+        }
+        arena.destroy()
+        fall()
+    }
+}
+
+assert_str_eq :: fn(actual Str, expected Str, hint Str) {
+    if not actual.eq(expected) {
+        Color.red()
+        write("\n[assertion failed]")
+        Color.reset()
+        print(": string equality")
+        Color.cyan()
+        write("  left:  \"")
+        Color.reset()
+        write(actual)
+        print("\"")
+        Color.magenta()
+        write("  right: \"")
+        Color.reset()
+        write(expected)
+        print("\"")
+        if hint.len > 0 {
+            Color.yellow()
+            write("  hint:  ")
+            Color.reset()
+            print(hint)
+        }
+        fall()
+    }
+}
+
+assert_str_ne :: fn(actual Str, expected Str, hint Str) {
+    if actual.eq(expected) {
+        Color.red()
+        write("\n[assertion failed]")
+        Color.reset()
+        print(": string inequality")
+        Color.cyan()
+        write("  value: \"")
+        Color.reset()
+        write(actual)
+        print("\"")
+        if hint.len > 0 {
+            Color.yellow()
+            write("  hint:  ")
+            Color.reset()
+            print(hint)
+        }
+        fall()
+    }
+}
+
+assert_null :: fn(T type, ptr &T, hint Str) {
+    if ptr != null {
+        Color.red()
+        write("\n[assertion failed]")
+        Color.reset()
+        print(": pointer must be null")
+        if hint.len > 0 {
+            Color.yellow()
+            write("  hint:  ")
+            Color.reset()
+            print(hint)
+        }
+        fall()
+    }
+}
+
+assert_not_null :: fn(T type, ptr &T, hint Str) {
+    if ptr == null {
+        Color.red()
+        write("\n[assertion failed]")
+        Color.reset()
+        print(": pointer must not be null")
+        if hint.len > 0 {
+            Color.yellow()
+            write("  hint:  ")
+            Color.reset()
+            print(hint)
+        }
+        fall()
+    }
+}
