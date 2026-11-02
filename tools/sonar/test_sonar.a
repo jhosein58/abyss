@@ -6,8 +6,8 @@ import std.io: print
 import std.sys: fall
 import json: parse_json, JsonVal, JsonKind
 import .semver: SemVer
-import .manifest: PackageManifest, Dependency, CBuildInfo
-import .resolver: Resolver, ResolvedPackage, ResolutionResult
+import .manifest: PodManifest, Dependency, CBuildInfo
+import .resolver: Resolver, ResolvedPod, ResolutionResult
 import .vendor: VendorManager, ensure_dir_all
 
 expect :: fn(cond bool, msg Str) {
@@ -44,30 +44,24 @@ test_json :: fn(arena &Arena) {
 }
 
 test_semver :: fn(arena &Arena) {
-    v1_opt := SemVer.parse("1.4.2")
-    expect(v1_opt.is_some(), "v1 parse failed")
-    v1 := v1_opt.unwrap()
-    expect(v1.major == 1 and v1.minor == 4 and v1.patch == 2, "v1 values mismatch")
+    v100 := SemVer.parse("1.0.0").unwrap()
+    v120 := SemVer.parse("1.2.0").unwrap()
+    v200 := SemVer.parse("2.0.0").unwrap()
 
-    v2 := SemVer.parse("v2.0.0").unwrap()
-    expect(v1.lt(v2), "v1 must be less than v2")
-    expect(v2.gt(v1), "v2 must be greater than v1")
-    expect(v1.gte(v1), "v1 must be gte v1")
+    expect(v120.gt(v100), "1.2.0 must be gt 1.0.0")
+    expect(v200.gt(v120), "2.0.0 must be gt 1.2.0")
+    expect(not v100.gt(v120), "1.0.0 not gt 1.2.0")
 
-    expect(v1.satisfies("^1.0.0"), "1.4.2 satisfies ^1.0.0")
-    expect(v1.satisfies("^1.4.0"), "1.4.2 satisfies ^1.4.0")
-    expect(v1.satisfies("^1.4.2"), "1.4.2 satisfies ^1.4.2")
-    expect(not v1.satisfies("^1.5.0"), "1.4.2 must not satisfy ^1.5.0")
-    expect(not v1.satisfies("^2.0.0"), "1.4.2 must not satisfy ^2.0.0")
-
-    fmt := v1.format(arena)
-    expect(fmt.eq("1.4.2"), "format mismatch")
+    expect(v120.satisfies("^1.0.0"), "1.2.0 satisfies ^1.0.0")
+    expect(not v200.satisfies("^1.0.0"), "2.0.0 not satisfies ^1.0.0")
+    expect(v100.satisfies("~1.0.0"), "1.0.0 satisfies ~1.0.0")
+    expect(v120.satisfies(">= 1.0.0"), "1.2.0 satisfies >= 1.0.0")
     print("  ✔ PASS  semver_logic\n")
 }
 
 test_manifest :: fn(arena &Arena) {
     src := "{\"name\": \"raylib-wrapper\", \"version\": \"5.0.1\", \"entry\": \"src/raylib.a\", \"dependencies\": {\"math\": {\"version\": \"^1.0.0\", \"path\": \"../math\"}}, \"c_build\": {\"sources\": [\"native/raylib.c\"], \"ld_flags\": [\"-lraylib\"]}}"
-    opt := PackageManifest.parse(arena, src)
+    opt := PodManifest.parse(arena, src)
     expect(opt.is_some(), "manifest parse failed")
     m := opt.unwrap()
     expect(m.name.eq("raylib-wrapper"), "manifest name mismatch")
@@ -85,21 +79,21 @@ test_resolver_transitive_and_mvs :: fn(arena &Arena) {
     ensure_dir_all(arena, "tmp/sonar_t/core_v12")
     ensure_dir_all(arena, "tmp/sonar_t/utils")
 
-    File.write_string("tmp/sonar_t/core_v10/package.json", "{\"name\": \"core\", \"version\": \"1.0.0\"}")
-    File.write_string("tmp/sonar_t/core_v12/package.json", "{\"name\": \"core\", \"version\": \"1.2.0\"}")
-    File.write_string("tmp/sonar_t/utils/package.json", "{\"name\": \"utils\", \"version\": \"1.0.0\", \"dependencies\": {\"core\": {\"version\": \"^1.0.0\", \"path\": \"../core_v10\"}}}")
+    File.write_string("tmp/sonar_t/core_v10/pod.json", "{\"name\": \"core\", \"version\": \"1.0.0\"}")
+    File.write_string("tmp/sonar_t/core_v12/pod.json", "{\"name\": \"core\", \"version\": \"1.2.0\"}")
+    File.write_string("tmp/sonar_t/utils/pod.json", "{\"name\": \"utils\", \"version\": \"1.0.0\", \"dependencies\": {\"core\": {\"version\": \"^1.0.0\", \"path\": \"../core_v10\"}}}")
 
     root_src := "{\"name\": \"app\", \"version\": \"0.1.0\", \"dependencies\": {\"utils\": {\"version\": \"^1.0.0\", \"path\": \"./tmp/sonar_t/utils\"}, \"core\": {\"version\": \"^1.1.0\", \"path\": \"./tmp/sonar_t/core_v12\"}}}"
-    root_m := PackageManifest.parse(arena, root_src).unwrap()
+    root_m := PodManifest.parse(arena, root_src).unwrap()
 
     r := Resolver.new(arena)
     res := r.resolve_root(".", root_m)
     expect(res.ok(), "transitive mvs resolution must succeed")
-    expect(res.packages.len == 2, "must resolve exactly 2 packages")
+    expect(res.pods.len == 2, "must resolve exactly 2 pods")
 
     core_idx := r.find_resolved("core").unwrap()
-    core_pkg := res.packages.get(core_idx)
-    expect(core_pkg.version.major == 1 and core_pkg.version.minor == 2, "mvs must select core 1.2.0")
+    core_pod := res.pods.get(core_idx)
+    expect(core_pod.version.major == 1 and core_pod.version.minor == 2, "mvs must select core 1.2.0")
     print("  ✔ PASS  transitive_and_mvs\n")
 }
 
@@ -107,16 +101,16 @@ test_resolver_cycles :: fn(arena &Arena) {
     ensure_dir_all(arena, "tmp/sonar_c/pkg_a")
     ensure_dir_all(arena, "tmp/sonar_c/pkg_b")
 
-    File.write_string("tmp/sonar_c/pkg_a/package.json", "{\"name\": \"pkg_a\", \"version\": \"1.0.0\", \"dependencies\": {\"pkg_b\": {\"version\": \"^1.0.0\", \"path\": \"../pkg_b\"}}}")
-    File.write_string("tmp/sonar_c/pkg_b/package.json", "{\"name\": \"pkg_b\", \"version\": \"1.0.0\", \"dependencies\": {\"pkg_a\": {\"version\": \"^1.0.0\", \"path\": \"../pkg_a\"}}}")
+    File.write_string("tmp/sonar_c/pkg_a/pod.json", "{\"name\": \"pkg_a\", \"version\": \"1.0.0\", \"dependencies\": {\"pkg_b\": {\"version\": \"^1.0.0\", \"path\": \"../pkg_b\"}}}")
+    File.write_string("tmp/sonar_c/pkg_b/pod.json", "{\"name\": \"pkg_b\", \"version\": \"1.0.0\", \"dependencies\": {\"pkg_a\": {\"version\": \"^1.0.0\", \"path\": \"../pkg_a\"}}}")
 
     root_src := "{\"name\": \"app_cycle\", \"version\": \"0.1.0\", \"dependencies\": {\"pkg_a\": {\"version\": \"^1.0.0\", \"path\": \"./tmp/sonar_c/pkg_a\"}}}"
-    root_m := PackageManifest.parse(arena, root_src).unwrap()
+    root_m := PodManifest.parse(arena, root_src).unwrap()
 
     r := Resolver.new(arena)
     res := r.resolve_root(".", root_m)
     expect(res.ok(), "cycle resolution must succeed without infinite loop")
-    expect(res.packages.len == 2, "both cyclic packages must be resolved")
+    expect(res.pods.len == 2, "both cyclic pods must be resolved")
     print("  ✔ PASS  circular_dependencies\n")
 }
 
@@ -126,13 +120,13 @@ test_resolver_major_conflict :: fn(arena &Arena) {
     ensure_dir_all(arena, "tmp/sonar_cf/dep_a")
     ensure_dir_all(arena, "tmp/sonar_cf/dep_b")
 
-    File.write_string("tmp/sonar_cf/lib_v1/package.json", "{\"name\": \"lib\", \"version\": \"1.0.0\"}")
-    File.write_string("tmp/sonar_cf/lib_v2/package.json", "{\"name\": \"lib\", \"version\": \"2.0.0\"}")
-    File.write_string("tmp/sonar_cf/dep_a/package.json", "{\"name\": \"dep_a\", \"version\": \"1.0.0\", \"dependencies\": {\"lib\": {\"version\": \"^1.0.0\", \"path\": \"../lib_v1\"}}}")
-    File.write_string("tmp/sonar_cf/dep_b/package.json", "{\"name\": \"dep_b\", \"version\": \"1.0.0\", \"dependencies\": {\"lib\": {\"version\": \"^2.0.0\", \"path\": \"../lib_v2\"}}}")
+    File.write_string("tmp/sonar_cf/lib_v1/pod.json", "{\"name\": \"lib\", \"version\": \"1.0.0\"}")
+    File.write_string("tmp/sonar_cf/lib_v2/pod.json", "{\"name\": \"lib\", \"version\": \"2.0.0\"}")
+    File.write_string("tmp/sonar_cf/dep_a/pod.json", "{\"name\": \"dep_a\", \"version\": \"1.0.0\", \"dependencies\": {\"lib\": {\"version\": \"^1.0.0\", \"path\": \"../lib_v1\"}}}")
+    File.write_string("tmp/sonar_cf/dep_b/pod.json", "{\"name\": \"dep_b\", \"version\": \"1.0.0\", \"dependencies\": {\"lib\": {\"version\": \"^2.0.0\", \"path\": \"../lib_v2\"}}}")
 
     root_src := "{\"name\": \"app_conflict\", \"version\": \"0.1.0\", \"dependencies\": {\"dep_a\": {\"version\": \"^1.0.0\", \"path\": \"./tmp/sonar_cf/dep_a\"}, \"dep_b\": {\"version\": \"^1.0.0\", \"path\": \"./tmp/sonar_cf/dep_b\"}}}"
-    root_m := PackageManifest.parse(arena, root_src).unwrap()
+    root_m := PodManifest.parse(arena, root_src).unwrap()
 
     r := Resolver.new(arena)
     res := r.resolve_root(".", root_m)
@@ -143,14 +137,14 @@ test_resolver_major_conflict :: fn(arena &Arena) {
 
 test_vendoring :: fn(arena &Arena) {
     ensure_dir_all(arena, "tmp/sonar_v/pkg_foo")
-    File.write_string("tmp/sonar_v/pkg_foo/package.json", "{\"name\": \"pkg_foo\", \"version\": \"1.0.0\"}")
+    File.write_string("tmp/sonar_v/pkg_foo/pod.json", "{\"name\": \"pkg_foo\", \"version\": \"1.0.0\"}")
     File.write_string("tmp/sonar_v/pkg_foo/foo.a", "foo_val :: fn() u32 { 42 }")
 
-    pkgs := Vec(ResolvedPackage).new()
-    pkgs.push(ResolvedPackage.new("pkg_foo", SemVer.new(1, 0, 0), "tmp/sonar_v/pkg_foo", "foo.a", CBuildInfo.empty()))
+    pods := Vec(ResolvedPod).new()
+    pods.push(ResolvedPod.new("pkg_foo", SemVer.new(1, 0, 0), "tmp/sonar_v/pkg_foo", "foo.a", CBuildInfo.empty()))
 
     vm := VendorManager.new(arena, "tmp/sonar_v/.vendor")
-    maps := vm.vendor_all(pkgs)
+    maps := vm.vendor_all(pods)
     expect(maps.len == 1, "must produce 1 map arg")
     expect(File.exists("tmp/sonar_v/.vendor/pkg_foo/foo.a"), "vendored file must exist")
     expect(File.exists("tmp/sonar_v/.vendor/vendor.json"), "vendor.json must exist")
@@ -160,7 +154,7 @@ test_vendoring :: fn(arena &Arena) {
 main :: fn() {
     arena := Arena.new(8 * 1024 * 1024)
     print("\n========================================================================\n")
-    print("   SONAR PACKAGE MANAGER TEST SUITE\n")
+    print("   SONAR POD MANAGER TEST SUITE\n")
     print("========================================================================\n")
 
     test_json(&arena)

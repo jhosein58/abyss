@@ -8,7 +8,7 @@ import std.io: print
 import std.sys: fall
 import json: parse_json, JsonVal, JsonKind
 import .semver: SemVer
-import .manifest: PackageManifest, Dependency, CBuildInfo
+import .manifest: PodManifest, Dependency, CBuildInfo
 import .resolver: Resolver
 import .vendor: VendorManager
 import .builder: Builder
@@ -25,13 +25,13 @@ print_line :: fn(s Str) {
 }
 
 cmd_init :: fn(arena &Arena, name Str) {
-    pkg_name := if name.len > 0 { name } else { "my-project" }
+    pod_name := if name.len > 0 { name } else { "my-pod" }
     manifest_buf := String.new(arena)
     manifest_buf.push_str("{\n  \"name\": \"")
-    manifest_buf.push_str(pkg_name)
+    manifest_buf.push_str(pod_name)
     manifest_buf.push_str("\",\n  \"version\": \"0.1.0\",\n  \"entry\": \"main.a\",\n  \"dependencies\": {},\n  \"c_build\": {\n    \"sources\": [],\n    \"include_dirs\": [],\n    \"c_flags\": [],\n    \"ld_flags\": []\n  }\n}\n")
-    File.write_string("package.json", manifest_buf.as_str())
-    print_line("initialized package.json")
+    File.write_string("pod.json", manifest_buf.as_str())
+    print_line("initialized pod.json")
 }
 
 find_index_dir :: fn(arena &Arena) Str {
@@ -60,9 +60,9 @@ find_index_dir :: fn(arena &Arena) Str {
 }
 
 cmd_vendor :: fn(arena &Arena) Vec(Str) {
-    manifest_opt := PackageManifest.load_file(arena, "package.json")
+    manifest_opt := PodManifest.load_file(arena, "pod.json")
     if manifest_opt.is_none() {
-        print_line("error: cannot find or parse package.json in current directory")
+        print_line("error: cannot find or parse pod.json in current directory")
         fall()
     }
     manifest := manifest_opt.unwrap()
@@ -80,33 +80,33 @@ cmd_vendor :: fn(arena &Arena) Vec(Str) {
     }
 
     vm := VendorManager.new(arena, ".vendor")
-    map_args := vm.vendor_all(res.packages)
+    map_args := vm.vendor_all(res.pods)
     print_line("[sonar] vendored dependencies into .vendor/")
     map_args
 }
 
-cmd_add :: fn(arena &Arena, pkg_name Str, ver_arg Str) {
-    if pkg_name.len == 0 {
-        print_line("[sonar error] package name required for 'sonar add'")
+cmd_add :: fn(arena &Arena, pod_name Str, ver_arg Str) {
+    if pod_name.len == 0 {
+        print_line("[sonar error] pod name required for 'sonar add'")
         fall()
     }
 
     idx_dir := find_index_dir(arena)
     if idx_dir.len == 0 {
-        print_line("[sonar error] cannot locate package index repository (abyss-index)")
+        print_line("[sonar error] cannot locate pod index repository (abyss-index)")
         fall()
     }
 
-    pkg_meta_path := String.new(arena)
-    pkg_meta_path.push_str(idx_dir)
-    pkg_meta_path.push_str("/packages/")
-    pkg_meta_path.push_str(pkg_name)
-    pkg_meta_path.push_str(".json")
+    pod_meta_path := String.new(arena)
+    pod_meta_path.push_str(idx_dir)
+    pod_meta_path.push_str("/pods/")
+    pod_meta_path.push_str(pod_name)
+    pod_meta_path.push_str(".json")
 
-    meta_src_opt := File.read_to_string(arena, pkg_meta_path.as_str())
+    meta_src_opt := File.read_to_string(arena, pod_meta_path.as_str())
     if meta_src_opt.is_none() {
-        print_str("[sonar error] package '")
-        print_str(pkg_name)
+        print_str("[sonar error] pod '")
+        print_str(pod_name)
         print_line("' not found in index")
         fall()
     }
@@ -136,34 +136,34 @@ cmd_add :: fn(arena &Arena, pkg_name Str, ver_arg Str) {
         vbuf.as_str()
     }
 
-    manifest_opt := PackageManifest.load_file(arena, "package.json")
+    manifest_opt := PodManifest.load_file(arena, "pod.json")
     manifest := if manifest_opt.is_some() {
         manifest_opt.unwrap()
     } else {
-        PackageManifest.default()
+        PodManifest.default()
     }
 
     found := false
     di: u64 = 0
     while di < manifest.deps.len {
         d := manifest.deps.get(di)
-        if d.name.eq(pkg_name) {
-            manifest.deps.set(di, Dependency.new(pkg_name, ver_req, Str.empty(), git_url, subdir))
+        if d.name.eq(pod_name) {
+            manifest.deps.set(di, Dependency.new(pod_name, ver_req, Str.empty(), git_url, subdir))
             found = true
             break
         }
         di = di + 1
     }
     if not found {
-        manifest.deps.push(Dependency.new(pkg_name, ver_req, Str.empty(), git_url, subdir))
+        manifest.deps.push(Dependency.new(pod_name, ver_req, Str.empty(), git_url, subdir))
     }
 
-    File.write_string("package.json", manifest.to_json(arena))
+    File.write_string("pod.json", manifest.to_json(arena))
     print_str("[sonar] added '")
-    print_str(pkg_name)
+    print_str(pod_name)
     print_str("' (")
     print_str(ver_req)
-    print_line(") to package.json")
+    print_line(") to pod.json")
 
     cmd_vendor(arena)
 }
@@ -171,7 +171,7 @@ cmd_add :: fn(arena &Arena, pkg_name Str, ver_arg Str) {
 cmd_update :: fn(arena &Arena) {
     idx_dir := find_index_dir(arena)
     if idx_dir.len == 0 {
-        print_line("[sonar error] cannot locate package index")
+        print_line("[sonar error] cannot locate pod index")
         fall()
     }
     cmd := String.new(arena)
@@ -179,7 +179,7 @@ cmd_update :: fn(arena &Arena) {
     cmd.push_str(idx_dir)
     cmd.push_str(" pull --ff-only >/dev/null 2>&1")
     system(to_cstr(arena, cmd.as_str()))
-    print_line("[sonar] package index updated successfully")
+    print_line("[sonar] pod index updated successfully")
 }
 
 find_abyssc :: fn() Str {
@@ -192,9 +192,9 @@ find_abyssc :: fn() Str {
 }
 
 cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
-    manifest_opt := PackageManifest.load_file(arena, "package.json")
+    manifest_opt := PodManifest.load_file(arena, "pod.json")
     if manifest_opt.is_none() {
-        print_line("error: cannot find or parse package.json in current directory")
+        print_line("error: cannot find or parse pod.json in current directory")
         fall()
     }
     manifest := manifest_opt.unwrap()
@@ -215,13 +215,13 @@ cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
     }
 
     vm := VendorManager.new(arena, ".vendor")
-    map_args := vm.vendor_all(res.packages)
+    map_args := vm.vendor_all(res.pods)
 
     builder := Builder.new(arena, ".vendor")
     objects := Vec(Str).new()
     ld_flags := Vec(Str).new()
 
-    c_ok := builder.compile_c_sources(res.packages, &objects, &ld_flags)
+    c_ok := builder.compile_c_sources(res.pods, &objects, &ld_flags)
     if not c_ok {
         print_line("[sonar error] failed to compile native C sources")
         fall()
@@ -250,15 +250,15 @@ cmd_run :: fn(arena &Arena, target_arg Str) {
 }
 
 cmd_help :: fn() {
-    print_line("Sonar: The Abyss Package Manager")
+    print_line("Sonar: The Abyss Pod Manager")
     print_line("")
     print_line("Usage:")
-    print_line("  sonar init [name]        Initialize a new package.json")
-    print_line("  sonar add <name> [ver]   Add a package from index to dependencies")
-    print_line("  sonar update             Update central package index from git")
+    print_line("  sonar init [name]        Initialize a new pod.json")
+    print_line("  sonar add <name> [ver]   Add a pod from index to dependencies")
+    print_line("  sonar update             Update central pod index from git")
     print_line("  sonar vendor             Resolve and vendor dependencies into .vendor/")
-    print_line("  sonar build [src] [out]  Build package and its native dependencies")
-    print_line("  sonar run [src]          Build and execute package binary")
+    print_line("  sonar build [src] [out]  Build pod and its native dependencies")
+    print_line("  sonar run [src]          Build and execute pod binary")
     print_line("  sonar help               Show this help message")
 }
 
@@ -275,9 +275,9 @@ main :: fn() {
         name := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
         cmd_init(&arena, name)
     } else if cmd.eq("add") {
-        pkg := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
+        pod := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
         ver := if argc > 3 { Str.of(Env.arg(3)) } else { Str.empty() }
-        cmd_add(&arena, pkg, ver)
+        cmd_add(&arena, pod, ver)
     } else if cmd.eq("update") {
         cmd_update(&arena)
     } else if cmd.eq("vendor") {

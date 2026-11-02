@@ -3,7 +3,7 @@ import std.allocator: Arena
 import std.collections.vec: Vec
 import std.fs: File, to_cstr
 import std.path: Path
-import .resolver: ResolvedPackage
+import .resolver: ResolvedPod
 import .vendor: ensure_dir_all
 
 system :: fn(cmd &u8) i32
@@ -24,23 +24,23 @@ Builder :: struct {
         }
     }
 
-    compile_c_sources :: fn(self &Self, packages Vec(ResolvedPackage), objects &Vec(Str), ld_flags &Vec(Str)) bool {
+    compile_c_sources :: fn(self &Self, pods Vec(ResolvedPod), objects &Vec(Str), ld_flags &Vec(Str)) bool {
         ensure_dir_all(self.arena, self.cache_dir)
 
         i: u64 = 0
-        while i < packages.len {
-            pkg := packages.get(i)
-            pkg_vendor_dir := Path.join(self.arena, self.vendor_dir, pkg.name)
-            pkg_cache_dir := Path.join(self.arena, self.cache_dir, pkg.name)
-            ensure_dir_all(self.arena, pkg_cache_dir)
+        while i < pods.len {
+            pod := pods.get(i)
+            pod_vendor_dir := Path.join(self.arena, self.vendor_dir, pod.name)
+            pod_cache_dir := Path.join(self.arena, self.cache_dir, pod.name)
+            ensure_dir_all(self.arena, pod_cache_dir)
 
             si: u64 = 0
-            while si < pkg.c_build.sources.len {
-                src_rel := pkg.c_build.sources.get(si)
-                src_path := Path.join(self.arena, pkg_vendor_dir, src_rel)
+            while si < pod.c_build.sources.len {
+                src_rel := pod.c_build.sources.get(si)
+                src_path := Path.join(self.arena, pod_vendor_dir, src_rel)
                 base_name := Path.base(src_rel)
                 obj_name := Path.ensure_ext(self.arena, base_name, ".o")
-                obj_path := Path.join(self.arena, pkg_cache_dir, obj_name)
+                obj_path := Path.join(self.arena, pod_cache_dir, obj_name)
 
                 cmd_buf := String.new(self.arena)
                 cmd_buf.push_str(self.cc)
@@ -50,18 +50,18 @@ Builder :: struct {
                 cmd_buf.push_str(obj_path)
 
                 ii: u64 = 0
-                while ii < pkg.c_build.include_dirs.len {
-                    inc_rel := pkg.c_build.include_dirs.get(ii)
-                    inc_path := Path.join(self.arena, pkg_vendor_dir, inc_rel)
+                while ii < pod.c_build.include_dirs.len {
+                    inc_rel := pod.c_build.include_dirs.get(ii)
+                    inc_path := Path.join(self.arena, pod_vendor_dir, inc_rel)
                     cmd_buf.push_str(" -I")
                     cmd_buf.push_str(inc_path)
                     ii = ii + 1
                 }
 
                 cfi: u64 = 0
-                while cfi < pkg.c_build.c_flags.len {
+                while cfi < pod.c_build.c_flags.len {
                     cmd_buf.push_char(' ' as u8)
-                    cmd_buf.push_str(pkg.c_build.c_flags.get(cfi))
+                    cmd_buf.push_str(pod.c_build.c_flags.get(cfi))
                     cfi = cfi + 1
                 }
 
@@ -76,8 +76,8 @@ Builder :: struct {
             }
 
             li: u64 = 0
-            while li < pkg.c_build.ld_flags.len {
-                flag := pkg.c_build.ld_flags.get(li)
+            while li < pod.c_build.ld_flags.len {
+                flag := pod.c_build.ld_flags.get(li)
                 ld_flags.push(flag)
                 li = li + 1
             }

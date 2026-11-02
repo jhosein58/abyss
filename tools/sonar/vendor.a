@@ -3,35 +3,27 @@ import std.allocator: Arena
 import std.collections.vec: Vec
 import std.fs: File, Dir, to_cstr
 import std.path: Path
-import .resolver: ResolvedPackage
+import .resolver: ResolvedPod
 
-mkdir :: fn(path &u8, mode u32) i32
+system :: fn(cmd &u8) i32
 
-ensure_dir_all :: fn(a &Arena, path Str) {
-    i: u64 = 0
-    while i < path.len {
-        c := *(path.ptr + i)
-        if (c == ('/' as u8)) or (c == ('\\' as u8)) {
-            if i > 0 {
-                sub := path.sub(0, i)
-                c_sub := to_cstr(a, sub)
-                mkdir(c_sub, 493 as u32)
-            }
-        }
-        i = i + 1
-    }
-    c_full := to_cstr(a, path)
-    mkdir(c_full, 493 as u32)
+ensure_dir_all :: fn(arena &Arena, dir_path Str) {
+    c_path := to_cstr(arena, dir_path)
+    if Dir.exists(c_path) { ret }
+    cmd := String.new(arena)
+    cmd.push_str("mkdir -p ")
+    cmd.push_str(dir_path)
+    system(to_cstr(arena, cmd.as_str()))
 }
 
-copy_file :: fn(a &Arena, src Str, dst Str) bool {
-    opt := File.read_to_string(a, src)
-    if opt.is_none() { ret false }
+copy_file :: fn(arena &Arena, src Str, dst Str) {
+    content_opt := File.read_to_string(arena, src)
+    if content_opt.is_none() { ret }
     dst_dir := Path.dir(dst)
     if dst_dir.len > 0 {
-        ensure_dir_all(a, dst_dir)
+        ensure_dir_all(arena, dst_dir)
     }
-    File.write_string(dst, opt.unwrap())
+    File.write_string(dst, content_opt.unwrap())
 }
 
 VendorManager :: struct {
@@ -45,47 +37,47 @@ VendorManager :: struct {
         }
     }
 
-    vendor_all :: fn(self &Self, packages Vec(ResolvedPackage)) Vec(Str) {
+    vendor_all :: fn(self &Self, pods Vec(ResolvedPod)) Vec(Str) {
         ensure_dir_all(self.arena, self.vendor_dir)
         map_args := Vec(Str).new()
 
         manifest_buf := String.new(self.arena)
-        manifest_buf.push_str("{\n  \"packages\": [\n")
+        manifest_buf.push_str("{\n  \"pods\": [\n")
 
         i: u64 = 0
-        while i < packages.len {
-            pkg := packages.get(i)
-            target_pkg_dir := Path.join(self.arena, self.vendor_dir, pkg.name)
-            ensure_dir_all(self.arena, target_pkg_dir)
+        while i < pods.len {
+            pod := pods.get(i)
+            target_pod_dir := Path.join(self.arena, self.vendor_dir, pod.name)
+            ensure_dir_all(self.arena, target_pod_dir)
 
-            files := Dir.walk(self.arena, pkg.root_dir, Str.empty())
+            files := Dir.walk(self.arena, pod.root_dir, Str.empty())
             fi: u64 = 0
             while fi < files.len {
                 f_path := files.get(fi)
-                sub_rel := if f_path.starts_with(pkg.root_dir) and (f_path.len > pkg.root_dir.len) {
-                    f_path.sub(pkg.root_dir.len + 1, f_path.len - pkg.root_dir.len - 1)
+                sub_rel := if f_path.starts_with(pod.root_dir) and (f_path.len > pod.root_dir.len) {
+                    f_path.sub(pod.root_dir.len + 1, f_path.len - pod.root_dir.len - 1)
                 } else {
                     Path.base(f_path)
                 }
-                dst_path := Path.join(self.arena, target_pkg_dir, sub_rel)
+                dst_path := Path.join(self.arena, target_pod_dir, sub_rel)
                 copy_file(self.arena, f_path, dst_path)
                 fi = fi + 1
             }
 
-            entry_stem := if pkg.entry.ends_with(".a") { pkg.entry.sub(0, pkg.entry.len - 2) } else { pkg.entry }
-            entry_path := Path.join(self.arena, target_pkg_dir, entry_stem)
+            entry_stem := if pod.entry.ends_with(".a") { pod.entry.sub(0, pod.entry.len - 2) } else { pod.entry }
+            entry_path := Path.join(self.arena, target_pod_dir, entry_stem)
             map_arg := String.new(self.arena)
-            map_arg.push_str(pkg.name)
+            map_arg.push_str(pod.name)
             map_arg.push_char('=' as u8)
             map_arg.push_str(entry_path)
             map_args.push(map_arg.as_str())
 
             manifest_buf.push_str("    {\"name\": \"")
-            manifest_buf.push_str(pkg.name)
+            manifest_buf.push_str(pod.name)
             manifest_buf.push_str("\", \"version\": \"")
-            manifest_buf.push_str(pkg.version.format(self.arena))
+            manifest_buf.push_str(pod.version.format(self.arena))
             manifest_buf.push_str("\"}")
-            if i + 1 < packages.len {
+            if i + 1 < pods.len {
                 manifest_buf.push_char(',' as u8)
             }
             manifest_buf.push_char('\n' as u8)

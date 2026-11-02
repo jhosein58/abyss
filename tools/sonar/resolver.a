@@ -5,12 +5,12 @@ import std.path: Path
 import std.fs: File, Dir, to_cstr
 import core.maybe: Maybe
 import .semver: SemVer
-import .manifest: PackageManifest, Dependency, CBuildInfo
+import .manifest: PodManifest, Dependency, CBuildInfo
 import .vendor: ensure_dir_all
 
 system :: fn(cmd &u8) i32
 
-ResolvedPackage :: struct {
+ResolvedPod :: struct {
     name       Str
     version    SemVer
     root_dir   Str
@@ -29,8 +29,8 @@ ResolvedPackage :: struct {
 }
 
 ResolutionResult :: struct {
-    packages Vec(ResolvedPackage)
-    errors   Vec(Str)
+    pods   Vec(ResolvedPod)
+    errors Vec(Str)
 
     ok :: fn(self &Self) bool {
         self.errors.len == 0
@@ -39,14 +39,14 @@ ResolutionResult :: struct {
 
 Resolver :: struct {
     arena        &Arena
-    resolved     Vec(ResolvedPackage)
+    resolved     Vec(ResolvedPod)
     active_stack Vec(Str)
     errors       Vec(Str)
 
     new :: fn(arena &Arena) Self {
         .{
             arena: arena
-            resolved: Vec(ResolvedPackage).new()
+            resolved: Vec(ResolvedPod).new()
             active_stack: Vec(Str).new()
             errors: Vec(Str).new()
         }
@@ -100,7 +100,7 @@ Resolver :: struct {
         }
     }
 
-    resolve_git_package :: fn(self &Self, dep Dependency) Str {
+    resolve_git_pod :: fn(self &Self, dep Dependency) Str {
         repo_name := self.repo_name_from_url(dep.git)
         cache_base := Path.join(self.arena, ".vendor/.cache/git", repo_name)
         ensure_dir_all(self.arena, ".vendor/.cache/git")
@@ -146,23 +146,23 @@ Resolver :: struct {
         }
     }
 
-    resolve_package :: fn(self &Self, base_dir Str, dep Dependency) {
+    resolve_pod :: fn(self &Self, base_dir Str, dep Dependency) {
         name := dep.name
         if self.is_active(name) {
             ret
         }
 
         target_dir := if dep.git.len > 0 {
-            self.resolve_git_package(dep)
+            self.resolve_git_pod(dep)
         } else {
             self.resolve_dir(base_dir, dep.path)
         }
-        manifest_path := Path.join(self.arena, target_dir, "package.json")
+        manifest_path := Path.join(self.arena, target_dir, "pod.json")
 
-        manifest_opt := PackageManifest.load_file(self.arena, manifest_path)
+        manifest_opt := PodManifest.load_file(self.arena, manifest_path)
         if manifest_opt.is_none() {
             err_buf := String.new(self.arena)
-            err_buf.push_str("cannot find package.json for dependency '")
+            err_buf.push_str("cannot find pod.json for dependency '")
             err_buf.push_str(name)
             err_buf.push_str("' at '")
             err_buf.push_str(manifest_path)
@@ -174,7 +174,7 @@ Resolver :: struct {
 
         if not manifest.version.satisfies(dep.version_req) {
             err_buf := String.new(self.arena)
-            err_buf.push_str("version mismatch: package '")
+            err_buf.push_str("version mismatch: pod '")
             err_buf.push_str(name)
             err_buf.push_str("' version ")
             err_buf.push_str(manifest.version.format(self.arena))
@@ -191,7 +191,7 @@ Resolver :: struct {
             curr := self.resolved.get(idx)
             if curr.version.major != manifest.version.major {
                 err_buf := String.new(self.arena)
-                err_buf.push_str("incompatible major version conflict for '")
+                err_buf.push_str("incompatible major version conflict for pod '")
                 err_buf.push_str(name)
                 err_buf.push_str("': cannot unify ")
                 err_buf.push_str(curr.version.format(self.arena))
@@ -201,33 +201,33 @@ Resolver :: struct {
                 ret
             }
             if manifest.version.gt(curr.version) {
-                self.resolved.set(idx, ResolvedPackage.new(name, manifest.version, target_dir, manifest.entry, manifest.c_build))
+                self.resolved.set(idx, ResolvedPod.new(name, manifest.version, target_dir, manifest.entry, manifest.c_build))
             }
             ret
         }
 
         self.active_stack.push(name)
-        self.resolved.push(ResolvedPackage.new(name, manifest.version, target_dir, manifest.entry, manifest.c_build))
+        self.resolved.push(ResolvedPod.new(name, manifest.version, target_dir, manifest.entry, manifest.c_build))
 
         i: u64 = 0
         while i < manifest.deps.len {
             child_dep := manifest.deps.get(i)
-            self.resolve_package(target_dir, child_dep)
+            self.resolve_pod(target_dir, child_dep)
             i = i + 1
         }
 
         self.active_stack.pop()
     }
 
-    resolve_root :: fn(self &Self, root_dir Str, root_manifest PackageManifest) ResolutionResult {
+    resolve_root :: fn(self &Self, root_dir Str, root_manifest PodManifest) ResolutionResult {
         i: u64 = 0
         while i < root_manifest.deps.len {
             dep := root_manifest.deps.get(i)
-            self.resolve_package(root_dir, dep)
+            self.resolve_pod(root_dir, dep)
             i = i + 1
         }
         .{
-            packages: self.resolved
+            pods: self.resolved
             errors: self.errors
         }
     }
