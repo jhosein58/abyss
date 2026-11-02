@@ -154,8 +154,15 @@ Resolver :: struct {
 
         target_dir := if dep.git.len > 0 {
             self.resolve_git_pod(dep)
-        } else {
+        } else if dep.path.len > 0 {
             self.resolve_dir(base_dir, dep.path)
+        } else {
+            tc_cand := Path.join(self.arena, "pods", name)
+            if Dir.exists(to_cstr(self.arena, tc_cand)) {
+                tc_cand
+            } else {
+                self.resolve_dir(base_dir, dep.path)
+            }
         }
         manifest_path := Path.join(self.arena, target_dir, "pod.json")
 

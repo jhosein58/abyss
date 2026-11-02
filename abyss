@@ -164,7 +164,12 @@ EOF
             "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/compiler/main.a" "${DIST_DIR}/bootstrap.c"
         fi
         clang -w --target=wasm32 -nostdlib -O3 -Wl,--no-entry -Wl,--export-all "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc.wasm"
-        echo "Built ${DIST_DIR}/abyssc.wasm"
+        python3 -c "import json; from pathlib import Path; bundle = {str(f.relative_to('${ROOT_DIR}').as_posix()): f.read_text(encoding='utf-8', errors='replace') for pod in ['core', 'std', 'json'] for f in (Path('${ROOT_DIR}') / 'pods' / pod).rglob('*') if f.is_file() and not f.name.endswith('.swp') and not f.name.endswith('.o')}; Path('${DIST_DIR}/vfs_bundle.json').write_text(json.dumps(bundle), encoding='utf-8')"
+        if [ -d "${ROOT_DIR}/playground" ]; then
+            cp "${DIST_DIR}/abyssc.wasm" "${ROOT_DIR}/playground/"
+            cp "${DIST_DIR}/vfs_bundle.json" "${ROOT_DIR}/playground/"
+        fi
+        echo "Built ${DIST_DIR}/abyssc.wasm and ${DIST_DIR}/vfs_bundle.json"
         ;;
     release)
         ROUNDS="${1:-3}"
@@ -207,7 +212,12 @@ EOF
         if command -v clang >/dev/null 2>&1; then
             echo "Building WebAssembly release binary..."
             clang -w --target=wasm32 -nostdlib -O3 -Wl,--no-entry -Wl,--export-all "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc.wasm"
-            echo "✔ WebAssembly binary verified!"
+            python3 -c "import json; from pathlib import Path; bundle = {str(f.relative_to('${ROOT_DIR}').as_posix()): f.read_text(encoding='utf-8', errors='replace') for pod in ['core', 'std', 'json'] for f in (Path('${ROOT_DIR}') / 'pods' / pod).rglob('*') if f.is_file() and not f.name.endswith('.swp') and not f.name.endswith('.o')}; Path('${DIST_DIR}/vfs_bundle.json').write_text(json.dumps(bundle), encoding='utf-8')"
+            if [ -d "${ROOT_DIR}/playground" ]; then
+                cp "${DIST_DIR}/abyssc.wasm" "${ROOT_DIR}/playground/"
+                cp "${DIST_DIR}/vfs_bundle.json" "${ROOT_DIR}/playground/"
+            fi
+            echo "✔ WebAssembly binary and VFS bundle verified!"
         fi
 
         echo "Packaging release bundles..."
@@ -216,7 +226,7 @@ EOF
         mkdir -p "${LINUX_BUNDLE}/bin"
         cp "${DIST_DIR}/abyssc-linux-x86_64" "${LINUX_BUNDLE}/bin/abyssc"
         cp "${DIST_DIR}/sonar-linux-x86_64" "${LINUX_BUNDLE}/bin/sonar"
-        cp -r "${ROOT_DIR}/std" "${LINUX_BUNDLE}/std"
+        cp -r "${ROOT_DIR}/pods" "${LINUX_BUNDLE}/pods"
         cp "${ROOT_DIR}/README.md" "${LINUX_BUNDLE}/" 2>/dev/null || true
         cp "${ROOT_DIR}/LICENSE" "${LINUX_BUNDLE}/" 2>/dev/null || true
         tar -czf "${DIST_DIR}/abyss-linux-x86_64.tar.gz" -C "${ROOT_DIR}/tmp" "abyss"
@@ -228,7 +238,7 @@ EOF
             mkdir -p "${WIN_BUNDLE}/bin"
             cp "${DIST_DIR}/abyssc-windows-x86_64.exe" "${WIN_BUNDLE}/bin/abyssc.exe"
             cp "${DIST_DIR}/sonar-windows-x86_64.exe" "${WIN_BUNDLE}/bin/sonar.exe"
-            cp -r "${ROOT_DIR}/std" "${WIN_BUNDLE}/std"
+            cp -r "${ROOT_DIR}/pods" "${WIN_BUNDLE}/pods"
             cp "${ROOT_DIR}/README.md" "${WIN_BUNDLE}/" 2>/dev/null || true
             cp "${ROOT_DIR}/LICENSE" "${WIN_BUNDLE}/" 2>/dev/null || true
             (cd "${ROOT_DIR}/tmp" && zip -rq "${DIST_DIR}/abyss-windows-x86_64.zip" "abyss")
