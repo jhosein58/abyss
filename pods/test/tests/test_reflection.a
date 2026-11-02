@@ -1,0 +1,45 @@
+import std.allocator: Arena
+import test: Suite, Test, assert_eq, assert_ne, assert_str_eq, assert_true
+
+Point :: struct {
+    x i32
+    y i32
+}
+
+test_type_reflection :: fn(t &Test) {
+    t.assert_str_eq(@type_name(i32), "i32", "")
+    t.assert_str_eq(@type_name(bool), "bool", "")
+    t.assert_str_eq(@type_name(Point), "Point", "")
+}
+
+test_comptime_features :: fn(t &Test) {
+    name := cmpt {
+        info := @type_info(Point)
+        info.name
+    }
+    field_count := cmpt {
+        info := @type_info(Point)
+        info.field_count
+    }
+    t.assert_str_eq(name, "Point", "")
+    t.assert_eq(u64, field_count, 2 as u64, "")
+}
+
+test_struct_semantics :: fn(t &Test) {
+    p1: Point = .{ x: 10, y: 20 }
+    p2: Point = .{ x: 10, y: 20 }
+    p3: Point = .{ x: 30, y: 40 }
+    t.assert_eq(i32, p1.x, p2.x, "")
+    t.assert_eq(i32, p1.y, p2.y, "")
+    t.assert_ne(i32, p1.x, p3.x, "")
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "Reflection and Comptime Test Suite")
+    suite.add("type_reflection", test_type_reflection)
+    suite.add("comptime_features", test_comptime_features)
+    suite.add("struct_semantics", test_struct_semantics)
+    suite.run_and_exit()
+    arena.destroy()
+}
