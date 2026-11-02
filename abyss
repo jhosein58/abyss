@@ -176,24 +176,69 @@ EOF
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc-linux-x86_64"
         cp "${DIST_DIR}/abyssc-linux-x86_64" "${ROOT_DIR}/abyssc"
 
-        echo "Verifying Linux release binary..."
+        echo "Verifying Linux release compiler..."
         "${DIST_DIR}/abyssc-linux-x86_64" r "${ROOT_DIR}/tests/01_literals.a" >/dev/null 2>&1
-        echo "✔ Linux x86_64 binary verified!"
+        echo "✔ Linux x86_64 compiler verified!"
+
+        echo "Building Linux Sonar package manager..."
+        "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" b "${ROOT_DIR}/tools/sonar/main.a" "${DIST_DIR}/sonar_bootstrap.c"
+        gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${DIST_DIR}/sonar_bootstrap.c" -o "${DIST_DIR}/sonar-linux-x86_64"
+        cp "${DIST_DIR}/sonar-linux-x86_64" "${ROOT_DIR}/sonar"
+
+        echo "Verifying Linux Sonar package manager..."
+        "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" r "${ROOT_DIR}/tools/sonar/test_sonar.a" >/dev/null 2>&1
+        "${DIST_DIR}/sonar-linux-x86_64" help >/dev/null 2>&1
+        echo "✔ Linux x86_64 Sonar package manager verified!"
 
         MINGW_CC="${MINGW_CC:-x86_64-w64-mingw32-gcc}"
         if command -v "${MINGW_CC}" >/dev/null 2>&1; then
+            echo "Cross-compiling Windows release binaries with ${MINGW_CC}..."
             "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc-windows-x86_64.exe"
+            "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${DIST_DIR}/sonar_bootstrap.c" -o "${DIST_DIR}/sonar-windows-x86_64.exe"
             if command -v wine >/dev/null 2>&1; then
-                echo "Verifying Windows binary with Wine..."
+                echo "Verifying Windows binaries with Wine..."
                 WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${DIST_DIR}/abyssc-windows-x86_64.exe" r "${ROOT_DIR}/tests/01_literals.a" >/dev/null 2>&1
                 WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${DIST_DIR}/abyssc-windows-x86_64.exe" b "${ROOT_DIR}/tests/01_literals.a" "${ROOT_DIR}/tmp/win_verify.c" >/dev/null 2>&1
-                echo "✔ Windows x86_64 binary verified via Wine (VM + C codegen)!"
+                WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${DIST_DIR}/sonar-windows-x86_64.exe" help >/dev/null 2>&1
+                echo "✔ Windows x86_64 binaries (abyssc.exe + sonar.exe) verified via Wine!"
             fi
         fi
 
-        echo "Building WebAssembly release binary..."
-        clang -w --target=wasm32 -nostdlib -O3 -Wl,--no-entry -Wl,--export-all "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc.wasm"
-        echo "✔ WebAssembly binary verified!"
+        if command -v clang >/dev/null 2>&1; then
+            echo "Building WebAssembly release binary..."
+            clang -w --target=wasm32 -nostdlib -O3 -Wl,--no-entry -Wl,--export-all "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc.wasm"
+            echo "✔ WebAssembly binary verified!"
+        fi
+
+        echo "Packaging release bundles..."
+        LINUX_BUNDLE="${ROOT_DIR}/tmp/abyss"
+        rm -rf "${LINUX_BUNDLE}"
+        mkdir -p "${LINUX_BUNDLE}/bin"
+        cp "${DIST_DIR}/abyssc-linux-x86_64" "${LINUX_BUNDLE}/bin/abyssc"
+        cp "${DIST_DIR}/sonar-linux-x86_64" "${LINUX_BUNDLE}/bin/sonar"
+        cp -r "${ROOT_DIR}/std" "${LINUX_BUNDLE}/std"
+        cp "${ROOT_DIR}/README.md" "${LINUX_BUNDLE}/" 2>/dev/null || true
+        cp "${ROOT_DIR}/LICENSE" "${LINUX_BUNDLE}/" 2>/dev/null || true
+        tar -czf "${DIST_DIR}/abyss-linux-x86_64.tar.gz" -C "${ROOT_DIR}/tmp" "abyss"
+        rm -rf "${LINUX_BUNDLE}"
+
+        if [ -f "${DIST_DIR}/abyssc-windows-x86_64.exe" ] && [ -f "${DIST_DIR}/sonar-windows-x86_64.exe" ]; then
+            WIN_BUNDLE="${ROOT_DIR}/tmp/abyss"
+            rm -rf "${WIN_BUNDLE}"
+            mkdir -p "${WIN_BUNDLE}/bin"
+            cp "${DIST_DIR}/abyssc-windows-x86_64.exe" "${WIN_BUNDLE}/bin/abyssc.exe"
+            cp "${DIST_DIR}/sonar-windows-x86_64.exe" "${WIN_BUNDLE}/bin/sonar.exe"
+            cp -r "${ROOT_DIR}/std" "${WIN_BUNDLE}/std"
+            cp "${ROOT_DIR}/README.md" "${WIN_BUNDLE}/" 2>/dev/null || true
+            cp "${ROOT_DIR}/LICENSE" "${WIN_BUNDLE}/" 2>/dev/null || true
+            (cd "${ROOT_DIR}/tmp" && zip -rq "${DIST_DIR}/abyss-windows-x86_64.zip" "abyss")
+            rm -rf "${WIN_BUNDLE}"
+        fi
+
+        (cd "${DIST_DIR}" && sha256sum abyss-linux-x86_64.tar.gz > abyss-linux-x86_64.tar.gz.sha256 2>/dev/null || true)
+        if [ -f "${DIST_DIR}/abyss-windows-x86_64.zip" ]; then
+            (cd "${DIST_DIR}" && sha256sum abyss-windows-x86_64.zip > abyss-windows-x86_64.zip.sha256 2>/dev/null || true)
+        fi
 
         echo "Release artifacts generated in ${DIST_DIR}:"
         ls -lh "${DIST_DIR}"

@@ -372,14 +372,14 @@ int run_abyss(const uint8_t *src, uint32_t len) {
 #include <string.h>
 #include <stdlib.h>
 
+#include <dirent.h>
+#include <sys/stat.h>
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #define popen _popen
 #define pclose _pclose
 #else
 #include <dlfcn.h>
-#include <dirent.h>
-#include <sys/stat.h>
 #endif
 
 void abyss_vm_shift_args(void);
