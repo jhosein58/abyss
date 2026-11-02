@@ -4,7 +4,7 @@ import std.collections.vec: Vec
 import std.fs: File, Dir, to_cstr
 import std.env: Env
 import std.path: Path
-import std.io: print
+import std.io: print, write
 import std.sys: fall
 import json: parse_json, JsonVal, JsonKind
 import .semver: SemVer
@@ -16,12 +16,11 @@ import .builder: Builder
 system :: fn(cmd &u8) i32
 
 print_str :: fn(s Str) {
-    print(s)
+    write(s)
 }
 
 print_line :: fn(s Str) {
     print(s)
-    print("\n")
 }
 
 cmd_init :: fn(arena &Arena, name Str) {
