@@ -1,0 +1,310 @@
+import std.string: Str, String
+import std.allocator: Arena
+import std.collections.vec: Vec
+import core.maybe: Maybe
+
+JsonKind :: enum u8 {
+    null_val
+    bool_val
+    num_val
+    str_val
+    arr_val
+    obj_val
+}
+
+JsonVal :: struct {
+    kind     JsonKind
+    str_val  Str
+    bool_val bool
+    int_val  i64
+    keys     Vec(Str)
+    vals     Vec(JsonVal)
+
+    null :: fn() Self {
+        .{
+            kind: JsonKind.null_val
+            str_val: Str.empty()
+            bool_val: false
+            int_val: 0
+            keys: Vec(Str).new()
+            vals: Vec(JsonVal).new()
+        }
+    }
+
+    from_bool :: fn(v bool) Self {
+        .{
+            kind: JsonKind.bool_val
+            str_val: Str.empty()
+            bool_val: v
+            int_val: 0
+            keys: Vec(Str).new()
+            vals: Vec(JsonVal).new()
+        }
+    }
+
+    from_num :: fn(v i64) Self {
+        .{
+            kind: JsonKind.num_val
+            str_val: Str.empty()
+            bool_val: false
+            int_val: v
+            keys: Vec(Str).new()
+            vals: Vec(JsonVal).new()
+        }
+    }
+
+    from_str :: fn(v Str) Self {
+        .{
+            kind: JsonKind.str_val
+            str_val: v
+            bool_val: false
+            int_val: 0
+            keys: Vec(Str).new()
+            vals: Vec(JsonVal).new()
+        }
+    }
+
+    from_arr :: fn(items Vec(JsonVal)) Self {
+        .{
+            kind: JsonKind.arr_val
+            str_val: Str.empty()
+            bool_val: false
+            int_val: 0
+            keys: Vec(Str).new()
+            vals: items
+        }
+    }
+
+    from_obj :: fn(keys Vec(Str), vals Vec(JsonVal)) Self {
+        .{
+            kind: JsonKind.obj_val
+            str_val: Str.empty()
+            bool_val: false
+            int_val: 0
+            keys: keys
+            vals: vals
+        }
+    }
+
+    get :: fn(self &Self, key Str) Maybe(JsonVal) {
+        if self.kind != JsonKind.obj_val {
+            ret Maybe(JsonVal).none()
+        }
+        i: u64 = 0
+        while i < self.keys.len {
+            if self.keys.get(i).eq(key) {
+                ret Maybe(JsonVal).some(self.vals.get(i))
+            }
+            i = i + 1
+        }
+        Maybe(JsonVal).none()
+    }
+
+    get_str :: fn(self &Self, key Str) Maybe(Str) {
+        opt := self.get(key)
+        if opt.is_some() {
+            v := opt.unwrap()
+            if v.kind == JsonKind.str_val {
+                ret Maybe(Str).some(v.str_val)
+            }
+        }
+        Maybe(Str).none()
+    }
+
+    get_obj :: fn(self &Self, key Str) Maybe(JsonVal) {
+        opt := self.get(key)
+        if opt.is_some() {
+            v := opt.unwrap()
+            if v.kind == JsonKind.obj_val {
+                ret Maybe(JsonVal).some(v)
+            }
+        }
+        Maybe(JsonVal).none()
+    }
+
+    get_arr :: fn(self &Self, key Str) Maybe(Vec(JsonVal)) {
+        opt := self.get(key)
+        if opt.is_some() {
+            v := opt.unwrap()
+            if v.kind == JsonKind.arr_val {
+                ret Maybe(Vec(JsonVal)).some(v.vals)
+            }
+        }
+        Maybe(Vec(JsonVal)).none()
+    }
+}
+
+JsonParser :: struct {
+    src    Str
+    cursor u64
+    arena  &Arena
+
+    new :: fn(arena &Arena, src Str) Self {
+        .{
+            src: src
+            cursor: 0
+            arena: arena
+        }
+    }
+
+    peek :: fn(self &Self) u8 {
+        if self.cursor >= self.src.len { ret 0 as u8 }
+        *(self.src.ptr + self.cursor)
+    }
+
+    bump :: fn(self &Self) u8 {
+        if self.cursor >= self.src.len { ret 0 as u8 }
+        c := *(self.src.ptr + self.cursor)
+        self.cursor = self.cursor + 1
+        c
+    }
+
+    skip_ws :: fn(self &Self) {
+        while self.cursor < self.src.len {
+            c := *(self.src.ptr + self.cursor)
+            if (c == 32 as u8) or (c == 9 as u8) or (c == 10 as u8) or (c == 13 as u8) {
+                self.cursor = self.cursor + 1
+            } else {
+                break
+            }
+        }
+    }
+
+    parse_string :: fn(self &Self) Maybe(Str) {
+        self.skip_ws()
+        if self.bump() != ('"' as u8) { ret Maybe(Str).none() }
+        buf := String.new(self.arena)
+        while self.cursor < self.src.len {
+            c := self.bump()
+            if c == ('"' as u8) {
+                ret Maybe(Str).some(buf.as_str())
+            } else if c == ('\\' as u8) {
+                if self.cursor < self.src.len {
+                    esc := self.bump()
+                    if esc == ('n' as u8) { buf.push_char(10 as u8) }
+                    else if esc == ('t' as u8) { buf.push_char(9 as u8) }
+                    else if esc == ('r' as u8) { buf.push_char(13 as u8) }
+                    else { buf.push_char(esc) }
+                }
+            } else {
+                buf.push_char(c)
+            }
+        }
+        Maybe(Str).none()
+    }
+
+    parse_number :: fn(self &Self) Maybe(JsonVal) {
+        self.skip_ws()
+        neg := false
+        if self.peek() == ('-' as u8) {
+            neg = true
+            self.bump()
+        }
+        val: i64 = 0
+        has_digits := false
+        while self.cursor < self.src.len {
+            c := self.peek()
+            if (c >= ('0' as u8)) and (c <= ('9' as u8)) {
+                val = val * 10 + ((c - ('0' as u8)) as i64)
+                has_digits = true
+                self.bump()
+            } else {
+                break
+            }
+        }
+        if not has_digits { ret Maybe(JsonVal).none() }
+        if neg { val = 0 - val }
+        Maybe(JsonVal).some(JsonVal.from_num(val))
+    }
+
+    parse_array :: fn(self &Self) Maybe(JsonVal) {
+        self.skip_ws()
+        if self.bump() != ('[' as u8) { ret Maybe(JsonVal).none() }
+        items := Vec(JsonVal).new()
+        while self.cursor < self.src.len {
+            self.skip_ws()
+            if self.peek() == (']' as u8) {
+                self.bump()
+                ret Maybe(JsonVal).some(JsonVal.from_arr(items))
+            }
+            opt := self.parse_value()
+            if opt.is_none() { break }
+            items.push(opt.unwrap())
+            self.skip_ws()
+            if self.peek() == (',' as u8) {
+                self.bump()
+            } else if self.peek() == (']' as u8) {
+                self.bump()
+                ret Maybe(JsonVal).some(JsonVal.from_arr(items))
+            } else {
+                break
+            }
+        }
+        Maybe(JsonVal).none()
+    }
+
+    parse_object :: fn(self &Self) Maybe(JsonVal) {
+        self.skip_ws()
+        if self.bump() != ('{' as u8) { ret Maybe(JsonVal).none() }
+        keys := Vec(Str).new()
+        vals := Vec(JsonVal).new()
+        while self.cursor < self.src.len {
+            self.skip_ws()
+            if self.peek() == ('}' as u8) {
+                self.bump()
+                ret Maybe(JsonVal).some(JsonVal.from_obj(keys, vals))
+            }
+            key_opt := self.parse_string()
+            if key_opt.is_none() { break }
+            key := key_opt.unwrap()
+            self.skip_ws()
+            if self.bump() != (':' as u8) { break }
+            val_opt := self.parse_value()
+            if val_opt.is_none() { break }
+            keys.push(key)
+            vals.push(val_opt.unwrap())
+            self.skip_ws()
+            if self.peek() == (',' as u8) {
+                self.bump()
+            } else if self.peek() == ('}' as u8) {
+                self.bump()
+                ret Maybe(JsonVal).some(JsonVal.from_obj(keys, vals))
+            } else {
+                break
+            }
+        }
+        Maybe(JsonVal).none()
+    }
+
+    parse_value :: fn(self &Self) Maybe(JsonVal) {
+        self.skip_ws()
+        c := self.peek()
+        if c == ('{' as u8) {
+            ret self.parse_object()
+        } else if c == ('[' as u8) {
+            ret self.parse_array()
+        } else if c == ('"' as u8) {
+            s := self.parse_string()
+            if s.is_some() { ret Maybe(JsonVal).some(JsonVal.from_str(s.unwrap())) }
+        } else if (c == ('t' as u8)) or (c == ('f' as u8)) {
+            if (self.cursor + 4 <= self.src.len) and self.src.sub(self.cursor, 4).eq("true") {
+                self.cursor = self.cursor + 4
+                ret Maybe(JsonVal).some(JsonVal.from_bool(true))
+            } else if (self.cursor + 5 <= self.src.len) and self.src.sub(self.cursor, 5).eq("false") {
+                self.cursor = self.cursor + 5
+                ret Maybe(JsonVal).some(JsonVal.from_bool(false))
+            }
+        } else if (c == ('n' as u8)) and (self.cursor + 4 <= self.src.len) and self.src.sub(self.cursor, 4).eq("null") {
+            self.cursor = self.cursor + 4
+            ret Maybe(JsonVal).some(JsonVal.null())
+        } else if ((c >= ('0' as u8)) and (c <= ('9' as u8))) or (c == ('-' as u8)) {
+            ret self.parse_number()
+        }
+        Maybe(JsonVal).none()
+    }
+}
+
+parse_json :: fn(arena &Arena, src Str) Maybe(JsonVal) {
+    p := JsonParser.new(arena, src)
+    p.parse_value()
+}
