@@ -1,0 +1,163 @@
+import std.string: Str, String
+import std.allocator: Arena
+import std.collections.vec: Vec
+import std.path: Path
+import std.fs: File
+import core.maybe: Maybe
+import .semver: SemVer
+import .manifest: PackageManifest, Dependency, CBuildInfo
+
+ResolvedPackage :: struct {
+    name       Str
+    version    SemVer
+    root_dir   Str
+    entry      Str
+    c_build    CBuildInfo
+
+    new :: fn(name Str, version SemVer, root_dir Str, entry Str, c_build CBuildInfo) Self {
+        .{
+            name: name
+            version: version
+            root_dir: root_dir
+            entry: entry
+            c_build: c_build
+        }
+    }
+}
+
+ResolutionResult :: struct {
+    packages Vec(ResolvedPackage)
+    errors   Vec(Str)
+
+    ok :: fn(self &Self) bool {
+        self.errors.len == 0
+    }
+}
+
+Resolver :: struct {
+    arena        &Arena
+    resolved     Vec(ResolvedPackage)
+    active_stack Vec(Str)
+    errors       Vec(Str)
+
+    new :: fn(arena &Arena) Self {
+        .{
+            arena: arena
+            resolved: Vec(ResolvedPackage).new()
+            active_stack: Vec(Str).new()
+            errors: Vec(Str).new()
+        }
+    }
+
+    find_resolved :: fn(self &Self, name Str) Maybe(u64) {
+        i: u64 = 0
+        while i < self.resolved.len {
+            if self.resolved.get(i).name.eq(name) {
+                ret Maybe(u64).some(i)
+            }
+            i = i + 1
+        }
+        Maybe(u64).none()
+    }
+
+    is_active :: fn(self &Self, name Str) bool {
+        i: u64 = 0
+        while i < self.active_stack.len {
+            if self.active_stack.get(i).eq(name) { ret true }
+            i = i + 1
+        }
+        false
+    }
+
+    add_error :: fn(self &Self, msg Str) {
+        self.errors.push(msg)
+    }
+
+    resolve_dir :: fn(self &Self, base_dir Str, dep_path Str) Str {
+        if dep_path.len == 0 { ret base_dir }
+        joined := if base_dir.len > 0 { Path.join(self.arena, base_dir, dep_path) } else { dep_path }
+        Path.normalize(self.arena, joined)
+    }
+
+    resolve_package :: fn(self &Self, base_dir Str, dep Dependency) {
+        name := dep.name
+        if self.is_active(name) {
+            ret
+        }
+
+        target_dir := self.resolve_dir(base_dir, dep.path)
+        manifest_path := Path.join(self.arena, target_dir, "package.json")
+
+        manifest_opt := PackageManifest.load_file(self.arena, manifest_path)
+        if manifest_opt.is_none() {
+            err_buf := String.new(self.arena)
+            err_buf.push_str("cannot find package.json for dependency '")
+            err_buf.push_str(name)
+            err_buf.push_str("' at '")
+            err_buf.push_str(manifest_path)
+            err_buf.push_str("'")
+            self.add_error(err_buf.as_str())
+            ret
+        }
+        manifest := manifest_opt.unwrap()
+
+        if not manifest.version.satisfies(dep.version_req) {
+            err_buf := String.new(self.arena)
+            err_buf.push_str("version mismatch: package '")
+            err_buf.push_str(name)
+            err_buf.push_str("' version ")
+            err_buf.push_str(manifest.version.format(self.arena))
+            err_buf.push_str(" does not satisfy required '")
+            err_buf.push_str(dep.version_req)
+            err_buf.push_str("'")
+            self.add_error(err_buf.as_str())
+            ret
+        }
+
+        existing_idx := self.find_resolved(name)
+        if existing_idx.is_some() {
+            idx := existing_idx.unwrap()
+            curr := self.resolved.get(idx)
+            if curr.version.major != manifest.version.major {
+                err_buf := String.new(self.arena)
+                err_buf.push_str("incompatible major version conflict for '")
+                err_buf.push_str(name)
+                err_buf.push_str("': cannot unify ")
+                err_buf.push_str(curr.version.format(self.arena))
+                err_buf.push_str(" with ")
+                err_buf.push_str(manifest.version.format(self.arena))
+                self.add_error(err_buf.as_str())
+                ret
+            }
+            if manifest.version.gt(curr.version) {
+                self.resolved.set(idx, ResolvedPackage.new(name, manifest.version, target_dir, manifest.entry, manifest.c_build))
+            }
+            ret
+        }
+
+        self.active_stack.push(name)
+        self.resolved.push(ResolvedPackage.new(name, manifest.version, target_dir, manifest.entry, manifest.c_build))
+
+        i: u64 = 0
+        while i < manifest.deps.len {
+            child_dep := manifest.deps.get(i)
+            self.resolve_package(target_dir, child_dep)
+            i = i + 1
+        }
+
+        self.active_stack.pop()
+    }
+
+    resolve_root :: fn(self &Self, root_dir Str, root_manifest PackageManifest) ResolutionResult {
+        i: u64 = 0
+        while i < root_manifest.deps.len {
+            dep := root_manifest.deps.get(i)
+            self.resolve_package(root_dir, dep)
+            i = i + 1
+        }
+        .{
+            packages: self.resolved
+            errors: self.errors
+        }
+    }
+}
