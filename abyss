@@ -208,7 +208,7 @@ EOF
         if command -v clang >/dev/null 2>&1; then
             echo "Building WebAssembly release binary..."
             clang -w --target=wasm32 -nostdlib -O3 -Wl,--no-entry -Wl,--export-all "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc.wasm"
-            python3 -c "import json; from pathlib import Path; bundle = {str(f.relative_to('${ROOT_DIR}').as_posix()): f.read_text(encoding='utf-8', errors='replace') for pod in ['core', 'std', 'json'] for f in (Path('${ROOT_DIR}') / 'pods' / pod).rglob('*') if f.is_file() and not f.name.endswith('.swp') and not f.name.endswith('.o')}; Path('${DIST_DIR}/vfs_bundle.json').write_text(json.dumps(bundle), encoding='utf-8')"
+            python3 -c "import json; from pathlib import Path; bundle = {str(f.relative_to('${ROOT_DIR}').as_posix()): f.read_text(encoding='utf-8', errors='replace') for pod in ['core', 'std', 'json', 'test'] for f in (Path('${ROOT_DIR}') / 'pods' / pod).rglob('*') if f.is_file() and not f.name.endswith('.swp') and not f.name.endswith('.o')}; Path('${DIST_DIR}/vfs_bundle.json').write_text(json.dumps(bundle), encoding='utf-8')"
             echo "✔ WebAssembly binary and VFS bundle verified!"
         fi
 

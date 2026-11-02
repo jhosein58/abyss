@@ -34,6 +34,7 @@ else
 fi
 
 mkdir -p "${INSTALL_DIR}"
+rm -rf "${INSTALL_DIR}/bin" "${INSTALL_DIR}/pods"
 tar -xzf "${TMP_DIR}/abyss.tar.gz" -C "${INSTALL_DIR}" --strip-components=1
 
 chmod +x "${BIN_DIR}/abyssc" 2>/dev/null || true

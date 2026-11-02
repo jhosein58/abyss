@@ -25,6 +25,11 @@ Expand-Archive -Path $TempZip -DestinationPath $TempExtract -Force
 
 if (-not (Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+} else {
+    $OldBin = Join-Path $InstallDir "bin"
+    if (Test-Path $OldBin) { Remove-Item -Recurse -Force $OldBin }
+    $OldPods = Join-Path $InstallDir "pods"
+    if (Test-Path $OldPods) { Remove-Item -Recurse -Force $OldPods }
 }
 
 $SourceRoot = (Get-ChildItem -Path $TempExtract | Where-Object { $_.PSIsContainer } | Select-Object -First 1).FullName
