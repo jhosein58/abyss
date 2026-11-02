@@ -248,6 +248,182 @@ cmd_run :: fn(arena &Arena, target_arg Str) {
     system(to_cstr(arena, run_cmd.as_str()))
 }
 
+find_dev_root :: fn(arena &Arena) Str {
+    env_dev := Str.of(Env.get_or(c"ABYSS_DEV", c""))
+    if env_dev.len > 0 { ret env_dev }
+    if Dir.exists(to_cstr(arena, "pods/core")) { ret "." }
+    if Dir.exists(to_cstr(arena, "../pods/core")) { ret ".." }
+    if Dir.exists(to_cstr(arena, "../../pods/core")) { ret "../.." }
+    Str.empty()
+}
+
+find_test_pod_path :: fn(arena &Arena) Str {
+    if File.exists(".vendor/test/pod.json") { ret ".vendor/test" }
+    if File.exists("pods/test/pod.json") { ret "pods/test" }
+    if File.exists("pod.json") and File.exists("test.a") { ret "test" }
+    if File.exists("../pods/test/pod.json") { ret "../pods/test" }
+    if File.exists("../../pods/test/pod.json") { ret "../../pods/test" }
+    home := Str.of(Env.get_or(c"HOME", c"."))
+    home_test := Path.join(arena, home, ".abyss/pods/test/pod.json")
+    if File.exists(home_test) {
+        ret Path.join(arena, home, ".abyss/pods/test")
+    }
+    "pods/test"
+}
+
+cmd_test :: fn(arena &Arena, target_arg Str) {
+    test_files := Vec(Str).new()
+    pod_root := Str.empty()
+
+    if target_arg.ends_with(".a") {
+        if not File.exists(target_arg) {
+            print_str("[sonar error] test file not found: ")
+            print_line(target_arg)
+            fall()
+        }
+        test_files.push(target_arg)
+        pod_root = Path.dir(target_arg)
+    } else if target_arg.len > 0 {
+        pod_root = target_arg
+        tests_dir := Path.join(arena, target_arg, "tests")
+        c_tests := to_cstr(arena, tests_dir)
+        if Dir.exists(c_tests) {
+            test_files = Dir.walk(arena, tests_dir, ".a")
+        }
+        if test_files.len == 0 {
+            cand_test := Path.join(arena, target_arg, "test.a")
+            if File.exists(cand_test) {
+                test_files.push(cand_test)
+            }
+        }
+    } else {
+        c_tests := to_cstr(arena, "tests")
+        if Dir.exists(c_tests) {
+            test_files = Dir.walk(arena, "tests", ".a")
+        }
+        if test_files.len == 0 and File.exists("test.a") {
+            test_files.push("test.a")
+        }
+    }
+
+    if test_files.len == 0 {
+        print_line("[sonar test] no test files found")
+        ret
+    }
+
+    map_args := Vec(Str).new()
+    pod_json_path := if pod_root.len > 0 {
+        Path.join(arena, pod_root, "pod.json")
+    } else {
+        "pod.json"
+    }
+
+    if File.exists(pod_json_path) {
+        manifest_opt := PodManifest.load_file(arena, pod_json_path)
+        if manifest_opt.is_some() {
+            manifest := manifest_opt.unwrap()
+            resolve_dir := if pod_root.len > 0 { pod_root } else { "." }
+            resolver := Resolver.new(arena)
+            res := resolver.resolve_root(resolve_dir, manifest)
+            if res.ok() and res.pods.len > 0 {
+                vendor_dir := if pod_root.len > 0 {
+                    Path.join(arena, pod_root, ".vendor")
+                } else {
+                    ".vendor"
+                }
+                vm := VendorManager.new(arena, vendor_dir)
+                map_args = vm.vendor_all(res.pods)
+            }
+            if manifest.name.len > 0 {
+                pod_map := String.new(arena)
+                pod_map.push_str(manifest.name)
+                pod_map.push_char('=' as u8)
+                mapped_path := if resolve_dir.eq(".") or (resolve_dir.len == 0) {
+                    if manifest.entry.ends_with(".a") {
+                        manifest.entry.sub(0, manifest.entry.len - 2)
+                    } else {
+                        manifest.name
+                    }
+                } else {
+                    resolve_dir
+                }
+                pod_map.push_str(mapped_path)
+                map_args.push(pod_map.as_str())
+            }
+        }
+    }
+
+    has_test := false
+    mi: u64 = 0
+    while mi < map_args.len {
+        m := map_args.get(mi)
+        if m.starts_with("test=") {
+            has_test = true
+            break
+        }
+        mi = mi + 1
+    }
+    if not has_test {
+        test_path := find_test_pod_path(arena)
+        test_map := String.new(arena)
+        test_map.push_str("test=")
+        test_map.push_str(test_path)
+        map_args.push(test_map.as_str())
+    }
+
+    dev_root := find_dev_root(arena)
+    abyssc_bin := find_abyssc()
+    print_str("[sonar test] discovered ")
+    write(test_files.len)
+    print_line(" test file(s)")
+
+    passed_count: u32 = 0
+    failed_count: u32 = 0
+
+    ti: u64 = 0
+    while ti < test_files.len {
+        tf := test_files.get(ti)
+        cmd_run := String.new(arena)
+        if dev_root.len > 0 {
+            cmd_run.push_str("ABYSS_DEV=")
+            cmd_run.push_str(dev_root)
+            cmd_run.push_char(' ' as u8)
+        }
+        cmd_run.push_str(abyssc_bin)
+        cmd_run.push_str(" r ")
+        m_idx: u64 = 0
+        while m_idx < map_args.len {
+            cmd_run.push_str(" --map ")
+            cmd_run.push_str(map_args.get(m_idx))
+            m_idx = m_idx + 1
+        }
+        cmd_run.push_char(' ' as u8)
+        cmd_run.push_str(tf)
+
+        status := system(to_cstr(arena, cmd_run.as_str()))
+        if status == 0 {
+            passed_count = passed_count + 1
+        } else {
+            failed_count = failed_count + 1
+        }
+        ti = ti + 1
+    }
+
+    print_line("--------------------------------------------------")
+    if failed_count == 0 {
+        print_str("[sonar test] all ")
+        write(passed_count)
+        print_line(" test suite(s) passed successfully")
+    } else {
+        print_str("[sonar test] ")
+        write(failed_count)
+        print_str(" of ")
+        write(passed_count + failed_count)
+        print_line(" test suite(s) failed")
+        fall()
+    }
+}
+
 cmd_help :: fn() {
     print_line("Sonar: The Abyss Package Manager")
     print_line("")
@@ -258,6 +434,7 @@ cmd_help :: fn() {
     print_line("  sonar vendor             Resolve and vendor dependencies into .vendor/")
     print_line("  sonar build [src] [out]  Build pod and its native dependencies")
     print_line("  sonar run [src]          Build and execute pod binary")
+    print_line("  sonar test [target]      Discover and run unit tests for a pod")
     print_line("  sonar help               Show this help message")
 }
 
@@ -288,6 +465,9 @@ main :: fn() {
     } else if cmd.eq("run") {
         target := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
         cmd_run(&arena, target)
+    } else if cmd.eq("test") {
+        target := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
+        cmd_test(&arena, target)
     } else if cmd.eq("help") or cmd.eq("--help") or cmd.eq("-h") {
         cmd_help()
     } else {
