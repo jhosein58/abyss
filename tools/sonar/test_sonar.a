@@ -154,7 +154,7 @@ test_vendoring :: fn(arena &Arena) {
 main :: fn() {
     arena := Arena.new(8 * 1024 * 1024)
     print("\n========================================================================\n")
-    print("   SONAR POD MANAGER TEST SUITE\n")
+    print("   SONAR PACKAGE MANAGER TEST SUITE\n")
     print("========================================================================\n")
 
     test_json(&arena)

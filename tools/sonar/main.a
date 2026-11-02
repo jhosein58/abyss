@@ -250,7 +250,7 @@ cmd_run :: fn(arena &Arena, target_arg Str) {
 }
 
 cmd_help :: fn() {
-    print_line("Sonar: The Abyss Pod Manager")
+    print_line("Sonar: The Abyss Package Manager")
     print_line("")
     print_line("Usage:")
     print_line("  sonar init [name]        Initialize a new pod.json")
