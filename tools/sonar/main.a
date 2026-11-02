@@ -182,6 +182,15 @@ cmd_update :: fn(arena &Arena) {
     print_line("[sonar] package index updated successfully")
 }
 
+find_abyssc :: fn() Str {
+    env_c := Str.of(Env.get_or(c"ABYSS_COMPILER", c""))
+    if (env_c.len > 0) and File.exists(env_c) { ret env_c }
+    if File.exists("abyssc") { ret "./abyssc" }
+    if File.exists("../abyssc") { ret "../abyssc" }
+    if File.exists("../../abyssc") { ret "../../abyssc" }
+    "abyssc"
+}
+
 cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
     manifest_opt := PackageManifest.load_file(arena, "package.json")
     if manifest_opt.is_none() {
@@ -218,8 +227,8 @@ cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
         fall()
     }
 
-    abyssc_bin := Env.get_or(c"ABYSS_COMPILER", c"./abyssc")
-    ok := builder.build_target(Str.of(abyssc_bin), target_src, out_bin, map_args, objects, ld_flags)
+    abyssc_bin := find_abyssc()
+    ok := builder.build_target(abyssc_bin, target_src, out_bin, map_args, objects, ld_flags)
     if not ok {
         print_line("[sonar error] build failed")
         fall()
