@@ -72,10 +72,12 @@ VendorManager :: struct {
                 fi = fi + 1
             }
 
+            entry_stem := if pkg.entry.ends_with(".a") { pkg.entry.sub(0, pkg.entry.len - 2) } else { pkg.entry }
+            entry_path := Path.join(self.arena, target_pkg_dir, entry_stem)
             map_arg := String.new(self.arena)
             map_arg.push_str(pkg.name)
             map_arg.push_char('=' as u8)
-            map_arg.push_str(target_pkg_dir)
+            map_arg.push_str(entry_path)
             map_args.push(map_arg.as_str())
 
             manifest_buf.push_str("    {\"name\": \"")

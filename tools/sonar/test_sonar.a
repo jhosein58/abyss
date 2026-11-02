@@ -4,7 +4,7 @@ import std.collections.vec: Vec
 import std.fs: File, Dir
 import std.io: print
 import std.sys: fall
-import .json: parse_json, JsonVal, JsonKind
+import json: parse_json, JsonVal, JsonKind
 import .semver: SemVer
 import .manifest: PackageManifest, Dependency, CBuildInfo
 import .resolver: Resolver, ResolvedPackage, ResolutionResult

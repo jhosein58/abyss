@@ -2,10 +2,13 @@ import std.string: Str, String
 import std.allocator: Arena
 import std.collections.vec: Vec
 import std.path: Path
-import std.fs: File
+import std.fs: File, Dir, to_cstr
 import core.maybe: Maybe
 import .semver: SemVer
 import .manifest: PackageManifest, Dependency, CBuildInfo
+import .vendor: ensure_dir_all
+
+system :: fn(cmd &u8) i32
 
 ResolvedPackage :: struct {
     name       Str
@@ -79,13 +82,81 @@ Resolver :: struct {
         Path.normalize(self.arena, joined)
     }
 
+    repo_name_from_url :: fn(self &Self, url Str) Str {
+        last_slash: u64 = 0
+        i: u64 = 0
+        while i < url.len {
+            ch := *(url.ptr + i)
+            if (ch == ('/' as u8)) or (ch == (':' as u8)) {
+                last_slash = i + 1
+            }
+            i = i + 1
+        }
+        name_part := url.sub(last_slash, url.len - last_slash)
+        if name_part.ends_with(".git") and (name_part.len > 4) {
+            name_part.sub(0, name_part.len - 4)
+        } else {
+            name_part
+        }
+    }
+
+    resolve_git_package :: fn(self &Self, dep Dependency) Str {
+        repo_name := self.repo_name_from_url(dep.git)
+        cache_base := Path.join(self.arena, ".vendor/.cache/git", repo_name)
+        ensure_dir_all(self.arena, ".vendor/.cache/git")
+
+        c_cache := to_cstr(self.arena, cache_base)
+        if not Dir.exists(c_cache) {
+            cmd := String.new(self.arena)
+            cmd.push_str("git clone --depth 1 ")
+            cmd.push_str(dep.git)
+            cmd.push_str(" ")
+            cmd.push_str(cache_base)
+            cmd.push_str(" >/dev/null 2>&1")
+            res := system(to_cstr(self.arena, cmd.as_str()))
+            if res != 0 {
+                cand1 := Path.join(self.arena, "..", repo_name)
+                cand2 := Path.join(self.arena, "../..", repo_name)
+                cand3 := Path.join(self.arena, "/home/jhosein58/Workspace", repo_name)
+                cand_chosen := if Dir.exists(to_cstr(self.arena, cand1)) {
+                    cand1
+                } else if Dir.exists(to_cstr(self.arena, cand2)) {
+                    cand2
+                } else if Dir.exists(to_cstr(self.arena, cand3)) {
+                    cand3
+                } else {
+                    Str.empty()
+                }
+                if cand_chosen.len > 0 {
+                    cmd2 := String.new(self.arena)
+                    cmd2.push_str("git clone --depth 1 ")
+                    cmd2.push_str(cand_chosen)
+                    cmd2.push_str(" ")
+                    cmd2.push_str(cache_base)
+                    cmd2.push_str(" >/dev/null 2>&1")
+                    system(to_cstr(self.arena, cmd2.as_str()))
+                }
+            }
+        }
+
+        if dep.subdir.len > 0 {
+            Path.join(self.arena, cache_base, dep.subdir)
+        } else {
+            cache_base
+        }
+    }
+
     resolve_package :: fn(self &Self, base_dir Str, dep Dependency) {
         name := dep.name
         if self.is_active(name) {
             ret
         }
 
-        target_dir := self.resolve_dir(base_dir, dep.path)
+        target_dir := if dep.git.len > 0 {
+            self.resolve_git_package(dep)
+        } else {
+            self.resolve_dir(base_dir, dep.path)
+        }
         manifest_path := Path.join(self.arena, target_dir, "package.json")
 
         manifest_opt := PackageManifest.load_file(self.arena, manifest_path)

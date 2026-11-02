@@ -3,19 +3,23 @@ import std.allocator: Arena
 import std.collections.vec: Vec
 import std.fs: File
 import core.maybe: Maybe
-import .json: parse_json, JsonVal, JsonKind
+import json: parse_json, JsonVal, JsonKind
 import .semver: SemVer
 
 Dependency :: struct {
     name        Str
     version_req Str
     path        Str
+    git         Str
+    subdir      Str
 
-    new :: fn(name Str, version_req Str, path Str) Self {
+    new :: fn(name Str, version_req Str, path Str, git Str, subdir Str) Self {
         .{
             name: name
             version_req: version_req
             path: path
+            git: git
+            subdir: subdir
         }
     }
 }
@@ -43,6 +47,16 @@ PackageManifest :: struct {
     deps    Vec(Dependency)
     c_build CBuildInfo
 
+    default :: fn() Self {
+        .{
+            name: "my-project"
+            version: SemVer.new(0, 1, 0)
+            entry: "main.a"
+            deps: Vec(Dependency).new()
+            c_build: CBuildInfo.empty()
+        }
+    }
+
     parse :: fn(arena &Arena, json_src Str) Maybe(Self) {
         root_opt := parse_json(arena, json_src)
         if root_opt.is_none() { ret Maybe(Self).none() }
@@ -69,6 +83,8 @@ PackageManifest :: struct {
                 dep_val := deps_obj.vals.get(di)
                 dep_ver := "*"
                 dep_path := Str.empty()
+                dep_git := Str.empty()
+                dep_subdir := Str.empty()
                 if dep_val.kind == JsonKind.str_val {
                     dep_ver = dep_val.str_val
                 } else if dep_val.kind == JsonKind.obj_val {
@@ -76,8 +92,12 @@ PackageManifest :: struct {
                     if dv_opt.is_some() { dep_ver = dv_opt.unwrap() }
                     dp_opt := dep_val.get_str("path")
                     if dp_opt.is_some() { dep_path = dp_opt.unwrap() }
+                    dg_opt := dep_val.get_str("git")
+                    if dg_opt.is_some() { dep_git = dg_opt.unwrap() }
+                    ds_opt := dep_val.get_str("subdir")
+                    if ds_opt.is_some() { dep_subdir = ds_opt.unwrap() }
                 }
-                deps.push(Dependency.new(dep_name, dep_ver, dep_path))
+                deps.push(Dependency.new(dep_name, dep_ver, dep_path, dep_git, dep_subdir))
                 di = di + 1
             }
         }
@@ -141,5 +161,84 @@ PackageManifest :: struct {
         src_opt := File.read_to_string(arena, file_path)
         if src_opt.is_none() { ret Maybe(Self).none() }
         Self.parse(arena, src_opt.unwrap())
+    }
+
+    to_json :: fn(self &Self, arena &Arena) Str {
+        buf := String.new(arena)
+        buf.push_str("{\n  \"name\": \"")
+        buf.push_str(self.name)
+        buf.push_str("\",\n  \"version\": \"")
+        buf.push_str(self.version.format(arena))
+        buf.push_str("\",\n  \"entry\": \"")
+        buf.push_str(self.entry)
+        buf.push_str("\",\n  \"dependencies\": {\n")
+        di: u64 = 0
+        while di < self.deps.len {
+            dep := self.deps.get(di)
+            buf.push_str("    \"")
+            buf.push_str(dep.name)
+            buf.push_str("\": {\n      \"version\": \"")
+            buf.push_str(dep.version_req)
+            buf.push_str("\"")
+            if dep.path.len > 0 {
+                buf.push_str(",\n      \"path\": \"")
+                buf.push_str(dep.path)
+                buf.push_str("\"")
+            }
+            if dep.git.len > 0 {
+                buf.push_str(",\n      \"git\": \"")
+                buf.push_str(dep.git)
+                buf.push_str("\"")
+            }
+            if dep.subdir.len > 0 {
+                buf.push_str(",\n      \"subdir\": \"")
+                buf.push_str(dep.subdir)
+                buf.push_str("\"")
+            }
+            buf.push_str("\n    }")
+            if di + 1 < self.deps.len {
+                buf.push_str(",")
+            }
+            buf.push_str("\n")
+            di = di + 1
+        }
+        buf.push_str("  },\n  \"c_build\": {\n    \"sources\": [")
+        si: u64 = 0
+        while si < self.c_build.sources.len {
+            buf.push_str("\"")
+            buf.push_str(self.c_build.sources.get(si))
+            buf.push_str("\"")
+            if si + 1 < self.c_build.sources.len { buf.push_str(", ") }
+            si = si + 1
+        }
+        buf.push_str("],\n    \"include_dirs\": [")
+        ii: u64 = 0
+        while ii < self.c_build.include_dirs.len {
+            buf.push_str("\"")
+            buf.push_str(self.c_build.include_dirs.get(ii))
+            buf.push_str("\"")
+            if ii + 1 < self.c_build.include_dirs.len { buf.push_str(", ") }
+            ii = ii + 1
+        }
+        buf.push_str("],\n    \"c_flags\": [")
+        ci: u64 = 0
+        while ci < self.c_build.c_flags.len {
+            buf.push_str("\"")
+            buf.push_str(self.c_build.c_flags.get(ci))
+            buf.push_str("\"")
+            if ci + 1 < self.c_build.c_flags.len { buf.push_str(", ") }
+            ci = ci + 1
+        }
+        buf.push_str("],\n    \"ld_flags\": [")
+        li: u64 = 0
+        while li < self.c_build.ld_flags.len {
+            buf.push_str("\"")
+            buf.push_str(self.c_build.ld_flags.get(li))
+            buf.push_str("\"")
+            if li + 1 < self.c_build.ld_flags.len { buf.push_str(", ") }
+            li = li + 1
+        }
+        buf.push_str("]\n  }\n}\n")
+        buf.as_str()
     }
 }

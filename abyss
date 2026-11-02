@@ -206,10 +206,14 @@ EOF
         prepare_compiler
         cd "${CALLER_DIR}"
         export ABYSS_COMPILER="${ROOT_DIR}/abyssc"
-        "${ROOT_DIR}/abyssc" r "${ROOT_DIR}/tools/sonar/main.a" "$@"
+        if [ -x "${ROOT_DIR}/sonar" ]; then
+            "${ROOT_DIR}/sonar" "$@"
+        else
+            "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/packages/json/json" r "${ROOT_DIR}/tools/sonar/main.a" "$@"
+        fi
         ;;
     sonar-test)
-        "${ROOT_DIR}/abyssc" r "${ROOT_DIR}/tools/sonar/test_sonar.a" "$@"
+        "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/packages/json/json" r "${ROOT_DIR}/tools/sonar/test_sonar.a" "$@"
         ;;
     clean)
         rm -rf "${ROOT_DIR}/tmp"/*
