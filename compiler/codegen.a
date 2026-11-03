@@ -53,26 +53,28 @@ CCodeBuilder :: struct {
 }
 
 CCodeGen :: struct {
-    arena            &Arena,
-    struct_decls     String,
-    struct_defs      String,
-    func_decls       String,
-    code             String,
-    emitted_structs  Vec(u32),
-    main_sym         u32,
-    has_main         bool,
-    indent           u32,
-    loop_condition   LoopCondition,
-    temp_count       u32,
+    arena                &Arena,
+    struct_forward_decls String,
+    struct_decls         String,
+    struct_defs          String,
+    func_decls           String,
+    code                 String,
+    emitted_structs      Vec(u32),
+    main_sym             u32,
+    has_main             bool,
+    indent               u32,
+    loop_condition       LoopCondition,
+    temp_count           u32,
 
     new :: fn(arena &Arena) Self {
         .{
-            arena           : arena,
-            struct_decls    : String.new(arena),
-            struct_defs     : String.new(arena),
-            func_decls      : String.new(arena),
-            code            : String.new(arena),
-            emitted_structs : Vec(u32).new(),
+            arena                : arena,
+            struct_forward_decls : String.new(arena),
+            struct_decls         : String.new(arena),
+            struct_defs          : String.new(arena),
+            func_decls           : String.new(arena),
+            code                 : String.new(arena),
+            emitted_structs      : Vec(u32).new(),
             main_sym        : 0,
             has_main        : false,
             indent          : 0,
@@ -347,11 +349,11 @@ CCodeGen :: struct {
     }
 
     decl_struct :: fn(self &Self, name Str) {
-        append_str(&self.struct_decls, Str.of("typedef struct "))
-        append_str(&self.struct_decls, name)
-        append_char(&self.struct_decls, 32 as u8)
-        append_str(&self.struct_decls, name)
-        append_str(&self.struct_decls, Str.of(";\n"))
+        append_str(&self.struct_forward_decls, Str.of("typedef struct "))
+        append_str(&self.struct_forward_decls, name)
+        append_char(&self.struct_forward_decls, 32 as u8)
+        append_str(&self.struct_forward_decls, name)
+        append_str(&self.struct_forward_decls, Str.of(";\n"))
     }
 
     def_struct :: fn(self &Self, ty_id u32, name Str, body Str) {
@@ -531,6 +533,7 @@ CCodeGen :: struct {
         append_str(&out, pre)
 
         append_str(&out, Str.of("// Struct Declarations\n"))
+        append_str(&out, string_view(&self.struct_forward_decls))
         append_str(&out, string_view(&self.struct_decls))
         append_str(&out, Str.of("\n// Struct Definitions\n"))
         append_str(&out, string_view(&self.struct_defs))
