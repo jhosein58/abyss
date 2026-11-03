@@ -23,18 +23,23 @@ fi
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
-echo "Downloading Abyss toolchain from ${TAR_URL}..."
-if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "${TAR_URL}" -o "${TMP_DIR}/abyss.tar.gz"
-elif command -v wget >/dev/null 2>&1; then
-    wget -qO "${TMP_DIR}/abyss.tar.gz" "${TAR_URL}"
+if [ -n "${ABYSS_TAR_FILE:-}" ] && [ -f "${ABYSS_TAR_FILE}" ]; then
+    echo "Installing local Abyss package from ${ABYSS_TAR_FILE}..."
+    cp "${ABYSS_TAR_FILE}" "${TMP_DIR}/abyss.tar.gz"
 else
-    echo "[error] curl or wget is required." >&2
-    exit 1
+    echo "Downloading Abyss toolchain from ${TAR_URL}..."
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "${TAR_URL}" -o "${TMP_DIR}/abyss.tar.gz"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "${TMP_DIR}/abyss.tar.gz" "${TAR_URL}"
+    else
+        echo "[error] curl or wget is required." >&2
+        exit 1
+    fi
 fi
 
 mkdir -p "${INSTALL_DIR}"
-rm -rf "${INSTALL_DIR}/bin" "${INSTALL_DIR}/pods"
+rm -rf "${INSTALL_DIR}/bin" "${INSTALL_DIR}/pods" "${INSTALL_DIR}/std" "${INSTALL_DIR}/core"
 tar -xzf "${TMP_DIR}/abyss.tar.gz" -C "${INSTALL_DIR}" --strip-components=1
 
 chmod +x "${BIN_DIR}/abyssc" 2>/dev/null || true
