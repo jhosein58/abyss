@@ -390,7 +390,7 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
             cmd_run.push_char(' ' as u8)
         }
         cmd_run.push_str(abyssc_bin)
-        cmd_run.push_str(" r ")
+        cmd_run.push_str(" b ")
         m_idx: u64 = 0
         while m_idx < map_args.len {
             cmd_run.push_str(" --map ")
@@ -399,6 +399,7 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
         }
         cmd_run.push_char(' ' as u8)
         cmd_run.push_str(tf)
+        cmd_run.push_str(" /tmp/_sonar_t.c >/dev/null 2>&1 && gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O2 -Wno-implicit-function-declaration -Wno-error=incompatible-pointer-types /tmp/_sonar_t.c -o /tmp/_sonar_t_bin >/dev/null 2>&1 && /tmp/_sonar_t_bin")
 
         status := system(to_cstr(arena, cmd_run.as_str()))
         if status == 0 {
