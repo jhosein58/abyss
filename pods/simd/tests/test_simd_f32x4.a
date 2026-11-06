@@ -1,0 +1,94 @@
+import std.allocator: Arena
+import simd: Simd, f32x4
+import test: Suite, Test, assert_true, assert_eq
+
+test_f32x4_constructors_and_access :: fn(t &Test) {
+    v := f32x4.splat(3.5)
+    t.assert_true(v.get(0) == 3.5, "splat index 0")
+    t.assert_true(v.get(1) == 3.5, "splat index 1")
+    t.assert_true(v.get(2) == 3.5, "splat index 2")
+    t.assert_true(v.get(3) == 3.5, "splat index 3")
+
+    z := f32x4.zero()
+    t.assert_true(z.get(0) == 0.0, "zero index 0")
+
+    arr: [4]f32
+    arr[0] = 1.0
+    arr[1] = 2.0
+    arr[2] = 3.0
+    arr[3] = 4.0
+
+    loaded := f32x4.load(&arr as &f32)
+    t.assert_true(loaded.get(0) == 1.0, "load 0")
+    t.assert_true(loaded.get(3) == 4.0, "load 3")
+
+    out: [4]f32
+    loaded.store(&out as &f32)
+    t.assert_true(out[0] == 1.0, "store 0")
+    t.assert_true(out[3] == 4.0, "store 3")
+
+    loaded.set(1, 99.0)
+    t.assert_true(loaded.get(1) == 99.0, "set value")
+}
+
+test_f32x4_arithmetic :: fn(t &Test) {
+    a := f32x4.splat(10.0)
+    b := f32x4.splat(2.5)
+
+    sum := a.add(b)
+    diff := a.sub(b)
+    prod := a.mul(b)
+    quot := a.div(b)
+    negated := b.neg()
+
+    t.assert_true(sum.get(0) == 12.5, "add")
+    t.assert_true(diff.get(0) == 7.5, "sub")
+    t.assert_true(prod.get(0) == 25.0, "mul")
+    t.assert_true(quot.get(0) == 4.0, "div")
+    t.assert_true(negated.get(0) == -2.5, "neg")
+}
+
+test_f32x4_min_max_clamp_abs :: fn(t &Test) {
+    a := f32x4.splat(-5.0)
+    b := f32x4.splat(15.0)
+
+    abs_val := a.abs()
+    t.assert_true(abs_val.get(0) == 5.0, "abs")
+
+    min_v := a.min(b)
+    max_v := a.max(b)
+    t.assert_true(min_v.get(0) == -5.0, "min")
+    t.assert_true(max_v.get(0) == 15.0, "max")
+
+    low := f32x4.splat(0.0)
+    high := f32x4.splat(10.0)
+    clamped := b.clamp(low, high)
+    t.assert_true(clamped.get(0) == 10.0, "clamp")
+}
+
+test_f32x4_reverse :: fn(t &Test) {
+    arr: [4]f32
+    arr[0] = 10.0
+    arr[1] = 20.0
+    arr[2] = 30.0
+    arr[3] = 40.0
+
+    v := f32x4.load(&arr as &f32)
+    rev := v.reverse()
+
+    t.assert_true(rev.get(0) == 40.0, "rev 0")
+    t.assert_true(rev.get(1) == 30.0, "rev 1")
+    t.assert_true(rev.get(2) == 20.0, "rev 2")
+    t.assert_true(rev.get(3) == 10.0, "rev 3")
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "SIMD f32x4 Operations Suite")
+    suite.add("constructors_and_access", test_f32x4_constructors_and_access)
+    suite.add("arithmetic", test_f32x4_arithmetic)
+    suite.add("min_max_clamp_abs", test_f32x4_min_max_clamp_abs)
+    suite.add("reverse", test_f32x4_reverse)
+    suite.run_and_exit()
+    arena.destroy()
+}

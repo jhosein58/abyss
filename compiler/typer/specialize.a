@@ -198,6 +198,28 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
     ty_id_none()
 }
 
+eval_comptime_arg :: fn(db &Nexus, id u32) u32 {
+    if id == hir_none() { ret 0 }
+    k := db.hir.kind(id)
+    if k == hir_kind.lit_int {
+        ret db.hir.lhs(id)
+    }
+    if db.has_const_val(id) {
+        ret db.get_const_val(id) as u32
+    }
+    if k == hir_kind.ident {
+        sym := db.get_hir_symbol(id)
+        if sym != id_none() {
+            real_s := db.resolve_sym(sym)
+            hir_node := db.get_sym_hir(real_s)
+            if (hir_node != id_none()) and db.has_const_val(hir_node) {
+                ret db.get_const_val(hir_node) as u32
+            }
+        }
+    }
+    0
+}
+
 eval_type_expr :: fn(eng &Engine, id u32) u32 {
     if id == hir_none() { ret ty_id_none() }
     db := &(*eng).nexus
@@ -268,19 +290,43 @@ eval_type_expr :: fn(eng &Engine, id u32) u32 {
 
     if curr == k.call {
         callee := (tbl).lhs(id)
+        callee_sym := id_none()
+        if (tbl).kind(callee) == k.ident {
+            sym := db.get_hir_symbol(callee)
+            if sym != id_none() { callee_sym = db.resolve_sym(sym) }
+        }
+        creator_fn := id_none()
+        fn_params_slice: Slice(u32) = .{ ptr: 0 as &u32, len: 0 }
+        if callee_sym != id_none() {
+            creator_fn = db.get_fn_node(callee_sym)
+            if creator_fn != id_none() {
+                cp_list := (tbl).lhs(creator_fn)
+                if cp_list != hir_none() {
+                    fn_params_slice = db.get_list(cp_list)
+                }
+            }
+        }
         sub_concrete := Vec(u32).new()
         if (tbl).rhs(id) != hir_none() {
             args := db.get_list((tbl).rhs(id))
             i: u64 = 0
             while i < args.len {
-                sub_concrete.push(eval_type_expr(eng, *(args.ptr + i)))
+                arg_node := *(args.ptr + i)
+                is_type_arg := true
+                if i < fn_params_slice.len {
+                    p_arg := *(fn_params_slice.ptr + i)
+                    p_ty_node := (tbl).rhs(p_arg)
+                    if synth_type_node(eng, p_ty_node) != ty_id_type() {
+                        is_type_arg = false
+                    }
+                }
+                if is_type_arg {
+                    sub_concrete.push(eval_type_expr(eng, arg_node))
+                } else {
+                    sub_concrete.push(eval_comptime_arg(db, arg_node))
+                }
                 i = i + 1
             }
-        }
-        callee_sym := id_none()
-        if (tbl).kind(callee) == k.ident {
-            sym := db.get_hir_symbol(callee)
-            if sym != id_none() { callee_sym = db.resolve_sym(sym) }
         }
         if callee_sym != id_none() {
             cached := db.find_mono_nominal(callee_sym, sub_concrete.as_slice())
@@ -421,6 +467,7 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
 transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec(u32), unify_ptr &UnifyStorage, types &TypeStorage, is_instantiate bool) u32 {
     if ty == ty_id_none() { ret ty_id_none() }
     db := &eng.nexus
+    tbl := &db.hir
     kind := types.kind(ty)
 
     if not is_instantiate {
@@ -528,13 +575,32 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec
         creator_sym := types.get_nominal_creator_sym(orig)
         if creator_sym != ty_id_none() {
             creator_args := types.get_nominal_creator_args(orig)
+            creator_fn := db.get_fn_node(creator_sym)
+            fn_params_slice: Slice(u32) = .{ ptr: 0 as &u32, len: 0 }
+            if creator_fn != id_none() {
+                cp_list := (tbl).lhs(creator_fn)
+                if cp_list != hir_none() {
+                    fn_params_slice = db.get_list(cp_list)
+                }
+            }
             res_args := Vec(u32).new()
             changed := false
             c_i: u64 = 0
             while c_i < creator_args.len {
                 creator_args = types.get_nominal_creator_args(orig)
                 c_arg := *(creator_args.ptr + c_i)
-                new_arg := transform_type(eng, c_arg, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+                is_type_arg := true
+                if c_i < fn_params_slice.len {
+                    p_arg := *(fn_params_slice.ptr + c_i)
+                    p_ty_node := (tbl).rhs(p_arg)
+                    if synth_type_node(eng, p_ty_node) != ty_id_type() {
+                        is_type_arg = false
+                    }
+                }
+                new_arg := c_arg
+                if is_type_arg {
+                    new_arg = transform_type(eng, c_arg, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+                }
                 if new_arg != c_arg { changed = true }
                 res_args.push(new_arg)
                 c_i = c_i + 1

@@ -1,0 +1,13 @@
+{
+  "name": "simd",
+  "version": "0.1.0",
+  "entry": "simd.a",
+  "description": "High-performance generic SIMD vector primitives and vectorized math for Abyss",
+  "dependencies": {},
+  "c_build": {
+    "sources": ["runtime/simd_runtime.c"],
+    "include_dirs": ["runtime"],
+    "c_flags": ["-O3", "-fomit-frame-pointer"],
+    "ld_flags": ["-lm"]
+  }
+}

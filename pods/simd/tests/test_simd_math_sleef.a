@@ -1,0 +1,67 @@
+import std.allocator: Arena
+import simd: Simd, f32x4, f64x2
+import test: Suite, Test, assert_true
+
+approx_eq :: fn(a f32, b f32, eps f32) bool {
+    diff := a - b
+    abs_d := if diff < 0.0 { -diff } else { diff }
+    abs_d <= eps
+}
+
+test_f32x4_fma_sqrt_rsqrt :: fn(t &Test) {
+    a := f32x4.splat(2.0)
+    b := f32x4.splat(3.0)
+    c := f32x4.splat(4.0)
+
+    fma_v := a.fma(b, c)
+    t.assert_true(fma_v.get(0) == 10.0, "fma value")
+
+    v16 := f32x4.splat(16.0)
+    root := v16.sqrt()
+    t.assert_true(root.get(0) == 4.0, "sqrt 16")
+
+    v4 := f32x4.splat(4.0)
+    r_root := v4.rsqrt()
+    t.assert_true(approx_eq(r_root.get(0), 0.5, 0.01), "rsqrt 4")
+}
+
+test_f32x4_transcendental_math :: fn(t &Test) {
+    zeros := f32x4.splat(0.0)
+    sin_z := zeros.sin()
+    cos_z := zeros.cos()
+    exp_z := zeros.exp()
+
+    t.assert_true(approx_eq(sin_z.get(0), 0.0, 0.001), "sin 0")
+    t.assert_true(approx_eq(cos_z.get(0), 1.0, 0.001), "cos 0")
+    t.assert_true(approx_eq(exp_z.get(0), 1.0, 0.001), "exp 0")
+
+    ones := f32x4.splat(1.0)
+    ln_one := ones.ln()
+    t.assert_true(approx_eq(ln_one.get(0), 0.0, 0.001), "ln 1")
+
+    base := f32x4.splat(2.0)
+    exp_v := f32x4.splat(3.0)
+    pow_v := base.pow(exp_v)
+    t.assert_true(approx_eq(pow_v.get(0), 8.0, 0.001), "2 pow 3")
+}
+
+test_f64x2_sleef_math :: fn(t &Test) {
+    v := f64x2.splat(0.0)
+    sin_v := v.sin()
+    cos_v := v.cos()
+    exp_v := v.exp()
+
+    t.assert_true(sin_v.get(0) == 0.0, "f64 sin 0")
+    t.assert_true(cos_v.get(0) == 1.0, "f64 cos 0")
+    t.assert_true(exp_v.get(0) == 1.0, "f64 exp 0")
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "SIMD Vectorized Math & SLEEF Suite")
+    suite.add("fma_sqrt_rsqrt", test_f32x4_fma_sqrt_rsqrt)
+    suite.add("transcendental_math", test_f32x4_transcendental_math)
+    suite.add("f64x2_sleef_math", test_f64x2_sleef_math)
+    suite.run_and_exit()
+    arena.destroy()
+}

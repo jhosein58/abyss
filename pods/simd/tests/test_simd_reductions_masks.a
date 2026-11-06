@@ -1,0 +1,57 @@
+import std.allocator: Arena
+import simd: Simd, f32x4, SimdMask
+import test: Suite, Test, assert_true, assert_false, assert_eq
+
+test_simd_mask_queries :: fn(t &Test) {
+    a := f32x4.splat(10.0)
+    b := f32x4.splat(10.0)
+    c := f32x4.splat(20.0)
+
+    eq_mask := a.cmp_eq(b)
+    t.assert_true(eq_mask.all(), "all elements equal")
+    t.assert_true(eq_mask.any(), "any elements equal")
+    t.assert_false(eq_mask.none(), "none elements equal")
+    t.assert_eq(u64, eq_mask.count_ones(), 4, "count ones")
+
+    lt_mask := a.cmp_lt(c)
+    t.assert_true(lt_mask.all(), "10 < 20 all")
+
+    gt_mask := a.cmp_gt(c)
+    t.assert_true(gt_mask.none(), "10 > 20 none")
+}
+
+test_simd_select :: fn(t &Test) {
+    arr_a: [4]f32
+    arr_a[0] = 1.0
+    arr_a[1] = 2.0
+    arr_a[2] = 3.0
+    arr_a[3] = 4.0
+
+    arr_b: [4]f32
+    arr_b[0] = 10.0
+    arr_b[1] = 20.0
+    arr_b[2] = 30.0
+    arr_b[3] = 40.0
+
+    va := f32x4.load(&arr_a as &f32)
+    vb := f32x4.load(&arr_b as &f32)
+
+    limit := f32x4.splat(2.5)
+    mask := va.cmp_gt(limit)
+
+    chosen := f32x4.select(mask, va, vb)
+
+    t.assert_true(chosen.get(0) == 10.0, "select 0")
+    t.assert_true(chosen.get(1) == 20.0, "select 1")
+    t.assert_true(chosen.get(2) == 3.0, "select 2")
+    t.assert_true(chosen.get(3) == 4.0, "select 3")
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "SIMD Reductions, Masks & Select Suite")
+    suite.add("mask_queries", test_simd_mask_queries)
+    suite.add("select", test_simd_select)
+    suite.run_and_exit()
+    arena.destroy()
+}

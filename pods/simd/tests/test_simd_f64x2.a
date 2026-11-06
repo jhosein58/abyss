@@ -1,0 +1,49 @@
+import std.allocator: Arena
+import simd: Simd, f64x2
+import test: Suite, Test, assert_true
+
+test_f64x2_math :: fn(t &Test) {
+    a := f64x2.splat(4.0)
+    b := f64x2.splat(2.5)
+
+    sum := a.add(b)
+    diff := a.sub(b)
+    prod := a.mul(b)
+    quot := a.div(b)
+
+    t.assert_true(sum.get(0) == 6.5, "f64 sum 0")
+    t.assert_true(sum.get(1) == 6.5, "f64 sum 1")
+    t.assert_true(diff.get(0) == 1.5, "f64 diff")
+    t.assert_true(prod.get(0) == 10.0, "f64 prod")
+    t.assert_true(quot.get(0) == 1.6, "f64 quot")
+}
+
+test_f64x2_reductions :: fn(t &Test) {
+    arr: [2]f64
+    arr[0] = 3.0
+    arr[1] = 7.0
+
+    v := f64x2.load(&arr as &f64)
+    s := v.sum()
+    p := v.product()
+    min_v := v.reduce_min()
+    max_v := v.reduce_max()
+
+    t.assert_true(s == 10.0, "f64 sum")
+    t.assert_true(p == 21.0, "f64 product")
+    t.assert_true(min_v == 3.0, "f64 min")
+    t.assert_true(max_v == 7.0, "f64 max")
+
+    w := f64x2.splat(2.0)
+    dot_prod := v.dot(w)
+    t.assert_true(dot_prod == 20.0, "f64 dot")
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "SIMD f64x2 Operations Suite")
+    suite.add("f64x2_math", test_f64x2_math)
+    suite.add("f64x2_reductions", test_f64x2_reductions)
+    suite.run_and_exit()
+    arena.destroy()
+}

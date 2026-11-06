@@ -554,6 +554,19 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
                             }
                             db.set_const_val(p_ident, arg_val as u64)
                             db.set_is_const(p_ident, true)
+                            p_sym := db.get_hir_symbol(p_ident)
+                            if p_sym != id_none() {
+                                p_real := db.resolve_sym(p_sym)
+                                db.set_sym_is_const(p_real, true)
+                                p_hir := db.get_sym_hir(p_real)
+                                if p_hir != id_none() {
+                                    if p_param_ty == ty_id_type() {
+                                        db.set_const_type(p_hir, arg_val)
+                                    }
+                                    db.set_const_val(p_hir, arg_val as u64)
+                                    db.set_is_const(p_hir, true)
+                                }
+                            }
                         }
                         if p_param_ty == ty_id_type() {
                             db.set_const_type(p_arg, arg_val)
