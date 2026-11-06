@@ -1,0 +1,85 @@
+import std.allocator: Arena
+import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false
+import core.range: Range
+import core.slice: Slice
+import core.iterator: Iterator
+
+test_range_iteration :: fn(t &Test) {
+    r := Range.new(0, 5)
+    sum: i32 = 0
+    while true {
+        item := r.next()
+        if item.is_none() { break }
+        sum = sum + item.unwrap()
+    }
+    t.assert_eq(i32, sum, 10, "")
+
+    r_empty := Range.new(10, 10)
+    t.assert_true(r_empty.next().is_none(), "")
+
+    r_inv := Range.new(10, 2)
+    t.assert_true(r_inv.next().is_none(), "")
+}
+
+test_slice_operations :: fn(t &Test) {
+    arr: [6]i32 = .[ 10, 20, 30, 40, 50, 60 ]
+    s := Slice(i32).new(&arr as &i32, 6)
+    t.assert_eq(u64, s.len, 6, "")
+    t.assert_eq(i32, s.get(0), 10, "")
+    t.assert_eq(i32, s.get(5), 60, "")
+
+    sub := s.sub(1, 3)
+    t.assert_eq(u64, sub.len, 3, "")
+    t.assert_eq(i32, sub.get(0), 20, "")
+    t.assert_eq(i32, sub.get(2), 40, "")
+
+    arr2: [3]i32 = .[ 20, 30, 40 ]
+    s2 := Slice(i32).new(&arr2 as &i32, 3)
+    t.assert_true(sub.equals(s2), "")
+
+    p20 := s.position(20)
+    t.assert_true(p20.is_some(), "")
+    t.assert_eq(u64, p20.unwrap(), 1, "")
+
+    p99 := s.position(99)
+    t.assert_true(p99.is_none(), "")
+
+    s_empty := Slice(i32).empty()
+    t.assert_eq(u64, s_empty.len, 0, "")
+}
+
+test_iterator_navigation :: fn(t &Test) {
+    arr: [4]i32 = .[ 1, 2, 3, 4 ]
+    it := Iterator(i32).new(&arr as &i32, 4)
+
+    t.assert_eq(u64, it.remaining(), 4, "")
+    t.assert_true(it.has_next(), "")
+    t.assert_false(it.is_done(), "")
+
+    pk := it.peek()
+    t.assert_true(pk.is_some(), "")
+    t.assert_eq(i32, pk.unwrap(), 1, "")
+
+    t.assert_eq(i32, it.next().unwrap(), 1, "")
+    t.assert_eq(u64, it.remaining(), 3, "")
+
+    it.skip(2)
+    t.assert_eq(u64, it.remaining(), 1, "")
+    t.assert_eq(i32, it.next().unwrap(), 4, "")
+    t.assert_true(it.is_done(), "")
+    t.assert_false(it.has_next(), "")
+
+    it.reset()
+    t.assert_eq(u64, it.remaining(), 4, "")
+    t.assert_eq(i32, it.next().unwrap(), 1, "")
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "Core Range, Slice, and Iterator Test Suite")
+    suite.add("range_iteration", test_range_iteration)
+    suite.add("slice_operations", test_slice_operations)
+    suite.add("iterator_navigation", test_iterator_navigation)
+    suite.run_and_exit()
+    arena.destroy()
+}

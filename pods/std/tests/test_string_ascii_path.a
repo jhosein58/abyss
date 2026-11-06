@@ -1,0 +1,115 @@
+import std.allocator: Arena
+import std.ascii: Ascii, is_digit, is_hex_digit, is_alpha, is_alphanumeric, is_whitespace, to_lower, to_upper, hex_digit_value
+import std.string: String, parse_u32
+import std.path: Path
+import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false, assert_str_eq
+
+test_ascii_predicates :: fn(t &Test) {
+    t.assert_true(is_digit('0'), "")
+    t.assert_true(is_digit('9'), "")
+    t.assert_false(is_digit('a'), "")
+
+    t.assert_true(is_hex_digit('0'), "")
+    t.assert_true(is_hex_digit('f'), "")
+    t.assert_true(is_hex_digit('F'), "")
+    t.assert_false(is_hex_digit('g'), "")
+
+    t.assert_true(is_alpha('a'), "")
+    t.assert_true(is_alpha('Z'), "")
+    t.assert_true(is_alpha('_'), "")
+    t.assert_false(is_alpha('9'), "")
+
+    t.assert_true(is_alphanumeric('x'), "")
+    t.assert_true(is_alphanumeric('7'), "")
+    t.assert_false(is_alphanumeric('!'), "")
+
+    t.assert_true(is_whitespace(' '), "")
+    t.assert_true(is_whitespace('\t'), "")
+    t.assert_false(is_whitespace('x'), "")
+
+    t.assert_eq(u8, to_lower('A'), 'a', "")
+    t.assert_eq(u8, to_lower('z'), 'z', "")
+    t.assert_eq(u8, to_upper('b'), 'B', "")
+    t.assert_eq(u8, to_upper('Z'), 'Z', "")
+
+    t.assert_eq(u32, hex_digit_value('f'), 15, "")
+    t.assert_eq(u32, hex_digit_value('A'), 10, "")
+    t.assert_eq(u32, hex_digit_value('7'), 7, "")
+}
+
+test_string_builder :: fn(t &Test) {
+    arena := Arena.new(2048)
+    s := String.new(&arena)
+    t.assert_eq(u64, s.len, 0, "")
+
+    s.push_str("Hello")
+    s.push_char(' ')
+    s.push_str("World")
+    t.assert_str_eq(s.as_str(), "Hello World", "")
+    t.assert_eq(u64, s.len, 11, "")
+
+    mk := s.mark()
+    s.push_str("!!!")
+    t.assert_str_eq(s.as_str(), "Hello World!!!", "")
+    s.reset(mk)
+    t.assert_str_eq(s.as_str(), "Hello World", "")
+
+    s.push_codepoint(945)
+    t.assert_eq(u64, s.len, 13, "")
+
+    arena.destroy()
+}
+
+test_parse_u32 :: fn(t &Test) {
+    dec := parse_u32("12345")
+    t.assert_true(dec.is_some(), "")
+    t.assert_eq(u32, dec.unwrap(), 12345, "")
+
+    hex := parse_u32("0xFF")
+    t.assert_true(hex.is_some(), "")
+    t.assert_eq(u32, hex.unwrap(), 255, "")
+
+    bin := parse_u32("0b1011")
+    t.assert_true(bin.is_some(), "")
+    t.assert_eq(u32, bin.unwrap(), 11, "")
+
+    oct := parse_u32("0o77")
+    t.assert_true(oct.is_some(), "")
+    t.assert_eq(u32, oct.unwrap(), 63, "")
+
+    empty := parse_u32("")
+    t.assert_true(empty.is_none(), "")
+}
+
+test_path_utilities :: fn(t &Test) {
+    arena := Arena.new(2048)
+
+    p1 := "compiler/nexus/nexus.a"
+    t.assert_str_eq(Path.dir(p1), "compiler/nexus", "")
+    t.assert_str_eq(Path.base(p1), "nexus.a", "")
+
+    joined := Path.join(&arena, "src", "main.a")
+    t.assert_str_eq(joined, "src/main.a", "")
+
+    ext1 := Path.ensure_ext(&arena, "test", ".a")
+    t.assert_str_eq(ext1, "test.a", "")
+
+    ext2 := Path.ensure_ext(&arena, "test.a", ".a")
+    t.assert_str_eq(ext2, "test.a", "")
+
+    t.assert_str_eq(Path.dir("single.a"), "", "")
+    t.assert_str_eq(Path.base("single.a"), "single.a", "")
+
+    arena.destroy()
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "Std String, ASCII, and Path Test Suite")
+    suite.add("ascii_predicates", test_ascii_predicates)
+    suite.add("string_builder", test_string_builder)
+    suite.add("parse_u32", test_parse_u32)
+    suite.add("path_utilities", test_path_utilities)
+    suite.run_and_exit()
+    arena.destroy()
+}

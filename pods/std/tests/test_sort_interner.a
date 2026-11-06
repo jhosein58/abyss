@@ -1,0 +1,61 @@
+import std.allocator: Arena
+import std.sort: sort
+import std.interner: Interner
+import core.slice: Slice
+import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false
+
+test_sort_slice :: fn(t &Test) {
+    arr: [6]i32 = .[ 50, 10, 40, 20, 60, 30 ]
+    s := Slice(i32).new(&arr as &i32, 6)
+    sort(i32, s)
+
+    t.assert_eq(i32, s.get(0), 10, "")
+    t.assert_eq(i32, s.get(1), 20, "")
+    t.assert_eq(i32, s.get(2), 30, "")
+    t.assert_eq(i32, s.get(3), 40, "")
+    t.assert_eq(i32, s.get(4), 50, "")
+    t.assert_eq(i32, s.get(5), 60, "")
+
+    single: [1]i32 = .[ 42 ]
+    s_single := Slice(i32).new(&single as &i32, 1)
+    sort(i32, s_single)
+    t.assert_eq(i32, s_single.get(0), 42, "")
+
+    dups: [5]i32 = .[ 3, 1, 3, 2, 1 ]
+    s_dups := Slice(i32).new(&dups as &i32, 5)
+    sort(i32, s_dups)
+    t.assert_eq(i32, s_dups.get(0), 1, "")
+    t.assert_eq(i32, s_dups.get(1), 1, "")
+    t.assert_eq(i32, s_dups.get(2), 2, "")
+    t.assert_eq(i32, s_dups.get(3), 3, "")
+    t.assert_eq(i32, s_dups.get(4), 3, "")
+}
+
+test_string_interner :: fn(t &Test) {
+    inter := Interner.new()
+
+    id1 := inter.intern("identifier")
+    id2 := inter.intern("identifier")
+    id3 := inter.intern("another_ident")
+
+    t.assert_eq(u32, id1, id2, "")
+    t.assert_ne(u32, id1, id3, "")
+
+    i: u32 = 0
+    while i < 100 {
+        inter.intern("sym")
+        i = i + 1
+    }
+    t.assert_eq(u64, inter.count, 3, "")
+
+    inter.destroy()
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "Std Sort and Interner Test Suite")
+    suite.add("sort_slice", test_sort_slice)
+    suite.add("string_interner", test_string_interner)
+    suite.run_and_exit()
+    arena.destroy()
+}

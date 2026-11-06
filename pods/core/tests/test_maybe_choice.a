@@ -1,0 +1,73 @@
+import std.allocator: Arena
+import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false, assert_str_eq
+import core.maybe: Maybe
+import core.choice: Choice
+
+Point :: struct {
+    x i32
+    y i32
+}
+
+test_maybe_basic :: fn(t &Test) {
+    m1 := Maybe(i32).some(42)
+    t.assert_true(m1.is_some(), "")
+    t.assert_false(m1.is_none(), "")
+    t.assert_eq(i32, m1.unwrap(), 42, "")
+    t.assert_eq(i32, m1.unwrap_or(0), 42, "")
+
+    m0 := Maybe(i32).none()
+    t.assert_false(m0.is_some(), "")
+    t.assert_true(m0.is_none(), "")
+    t.assert_eq(i32, m0.unwrap_or(99), 99, "")
+}
+
+test_maybe_types :: fn(t &Test) {
+    ms := Maybe(Str).some("abyss")
+    t.assert_true(ms.is_some(), "")
+    t.assert_str_eq(ms.unwrap(), "abyss", "")
+
+    mn := Maybe(Str).none()
+    t.assert_true(mn.is_none(), "")
+    t.assert_str_eq(mn.unwrap_or("fallback"), "fallback", "")
+
+    mp := Maybe(Point).some(.{ x: 10, y: 20 })
+    t.assert_true(mp.is_some(), "")
+    p := mp.unwrap()
+    t.assert_eq(i32, p.x, 10, "")
+    t.assert_eq(i32, p.y, 20, "")
+}
+
+test_choice_basic :: fn(t &Test) {
+    c_ok := Choice(i32, Str).ok(256)
+    t.assert_true(c_ok.is_ok, "")
+    t.assert_true(c_ok.is_success(), "")
+    t.assert_false(c_ok.is_error(), "")
+    t.assert_eq(i32, c_ok.unwrap_or(0), 256, "")
+
+    c_err := Choice(i32, Str).err("error occurred")
+    t.assert_false(c_err.is_ok, "")
+    t.assert_false(c_err.is_success(), "")
+    t.assert_true(c_err.is_error(), "")
+    t.assert_eq(i32, c_err.unwrap_or(500), 500, "")
+}
+
+test_choice_edge_cases :: fn(t &Test) {
+    c_zero := Choice(i64, i64).ok(0)
+    t.assert_true(c_zero.is_success(), "")
+    t.assert_eq(i64, c_zero.unwrap_or(-1), 0, "")
+
+    c_neg := Choice(i32, bool).err(false)
+    t.assert_true(c_neg.is_error(), "")
+    t.assert_eq(i32, c_neg.unwrap_or(-42), -42, "")
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "Core Maybe and Choice Test Suite")
+    suite.add("maybe_basic", test_maybe_basic)
+    suite.add("maybe_types", test_maybe_types)
+    suite.add("choice_basic", test_choice_basic)
+    suite.add("choice_edge_cases", test_choice_edge_cases)
+    suite.run_and_exit()
+    arena.destroy()
+}

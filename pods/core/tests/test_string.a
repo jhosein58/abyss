@@ -1,0 +1,88 @@
+import std.allocator: Arena
+import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false, assert_str_eq, assert_str_ne
+import core.string: Str, CharIter
+
+test_str_basics :: fn(t &Test) {
+    s_empty := Str.empty()
+    t.assert_eq(u64, s_empty.len, 0, "")
+
+    s := Str.of("Abyss Systems")
+    t.assert_eq(u64, s.len, 13, "")
+
+    s_sub := s.sub(0, 5)
+    t.assert_str_eq(s_sub, "Abyss", "")
+
+    s_tail := s.sub(6, 7)
+    t.assert_str_eq(s_tail, "Systems", "")
+}
+
+test_str_predicates :: fn(t &Test) {
+    s := Str.of("antigravity")
+    t.assert_true(s.starts_with("anti"), "")
+    t.assert_false(s.starts_with("grav"), "")
+    t.assert_false(s.starts_with("antigravity_extra"), "")
+    t.assert_true(s.starts_with(""), "")
+
+    t.assert_true(s.ends_with("gravity"), "")
+    t.assert_false(s.ends_with("anti"), "")
+    t.assert_false(s.ends_with("extra_antigravity"), "")
+    t.assert_true(s.ends_with(""), "")
+
+    t.assert_true(s.eq("antigravity"), "")
+    t.assert_false(s.eq("antigravit"), "")
+    t.assert_false(s.eq("antigravityy"), "")
+}
+
+test_trim_quotes :: fn(t &Test) {
+    s1 := Str.of("\"quoted text\"")
+    t.assert_str_eq(s1.trim_quotes(), "quoted text", "")
+
+    s2 := Str.of("`backtick string`")
+    t.assert_str_eq(s2.trim_quotes(), "backtick string", "")
+
+    s3 := Str.of("unquoted")
+    t.assert_str_eq(s3.trim_quotes(), "unquoted", "")
+
+    s4 := Str.of("")
+    t.assert_str_eq(s4.trim_quotes(), "", "")
+
+    s5 := Str.of("\"")
+    t.assert_str_eq(s5.trim_quotes(), "\"", "")
+}
+
+test_utf8_and_char_iter :: fn(t &Test) {
+    ascii := Str.of("ABCD")
+    t.assert_eq(u64, ascii.char_count(), 4, "")
+    c0 := ascii.char_at(0)
+    t.assert_true(c0.is_some(), "")
+    t.assert_eq(u32, c0.unwrap(), 'A' as u32, "")
+    c3 := ascii.char_at(3)
+    t.assert_true(c3.is_some(), "")
+    t.assert_eq(u32, c3.unwrap(), 'D' as u32, "")
+    c4 := ascii.char_at(4)
+    t.assert_true(c4.is_none(), "")
+
+    multi2 := Str.of("αβ")
+    t.assert_eq(u64, multi2.len, 4, "")
+    t.assert_eq(u64, multi2.char_count(), 2, "")
+
+    it := ascii.iter()
+    t.assert_true(it.has_next(), "")
+    t.assert_eq(u32, it.next().unwrap(), 'A' as u32, "")
+    t.assert_eq(u32, it.next().unwrap(), 'B' as u32, "")
+    t.assert_eq(u32, it.next().unwrap(), 'C' as u32, "")
+    t.assert_eq(u32, it.next().unwrap(), 'D' as u32, "")
+    t.assert_false(it.has_next(), "")
+    t.assert_true(it.next().is_none(), "")
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "Core String and UTF-8 Test Suite")
+    suite.add("str_basics", test_str_basics)
+    suite.add("str_predicates", test_str_predicates)
+    suite.add("trim_quotes", test_trim_quotes)
+    suite.add("utf8_and_char_iter", test_utf8_and_char_iter)
+    suite.run_and_exit()
+    arena.destroy()
+}

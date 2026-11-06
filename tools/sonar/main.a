@@ -334,7 +334,7 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
                 vm := VendorManager.new(arena, vendor_dir)
                 map_args = vm.vendor_all(res.pods)
             }
-            if manifest.name.len > 0 {
+            if (manifest.name.len > 0) and (not manifest.name.eq("core")) and (not manifest.name.eq("std")) {
                 pod_map := String.new(arena)
                 pod_map.push_str(manifest.name)
                 pod_map.push_char('=' as u8)
@@ -393,8 +393,11 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
         cmd_run.push_str(" b ")
         m_idx: u64 = 0
         while m_idx < map_args.len {
-            cmd_run.push_str(" --map ")
-            cmd_run.push_str(map_args.get(m_idx))
+            m_arg := map_args.get(m_idx)
+            if (not m_arg.starts_with("core=")) and (not m_arg.starts_with("std=")) {
+                cmd_run.push_str(" --map ")
+                cmd_run.push_str(m_arg)
+            }
             m_idx = m_idx + 1
         }
         cmd_run.push_char(' ' as u8)

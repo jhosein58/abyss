@@ -1,0 +1,111 @@
+import std.allocator: Arena
+import std.collections.hash_map: HashMap
+import std.collections.hash_set: HashSet
+import std.collections.worklist: Worklist
+import std.collections.vec: Vec
+import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false, assert_str_eq
+
+test_hash_map_crud :: fn(t &Test) {
+    m := HashMap(i32, i32).new()
+    t.assert_eq(u64, m.len, 0, "")
+    t.assert_false(m.contains_key(10), "")
+
+    ins1 := m.insert(10, 100)
+    t.assert_true(ins1, "")
+    t.assert_eq(u64, m.len, 1, "")
+    t.assert_true(m.contains_key(10), "")
+
+    val_ptr := m.get(10)
+    t.assert_true((val_ptr as &u8) != (0 as &u8), "")
+    t.assert_eq(i32, *val_ptr, 100, "")
+
+    ins_dup := m.insert(10, 999)
+    t.assert_false(ins_dup, "")
+    t.assert_eq(u64, m.len, 1, "")
+    t.assert_eq(i32, *(m.get(10)), 999, "")
+
+    rem_ok := m.remove(10)
+    t.assert_true(rem_ok, "")
+    t.assert_eq(u64, m.len, 0, "")
+    t.assert_false(m.contains_key(10), "")
+
+    rem_fail := m.remove(10)
+    t.assert_false(rem_fail, "")
+
+    m.destroy()
+}
+
+test_hash_map_growth :: fn(t &Test) {
+    m := HashMap(i32, i32).new()
+    i: i32 = 0
+    while i < 120 {
+        m.insert(i, i * 10)
+        i = i + 1
+    }
+    t.assert_eq(u64, m.len, 120, "")
+
+    i = 0
+    while i < 120 {
+        t.assert_true(m.contains_key(i), "")
+        t.assert_eq(i32, *(m.get(i)), i * 10, "")
+        i = i + 1
+    }
+
+    t.assert_false(m.contains_key(999), "")
+    m.destroy()
+}
+
+test_hash_set_operations :: fn(t &Test) {
+    s := HashSet(i32).new()
+    t.assert_eq(u64, s.len, 0, "")
+    t.assert_false(s.contains(42), "")
+
+    t.assert_true(s.insert(42), "")
+    t.assert_eq(u64, s.len, 1, "")
+    t.assert_true(s.contains(42), "")
+
+    t.assert_false(s.insert(42), "")
+    t.assert_eq(u64, s.len, 1, "")
+
+    t.assert_true(s.insert(100), "")
+    t.assert_eq(u64, s.len, 2, "")
+
+    t.assert_true(s.remove(42), "")
+    t.assert_eq(u64, s.len, 1, "")
+    t.assert_false(s.contains(42), "")
+    t.assert_true(s.contains(100), "")
+
+    s.destroy()
+}
+
+test_worklist_queue :: fn(t &Test) {
+    v := Vec(i32).new()
+    v.push(11)
+    v.push(22)
+    v.push(33)
+
+    wl := Worklist(i32).new(&v)
+    t.assert_eq(u64, wl.remaining(), 3, "")
+    t.assert_true(wl.has_next(), "")
+
+    t.assert_eq(i32, wl.next().unwrap(), 11, "")
+    t.assert_eq(u64, wl.remaining(), 2, "")
+
+    t.assert_eq(i32, wl.next().unwrap(), 22, "")
+    t.assert_eq(i32, wl.next().unwrap(), 33, "")
+    t.assert_false(wl.has_next(), "")
+    t.assert_true(wl.next().is_none(), "")
+
+    v.destroy()
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "Std HashMap, HashSet, and Worklist Test Suite")
+    suite.add("hash_map_crud", test_hash_map_crud)
+    suite.add("hash_map_growth", test_hash_map_growth)
+    suite.add("hash_set_operations", test_hash_set_operations)
+    suite.add("worklist_queue", test_worklist_queue)
+    suite.run_and_exit()
+    arena.destroy()
+}

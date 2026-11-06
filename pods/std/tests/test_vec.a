@@ -1,0 +1,108 @@
+import std.allocator: Arena
+import std.collections.vec: Vec
+import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false, assert_str_eq
+
+Pair :: struct {
+    a i32
+    b i32
+}
+
+test_vec_basic :: fn(t &Test) {
+    v := Vec(i32).new()
+    t.assert_true(v.is_empty(), "")
+    t.assert_eq(u64, v.len, 0, "")
+
+    v.push(10)
+    v.push(20)
+    v.push(30)
+    t.assert_false(v.is_empty(), "")
+    t.assert_eq(u64, v.len, 3, "")
+    t.assert_eq(i32, v.get(0), 10, "")
+    t.assert_eq(i32, v.get(1), 20, "")
+    t.assert_eq(i32, v.get(2), 30, "")
+    t.assert_eq(i32, v.last(), 30, "")
+
+    v.set(1, 99)
+    t.assert_eq(i32, v.get(1), 99, "")
+
+    popped := v.pop()
+    t.assert_eq(i32, popped, 30, "")
+    t.assert_eq(u64, v.len, 2, "")
+    t.assert_eq(i32, v.last(), 99, "")
+
+    v.destroy()
+}
+
+test_vec_capacity_and_clear :: fn(t &Test) {
+    v := Vec(i32).with_cap(100)
+    t.assert_true(v.cap >= 100, "")
+
+    i: i32 = 0
+    while i < 250 {
+        v.push(i)
+        i = i + 1
+    }
+    t.assert_eq(u64, v.len, 250, "")
+    t.assert_eq(i32, v.get(249), 249, "")
+
+    v.clear()
+    t.assert_true(v.is_empty(), "")
+    t.assert_eq(u64, v.len, 0, "")
+
+    v.push(777)
+    t.assert_eq(u64, v.len, 1, "")
+    t.assert_eq(i32, v.get(0), 777, "")
+
+    v.destroy()
+}
+
+test_vec_algorithms :: fn(t &Test) {
+    v := Vec(i32).new()
+    v.push(1)
+    v.push(2)
+    v.push(2)
+    v.push(3)
+    v.push(3)
+    v.push(3)
+    v.push(4)
+
+    t.assert_true(v.contains(2), "")
+    t.assert_false(v.contains(99), "")
+
+    v.dedup()
+    t.assert_eq(u64, v.len, 4, "")
+    t.assert_eq(i32, v.get(0), 1, "")
+    t.assert_eq(i32, v.get(1), 2, "")
+    t.assert_eq(i32, v.get(2), 3, "")
+    t.assert_eq(i32, v.get(3), 4, "")
+
+    v.destroy()
+}
+
+test_vec_structs :: fn(t &Test) {
+    vp := Vec(Pair).new()
+    vp.push(.{ a: 1, b: 2 })
+    vp.push(.{ a: 3, b: 4 })
+    t.assert_eq(u64, vp.len, 2, "")
+    t.assert_eq(i32, vp.get(0).a, 1, "")
+    t.assert_eq(i32, vp.get(1).b, 4, "")
+    vp.destroy()
+
+    vs := Vec(Str).new()
+    vs.push("alpha")
+    vs.push("beta")
+    t.assert_str_eq(vs.get(0), "alpha", "")
+    t.assert_str_eq(vs.get(1), "beta", "")
+    vs.destroy()
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "Std Vec Collection Test Suite")
+    suite.add("vec_basic", test_vec_basic)
+    suite.add("vec_capacity_and_clear", test_vec_capacity_and_clear)
+    suite.add("vec_algorithms", test_vec_algorithms)
+    suite.add("vec_structs", test_vec_structs)
+    suite.run_and_exit()
+    arena.destroy()
+}

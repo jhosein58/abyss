@@ -105,8 +105,11 @@ Builder :: struct {
 
         mi: u64 = 0
         while mi < map_args.len {
-            cmd_abyss.push_str(" --map ")
-            cmd_abyss.push_str(map_args.get(mi))
+            m_arg := map_args.get(mi)
+            if (not m_arg.starts_with("core=")) and (not m_arg.starts_with("std=")) {
+                cmd_abyss.push_str(" --map ")
+                cmd_abyss.push_str(m_arg)
+            }
             mi = mi + 1
         }
 

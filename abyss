@@ -186,10 +186,11 @@ EOF
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${DIST_DIR}/sonar_bootstrap.c" -o "${DIST_DIR}/sonar-linux-x86_64"
         cp "${DIST_DIR}/sonar-linux-x86_64" "${ROOT_DIR}/sonar"
 
-        echo "Verifying Linux Sonar package manager..."
+        echo "Verifying Linux Sonar package manager and pods..."
         "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" r "${ROOT_DIR}/tools/sonar/test_sonar.a" >/dev/null 2>&1
         "${DIST_DIR}/sonar-linux-x86_64" help >/dev/null 2>&1
-        echo "✔ Linux x86_64 Sonar package manager verified!"
+        bash "${ROOT_DIR}/scripts/test_pods.sh" "${DIST_DIR}/abyssc-linux-x86_64"
+        echo "✔ Linux x86_64 Sonar package manager and pods verified!"
 
         MINGW_CC="${MINGW_CC:-x86_64-w64-mingw32-gcc}"
         if command -v "${MINGW_CC}" >/dev/null 2>&1; then
@@ -262,6 +263,10 @@ EOF
     sonar-test)
         "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" r "${ROOT_DIR}/tools/sonar/test_sonar.a" "$@"
         ;;
+    test-pods|pods-test)
+        prepare_compiler
+        bash "${ROOT_DIR}/scripts/test_pods.sh" "${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}"
+        ;;
     clean)
         rm -rf "${ROOT_DIR}/tmp"/*
         echo "Cleaned tmp directory."
@@ -274,7 +279,8 @@ EOF
         echo "  b [file]          Build in release mode (auto-rebuilds compiler if sources changed)"
         echo "  br [file]         Build and run in release mode"
         echo "  sonar             Run Sonar package manager (init, vendor, build, run)"
-        echo "  sonar-test        Run Sonar package manager test suite"
+        echo "  sonar-test        Run Sonar package manager test suite
+  test-pods         Run pod unit test suites (core, std, test, json)"
         echo "  b-win [file]      Build Windows binary (default: abyssc.exe)"
         echo "  r-win [file]      Build and run Windows binary with wine"
         echo "  test [filter]     Run fast dev test suite (C + VM backends via TCC/GCC)"
