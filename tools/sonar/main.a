@@ -225,6 +225,11 @@ cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
         print_line("[sonar error] failed to compile native C sources")
         fall()
     }
+    c_root_ok := builder.compile_manifest_c_sources(".", manifest.name, manifest.c_build, &objects, &ld_flags)
+    if not c_root_ok {
+        print_line("[sonar error] failed to compile native C sources for root pod")
+        fall()
+    }
 
     abyssc_bin := find_abyssc()
     ok := builder.build_target(abyssc_bin, target_src, out_bin, map_args, objects, ld_flags)
@@ -312,6 +317,8 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
     }
 
     map_args := Vec(Str).new()
+    objects := Vec(Str).new()
+    ld_flags := Vec(Str).new()
     pod_json_path := if pod_root.len > 0 {
         Path.join(arena, pod_root, "pod.json")
     } else {
@@ -325,15 +332,20 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
             resolve_dir := if pod_root.len > 0 { pod_root } else { "." }
             resolver := Resolver.new(arena)
             res := resolver.resolve_root(resolve_dir, manifest)
+            vendor_dir := if pod_root.len > 0 {
+                Path.join(arena, pod_root, ".vendor")
+            } else {
+                ".vendor"
+            }
             if res.ok() and res.pods.len > 0 {
-                vendor_dir := if pod_root.len > 0 {
-                    Path.join(arena, pod_root, ".vendor")
-                } else {
-                    ".vendor"
-                }
                 vm := VendorManager.new(arena, vendor_dir)
                 map_args = vm.vendor_all(res.pods)
             }
+            builder := Builder.new(arena, vendor_dir)
+            if res.ok() and res.pods.len > 0 {
+                builder.compile_c_sources(res.pods, &objects, &ld_flags)
+            }
+            builder.compile_manifest_c_sources(resolve_dir, manifest.name, manifest.c_build, &objects, &ld_flags)
             if (manifest.name.len > 0) and (not manifest.name.eq("core")) and (not manifest.name.eq("std")) {
                 pod_map := String.new(arena)
                 pod_map.push_str(manifest.name)
@@ -402,7 +414,20 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
         }
         cmd_run.push_char(' ' as u8)
         cmd_run.push_str(tf)
-        cmd_run.push_str(" /tmp/_sonar_t.c >/dev/null 2>&1 && gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O2 -Wno-implicit-function-declaration -Wno-error=incompatible-pointer-types /tmp/_sonar_t.c -o /tmp/_sonar_t_bin >/dev/null 2>&1 && /tmp/_sonar_t_bin")
+        cmd_run.push_str(" /tmp/_sonar_t.c >/dev/null 2>&1 && gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O2 -Wno-implicit-function-declaration -Wno-error=incompatible-pointer-types ")
+        oi: u64 = 0
+        while oi < objects.len {
+            cmd_run.push_str(objects.get(oi))
+            cmd_run.push_char(' ' as u8)
+            oi = oi + 1
+        }
+        li: u64 = 0
+        while li < ld_flags.len {
+            cmd_run.push_str(ld_flags.get(li))
+            cmd_run.push_char(' ' as u8)
+            li = li + 1
+        }
+        cmd_run.push_str("/tmp/_sonar_t.c -o /tmp/_sonar_t_bin >/dev/null 2>&1 && /tmp/_sonar_t_bin")
 
         status := system(to_cstr(arena, cmd_run.as_str()))
         if status == 0 {
