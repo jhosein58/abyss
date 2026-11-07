@@ -1,0 +1,813 @@
+import .mask: SimdMask
+
+abyss_simd_sin_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_sin_fast_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_cos_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_cos_fast_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_tan_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_tan_fast_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_asin_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_acos_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_atan_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_atan2_f32x4 :: fn(dst &f32, y &f32, x &f32)
+abyss_simd_exp_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_exp_fast_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_exp2_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_ln_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_ln_fast_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_log2_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_log10_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_pow_f32x4 :: fn(dst &f32, a &f32, b &f32)
+abyss_simd_sqrt_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_rsqrt_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_rsqrt_fast_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_cbrt_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_hypot_f32x4 :: fn(dst &f32, a &f32, b &f32)
+abyss_simd_sinh_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_cosh_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_tanh_f32x4 :: fn(dst &f32, src &f32)
+abyss_simd_fma_f32x4 :: fn(dst &f32, a &f32, b &f32, c &f32)
+
+abyss_simd_sin_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_sin_fast_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_cos_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_cos_fast_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_tan_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_asin_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_acos_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_atan_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_atan2_f64x2 :: fn(dst &f64, y &f64, x &f64)
+abyss_simd_exp_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_exp_fast_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_exp2_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_ln_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_ln_fast_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_log2_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_log10_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_pow_f64x2 :: fn(dst &f64, a &f64, b &f64)
+abyss_simd_sqrt_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_rsqrt_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_cbrt_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_hypot_f64x2 :: fn(dst &f64, a &f64, b &f64)
+abyss_simd_sinh_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_cosh_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_tanh_f64x2 :: fn(dst &f64, src &f64)
+abyss_simd_fma_f64x2 :: fn(dst &f64, a &f64, b &f64, c &f64)
+
+abyss_simd_cpu_features :: fn() u32
+
+Simd :: fn(T type, cmpt N u64) type {
+    struct {
+        data [N]T
+
+        splat :: fn(v T) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                res.data[i] = v
+                i = i + 1
+            }
+            res
+        }
+
+        zero :: fn() Self {
+            Self.splat(0)
+        }
+
+        from_array :: fn(arr [N]T) Self {
+            res: Self
+            res.data = arr
+            res
+        }
+
+        load :: fn(ptr &T) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                res.data[i] = *(ptr + i)
+                i = i + 1
+            }
+            res
+        }
+
+        store :: fn(self &Self, ptr &T) {
+            i: u64 = 0
+            while i < N {
+                *(ptr + i) = self.data[i]
+                i = i + 1
+            }
+        }
+
+        get :: fn(self &Self, idx u64) T {
+            self.data[idx]
+        }
+
+        set :: fn(self &Self, idx u64, val T) {
+            self.data[idx] = val
+        }
+
+        extract :: fn(self &Self, idx u64) T {
+            self.data[idx]
+        }
+
+        insert :: fn(self &Self, idx u64, val T) Self {
+            res := *self
+            res.data[idx] = val
+            res
+        }
+
+        add :: fn(self Self, other Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                res.data[i] = self.data[i] + other.data[i]
+                i = i + 1
+            }
+            res
+        }
+
+        sub :: fn(self Self, other Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                res.data[i] = self.data[i] - other.data[i]
+                i = i + 1
+            }
+            res
+        }
+
+        mul :: fn(self Self, other Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                res.data[i] = self.data[i] * other.data[i]
+                i = i + 1
+            }
+            res
+        }
+
+        div :: fn(self Self, other Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                res.data[i] = self.data[i] / other.data[i]
+                i = i + 1
+            }
+            res
+        }
+
+        neg :: fn(self Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                res.data[i] = -self.data[i]
+                i = i + 1
+            }
+            res
+        }
+
+        abs :: fn(self Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                v := self.data[i]
+                res.data[i] = if v < 0 { -v } else { v }
+                i = i + 1
+            }
+            res
+        }
+
+        min :: fn(self Self, other Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                a := self.data[i]
+                b := other.data[i]
+                res.data[i] = if a < b { a } else { b }
+                i = i + 1
+            }
+            res
+        }
+
+        max :: fn(self Self, other Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                a := self.data[i]
+                b := other.data[i]
+                res.data[i] = if a > b { a } else { b }
+                i = i + 1
+            }
+            res
+        }
+
+        clamp :: fn(self Self, low Self, high Self) Self {
+            self.max(low).min(high)
+        }
+
+        fma :: fn(self Self, b Self, c Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_fma_f32x4(&res.data as &f32, &self.data as &f32, &b.data as &f32, &c.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_fma_f64x2(&res.data as &f64, &self.data as &f64, &b.data as &f64, &c.data as &f64)
+                ret res
+            }
+            self.mul(b).add(c)
+        }
+
+        bit_and :: fn(self Self, other Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                if @sizeof(T) == 8 {
+                    a_bits := *(&self.data[i] as &u64)
+                    b_bits := *(&other.data[i] as &u64)
+                    r_bits := a_bits & b_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else if @sizeof(T) == 4 {
+                    a_bits := *(&self.data[i] as &u32)
+                    b_bits := *(&other.data[i] as &u32)
+                    r_bits := a_bits & b_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else if @sizeof(T) == 2 {
+                    a_bits := *(&self.data[i] as &u16)
+                    b_bits := *(&other.data[i] as &u16)
+                    r_bits := a_bits & b_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else {
+                    a_bits := *(&self.data[i] as &u8)
+                    b_bits := *(&other.data[i] as &u8)
+                    r_bits := a_bits & b_bits
+                    res.data[i] = *(&r_bits as &T)
+                }
+                i = i + 1
+            }
+            res
+        }
+
+        and_ :: fn(self Self, other Self) Self { self.bit_and(other) }
+
+        bit_or :: fn(self Self, other Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                if @sizeof(T) == 8 {
+                    a_bits := *(&self.data[i] as &u64)
+                    b_bits := *(&other.data[i] as &u64)
+                    r_bits := a_bits | b_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else if @sizeof(T) == 4 {
+                    a_bits := *(&self.data[i] as &u32)
+                    b_bits := *(&other.data[i] as &u32)
+                    r_bits := a_bits | b_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else if @sizeof(T) == 2 {
+                    a_bits := *(&self.data[i] as &u16)
+                    b_bits := *(&other.data[i] as &u16)
+                    r_bits := a_bits | b_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else {
+                    a_bits := *(&self.data[i] as &u8)
+                    b_bits := *(&other.data[i] as &u8)
+                    r_bits := a_bits | b_bits
+                    res.data[i] = *(&r_bits as &T)
+                }
+                i = i + 1
+            }
+            res
+        }
+
+        or_ :: fn(self Self, other Self) Self { self.bit_or(other) }
+
+        bit_xor :: fn(self Self, other Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                if @sizeof(T) == 8 {
+                    a_bits := *(&self.data[i] as &u64)
+                    b_bits := *(&other.data[i] as &u64)
+                    r_bits := a_bits ^ b_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else if @sizeof(T) == 4 {
+                    a_bits := *(&self.data[i] as &u32)
+                    b_bits := *(&other.data[i] as &u32)
+                    r_bits := a_bits ^ b_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else if @sizeof(T) == 2 {
+                    a_bits := *(&self.data[i] as &u16)
+                    b_bits := *(&other.data[i] as &u16)
+                    r_bits := a_bits ^ b_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else {
+                    a_bits := *(&self.data[i] as &u8)
+                    b_bits := *(&other.data[i] as &u8)
+                    r_bits := a_bits ^ b_bits
+                    res.data[i] = *(&r_bits as &T)
+                }
+                i = i + 1
+            }
+            res
+        }
+
+        xor_ :: fn(self Self, other Self) Self { self.bit_xor(other) }
+
+        bit_not :: fn(self Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                if @sizeof(T) == 8 {
+                    a_bits := *(&self.data[i] as &u64)
+                    r_bits := not a_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else if @sizeof(T) == 4 {
+                    a_bits := *(&self.data[i] as &u32)
+                    r_bits := not a_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else if @sizeof(T) == 2 {
+                    a_bits := *(&self.data[i] as &u16)
+                    r_bits := not a_bits
+                    res.data[i] = *(&r_bits as &T)
+                } else {
+                    a_bits := *(&self.data[i] as &u8)
+                    r_bits := not a_bits
+                    res.data[i] = *(&r_bits as &T)
+                }
+                i = i + 1
+            }
+            res
+        }
+
+        not_ :: fn(self Self) Self { self.bit_not() }
+
+        sum :: fn(self Self) T {
+            acc: T = self.data[0]
+            i: u64 = 1
+            while i < N {
+                acc = acc + self.data[i]
+                i = i + 1
+            }
+            acc
+        }
+
+        product :: fn(self Self) T {
+            acc: T = self.data[0]
+            i: u64 = 1
+            while i < N {
+                acc = acc * self.data[i]
+                i = i + 1
+            }
+            acc
+        }
+
+        reduce_min :: fn(self Self) T {
+            res := self.data[0]
+            i: u64 = 1
+            while i < N {
+                v := self.data[i]
+                if v < res { res = v }
+                i = i + 1
+            }
+            res
+        }
+
+        reduce_max :: fn(self Self) T {
+            res := self.data[0]
+            i: u64 = 1
+            while i < N {
+                v := self.data[i]
+                if v > res { res = v }
+                i = i + 1
+            }
+            res
+        }
+
+        dot :: fn(self Self, other Self) T {
+            self.mul(other).sum()
+        }
+
+        reverse :: fn(self Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                res.data[i] = self.data[N - 1 - i]
+                i = i + 1
+            }
+            res
+        }
+
+        cmp_eq :: fn(self Self, other Self) SimdMask(N) {
+            res: SimdMask(N)
+            i: u64 = 0
+            while i < N {
+                res.bits[i] = self.data[i] == other.data[i]
+                i = i + 1
+            }
+            res
+        }
+
+        cmpeq :: fn(self Self, other Self) SimdMask(N) { self.cmp_eq(other) }
+
+        cmp_ne :: fn(self Self, other Self) SimdMask(N) {
+            res: SimdMask(N)
+            i: u64 = 0
+            while i < N {
+                res.bits[i] = self.data[i] != other.data[i]
+                i = i + 1
+            }
+            res
+        }
+
+        cmpne :: fn(self Self, other Self) SimdMask(N) { self.cmp_ne(other) }
+
+        cmp_lt :: fn(self Self, other Self) SimdMask(N) {
+            res: SimdMask(N)
+            i: u64 = 0
+            while i < N {
+                res.bits[i] = self.data[i] < other.data[i]
+                i = i + 1
+            }
+            res
+        }
+
+        cmplt :: fn(self Self, other Self) SimdMask(N) { self.cmp_lt(other) }
+
+        cmp_le :: fn(self Self, other Self) SimdMask(N) {
+            res: SimdMask(N)
+            i: u64 = 0
+            while i < N {
+                res.bits[i] = self.data[i] <= other.data[i]
+                i = i + 1
+            }
+            res
+        }
+
+        cmple :: fn(self Self, other Self) SimdMask(N) { self.cmp_le(other) }
+
+        cmp_gt :: fn(self Self, other Self) SimdMask(N) {
+            res: SimdMask(N)
+            i: u64 = 0
+            while i < N {
+                res.bits[i] = self.data[i] > other.data[i]
+                i = i + 1
+            }
+            res
+        }
+
+        cmpgt :: fn(self Self, other Self) SimdMask(N) { self.cmp_gt(other) }
+
+        cmp_ge :: fn(self Self, other Self) SimdMask(N) {
+            res: SimdMask(N)
+            i: u64 = 0
+            while i < N {
+                res.bits[i] = self.data[i] >= other.data[i]
+                i = i + 1
+            }
+            res
+        }
+
+        cmpge :: fn(self Self, other Self) SimdMask(N) { self.cmp_ge(other) }
+
+        select :: fn(mask SimdMask(N), on_true Self, on_false Self) Self {
+            res: Self
+            i: u64 = 0
+            while i < N {
+                res.data[i] = if mask.bits[i] { on_true.data[i] } else { on_false.data[i] }
+                i = i + 1
+            }
+            res
+        }
+
+        sin :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_sin_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_sin_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        sin_fast :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_sin_fast_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_sin_fast_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            self.sin()
+        }
+
+        cos :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_cos_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_cos_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        cos_fast :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_cos_fast_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_cos_fast_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            self.cos()
+        }
+
+        tan :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_tan_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_tan_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        tan_fast :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_tan_fast_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            self.tan()
+        }
+
+        asin :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_asin_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_asin_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        acos :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_acos_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_acos_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        atan :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_atan_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_atan_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        atan2 :: fn(self Self, x Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_atan2_f32x4(&res.data as &f32, &self.data as &f32, &x.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_atan2_f64x2(&res.data as &f64, &self.data as &f64, &x.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        exp :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_exp_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_exp_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        exp_fast :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_exp_fast_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_exp_fast_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            self.exp()
+        }
+
+        exp2 :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_exp2_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_exp2_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        ln :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_ln_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_ln_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        ln_fast :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_ln_fast_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_ln_fast_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            self.ln()
+        }
+
+        log2 :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_log2_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_log2_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        log10 :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_log10_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_log10_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        pow :: fn(self Self, exp_vec Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_pow_f32x4(&res.data as &f32, &self.data as &f32, &exp_vec.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_pow_f64x2(&res.data as &f64, &self.data as &f64, &exp_vec.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        sqrt :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_sqrt_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_sqrt_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        rsqrt :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_rsqrt_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_rsqrt_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        rsqrt_fast :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_rsqrt_fast_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            self.rsqrt()
+        }
+
+        cbrt :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_cbrt_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_cbrt_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        hypot :: fn(self Self, other Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_hypot_f32x4(&res.data as &f32, &self.data as &f32, &other.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_hypot_f64x2(&res.data as &f64, &self.data as &f64, &other.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        sinh :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_sinh_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_sinh_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        cosh :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_cosh_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_cosh_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+
+        tanh :: fn(self Self) Self {
+            res: Self
+            if (N == 4) and (@sizeof(T) == 4) {
+                abyss_simd_tanh_f32x4(&res.data as &f32, &self.data as &f32)
+                ret res
+            }
+            if (N == 2) and (@sizeof(T) == 8) {
+                abyss_simd_tanh_f64x2(&res.data as &f64, &self.data as &f64)
+                ret res
+            }
+            res
+        }
+    }
+}

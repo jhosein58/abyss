@@ -1,0 +1,45 @@
+SimdMask :: fn(cmpt N u64) type {
+    struct {
+        bits [N]bool
+
+        all :: fn(self &Self) bool {
+            i: u64 = 0
+            while i < N {
+                if not self.bits[i] { ret false }
+                i = i + 1
+            }
+            true
+        }
+
+        any :: fn(self &Self) bool {
+            i: u64 = 0
+            while i < N {
+                if self.bits[i] { ret true }
+                i = i + 1
+            }
+            false
+        }
+
+        none :: fn(self &Self) bool {
+            not self.any()
+        }
+
+        count_ones :: fn(self &Self) u64 {
+            c: u64 = 0
+            i: u64 = 0
+            while i < N {
+                if self.bits[i] { c = c + 1 }
+                i = i + 1
+            }
+            c
+        }
+
+        get :: fn(self &Self, idx u64) bool {
+            self.bits[idx]
+        }
+
+        set :: fn(self &Self, idx u64, val bool) {
+            self.bits[idx] = val
+        }
+    }
+}

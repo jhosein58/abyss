@@ -1,0 +1,28 @@
+import .mask: SimdMask
+import .vector: Simd
+
+f32x4 :: Simd(f32, 4)
+f32x8 :: Simd(f32, 8)
+f64x2 :: Simd(f64, 2)
+f64x4 :: Simd(f64, 4)
+
+i32x4 :: Simd(i32, 4)
+i32x8 :: Simd(i32, 8)
+u32x4 :: Simd(u32, 4)
+u32x8 :: Simd(u32, 8)
+
+i64x2 :: Simd(i64, 2)
+i64x4 :: Simd(i64, 4)
+u64x2 :: Simd(u64, 2)
+u64x4 :: Simd(u64, 4)
+
+i16x8 :: Simd(i16, 8)
+u16x8 :: Simd(u16, 8)
+
+i8x16 :: Simd(i8, 16)
+u8x16 :: Simd(u8, 16)
+
+m2 :: SimdMask(2)
+m4 :: SimdMask(4)
+m8 :: SimdMask(8)
+m16 :: SimdMask(16)

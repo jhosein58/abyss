@@ -1,0 +1,100 @@
+import std.allocator: Arena
+import simd: Simd, f32x4, f64x2, abyss_simd_cpu_features, sin, cos, sin_fast, cos_fast, exp, exp_fast, ln, ln_fast, sqrt, rsqrt, rsqrt_fast
+import test: Suite, Test, assert_true, assert_eq
+
+approx_eq :: fn(a f32, b f32, eps f32) bool {
+    diff := a - b
+    abs_d := if diff < 0.0 { -diff } else { diff }
+    abs_d <= eps
+}
+
+test_fast_math_sp :: fn(t &Test) {
+    zeros := f32x4.splat(0.0)
+    sf := zeros.sin_fast()
+    cf := zeros.cos_fast()
+    ef := zeros.exp_fast()
+
+    t.assert_true(approx_eq(sf.get(0), 0.0, 0.01), "sin_fast 0")
+    t.assert_true(approx_eq(cf.get(0), 1.0, 0.01), "cos_fast 0")
+    t.assert_true(approx_eq(ef.get(0), 1.0, 0.01), "exp_fast 0")
+
+    ones := f32x4.splat(1.0)
+    lf := ones.ln_fast()
+    t.assert_true(approx_eq(lf.get(0), 0.0, 0.05), "ln_fast 1")
+
+    four := f32x4.splat(4.0)
+    rf := four.rsqrt_fast()
+    t.assert_true(approx_eq(rf.get(0), 0.5, 0.05), "rsqrt_fast 4")
+
+    fn_sin := sin_fast(zeros)
+    fn_cos := cos_fast(zeros)
+    fn_exp := exp_fast(zeros)
+    fn_ln := ln_fast(ones)
+    fn_rsqrt := rsqrt_fast(four)
+
+    t.assert_true(approx_eq(fn_sin.get(0), 0.0, 0.01), "functional sin_fast")
+    t.assert_true(approx_eq(fn_cos.get(0), 1.0, 0.01), "functional cos_fast")
+    t.assert_true(approx_eq(fn_exp.get(0), 1.0, 0.01), "functional exp_fast")
+    t.assert_true(approx_eq(fn_ln.get(0), 0.0, 0.05), "functional ln_fast")
+    t.assert_true(approx_eq(fn_rsqrt.get(0), 0.5, 0.05), "functional rsqrt_fast")
+}
+
+test_inverse_and_hyperbolic :: fn(t &Test) {
+    zeros := f32x4.splat(0.0)
+    s_asin := zeros.asin()
+    s_atan := zeros.atan()
+    s_sinh := zeros.sinh()
+    s_tanh := zeros.tanh()
+
+    t.assert_true(approx_eq(s_asin.get(0), 0.0, 0.001), "asin 0")
+    t.assert_true(approx_eq(s_atan.get(0), 0.0, 0.001), "atan 0")
+    t.assert_true(approx_eq(s_sinh.get(0), 0.0, 0.001), "sinh 0")
+    t.assert_true(approx_eq(s_tanh.get(0), 0.0, 0.001), "tanh 0")
+
+    s_cosh := zeros.cosh()
+    t.assert_true(approx_eq(s_cosh.get(0), 1.0, 0.001), "cosh 0")
+
+    y := f32x4.splat(0.0)
+    x := f32x4.splat(1.0)
+    s_atan2 := y.atan2(x)
+    t.assert_true(approx_eq(s_atan2.get(0), 0.0, 0.001), "atan2 0 1")
+
+    base3 := f32x4.splat(3.0)
+    base4 := f32x4.splat(4.0)
+    hyp := base3.hypot(base4)
+    t.assert_true(approx_eq(hyp.get(0), 5.0, 0.001), "hypot 3 4")
+
+    v27 := f32x4.splat(27.0)
+    cb := v27.cbrt()
+    t.assert_true(approx_eq(cb.get(0), 3.0, 0.001), "cbrt 27")
+}
+
+test_powers_and_logs :: fn(t &Test) {
+    v3 := f32x4.splat(3.0)
+    e2 := v3.exp2()
+    t.assert_true(approx_eq(e2.get(0), 8.0, 0.001), "exp2 3")
+
+    v8 := f32x4.splat(8.0)
+    l2 := v8.log2()
+    t.assert_true(approx_eq(l2.get(0), 3.0, 0.001), "log2 8")
+
+    v100 := f32x4.splat(100.0)
+    l10 := v100.log10()
+    t.assert_true(approx_eq(l10.get(0), 2.0, 0.001), "log10 100")
+}
+
+test_cpu_features :: fn(t &Test) {
+    features := abyss_simd_cpu_features()
+    t.assert_true(features > 0, "cpu features detected")
+}
+
+main :: fn() {
+    arena := Arena.new(4096)
+    suite := Suite.new(&arena, "SIMD Advanced Math & SLEEF Suite")
+    suite.add("fast_math_sp", test_fast_math_sp)
+    suite.add("inverse_and_hyperbolic", test_inverse_and_hyperbolic)
+    suite.add("powers_and_logs", test_powers_and_logs)
+    suite.add("cpu_features", test_cpu_features)
+    suite.run_and_exit()
+    arena.destroy()
+}

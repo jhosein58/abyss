@@ -1,0 +1,36 @@
+import .aliases: f32x4, f64x2
+
+sin :: fn(v f32x4) f32x4 { v.sin() }
+sin_fast :: fn(v f32x4) f32x4 { v.sin_fast() }
+cos :: fn(v f32x4) f32x4 { v.cos() }
+cos_fast :: fn(v f32x4) f32x4 { v.cos_fast() }
+tan :: fn(v f32x4) f32x4 { v.tan() }
+tan_fast :: fn(v f32x4) f32x4 { v.tan_fast() }
+asin :: fn(v f32x4) f32x4 { v.asin() }
+acos :: fn(v f32x4) f32x4 { v.acos() }
+atan :: fn(v f32x4) f32x4 { v.atan() }
+atan2 :: fn(y f32x4, x f32x4) f32x4 { y.atan2(x) }
+exp :: fn(v f32x4) f32x4 { v.exp() }
+exp_fast :: fn(v f32x4) f32x4 { v.exp_fast() }
+exp2 :: fn(v f32x4) f32x4 { v.exp2() }
+ln :: fn(v f32x4) f32x4 { v.ln() }
+ln_fast :: fn(v f32x4) f32x4 { v.ln_fast() }
+log2 :: fn(v f32x4) f32x4 { v.log2() }
+log10 :: fn(v f32x4) f32x4 { v.log10() }
+pow :: fn(base f32x4, exponent f32x4) f32x4 { base.pow(exponent) }
+sqrt :: fn(v f32x4) f32x4 { v.sqrt() }
+rsqrt :: fn(v f32x4) f32x4 { v.rsqrt() }
+rsqrt_fast :: fn(v f32x4) f32x4 { v.rsqrt_fast() }
+cbrt :: fn(v f32x4) f32x4 { v.cbrt() }
+hypot :: fn(a f32x4, b f32x4) f32x4 { a.hypot(b) }
+sinh :: fn(v f32x4) f32x4 { v.sinh() }
+cosh :: fn(v f32x4) f32x4 { v.cosh() }
+tanh :: fn(v f32x4) f32x4 { v.tanh() }
+fma :: fn(a f32x4, b f32x4, c f32x4) f32x4 { a.fma(b, c) }
+
+sin_f64 :: fn(v f64x2) f64x2 { v.sin() }
+cos_f64 :: fn(v f64x2) f64x2 { v.cos() }
+exp_f64 :: fn(v f64x2) f64x2 { v.exp() }
+ln_f64 :: fn(v f64x2) f64x2 { v.ln() }
+sqrt_f64 :: fn(v f64x2) f64x2 { v.sqrt() }
+rsqrt_f64 :: fn(v f64x2) f64x2 { v.rsqrt() }
