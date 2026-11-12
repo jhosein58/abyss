@@ -330,6 +330,24 @@ TypeStorage :: struct {
         self.union_members(id).position(member).unwrap_or(0) as u32
     }
 
+    unwrap_ptr :: fn(self &Self, ty u32) u32 {
+        curr := ty
+        while self.kind(curr) == TyKind.ptr {
+            curr = self.payload(curr)
+        }
+        curr
+    }
+
+    unwrap_ptr_depth :: fn(self &Self, ty u32, depth &u32) u32 {
+        curr := ty
+        *depth = 0
+        while self.kind(curr) == TyKind.ptr {
+            curr = self.payload(curr)
+            *depth = *depth + 1
+        }
+        curr
+    }
+
     make_union_2 :: fn(self &Self, a u32, b u32) u32 {
         if a == b { ret a }
         members := Vec(u32).new()

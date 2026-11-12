@@ -498,10 +498,7 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     struct_ty := ty_id_none()
     mono_params := db.types.func_params(mono_func_ty)
     if mono_params.len > 0 {
-        p0 := *(mono_params.ptr + 0)
-        while db.types.kind(p0) == TyKind.ptr {
-            p0 = db.types.payload(p0)
-        }
+        p0 := db.types.unwrap_ptr(*(mono_params.ptr + 0))
         if db.types.kind(p0) == TyKind.nominal {
             s_origin := db.types.nominal_origin(p0)
             if db.types.get_nominal_creator_sym(s_origin) != ty_id_none() {
@@ -510,10 +507,7 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
         }
     }
     if struct_ty == ty_id_none() {
-        r0 := db.types.func_return(mono_func_ty)
-        while db.types.kind(r0) == TyKind.ptr {
-            r0 = db.types.payload(r0)
-        }
+        r0 := db.types.unwrap_ptr(db.types.func_return(mono_func_ty))
         if db.types.kind(r0) == TyKind.nominal {
             s_origin := db.types.nominal_origin(r0)
             if db.types.get_nominal_creator_sym(s_origin) != ty_id_none() {

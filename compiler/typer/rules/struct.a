@@ -338,10 +338,7 @@ synth_member :: fn(eng &Engine, id u32) {
         lhs_ty = db.get_const_type(lhs_id)
         is_type = true
     } else {
-        while types_ptr.kind(lhs_ty) == TyKind.ptr {
-            lhs_ty = types_ptr.payload(lhs_ty)
-            deref_depth = deref_depth + 1
-        }
+        lhs_ty = types_ptr.unwrap_ptr_depth(lhs_ty, &deref_depth)
     }
     db.set_auto_deref_depth(id, deref_depth)
 

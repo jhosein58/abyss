@@ -857,10 +857,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             lhs_str := lower_expr(ctx, target_lhs)
             field_name_id := db.hir.lhs(rhs_id)
             len_id := db.interner.intern(Str.of("len"))
-            base_lhs_ty := lhs_ty
-            while db.types.kind(base_lhs_ty) == TyKind.ptr {
-                base_lhs_ty = db.types.payload(base_lhs_ty)
-            }
+            base_lhs_ty := db.types.unwrap_ptr(lhs_ty)
             if (db.types.kind(base_lhs_ty) == TyKind.array) and (field_name_id == len_id) {
                 arr_len := db.types.get_array_len(base_lhs_ty)
                 ret ccg.expr_u64(arena, arr_len as u64)

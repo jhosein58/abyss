@@ -230,9 +230,7 @@ iterator_kind :: fn(eng &Engine, ty u32, id u32) u8 {
 has_instance_method :: fn(db &Nexus, ty u32, name_id u32) bool {
     tbl := &db.hir
     types := &db.types
-    while types.kind(ty) == TyKind.ptr {
-        ty = types.payload(ty)
-    }
+    ty = types.unwrap_ptr(ty)
     if types.kind(ty) == TyKind.array {
         iter_id := db.interner.intern(Str.of("iter"))
         iter_ref_id := db.interner.intern(Str.of("iter_ref"))
@@ -356,10 +354,7 @@ normalize_for_iter :: fn(eng &Engine, iter u32) u32 {
         if source_slot == slot_none() {
             match_error(db, c"for reference source type is unresolved", iter)
         }
-        source_ty := unify.resolve_type_deep(types, source_slot)
-        while types.kind(source_ty) == TyKind.ptr {
-            source_ty = types.payload(source_ty)
-        }
+        source_ty := types.unwrap_ptr(unify.resolve_type_deep(types, source_slot))
         if (source_ty == ty_id_none()) or ((types.kind(source_ty) != TyKind.nominal) and (types.kind(source_ty) != TyKind.array)) {
             match_error(db, c"for reference source must provide iter_ref", iter)
         }
