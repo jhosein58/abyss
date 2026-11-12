@@ -408,11 +408,10 @@ synth_for :: fn(eng &Engine, id u32) {
     types := &(*db).types
     unify := &(*db).unify
     slot := unify.new_slot(id)
-    db.for_sources.grow_to(id + 1, hir_none())
-    sources := db.for_sources.get(id)
+    sources := db.get_for_sources(id)
     if sources == hir_none() {
         sources = tbl.rhs(id)
-        db.for_sources.set(id, sources)
+        db.set_for_sources(id, sources)
     }
     count := db.get_list(sources).len
     normalized := Vec(u32).new()

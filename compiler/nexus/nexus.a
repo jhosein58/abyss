@@ -106,9 +106,9 @@ Nexus :: struct {
     symbols        Vec(Symbol)
     hir_to_symbol  PoolU32
 
-    const_types    PoolU32
-    method_owner   PoolU32
-    mod_types      PoolU32
+    const_types    HashMap(u32, u32)
+    method_owner   HashMap(u32, u32)
+    mod_types      HashMap(u32, u32)
 
     core_prelude   u32
     std_prelude    u32
@@ -122,12 +122,11 @@ Nexus :: struct {
     mono_map       HashMap(u64, u32)
     mono_rev_map   HashMap(u32, u32)
     const_funcs    Vec(ConstFunc)
-    const_call_args PoolU32
+    const_call_args HashMap(u32, u32)
     mono_nominals  Vec(MonoNominal)
-    union_coerce_ty PoolU32
-    union_coerce_idx PoolU32
-    auto_deref_depth PoolU32
-    for_sources    PoolU32
+    union_coerce   HashMap(u32, u64)
+    auto_deref_depth HashMap(u32, u32)
+    for_sources    HashMap(u32, u32)
     str_type       u32
     const_status   PoolU32
     const_vals     PoolU64
@@ -153,9 +152,9 @@ Nexus :: struct {
             symbols        : Vec(Symbol).new(),
             hir_to_symbol  : PoolU32.new(),
 
-            const_types    : PoolU32.new(),
-            method_owner   : PoolU32.new(),
-            mod_types      : PoolU32.new(),
+            const_types    : HashMap(u32, u32).new(),
+            method_owner   : HashMap(u32, u32).new(),
+            mod_types      : HashMap(u32, u32).new(),
 
             core_prelude   : id_none(),
             std_prelude    : id_none(),
@@ -169,12 +168,11 @@ Nexus :: struct {
             mono_map       : HashMap(u64, u32).new(),
             mono_rev_map   : HashMap(u32, u32).new(),
             const_funcs    : Vec(ConstFunc).new(),
-            const_call_args: PoolU32.new(),
+            const_call_args: HashMap(u32, u32).new(),
             mono_nominals  : Vec(MonoNominal).new(),
-            union_coerce_ty : PoolU32.new(),
-            union_coerce_idx : PoolU32.new(),
-            auto_deref_depth : PoolU32.new(),
-            for_sources    : PoolU32.new(),
+            union_coerce   : HashMap(u32, u64).new(),
+            auto_deref_depth : HashMap(u32, u32).new(),
+            for_sources    : HashMap(u32, u32).new(),
             str_type       : ty_id_none(),
             const_status   : PoolU32.new(),
             const_vals     : PoolU64.new(),
@@ -285,12 +283,13 @@ Nexus :: struct {
     }
 
     get_module_type :: fn(self &Self, fid u32) u32 {
-        if fid >= self.mod_types.count() { ret ty_id_none() }
-        self.mod_types.get(fid)
+        p := self.mod_types.get(fid)
+        if p == (0 as &u32) { ret ty_id_none() }
+        *p
     }
 
     set_module_type :: fn(self &Self, fid u32, ty u32) {
-        self.mod_types.set_safe(fid, ty, ty_id_none())
+        self.mod_types.insert(fid, ty)
     }
 
     find_file_id :: fn(self &Self, path Str) u32 {
@@ -475,12 +474,13 @@ Nexus :: struct {
     }
 
     set_const_type :: fn(self &Self, hir_id u32, ty_id u32) {
-        self.const_types.set_safe(hir_id, ty_id, ty_id_none())
+        self.const_types.insert(hir_id, ty_id)
     }
 
     get_const_type :: fn(self &Self, hir_id u32) u32 {
-        if hir_id >= self.const_types.count() { ret ty_id_none() }
-        self.const_types.get(hir_id)
+        p := self.const_types.get(hir_id)
+        if p == (0 as &u32) { ret ty_id_none() }
+        *p
     }
 
     get_node_type :: fn(self &Self, id u32) u32 {
@@ -491,12 +491,13 @@ Nexus :: struct {
     }
 
     set_method_owner :: fn(self &Self, hir_id u32, struct_id u32) {
-        self.method_owner.set_safe(hir_id, struct_id, id_none())
+        self.method_owner.insert(hir_id, struct_id)
     }
 
     get_method_owner :: fn(self &Self, hir_id u32) u32 {
-        if hir_id >= self.method_owner.count() { ret id_none() }
-        self.method_owner.get(hir_id)
+        p := self.method_owner.get(hir_id)
+        if p == (0 as &u32) { ret id_none() }
+        *p
     }
 
     tuple_field_name :: fn(self &Self, idx u32) u32 {
@@ -746,9 +747,14 @@ Nexus :: struct {
         false
     }
 
+    set_const_call_args :: fn(self &Self, call u32, list_id u32) {
+        self.const_call_args.insert(call, list_id)
+    }
+
     is_const_call_arg :: fn(self &Self, call u32, index u32) bool {
-        if call >= self.const_call_args.count() { ret false }
-        list := self.const_call_args.get(call)
+        p := self.const_call_args.get(call)
+        if p == (0 as &u32) { ret false }
+        list := *p
         if list == id_none() { ret false }
         args := self.get_list(list)
         i: u64 = 0
@@ -858,31 +864,49 @@ Nexus :: struct {
     }
 
     set_union_coerce :: fn(self &Self, expr u32, ty u32, idx u32) {
-        self.union_coerce_ty.set_safe(expr, ty, ty_id_none())
-        self.union_coerce_idx.set_safe(expr, idx, 0)
+        if ty == ty_id_none() {
+            self.union_coerce.remove(expr)
+            ret
+        }
+        val := ((ty as u64) << 32) | (idx as u64)
+        self.union_coerce.insert(expr, val)
     }
 
     has_union_coerce :: fn(self &Self, expr u32) bool {
-        if expr >= self.union_coerce_ty.count() { ret false }
-        self.union_coerce_ty.get(expr) != ty_id_none()
+        p := self.union_coerce.get(expr)
+        if p == (0 as &u64) { ret false }
+        (((*p) >> 32) as u32) != ty_id_none()
     }
 
     get_union_coerce_ty :: fn(self &Self, expr u32) u32 {
-        if expr >= self.union_coerce_ty.count() { ret ty_id_none() }
-        self.union_coerce_ty.get(expr)
+        p := self.union_coerce.get(expr)
+        if p == (0 as &u64) { ret ty_id_none() }
+        ((*p) >> 32) as u32
     }
 
     get_union_coerce_idx :: fn(self &Self, expr u32) u32 {
-        if expr >= self.union_coerce_idx.count() { ret 0 }
-        self.union_coerce_idx.get(expr)
+        p := self.union_coerce.get(expr)
+        if p == (0 as &u64) { ret 0 }
+        (*p) as u32
     }
 
     set_auto_deref_depth :: fn(self &Self, expr u32, depth u32) {
-        self.auto_deref_depth.set_safe(expr, depth, 0)
+        self.auto_deref_depth.insert(expr, depth)
     }
 
     get_auto_deref_depth :: fn(self &Self, expr u32) u32 {
-        if expr >= self.auto_deref_depth.count() { ret 0 }
-        self.auto_deref_depth.get(expr)
+        p := self.auto_deref_depth.get(expr)
+        if p == (0 as &u32) { ret 0 }
+        *p
+    }
+
+    get_for_sources :: fn(self &Self, id u32) u32 {
+        p := self.for_sources.get(id)
+        if p == (0 as &u32) { ret hir_none() }
+        *p
+    }
+
+    set_for_sources :: fn(self &Self, id u32, sources u32) {
+        self.for_sources.insert(id, sources)
     }
 }

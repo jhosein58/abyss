@@ -717,7 +717,7 @@ synth_generic_call :: fn(eng &Engine, id u32, callee u32, callee_ty u32, slot u3
     if constant_keys.len > 0 {
         mono_func_ty = db.specialize_const_func(mono_func_ty, constant_keys.as_slice(), constant_values.as_slice())
     }
-    db.const_call_args.set_safe(id, db.add_list(constant_args.as_slice()), id_none())
+    db.set_const_call_args(id, db.add_list(constant_args.as_slice()))
     constant_args.destroy()
     constant_keys.destroy()
     constant_values.destroy()
