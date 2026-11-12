@@ -1,5 +1,6 @@
 import std.interner: Interner
 import std.string: Str
+import std.collections.hash_map: HashMap
 
 import compiler.types: TypeStorage, TyKind, ty_id_none
 import compiler.unify: UnifyStorage, slot_none
@@ -9,6 +10,25 @@ import .pool: PoolU32, PoolU64, id_none
 import std.allocator: Arena
 import compiler.vm.codegen: VmCodeGen
 import compiler.vm.vm: Vm
+
+MonoFunc :: struct {
+    orig_sym u32
+    mono_ty  u32
+    mono_sym u32
+}
+
+MonoNominal :: struct {
+    sym    u32
+    arg_id u32
+    res_ty u32
+}
+
+ConstFunc :: struct {
+    base  u32
+    ty    u32
+    key   u32
+    value u32
+}
 
 Span :: struct {
     start, end u32
@@ -98,17 +118,12 @@ Nexus :: struct {
     hir_span_start PoolU32
     hir_span_end   PoolU32
     type_specialization_depth u32
-    mono_orig_sym  Vec(u32)
-    mono_type      Vec(u32)
-    mono_sym       Vec(u32)
-    const_func_base Vec(u32)
-    const_func_type Vec(u32)
-    const_func_key Vec(u32)
-    const_func_value Vec(u32)
+    mono_funcs     Vec(MonoFunc)
+    mono_map       HashMap(u64, u32)
+    mono_rev_map   HashMap(u32, u32)
+    const_funcs    Vec(ConstFunc)
     const_call_args PoolU32
-    mono_nom_sym   Vec(u32)
-    mono_nom_arg   Vec(u32)
-    mono_nom_res   Vec(u32)
+    mono_nominals  Vec(MonoNominal)
     union_coerce_ty PoolU32
     union_coerce_idx PoolU32
     auto_deref_depth PoolU32
@@ -150,17 +165,12 @@ Nexus :: struct {
             hir_span_start : PoolU32.new(),
             hir_span_end   : PoolU32.new(),
             type_specialization_depth : 0,
-            mono_orig_sym  : Vec(u32).new(),
-            mono_type      : Vec(u32).new(),
-            mono_sym       : Vec(u32).new(),
-            const_func_base : Vec(u32).new(),
-            const_func_type : Vec(u32).new(),
-            const_func_key : Vec(u32).new(),
-            const_func_value : Vec(u32).new(),
-            const_call_args : PoolU32.new(),
-            mono_nom_sym   : Vec(u32).new(),
-            mono_nom_arg   : Vec(u32).new(),
-            mono_nom_res   : Vec(u32).new(),
+            mono_funcs     : Vec(MonoFunc).new(),
+            mono_map       : HashMap(u64, u32).new(),
+            mono_rev_map   : HashMap(u32, u32).new(),
+            const_funcs    : Vec(ConstFunc).new(),
+            const_call_args: PoolU32.new(),
+            mono_nominals  : Vec(MonoNominal).new(),
             union_coerce_ty : PoolU32.new(),
             union_coerce_idx : PoolU32.new(),
             auto_deref_depth : PoolU32.new(),
@@ -684,32 +694,36 @@ Nexus :: struct {
 
     specialize_const_func :: fn(self &Self, base u32, key Slice(u32), values Slice(u32)) u32 {
         i: u64 = 0
-        while i < self.const_func_base.len {
-            if self.const_func_base.get(i) == base {
-                stored := self.get_list(self.const_func_key.get(i))
+        while i < self.const_funcs.len {
+            cf := self.const_funcs.get(i)
+            if cf.base == base {
+                stored := self.get_list(cf.key)
                 same := stored.len == key.len
                 j: u64 = 0
                 while same and (j < key.len) {
                     if *(stored.ptr + j) != *(key.ptr + j) { same = false }
                     j = j + 1
                 }
-                if same { ret self.const_func_type.get(i) }
+                if same { ret cf.ty }
             }
             i = i + 1
         }
         ty := self.types.push(TyKind.func, self.types.payload(base))
-        self.const_func_base.push(base)
-        self.const_func_type.push(ty)
-        self.const_func_key.push(self.add_list(key))
-        self.const_func_value.push(self.add_list(values))
+        self.const_funcs.push(.{
+            base: base,
+            ty: ty,
+            key: self.add_list(key),
+            value: self.add_list(values)
+        })
         ty
     }
 
     const_param_value :: fn(self &Self, ty u32, index u32) u64 {
         i: u64 = 0
-        while i < self.const_func_type.len {
-            if self.const_func_type.get(i) == ty {
-                values := self.get_list(self.const_func_value.get(i))
+        while i < self.const_funcs.len {
+            cf := self.const_funcs.get(i)
+            if cf.ty == ty {
+                values := self.get_list(cf.value)
                 j: u64 = 0
                 while j < values.len {
                     if *(values.ptr + j) == index {
@@ -721,6 +735,15 @@ Nexus :: struct {
             i = i + 1
         }
         0
+    }
+
+    is_const_func_type :: fn(self &Self, ty u32) bool {
+        i: u64 = 0
+        while i < self.const_funcs.len {
+            if self.const_funcs.get(i).ty == ty { ret true }
+            i = i + 1
+        }
+        false
     }
 
     is_const_call_arg :: fn(self &Self, call u32, index u32) bool {
@@ -738,13 +761,9 @@ Nexus :: struct {
 
     find_mono_sym :: fn(self &Self, orig_sym u32, mono_ty u32) u32 {
         if (orig_sym == id_none()) or (mono_ty == ty_id_none()) { ret id_none() }
-        i: u64 = 0
-        while i < self.mono_orig_sym.len {
-            if (self.mono_orig_sym.get(i) == orig_sym) and (self.mono_type.get(i) == mono_ty) {
-                ret self.mono_sym.get(i)
-            }
-            i = i + 1
-        }
+        key := ((orig_sym as u64) << 32) | (mono_ty as u64)
+        p := self.mono_map.get(key)
+        if p != (0 as &u32) { ret *p }
         id_none()
     }
 
@@ -775,43 +794,40 @@ Nexus :: struct {
             flags: 0
         })
 
-        self.mono_orig_sym.push(orig_sym)
-        self.mono_type.push(mono_ty)
-        self.mono_sym.push(sym_id)
+        idx := self.mono_funcs.len as u32
+        self.mono_funcs.push(.{
+            orig_sym: orig_sym,
+            mono_ty: mono_ty,
+            mono_sym: sym_id
+        })
+        key := ((orig_sym as u64) << 32) | (mono_ty as u64)
+        self.mono_map.insert(key, sym_id)
+        self.mono_rev_map.insert(sym_id, idx)
         sym_id
     }
 
     get_mono_orig_sym :: fn(self &Self, sym u32) u32 {
-        i: u64 = 0
-        while i < self.mono_sym.len {
-            if self.mono_sym.get(i) == sym {
-                ret self.mono_orig_sym.get(i)
-            }
-            i = i + 1
-        }
-        id_none()
+        p := self.mono_rev_map.get(sym)
+        if p == (0 as &u32) { ret id_none() }
+        self.mono_funcs.get((*p) as u64).orig_sym
     }
 
     get_mono_type :: fn(self &Self, sym u32) u32 {
-        i: u64 = 0
-        while i < self.mono_sym.len {
-            if self.mono_sym.get(i) == sym {
-                ret self.mono_type.get(i)
-            }
-            i = i + 1
-        }
-        ty_id_none()
+        p := self.mono_rev_map.get(sym)
+        if p == (0 as &u32) { ret ty_id_none() }
+        self.mono_funcs.get((*p) as u64).mono_ty
     }
 
     is_mono_sym :: fn(self &Self, sym u32) bool {
-        self.get_mono_orig_sym(sym) != id_none()
+        self.mono_rev_map.contains_key(sym)
     }
 
     find_mono_nominal :: fn(self &Self, sym u32, args Slice(u32)) u32 {
         i: u64 = 0
-        while i < self.mono_nom_sym.len {
-            if self.mono_nom_sym.get(i) == sym {
-                stored_list := self.get_list(self.mono_nom_arg.get(i))
+        while i < self.mono_nominals.len {
+            m := self.mono_nominals.get(i)
+            if m.sym == sym {
+                stored_list := self.get_list(m.arg_id)
                 if stored_list.len == args.len {
                     matched := true
                     j: u64 = 0
@@ -823,7 +839,7 @@ Nexus :: struct {
                         j = j + 1
                     }
                     if matched {
-                        ret self.mono_nom_res.get(i)
+                        ret m.res_ty
                     }
                 }
             }
@@ -834,9 +850,11 @@ Nexus :: struct {
 
     add_mono_nominal :: fn(self &Self, sym u32, args Slice(u32), res_ty u32) {
         list_id := self.add_list(args)
-        self.mono_nom_sym.push(sym)
-        self.mono_nom_arg.push(list_id)
-        self.mono_nom_res.push(res_ty)
+        self.mono_nominals.push(.{
+            sym: sym,
+            arg_id: list_id,
+            res_ty: res_ty
+        })
     }
 
     set_union_coerce :: fn(self &Self, expr u32, ty u32, idx u32) {
