@@ -28,9 +28,6 @@ LowerCtx :: fn(B type, L type, V type) type {
     }
 }
 
-get_node_type :: fn(db &Nexus, id u32) u32 {
-    db.get_node_type(id)
-}
 
 iterator_is_ref :: fn(db &Nexus, ty_id u32) bool {
     types := &db.types
@@ -172,18 +169,10 @@ emit_method_receiver :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u3
     p0_ty := *(params.ptr + 0)
 
     p_depth: u32 = 0
-    t_p := p0_ty
-    while db.types.kind(t_p) == TyKind.ptr {
-        t_p = db.types.payload(t_p)
-        p_depth = p_depth + 1
-    }
+    t_p := db.types.unwrap_ptr_depth(p0_ty, &p_depth)
 
     r_depth: u32 = 0
-    t_r := lhs_ty
-    while db.types.kind(t_r) == TyKind.ptr {
-        t_r = db.types.payload(t_r)
-        r_depth = r_depth + 1
-    }
+    t_r := db.types.unwrap_ptr_depth(lhs_ty, &r_depth)
 
     lhs_val := lower_expr(ctx, callee_lhs)
     curr_ty := lhs_ty
@@ -550,9 +539,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             if db.hir.kind(callee_id) == hir_kind.member {
                 c_lhs := db.hir.lhs(callee_id)
                 c_lhs_ty := db.get_node_type(c_lhs)
-                while db.types.kind(c_lhs_ty) == TyKind.ptr {
-                    c_lhs_ty = db.types.payload(c_lhs_ty)
-                }
+                c_lhs_ty = db.types.unwrap_ptr(c_lhs_ty)
                 if db.types.kind(c_lhs_ty) == TyKind.array {
                     m_name_id := db.hir.lhs(db.hir.rhs(callee_id))
                     iter_id := db.interner.intern(Str.of("iter"))
@@ -1326,16 +1313,9 @@ for_method_receiver :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), call_i
     if params.len == 0 { ret source_name }
     expected := *(params.ptr + 0)
     expected_depth: u32 = 0
-    while db.types.kind(expected) == TyKind.ptr {
-        expected = db.types.payload(expected)
-        expected_depth = expected_depth + 1
-    }
+    expected = db.types.unwrap_ptr_depth(expected, &expected_depth)
     source_depth: u32 = 0
-    source := source_ty
-    while db.types.kind(source) == TyKind.ptr {
-        source = db.types.payload(source)
-        source_depth = source_depth + 1
-    }
+    source := db.types.unwrap_ptr_depth(source_ty, &source_depth)
     receiver := source_name
     while source_depth < expected_depth {
         receiver = ccg.expr_address(arena, receiver)
