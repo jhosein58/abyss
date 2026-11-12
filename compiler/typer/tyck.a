@@ -26,11 +26,11 @@ import .common: unescape_splice_str
 import compiler.lower: eval_const
 
 synth_node :: fn(eng &Engine, id u32) {
-    db := &(*eng).nexus
+    db := &eng.nexus
     db.set_type_error_origin(id)
-    tbl := &(*db).hir
+    tbl := &db.hir
     k := hir_kind
-    curr := (tbl).kind(id)
+    curr := tbl.kind(id)
 
     if curr == k.lit_int       { synth_lit_int(db, tbl, id) }
     if curr == k.ident         { synth_ident(eng, id) }
@@ -101,13 +101,12 @@ synth_node :: fn(eng &Engine, id u32) {
 }
 
 synth_splice :: fn(eng &Engine, id u32) {
-    db := &(*eng).nexus
-    tbl := &(*db).hir
-    if (tbl).rhs(id) != hir_none() {
+    db := &eng.nexus
+    tbl := &db.hir
+    if tbl.rhs(id) != hir_none() {
         ret
     }
-    types_ptr := &(*db).types
-    unify_ptr := &(*db).unify
+    unify_ptr := &db.unify
 
     child := tbl.lhs(id)
     tbl.set_rhs(id, hir_none())
@@ -115,8 +114,8 @@ synth_splice :: fn(eng &Engine, id u32) {
     slot := unify_ptr.new_slot(id)
 
     macro_src := Str.empty()
-    if (tbl).kind(child) == hir_kind.lit_str {
-        raw := db.interner.get((tbl).lhs(child))
+    if tbl.kind(child) == hir_kind.lit_str {
+        raw := db.interner.get(tbl.lhs(child))
         content := raw.trim_quotes()
         if (raw.len > 0) and (*(raw.ptr) != 96) {
             macro_src = unescape_splice_str(content)
@@ -133,15 +132,12 @@ synth_splice :: fn(eng &Engine, id u32) {
             if (sym != id_none()) and (macro_template(db, sym) != hir_none()) {
                 tbl.set_rhs(id, 1)
                 tbl.set_extra(id, child)
-                unify_ptr.bind_type(types_ptr, slot, child_ty)
+                db.bind_type(slot, child_ty)
                 ret
             }
         }
         if (child_ty != ty_id_none()) and (str_ty != ty_id_none()) and (child_ty != str_ty) and (tbl.kind(child) != hir_kind.lit_str) {
-            printf("\n[type error] macro expression must evaluate to Str\n       --> ", .{})
-            db.print_loc(id)
-            print("")
-            fall()
+            db.type_error(id, Str.of("macro expression must evaluate to Str"))
         }
         val := eval_const(db, child)
         if val != 0 {
@@ -244,52 +240,49 @@ synth_splice :: fn(eng &Engine, id u32) {
         fall()
     }
 
-    if parsed_node != hir_none() {
-        tbl.set_extra(id, parsed_node)
-        macro_sp := db.get_hir_span(id)
-        prepare_match_bindings(eng, node_start, node_end)
-        m_idx := node_start
-        while m_idx < node_end {
-            sp := db.get_hir_span(m_idx)
-            if (sp.start == 0) and (sp.end == 0) {
-                db.set_node_loc(m_idx, fid, macro_sp.start, macro_sp.end)
-            }
-            synth_node(eng, m_idx)
-            m_idx = m_idx + 1
+    tbl.set_extra(id, parsed_node)
+    macro_sp := db.get_hir_span(id)
+    prepare_match_bindings(eng, node_start, node_end)
+    m_idx := node_start
+    while m_idx < node_end {
+        sp := db.get_hir_span(m_idx)
+        if (sp.start == 0) and (sp.end == 0) {
+            db.set_node_loc(m_idx, fid, macro_sp.start, macro_sp.end)
         }
-        parsed_slot := unify_ptr.get_slot(parsed_node)
-        if parsed_slot != slot_none() {
-            unify_ptr.union(types_ptr, slot, parsed_slot)
-        }
-        if db.get_node_type(parsed_node) == ty_id_type() {
-            p_ty := db.get_const_type(parsed_node)
-            if p_ty != ty_id_none() {
-                db.set_const_type(id, p_ty)
-                unify_ptr.bind_type(types_ptr, slot, ty_id_type())
-                db.set_const_val(id, p_ty as u64)
-                db.set_is_const(id, true)
-            }
-        }
-        if db.has_const_val(parsed_node) {
-            db.set_const_val(id, db.get_const_val(parsed_node))
-        }
-        if db.is_const(parsed_node) {
+        synth_node(eng, m_idx)
+        m_idx = m_idx + 1
+    }
+    parsed_slot := unify_ptr.get_slot(parsed_node)
+    if parsed_slot != slot_none() {
+        db.union(slot, parsed_slot)
+    }
+    if db.get_node_type(parsed_node) == ty_id_type() {
+        p_ty := db.get_const_type(parsed_node)
+        if p_ty != ty_id_none() {
+            db.set_const_type(id, p_ty)
+            db.bind_type(slot, ty_id_type())
+            db.set_const_val(id, p_ty as u64)
             db.set_is_const(id, true)
         }
+    }
+    if db.has_const_val(parsed_node) {
+        db.set_const_val(id, db.get_const_val(parsed_node))
+    }
+    if db.is_const(parsed_node) {
+        db.set_is_const(id, true)
     }
 }
 
 synth_cmpt :: fn(eng &Engine, id u32) {
-    db := &(*eng).nexus
-    tbl := &(*db).hir
-    types_ptr := &(*db).types
-    unify_ptr := &(*db).unify
+    db := &eng.nexus
+    tbl := &db.hir
+    unify_ptr := &db.unify
 
     child := tbl.lhs(id)
     slot := unify_ptr.new_slot(id)
     child_slot := unify_ptr.get_slot(child)
     if child_slot != slot_none() {
-        unify_ptr.union(types_ptr, slot, child_slot)
+        db.union(slot, child_slot)
     }
 
     db.set_is_const(id, true)
@@ -297,7 +290,7 @@ synth_cmpt :: fn(eng &Engine, id u32) {
     child_ty_val := db.get_const_type(child)
     if (child_ty_val != ty_id_none()) and (db.get_node_type(child) == ty_id_type()) {
         db.set_const_type(id, child_ty_val)
-        unify_ptr.bind_type(types_ptr, slot, ty_id_type())
+        db.bind_type(slot, ty_id_type())
         db.set_const_val(id, child_ty_val as u64)
         ret
     }
@@ -311,18 +304,18 @@ synth_cmpt :: fn(eng &Engine, id u32) {
 }
 
 type_check :: fn(eng &Engine, start u32, len u32) {
-    db := &(*eng).nexus
-    tbl := &(*db).hir
+    db := &eng.nexus
+    tbl := &db.hir
     k := hir_kind
     prepare_match_bindings(eng, start, len)
     i := start
     while i < len {
-        curr := (tbl).kind(i)
+        curr := tbl.kind(i)
         synth_node(eng, i)
         if curr == k.function {
             func_ty := db.get_const_type(i)
-            if (func_ty != ty_id_none()) and (&(*db).types).func_has_type_param(func_ty) {
-                body := (tbl).extra(i)
+            if (func_ty != ty_id_none()) and db.types.func_has_type_param(func_ty) {
+                body := tbl.extra(i)
                 if (body != hir_none()) and (body >= i) {
                     i = body + 1
                     cont
@@ -395,8 +388,8 @@ type_has_infer_seen :: fn(types &TypeStorage, ty_id u32, visited &Vec(u32)) bool
 }
 
 finalize_inferred_types :: fn(eng &Engine, func_id u32) {
-    db := &(*eng).nexus
-    tbl := &(*db).hir
+    db := &eng.nexus
+    tbl := &db.hir
     body := tbl.extra(func_id)
     if body == hir_none() { ret }
     skipped := Vec(u32).new()
@@ -404,7 +397,7 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
     while scan <= body {
         if tbl.kind(scan) == hir_kind.function {
             fn_ty := db.get_const_type(scan)
-            if (&(*db).types).func_has_type_param(fn_ty) {
+            if db.types.func_has_type_param(fn_ty) {
                 nested_body := tbl.extra(scan)
                 params := db.get_list(tbl.lhs(scan))
                 first := *(params.ptr + 0)
@@ -430,29 +423,23 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
             skip_i = skip_i + 2
         }
         if node > body { break }
-        slot := (&(*db).unify).get_slot(node)
+        slot := db.unify.get_slot(node)
         if slot != slot_none() {
-            ty := (&(*db).unify).resolve_type(slot)
-            if (ty != ty_id_none()) and (not (&(*db).types).func_has_type_param(ty)) {
-                resolved := resolve_ty_id(eng, &(*db).unify, &(*db).types, ty)
-                if type_has_infer(&(*db).types, resolved) {
-                    printf("\n[type error] cannot infer generic type argument; pass the type explicitly\n       --> ", .{})
-                    db.print_loc(node)
-                    print("")
-                    fall()
+            ty := db.unify.resolve_type(slot)
+            if (ty != ty_id_none()) and (not db.types.func_has_type_param(ty)) {
+                resolved := resolve_ty_id(eng, &db.unify, &db.types, ty)
+                if type_has_infer(&db.types, resolved) {
+                    db.type_error(node, Str.of("cannot infer generic type argument; pass the type explicitly"))
                 }
-                root := (&(*db).unify).find(slot)
-                (*db).unify.types.set(root as u64, resolved)
+                root := db.unify.find(slot)
+                db.unify.types.set(root as u64, resolved)
             }
         }
         value_ty := db.get_const_type(node)
-        if (value_ty != ty_id_none()) and (not (&(*db).types).func_has_type_param(value_ty)) {
-            resolved := resolve_ty_id(eng, &(*db).unify, &(*db).types, value_ty)
-            if type_has_infer(&(*db).types, resolved) {
-                printf("\n[type error] cannot infer generic type argument; pass the type explicitly\n       --> ", .{})
-                db.print_loc(node)
-                print("")
-                fall()
+        if (value_ty != ty_id_none()) and (not db.types.func_has_type_param(value_ty)) {
+            resolved := resolve_ty_id(eng, &db.unify, &db.types, value_ty)
+            if type_has_infer(&db.types, resolved) {
+                db.type_error(node, Str.of("cannot infer generic type argument; pass the type explicitly"))
             }
             db.set_const_type(node, resolved)
         }
@@ -515,33 +502,33 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     }
 
     if struct_ty != ty_id_none() {
-        s_origin := (&(*db).types).nominal_origin(struct_ty)
-        creator_sym := (&(*db).types).get_nominal_creator_sym(s_origin)
-        creator_args := (&(*db).types).get_nominal_creator_args(s_origin)
-        struct_node := (&(*db).types).get_nominal_struct_node(s_origin)
+        s_origin := db.types.nominal_origin(struct_ty)
+        creator_sym := db.types.get_nominal_creator_sym(s_origin)
+        creator_args := db.types.get_nominal_creator_args(s_origin)
+        struct_node := db.types.get_nominal_struct_node(s_origin)
         if struct_node != ty_id_none() {
             db.set_const_type(struct_node, struct_ty)
         }
         creator_fn := db.get_fn_node(creator_sym)
         if creator_fn != id_none() {
-            c_p_list := (tbl).lhs(creator_fn)
+            c_p_list := tbl.lhs(creator_fn)
             if c_p_list != hir_none() {
                 source_params := db.get_list(c_p_list)
                 p_i: u64 = 0
                 while p_i < source_params.len {
                     if p_i < creator_args.len {
                         p_arg := *(source_params.ptr + p_i)
-                        p_ident := (tbl).lhs(p_arg)
-                        p_ty_node := (tbl).rhs(p_arg)
+                        p_ident := tbl.lhs(p_arg)
+                        p_ty_node := tbl.rhs(p_arg)
                         p_param_ty := synth_type_node(eng, p_ty_node)
                         arg_val := *(creator_args.ptr + p_i)
                         if p_ident != hir_none() {
-                            type_slot := (&(*db).unify).new_slot(p_ident)
+                            type_slot := db.unify.new_slot(p_ident)
                             if p_param_ty == ty_id_type() {
-                                (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
+                                db.bind_type(type_slot, ty_id_type())
                                 db.set_const_type(p_ident, arg_val)
                             } else if p_param_ty != ty_id_none() {
-                                (&(*db).unify).bind_type(&(*db).types, type_slot, p_param_ty)
+                                db.bind_type(type_slot, p_param_ty)
                             }
                             db.set_const_val(p_ident, arg_val as u64)
                             db.set_is_const(p_ident, true)
@@ -571,8 +558,8 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
         }
     }
 
-    orig_params := (&(*db).types).func_params(orig_func_ty)
-    args_list_id := (tbl).lhs(func_id)
+    orig_params := db.types.func_params(orig_func_ty)
+    args_list_id := tbl.lhs(func_id)
     has_type_param := false
     orig_p_vec := Vec(u32).new()
     if args_list_id != hir_none() {
@@ -581,7 +568,7 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
         while (p_idx < orig_params.len) or (p_idx < mono_params.len) {
             if (p_idx < fn_args.len) and (p_idx < mono_params.len) {
                 arg_node := *(fn_args.ptr + p_idx)
-                arg_ident := (tbl).lhs(arg_node)
+                arg_ident := tbl.lhs(arg_node)
                 concrete_p_ty := *(mono_params.ptr + p_idx)
                 is_type_param := false
                 if p_idx < orig_params.len {
@@ -589,9 +576,9 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
                         is_type_param = true
                     }
                 }
-                arg_ty_node := (tbl).rhs(arg_node)
-                if (not is_type_param) and (arg_ty_node != hir_none()) and ((tbl).kind(arg_ty_node) == hir_kind.ident) {
-                    type_name_id := (tbl).lhs(arg_ty_node)
+                arg_ty_node := tbl.rhs(arg_node)
+                if (not is_type_param) and (arg_ty_node != hir_none()) and (tbl.kind(arg_ty_node) == hir_kind.ident) {
+                    type_name_id := tbl.lhs(arg_ty_node)
                     if db.interner.get(type_name_id).eq(Str.of("type")) {
                         is_type_param = true
                     }
@@ -599,13 +586,13 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
                 if is_type_param {
                     has_type_param = true
                     orig_p_vec.push(ty_id_type())
-                    type_slot := (&(*db).unify).new_slot(arg_ident)
-                    (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
+                    type_slot := db.unify.new_slot(arg_ident)
+                    db.bind_type(type_slot, ty_id_type())
                     db.set_const_type(arg_ident, concrete_p_ty)
                 } else {
                     orig_p_vec.push(concrete_p_ty)
-                    p_slot := (&(*db).unify).new_slot(arg_ident)
-                    (&(*db).unify).bind_type(&(*db).types, p_slot, concrete_p_ty)
+                    p_slot := db.unify.new_slot(arg_ident)
+                    db.bind_type(p_slot, concrete_p_ty)
                     db.set_const_type(arg_ident, concrete_p_ty)
                     if tbl.extra(arg_node) == 1 {
                         value := db.const_param_value(mono_func_ty, p_idx as u32)
@@ -620,13 +607,13 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
         }
     }
     if has_type_param {
-        orig_func_ty = (&(*db).types).alloc_func(orig_p_vec.as_slice(), (&(*db).types).func_return(mono_func_ty), false)
+        orig_func_ty = db.types.alloc_func(orig_p_vec.as_slice(), db.types.func_return(mono_func_ty), false)
     }
     orig_p_vec.destroy()
 
     db.set_const_type(func_id, mono_func_ty)
 
-    body_id := (tbl).extra(func_id)
+    body_id := tbl.extra(func_id)
     if body_id != hir_none() {
         n := func_id + 1
         while n <= body_id {
@@ -634,24 +621,24 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
             db.set_const_val(n, 0)
             db.set_is_const(n, false)
             db.set_union_coerce(n, ty_id_none(), 0)
-            (&(*db).unify).new_slot(n)
+            db.unify.new_slot(n)
             n = n + 1
         }
         m_ret := db.types.func_return(mono_func_ty)
         if db.types.kind(m_ret) == TyKind.array {
             arr_len := db.types.get_array_len(m_ret)
-            ret_hir_id := (tbl).rhs(func_id)
-            if (ret_hir_id != hir_none()) and ((tbl).kind(ret_hir_id) == hir_kind.array) {
-                len_node := (tbl).lhs(ret_hir_id)
-                if (tbl).kind(len_node) == hir_kind.ident {
-                    p_name := (tbl).lhs(len_node)
+            ret_hir_id := tbl.rhs(func_id)
+            if (ret_hir_id != hir_none()) and (tbl.kind(ret_hir_id) == hir_kind.array) {
+                len_node := tbl.lhs(ret_hir_id)
+                if tbl.kind(len_node) == hir_kind.ident {
+                    p_name := tbl.lhs(len_node)
                     if args_list_id != hir_none() {
                         fn_args := db.get_list(args_list_id)
                         p_i: u64 = 0
                         while p_i < fn_args.len {
                             arg_node := *(fn_args.ptr + p_i)
-                            arg_ident := (tbl).lhs(arg_node)
-                            if (arg_ident != hir_none()) and ((tbl).lhs(arg_ident) == p_name) {
+                            arg_ident := tbl.lhs(arg_node)
+                            if (arg_ident != hir_none()) and (tbl.lhs(arg_ident) == p_name) {
                                 db.set_const_val(arg_ident, arr_len as u64)
                                 db.set_const_val(arg_node, arr_len as u64)
                                 db.set_is_const(arg_ident, true)
@@ -670,7 +657,7 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
 
     if has_type_param {
         db.set_const_type(func_id, orig_func_ty)
-    } else if (saved_orig_ty != ty_id_none()) and (&(*db).types).func_has_type_param(saved_orig_ty) {
+    } else if (saved_orig_ty != ty_id_none()) and db.types.func_has_type_param(saved_orig_ty) {
         db.set_const_type(func_id, saved_orig_ty)
     }
 }
