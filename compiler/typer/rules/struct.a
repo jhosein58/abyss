@@ -48,7 +48,7 @@ synth_struct :: fn(eng &Engine, id u32) {
     named := db.get_const_type(id)
     if (sym_id != id_none()) and (not is_tuple) {
         if named == ty_id_none() {
-            name_id := db.sym_names.get(sym_id)
+            name_id := db.sym_name(sym_id)
             name := db.interner.get(name_id)
             named = (&(*types_ptr)).alloc_nominal(ty_id_none(), name, id)
             db.set_const_type(id, named)

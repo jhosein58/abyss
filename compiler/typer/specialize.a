@@ -120,7 +120,7 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
                 nom_name = db.interner.get((tbl).lhs(name_hir))
             }
         } else {
-            nom_name = db.interner.get(db.sym_names.get(callee_sym))
+            nom_name = db.interner.get(db.sym_name(callee_sym))
         }
 
         nom_ty := (&(*types_ptr)).alloc_nominal(ty_id_none(), nom_name, nom_origin)

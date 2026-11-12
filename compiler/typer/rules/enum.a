@@ -77,7 +77,7 @@ synth_enum :: fn(eng &Engine, id u32) {
     name := Str.of("enum")
     sym_id := db.get_hir_symbol(id)
     if sym_id != id_none() {
-        sym_name_id := db.sym_names.get(sym_id)
+        sym_name_id := db.sym_name(sym_id)
         name = db.interner.get(sym_name_id)
     }
 

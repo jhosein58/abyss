@@ -57,6 +57,19 @@ calc_pos :: fn(source Str, offset u32) Pos {
 }
 
 
+Symbol :: struct {
+    name      u32
+    file      u32
+    tok_start u32
+    tok_end   u32
+    hir_start u32
+    hir_end   u32
+    target    u32
+    node      u32
+    mod_fid   u32
+    flags     u32
+}
+
 Nexus :: struct {
     tokens         TokenStream
     hir            HirTable
@@ -70,21 +83,11 @@ Nexus :: struct {
     map_keys       Vec(Str)
     map_values     Vec(Str)
 
-    sym_names      PoolU32
-    sym_files      PoolU32
-    sym_tok_start  PoolU32
-    sym_tok_end    PoolU32
-    sym_hir_start  PoolU32
-    sym_hir_end    PoolU32
-    sym_target     PoolU32
-
-    sym_nodes      PoolU32
+    symbols        Vec(Symbol)
     hir_to_symbol  PoolU32
 
     const_types    PoolU32
     method_owner   PoolU32
-    sym_resolving  PoolU32
-    sym_mod_fid    PoolU32
     mod_types      PoolU32
 
     core_prelude   u32
@@ -113,7 +116,6 @@ Nexus :: struct {
     str_type       u32
     const_status   PoolU32
     const_vals     PoolU64
-    sym_is_const   PoolU32
     comptime_depth u32
     comptime_arena Arena
     comptime_cg    &VmCodeGen
@@ -127,26 +129,17 @@ Nexus :: struct {
             glob_stack     : Vec(u32).new(),
             u32_items      : Vec(u32).new(),
             interner       : Interner.new(),
-             types          : TypeStorage.new(),
+            types          : TypeStorage.new(),
             unify          : UnifyStorage.new(),
             import_dirs    : Vec(Str).new(),
             map_keys       : Vec(Str).new(),
             map_values     : Vec(Str).new(),
 
-            sym_names      : PoolU32.new(),
-            sym_files      : PoolU32.new(),
-            sym_tok_start  : PoolU32.new(),
-            sym_tok_end    : PoolU32.new(),
-            sym_hir_start  : PoolU32.new(),
-            sym_hir_end    : PoolU32.new(),
-            sym_target     : PoolU32.new(),
-            sym_nodes      : PoolU32.new(),
+            symbols        : Vec(Symbol).new(),
             hir_to_symbol  : PoolU32.new(),
 
             const_types    : PoolU32.new(),
             method_owner   : PoolU32.new(),
-            sym_resolving  : PoolU32.new(),
-            sym_mod_fid    : PoolU32.new(),
             mod_types      : PoolU32.new(),
 
             core_prelude   : id_none(),
@@ -175,7 +168,6 @@ Nexus :: struct {
             str_type       : ty_id_none(),
             const_status   : PoolU32.new(),
             const_vals     : PoolU64.new(),
-            sym_is_const   : PoolU32.new(),
             comptime_depth : 0,
             comptime_arena : Arena.new(65536),
             comptime_cg    : 0 as &VmCodeGen,
@@ -200,77 +192,86 @@ Nexus :: struct {
     }
 
     alloc_symbol :: fn(self &Self, file_id u32, name_id u32, tok_start u32, tok_end u32) u32 {
-        sym_id := self.sym_names.alloc(name_id)
-
-        self.sym_files.alloc(file_id)
-        self.sym_tok_start.alloc(tok_start)
-        self.sym_tok_end.alloc(tok_end)
-        self.sym_hir_start.alloc(id_none())
-        self.sym_hir_end.alloc(id_none())
-        self.sym_nodes.alloc(id_none())
-        self.sym_resolving.alloc(0)
-        self.sym_target.alloc(id_none())
-
-        sym_id
+        id := self.symbols.len as u32
+        self.symbols.push(.{
+            name: name_id,
+            file: file_id,
+            tok_start: tok_start,
+            tok_end: tok_end,
+            hir_start: id_none(),
+            hir_end: id_none(),
+            target: id_none(),
+            node: id_none(),
+            mod_fid: id_none(),
+            flags: 0
+        })
+        id
     }
 
     alloc_local_symbol :: fn(self &Self, file_id u32, name_id u32, hir_id u32) u32 {
-        sym_id := self.sym_names.alloc(name_id)
-
-        self.sym_files.alloc(file_id)
-        self.sym_tok_start.alloc(id_none())
-        self.sym_tok_end.alloc(id_none())
-        self.sym_hir_start.alloc(id_none())
-        self.sym_hir_end.alloc(id_none())
-        self.sym_nodes.alloc(hir_id)
-        self.sym_resolving.alloc(0)
-        self.sym_target.alloc(id_none())
-
-        self.set_hir_symbol(hir_id, sym_id)
-        sym_id
+        id := self.symbols.len as u32
+        self.symbols.push(.{
+            name: name_id,
+            file: file_id,
+            tok_start: id_none(),
+            tok_end: id_none(),
+            hir_start: id_none(),
+            hir_end: id_none(),
+            target: id_none(),
+            node: hir_id,
+            mod_fid: id_none(),
+            flags: 0
+        })
+        self.set_hir_symbol(hir_id, id)
+        id
     }
 
     alloc_symbol_alias :: fn(self &Self, file_id u32, name_id u32, target_sym u32) u32 {
-        sym_id := self.sym_names.alloc(name_id)
-
-        self.sym_files.alloc(file_id)
-        self.sym_tok_start.alloc(id_none())
-        self.sym_tok_end.alloc(id_none())
-        self.sym_hir_start.alloc(id_none())
-        self.sym_hir_end.alloc(id_none())
-        self.sym_nodes.alloc(id_none())
-        self.sym_resolving.alloc(0)
-        self.sym_target.alloc(target_sym)
-
-        sym_id
+        id := self.symbols.len as u32
+        self.symbols.push(.{
+            name: name_id,
+            file: file_id,
+            tok_start: id_none(),
+            tok_end: id_none(),
+            hir_start: id_none(),
+            hir_end: id_none(),
+            target: target_sym,
+            node: id_none(),
+            mod_fid: id_none(),
+            flags: 0
+        })
+        id
     }
 
     alloc_module_symbol :: fn(self &Self, file_id u32, name_id u32, target_fid u32) u32 {
-        sym_id := self.sym_names.alloc(name_id)
-        self.sym_files.alloc(file_id)
-        self.sym_tok_start.alloc(id_none())
-        self.sym_tok_end.alloc(id_none())
-        self.sym_hir_start.alloc(id_none())
-        self.sym_hir_end.alloc(id_none())
-        self.sym_nodes.alloc(id_none())
-        self.sym_resolving.alloc(0)
-        self.sym_target.alloc(id_none())
-        self.sym_mod_fid.set_safe(sym_id, target_fid, id_none())
-        sym_id
+        id := self.symbols.len as u32
+        self.symbols.push(.{
+            name: name_id,
+            file: file_id,
+            tok_start: id_none(),
+            tok_end: id_none(),
+            hir_start: id_none(),
+            hir_end: id_none(),
+            target: id_none(),
+            node: id_none(),
+            mod_fid: target_fid,
+            flags: 0
+        })
+        id
     }
 
     is_module_sym :: fn(self &Self, sym_id u32) bool {
         if sym_id == id_none() { ret false }
         real_s := self.resolve_sym(sym_id)
-        if real_s >= self.sym_mod_fid.count() { ret false }
-        self.sym_mod_fid.get(real_s) != id_none()
+        if real_s >= (self.symbols.len as u32) { ret false }
+        self.symbols.get(real_s as u64).mod_fid != id_none()
     }
 
     get_module_fid :: fn(self &Self, sym_id u32) u32 {
         if sym_id == id_none() { ret id_none() }
         real_s := self.resolve_sym(sym_id)
-        if real_s >= self.sym_mod_fid.count() { ret id_none() }
-        self.sym_mod_fid.get(real_s)
+        if real_s >= (self.symbols.len as u32) { ret id_none() }
+        self.symbols.get(real_s as u64).mod_fid
     }
 
     get_module_type :: fn(self &Self, fid u32) u32 {
@@ -307,13 +308,11 @@ Nexus :: struct {
     }
 
     find_local_symbol :: fn(self &Self, file_id u32, name_id u32) u32 {
-        count := self.sym_names.count()
-
+        count := self.symbols.len as u32
         i: u32 = 0
         while i < count {
-            f := self.sym_files.get(i)
-            n := self.sym_names.get(i)
-            if (f == file_id) and (n == name_id) {
+            s := self.symbols.get(i as u64)
+            if (s.file == file_id) and (s.name == name_id) {
                 ret self.resolve_sym(i)
             }
             i = i + 1
@@ -323,9 +322,11 @@ Nexus :: struct {
 
     resolve_sym :: fn(self &Self, sym_id u32) u32 {
         if sym_id == id_none() { ret id_none() }
+        if sym_id >= (self.symbols.len as u32) { ret sym_id }
         real_s := sym_id
         while true {
-            tgt := self.sym_target.get(real_s)
+            if real_s >= (self.symbols.len as u32) { break }
+            tgt := self.symbols.get(real_s as u64).target
             if (tgt == id_none()) or (tgt == real_s) { break }
             real_s = tgt
         }
@@ -349,7 +350,7 @@ Nexus :: struct {
                 }
             }
         }
-        hir_end := self.sym_hir_end.get(real_s)
+        hir_end := self.sym_hir_end(real_s)
         if (hir_end != 0) and (hir_end != id_none()) {
             b_id := hir_end - 1
             if (self.hir.kind(b_id) == hir_kind.binding) or (self.hir.kind(b_id) == hir_kind.var) {
@@ -391,13 +392,66 @@ Nexus :: struct {
     }
 
     set_sym_hir :: fn(self &Self, sym_id u32, hir_id u32) {
-        self.sym_nodes.set(sym_id, hir_id)
+        if sym_id >= (self.symbols.len as u32) { ret }
+        p := self.symbols.ptr_at(sym_id as u64)
+        p.node = hir_id
     }
 
     get_sym_hir :: fn(self &Self, sym_id u32) u32 {
         if sym_id == id_none() { ret id_none() }
-        if sym_id >= self.sym_nodes.count() { ret id_none() }
-        self.sym_nodes.get(sym_id)
+        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        self.symbols.get(sym_id as u64).node
+    }
+
+    sym_count :: fn(self &Self) u32 {
+        self.symbols.len as u32
+    }
+
+    sym_name :: fn(self &Self, sym_id u32) u32 {
+        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        self.symbols.get(sym_id as u64).name
+    }
+
+    sym_file :: fn(self &Self, sym_id u32) u32 {
+        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        self.symbols.get(sym_id as u64).file
+    }
+
+    sym_tok_start :: fn(self &Self, sym_id u32) u32 {
+        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        self.symbols.get(sym_id as u64).tok_start
+    }
+
+    sym_tok_end :: fn(self &Self, sym_id u32) u32 {
+        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        self.symbols.get(sym_id as u64).tok_end
+    }
+
+    sym_hir_start :: fn(self &Self, sym_id u32) u32 {
+        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        self.symbols.get(sym_id as u64).hir_start
+    }
+
+    sym_hir_end :: fn(self &Self, sym_id u32) u32 {
+        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        self.symbols.get(sym_id as u64).hir_end
+    }
+
+    set_sym_hir_range :: fn(self &Self, sym_id u32, start u32, end u32) {
+        if sym_id >= (self.symbols.len as u32) { ret }
+        p := self.symbols.ptr_at(sym_id as u64)
+        p.hir_start = start
+        p.hir_end = end
+    }
+
+    set_sym_resolving :: fn(self &Self, sym_id u32, resolving bool) {
+        if sym_id >= (self.symbols.len as u32) { ret }
+        p := self.symbols.ptr_at(sym_id as u64)
+        if resolving {
+            p.flags = p.flags | 2
+        } else {
+            p.flags = p.flags & 4294967293
+        }
     }
 
     set_hir_symbol :: fn(self &Self, hir_id u32, sym_id u32) {
@@ -433,12 +487,6 @@ Nexus :: struct {
     get_method_owner :: fn(self &Self, hir_id u32) u32 {
         if hir_id >= self.method_owner.count() { ret id_none() }
         self.method_owner.get(hir_id)
-    }
-
-    set_sym_resolving :: fn(self &Self, sym_id u32, resolving bool) {
-        val: u32 = 0
-        if resolving { val = 1 }
-        self.sym_resolving.set_safe(sym_id, val, 0)
     }
 
     tuple_field_name :: fn(self &Self, idx u32) u32 {
@@ -495,8 +543,8 @@ Nexus :: struct {
     }
 
     is_sym_resolving :: fn(self &Self, sym_id u32) bool {
-        if sym_id >= self.sym_resolving.count() { ret false }
-        self.sym_resolving.get(sym_id) == 1
+        if sym_id >= (self.symbols.len as u32) { ret false }
+        (self.symbols.get(sym_id as u64).flags & 2) != 0
     }
 
     set_is_const :: fn(self &Self, hir_id u32, is_c bool) {
@@ -515,9 +563,13 @@ Nexus :: struct {
     }
 
     set_sym_is_const :: fn(self &Self, sym_id u32, is_c bool) {
-        val: u32 = 0
-        if is_c { val = 1 }
-        self.sym_is_const.set_safe(sym_id, val, 0)
+        if sym_id >= (self.symbols.len as u32) { ret }
+        p := self.symbols.ptr_at(sym_id as u64)
+        if is_c {
+            p.flags = p.flags | 1
+        } else {
+            p.flags = p.flags & 4294967294
+        }
     }
 
     is_sym_const :: fn(self &Self, sym_id u32) bool {
@@ -525,8 +577,8 @@ Nexus :: struct {
         real_s := self.resolve_sym(sym_id)
         if real_s == id_none() { ret false }
         if self.is_module_sym(real_s) { ret true }
-        if real_s >= self.sym_is_const.count() { ret false }
-        self.sym_is_const.get(real_s) != 0
+        if real_s >= (self.symbols.len as u32) { ret false }
+        (self.symbols.get(real_s as u64).flags & 1) != 0
     }
 
     set_const_val :: fn(self &Self, hir_id u32, val u64) {
@@ -706,18 +758,22 @@ Nexus :: struct {
             name_hir := self.hir.lhs(binding_id)
             name_id = self.hir.lhs(name_hir)
         } else {
-            file_id = self.sym_files.get(orig_sym)
-            name_id = self.sym_names.get(orig_sym)
+            file_id = self.sym_file(orig_sym)
+            name_id = self.sym_name(orig_sym)
         }
-        sym_id := self.sym_names.alloc(name_id)
-        self.sym_files.alloc(file_id)
-        self.sym_tok_start.alloc(id_none())
-        self.sym_tok_end.alloc(id_none())
-        self.sym_hir_start.alloc(id_none())
-        self.sym_hir_end.alloc(id_none())
-        self.sym_nodes.alloc(id_none())
-        self.sym_resolving.alloc(0)
-        self.sym_target.alloc(id_none())
+        sym_id := self.symbols.len as u32
+        self.symbols.push(.{
+            name: name_id,
+            file: file_id,
+            tok_start: id_none(),
+            tok_end: id_none(),
+            hir_start: id_none(),
+            hir_end: id_none(),
+            target: id_none(),
+            node: id_none(),
+            mod_fid: id_none(),
+            flags: 0
+        })
 
         self.mono_orig_sym.push(orig_sym)
         self.mono_type.push(mono_ty)

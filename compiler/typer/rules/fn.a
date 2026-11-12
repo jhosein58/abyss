@@ -72,7 +72,7 @@ synth_func :: fn(eng &Engine, id u32) {
     body_id        := (tbl).extra(id)
 
     sym_id := db.get_hir_symbol(id)
-    is_extern := (body_id == hir_none()) and (sym_id != id_none()) and (db.sym_tok_start.get(sym_id) != id_none())
+    is_extern := (body_id == hir_none()) and (sym_id != id_none()) and (db.sym_tok_start(sym_id) != id_none())
 
     params_vec := Vec(u32).new()
     if params_list_id != hir_none() {

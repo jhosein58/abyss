@@ -34,7 +34,7 @@ synth_array_type_node :: fn(eng &Engine, id u32) u32 {
             if sym != id_none() {
                 real_s := db.resolve_sym(sym)
                 s_hir := db.get_sym_hir(real_s)
-                if (db.sym_tok_start.get(real_s) == id_none()) or ((s_hir != id_none()) and (tbl.kind(s_hir) == hir_kind.arg)) {
+                if (db.sym_tok_start(real_s) == id_none()) or ((s_hir != id_none()) and (tbl.kind(s_hir) == hir_kind.arg)) {
                     s := unify_ptr.tmp_slot()
                     inf_ty := types_ptr.alloc_infer(s)
                     db.set_const_type(id, inf_ty)

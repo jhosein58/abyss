@@ -55,7 +55,7 @@ synth_ident :: fn(eng &Engine, id u32) {
             fid := db.get_module_fid(real_sym)
             mod_ty := db.get_module_type(fid)
             if mod_ty == ty_id_none() {
-                mod_name := db.interner.get(db.sym_names.get(real_sym))
+                mod_name := db.interner.get(db.sym_name(real_sym))
                 mod_ty = db.types.alloc_nominal(ty_id_none(), mod_name, id_none())
                 db.set_module_type(fid, mod_ty)
             }

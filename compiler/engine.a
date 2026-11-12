@@ -56,9 +56,9 @@ Engine :: struct {
             fall()
         }
 
-        file_id   := self.nexus.sym_files.get(sym_id)
-        tok_start := self.nexus.sym_tok_start.get(sym_id)
-        tok_end   := self.nexus.sym_tok_end.get(sym_id)
+        file_id   := self.nexus.sym_file(sym_id)
+        tok_start := self.nexus.sym_tok_start(sym_id)
+        tok_end   := self.nexus.sym_tok_end(sym_id)
         count     := tok_end - tok_start
 
         hir_start := self.nexus.hir.len()
@@ -81,13 +81,12 @@ Engine :: struct {
 
         hir_end := self.nexus.hir.len()
 
-        self.nexus.sym_hir_start.set(sym_id, hir_start)
-        self.nexus.sym_hir_end.set(sym_id, hir_end)
+        self.nexus.set_sym_hir_range(sym_id, hir_start, hir_end)
     }
 
     type_check :: fn(self &Self, sym_id u32) {
-        hir_start := self.nexus.sym_hir_start.get(sym_id)
-        hir_end   := self.nexus.sym_hir_end.get(sym_id)
+        hir_start := self.nexus.sym_hir_start(sym_id)
+        hir_end   := self.nexus.sym_hir_end(sym_id)
 
         type_check(self, hir_start, hir_end)
     }
@@ -97,7 +96,7 @@ Engine :: struct {
         decl_hir := db.get_sym_hir(sym_id)
         if decl_hir == id_none() { ret }
 
-        hir_end := db.sym_hir_end.get(sym_id)
+        hir_end := db.sym_hir_end(sym_id)
         if (hir_end == id_none()) or (hir_end == 0) { ret }
 
         root := hir_end - 1
@@ -123,7 +122,7 @@ Engine :: struct {
         existing := db.get_const_type(decl_hir)
         if existing != ty_id_none() { ret }
 
-        name_id := db.sym_names.get(sym_id)
+        name_id := db.sym_name(sym_id)
         name := db.interner.get(name_id)
         named := db.types.alloc_nominal(ty_id_none(), name, value_node)
 
@@ -144,7 +143,7 @@ Engine :: struct {
 
         real_sym := db.resolve_sym(sym_id)
 
-        tok_start := db.sym_tok_start.get(real_sym)
+        tok_start := db.sym_tok_start(real_sym)
         if tok_start == id_none() {
             ret
         }
@@ -164,7 +163,7 @@ Engine :: struct {
             ret
         }
 
-        hir_start := db.sym_hir_start.get(real_sym)
+        hir_start := db.sym_hir_start(real_sym)
         if hir_start == id_none() {
             db.set_sym_resolving(real_sym, true)
             self.parse(real_sym)
@@ -192,7 +191,7 @@ Engine :: struct {
 
         real_sym := db.resolve_sym(sym_id)
 
-        tok_start := db.sym_tok_start.get(real_sym)
+        tok_start := db.sym_tok_start(real_sym)
         if tok_start == id_none() {
             decl_hir := db.get_sym_hir(real_sym)
             if decl_hir == id_none() { ret slot_none() }

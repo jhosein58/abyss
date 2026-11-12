@@ -386,8 +386,8 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                     if not db.types.func_has_type_param(ty) {
                         if not queue.contains(real_sym) { queue.push(real_sym) }
                     }
-                    if db.types.func_is_extern(ty) and (db.sym_tok_start.get(real_sym) != id_none()) {
-                        ret ccg.extern_name(db.interner.get(db.sym_names.get(real_sym)))
+                    if db.types.func_is_extern(ty) and (db.sym_tok_start(real_sym) != id_none()) {
+                        ret ccg.extern_name(db.interner.get(db.sym_name(real_sym)))
                     }
                     ret ccg.sym_name(arena, real_sym)
                 }
@@ -420,7 +420,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                     }
                     ret ccg.expr_cast(arena, ccg.type_str(&db.types, arena, ty), ccg.expr_u64(arena, val))
                 }
-                if db.sym_tok_start.get(real_sym) != id_none() {
+                if db.sym_tok_start(real_sym) != id_none() {
                     printf("\n[codegen error] unsupported global value\n       --> ", .{})
                     db.print_loc(id)
                     print("")
@@ -570,8 +570,8 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             callee_str := ccg.sym_name(arena, call_sym)
             if call_sym == id_none() {
                 callee_str = lower_expr(ctx, callee_id)
-            } else if db.types.func_is_extern(db.get_node_type(callee_id)) and (db.sym_tok_start.get(call_sym) != id_none()) {
-                callee_str = ccg.extern_name(db.interner.get(db.sym_names.get(call_sym)))
+            } else if db.types.func_is_extern(db.get_node_type(callee_id)) and (db.sym_tok_start(call_sym) != id_none()) {
+                callee_str = ccg.extern_name(db.interner.get(db.sym_name(call_sym)))
             }
             args_fmt := builder.new_list(arena)
             first_arg := true
@@ -1102,7 +1102,7 @@ eval_const :: fn(db &Nexus, id u32) u64 {
                     }
                 }
             }
-            hir_end := db.sym_hir_end.get(real_s)
+            hir_end := db.sym_hir_end(real_s)
             if (hir_end != 0) and (hir_end != id_none()) {
                 b_id := hir_end - 1
                 if db.hir.kind(b_id) == hir_kind.binding {
@@ -1565,7 +1565,7 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
     func_id := db.get_fn_node(real_sym)
     if (func_id == id_none()) or (db.hir.kind(func_id) != hir_kind.function) { ret }
     binding_id := id_none()
-    hir_end := db.sym_hir_end.get(real_sym)
+    hir_end := db.sym_hir_end(real_sym)
     if (hir_end != 0) and (hir_end != id_none()) and (db.hir.kind(hir_end - 1) == hir_kind.binding) {
         binding_id = hir_end - 1
     }
