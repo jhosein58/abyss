@@ -10,6 +10,7 @@ import .pool: PoolU32, PoolU64, id_none
 import std.allocator: Arena
 import compiler.vm.codegen: VmCodeGen
 import compiler.vm.vm: Vm
+import std.sys: fall
 
 MonoFunc :: struct {
     orig_sym u32
@@ -490,6 +491,29 @@ Nexus :: struct {
         slot := (&self.unify).get_slot(id)
         if slot == slot_none() { ret ty_id_none() }
         (&self.unify).resolve_type_deep(&self.types, slot)
+    }
+
+    bind_type :: fn(self &Self, slot u32, ty u32) {
+        self.unify.bind_type(&self.types, slot, ty)
+    }
+
+    union :: fn(self &Self, s1 u32, s2 u32) {
+        self.unify.union(&self.types, s1, s2)
+    }
+
+    ensure_slot :: fn(self &Self, id u32) u32 {
+        s := self.unify.get_slot(id)
+        if s == slot_none() {
+            s = self.unify.new_slot(id)
+        }
+        s
+    }
+
+    type_error :: fn(self &Self, id u32, msg Str) {
+        printf("\n\033[1;31m[type error]\033[0m {}\n       --> ", .{msg})
+        self.print_loc(id)
+        print("")
+        fall()
     }
 
     set_method_owner :: fn(self &Self, hir_id u32, struct_id u32) {
