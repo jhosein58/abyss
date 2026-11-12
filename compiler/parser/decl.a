@@ -1,0 +1,683 @@
+import compiler.token: Token
+import compiler.hir: hir_kind, hir_none
+import compiler.parser.core: Parser, peek, peek_n, bump, optional, expect, is_eof, peek_preceded_by_newline, curr_span, prev_span, parse_error_at, lookup_sym
+import compiler.nexus.nexus: Span, span_merge
+import compiler.nexus.pool: id_none
+import compiler.parser.prec: prec
+import .common: span_of_hir, set_span, check_separator, parse_method, add_methods_id, bind_method_owners, ensure_type_node, finish_type_node, add_list, parse_scoped_import
+import .expr: parse_ident
+import .stmt: parse_block
+import compiler.parser.parser: parse_expr
+import std.string: parse_u32
+
+parse_binding :: fn(p &Parser, lhs u32, right_bp u8) u32 {
+    k := hir_kind
+    sp_lhs := span_of_hir(p, lhs)
+
+    name_id := p.hir.lhs(lhs)
+    sym_id := lookup_sym(p, name_id)
+
+    if sym_id != id_none() {
+        curr_hir := p.db.get_sym_hir(sym_id)
+        if curr_hir == id_none() {
+            p.db.set_sym_hir(sym_id, lhs)
+        }
+        p.db.set_hir_symbol(lhs, sym_id)
+    }
+
+    saved_toplv := p.toplv_sym
+    p.toplv_sym = sym_id
+    rhs := parse_expr(p, right_bp)
+    p.toplv_sym = saved_toplv
+    sp_rhs := span_of_hir(p, rhs)
+
+    binding_id := p.hir.push(k.binding, lhs, hir_none(), rhs)
+    set_span(p, binding_id, span_merge(sp_lhs, sp_rhs))
+
+    if sym_id != id_none() {
+        p.db.set_hir_symbol(binding_id, sym_id)
+    }
+
+    binding_id
+}
+
+parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
+    t := Token
+    k := hir_kind
+
+    if p.hir.kind(lhs) != k.ident {
+        parse_error_at(p, c"left-hand side of declaration must be an identifier", span_of_hir(p, lhs))
+    }
+
+    sp_lhs := span_of_hir(p, lhs)
+
+    name_id := p.hir.lhs(lhs)
+    sym_id := p.db.alloc_local_symbol(p.file_id, name_id, lhs)
+    p.env.define(name_id, sym_id)
+
+    if optional(p, t.eq) {
+        val := parse_expr(p, 0 as u8)
+        sp_val := span_of_hir(p, val)
+        var_id := p.hir.push(k.var, lhs, hir_none(), val)
+        set_span(p, var_id, span_merge(sp_lhs, sp_val))
+        p.db.set_hir_symbol(var_id, sym_id)
+        ret var_id
+    }
+
+    ty := parse_expr(p, prec().var_def + (1 as u8))
+    sp_end := span_of_hir(p, ty)
+
+    if optional(p, t.eq) {
+        val := parse_expr(p, 0 as u8)
+        sp_end = span_of_hir(p, val)
+        var_id := p.hir.push(k.var, lhs, ty, val)
+        set_span(p, var_id, span_merge(sp_lhs, sp_end))
+        p.db.set_hir_symbol(var_id, sym_id)
+        ret var_id
+    }
+
+    if optional(p, t.colon) {
+        val := parse_expr(p, 0 as u8)
+        sp_end = span_of_hir(p, val)
+        binding_id := p.hir.push(k.binding, lhs, ty, val)
+        set_span(p, binding_id, span_merge(sp_lhs, sp_end))
+        p.db.set_hir_symbol(binding_id, sym_id)
+        ret binding_id
+    }
+
+    var_id := p.hir.push(k.var, lhs, ty, hir_none())
+    set_span(p, var_id, span_merge(sp_lhs, sp_end))
+    p.db.set_hir_symbol(var_id, sym_id)
+    var_id
+}
+
+parse_destructure :: fn(p &Parser) u32 {
+    t := Token
+    k := hir_kind
+    sp_start := curr_span(p)
+
+    idents := Vec(u32).new()
+
+    first := parse_ident(p)
+    idents.push(first)
+
+    while optional(p, t.comma) {
+        idents.push(parse_ident(p))
+    }
+
+    expect(p, t.colon)
+    expect(p, t.eq)
+
+    rhs := parse_expr(p, 0 as u8)
+    sp_end := span_of_hir(p, rhs)
+
+    i: u64 = 0
+    while i < idents.len {
+        id_node := idents.get(i)
+        name_id := p.hir.lhs(id_node)
+        sym_id := p.db.alloc_local_symbol(p.file_id, name_id, id_node)
+        p.env.define(name_id, sym_id)
+        p.db.set_hir_symbol(id_node, sym_id)
+        i = i + 1
+    }
+
+    list_id := add_list(p, &idents)
+    idents.destroy()
+
+    node := p.hir.push(k.destructure, list_id, hir_none(), rhs)
+    set_span(p, node, span_merge(sp_start, sp_end))
+    node
+}
+
+define_param :: fn(p &Parser, name_hir u32) u32 {
+    k := hir_kind
+    if p.hir.kind(name_hir) != k.ident {
+        parse_error_at(p, c"parameter name must be an identifier", span_of_hir(p, name_hir))
+    }
+    name_id := p.hir.lhs(name_hir)
+    sym_id := p.db.alloc_local_symbol(p.file_id, name_id, name_hir)
+    p.env.define(name_id, sym_id)
+    p.db.set_hir_symbol(name_hir, sym_id)
+    sym_id
+}
+
+push_arg :: fn(p &Parser, args &Vec(u32), name u32, ty u32) {
+    k := hir_kind
+    sp := span_of_hir(p, ty)
+    sym_id := id_none()
+    if name != hir_none() {
+        sym_id = define_param(p, name)
+        sp = span_merge(span_of_hir(p, name), sp)
+    }
+    arg_id := p.hir.push(k.arg, name, ty, hir_none())
+    set_span(p, arg_id, sp)
+    if sym_id != id_none() {
+        p.db.set_hir_symbol(arg_id, sym_id)
+    }
+    args.push(arg_id)
+}
+
+parse_params :: fn(p &Parser) u32 {
+    t := Token
+    k := hir_kind
+    args := Vec(u32).new()
+    pending_names := Vec(u32).new()
+
+    while (peek(p) != t.c_paren) and (not is_eof(p)) {
+        if optional(p, t.kw_cmpt) {
+            if pending_names.len > 0 {
+                parse_error_at(p, c"compile-time parameters cannot share a type with preceding parameters", curr_span(p))
+            }
+            name := parse_ident(p)
+            ty := parse_expr(p, prec().var_def + (1 as u8))
+            push_arg(p, &args, name, ty)
+            p.hir.set_extra(args.get(args.len - 1), 1)
+            check_separator(p, t.c_paren, c"expected ',' or newline after compile-time parameter")
+            cont
+        }
+        is_type_token := (peek(p) == t.amp) or (peek(p) == t.star) or
+                         (peek(p) == t.o_bracket) or (peek(p) == t.at) or
+                         (peek(p) == t.kw_fn) or (peek(p) == t.kw_struct) or
+                         (peek(p) == t.kw_enum)
+
+        if is_type_token {
+            ty := parse_expr(p, prec().var_def + (1 as u8))
+            push_arg(p, &args, hir_none(), ty)
+            check_separator(p, t.c_paren, c"expected ',' or newline after parameter")
+            cont
+        }
+
+        if peek(p) != t.ident {
+            parse_error_at(p, c"expected parameter name or type", curr_span(p))
+        }
+
+        name := parse_ident(p)
+        pending_names.push(name)
+
+        next_tk := peek(p)
+        has_explicit_type := (next_tk == t.ident) or (next_tk == t.amp) or
+                             (next_tk == t.star) or (next_tk == t.o_bracket) or
+                             (next_tk == t.at) or (next_tk == t.kw_fn) or
+                             (next_tk == t.kw_struct) or (next_tk == t.kw_enum)
+
+        if has_explicit_type and (not peek_preceded_by_newline(p)) {
+            ty := parse_expr(p, prec().var_def + (1 as u8))
+            p_i: u64 = 0
+            while p_i < pending_names.len {
+                push_arg(p, &args, pending_names.get(p_i), ty)
+                p_i = p_i + 1
+            }
+            pending_names.reset(0)
+            check_separator(p, t.c_paren, c"expected ',' or newline after parameter")
+            cont
+        }
+
+        if optional(p, t.comma) {
+            cont
+        }
+
+        if peek(p) == t.c_paren {
+            break
+        }
+
+        if peek_preceded_by_newline(p) {
+            p_i: u64 = 0
+            while p_i < pending_names.len {
+                push_arg(p, &args, hir_none(), pending_names.get(p_i))
+                p_i = p_i + 1
+            }
+            pending_names.reset(0)
+            cont
+        }
+
+        parse_error_at(p, c"expected parameter type or ','", curr_span(p))
+    }
+
+    expect(p, t.c_paren)
+
+    p_i: u64 = 0
+    while p_i < pending_names.len {
+        push_arg(p, &args, hir_none(), pending_names.get(p_i))
+        p_i = p_i + 1
+    }
+    pending_names.destroy()
+
+    params := hir_none()
+    if args.len > 0 {
+        params = add_list(p, &args)
+    }
+    args.destroy()
+    params
+}
+
+parse_fn :: fn(p &Parser, min_bp u8) u32 {
+    t := Token
+    k := hir_kind
+    sp_start := curr_span(p)
+    bump(p)
+    expect(p, t.o_paren)
+
+    saved_toplv := p.toplv_sym
+    p.toplv_sym = id_none()
+
+    env_mark := p.env.mark()
+    params := parse_params(p)
+
+    ret_ty := hir_none()
+    sp_end := prev_span(p)
+
+    next := peek(p)
+    has_ret := (not is_eof(p)) and (not peek_preceded_by_newline(p)) and
+               (next != t.o_brace) and (next != t.eq) and (next != t.comma) and
+               (next != t.c_paren) and (next != t.c_brace) and (next != t.semi)
+
+    if has_ret {
+        ret_ty = parse_expr(p, prec().var_def + (1 as u8))
+        sp_end = span_of_hir(p, ret_ty)
+    }
+
+    p.toplv_sym = saved_toplv
+    is_toplv_fn := p.toplv_sym != id_none()
+
+    fn_sym := id_none()
+    if is_toplv_fn {
+        fn_sym = p.toplv_sym
+        p.toplv_sym = id_none()
+    }
+
+    fn_node := p.hir.push(k.function, params, ret_ty, hir_none())
+    if is_toplv_fn {
+        p.db.set_hir_symbol(fn_node, fn_sym)
+    }
+
+    body := hir_none()
+    can_have_body := min_bp <= prec().var_def
+    if can_have_body and (peek(p) == t.o_brace) {
+        body = parse_block(p)
+        sp_end = span_of_hir(p, body)
+        p.hir.set_rhs(body, fn_node)
+        if not is_toplv_fn {
+            fn_sym = p.db.alloc_local_symbol(p.file_id, 0, fn_node)
+            p.db.set_hir_symbol(fn_node, fn_sym)
+        }
+    }
+
+    p.env.reset(env_mark)
+
+    p.hir.set_extra(fn_node, body)
+    set_span(p, fn_node, span_merge(sp_start, sp_end))
+}
+
+parse_paren :: fn(p &Parser) u32 {
+    t := Token
+    sp_start := curr_span(p)
+    bump(p)
+    expr := parse_expr(p, 0 as u8)
+    expect(p, t.c_paren)
+    sp_end := prev_span(p)
+    set_span(p, expr, span_merge(sp_start, sp_end))
+}
+
+parse_call :: fn(p &Parser, lhs u32, right_bp u8) u32 {
+    t := Token
+    k := hir_kind
+    sp_lhs := span_of_hir(p, lhs)
+
+    args := Vec(u32).new()
+    if not optional(p, t.c_paren) {
+        while true {
+            if peek(p) == t.c_paren { break }
+            if is_eof(p) {
+                parse_error_at(p, c"unclosed call, expected ')'", sp_lhs)
+            }
+            arg := parse_expr(p, 0 as u8)
+            if arg == hir_none() {
+                parse_error_at(p, c"expected call argument", curr_span(p))
+            }
+            args.push(arg)
+
+            if peek(p) == t.c_paren { break }
+            check_separator(p, t.c_paren, c"expected ',' or newline after call argument")
+        }
+        expect(p, t.c_paren)
+    }
+
+    sp_end := prev_span(p)
+    args_list := add_list(p, &args)
+    args.destroy()
+
+    node := p.hir.push(k.call, lhs, args_list, hir_none())
+    set_span(p, node, span_merge(sp_lhs, sp_end))
+}
+
+is_tuple_struct :: fn(p &Parser) bool {
+    t := Token
+    scan := p.cursor
+    if (scan >= p.end) or (p.tokens.kind(scan) == t.c_brace) { ret false }
+    if p.tokens.kind(scan) != t.ident { ret true }
+
+    while scan + 1 < p.end {
+        scan = scan + 1
+        next := p.tokens.kind(scan)
+        if (next == t.colon_colon) or (next == t.colon) { ret false }
+        if (next == t.c_brace) or (next == t.semi) or p.tokens.newline_before(scan) { ret true }
+        if next != t.comma { ret false }
+        scan = scan + 1
+        if scan >= p.end { ret false }
+        if p.tokens.kind(scan) != t.ident { ret true }
+    }
+    false
+}
+
+parse_struct :: fn(p &Parser) u32 {
+    t := Token
+    k := hir_kind
+    sp_start := curr_span(p)
+    bump(p)
+    if not expect(p, t.o_brace) {
+        parse_error_at(p, c"expected '{' after struct", curr_span(p))
+    }
+
+    env_mark := p.env.mark()
+
+    names := Vec(u32).new()
+    types := Vec(u32).new()
+    methods := Vec(u32).new()
+    field_names := Vec(u32).new()
+
+    struct_node := id_none()
+    struct_toplv := p.toplv_sym
+    p.toplv_sym = id_none()
+
+    if is_tuple_struct(p) {
+        idx: u32 = 0
+        while (peek(p) != t.c_brace) and (not is_eof(p)) {
+            sp_ty := curr_span(p)
+            ty := parse_expr(p, prec().var_def + (1 as u8))
+            if ty == hir_none() {
+                parse_error_at(p, c"expected a tuple field type", sp_ty)
+            }
+
+            f_name_id := p.db.tuple_field_name(idx)
+            f_ident := p.hir.push(k.ident, f_name_id, hir_none(), hir_none())
+            set_span(p, f_ident, sp_ty)
+
+            names.push(f_ident)
+            types.push(ty)
+            idx = idx + 1
+
+            check_separator(p, t.c_brace, c"expected ',' or newline between tuple fields")
+        }
+    } else {
+        while (peek(p) != t.c_brace) and (not is_eof(p)) {
+            if peek(p) == t.kw_import {
+                parse_scoped_import(p)
+                check_separator(p, t.c_brace, c"expected ',' or newline after import in struct")
+                cont
+            }
+            if peek(p) == t.hash {
+                ensure_type_node(p, &struct_node, k.struct_, struct_toplv)
+                bump(p)
+                has_paren := false
+                if peek(p) == t.o_paren {
+                    has_paren = true
+                    bump(p)
+                }
+                sp_start := curr_span(p)
+                expr := parse_expr(p, if has_paren { 0 as u8 } else { prec().assignment + (1 as u8) })
+                if has_paren {
+                    if not expect(p, t.c_paren) {
+                        parse_error_at(p, c"expected ')' after macro expression", curr_span(p))
+                    }
+                }
+                splice_node := p.hir.push(k.splice, expr, struct_node, hir_none())
+                set_span(p, splice_node, span_merge(sp_start, prev_span(p)))
+                if struct_toplv != id_none() {
+                    p.db.set_hir_symbol(splice_node, struct_toplv)
+                    p.db.set_method_owner(splice_node, struct_toplv)
+                }
+                methods.push(splice_node)
+                check_separator(p, t.c_brace, c"expected ',' or newline after '#' in struct")
+                cont
+            }
+            name := parse_ident(p)
+            if peek(p) == t.colon_colon {
+                ensure_type_node(p, &struct_node, k.struct_, struct_toplv)
+                parse_method(p, name, &methods)
+                cont
+            }
+
+            field_names.push(name)
+            while optional(p, t.comma) {
+                field_names.push(parse_ident(p))
+            }
+
+            if peek(p) == t.colon {
+                parse_error_at(p, c"struct fields use 'name Type' without ':'", curr_span(p))
+            }
+            ty := parse_expr(p, prec().var_def + (1 as u8))
+            if ty == hir_none() {
+                parse_error_at(p, c"expected a field type", curr_span(p))
+            }
+
+            f_i: u64 = 0
+            while f_i < field_names.len {
+                names.push(field_names.get(f_i))
+                types.push(ty)
+                f_i = f_i + 1
+            }
+            field_names.clear()
+
+            check_separator(p, t.c_brace, c"expected ',' or newline between struct fields")
+        }
+    }
+
+    if is_eof(p) and (peek(p) != t.c_brace) {
+        parse_error_at(p, c"unclosed struct definition, expected '}'", sp_start)
+    }
+
+    expect(p, t.c_brace)
+    sp_end := prev_span(p)
+
+    names_id := add_list(p, &names)
+    types_id := add_list(p, &types)
+    names.destroy()
+    types.destroy()
+    field_names.destroy()
+
+    p.env.reset(env_mark)
+
+    methods_id := add_methods_id(p, &methods)
+    finish_type_node(p, &struct_node, k.struct_, names_id, types_id, methods_id, struct_toplv, &methods, span_merge(sp_start, sp_end))
+}
+
+parse_struct_init :: fn(p &Parser) u32 {
+    t := Token
+    k := hir_kind
+    sp_start := curr_span(p)
+    bump(p)
+    expect(p, t.o_brace)
+
+    fields := Vec(u32).new()
+    values := Vec(u32).new()
+
+    tup_idx: u32 = 0
+    while (peek(p) != t.c_brace) and (not is_eof(p)) {
+        is_named := (peek(p) == t.ident) and (peek_n(p, 1) == t.colon)
+        if is_named {
+            f := parse_ident(p)
+            expect(p, t.colon)
+            v := parse_expr(p, prec().var_def + (1 as u8))
+            fields.push(f)
+            values.push(v)
+        } else {
+            sp_v := curr_span(p)
+            v := parse_expr(p, prec().var_def + (1 as u8))
+            f_name_id := p.db.tuple_field_name(tup_idx)
+            f := p.hir.push(k.ident, f_name_id, hir_none(), hir_none())
+            set_span(p, f, sp_v)
+            fields.push(f)
+            values.push(v)
+            tup_idx = tup_idx + 1
+        }
+
+        check_separator(p, t.c_brace, c"expected ',' or newline between struct values")
+    }
+
+    if is_eof(p) and (peek(p) != t.c_brace) {
+        parse_error_at(p, c"unclosed struct literal, expected '}'", sp_start)
+    }
+
+    expect(p, t.c_brace)
+    sp_end := prev_span(p)
+
+    fids := add_list(p, &fields)
+    vids := add_list(p, &values)
+
+    fields.destroy()
+    values.destroy()
+
+    node := p.hir.push(k.struct_init, fids, vids, hir_none())
+    set_span(p, node, span_merge(sp_start, sp_end))
+}
+
+parse_member :: fn(p &Parser, lhs u32, right_bp u8) u32 {
+    k := hir_kind
+    sp_lhs := span_of_hir(p, lhs)
+    rhs := parse_expr(p, right_bp)
+    if rhs == hir_none() {
+        parse_error_at(p, c"expected a member name after '.'", curr_span(p))
+    }
+    sp_rhs := span_of_hir(p, rhs)
+
+    if p.hir.kind(rhs) == k.lit_int {
+        idx := p.hir.lhs(rhs)
+        f_name_id := p.db.tuple_field_name(idx)
+        rhs = p.hir.push(k.ident, f_name_id, hir_none(), hir_none())
+        set_span(p, rhs, sp_rhs)
+    } else if p.hir.kind(rhs) == k.lit_float {
+        name_id := p.hir.lhs(rhs)
+        text := p.db.interner.get(name_id)
+        dot_pos: u64 = 0
+        while (dot_pos < text.len) and (*(text.ptr + dot_pos) != (46 as u8)) {
+            dot_pos = dot_pos + 1
+        }
+        part1 := text.sub(0, dot_pos)
+        part2 := text.sub(dot_pos + 1, text.len - dot_pos - 1)
+        idx1 := parse_u32(part1).unwrap_or(0)
+        idx2 := parse_u32(part2).unwrap_or(0)
+        f1_id := p.db.tuple_field_name(idx1)
+        f1 := p.hir.push(k.ident, f1_id, hir_none(), hir_none())
+        set_span(p, f1, sp_rhs)
+        inner := p.hir.push(k.member, lhs, f1, hir_none())
+        set_span(p, inner, sp_rhs)
+        f2_id := p.db.tuple_field_name(idx2)
+        f2 := p.hir.push(k.ident, f2_id, hir_none(), hir_none())
+        set_span(p, f2, sp_rhs)
+        node := p.hir.push(k.member, inner, f2, hir_none())
+        set_span(p, node, span_merge(sp_lhs, sp_rhs))
+        ret node
+    } else if p.hir.kind(rhs) != k.ident {
+        parse_error_at(p, c"member name must be an identifier", sp_rhs)
+    }
+
+    node := p.hir.push(k.member, lhs, rhs, hir_none())
+    set_span(p, node, span_merge(sp_lhs, sp_rhs))
+}
+
+parse_enum :: fn(p &Parser) u32 {
+    t := Token
+    k := hir_kind
+    sp_start := curr_span(p)
+    bump(p)
+
+    backing_ty := hir_none()
+    if peek(p) != t.o_brace {
+        backing_ty = parse_expr(p, prec().var_def + (1 as u8))
+    }
+
+    if not expect(p, t.o_brace) {
+        parse_error_at(p, c"expected '{' after enum", curr_span(p))
+    }
+
+    env_mark := p.env.mark()
+
+    names := Vec(u32).new()
+    vals := Vec(u32).new()
+    methods := Vec(u32).new()
+
+    enum_node := id_none()
+    enum_toplv := p.toplv_sym
+    p.toplv_sym = id_none()
+
+    while (peek(p) != t.c_brace) and (not is_eof(p)) {
+        if peek(p) == t.kw_import {
+            parse_scoped_import(p)
+            check_separator(p, t.c_brace, c"expected ',' or newline after import in enum")
+            cont
+        }
+        if peek(p) == t.hash {
+            ensure_type_node(p, &enum_node, k.enum_, enum_toplv)
+            bump(p)
+            has_paren := false
+            if peek(p) == t.o_paren {
+                has_paren = true
+                bump(p)
+            }
+            sp_start := curr_span(p)
+            expr := parse_expr(p, if has_paren { 0 as u8 } else { prec().assignment + (1 as u8) })
+            if has_paren {
+                if not expect(p, t.c_paren) {
+                    parse_error_at(p, c"expected ')' after macro expression", curr_span(p))
+                }
+            }
+            splice_node := p.hir.push(k.splice, expr, enum_node, hir_none())
+            set_span(p, splice_node, span_merge(sp_start, prev_span(p)))
+            if enum_toplv != id_none() {
+                p.db.set_hir_symbol(splice_node, enum_toplv)
+                p.db.set_method_owner(splice_node, enum_toplv)
+            }
+            methods.push(splice_node)
+            check_separator(p, t.c_brace, c"expected ',' or newline after '#' in enum")
+            cont
+        }
+        name := parse_ident(p)
+        if peek(p) == t.colon_colon {
+            ensure_type_node(p, &enum_node, k.enum_, enum_toplv)
+            parse_method(p, name, &methods)
+            cont
+        }
+
+        val_expr := hir_none()
+        if optional(p, t.eq) {
+            val_expr = parse_expr(p, prec().assignment + (1 as u8))
+        }
+
+        names.push(name)
+        vals.push(val_expr)
+
+        check_separator(p, t.c_brace, c"expected ',' or newline between enum variants")
+    }
+
+    if is_eof(p) and (peek(p) != t.c_brace) {
+        parse_error_at(p, c"unclosed enum definition, expected '}'", sp_start)
+    }
+
+    expect(p, t.c_brace)
+    sp_end := prev_span(p)
+
+    names_id := add_list(p, &names)
+    vals_id := add_list(p, &vals)
+    names.destroy()
+    vals.destroy()
+
+    methods_id := add_methods_id(p, &methods)
+    meta := Vec(u32).new()
+    meta.push(backing_ty)
+    meta.push(methods_id)
+    meta_id := add_list(p, &meta)
+    meta.destroy()
+
+    p.env.reset(env_mark)
+    finish_type_node(p, &enum_node, k.enum_, names_id, vals_id, meta_id, enum_toplv, &methods, span_merge(sp_start, sp_end))
+}

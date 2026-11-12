@@ -9,7 +9,7 @@ import compiler.token: Token, TokenStream
 import compiler.lexer: lex
 import compiler.parser.core: Parser_new, is_eof, peek, bump
 import compiler.parser.parser: parse_expr
-import compiler.parser.handlers.common: check_separator
+import compiler.parser.common: check_separator
 import compiler.engine: Engine
 import .rules.fn: synth_func, synth_return, synth_call
 import .specialize: resolve_ty_id

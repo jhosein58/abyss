@@ -12,8 +12,8 @@ import compiler.typer.specialize: specialize_nominal_method, specialize_nominal_
 import compiler.token: Token, TokenStream
 import compiler.lexer: lex
 import compiler.parser.core: Parser_new, is_eof, peek
-import compiler.parser.handlers.ident: parse_ident
-import compiler.parser.handlers.common: parse_method, check_separator
+import compiler.parser.expr: parse_ident
+import compiler.parser.common: parse_method, check_separator
 import compiler.typer.reflection: reflection_read
 import compiler.lower: eval_const
 import compiler.typer.tyck: synth_node, type_check
