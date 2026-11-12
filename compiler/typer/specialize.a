@@ -6,7 +6,7 @@ import compiler.unify: UnifyStorage, slot_none
 import compiler.nexus.pool: id_none
 import compiler.engine: Engine
 import std.sys: fall
-import .rules.var: synth_type_node
+import .var: synth_type_node
 import .tyck: type_check
 
 bind_creator_params :: fn(eng &Engine, fn_params_slice Slice(u32), args_slice Slice(u32)) {
