@@ -254,8 +254,7 @@ synth_splice :: fn(eng &Engine, id u32) {
         while m_idx < node_end {
             sp := db.get_hir_span(m_idx)
             if (sp.start == 0) and (sp.end == 0) {
-                db.set_hir_span(m_idx, macro_sp.start, macro_sp.end)
-                db.set_hir_file(m_idx, fid)
+                db.set_node_loc(m_idx, fid, macro_sp.start, macro_sp.end)
             }
             synth_node(eng, m_idx)
             m_idx = m_idx + 1

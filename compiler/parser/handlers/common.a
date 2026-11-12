@@ -15,8 +15,7 @@ span_of_hir :: fn(p &Parser, hir_id u32) Span {
 }
 
 set_span :: fn(p &Parser, hir_id u32, sp Span) u32 {
-    p.db.set_hir_span(hir_id, sp.start, sp.end)
-    p.db.set_hir_file(hir_id, p.file_id)
+    p.db.set_node_loc(hir_id, p.file_id, sp.start, sp.end)
     hir_id
 }
 

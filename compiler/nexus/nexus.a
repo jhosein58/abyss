@@ -30,6 +30,12 @@ ConstFunc :: struct {
     value u32
 }
 
+NodeLoc :: struct {
+    file  u32
+    start u32
+    end   u32
+}
+
 Span :: struct {
     start, end u32
 }
@@ -114,9 +120,7 @@ Nexus :: struct {
     std_prelude    u32
     file_sources   Vec(Str)
     file_paths     Vec(Str)
-    hir_files      PoolU32
-    hir_span_start PoolU32
-    hir_span_end   PoolU32
+    node_locs      Vec(NodeLoc)
     type_specialization_depth u32
     mono_funcs     Vec(MonoFunc)
     mono_map       HashMap(u64, u32)
@@ -160,9 +164,7 @@ Nexus :: struct {
             std_prelude    : id_none(),
             file_sources   : Vec(Str).new(),
             file_paths     : Vec(Str).new(),
-            hir_files      : PoolU32.new(),
-            hir_span_start : PoolU32.new(),
-            hir_span_end   : PoolU32.new(),
+            node_locs      : Vec(NodeLoc).new(),
             type_specialization_depth : 0,
             mono_funcs     : Vec(MonoFunc).new(),
             mono_map       : HashMap(u64, u32).new(),
@@ -627,27 +629,49 @@ Nexus :: struct {
         id
     }
 
+    set_node_loc :: fn(self &Self, hir_id u32, file_id u32, start u32, end u32) {
+        idx := hir_id as u64
+        while self.node_locs.len <= idx {
+            self.node_locs.push(.{ file: id_none(), start: 0, end: 0 })
+        }
+        p := self.node_locs.ptr_at(idx)
+        p.file = file_id
+        p.start = start
+        p.end = end
+    }
+
     set_hir_span :: fn(self &Self, hir_id u32, start u32, end u32) {
-        self.hir_span_start.set_safe(hir_id, start, 0)
-        self.hir_span_end.set_safe(hir_id, end, 0)
+        idx := hir_id as u64
+        while self.node_locs.len <= idx {
+            self.node_locs.push(.{ file: id_none(), start: 0, end: 0 })
+        }
+        p := self.node_locs.ptr_at(idx)
+        p.start = start
+        p.end = end
     }
 
     set_hir_file :: fn(self &Self, hir_id u32, file_id u32) {
-        self.hir_files.set_safe(hir_id, file_id, id_none())
+        idx := hir_id as u64
+        while self.node_locs.len <= idx {
+            self.node_locs.push(.{ file: id_none(), start: 0, end: 0 })
+        }
+        p := self.node_locs.ptr_at(idx)
+        p.file = file_id
     }
 
     get_hir_file :: fn(self &Self, hir_id u32) u32 {
-        if hir_id >= self.hir_files.count() { ret id_none() }
-        self.hir_files.get(hir_id)
+        idx := hir_id as u64
+        if idx >= self.node_locs.len { ret id_none() }
+        self.node_locs.get(idx).file
     }
 
     get_hir_span :: fn(self &Self, hir_id u32) Span {
-        if hir_id >= self.hir_span_start.count() {
+        idx := hir_id as u64
+        if idx >= self.node_locs.len {
             ret .{ start: 0, end: 0 }
         }
-        start := self.hir_span_start.get(hir_id)
-        end   := self.hir_span_end.get(hir_id)
-        .{ start: start, end: end }
+        loc := self.node_locs.get(idx)
+        .{ start: loc.start, end: loc.end }
     }
 
     add_file :: fn(self &Self, path Str, source Str) u32 {
