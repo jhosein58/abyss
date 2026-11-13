@@ -5,7 +5,7 @@ import .lexer: lex
 import .indexer: index_file
 import .parser.core: Parser_new, peek, curr_span, parse_error_at
 import .parser.parser: parse_expr
-import .typer.tyck: type_check
+import .typer.tyck: type_check, process_mono_funcs, finalize_inferred_types
 import .nexus.pool: id_none
 import .unify: slot_none
 import .types: ty_id_none, ty_id_type, TyKind
@@ -89,6 +89,10 @@ Engine :: struct {
         hir_end   := self.nexus.sym_hir_end(sym_id)
 
         type_check(self, hir_start, hir_end)
+        fn_node := self.nexus.get_fn_node(sym_id)
+        if fn_node != id_none() {
+            finalize_inferred_types(self, fn_node)
+        }
     }
 
     predeclare_nominal :: fn(self &Self, sym_id u32) {
@@ -252,13 +256,16 @@ Engine :: struct {
         self.parse(sym_id)
         self.type_check(sym_id)
         self.validate_main(sym_id)
+
+        process_mono_funcs(self)
+
         sym_id
     }
 
 
     compile :: fn(self &Self, B type, L type, backend &B, builder &L, arena &Arena, sym_id u32) {
         visited := HashSet(u32).new()
-        lower_function(self, backend, builder, backend.empty_value(), arena, sym_id, &visited)
+        lower_function(&self.nexus, backend, builder, backend.empty_value(), arena, sym_id, &visited)
         visited.destroy()
     }
 

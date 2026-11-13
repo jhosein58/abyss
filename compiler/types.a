@@ -498,6 +498,58 @@ TypeStorage :: struct {
         }
     }
 
+    has_infer_seen :: fn(self &Self, ty_id u32, visited &Vec(u32)) bool {
+        if ty_id == ty_id_none() { ret false }
+        if visited.contains(ty_id) { ret false }
+        visited.push(ty_id)
+        kind := self.kind(ty_id)
+        if (kind == TyKind.infer) or (kind == TyKind.unknown) or (kind == TyKind.error) { ret true }
+        if (kind == TyKind.struct_) or (kind == TyKind.nominal) {
+            if kind == TyKind.nominal {
+                origin := self.nominal_origin(ty_id)
+                creator_args := self.get_nominal_creator_args(origin)
+                i: u64 = 0
+                while i < creator_args.len {
+                    if self.has_infer_seen(*(creator_args.ptr + i), visited) { ret true }
+                    i = i + 1
+                }
+            }
+            fields := self.get_struct_fields(ty_id)
+            i: u64 = 0
+            while i < fields.len / 2 {
+                if self.has_infer_seen(*(fields.ptr + i * 2 + 1), visited) { ret true }
+                i = i + 1
+            }
+        } else if kind == TyKind.ptr {
+            ret self.has_infer_seen(self.payload(ty_id), visited)
+        } else if kind == TyKind.array {
+            ret self.has_infer_seen(self.get_array_type(ty_id), visited)
+        } else if kind == TyKind.func {
+            if self.has_infer_seen(self.func_return(ty_id), visited) { ret true }
+            params := self.func_params(ty_id)
+            i: u64 = 0
+            while i < params.len {
+                if self.has_infer_seen(*(params.ptr + i), visited) { ret true }
+                i = i + 1
+            }
+        } else if kind == TyKind.union_ {
+            members := self.union_members(ty_id)
+            i: u64 = 0
+            while i < members.len {
+                if self.has_infer_seen(*(members.ptr + i), visited) { ret true }
+                i = i + 1
+            }
+        }
+        false
+    }
+
+    has_infer :: fn(self &Self, ty_id u32) bool {
+        visited := Vec(u32).new()
+        res := self.has_infer_seen(ty_id, &visited)
+        visited.destroy()
+        res
+    }
+
     name :: fn(a &Arena, id u32) Str {
         fmt(a, "ty{}", .{id}).as_str()
     }

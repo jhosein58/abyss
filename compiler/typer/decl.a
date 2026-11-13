@@ -16,7 +16,7 @@ import compiler.parser.expr: parse_ident
 import compiler.parser.common: parse_method, check_separator
 import compiler.typer.reflection: reflection_read
 import compiler.lower: eval_const
-import compiler.typer.tyck: synth_node, type_check
+import compiler.typer.tyck: synth_node, type_check, process_mono_funcs
 import .common: unescape_splice_str
 
 process_methods :: fn(eng &Engine, id u32, methods_id u32, sym_id u32) u32 {
@@ -42,6 +42,7 @@ process_methods :: fn(eng &Engine, id u32, methods_id u32, sym_id u32) u32 {
                 }
             } else {
                 synth_node(eng, child)
+                process_mono_funcs(eng)
                 val := eval_const(db, child)
                 if val != 0 {
                     str_ty := eng.get_str_type()

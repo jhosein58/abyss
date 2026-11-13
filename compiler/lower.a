@@ -7,16 +7,13 @@ import std.allocator: Arena
 import .types: TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_unit, ty_id_bool, ty_id_untyped_int
 import .topo_sort: topo_sort
 import std.sys: fall
-import .typer.tyck: type_has_infer, tyck_mono_function, finalize_inferred_types
 import .typer.fn: func_has_self
-import .engine: Engine
 import .vm.codegen: VmCodeGen, VmCodeBuilder, VmVal, VmValKind
 import .vm.op: OpCode
 import .lexer: decode_char_lit
 
 LowerCtx :: fn(B type, L type, V type) type {
     struct {
-        eng        &Engine
         db         &Nexus
         ccg        &B
         builder    &L
@@ -57,7 +54,7 @@ is_lvalue :: fn(db &Nexus, id u32) bool {
 
 add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
     if ty_id == ty_id_none() { ret }
-    if type_has_infer(&db.types, ty_id) { ret }
+    if db.types.has_infer(ty_id) { ret }
     kind := db.types.kind(ty_id)
 
     if (kind == TyKind.struct_) or (kind == TyKind.nominal) {
@@ -836,6 +833,11 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 }
             }
             depth := db.get_auto_deref_depth(id)
+            if (depth == 0) and (db.types.kind(lhs_ty) == TyKind.ptr) {
+                p_depth: u32 = 0
+                db.types.unwrap_ptr_depth(lhs_ty, &p_depth)
+                depth = p_depth
+            }
             target_lhs := lhs_id
             while db.hir.kind(target_lhs) == hir_kind.unary_deref {
                 target_lhs = db.hir.lhs(target_lhs)
@@ -1125,7 +1127,6 @@ eval_const :: fn(db &Nexus, id u32) u64 {
     queue := Vec(u32).new()
     type_queue := Vec(u32).new()
     ctx: LowerCtx(VmCodeGen, VmCodeBuilder, VmVal) = .{
-        eng: db as &Engine,
         db: db,
         ccg: db.comptime_cg,
         builder: &builder,
@@ -1524,7 +1525,6 @@ format_func_signature :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_
 lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id u32) {
     if sym_id == id_none() { ret }
 
-    eng := ctx.eng
     db := ctx.db
     ccg := ctx.ccg
     arena := ctx.arena
@@ -1534,9 +1534,6 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
     if is_mono {
         orig_sym = db.get_mono_orig_sym(sym_id)
         mono_func_ty = db.get_mono_type(sym_id)
-    }
-    if not is_mono {
-        eng.ensure_resolved(orig_sym)
     }
     real_sym := db.resolve_sym(orig_sym)
     func_id := db.get_fn_node(real_sym)
@@ -1552,12 +1549,11 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
     if (not is_mono) and (orig_func_ty != ty_id_none()) and db.types.func_has_type_param(orig_func_ty) { ret }
     if (not ccg.is_vm()) and (orig_func_ty != ty_id_none()) and (db.types.func_return(orig_func_ty) == ty_id_type()) { ret }
     if is_mono {
-        tyck_mono_function(eng, sym_id)
+        db.restore_mono_func(sym_id)
         if (db.get_const_type(func_id) != ty_id_none()) and db.types.func_has_type_param(db.get_const_type(func_id)) {
             orig_func_ty = db.get_const_type(func_id)
         }
     }
-    finalize_inferred_types(eng, func_id)
     func_ty := db.get_node_type(func_id)
     if is_mono { func_ty = mono_func_ty }
     if func_ty == ty_id_none() { ret }
@@ -1587,19 +1583,17 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
     if is_mono { db.set_const_type(func_id, saved_orig_ty) }
 }
 
-lower_function :: fn(B type, L type, V type, eng &Engine, ccg &B, builder &L, empty V, arena &Arena, sym_id u32, visited &HashSet(u32)) {
+lower_function :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, sym_id u32, visited &HashSet(u32)) {
     if sym_id == id_none() {
         ret
     }
 
-    db := &eng.nexus
     queue := Vec(u32).new()
     type_queue := Vec(u32).new()
 
     queue.push(sym_id)
 
     ctx: LowerCtx(B, L, V) = .{
-        eng: eng,
         db: db,
         ccg: ccg,
         builder: builder,
@@ -1665,7 +1659,7 @@ lower_macro_template :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), call 
         i = i + 1
     }
     args.destroy()
-    if db.is_mono_sym(target) { tyck_mono_function(db as &Engine, target) }
+    if db.is_mono_sym(target) { db.restore_mono_func(target) }
     ccg.begin_inline_scope()
     params := db.get_list(db.hir.lhs(func))
     p: u64 = 0

@@ -139,6 +139,7 @@ synth_splice :: fn(eng &Engine, id u32) {
         if (child_ty != ty_id_none()) and (str_ty != ty_id_none()) and (child_ty != str_ty) and (tbl.kind(child) != hir_kind.lit_str) {
             db.type_error(id, Str.of("macro expression must evaluate to Str"))
         }
+        process_mono_funcs(eng)
         val := eval_const(db, child)
         if val != 0 {
             buf_ptr := reflection_read(db, val, str_ty, "ptr") as &u8
@@ -295,6 +296,7 @@ synth_cmpt :: fn(eng &Engine, id u32) {
         ret
     }
 
+    process_mono_funcs(eng)
     val := eval_const(db, child)
     db.set_const_val(id, val)
     resolved_ty := unify_ptr.resolve_type(slot)
@@ -336,10 +338,7 @@ vec_contains :: fn(v &Vec(u32), val u32) bool {
 }
 
 type_has_infer :: fn(types &TypeStorage, ty_id u32) bool {
-    visited := Vec(u32).new()
-    result := type_has_infer_seen(types, ty_id, &visited)
-    visited.destroy()
-    result
+    types.has_infer(ty_id)
 }
 
 type_has_infer_seen :: fn(types &TypeStorage, ty_id u32, visited &Vec(u32)) bool {
@@ -442,6 +441,9 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
                 db.type_error(node, Str.of("cannot infer generic type argument; pass the type explicitly"))
             }
             db.set_const_type(node, resolved)
+            if value_ty != resolved {
+                db.update_mono_call_type(node, value_ty, resolved)
+            }
         }
         if db.has_union_coerce(node) {
             target := db.get_union_coerce_ty(node)
@@ -465,6 +467,9 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     db := &eng.nexus
     tbl := &db.hir
 
+    if db.is_sym_resolving(sym_id) { ret }
+    if db.has_mono_snapshot(sym_id) { ret }
+
     orig_sym := db.get_mono_orig_sym(sym_id)
     mono_func_ty := db.get_mono_type(sym_id)
     real_sym := db.resolve_sym(orig_sym)
@@ -473,6 +478,11 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     if func_id == id_none() { ret }
     if tbl.kind(func_id) != hir_kind.function { ret }
     if mono_func_ty == ty_id_none() { ret }
+
+    mono_func_ty = resolve_ty_id(eng, &db.unify, &db.types, mono_func_ty)
+    if type_has_infer(&db.types, mono_func_ty) { ret }
+    db.set_mono_type(sym_id, mono_func_ty)
+    db.set_sym_resolving(sym_id, true)
 
     orig_func_ty := db.get_const_type(func_id)
     saved_orig_ty := orig_func_ty
@@ -660,4 +670,29 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     } else if (saved_orig_ty != ty_id_none()) and db.types.func_has_type_param(saved_orig_ty) {
         db.set_const_type(func_id, saved_orig_ty)
     }
+
+    db.snapshot_mono_func(sym_id)
+    db.set_sym_resolving(sym_id, false)
+}
+
+process_mono_funcs :: fn(eng &Engine) {
+    if eng.nexus.is_processing_mono { ret }
+    eng.nexus.is_processing_mono = true
+    db := &eng.nexus
+    changed := true
+    while changed {
+        changed = false
+        mono_i: u64 = 0
+        while mono_i < db.mono_funcs.len {
+            mono_sym := db.mono_funcs.get(mono_i).mono_sym
+            if not db.has_mono_snapshot(mono_sym) {
+                tyck_mono_function(eng, mono_sym)
+                if db.has_mono_snapshot(mono_sym) {
+                    changed = true
+                }
+            }
+            mono_i = mono_i + 1
+        }
+    }
+    eng.nexus.is_processing_mono = false
 }

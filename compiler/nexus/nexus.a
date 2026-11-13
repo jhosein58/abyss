@@ -13,9 +13,11 @@ import compiler.vm.vm: Vm
 import std.sys: fall
 
 MonoFunc :: struct {
-    orig_sym u32
-    mono_ty  u32
-    mono_sym u32
+    orig_sym   u32
+    mono_ty    u32
+    mono_sym   u32
+    snap_start u32
+    snap_len   u32
 }
 
 MonoNominal :: struct {
@@ -29,6 +31,19 @@ ConstFunc :: struct {
     ty    u32
     key   u32
     value u32
+}
+
+MonoNodeAttr :: struct {
+    node       u32
+    sym        u32
+    slot_ty    u32
+    const_ty   u32
+    const_val  u64
+    is_const   bool
+    union_val  u64
+    auto_deref u32
+    rhs        u32
+    extra      u32
 }
 
 NodeLoc :: struct {
@@ -124,8 +139,8 @@ Nexus :: struct {
     node_locs      Vec(NodeLoc)
     type_specialization_depth u32
     mono_funcs     Vec(MonoFunc)
-    mono_map       HashMap(u64, u32)
-    mono_rev_map   HashMap(u32, u32)
+    sym_to_mono    PoolU32
+    mono_snapshots Vec(MonoNodeAttr)
     const_funcs    Vec(ConstFunc)
     const_call_args HashMap(u32, u32)
     mono_nominals  Vec(MonoNominal)
@@ -139,6 +154,7 @@ Nexus :: struct {
     comptime_arena Arena
     comptime_cg    &VmCodeGen
     comptime_vm    &Vm
+    is_processing_mono bool
 
     new :: fn() Self {
         .{
@@ -168,8 +184,8 @@ Nexus :: struct {
             node_locs      : Vec(NodeLoc).new(),
             type_specialization_depth : 0,
             mono_funcs     : Vec(MonoFunc).new(),
-            mono_map       : HashMap(u64, u32).new(),
-            mono_rev_map   : HashMap(u32, u32).new(),
+            sym_to_mono    : PoolU32.new(),
+            mono_snapshots : Vec(MonoNodeAttr).new(),
             const_funcs    : Vec(ConstFunc).new(),
             const_call_args: HashMap(u32, u32).new(),
             mono_nominals  : Vec(MonoNominal).new(),
@@ -182,7 +198,8 @@ Nexus :: struct {
             comptime_depth : 0,
             comptime_arena : Arena.new(65536),
             comptime_cg    : 0 as &VmCodeGen,
-            comptime_vm    : 0 as &Vm
+            comptime_vm    : 0 as &Vm,
+            is_processing_mono : false
         }
     }
 
@@ -815,9 +832,14 @@ Nexus :: struct {
 
     find_mono_sym :: fn(self &Self, orig_sym u32, mono_ty u32) u32 {
         if (orig_sym == id_none()) or (mono_ty == ty_id_none()) { ret id_none() }
-        key := ((orig_sym as u64) << 32) | (mono_ty as u64)
-        p := self.mono_map.get(key)
-        if p != (0 as &u32) { ret *p }
+        i: u64 = 0
+        while i < self.mono_funcs.len {
+            f := self.mono_funcs.get(i)
+            if (f.orig_sym == orig_sym) and (f.mono_ty == mono_ty) {
+                ret f.mono_sym
+            }
+            i = i + 1
+        }
         id_none()
     }
 
@@ -852,28 +874,56 @@ Nexus :: struct {
         self.mono_funcs.push(.{
             orig_sym: orig_sym,
             mono_ty: mono_ty,
-            mono_sym: sym_id
+            mono_sym: sym_id,
+            snap_start: 0,
+            snap_len: 0
         })
-        key := ((orig_sym as u64) << 32) | (mono_ty as u64)
-        self.mono_map.insert(key, sym_id)
-        self.mono_rev_map.insert(sym_id, idx)
+        self.sym_to_mono.set_safe(sym_id, idx, id_none())
         sym_id
     }
 
     get_mono_orig_sym :: fn(self &Self, sym u32) u32 {
-        p := self.mono_rev_map.get(sym)
-        if p == (0 as &u32) { ret id_none() }
-        self.mono_funcs.get((*p) as u64).orig_sym
+        if (sym as u64) >= (self.sym_to_mono.count() as u64) { ret id_none() }
+        idx := self.sym_to_mono.get(sym)
+        if idx == id_none() { ret id_none() }
+        self.mono_funcs.get(idx as u64).orig_sym
     }
 
     get_mono_type :: fn(self &Self, sym u32) u32 {
-        p := self.mono_rev_map.get(sym)
-        if p == (0 as &u32) { ret ty_id_none() }
-        self.mono_funcs.get((*p) as u64).mono_ty
+        if (sym as u64) >= (self.sym_to_mono.count() as u64) { ret ty_id_none() }
+        idx := self.sym_to_mono.get(sym)
+        if idx == id_none() { ret ty_id_none() }
+        self.mono_funcs.get(idx as u64).mono_ty
+    }
+
+    set_mono_type :: fn(self &Self, sym u32, ty u32) {
+        if (sym as u64) >= (self.sym_to_mono.count() as u64) { ret }
+        idx := self.sym_to_mono.get(sym)
+        if idx == id_none() { ret }
+        f := self.mono_funcs.ptr_at(idx as u64)
+        f.mono_ty = ty
+    }
+
+    update_mono_call_type :: fn(self &Self, node u32, old_ty u32, new_ty u32) {
+        if self.hir.kind(node) != hir_kind.call { ret }
+        callee := self.hir.lhs(node)
+        target_sym := self.get_hir_symbol(callee)
+        if target_sym == id_none() { ret }
+        target_sym = self.resolve_sym(target_sym)
+        i: u64 = 0
+        while i < self.mono_funcs.len {
+            f := self.mono_funcs.ptr_at(i)
+            if (f.orig_sym == target_sym) and (f.mono_ty == old_ty) {
+                f.mono_ty = new_ty
+                ret
+            }
+            i = i + 1
+        }
     }
 
     is_mono_sym :: fn(self &Self, sym u32) bool {
-        self.mono_rev_map.contains_key(sym)
+        if (sym as u64) >= (self.sym_to_mono.count() as u64) { ret false }
+        self.sym_to_mono.get(sym) != id_none()
     }
 
     find_mono_nominal :: fn(self &Self, sym u32, args Slice(u32)) u32 {
@@ -956,5 +1006,176 @@ Nexus :: struct {
 
     set_for_sources :: fn(self &Self, id u32, sources u32) {
         self.for_sources.insert(id, sources)
+    }
+
+    snapshot_mono_node :: fn(self &Self, n u32) {
+        if n == id_none() { ret }
+        sym := self.get_hir_symbol(n)
+        slot_ty := self.get_node_type(n)
+        const_ty := self.get_const_type(n)
+        const_val := self.get_const_val(n)
+        is_c := self.is_const(n)
+        u_val: u64 = 0
+        p_u := self.union_coerce.get(n)
+        if p_u != (0 as &u64) { u_val = *p_u }
+        deref: u32 = 0
+        p_d := self.auto_deref_depth.get(n)
+        if p_d != (0 as &u32) { deref = *p_d }
+        rhs := self.hir.rhs(n)
+        extra := self.hir.extra(n)
+        self.mono_snapshots.push(.{
+            node: n,
+            sym: sym,
+            slot_ty: slot_ty,
+            const_ty: const_ty,
+            const_val: const_val,
+            is_const: is_c,
+            union_val: u_val,
+            auto_deref: deref,
+            rhs: rhs,
+            extra: extra
+        })
+    }
+
+    has_mono_snapshot :: fn(self &Self, sym_id u32) bool {
+        if (sym_id as u64) >= (self.sym_to_mono.count() as u64) { ret false }
+        idx := self.sym_to_mono.get(sym_id)
+        if idx == id_none() { ret false }
+        self.mono_funcs.get(idx as u64).snap_len > 0
+    }
+
+    snapshot_mono_func :: fn(self &Self, sym_id u32) {
+        if (sym_id as u64) >= (self.sym_to_mono.count() as u64) { ret }
+        idx := self.sym_to_mono.get(sym_id)
+        if idx == id_none() { ret }
+        f := self.mono_funcs.ptr_at(idx as u64)
+        if f.snap_len > 0 { ret }
+
+        orig_sym := self.get_mono_orig_sym(sym_id)
+        if orig_sym == id_none() { ret }
+        real_sym := self.resolve_sym(orig_sym)
+        func_id := self.get_fn_node(real_sym)
+        if func_id == id_none() { ret }
+
+        start := self.mono_snapshots.len as u32
+
+        self.snapshot_mono_node(func_id)
+
+        args_list_id := self.hir.lhs(func_id)
+        if args_list_id != hir_none() {
+            fn_args := self.get_list(args_list_id)
+            p_i: u64 = 0
+            while p_i < fn_args.len {
+                arg_node := *(fn_args.ptr + p_i)
+                self.snapshot_mono_node(arg_node)
+                arg_ident := self.hir.lhs(arg_node)
+                if arg_ident != hir_none() {
+                    self.snapshot_mono_node(arg_ident)
+                }
+                p_i = p_i + 1
+            }
+        }
+
+        body_id := self.hir.extra(func_id)
+        if body_id != hir_none() {
+            n := func_id + 1
+            while n <= body_id {
+                self.snapshot_mono_node(n)
+                n = n + 1
+            }
+        }
+
+        mono_func_ty := self.get_mono_type(sym_id)
+        struct_ty := ty_id_none()
+        mono_params := self.types.func_params(mono_func_ty)
+        if mono_params.len > 0 {
+            p0 := self.types.unwrap_ptr(*(mono_params.ptr + 0))
+            if self.types.kind(p0) == TyKind.nominal {
+                s_origin := self.types.nominal_origin(p0)
+                if self.types.get_nominal_creator_sym(s_origin) != ty_id_none() {
+                    struct_ty = p0
+                }
+            }
+        }
+        if struct_ty == ty_id_none() {
+            r0 := self.types.unwrap_ptr(self.types.func_return(mono_func_ty))
+            if self.types.kind(r0) == TyKind.nominal {
+                s_origin := self.types.nominal_origin(r0)
+                if self.types.get_nominal_creator_sym(s_origin) != ty_id_none() {
+                    struct_ty = r0
+                }
+            }
+        }
+        if struct_ty != ty_id_none() {
+            s_origin := self.types.nominal_origin(struct_ty)
+            creator_sym := self.types.get_nominal_creator_sym(s_origin)
+            creator_fn := self.get_fn_node(creator_sym)
+            if creator_fn != id_none() {
+                c_p_list := self.hir.lhs(creator_fn)
+                if c_p_list != hir_none() {
+                    source_params := self.get_list(c_p_list)
+                    p_i: u64 = 0
+                    while p_i < source_params.len {
+                        p_arg := *(source_params.ptr + p_i)
+                        self.snapshot_mono_node(p_arg)
+                        p_ident := self.hir.lhs(p_arg)
+                        if p_ident != hir_none() {
+                            self.snapshot_mono_node(p_ident)
+                            p_sym := self.get_hir_symbol(p_ident)
+                            if p_sym != id_none() {
+                                p_real := self.resolve_sym(p_sym)
+                                p_hir := self.get_sym_hir(p_real)
+                                if p_hir != id_none() {
+                                    self.snapshot_mono_node(p_hir)
+                                }
+                            }
+                        }
+                        p_i = p_i + 1
+                    }
+                }
+            }
+        }
+
+        f = self.mono_funcs.ptr_at(idx as u64)
+        f.snap_start = start
+        f.snap_len = (self.mono_snapshots.len as u32) - start
+    }
+
+    restore_mono_func :: fn(self &Self, sym_id u32) {
+        if (sym_id as u64) >= (self.sym_to_mono.count() as u64) { ret }
+        idx := self.sym_to_mono.get(sym_id)
+        if idx == id_none() { ret }
+        f := self.mono_funcs.get(idx as u64)
+        if f.snap_len == 0 { ret }
+        start := f.snap_start
+        len := f.snap_len
+        i: u64 = 0
+        while i < (len as u64) {
+            attr := self.mono_snapshots.get(start as u64 + i)
+            n := attr.node
+            self.set_hir_symbol(n, attr.sym)
+            if attr.slot_ty != ty_id_none() {
+                slot := self.unify.new_slot(n)
+                self.unify.bind_type(&self.types, slot, attr.slot_ty)
+            } else {
+                self.unify.set_hir_slot(n, slot_none())
+            }
+            self.set_const_type(n, attr.const_ty)
+            self.set_const_val(n, attr.const_val)
+            self.set_is_const(n, attr.is_const)
+            if attr.union_val != 0 {
+                self.union_coerce.insert(n, attr.union_val)
+            } else {
+                self.union_coerce.remove(n)
+            }
+            if attr.auto_deref != 0 {
+                self.auto_deref_depth.insert(n, attr.auto_deref)
+            } else {
+                self.auto_deref_depth.remove(n)
+            }
+            self.hir.set_rhs(n, attr.rhs)
+            self.hir.set_extra(n, attr.extra)
+            i = i + 1
+        }
     }
 }
