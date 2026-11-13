@@ -154,7 +154,6 @@ Nexus :: struct {
     comptime_arena Arena
     comptime_cg    &VmCodeGen
     comptime_vm    &Vm
-    is_processing_mono bool
 
     new :: fn() Self {
         .{
@@ -198,8 +197,7 @@ Nexus :: struct {
             comptime_depth : 0,
             comptime_arena : Arena.new(65536),
             comptime_cg    : 0 as &VmCodeGen,
-            comptime_vm    : 0 as &Vm,
-            is_processing_mono : false
+            comptime_vm    : 0 as &Vm
         }
     }
 
@@ -483,6 +481,16 @@ Nexus :: struct {
         }
     }
 
+    set_sym_mono_resolving :: fn(self &Self, sym_id u32, resolving bool) {
+        if sym_id >= (self.symbols.len as u32) { ret }
+        p := self.symbols.ptr_at(sym_id as u64)
+        if resolving {
+            p.flags = p.flags | 4
+        } else {
+            p.flags = p.flags & 4294967291
+        }
+    }
+
     set_hir_symbol :: fn(self &Self, hir_id u32, sym_id u32) {
         self.hir_to_symbol.set_safe(hir_id, sym_id, id_none())
     }
@@ -599,6 +607,11 @@ Nexus :: struct {
     is_sym_resolving :: fn(self &Self, sym_id u32) bool {
         if sym_id >= (self.symbols.len as u32) { ret false }
         (self.symbols.get(sym_id as u64).flags & 2) != 0
+    }
+
+    is_sym_mono_resolving :: fn(self &Self, sym_id u32) bool {
+        if sym_id >= (self.symbols.len as u32) { ret false }
+        (self.symbols.get(sym_id as u64).flags & 4) != 0
     }
 
     set_is_const :: fn(self &Self, hir_id u32, is_c bool) {

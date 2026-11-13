@@ -474,6 +474,8 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     mono_func_ty := db.get_mono_type(sym_id)
     real_sym := db.resolve_sym(orig_sym)
 
+    if db.is_sym_mono_resolving(real_sym) { ret }
+
     func_id := db.get_fn_node(real_sym)
     if func_id == id_none() { ret }
     if tbl.kind(func_id) != hir_kind.function { ret }
@@ -483,6 +485,7 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     if type_has_infer(&db.types, mono_func_ty) { ret }
     db.set_mono_type(sym_id, mono_func_ty)
     db.set_sym_resolving(sym_id, true)
+    db.set_sym_mono_resolving(real_sym, true)
 
     orig_func_ty := db.get_const_type(func_id)
     saved_orig_ty := orig_func_ty
@@ -672,12 +675,11 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     }
 
     db.snapshot_mono_func(sym_id)
+    db.set_sym_mono_resolving(real_sym, false)
     db.set_sym_resolving(sym_id, false)
 }
 
 process_mono_funcs :: fn(eng &Engine) {
-    if eng.nexus.is_processing_mono { ret }
-    eng.nexus.is_processing_mono = true
     db := &eng.nexus
     changed := true
     while changed {
@@ -686,13 +688,16 @@ process_mono_funcs :: fn(eng &Engine) {
         while mono_i < db.mono_funcs.len {
             mono_sym := db.mono_funcs.get(mono_i).mono_sym
             if not db.has_mono_snapshot(mono_sym) {
-                tyck_mono_function(eng, mono_sym)
-                if db.has_mono_snapshot(mono_sym) {
-                    changed = true
+                orig := db.get_mono_orig_sym(mono_sym)
+                real := db.resolve_sym(orig)
+                if not db.is_sym_mono_resolving(real) {
+                    tyck_mono_function(eng, mono_sym)
+                    if db.has_mono_snapshot(mono_sym) {
+                        changed = true
+                    }
                 }
             }
             mono_i = mono_i + 1
         }
     }
-    eng.nexus.is_processing_mono = false
 }
