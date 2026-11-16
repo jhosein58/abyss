@@ -131,6 +131,11 @@ test_advanced_syntax :: fn() {
     res_vars := format_source(&arena, src_vars)
     assert_true(res_vars.eq(src_vars), Str.of("var decl variants"))
 
+    src_multiline_bin := "main :: fn() {\n    if (a == 1) or\n       (b == 2) {\n        ret 0\n    }\n}\n"
+    res_multiline_bin := format_source(&arena, src_multiline_bin)
+    exp_multiline_bin := "main :: fn() {\n    if (a == 1) or (b == 2) {\n        ret 0\n    }\n}\n"
+    assert_true(res_multiline_bin.eq(exp_multiline_bin), Str.of("multiline binary expr"))
+
     arena.destroy()
 }
 

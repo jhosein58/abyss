@@ -927,7 +927,7 @@ CstParser :: struct {
     }
 
     parse_prefix :: fn(self &Self) &CstNode {
-        self.skip_ws()
+        self.skip_ws_and_nl()
         k := self.peek()
 
         if k == TokenKind.lit_int {
