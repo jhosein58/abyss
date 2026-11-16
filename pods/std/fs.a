@@ -7,23 +7,30 @@ import std.path: Path
 import std.convert: Convert
 import std.mem: malloc, free
 
-print_cstr :: fn(s &u8)
+print_cstr :: fn(s &u8) 
+
 get_env :: fn(name &u8) &u8
 
-file_open  :: fn(path, mode &u8) &u8
-file_seek  :: fn(handle &u8, offset i64, w i32) i32
-file_tell  :: fn(handle &u8) i64
-file_read  :: fn(handle, ptr &u8, s, count u64) u64
+file_open :: fn(path, mode &u8) &u8
+file_seek :: fn(handle &u8, offset i64, w i32) i32
+file_tell :: fn(handle &u8) i64
+file_read :: fn(handle, ptr &u8, s, count u64) u64
 file_write :: fn(handle, ptr &u8, s, count u64) u64
 file_close :: fn(handle &u8) i32
 
-opendir  :: fn(path &u8) &u8
-readdir  :: fn(dir &u8) &u8
+opendir :: fn(path &u8) &u8
+readdir :: fn(dir &u8) &u8
 closedir :: fn(dir &u8) i32
 
-SEEK_SET :: fn() i32 { 0 }
-SEEK_CUR :: fn() i32 { 1 }
-SEEK_END :: fn() i32 { 2 }
+SEEK_SET :: fn() i32 {
+    0
+}
+SEEK_CUR :: fn() i32 {
+    1
+}
+SEEK_END :: fn() i32 {
+    2
+}
 
 to_cstr :: fn(a &Arena, s Str) &u8 {
     buf := a.alloc(s.len + 1)
@@ -49,7 +56,6 @@ str_to_cstr :: fn(s Str) &u8 {
 
 FileStream :: struct {
     handle &u8
-
     open :: fn(path &u8, mode &u8) Maybe(Self) {
         h := file_open(path, mode)
         if h == (0 as &u8) {
@@ -75,44 +81,60 @@ FileStream :: struct {
     }
 
     close :: fn(self &Self) bool {
-        if self.handle == (0 as &u8) { ret false }
+        if self.handle == (0 as &u8) {
+            ret false
+        }
         res := file_close(self.handle)
         self.handle = 0 as &u8
         res == 0
     }
 
     read :: fn(self &Self, buf &u8, count u64) u64 {
-        if self.handle == (0 as &u8) { ret 0 }
+        if self.handle == (0 as &u8) {
+            ret 0
+        }
         file_read(self.handle, buf, 1, count)
     }
 
     read_all :: fn(self &Self, a &Arena) Str {
-        if self.handle == (0 as &u8) { ret Str.empty() }
+        if self.handle == (0 as &u8) {
+            ret Str.empty()
+        }
         file_seek(self.handle, 0, SEEK_END())
         raw_size := file_tell(self.handle)
-        if raw_size < 0 { ret Str.empty() }
+        if raw_size < 0 {
+            ret Str.empty()
+        }
         file_size := raw_size as u64
         file_seek(self.handle, 0, SEEK_SET())
         buf := a.alloc(file_size + 1)
-        if buf == (0 as &u8) { ret Str.empty() }
+        if buf == (0 as &u8) {
+            ret Str.empty()
+        }
         read_bytes := file_read(self.handle, buf, 1, file_size)
         *(buf + read_bytes) = 0 as u8
         .{ ptr: buf, len: read_bytes }
     }
 
     write :: fn(self &Self, buf &u8, count u64) u64 {
-        if self.handle == (0 as &u8) { ret 0 }
+        if self.handle == (0 as &u8) {
+            ret 0
+        }
         file_write(self.handle, buf, 1, count)
     }
 
     write_str :: fn(self &Self, s Str) bool {
-        if self.handle == (0 as &u8) { ret false }
+        if self.handle == (0 as &u8) {
+            ret false
+        }
         written := self.write(s.ptr, s.len)
         written == s.len
     }
 
     seek :: fn(self &Self, offset i64, whence i32) bool {
-        if self.handle == (0 as &u8) { ret false }
+        if self.handle == (0 as &u8) {
+            ret false
+        }
         file_seek(self.handle, offset, whence) == 0
     }
 
@@ -125,17 +147,23 @@ FileStream :: struct {
     }
 
     tell :: fn(self &Self) i64 {
-        if self.handle == (0 as &u8) { ret -1 }
+        if self.handle == (0 as &u8) {
+            ret -1
+        }
         file_tell(self.handle)
     }
 
     size :: fn(self &Self) u64 {
-        if self.handle == (0 as &u8) { ret 0 }
+        if self.handle == (0 as &u8) {
+            ret 0
+        }
         cur := file_tell(self.handle)
         file_seek(self.handle, 0, SEEK_END())
         end := file_tell(self.handle)
         file_seek(self.handle, cur, SEEK_SET())
-        if end < 0 { ret 0 }
+        if end < 0 {
+            ret 0
+        }
         end as u64
     }
 }
@@ -172,7 +200,9 @@ File :: struct {
     read_to_string :: fn(a &Arena, path Str) Maybe(Str) {
         c_path := to_cstr(a, path)
         stream_opt := FileStream.open_read(c_path)
-        if stream_opt.is_none() { ret Maybe(Str).none() }
+        if stream_opt.is_none() {
+            ret Maybe(Str).none()
+        }
         stream := stream_opt.unwrap()
         res := stream.read_all(a)
         stream.close()
@@ -181,7 +211,9 @@ File :: struct {
 
     write_string :: fn(path Str, content Str) bool {
         stream_opt := File.create(path)
-        if stream_opt.is_none() { ret false }
+        if stream_opt.is_none() {
+            ret false
+        }
         stream := stream_opt.unwrap()
         ok := stream.write_str(content)
         stream.close()
@@ -190,7 +222,9 @@ File :: struct {
 
     append_string :: fn(path Str, content Str) bool {
         stream_opt := File.open_append(path)
-        if stream_opt.is_none() { ret false }
+        if stream_opt.is_none() {
+            ret false
+        }
         stream := stream_opt.unwrap()
         ok := stream.write_str(content)
         stream.close()
@@ -232,7 +266,9 @@ read_file :: fn(a &Arena, path &u8) Str {
 
 try_read_file :: fn(a &Arena, path &u8) Str {
     opt := File.read_to_string(a, Str.of(path))
-    if opt.is_some() { ret opt.unwrap() }
+    if opt.is_some() {
+        ret opt.unwrap()
+    }
     Str.empty()
 }
 
@@ -263,22 +299,24 @@ file_exists :: fn(path &u8) bool {
 }
 
 DirEntryKind :: enum u8 {
-    unknown,
-    file,
+    unknown
+    file
     directory
 }
 
 DirEntry :: struct {
     name Str
     kind DirEntryKind
-
-    is_file :: fn(self &Self) bool { self.kind == DirEntryKind.file }
-    is_dir :: fn(self &Self) bool { self.kind == DirEntryKind.directory }
+    is_file :: fn(self &Self) bool {
+        self.kind == DirEntryKind.file
+    }
+    is_dir :: fn(self &Self) bool {
+        self.kind == DirEntryKind.directory
+    }
 }
 
 DirStream :: struct {
     handle &u8
-
     open :: fn(path &u8) Maybe(Self) {
         h := opendir(path)
         if h == (0 as &u8) {
@@ -288,20 +326,28 @@ DirStream :: struct {
     }
 
     close :: fn(self &Self) bool {
-        if self.handle == (0 as &u8) { ret false }
+        if self.handle == (0 as &u8) {
+            ret false
+        }
         res := closedir(self.handle)
         self.handle = 0 as &u8
         res == 0
     }
 
     next :: fn(self &Self) Maybe(DirEntry) {
-        if self.handle == (0 as &u8) { ret Maybe(DirEntry).none() }
+        if self.handle == (0 as &u8) {
+            ret Maybe(DirEntry).none()
+        }
         while true {
             ent := readdir(self.handle)
-            if ent == (0 as &u8) { ret Maybe(DirEntry).none() }
+            if ent == (0 as &u8) {
+                ret Maybe(DirEntry).none()
+            }
             name_ptr := ent + 19
             name := Str.of(name_ptr)
-            if name.eq(Str.of(".")) or name.eq(Str.of("..")) { cont }
+            if name.eq(Str.of(".")) or name.eq(Str.of("..")) {
+                cont
+            }
             d_type := *(ent + 18)
             k := DirEntryKind.unknown
             if d_type == (4 as u8) {
@@ -341,10 +387,16 @@ Dir :: struct {
     }
 
     collect_entries :: fn(a &Arena, out &Vec(Str), base_prefix Str, rel_dir Str, ext Str) {
-        full_dir := if base_prefix.len > 0 { Path.join(a, base_prefix, rel_dir) } else { rel_dir }
+        full_dir := if base_prefix.len > 0 {
+            Path.join(a, base_prefix, rel_dir)
+        } else {
+            rel_dir
+        }
         c_dir := to_cstr(a, full_dir)
         d_opt := DirStream.open(c_dir)
-        if d_opt.is_none() { ret }
+        if d_opt.is_none() {
+            ret
+        }
         d := d_opt.unwrap()
         for entry in d {
             full_child := Path.join(a, full_dir, entry.name)
@@ -361,13 +413,21 @@ Dir :: struct {
 }
 
 str_less :: fn(a Str, b Str) bool {
-    min_len := if a.len < b.len { a.len } else { b.len }
+    min_len := if a.len < b.len {
+        a.len
+    } else {
+        b.len
+    }
     i: u64 = 0
     while i < min_len {
         ca := *(a.ptr + i)
         cb := *(b.ptr + i)
-        if ca < cb { ret true }
-        if ca > cb { ret false }
+        if ca < cb {
+            ret true
+        }
+        if ca > cb {
+            ret false
+        }
         i = i + 1
     }
     a.len < b.len
@@ -430,7 +490,6 @@ Embed :: struct {
                 root_prefix = dev_str
             }
         }
-
         files := Vec(Str).new()
         Dir.collect_entries(a, &files, root_prefix, Str.of("core"), Str.of(".a"))
         Dir.collect_entries(a, &files, root_prefix, Str.of("std"), Str.of(".a"))
@@ -441,7 +500,11 @@ Embed :: struct {
         i: u64 = 0
         while i < files.len {
             rel_p := files.get(i)
-            full_p := if root_prefix.len > 0 { Path.join(a, root_prefix, rel_p) } else { rel_p }
+            full_p := if root_prefix.len > 0 {
+                Path.join(a, root_prefix, rel_p)
+            } else {
+                rel_p
+            }
             c_full := to_cstr(a, full_p)
             content := read_file(a, c_full)
             out.push_str("    if mod_path.eq(Str.of(")

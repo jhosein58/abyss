@@ -3,7 +3,9 @@ sort :: fn(T type, values Slice(T)) {
 }
 
 sort_chunks :: fn(T type, values Slice(T), width u64) {
-    if width == 0 { ret }
+    if width == 0 {
+        ret
+    }
     count := values.len / width
     start := count / 2
     while start > 0 {
@@ -36,7 +38,9 @@ sift :: fn(T type, values Slice(T), width u64, root u64, end u64) {
         if (child + 1 < end) and (values.get(child * width) < values.get((child + 1) * width)) {
             child = child + 1
         }
-        if not (values.get(root * width) < values.get(child * width)) { break }
+        if not (values.get(root * width) < values.get(child * width)) {
+            break
+        }
         swap(values, width, root, child)
         root = child
     }

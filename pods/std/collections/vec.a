@@ -1,13 +1,11 @@
 import std.mem: malloc, realloc, free, mem_copy
 import core.prelude: Iterator as Iter, RefIterator as RefIter
 
-
 Vec :: fn(T type) type {
     struct {
         ptr &T
         len u64
         cap u64
-
         new :: fn() Self {
             Self.with_cap(4)
         }
@@ -17,14 +15,9 @@ Vec :: fn(T type) type {
             if cap < 4 {
                 cap = 4
             }
-
             p := malloc(cap * @sizeof(T)) as &T
 
-            .{
-                ptr: p,
-                len: 0,
-                cap: cap
-            }
+            .{ ptr: p, len: 0, cap: cap }
         }
 
         destroy :: fn(self &Self) {
@@ -38,7 +31,9 @@ Vec :: fn(T type) type {
             needed := self.len + additional
             if needed > self.cap {
                 new_cap := self.cap * 2
-                if new_cap < 4 { new_cap = 4 }
+                if new_cap < 4 {
+                    new_cap = 4
+                }
                 while new_cap < needed {
                     new_cap = new_cap * 2
                 }
@@ -55,14 +50,12 @@ Vec :: fn(T type) type {
             }
         }
 
-
         push :: fn(self &Self, val T) {
             self.grow()
 
             *(self.ptr + self.len) = val
             self.len = self.len + 1
         }
-
 
         get :: fn(self &Self, idx u64) T {
             *(self.ptr + idx)
@@ -76,7 +69,6 @@ Vec :: fn(T type) type {
         set :: fn(self &Self, idx u64, val T) {
             *(self.ptr + idx) = val
         }
-
 
         last :: fn(self &Self) T {
             *(self.ptr + (self.len - 1))
@@ -95,8 +87,9 @@ Vec :: fn(T type) type {
         }
 
         extend :: fn(self &Self, src &T, count u64) {
-            if count == 0 { ret }
-
+            if count == 0 {
+                ret
+            }
             self.reserve(count)
             dst := (self.ptr + self.len) as &u8
 
@@ -125,20 +118,16 @@ Vec :: fn(T type) type {
         swap_remove :: fn(self &Self, idx u64) T {
             last_idx := self.len - 1
             removed := *(self.ptr + idx)
-        
+
             if idx != last_idx {
                 *(self.ptr + idx) = *(self.ptr + last_idx)
             }
-        
             self.len = last_idx
             removed
         }
 
         as_slice :: fn(self &Self) Slice(T) {
-            .{
-                ptr: self.ptr,
-                len: self.len
-            }
+            .{ ptr: self.ptr, len: self.len }
         }
 
         iter :: fn(self &Self) Iter(T) {
@@ -153,7 +142,9 @@ Vec :: fn(T type) type {
             result := Self.new()
             while true {
                 item := iter.next()
-                if item.is_none() { break }
+                if item.is_none() {
+                    break
+                }
                 result.push(item.unwrap())
             }
             result

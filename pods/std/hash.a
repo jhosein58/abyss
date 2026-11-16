@@ -3,6 +3,8 @@ hash_combine :: fn(seed u32, value u32) u32 {
 }
 
 hash_words :: fn(values Slice(u32), seed u32) u32 {
-    for value in values { seed = hash_combine(seed, value) }
+    for value in values {
+        seed = hash_combine(seed, value)
+    }
     seed
 }

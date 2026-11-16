@@ -24,7 +24,9 @@ Path :: struct {
     }
 
     dir :: fn(path Str) Str {
-        if path.len == 0 { ret Str.empty() }
+        if path.len == 0 {
+            ret Str.empty()
+        }
         i := path.len
         while i > 0 {
             i = i - 1
@@ -37,7 +39,9 @@ Path :: struct {
     }
 
     base :: fn(path Str) Str {
-        if path.len == 0 { ret Str.empty() }
+        if path.len == 0 {
+            ret Str.empty()
+        }
         i := path.len
         while i > 0 {
             i = i - 1
@@ -50,8 +54,12 @@ Path :: struct {
     }
 
     join :: fn(arena &Arena, base Str, rel Str) Str {
-        if base.len == 0 { ret rel }
-        if rel.len == 0 { ret base }
+        if base.len == 0 {
+            ret rel
+        }
+        if rel.len == 0 {
+            ret base
+        }
         out := String.new(arena)
         out.push_str(base)
         last_c := *(base.ptr + base.len - 1)
@@ -63,7 +71,9 @@ Path :: struct {
     }
 
     normalize :: fn(arena &Arena, path Str) Str {
-        if path.len == 0 { ret Str.empty() }
+        if path.len == 0 {
+            ret Str.empty()
+        }
         is_drive := false
         is_abs := false
         start_idx: u64 = 0
@@ -87,7 +97,6 @@ Path :: struct {
                 }
             }
         }
-
         if not is_drive {
             c0 := *(path.ptr)
             if c0 == '/' or c0 == '\\' {
@@ -95,7 +104,6 @@ Path :: struct {
                 start_idx = 1
             }
         }
-
         segs := Vec(Str).new()
         i: u64 = start_idx
         start: u64 = start_idx
@@ -105,8 +113,7 @@ Path :: struct {
             if is_sep {
                 if i > start {
                     seg := path.sub(start, i - start)
-                    if seg.eq(Str.of(".")) {
-                    } else if seg.eq(Str.of("..")) {
+                    if seg.eq(Str.of(".")) {} else if seg.eq(Str.of("..")) {
                         if (segs.len > 0) and (not segs.last().eq(Str.of(".."))) {
                             segs.pop()
                         } else if not is_abs {

@@ -3,7 +3,7 @@ import std.allocator: Arena
 import std.sys: fall
 
 string_float64 :: fn(ptr &u8, capacity u64, value f64) u64
-print_bytes :: fn(ptr &u8, len u64)
+print_bytes :: fn(ptr &u8, len u64) 
 
 Convert :: struct {
     unsigned64 :: fn(out &String, value u64) {
@@ -14,7 +14,9 @@ Convert :: struct {
             pos = pos - 1
             digits[pos] = ((remaining % 10) + 48) as u8
             remaining = remaining / 10
-            if remaining == 0 { break }
+            if remaining == 0 {
+                break
+            }
         }
         out.push_str(Str.new(&digits[pos], 20 - pos))
     }
@@ -36,7 +38,9 @@ Convert :: struct {
             pos = pos - 1
             digits[pos] = ((remaining % 10) + 48) as u8
             remaining = remaining / 10
-            if remaining == 0 { break }
+            if remaining == 0 {
+                break
+            }
         }
         out.push_str(Str.new(&digits[pos], 40 - pos))
     }
@@ -57,8 +61,11 @@ Convert :: struct {
     }
 
     boolean :: fn(out &String, value bool) {
-        if value { out.push_str("true") }
-        else { out.push_str("false") }
+        if value {
+            out.push_str("true")
+        } else {
+            out.push_str("false")
+        }
     }
 
     quoted :: fn(out &String, value Str) {
@@ -66,12 +73,21 @@ Convert :: struct {
         i: u64 = 0
         while i < value.len {
             c := *(value.ptr + i)
-            if c == '"' { out.push_str(`\"`) }
-            else if c == '\\' { out.push_char(92 as u8), out.push_char(92 as u8) }
-            else if c == '\n' { out.push_str(`\n`) }
-            else if c == '\r' { out.push_str(`\r`) }
-            else if c == '\t' { out.push_str(`\t`) }
-            else { out.push_char(c) }
+            if c == '"' {
+                out.push_str(`\"`)
+            } else if c == '\\' {
+                out.push_char(92 as u8)
+                ,
+                out.push_char(92 as u8)
+            } else if c == '\n' {
+                out.push_str(`\n`)
+            } else if c == '\r' {
+                out.push_str(`\r`)
+            } else if c == '\t' {
+                out.push_str(`\t`)
+            } else {
+                out.push_char(c)
+            }
             i = i + 1
         }
         out.push_char('"')
@@ -82,23 +98,38 @@ Convert :: struct {
         i: u64 = 0
         while i < value.len {
             c := *(value.ptr + i)
-            if c == '"' { out.push_str(`\"`) }
-            else if c == '\\' { out.push_char(92 as u8), out.push_char(92 as u8) }
-            else if c == '\n' { out.push_str(`\n`) }
-            else if c == '\r' { out.push_str(`\r`) }
-            else if c == '\t' { out.push_str(`\t`) }
-            else if c == 0 { out.push_str(`\000`) }
-            else { out.push_char(c) }
+            if c == '"' {
+                out.push_str(`\"`)
+            } else if c == '\\' {
+                out.push_char(92 as u8)
+                ,
+                out.push_char(92 as u8)
+            } else if c == '\n' {
+                out.push_str(`\n`)
+            } else if c == '\r' {
+                out.push_str(`\r`)
+            } else if c == '\t' {
+                out.push_str(`\t`)
+            } else if c == 0 {
+                out.push_str(`\000`)
+            } else {
+                out.push_char(c)
+            }
             i = i + 1
         }
         out.push_char('"')
     }
 
     literal :: fn(out &String, text Str) {
-        if text.len == 0 { ret }
+        if text.len == 0 {
+            ret
+        }
         source := out.as_str()
-        if source.ends_with("\")\n") { out.len = out.len - 3 }
-        else { out.push_str("out.push_str(\"") }
+        if source.ends_with("\")\n") {
+            out.len = out.len - 3
+        } else {
+            out.push_str("out.push_str(\"")
+        }
         quoted := String.new(out.arena)
         Convert.quote_source(&quoted, text)
         out.push_str(quoted.as_str().sub(1, quoted.len - 2))
@@ -126,11 +157,19 @@ Convert :: struct {
         if (kind == TypeKind.int) or (kind == TypeKind.uint) or (kind == TypeKind.untyped_int) {
             function := "signed64"
             target := "i64"
-            if kind == TypeKind.uint { function = "unsigned64", target = "u64" }
+            if kind == TypeKind.uint {
+                function = "unsigned64"
+                ,
+                target = "u64"
+            }
             if info.bits == 128 {
                 function = "signed128"
                 target = "i128"
-                if kind == TypeKind.uint { function = "unsigned128", target = "u128" }
+                if kind == TypeKind.uint {
+                    function = "unsigned128"
+                    ,
+                    target = "u128"
+                }
             }
             expr := String.new(out.arena)
             expr.push_str("(")
@@ -147,16 +186,24 @@ Convert :: struct {
             out.push_str(" as f64)\n")
             ret
         }
-        if kind == TypeKind.bool { Convert.call(out, "boolean", value), ret }
+        if kind == TypeKind.bool {
+            Convert.call(out, "boolean", value)
+            ,
+            ret
+        }
         if (kind == TypeKind.string) or (info.id == @type_info(String).id) {
             expr := String.new(out.arena)
             expr.push_str(value)
-            if kind != TypeKind.string { expr.push_str(".as_str()") }
+            if kind != TypeKind.string {
+                expr.push_str(".as_str()")
+            }
             if depth == 0 {
                 out.push_str("out.push_str(")
                 out.push_str(expr.as_str())
                 out.push_str(")\n")
-            } else { Convert.call(out, "quoted", expr.as_str()) }
+            } else {
+                Convert.call(out, "quoted", expr.as_str())
+            }
             ret
         }
         if kind == TypeKind.ptr {
@@ -182,7 +229,9 @@ Convert :: struct {
             i: u64 = 0
             while i < info.field_count {
                 field := *(info.fields + i)
-                if i > 0 { out.push_str("else ") }
+                if i > 0 {
+                    out.push_str("else ")
+                }
                 out.push_str("if ")
                 out.push_str(value)
                 out.push_str(" == @type_from_id(")
@@ -196,21 +245,27 @@ Convert :: struct {
                 out.push_str("}\n")
                 i = i + 1
             }
-            if info.field_count > 0 { out.push_str("else {\n") }
+            if info.field_count > 0 {
+                out.push_str("else {\n")
+            }
             Convert.literal(out, info.name)
             Convert.literal(out, "(")
             out.push_str("Convert.unsigned64(&out, ")
             out.push_str(value)
             out.push_str(" as u64)\n")
             Convert.literal(out, ")")
-            if info.field_count > 0 { out.push_str("}\n") }
+            if info.field_count > 0 {
+                out.push_str("}\n")
+            }
             ret
         }
         if kind == TypeKind.union_ {
             i: u64 = 0
             while i < info.member_count {
                 member := *(info.members + i)
-                if i > 0 { out.push_str("else ") }
+                if i > 0 {
+                    out.push_str("else ")
+                }
                 out.push_str("if @tag(")
                 out.push_str(value)
                 out.push_str(") == ")
@@ -232,14 +287,24 @@ Convert :: struct {
             open := "{"
             close := "}"
             count := info.field_count
-            if kind == TypeKind.tuple { open = "(", close = ")" }
-            else if kind == TypeKind.array { open = "[", close = "]", count = info.length }
-            else if not info.name.starts_with("struct {") {
+            if kind == TypeKind.tuple {
+                open = "("
+                ,
+                close = ")"
+            } else if kind == TypeKind.array {
+                open = "["
+                ,
+                close = "]"
+                ,
+                count = info.length
+            } else if not info.name.starts_with("struct {") {
                 Convert.literal(out, info.name)
                 Convert.literal(out, " ")
             }
             Convert.literal(out, open)
-            if count > 0 { Convert.literal(out, "\n") }
+            if count > 0 {
+                Convert.literal(out, "\n")
+            }
             i: u64 = 0
             while i < count {
                 Convert.indent(out, depth + 1)
@@ -266,7 +331,9 @@ Convert :: struct {
                 Convert.literal(out, ",\n")
                 i = i + 1
             }
-            if count > 0 { Convert.indent(out, depth) }
+            if count > 0 {
+                Convert.indent(out, depth)
+            }
             Convert.literal(out, close)
             ret
         }
@@ -276,7 +343,11 @@ Convert :: struct {
             Convert.literal(out, ">")
             ret
         }
-        if kind == TypeKind.unit { Convert.literal(out, "()"), ret }
+        if kind == TypeKind.unit {
+            Convert.literal(out, "()")
+            ,
+            ret
+        }
         Convert.literal(out, info.name)
     }
 }

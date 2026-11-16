@@ -18,10 +18,9 @@ intern_none :: fn() u32 {
 
 Interner :: struct {
     strings Vec(Str)
-    table   &u32
-    cap     u64
-    count   u64
-
+    table &u32
+    cap u64
+    count u64
     new :: fn() Self {
         Self.with_cap(64)
     }
@@ -31,18 +30,12 @@ Interner :: struct {
         if cap < 64 {
             cap = 64
         }
-
         bytes := cap * @sizeof(u32)
         ptr := malloc(bytes) as &u32
 
         mem_set(ptr as &u8, 255 as u8, bytes)
 
-        .{
-            strings : Vec(Str).new(),
-            table   : ptr,
-            cap     : cap,
-            count   : 0
-        }
+        .{ strings: Vec(Str).new(), table: ptr, cap: cap, count: 0 }
     }
 
     destroy :: fn(self &Self) {
@@ -92,7 +85,6 @@ Interner :: struct {
         if (self.count + 1) * 10 >= self.cap * 7 {
             self.grow()
         }
-
         mask := self.cap - 1
         h := hash_str(s) as u64
         idx := h & mask
@@ -109,12 +101,10 @@ Interner :: struct {
                 self.count = self.count + 1
                 ret new_id
             }
-
             existing_str := self.strings.get(id as u64)
             if s.eq(existing_str) {
                 ret id
             }
-
             idx = (idx + 1) & mask
         }
 
@@ -129,5 +119,4 @@ Interner :: struct {
         self.strings.len
     }
 }
-
 

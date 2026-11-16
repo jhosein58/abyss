@@ -2,7 +2,6 @@ Worklist :: fn(T type) type {
     struct {
         vec &Vec(T)
         index u64
-
         new :: fn(vec &Vec(T)) Self {
             .{ vec: vec, index: 0 }
         }
@@ -21,7 +20,9 @@ Worklist :: fn(T type) type {
         }
 
         remaining :: fn(self &Self) u64 {
-            if self.index >= self.vec.len { ret 0 }
+            if self.index >= self.vec.len {
+                ret 0
+            }
             self.vec.len - self.index
         }
     }

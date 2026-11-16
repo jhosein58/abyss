@@ -2,8 +2,9 @@ import std.allocator: Arena
 import std.fmt: fmt
 import std.string: String
 
-print_bytes :: fn(ptr &u8, len u64)
-print_char :: fn(value u8)
+print_bytes :: fn(ptr &u8, len u64) 
+
+print_char :: fn(value u8) 
 
 write_str :: fn(value Str) {
     print_bytes(value.ptr, value.len)

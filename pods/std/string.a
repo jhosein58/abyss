@@ -3,13 +3,11 @@ import std.convert: Convert, value_code
 import std.mem: mem_copy
 import std.allocator: Arena
 
-
 String :: struct {
     arena &Arena
-    ptr   &u8
-    len   u64
-    cap   u64
-
+    ptr &u8
+    len u64
+    cap u64
     new :: fn(a &Arena) String {
         .{ arena: a, ptr: 0 as &u8, len: 0, cap: 0 }
     }
@@ -21,10 +19,16 @@ String :: struct {
     }
 
     reserve :: fn(self &Self, needed u64) {
-        if needed <= self.cap { ret }
+        if needed <= self.cap {
+            ret
+        }
         capacity := self.cap
-        if capacity < 64 { capacity = 64 }
-        while capacity < needed { capacity = capacity * 2 }
+        if capacity < 64 {
+            capacity = 64
+        }
+        while capacity < needed {
+            capacity = capacity * 2
+        }
         self.ptr = self.arena.realloc(self.ptr, self.len, capacity)
         self.cap = capacity
     }
@@ -60,7 +64,9 @@ String :: struct {
     }
 
     push_str :: fn(self &Self, s Str) {
-        if s.len == 0 { ret }
+        if s.len == 0 {
+            ret
+        }
         self.reserve(self.len + s.len)
         mem_copy(self.ptr + self.len, s.ptr, s.len)
         self.len = self.len + s.len
@@ -102,7 +108,9 @@ String :: struct {
 }
 
 parse_u32 :: fn(s Str) Maybe(u32) {
-    if s.len == 0 { ret Maybe(u32).none() }
+    if s.len == 0 {
+        ret Maybe(u32).none()
+    }
     res: u32 = 0
     i: u64 = 0
     base: u32 = 10
@@ -121,7 +129,9 @@ parse_u32 :: fn(s Str) Maybe(u32) {
             }
         }
     }
-    if i == s.len { ret Maybe(u32).none() }
+    if i == s.len {
+        ret Maybe(u32).none()
+    }
     while i < s.len {
         c := *(s.ptr + i)
         if c == 95 {
@@ -129,10 +139,18 @@ parse_u32 :: fn(s Str) Maybe(u32) {
             cont
         }
         digit: u32 = 16
-        if (c >= 48) and (c <= 57) { digit = (c - 48) as u32 }
-        if (c >= 65) and (c <= 70) { digit = (c - 65) as u32 + 10 }
-        if (c >= 97) and (c <= 102) { digit = (c - 97) as u32 + 10 }
-        if digit >= base { ret Maybe(u32).none() }
+        if (c >= 48) and (c <= 57) {
+            digit = (c - 48) as u32
+        }
+        if (c >= 65) and (c <= 70) {
+            digit = (c - 65) as u32 + 10
+        }
+        if (c >= 97) and (c <= 102) {
+            digit = (c - 97) as u32 + 10
+        }
+        if digit >= base {
+            ret Maybe(u32).none()
+        }
         res = (res * base) + digit
         i = i + 1
     }

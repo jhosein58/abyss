@@ -6,23 +6,19 @@ HashSet :: fn(T type) type {
         occupied &bool
         len u64
         cap u64
-
         new :: fn() Self {
             Self.with_cap(16)
         }
 
         with_cap :: fn(initial_cap u64) Self {
             cap := initial_cap
-            if cap < 16 { cap = 16 }
+            if cap < 16 {
+                cap = 16
+            }
             k_mem := malloc(cap * @sizeof(T)) as &T
             o_mem := malloc(cap * @sizeof(bool)) as &bool
             mem_set(o_mem as &u8, 0 as u8, cap * @sizeof(bool))
-            .{
-                keys: k_mem,
-                occupied: o_mem,
-                len: 0,
-                cap: cap
-            }
+            .{ keys: k_mem, occupied: o_mem, len: 0, cap: cap }
         }
 
         destroy :: fn(self &Self) {
@@ -51,14 +47,18 @@ HashSet :: fn(T type) type {
             pb := b as &u8
             i: u64 = 0
             while i < @sizeof(T) {
-                if *(pa + i) != *(pb + i) { ret false }
+                if *(pa + i) != *(pb + i) {
+                    ret false
+                }
                 i = i + 1
             }
             true
         }
 
         contains :: fn(self &Self, val T) bool {
-            if self.cap == 0 { ret false }
+            if self.cap == 0 {
+                ret false
+            }
             mask := self.cap - 1
             idx := Self.hash_key(&val) & mask
             while *(self.occupied + idx) {
@@ -89,7 +89,9 @@ HashSet :: fn(T type) type {
         }
 
         remove :: fn(self &Self, val T) bool {
-            if self.cap == 0 { ret false }
+            if self.cap == 0 {
+                ret false
+            }
             mask := self.cap - 1
             idx := Self.hash_key(&val) & mask
             while *(self.occupied + idx) {
