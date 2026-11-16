@@ -182,12 +182,12 @@ EOF
         echo "✔ Linux x86_64 compiler verified!"
 
         echo "Building Linux Sonar package manager..."
-        "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" b "${ROOT_DIR}/tools/sonar/main.a" "${DIST_DIR}/sonar_bootstrap.c"
+        "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" b "${ROOT_DIR}/pods/sonar/main.a" "${DIST_DIR}/sonar_bootstrap.c"
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${DIST_DIR}/sonar_bootstrap.c" -o "${DIST_DIR}/sonar-linux-x86_64"
         cp "${DIST_DIR}/sonar-linux-x86_64" "${ROOT_DIR}/sonar"
 
         echo "Verifying Linux Sonar package manager and pods..."
-        "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" r "${ROOT_DIR}/tools/sonar/test_sonar.a" >/dev/null 2>&1
+        "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" r "${ROOT_DIR}/pods/sonar/test_sonar.a" >/dev/null 2>&1
         "${DIST_DIR}/sonar-linux-x86_64" help >/dev/null 2>&1
         bash "${ROOT_DIR}/scripts/test_pods.sh" "${DIST_DIR}/abyssc-linux-x86_64"
         echo "✔ Linux x86_64 Sonar package manager and pods verified!"
@@ -247,7 +247,7 @@ EOF
         ls -lh "${DIST_DIR}"
         ;;
     fmt)
-        "${ROOT_DIR}/abyssc" r "${ROOT_DIR}/tools/fmt/main.a" "$@"
+        "${ROOT_DIR}/abyssc" r "${ROOT_DIR}/pods/fmt/main.a" "$@"
         ;;
     sonar)
         CALLER_DIR="${ORIG_PWD}"
@@ -257,11 +257,11 @@ EOF
         if [ -x "${ROOT_DIR}/sonar" ]; then
             "${ROOT_DIR}/sonar" "$@"
         else
-            "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" r "${ROOT_DIR}/tools/sonar/main.a" "$@"
+            "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" r "${ROOT_DIR}/pods/sonar/main.a" "$@"
         fi
         ;;
     sonar-test)
-        "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" r "${ROOT_DIR}/tools/sonar/test_sonar.a" "$@"
+        "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" r "${ROOT_DIR}/pods/sonar/test_sonar.a" "$@"
         ;;
     test-pods|pods-test)
         prepare_compiler

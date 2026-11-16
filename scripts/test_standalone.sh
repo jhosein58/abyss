@@ -6,9 +6,7 @@ COMPILER="${1:-${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}}"
 WORK_DIR=$(mktemp -d "${ROOT_DIR}/tmp/standalone_test.XXXXXX")
 C_COMPILER="${ABYSS_C_COMPILER:-}"
 if [[ -z "${C_COMPILER}" ]]; then
-    if [[ -x "${ROOT_DIR}/tools/bin/tcc" ]]; then
-        C_COMPILER="${ROOT_DIR}/tools/bin/tcc"
-    elif command -v tcc >/dev/null 2>&1; then
+    if command -v tcc >/dev/null 2>&1; then
         C_COMPILER="tcc"
     elif command -v gcc >/dev/null 2>&1; then
         C_COMPILER="gcc"

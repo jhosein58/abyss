@@ -1,5 +1,5 @@
-import tools.fmt.parser: parse_to_cst
-import tools.fmt.formatter: format_cst
+import .parser: parse_to_cst
+import .formatter: format_cst
 import std.allocator: Arena
 import std.fs: File
 import std.env: Env
@@ -27,7 +27,7 @@ format_file_in_place :: fn(path &u8) bool {
 main :: fn() {
     count := Env.args_len()
     if count < 2 {
-        printf("usage: abyss r tools/fmt/main.a <file.a> ...\n", .{})
+        printf("usage: abyss r pods/fmt/main.a <file.a> ...\n", .{})
         ret
     }
 

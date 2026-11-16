@@ -1,4 +1,4 @@
-import tools.fmt.main: format_source, format_file_in_place
+import .main: format_source, format_file_in_place
 import std.allocator: Arena
 import std.fs: File
 import std.sys: fall

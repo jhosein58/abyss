@@ -8,7 +8,7 @@ export ABYSS_COMPILER="${COMPILER}"
 
 SONAR_BIN="${ROOT_DIR}/sonar"
 if [ ! -x "${SONAR_BIN}" ]; then
-    "${COMPILER}" --map json="${ROOT_DIR}/pods/json/json" b "${ROOT_DIR}/tools/sonar/main.a" "${ROOT_DIR}/tmp/sonar_bs.c"
+    "${COMPILER}" --map json="${ROOT_DIR}/pods/json/json" b "${ROOT_DIR}/pods/sonar/main.a" "${ROOT_DIR}/tmp/sonar_bs.c"
     gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O2 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${ROOT_DIR}/tmp/sonar_bs.c" -o "${SONAR_BIN}"
 fi
 

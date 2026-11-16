@@ -1,6 +1,6 @@
-import tools.syntax.token: TokenKind, Token, TokenList
-import tools.syntax.lexer: tokenize
-import tools.fmt.cst: CstKind, CstNode, cst_new, cst_leaf, cst_unary, cst_binary
+import .syntax.token: TokenKind, Token, TokenList
+import .syntax.lexer: tokenize
+import .cst: CstKind, CstNode, cst_new, cst_leaf, cst_unary, cst_binary
 import std.allocator: Arena
 import std.collections.vec: Vec
 import std.string: Str, String
