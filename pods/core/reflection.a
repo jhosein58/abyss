@@ -1,7 +1,25 @@
 TypeKind :: enum u8 {
-    unknown, infer, untyped_int, untyped_float, int, uint, float, bool,
-    ptr, type_, unit, func, never, struct_, array, error, nominal, enum_, union_,
-    tuple, string
+    unknown
+    infer
+    untyped_int
+    untyped_float
+    int
+    uint
+    float
+    bool
+    ptr
+    type_
+    unit
+    func
+    never
+    struct_
+    array
+    error
+    nominal
+    enum_
+    union_
+    tuple
+    string
 }
 
 TypeInfo :: fn() type {

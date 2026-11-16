@@ -5,7 +5,6 @@ Chunks :: fn(T type) type {
     struct {
         ptr &T
         len, width, index u64
-
         next :: fn(self &Self) Maybe(Slice(T)) {
             if (self.width == 0) or (self.width > self.len - self.index) {
                 ret Maybe(Slice(T)).none()

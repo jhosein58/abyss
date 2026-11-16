@@ -2,26 +2,27 @@ Choice :: fn(T type, E type) type {
     struct {
         is_ok bool
         val T | E
-
         ok :: fn(v T) Self {
-            .{
-                is_ok: true,
-                val: v
-            }
+            .{ is_ok: true, val: v }
         }
 
         err :: fn(e E) Self {
-            .{
-                is_ok: false,
-                val: e
-            }
+            .{ is_ok: false, val: e }
         }
 
-        is_success :: fn(self &Self) bool { self.is_ok }
-        is_error :: fn(self &Self) bool { not self.is_ok }
+        is_success :: fn(self &Self) bool {
+            self.is_ok
+        }
+        is_error :: fn(self &Self) bool {
+            not self.is_ok
+        }
 
         unwrap_or :: fn(self &Self, fallback T) T {
-            if self.is_ok { self.val as T } else { fallback }
+            if self.is_ok {
+                self.val as T
+            } else {
+                fallback
+            }
         }
     }
 }

@@ -2,18 +2,29 @@ Maybe :: fn(T type) type {
     struct {
         present bool
         value T
-
-        some :: fn(value T) Self { .{ present: true, value: value } }
+        some :: fn(value T) Self {
+            .{ present: true, value: value }
+        }
         none :: fn() Self {
             result: Self
             result.present = false
             result
         }
-        is_some :: fn(self &Self) bool { self.present }
-        is_none :: fn(self &Self) bool { not self.present }
-        unwrap :: fn(self &Self) T { self.value }
+        is_some :: fn(self &Self) bool {
+            self.present
+        }
+        is_none :: fn(self &Self) bool {
+            not self.present
+        }
+        unwrap :: fn(self &Self) T {
+            self.value
+        }
         unwrap_or :: fn(self &Self, fallback T) T {
-            if self.present { self.value } else { fallback }
+            if self.present {
+                self.value
+            } else {
+                fallback
+            }
         }
     }
 }

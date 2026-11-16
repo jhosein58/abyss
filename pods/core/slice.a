@@ -6,19 +6,12 @@ Slice :: fn(T type) type {
     struct {
         ptr &T
         len u64
-
         new :: fn(ptr &T, len u64) Self {
-            .{
-                ptr: ptr,
-                len: len
-            }
+            .{ ptr: ptr, len: len }
         }
 
         empty :: fn() Self {
-            .{
-                ptr: 0 as &T,
-                len: 0
-            }
+            .{ ptr: 0 as &T, len: 0 }
         }
 
         get :: fn(self &Self, idx u64) T {
@@ -26,10 +19,7 @@ Slice :: fn(T type) type {
         }
 
         sub :: fn(self &Self, start u64, len u64) Self {
-            .{
-                ptr: (self.ptr + start),
-                len: len
-            }
+            .{ ptr: (self.ptr + start), len: len }
         }
 
         chunks :: fn(self &Self, width u64) Chunks(T) {
@@ -37,10 +27,14 @@ Slice :: fn(T type) type {
         }
 
         equals :: fn(self &Self, other Self) bool {
-            if self.len != other.len { ret false }
+            if self.len != other.len {
+                ret false
+            }
             i: u64 = 0
             for value in self {
-                if value != other.get(i) { ret false }
+                if value != other.get(i) {
+                    ret false
+                }
                 i = i + 1
             }
             true
@@ -49,7 +43,9 @@ Slice :: fn(T type) type {
         position :: fn(self &Self, value T) Maybe(u64) {
             i: u64 = 0
             for item in self {
-                if item == value { ret Maybe(u64).some(i) }
+                if item == value {
+                    ret Maybe(u64).some(i)
+                }
                 i = i + 1
             }
             Maybe(u64).none()

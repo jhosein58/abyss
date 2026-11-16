@@ -4,7 +4,6 @@ CharIter :: struct {
     ptr &u8
     len u64
     index u64
-
     new :: fn(ptr &u8, len u64) Self {
         .{ ptr: ptr, len: len, index: 0 }
     }
@@ -66,25 +65,17 @@ CharIter :: struct {
 
 Str :: struct {
     ptr &u8
-    len u64 
-
-
+    len u64
     size :: fn() u64 {
         16
     }
 
     new :: fn(ptr &u8, len u64) Str {
-        .{
-            ptr: ptr,
-            len: len,
-        }
+        .{ ptr: ptr, len: len }
     }
 
     empty :: fn() Str {
-        .{
-            ptr: 0 as &u8,
-            len: 0,
-        }
+        .{ ptr: 0 as &u8, len: 0 }
     }
 
     of :: fn(s &u8 | Str) Self {
@@ -94,23 +85,21 @@ Str :: struct {
         raw := s as &u8
         length: u64 = 0
         if raw != (0 as &u8) {
-            while *(raw + length) != 0 as u8 { length = length + 1 }
+            while *(raw + length) != 0 as u8 {
+                length = length + 1
+            }
         }
         .{ ptr: raw, len: length }
     }
 
     sub :: fn(self &Self, start u64, len u64) Str {
-        .{
-            ptr: (self.ptr + start),
-            len: len
-        }
+        .{ ptr: (self.ptr + start), len: len }
     }
 
     eq :: fn(self &Self, b Str) bool {
         if self.len != b.len {
             ret false
         }
-
         i: u64 = 0
         while i < self.len {
             if *(self.ptr + i) != *(b.ptr + i) {
@@ -123,12 +112,16 @@ Str :: struct {
     }
 
     starts_with :: fn(self &Self, prefix Str) bool {
-        if self.len < prefix.len { ret false }
+        if self.len < prefix.len {
+            ret false
+        }
         self.sub(0, prefix.len).eq(prefix)
     }
 
     ends_with :: fn(self &Self, suffix Str) bool {
-        if self.len < suffix.len { ret false }
+        if self.len < suffix.len {
+            ret false
+        }
         self.sub(self.len - suffix.len, suffix.len).eq(suffix)
     }
 
@@ -140,10 +133,7 @@ Str :: struct {
                 ret self.sub(1, self.len - 2)
             }
         }
-        .{
-            ptr: self.ptr,
-            len: self.len
-        }
+        .{ ptr: self.ptr, len: self.len }
     }
 
     iter :: fn(self &Self) CharIter {
@@ -168,8 +158,12 @@ Str :: struct {
         idx: u64 = 0
         while it.has_next() {
             m := it.next()
-            if m.is_none() { break }
-            if idx == n { ret m }
+            if m.is_none() {
+                break
+            }
+            if idx == n {
+                ret m
+            }
             idx = idx + 1
         }
         Maybe(u32).none()

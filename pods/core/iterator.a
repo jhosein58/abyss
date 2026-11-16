@@ -5,7 +5,6 @@ Iterator :: fn(T type) type {
         ptr &T
         len u64
         index u64
-
         new :: fn(ptr &T, len u64) Self {
             .{ ptr: ptr, len: len, index: 0 }
         }
@@ -46,7 +45,9 @@ Iterator :: fn(T type) type {
         }
 
         remaining :: fn(self &Self) u64 {
-            if self.index >= self.len { ret 0 }
+            if self.index >= self.len {
+                ret 0
+            }
             self.len - self.index
         }
     }

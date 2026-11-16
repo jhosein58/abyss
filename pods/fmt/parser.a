@@ -777,11 +777,11 @@ CstParser :: struct {
         match_node
     }
 
-    parse_type :: fn(self &Self) &CstNode {
+    parse_type_atom :: fn(self &Self) &CstNode {
         self.skip_ws()
 
         if self.consume_if(TokenKind.amp) {
-            inner := self.parse_type()
+            inner := self.parse_type_atom()
             node := cst_new(self.arena, CstKind.type_ptr, Str.of("&"))
             node.add_child(inner)
             ret node
@@ -848,6 +848,19 @@ CstParser :: struct {
         }
 
         base_node
+    }
+
+    parse_type :: fn(self &Self) &CstNode {
+        lhs := self.parse_type_atom()
+        while self.peek() == TokenKind.pipe {
+            self.bump()
+            rhs := self.parse_type_atom()
+            node := cst_new(self.arena, CstKind.binary_expr, Str.of("|"))
+            node.add_child(lhs)
+            node.add_child(rhs)
+            lhs = node
+        }
+        lhs
     }
 
     parse_expr :: fn(self &Self, min_bp u8) &CstNode {

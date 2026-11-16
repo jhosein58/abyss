@@ -3,7 +3,6 @@ import core.maybe: Maybe
 Range :: struct {
     current i32
     end i32
-
     new :: fn(start i32, end i32) Self {
         .{ current: start, end: end }
     }
