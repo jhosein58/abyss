@@ -6,7 +6,7 @@ import std.sys: fall
 import .color: Color
 import .context: Test
 
-TestFunc :: fn(t &Test)
+TestFunc :: fn(t &Test) 
 
 TestEntry :: struct {
     name Str
@@ -19,15 +19,8 @@ Suite :: struct {
     entries Vec(TestEntry)
     passed u32
     failed u32
-
     new :: fn(arena &Arena, name Str) Self {
-        .{
-            name: name
-            arena: arena
-            entries: Vec(TestEntry).new()
-            passed: 0
-            failed: 0
-        }
+        .{ name: name, arena: arena, entries: Vec(TestEntry).new(), passed: 0, failed: 0 }
     }
 
     add :: fn(self &Self, name Str, func TestFunc) {

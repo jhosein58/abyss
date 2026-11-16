@@ -8,15 +8,8 @@ Test :: struct {
     failed bool
     failure_msg String
     assertion_count u32
-
     new :: fn(arena &Arena, name Str) Self {
-        .{
-            name: name
-            arena: arena
-            failed: false
-            failure_msg: String.new(arena)
-            assertion_count: 0
-        }
+        .{ name: name, arena: arena, failed: false, failure_msg: String.new(arena), assertion_count: 0 }
     }
 
     fail :: fn(self &Self, msg Str) {
@@ -60,9 +53,9 @@ Test :: struct {
             self.failure_msg.push_str("assert_eq failed (left != right)\n      type:  ")
             self.failure_msg.push_str(@type_name(T))
             self.failure_msg.push_str("\n      left:  ")
-            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{ actual }).as_str())
             self.failure_msg.push_str("\n      right: ")
-            self.failure_msg.push_str(fmt(self.arena, "{}", .{expected}).as_str())
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{ expected }).as_str())
             if hint.len > 0 {
                 self.failure_msg.push_str("\n      hint:  ")
                 self.failure_msg.push_str(hint)
@@ -80,7 +73,7 @@ Test :: struct {
             self.failure_msg.push_str("assert_ne failed (left == right)\n      type:  ")
             self.failure_msg.push_str(@type_name(T))
             self.failure_msg.push_str("\n      value: ")
-            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{ actual }).as_str())
             if hint.len > 0 {
                 self.failure_msg.push_str("\n      hint:  ")
                 self.failure_msg.push_str(hint)
@@ -96,9 +89,9 @@ Test :: struct {
                 self.failure_msg.push_str("\n    ")
             }
             self.failure_msg.push_str("assert_gt failed (left <= right)\n      left:  ")
-            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{ actual }).as_str())
             self.failure_msg.push_str("\n      right: ")
-            self.failure_msg.push_str(fmt(self.arena, "{}", .{expected}).as_str())
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{ expected }).as_str())
             if hint.len > 0 {
                 self.failure_msg.push_str("\n      hint:  ")
                 self.failure_msg.push_str(hint)
@@ -114,9 +107,9 @@ Test :: struct {
                 self.failure_msg.push_str("\n    ")
             }
             self.failure_msg.push_str("assert_ge failed (left < right)\n      left:  ")
-            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{ actual }).as_str())
             self.failure_msg.push_str("\n      right: ")
-            self.failure_msg.push_str(fmt(self.arena, "{}", .{expected}).as_str())
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{ expected }).as_str())
             if hint.len > 0 {
                 self.failure_msg.push_str("\n      hint:  ")
                 self.failure_msg.push_str(hint)
@@ -132,9 +125,9 @@ Test :: struct {
                 self.failure_msg.push_str("\n    ")
             }
             self.failure_msg.push_str("assert_lt failed (left >= right)\n      left:  ")
-            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{ actual }).as_str())
             self.failure_msg.push_str("\n      right: ")
-            self.failure_msg.push_str(fmt(self.arena, "{}", .{expected}).as_str())
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{ expected }).as_str())
             if hint.len > 0 {
                 self.failure_msg.push_str("\n      hint:  ")
                 self.failure_msg.push_str(hint)
@@ -150,9 +143,9 @@ Test :: struct {
                 self.failure_msg.push_str("\n    ")
             }
             self.failure_msg.push_str("assert_le failed (left > right)\n      left:  ")
-            self.failure_msg.push_str(fmt(self.arena, "{}", .{actual}).as_str())
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{ actual }).as_str())
             self.failure_msg.push_str("\n      right: ")
-            self.failure_msg.push_str(fmt(self.arena, "{}", .{expected}).as_str())
+            self.failure_msg.push_str(fmt(self.arena, "{}", .{ expected }).as_str())
             if hint.len > 0 {
                 self.failure_msg.push_str("\n      hint:  ")
                 self.failure_msg.push_str(hint)
