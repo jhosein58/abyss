@@ -5,7 +5,7 @@ import std.fs: File
 
 assert_true :: fn(cond bool, msg Str) {
     if not cond {
-        printf("assertion failed: {}\n", .{msg})
+        printf("assertion failed: {}\n", .{ msg })
         ret
     }
 }
@@ -128,7 +128,11 @@ test_operators :: fn() {
 
 test_real_file_roundtrip :: fn() {
     arena := Arena.new(1024 * 64)
-    file_path := if File.exists("pods/std/ascii.a") { "pods/std/ascii.a" } else { "std/ascii.a" }
+    file_path := if File.exists("pods/std/ascii.a") {
+        "pods/std/ascii.a"
+    } else {
+        "std/ascii.a"
+    }
     file_opt := File.read_to_string(&arena, file_path)
     assert_true(file_opt.is_some(), "read std/ascii.a")
     src := file_opt.unwrap()

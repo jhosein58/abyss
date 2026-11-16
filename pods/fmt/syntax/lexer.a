@@ -3,68 +3,115 @@ import std.ascii: Ascii
 
 match_keyword :: fn(text Str) TokenKind {
     if text.len == 2 {
-        if text.eq("if") { ret TokenKind.kw_if }
-        if text.eq("as") { ret TokenKind.kw_as }
-        if text.eq("or") { ret TokenKind.kw_or }
-        if text.eq("fn") { ret TokenKind.kw_fn }
-        if text.eq("in") { ret TokenKind.kw_in }
+        if text.eq("if") {
+            ret TokenKind.kw_if
+        }
+        if text.eq("as") {
+            ret TokenKind.kw_as
+        }
+        if text.eq("or") {
+            ret TokenKind.kw_or
+        }
+        if text.eq("fn") {
+            ret TokenKind.kw_fn
+        }
+        if text.eq("in") {
+            ret TokenKind.kw_in
+        }
     }
-
     if text.len == 3 {
-        if text.eq("ret") { ret TokenKind.kw_ret }
-        if text.eq("and") { ret TokenKind.kw_and }
-        if text.eq("not") { ret TokenKind.kw_not }
-        if text.eq("for") { ret TokenKind.kw_for }
+        if text.eq("ret") {
+            ret TokenKind.kw_ret
+        }
+        if text.eq("and") {
+            ret TokenKind.kw_and
+        }
+        if text.eq("not") {
+            ret TokenKind.kw_not
+        }
+        if text.eq("for") {
+            ret TokenKind.kw_for
+        }
     }
-
     if text.len == 4 {
-        if text.eq("else") { ret TokenKind.kw_else }
-        if text.eq("cont") { ret TokenKind.kw_cont }
-        if text.eq("true") { ret TokenKind.kw_true }
-        if text.eq("enum") { ret TokenKind.kw_enum }
-        if text.eq("cmpt") { ret TokenKind.kw_cmpt }
+        if text.eq("else") {
+            ret TokenKind.kw_else
+        }
+        if text.eq("cont") {
+            ret TokenKind.kw_cont
+        }
+        if text.eq("true") {
+            ret TokenKind.kw_true
+        }
+        if text.eq("enum") {
+            ret TokenKind.kw_enum
+        }
+        if text.eq("cmpt") {
+            ret TokenKind.kw_cmpt
+        }
     }
-
     if text.len == 5 {
-        if text.eq("while") { ret TokenKind.kw_while }
-        if text.eq("break") { ret TokenKind.kw_break }
-        if text.eq("false") { ret TokenKind.kw_false }
-        if text.eq("match") { ret TokenKind.kw_match }
+        if text.eq("while") {
+            ret TokenKind.kw_while
+        }
+        if text.eq("break") {
+            ret TokenKind.kw_break
+        }
+        if text.eq("false") {
+            ret TokenKind.kw_false
+        }
+        if text.eq("match") {
+            ret TokenKind.kw_match
+        }
     }
-
     if text.len == 6 {
-        if text.eq("struct") { ret TokenKind.kw_struct }
-        if text.eq("import") { ret TokenKind.kw_import }
+        if text.eq("struct") {
+            ret TokenKind.kw_struct
+        }
+        if text.eq("import") {
+            ret TokenKind.kw_import
+        }
     }
-
     TokenKind.ident
 }
 
 is_base_digit :: fn(c u8, base u32) bool {
-    if base == 10 { ret Ascii.is_digit(c) }
-    if base == 16 { ret Ascii.is_hex_digit(c) }
-    if base == 2 { ret Ascii.is_bin_digit(c) }
-    if base == 8 { ret Ascii.is_oct_digit(c) }
+    if base == 10 {
+        ret Ascii.is_digit(c)
+    }
+    if base == 16 {
+        ret Ascii.is_hex_digit(c)
+    }
+    if base == 2 {
+        ret Ascii.is_bin_digit(c)
+    }
+    if base == 8 {
+        ret Ascii.is_oct_digit(c)
+    }
     false
 }
 
 utf8_len :: fn(b0 u8) u32 {
-    if (b0 & 0x80) == 0 { ret 1 }
-    if (b0 & 0xE0) == 0xC0 { ret 2 }
-    if (b0 & 0xF0) == 0xE0 { ret 3 }
-    if (b0 & 0xF8) == 0xF0 { ret 4 }
+    if (b0 & 0x80) == 0 {
+        ret 1
+    }
+    if (b0 & 0xE0) == 0xC0 {
+        ret 2
+    }
+    if (b0 & 0xF0) == 0xE0 {
+        ret 3
+    }
+    if (b0 & 0xF8) == 0xF0 {
+        ret 4
+    }
     1
 }
 
 Lexer :: struct {
     source Str
     cursor u64
-
     new :: fn(source Str) Self {
-        .{
-            source: source,
-            cursor: 0
-        }
+        .{ source: source, cursor: 0 }
     }
 
     is_eof :: fn(self &Self) bool {
@@ -72,17 +119,23 @@ Lexer :: struct {
     }
 
     current :: fn(self &Self) u8 {
-        if self.is_eof() { ret 0 as u8 }
+        if self.is_eof() {
+            ret 0 as u8
+        }
         *(self.source.ptr + self.cursor)
     }
 
     peek :: fn(self &Self) u8 {
-        if self.cursor + 1 >= self.source.len { ret 0 as u8 }
+        if self.cursor + 1 >= self.source.len {
+            ret 0 as u8
+        }
         *(self.source.ptr + self.cursor + 1)
     }
 
     peek_at :: fn(self &Self, offset u64) u8 {
-        if self.cursor + offset >= self.source.len { ret 0 as u8 }
+        if self.cursor + offset >= self.source.len {
+            ret 0 as u8
+        }
         *(self.source.ptr + self.cursor + offset)
     }
 
@@ -162,10 +215,13 @@ Lexer :: struct {
         if self.current() == '0' {
             p := self.peek()
             base: u32 = 0
-            if (p == 'x') or (p == 'X') { base = 16 }
-            else if (p == 'b') or (p == 'B') { base = 2 }
-            else if (p == 'o') or (p == 'O') { base = 8 }
-
+            if (p == 'x') or (p == 'X') {
+                base = 16
+            } else if (p == 'b') or (p == 'B') {
+                base = 2
+            } else if (p == 'o') or (p == 'O') {
+                base = 8
+            }
             if base != 0 {
                 self.bump()
                 self.bump()
@@ -174,7 +230,6 @@ Lexer :: struct {
                 ret
             }
         }
-
         self.scan_digits(10)
 
         if (self.current() == '.') and (self.peek() != '.') and Ascii.is_digit(self.peek()) {
@@ -182,7 +237,6 @@ Lexer :: struct {
             self.bump()
             self.scan_digits(10)
         }
-
         if (self.current() == 'e') or (self.current() == 'E') {
             has_sign := (self.peek() == '+') or (self.peek() == '-')
             has_exp_digits := false
@@ -193,7 +247,6 @@ Lexer :: struct {
             } else if Ascii.is_digit(self.peek()) {
                 has_exp_digits = true
             }
-
             if has_exp_digits {
                 is_float = true
                 self.bump()
@@ -203,14 +256,19 @@ Lexer :: struct {
                 self.scan_digits(10)
             }
         }
-
-        kind := if is_float { TokenKind.lit_float } else { TokenKind.lit_int }
+        kind := if is_float {
+            TokenKind.lit_float
+        } else {
+            TokenKind.lit_int
+        }
         self.emit(tokens, kind, start)
     }
 
     scan_str :: fn(self &Self, tokens &TokenList, is_c bool) {
         start := self.cursor
-        if is_c { self.bump() }
+        if is_c {
+            self.bump()
+        }
         self.bump()
 
         while (not self.is_eof()) and (self.current() != '"') and (not Ascii.is_newline(self.current())) {
@@ -227,8 +285,11 @@ Lexer :: struct {
         if (not self.is_eof()) and (self.current() == '"') {
             self.bump()
         }
-
-        kind := if is_c { TokenKind.lit_cstr } else { TokenKind.lit_str }
+        kind := if is_c {
+            TokenKind.lit_cstr
+        } else {
+            TokenKind.lit_str
+        }
         self.emit(tokens, kind, start)
     }
 
@@ -246,7 +307,6 @@ Lexer :: struct {
         if (not self.is_eof()) and (self.current() == '`') {
             self.bump()
         }
-
         self.emit(tokens, TokenKind.lit_raw_str, start)
     }
 
@@ -282,11 +342,9 @@ Lexer :: struct {
                 i = i + 1
             }
         }
-
         if (not self.is_eof()) and (self.current() == '\'') {
             self.bump()
         }
-
         self.emit(tokens, TokenKind.lit_char, start)
     }
 
@@ -305,42 +363,74 @@ Lexer :: struct {
         self.bump()
 
         if c == '+' {
-            kind := if self.consume('=') { TokenKind.plus_eq } else { TokenKind.plus }
+            kind := if self.consume('=') {
+                TokenKind.plus_eq
+            } else {
+                TokenKind.plus
+            }
             self.emit(tokens, kind, start)
             ret
         }
         if c == '-' {
-            kind := if self.consume('=') { TokenKind.minus_eq } else { TokenKind.minus }
+            kind := if self.consume('=') {
+                TokenKind.minus_eq
+            } else {
+                TokenKind.minus
+            }
             self.emit(tokens, kind, start)
             ret
         }
         if c == '*' {
-            kind := if self.consume('=') { TokenKind.star_eq } else { TokenKind.star }
+            kind := if self.consume('=') {
+                TokenKind.star_eq
+            } else {
+                TokenKind.star
+            }
             self.emit(tokens, kind, start)
             ret
         }
         if c == '/' {
-            kind := if self.consume('=') { TokenKind.slash_eq } else { TokenKind.slash }
+            kind := if self.consume('=') {
+                TokenKind.slash_eq
+            } else {
+                TokenKind.slash
+            }
             self.emit(tokens, kind, start)
             ret
         }
         if c == '%' {
-            kind := if self.consume('=') { TokenKind.percent_eq } else { TokenKind.percent }
+            kind := if self.consume('=') {
+                TokenKind.percent_eq
+            } else {
+                TokenKind.percent
+            }
             self.emit(tokens, kind, start)
             ret
         }
         if c == '&' {
-            kind := if self.consume('=') { TokenKind.amp_eq } else { TokenKind.amp }
+            kind := if self.consume('=') {
+                TokenKind.amp_eq
+            } else {
+                TokenKind.amp
+            }
             self.emit(tokens, kind, start)
             ret
         }
         if c == '|' {
-            kind := if self.consume('=') { TokenKind.pipe_eq } else { TokenKind.pipe }
+            kind := if self.consume('=') {
+                TokenKind.pipe_eq
+            } else {
+                TokenKind.pipe
+            }
             self.emit(tokens, kind, start)
             ret
         }
         if c == '^' {
-            kind := if self.consume('=') { TokenKind.caret_eq } else { TokenKind.caret }
+            kind := if self.consume('=') {
+                TokenKind.caret_eq
+            } else {
+                TokenKind.caret
+            }
             self.emit(tokens, kind, start)
             ret
         }
@@ -349,7 +439,11 @@ Lexer :: struct {
             ret
         }
         if c == '=' {
-            kind := if self.consume('=') { TokenKind.eq_eq } else { TokenKind.eq }
+            kind := if self.consume('=') {
+                TokenKind.eq_eq
+            } else {
+                TokenKind.eq
+            }
             self.emit(tokens, kind, start)
             ret
         }
@@ -362,7 +456,11 @@ Lexer :: struct {
             ret
         }
         if c == ':' {
-            kind := if self.consume(':') { TokenKind.colon_colon } else { TokenKind.colon }
+            kind := if self.consume(':') {
+                TokenKind.colon_colon
+            } else {
+                TokenKind.colon
+            }
             self.emit(tokens, kind, start)
             ret
         }
@@ -372,21 +470,37 @@ Lexer :: struct {
         }
         if c == '<' {
             if self.consume('<') {
-                kind := if self.consume('=') { TokenKind.left_shift_eq } else { TokenKind.left_shift }
+                kind := if self.consume('=') {
+                    TokenKind.left_shift_eq
+                } else {
+                    TokenKind.left_shift
+                }
                 self.emit(tokens, kind, start)
                 ret
             }
-            kind := if self.consume('=') { TokenKind.lt_eq } else { TokenKind.lt }
+            kind := if self.consume('=') {
+                TokenKind.lt_eq
+            } else {
+                TokenKind.lt
+            }
             self.emit(tokens, kind, start)
             ret
         }
         if c == '>' {
             if self.consume('>') {
-                kind := if self.consume('=') { TokenKind.right_shift_eq } else { TokenKind.right_shift }
+                kind := if self.consume('=') {
+                    TokenKind.right_shift_eq
+                } else {
+                    TokenKind.right_shift
+                }
                 self.emit(tokens, kind, start)
                 ret
             }
-            kind := if self.consume('=') { TokenKind.gt_eq } else { TokenKind.gt }
+            kind := if self.consume('=') {
+                TokenKind.gt_eq
+            } else {
+                TokenKind.gt
+            }
             self.emit(tokens, kind, start)
             ret
         }
@@ -430,7 +544,6 @@ Lexer :: struct {
             self.emit(tokens, TokenKind.at, start)
             ret
         }
-
         self.emit(tokens, TokenKind.unknown, start)
     }
 
@@ -444,47 +557,38 @@ Lexer :: struct {
                 self.scan_whitespace(&tokens)
                 cont
             }
-
             if Ascii.is_newline(c) {
                 self.scan_newline(&tokens)
                 cont
             }
-
             if (c == '-') and (self.peek() == '-') {
                 self.scan_comment(&tokens)
                 cont
             }
-
             if Ascii.is_digit(c) {
                 self.scan_number(&tokens)
                 cont
             }
-
             if (c == 'c') and (self.peek() == '"') {
                 self.scan_str(&tokens, true)
                 cont
             }
-
             if c == '"' {
                 self.scan_str(&tokens, false)
                 cont
             }
-
             if c == '`' {
                 self.scan_raw_str(&tokens)
                 cont
             }
-
             if c == '\'' {
                 self.scan_char(&tokens)
                 cont
             }
-
             if Ascii.is_alpha(c) {
                 self.scan_identifier(&tokens)
                 cont
             }
-
             self.scan_symbol(&tokens)
         }
 

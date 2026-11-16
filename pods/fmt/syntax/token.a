@@ -7,16 +7,13 @@ TokenKind :: enum u8 {
     whitespace
     newline
     comment
-
     ident
-
     lit_int
     lit_float
     lit_str
     lit_cstr
     lit_raw_str
     lit_char
-
     kw_if
     kw_else
     kw_while
@@ -37,7 +34,6 @@ TokenKind :: enum u8 {
     kw_false
     kw_import
     kw_cmpt
-
     plus
     minus
     star
@@ -48,7 +44,6 @@ TokenKind :: enum u8 {
     star_eq
     slash_eq
     percent_eq
-
     amp
     pipe
     caret
@@ -56,12 +51,10 @@ TokenKind :: enum u8 {
     amp_eq
     pipe_eq
     caret_eq
-
     left_shift
     right_shift
     left_shift_eq
     right_shift_eq
-
     eq
     eq_eq
     bang_eq
@@ -69,16 +62,13 @@ TokenKind :: enum u8 {
     lt_eq
     gt
     gt_eq
-
     colon
     colon_colon
     semi
     comma
     dot
-
     hash
     at
-
     o_paren
     c_paren
     o_brace
@@ -87,20 +77,13 @@ TokenKind :: enum u8 {
     c_bracket
 }
 
-
 Token :: struct {
-    kind  TokenKind
-    text  Str
+    kind TokenKind
+    text Str
     start u32
-    len   u32
-
+    len u32
     new :: fn(kind TokenKind, text Str, start u32, len u32) Self {
-        .{
-            kind: kind,
-            text: text,
-            start: start,
-            len: len,
-        }
+        .{ kind: kind, text: text, start: start, len: len }
     }
 
     is_trivia :: fn(self &Self) bool {
@@ -149,17 +132,12 @@ Token :: struct {
 
 TokenList :: struct {
     tokens Vec(Token)
-
     new :: fn() Self {
-        .{
-            tokens: Vec(Token).new(),
-        }
+        .{ tokens: Vec(Token).new() }
     }
 
     with_capacity :: fn(cap u64) Self {
-        .{
-            tokens: Vec(Token).with_cap(cap),
-        }
+        .{ tokens: Vec(Token).with_cap(cap) }
     }
 
     destroy :: fn(self &Self) {

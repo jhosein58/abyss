@@ -7,7 +7,7 @@ mkdir :: fn(path &u8, mode u32) i32
 
 assert_true :: fn(cond bool, msg Str) {
     if not cond {
-        printf("assertion failed: {}\n", .{msg})
+        printf("assertion failed: {}\n", .{ msg })
         fall()
     }
 }

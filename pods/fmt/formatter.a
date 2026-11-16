@@ -4,14 +4,10 @@ import std.collections.vec: Vec
 import std.string: Str, String
 
 Formatter :: struct {
-    buf   String
+    buf String
     arena &Arena
-
     new :: fn(arena &Arena) Self {
-        .{
-            buf:   String.new(arena),
-            arena: arena
-        }
+        .{ buf: String.new(arena), arena: arena }
     }
 
     indent :: fn(self &Self, level u32) {
@@ -23,119 +19,99 @@ Formatter :: struct {
     }
 
     format_node :: fn(self &Self, node &CstNode, level u32) {
-        if node == (0 as &CstNode) { ret }
+        if node == (0 as &CstNode) {
+            ret
+        }
         k := node.kind
 
         if k == CstKind.file {
             self.format_file(node)
             ret
         }
-
         if k == CstKind.import_stmt {
             self.format_import(node)
             ret
         }
-
         if k == CstKind.binding_stmt {
             self.format_binding(node, level)
             ret
         }
-
         if k == CstKind.var_decl_stmt {
             self.format_var_decl(node, level)
             ret
         }
-
         if k == CstKind.destructure_stmt {
             self.format_destructure(node, level)
             ret
         }
-
         if k == CstKind.fn_def {
             self.format_fn(node, level)
             ret
         }
-
         if k == CstKind.struct_def {
             self.format_struct(node, level)
             ret
         }
-
         if k == CstKind.enum_def {
             self.format_enum(node, level)
             ret
         }
-
         if k == CstKind.if_expr {
             self.format_if(node, level)
             ret
         }
-
         if k == CstKind.while_expr {
             self.format_while(node, level)
             ret
         }
-
         if k == CstKind.for_expr {
             self.format_for(node, level)
             ret
         }
-
         if k == CstKind.match_expr {
             self.format_match(node, level)
             ret
         }
-
         if k == CstKind.block_expr {
             self.format_block(node, level)
             ret
         }
-
         if k == CstKind.empty_line {
             self.buf.push_char('\n' as u8)
             ret
         }
-
         if k == CstKind.comment_stmt {
             self.buf.push_str(node.text)
             ret
         }
-
         if k == CstKind.binary_expr or k == CstKind.assign_expr {
             self.format_binary(node, level)
             ret
         }
-
         if k == CstKind.unary_expr {
             self.format_unary(node, level)
             ret
         }
-
         if k == CstKind.call_expr {
             self.format_call(node, level)
             ret
         }
-
         if k == CstKind.member_expr {
             self.format_member(node, level)
             ret
         }
-
         if k == CstKind.index_expr {
             self.format_index(node, level)
             ret
         }
-
         if k == CstKind.struct_init {
             self.format_struct_init(node, level)
             ret
         }
-
         if k == CstKind.array_lit {
             self.format_array_lit(node, level)
             ret
         }
-
         if k == CstKind.paren_expr {
             self.buf.push_char('(' as u8)
             if node.child_count() > 0 {
@@ -144,7 +120,6 @@ Formatter :: struct {
             self.buf.push_char(')' as u8)
             ret
         }
-
         if k == CstKind.ret_expr {
             self.buf.push_str(Str.of("ret"))
             if node.child_count() > 0 {
@@ -153,17 +128,14 @@ Formatter :: struct {
             }
             ret
         }
-
         if k == CstKind.break_expr {
             self.buf.push_str(Str.of("break"))
             ret
         }
-
         if k == CstKind.cont_expr {
             self.buf.push_str(Str.of("cont"))
             ret
         }
-
         if k == CstKind.cmpt_expr {
             self.buf.push_str(Str.of("cmpt "))
             if node.child_count() > 0 {
@@ -171,7 +143,6 @@ Formatter :: struct {
             }
             ret
         }
-
         if k == CstKind.splice_expr {
             self.buf.push_char('#' as u8)
             if node.text.eq("paren") {
@@ -187,21 +158,21 @@ Formatter :: struct {
             }
             ret
         }
-
         if k == CstKind.builtin_expr {
             self.buf.push_char('@' as u8)
             self.buf.push_str(node.text)
             self.buf.push_char('(' as u8)
             i: u64 = 0
             while i < node.child_count() {
-                if i > 0 { self.buf.push_str(Str.of(", ")) }
+                if i > 0 {
+                    self.buf.push_str(Str.of(", "))
+                }
                 self.format_node(node.child(i), level)
                 i = i + 1
             }
             self.buf.push_char(')' as u8)
             ret
         }
-
         if k == CstKind.type_ptr {
             self.buf.push_char('&' as u8)
             if node.child_count() > 0 {
@@ -209,7 +180,6 @@ Formatter :: struct {
             }
             ret
         }
-
         if k == CstKind.type_slice {
             self.buf.push_str(Str.of("[]"))
             if node.child_count() > 0 {
@@ -217,7 +187,6 @@ Formatter :: struct {
             }
             ret
         }
-
         if k == CstKind.type_array {
             self.buf.push_char('[' as u8)
             self.buf.push_str(node.text)
@@ -227,20 +196,20 @@ Formatter :: struct {
             }
             ret
         }
-
         if k == CstKind.type_generic {
             self.buf.push_str(node.text)
             self.buf.push_char('(' as u8)
             i: u64 = 0
             while i < node.child_count() {
-                if i > 0 { self.buf.push_str(Str.of(", ")) }
+                if i > 0 {
+                    self.buf.push_str(Str.of(", "))
+                }
                 self.format_node(node.child(i), level)
                 i = i + 1
             }
             self.buf.push_char(')' as u8)
             ret
         }
-
         self.buf.push_str(node.text)
     }
 
@@ -270,12 +239,13 @@ Formatter :: struct {
             self.buf.push_str(node.child(0).text)
             ret
         }
-
         if node.child_count() > 0 {
             self.buf.push_str(Str.of(": "))
             i: u64 = 0
             while i < node.child_count() {
-                if i > 0 { self.buf.push_str(Str.of(", ")) }
+                if i > 0 {
+                    self.buf.push_str(Str.of(", "))
+                }
                 sym := node.child(i)
                 self.buf.push_str(sym.text)
                 if sym.child_count() > 0 {
@@ -327,10 +297,14 @@ Formatter :: struct {
 
     format_destructure :: fn(self &Self, node &CstNode, level u32) {
         n := node.child_count()
-        if n == 0 { ret }
+        if n == 0 {
+            ret
+        }
         i: u64 = 0
         while i < n - 1 {
-            if i > 0 { self.buf.push_str(Str.of(", ")) }
+            if i > 0 {
+                self.buf.push_str(Str.of(", "))
+            }
             self.format_node(node.child(i), level)
             i = i + 1
         }
@@ -342,7 +316,11 @@ Formatter :: struct {
         self.buf.push_str(Str.of("fn("))
         n := node.child_count()
         has_body := (n > 0) and (node.child(n - 1).kind == CstKind.block_expr)
-        param_end := if has_body { n - 1 } else { n }
+        param_end := if has_body {
+            n - 1
+        } else {
+            n
+        }
 
         has_ret := false
         if has_body and (param_end > 0) {
@@ -358,10 +336,11 @@ Formatter :: struct {
                 param_end = param_end - 1
             }
         }
-
         i: u64 = 0
         while i < param_end {
-            if i > 0 { self.buf.push_str(Str.of(", ")) }
+            if i > 0 {
+                self.buf.push_str(Str.of(", "))
+            }
             p := node.child(i)
             if p.text.eq("cmpt") {
                 self.buf.push_str(Str.of("cmpt "))
@@ -370,7 +349,9 @@ Formatter :: struct {
             if p_len > 1 {
                 j: u64 = 0
                 while j < p_len - 1 {
-                    if j > 0 { self.buf.push_str(Str.of(", ")) }
+                    if j > 0 {
+                        self.buf.push_str(Str.of(", "))
+                    }
                     self.format_node(p.child(j), level)
                     j = j + 1
                 }
@@ -387,7 +368,6 @@ Formatter :: struct {
             self.buf.push_char(' ' as u8)
             self.format_node(node.child(param_end), level)
         }
-
         if has_body {
             self.buf.push_char(' ' as u8)
             self.format_block(node.child(n - 1), level)
@@ -399,7 +379,9 @@ Formatter :: struct {
             self.buf.push_str(Str.of("struct { "))
             i: u64 = 0
             while i < node.child_count() {
-                if i > 0 { self.buf.push_str(Str.of(", ")) }
+                if i > 0 {
+                    self.buf.push_str(Str.of(", "))
+                }
                 f := node.child(i)
                 if f.child_count() > 0 {
                     self.format_node(f.child(0), level)
@@ -409,13 +391,11 @@ Formatter :: struct {
             self.buf.push_str(Str.of(" }"))
             ret
         }
-
         self.buf.push_str(Str.of("struct {"))
         if node.child_count() == 0 {
             self.buf.push_char('}' as u8)
             ret
         }
-
         self.buf.push_char('\n' as u8)
         inner_level := level + 1
 
@@ -438,7 +418,9 @@ Formatter :: struct {
                 if f_len > 1 {
                     j: u64 = 0
                     while j < f_len - 1 {
-                        if j > 0 { self.buf.push_str(Str.of(", ")) }
+                        if j > 0 {
+                            self.buf.push_str(Str.of(", "))
+                        }
                         self.format_node(c.child(j), inner_level)
                         j = j + 1
                     }
@@ -468,13 +450,11 @@ Formatter :: struct {
             self.format_node(node.child(0), level)
             start_idx = 1
         }
-
         self.buf.push_str(Str.of(" {"))
         if node.child_count() <= start_idx {
             self.buf.push_char('}' as u8)
             ret
         }
-
         self.buf.push_char('\n' as u8)
         inner_level := level + 1
 
@@ -541,7 +521,9 @@ Formatter :: struct {
         vars := node.child(0)
         i: u64 = 0
         while i < vars.child_count() {
-            if i > 0 { self.buf.push_str(Str.of(", ")) }
+            if i > 0 {
+                self.buf.push_str(Str.of(", "))
+            }
             self.format_node(vars.child(i), level)
             i = i + 1
         }
@@ -549,7 +531,9 @@ Formatter :: struct {
         iters := node.child(1)
         j: u64 = 0
         while j < iters.child_count() {
-            if j > 0 { self.buf.push_str(Str.of(", ")) }
+            if j > 0 {
+                self.buf.push_str(Str.of(", "))
+            }
             self.format_node(iters.child(j), level)
             j = j + 1
         }
@@ -588,7 +572,9 @@ Formatter :: struct {
                     n := arm.child_count()
                     j: u64 = 0
                     while j < n - 1 {
-                        if j > 0 { self.buf.push_str(Str.of(", ")) }
+                        if j > 0 {
+                            self.buf.push_str(Str.of(", "))
+                        }
                         self.format_node(arm.child(j), inner_level)
                         j = j + 1
                     }
@@ -610,7 +596,6 @@ Formatter :: struct {
             self.buf.push_char('}' as u8)
             ret
         }
-
         self.buf.push_char('\n' as u8)
         inner_level := level + 1
 
@@ -656,7 +641,9 @@ Formatter :: struct {
         self.buf.push_char('(' as u8)
         i: u64 = 1
         while i < node.child_count() {
-            if i > 1 { self.buf.push_str(Str.of(", ")) }
+            if i > 1 {
+                self.buf.push_str(Str.of(", "))
+            }
             self.format_node(node.child(i), level)
             i = i + 1
         }
@@ -682,11 +669,12 @@ Formatter :: struct {
             self.buf.push_char('}' as u8)
             ret
         }
-
         self.buf.push_char(' ' as u8)
         i: u64 = 0
         while i < node.child_count() {
-            if i > 0 { self.buf.push_str(Str.of(", ")) }
+            if i > 0 {
+                self.buf.push_str(Str.of(", "))
+            }
             f := node.child(i)
             if f.text.len > 0 {
                 self.buf.push_str(f.text)
@@ -706,11 +694,12 @@ Formatter :: struct {
             self.buf.push_char(']' as u8)
             ret
         }
-
         self.buf.push_char(' ' as u8)
         i: u64 = 0
         while i < node.child_count() {
-            if i > 0 { self.buf.push_str(Str.of(", ")) }
+            if i > 0 {
+                self.buf.push_str(Str.of(", "))
+            }
             self.format_node(node.child(i), level)
             i = i + 1
         }
