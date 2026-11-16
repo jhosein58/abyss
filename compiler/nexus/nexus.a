@@ -13,43 +13,43 @@ import compiler.vm.vm: Vm
 import std.sys: fall
 
 MonoFunc :: struct {
-    orig_sym   u32
-    mono_ty    u32
-    mono_sym   u32
+    orig_sym u32
+    mono_ty u32
+    mono_sym u32
     snap_start u32
-    snap_len   u32
+    snap_len u32
 }
 
 MonoNominal :: struct {
-    sym    u32
+    sym u32
     arg_id u32
     res_ty u32
 }
 
 ConstFunc :: struct {
-    base  u32
-    ty    u32
-    key   u32
+    base u32
+    ty u32
+    key u32
     value u32
 }
 
 MonoNodeAttr :: struct {
-    node       u32
-    sym        u32
-    slot_ty    u32
-    const_ty   u32
-    const_val  u64
-    is_const   bool
-    union_val  u64
+    node u32
+    sym u32
+    slot_ty u32
+    const_ty u32
+    const_val u64
+    is_const bool
+    union_val u64
     auto_deref u32
-    rhs        u32
-    extra      u32
+    rhs u32
+    extra u32
 }
 
 NodeLoc :: struct {
-    file  u32
+    file u32
     start u32
-    end   u32
+    end u32
 }
 
 Span :: struct {
@@ -66,29 +66,30 @@ span_new :: fn(start u32, end u32) Span {
 
 span_merge :: fn(a Span, b Span) Span {
     s := a.start
-    if b.start < s { s = b.start }
-    
+    if b.start < s {
+        s = b.start
+    }
     e := a.end
-    if b.end > e { e = b.end }
-
+    if b.end > e {
+        e = b.end
+    }
     .{ start: s, end: e }
 }
 
 calc_pos :: fn(source Str, offset u32) Pos {
     line: u32 = 1
-    col:  u32 = 1
-    i:    u64 = 0
+    col: u32 = 1
+    i: u64 = 0
 
     limit := offset as u64
     if limit > source.len {
         limit = source.len
     }
-
     while i < limit {
         c := *(source.ptr + i)
         if c == *"\n" {
             line = line + 1
-            col  = 1
+            col = 1
         } else {
             col = col + 1
         }
@@ -98,107 +99,59 @@ calc_pos :: fn(source Str, offset u32) Pos {
     .{ line: line, col: col }
 }
 
-
 Symbol :: struct {
-    name      u32
-    file      u32
+    name u32
+    file u32
     tok_start u32
-    tok_end   u32
+    tok_end u32
     hir_start u32
-    hir_end   u32
-    target    u32
-    node      u32
-    mod_fid   u32
-    flags     u32
+    hir_end u32
+    target u32
+    node u32
+    mod_fid u32
+    flags u32
 }
 
 Nexus :: struct {
-    tokens         TokenStream
-    hir            HirTable
-
-    glob_stack     Vec(u32)
-    u32_items      Vec(u32)
-    interner       Interner
-    types          TypeStorage
-    unify          UnifyStorage
-    import_dirs    Vec(Str)
-    map_keys       Vec(Str)
-    map_values     Vec(Str)
-
-    symbols        Vec(Symbol)
-    hir_to_symbol  PoolU32
-
-    const_types    HashMap(u32, u32)
-    method_owner   HashMap(u32, u32)
-    mod_types      HashMap(u32, u32)
-
-    core_prelude   u32
-    std_prelude    u32
-    file_sources   Vec(Str)
-    file_paths     Vec(Str)
-    node_locs      Vec(NodeLoc)
+    tokens TokenStream
+    hir HirTable
+    glob_stack Vec(u32)
+    u32_items Vec(u32)
+    interner Interner
+    types TypeStorage
+    unify UnifyStorage
+    import_dirs Vec(Str)
+    map_keys Vec(Str)
+    map_values Vec(Str)
+    symbols Vec(Symbol)
+    hir_to_symbol PoolU32
+    const_types HashMap(u32, u32)
+    method_owner HashMap(u32, u32)
+    mod_types HashMap(u32, u32)
+    core_prelude u32
+    std_prelude u32
+    file_sources Vec(Str)
+    file_paths Vec(Str)
+    node_locs Vec(NodeLoc)
     type_specialization_depth u32
-    mono_funcs     Vec(MonoFunc)
-    sym_to_mono    PoolU32
+    mono_funcs Vec(MonoFunc)
+    sym_to_mono PoolU32
     mono_snapshots Vec(MonoNodeAttr)
-    const_funcs    Vec(ConstFunc)
+    const_funcs Vec(ConstFunc)
     const_call_args HashMap(u32, u32)
-    mono_nominals  Vec(MonoNominal)
-    union_coerce   HashMap(u32, u64)
+    mono_nominals Vec(MonoNominal)
+    union_coerce HashMap(u32, u64)
     auto_deref_depth HashMap(u32, u32)
-    for_sources    HashMap(u32, u32)
-    str_type       u32
-    const_status   PoolU32
-    const_vals     PoolU64
+    for_sources HashMap(u32, u32)
+    str_type u32
+    const_status PoolU32
+    const_vals PoolU64
     comptime_depth u32
     comptime_arena Arena
-    comptime_cg    &VmCodeGen
-    comptime_vm    &Vm
-
+    comptime_cg &VmCodeGen
+    comptime_vm &Vm
     new :: fn() Self {
-        .{
-            tokens         : TokenStream.new(),
-            hir            : HirTable.new(),
-
-            glob_stack     : Vec(u32).new(),
-            u32_items      : Vec(u32).new(),
-            interner       : Interner.new(),
-            types          : TypeStorage.new(),
-            unify          : UnifyStorage.new(),
-            import_dirs    : Vec(Str).new(),
-            map_keys       : Vec(Str).new(),
-            map_values     : Vec(Str).new(),
-
-            symbols        : Vec(Symbol).new(),
-            hir_to_symbol  : PoolU32.new(),
-
-            const_types    : HashMap(u32, u32).new(),
-            method_owner   : HashMap(u32, u32).new(),
-            mod_types      : HashMap(u32, u32).new(),
-
-            core_prelude   : id_none(),
-            std_prelude    : id_none(),
-            file_sources   : Vec(Str).new(),
-            file_paths     : Vec(Str).new(),
-            node_locs      : Vec(NodeLoc).new(),
-            type_specialization_depth : 0,
-            mono_funcs     : Vec(MonoFunc).new(),
-            sym_to_mono    : PoolU32.new(),
-            mono_snapshots : Vec(MonoNodeAttr).new(),
-            const_funcs    : Vec(ConstFunc).new(),
-            const_call_args: HashMap(u32, u32).new(),
-            mono_nominals  : Vec(MonoNominal).new(),
-            union_coerce   : HashMap(u32, u64).new(),
-            auto_deref_depth : HashMap(u32, u32).new(),
-            for_sources    : HashMap(u32, u32).new(),
-            str_type       : ty_id_none(),
-            const_status   : PoolU32.new(),
-            const_vals     : PoolU64.new(),
-            comptime_depth : 0,
-            comptime_arena : Arena.new(65536),
-            comptime_cg    : 0 as &VmCodeGen,
-            comptime_vm    : 0 as &Vm
-        }
+        .{ tokens: TokenStream.new(), hir: HirTable.new(), glob_stack: Vec(u32).new(), u32_items: Vec(u32).new(), interner: Interner.new(), types: TypeStorage.new(), unify: UnifyStorage.new(), import_dirs: Vec(Str).new(), map_keys: Vec(Str).new(), map_values: Vec(Str).new(), symbols: Vec(Symbol).new(), hir_to_symbol: PoolU32.new(), const_types: HashMap(u32, u32).new(), method_owner: HashMap(u32, u32).new(), mod_types: HashMap(u32, u32).new(), core_prelude: id_none(), std_prelude: id_none(), file_sources: Vec(Str).new(), file_paths: Vec(Str).new(), node_locs: Vec(NodeLoc).new(), type_specialization_depth: 0, mono_funcs: Vec(MonoFunc).new(), sym_to_mono: PoolU32.new(), mono_snapshots: Vec(MonoNodeAttr).new(), const_funcs: Vec(ConstFunc).new(), const_call_args: HashMap(u32, u32).new(), mono_nominals: Vec(MonoNominal).new(), union_coerce: HashMap(u32, u64).new(), auto_deref_depth: HashMap(u32, u32).new(), for_sources: HashMap(u32, u32).new(), str_type: ty_id_none(), const_status: PoolU32.new(), const_vals: PoolU64.new(), comptime_depth: 0, comptime_arena: Arena.new(65536), comptime_cg: 0 as &VmCodeGen, comptime_vm: 0 as &Vm }
     }
 
     add_list :: fn(self &Self, items Slice(u32)) u32 {
@@ -211,98 +164,61 @@ Nexus :: struct {
     get_list :: fn(self &Self, start u32) Slice(u32) {
         len := self.u32_items.get(start as u64)
 
-        .{
-            ptr: self.u32_items.ptr_at((start as u64) + 1),
-            len: len as u64
-        }
+        .{ ptr: self.u32_items.ptr_at((start as u64) + 1), len: len as u64 }
     }
 
     alloc_symbol :: fn(self &Self, file_id u32, name_id u32, tok_start u32, tok_end u32) u32 {
         id := self.symbols.len as u32
-        self.symbols.push(.{
-            name: name_id,
-            file: file_id,
-            tok_start: tok_start,
-            tok_end: tok_end,
-            hir_start: id_none(),
-            hir_end: id_none(),
-            target: id_none(),
-            node: id_none(),
-            mod_fid: id_none(),
-            flags: 0
-        })
+        self.symbols.push(.{ name: name_id, file: file_id, tok_start: tok_start, tok_end: tok_end, hir_start: id_none(), hir_end: id_none(), target: id_none(), node: id_none(), mod_fid: id_none(), flags: 0 })
         id
     }
 
     alloc_local_symbol :: fn(self &Self, file_id u32, name_id u32, hir_id u32) u32 {
         id := self.symbols.len as u32
-        self.symbols.push(.{
-            name: name_id,
-            file: file_id,
-            tok_start: id_none(),
-            tok_end: id_none(),
-            hir_start: id_none(),
-            hir_end: id_none(),
-            target: id_none(),
-            node: hir_id,
-            mod_fid: id_none(),
-            flags: 0
-        })
+        self.symbols.push(.{ name: name_id, file: file_id, tok_start: id_none(), tok_end: id_none(), hir_start: id_none(), hir_end: id_none(), target: id_none(), node: hir_id, mod_fid: id_none(), flags: 0 })
         self.set_hir_symbol(hir_id, id)
         id
     }
 
     alloc_symbol_alias :: fn(self &Self, file_id u32, name_id u32, target_sym u32) u32 {
         id := self.symbols.len as u32
-        self.symbols.push(.{
-            name: name_id,
-            file: file_id,
-            tok_start: id_none(),
-            tok_end: id_none(),
-            hir_start: id_none(),
-            hir_end: id_none(),
-            target: target_sym,
-            node: id_none(),
-            mod_fid: id_none(),
-            flags: 0
-        })
+        self.symbols.push(.{ name: name_id, file: file_id, tok_start: id_none(), tok_end: id_none(), hir_start: id_none(), hir_end: id_none(), target: target_sym, node: id_none(), mod_fid: id_none(), flags: 0 })
         id
     }
 
     alloc_module_symbol :: fn(self &Self, file_id u32, name_id u32, target_fid u32) u32 {
         id := self.symbols.len as u32
-        self.symbols.push(.{
-            name: name_id,
-            file: file_id,
-            tok_start: id_none(),
-            tok_end: id_none(),
-            hir_start: id_none(),
-            hir_end: id_none(),
-            target: id_none(),
-            node: id_none(),
-            mod_fid: target_fid,
-            flags: 0
-        })
+        self.symbols.push(.{ name: name_id, file: file_id, tok_start: id_none(), tok_end: id_none(), hir_start: id_none(), hir_end: id_none(), target: id_none(), node: id_none(), mod_fid: target_fid, flags: 0 })
         id
     }
 
     is_module_sym :: fn(self &Self, sym_id u32) bool {
-        if sym_id == id_none() { ret false }
+        if sym_id == id_none() {
+            ret false
+        }
         real_s := self.resolve_sym(sym_id)
-        if real_s >= (self.symbols.len as u32) { ret false }
+        if real_s >= (self.symbols.len as u32) {
+            ret false
+        }
         self.symbols.get(real_s as u64).mod_fid != id_none()
     }
 
     get_module_fid :: fn(self &Self, sym_id u32) u32 {
-        if sym_id == id_none() { ret id_none() }
+        if sym_id == id_none() {
+            ret id_none()
+        }
         real_s := self.resolve_sym(sym_id)
-        if real_s >= (self.symbols.len as u32) { ret id_none() }
+        if real_s >= (self.symbols.len as u32) {
+            ret id_none()
+        }
         self.symbols.get(real_s as u64).mod_fid
     }
 
     get_module_type :: fn(self &Self, fid u32) u32 {
         p := self.mod_types.get(fid)
-        if p == (0 as &u32) { ret ty_id_none() }
+        if p == (0 as &u32) {
+            ret ty_id_none()
+        }
         *p
     }
 
@@ -323,10 +239,14 @@ Nexus :: struct {
 
     find_symbol :: fn(self &Self, file_id u32, name_id u32) u32 {
         sym := self.find_local_symbol(file_id, name_id)
-        if sym != id_none() { ret sym }
+        if sym != id_none() {
+            ret sym
+        }
         if self.core_prelude != id_none() {
             sym = self.find_local_symbol(self.core_prelude, name_id)
-            if sym != id_none() { ret sym }
+            if sym != id_none() {
+                ret sym
+            }
         }
         if self.std_prelude != id_none() {
             ret self.find_local_symbol(self.std_prelude, name_id)
@@ -348,13 +268,21 @@ Nexus :: struct {
     }
 
     resolve_sym :: fn(self &Self, sym_id u32) u32 {
-        if sym_id == id_none() { ret id_none() }
-        if sym_id >= (self.symbols.len as u32) { ret sym_id }
+        if sym_id == id_none() {
+            ret id_none()
+        }
+        if sym_id >= (self.symbols.len as u32) {
+            ret sym_id
+        }
         real_s := sym_id
         while true {
-            if real_s >= (self.symbols.len as u32) { break }
+            if real_s >= (self.symbols.len as u32) {
+                break
+            }
             tgt := self.symbols.get(real_s as u64).target
-            if (tgt == id_none()) or (tgt == real_s) { break }
+            if (tgt == id_none()) or (tgt == real_s) {
+                break
+            }
             real_s = tgt
         }
         real_s
@@ -362,14 +290,18 @@ Nexus :: struct {
 
     get_fn_node :: fn(self &Self, sym_id u32) u32 {
         real_s := self.resolve_sym(sym_id)
-        if real_s == id_none() { ret id_none() }
+        if real_s == id_none() {
+            ret id_none()
+        }
         if self.is_mono_sym(real_s) {
             orig := self.get_mono_orig_sym(real_s)
             ret self.get_fn_node(orig)
         }
         hir := self.get_sym_hir(real_s)
         if hir != id_none() {
-            if self.hir.kind(hir) == hir_kind.function { ret hir }
+            if self.hir.kind(hir) == hir_kind.function {
+                ret hir
+            }
             if (self.hir.kind(hir) == hir_kind.binding) or (self.hir.kind(hir) == hir_kind.var) {
                 cand := self.hir.extra(hir)
                 if (cand != hir_none()) and (self.hir.kind(cand) == hir_kind.function) {
@@ -411,7 +343,9 @@ Nexus :: struct {
                         }
                     }
                 }
-                if scan_i > (hir + 50) { break }
+                if scan_i > (hir + 50) {
+                    break
+                }
                 scan_i = scan_i + 1
             }
         }
@@ -419,14 +353,20 @@ Nexus :: struct {
     }
 
     set_sym_hir :: fn(self &Self, sym_id u32, hir_id u32) {
-        if sym_id >= (self.symbols.len as u32) { ret }
+        if sym_id >= (self.symbols.len as u32) {
+            ret
+        }
         p := self.symbols.ptr_at(sym_id as u64)
         p.node = hir_id
     }
 
     get_sym_hir :: fn(self &Self, sym_id u32) u32 {
-        if sym_id == id_none() { ret id_none() }
-        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        if sym_id == id_none() {
+            ret id_none()
+        }
+        if sym_id >= (self.symbols.len as u32) {
+            ret id_none()
+        }
         self.symbols.get(sym_id as u64).node
     }
 
@@ -435,44 +375,60 @@ Nexus :: struct {
     }
 
     sym_name :: fn(self &Self, sym_id u32) u32 {
-        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        if sym_id >= (self.symbols.len as u32) {
+            ret id_none()
+        }
         self.symbols.get(sym_id as u64).name
     }
 
     sym_file :: fn(self &Self, sym_id u32) u32 {
-        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        if sym_id >= (self.symbols.len as u32) {
+            ret id_none()
+        }
         self.symbols.get(sym_id as u64).file
     }
 
     sym_tok_start :: fn(self &Self, sym_id u32) u32 {
-        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        if sym_id >= (self.symbols.len as u32) {
+            ret id_none()
+        }
         self.symbols.get(sym_id as u64).tok_start
     }
 
     sym_tok_end :: fn(self &Self, sym_id u32) u32 {
-        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        if sym_id >= (self.symbols.len as u32) {
+            ret id_none()
+        }
         self.symbols.get(sym_id as u64).tok_end
     }
 
     sym_hir_start :: fn(self &Self, sym_id u32) u32 {
-        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        if sym_id >= (self.symbols.len as u32) {
+            ret id_none()
+        }
         self.symbols.get(sym_id as u64).hir_start
     }
 
     sym_hir_end :: fn(self &Self, sym_id u32) u32 {
-        if sym_id >= (self.symbols.len as u32) { ret id_none() }
+        if sym_id >= (self.symbols.len as u32) {
+            ret id_none()
+        }
         self.symbols.get(sym_id as u64).hir_end
     }
 
     set_sym_hir_range :: fn(self &Self, sym_id u32, start u32, end u32) {
-        if sym_id >= (self.symbols.len as u32) { ret }
+        if sym_id >= (self.symbols.len as u32) {
+            ret
+        }
         p := self.symbols.ptr_at(sym_id as u64)
         p.hir_start = start
         p.hir_end = end
     }
 
     set_sym_resolving :: fn(self &Self, sym_id u32, resolving bool) {
-        if sym_id >= (self.symbols.len as u32) { ret }
+        if sym_id >= (self.symbols.len as u32) {
+            ret
+        }
         p := self.symbols.ptr_at(sym_id as u64)
         if resolving {
             p.flags = p.flags | 2
@@ -482,7 +438,9 @@ Nexus :: struct {
     }
 
     set_sym_mono_resolving :: fn(self &Self, sym_id u32, resolving bool) {
-        if sym_id >= (self.symbols.len as u32) { ret }
+        if sym_id >= (self.symbols.len as u32) {
+            ret
+        }
         p := self.symbols.ptr_at(sym_id as u64)
         if resolving {
             p.flags = p.flags | 4
@@ -496,8 +454,12 @@ Nexus :: struct {
     }
 
     get_hir_symbol :: fn(self &Self, hir_id u32) u32 {
-        if hir_id == id_none() { ret id_none() }
-        if hir_id >= self.hir_to_symbol.count() { ret id_none() }
+        if hir_id == id_none() {
+            ret id_none()
+        }
+        if hir_id >= self.hir_to_symbol.count() {
+            ret id_none()
+        }
         self.hir_to_symbol.get(hir_id)
     }
 
@@ -507,14 +469,20 @@ Nexus :: struct {
 
     get_const_type :: fn(self &Self, hir_id u32) u32 {
         p := self.const_types.get(hir_id)
-        if p == (0 as &u32) { ret ty_id_none() }
+        if p == (0 as &u32) {
+            ret ty_id_none()
+        }
         *p
     }
 
     get_node_type :: fn(self &Self, id u32) u32 {
-        if id == hir_none() { ret ty_id_none() }
+        if id == hir_none() {
+            ret ty_id_none()
+        }
         slot := (&self.unify).get_slot(id)
-        if slot == slot_none() { ret ty_id_none() }
+        if slot == slot_none() {
+            ret ty_id_none()
+        }
         (&self.unify).resolve_type_deep(&self.types, slot)
     }
 
@@ -535,7 +503,7 @@ Nexus :: struct {
     }
 
     type_error :: fn(self &Self, id u32, msg Str) {
-        printf("\n\033[1;31m[type error]\033[0m {}\n       --> ", .{msg})
+        printf("\n\033[1;31m[type error]\033[0m {}\n       --> ", .{ msg })
         self.print_loc(id)
         print("")
         fall()
@@ -547,28 +515,61 @@ Nexus :: struct {
 
     get_method_owner :: fn(self &Self, hir_id u32) u32 {
         p := self.method_owner.get(hir_id)
-        if p == (0 as &u32) { ret id_none() }
+        if p == (0 as &u32) {
+            ret id_none()
+        }
         *p
     }
 
     tuple_field_name :: fn(self &Self, idx u32) u32 {
-        if idx == 0 { ret self.interner.intern(Str.of("_0")) }
-        if idx == 1 { ret self.interner.intern(Str.of("_1")) }
-        if idx == 2 { ret self.interner.intern(Str.of("_2")) }
-        if idx == 3 { ret self.interner.intern(Str.of("_3")) }
-        if idx == 4 { ret self.interner.intern(Str.of("_4")) }
-        if idx == 5 { ret self.interner.intern(Str.of("_5")) }
-        if idx == 6 { ret self.interner.intern(Str.of("_6")) }
-        if idx == 7 { ret self.interner.intern(Str.of("_7")) }
-        if idx == 8 { ret self.interner.intern(Str.of("_8")) }
-        if idx == 9 { ret self.interner.intern(Str.of("_9")) }
-        if idx == 10 { ret self.interner.intern(Str.of("_10")) }
-        if idx == 11 { ret self.interner.intern(Str.of("_11")) }
-        if idx == 12 { ret self.interner.intern(Str.of("_12")) }
-        if idx == 13 { ret self.interner.intern(Str.of("_13")) }
-        if idx == 14 { ret self.interner.intern(Str.of("_14")) }
-        if idx == 15 { ret self.interner.intern(Str.of("_15")) }
-
+        if idx == 0 {
+            ret self.interner.intern(Str.of("_0"))
+        }
+        if idx == 1 {
+            ret self.interner.intern(Str.of("_1"))
+        }
+        if idx == 2 {
+            ret self.interner.intern(Str.of("_2"))
+        }
+        if idx == 3 {
+            ret self.interner.intern(Str.of("_3"))
+        }
+        if idx == 4 {
+            ret self.interner.intern(Str.of("_4"))
+        }
+        if idx == 5 {
+            ret self.interner.intern(Str.of("_5"))
+        }
+        if idx == 6 {
+            ret self.interner.intern(Str.of("_6"))
+        }
+        if idx == 7 {
+            ret self.interner.intern(Str.of("_7"))
+        }
+        if idx == 8 {
+            ret self.interner.intern(Str.of("_8"))
+        }
+        if idx == 9 {
+            ret self.interner.intern(Str.of("_9"))
+        }
+        if idx == 10 {
+            ret self.interner.intern(Str.of("_10"))
+        }
+        if idx == 11 {
+            ret self.interner.intern(Str.of("_11"))
+        }
+        if idx == 12 {
+            ret self.interner.intern(Str.of("_12"))
+        }
+        if idx == 13 {
+            ret self.interner.intern(Str.of("_13"))
+        }
+        if idx == 14 {
+            ret self.interner.intern(Str.of("_14"))
+        }
+        if idx == 15 {
+            ret self.interner.intern(Str.of("_15"))
+        }
         buf := self.comptime_arena.alloc(32) as &u8
         *buf = 95 as u8
         temp := idx
@@ -590,9 +591,13 @@ Nexus :: struct {
     }
 
     is_tuple_name :: fn(self &Self, name_id u32) bool {
-        if name_id == id_none() { ret false }
+        if name_id == id_none() {
+            ret false
+        }
         name := self.interner.get(name_id)
-        if name.len < 2 { ret false }
+        if name.len < 2 {
+            ret false
+        }
         (*(name.ptr) == (95 as u8)) and (*(name.ptr + 1) >= (48 as u8)) and (*(name.ptr + 1) <= (57 as u8))
     }
 
@@ -605,12 +610,16 @@ Nexus :: struct {
     }
 
     is_sym_resolving :: fn(self &Self, sym_id u32) bool {
-        if sym_id >= (self.symbols.len as u32) { ret false }
+        if sym_id >= (self.symbols.len as u32) {
+            ret false
+        }
         (self.symbols.get(sym_id as u64).flags & 2) != 0
     }
 
     is_sym_mono_resolving :: fn(self &Self, sym_id u32) bool {
-        if sym_id >= (self.symbols.len as u32) { ret false }
+        if sym_id >= (self.symbols.len as u32) {
+            ret false
+        }
         (self.symbols.get(sym_id as u64).flags & 4) != 0
     }
 
@@ -619,18 +628,26 @@ Nexus :: struct {
             self.const_status.set_safe(hir_id, 0, 0)
             ret
         }
-        if self.has_const_val(hir_id) { ret }
+        if self.has_const_val(hir_id) {
+            ret
+        }
         self.const_status.set_safe(hir_id, 1, 0)
     }
 
     is_const :: fn(self &Self, hir_id u32) bool {
-        if hir_id == id_none() { ret false }
-        if hir_id >= self.const_status.count() { ret false }
+        if hir_id == id_none() {
+            ret false
+        }
+        if hir_id >= self.const_status.count() {
+            ret false
+        }
         self.const_status.get(hir_id) != 0
     }
 
     set_sym_is_const :: fn(self &Self, sym_id u32, is_c bool) {
-        if sym_id >= (self.symbols.len as u32) { ret }
+        if sym_id >= (self.symbols.len as u32) {
+            ret
+        }
         p := self.symbols.ptr_at(sym_id as u64)
         if is_c {
             p.flags = p.flags | 1
@@ -640,11 +657,19 @@ Nexus :: struct {
     }
 
     is_sym_const :: fn(self &Self, sym_id u32) bool {
-        if sym_id == id_none() { ret false }
+        if sym_id == id_none() {
+            ret false
+        }
         real_s := self.resolve_sym(sym_id)
-        if real_s == id_none() { ret false }
-        if self.is_module_sym(real_s) { ret true }
-        if real_s >= (self.symbols.len as u32) { ret false }
+        if real_s == id_none() {
+            ret false
+        }
+        if self.is_module_sym(real_s) {
+            ret true
+        }
+        if real_s >= (self.symbols.len as u32) {
+            ret false
+        }
         (self.symbols.get(real_s as u64).flags & 1) != 0
     }
 
@@ -654,19 +679,29 @@ Nexus :: struct {
     }
 
     has_const_val :: fn(self &Self, hir_id u32) bool {
-        if hir_id == id_none() { ret false }
-        if hir_id >= self.const_status.count() { ret false }
+        if hir_id == id_none() {
+            ret false
+        }
+        if hir_id >= self.const_status.count() {
+            ret false
+        }
         self.const_status.get(hir_id) == 2
     }
 
     get_const_val :: fn(self &Self, hir_id u32) u64 {
-        if hir_id == id_none() { ret 0 }
-        if hir_id >= self.const_vals.count() { ret 0 }
+        if hir_id == id_none() {
+            ret 0
+        }
+        if hir_id >= self.const_vals.count() {
+            ret 0
+        }
         self.const_vals.get(hir_id)
     }
 
     init_comptime :: fn(self &Self) {
-        if self.comptime_cg != (0 as &VmCodeGen) { ret }
+        if self.comptime_cg != (0 as &VmCodeGen) {
+            ret
+        }
         cg_mem := self.comptime_arena.alloc(@sizeof(VmCodeGen)) as &VmCodeGen
         *cg_mem = VmCodeGen.new(&self.comptime_arena)
         cg_mem.init_types(&self.types, &self.comptime_arena)
@@ -715,7 +750,9 @@ Nexus :: struct {
 
     get_hir_file :: fn(self &Self, hir_id u32) u32 {
         idx := hir_id as u64
-        if idx >= self.node_locs.len { ret id_none() }
+        if idx >= self.node_locs.len {
+            ret id_none()
+        }
         self.node_locs.get(idx).file
     }
 
@@ -736,12 +773,16 @@ Nexus :: struct {
     }
 
     get_file_path :: fn(self &Self, file_id u32) Str {
-        if (file_id as u64) >= self.file_paths.len { ret Str.of("unknown") }
+        if (file_id as u64) >= self.file_paths.len {
+            ret Str.of("unknown")
+        }
         self.file_paths.get(file_id as u64)
     }
 
     get_file_source :: fn(self &Self, file_id u32) Str {
-        if (file_id as u64) >= self.file_sources.len { ret Str.of("") }
+        if (file_id as u64) >= self.file_sources.len {
+            ret Str.of("")
+        }
         self.file_sources.get(file_id as u64)
     }
 
@@ -752,7 +793,6 @@ Nexus :: struct {
         if (fid == id_none()) or ((fid as u64) >= self.file_sources.len) {
             ret .{ line: 1, col: 1 }
         }
-
         src := self.file_sources.get(fid as u64)
         calc_pos(src, span.start)
     }
@@ -768,7 +808,7 @@ Nexus :: struct {
         fid := self.get_hir_file(hir_id)
         path := self.get_file_path(fid)
         pos := self.get_pos(hir_id)
-        printf("{}:{}:{}", .{path, pos.line, pos.col})
+        printf("{}:{}:{}", .{ path, pos.line, pos.col })
     }
 
     specialize_const_func :: fn(self &Self, base u32, key Slice(u32), values Slice(u32)) u32 {
@@ -780,20 +820,19 @@ Nexus :: struct {
                 same := stored.len == key.len
                 j: u64 = 0
                 while same and (j < key.len) {
-                    if *(stored.ptr + j) != *(key.ptr + j) { same = false }
+                    if *(stored.ptr + j) != *(key.ptr + j) {
+                        same = false
+                    }
                     j = j + 1
                 }
-                if same { ret cf.ty }
+                if same {
+                    ret cf.ty
+                }
             }
             i = i + 1
         }
         ty := self.types.push(TyKind.func, self.types.payload(base))
-        self.const_funcs.push(.{
-            base: base,
-            ty: ty,
-            key: self.add_list(key),
-            value: self.add_list(values)
-        })
+        self.const_funcs.push(.{ base: base, ty: ty, key: self.add_list(key), value: self.add_list(values) })
         ty
     }
 
@@ -819,7 +858,9 @@ Nexus :: struct {
     is_const_func_type :: fn(self &Self, ty u32) bool {
         i: u64 = 0
         while i < self.const_funcs.len {
-            if self.const_funcs.get(i).ty == ty { ret true }
+            if self.const_funcs.get(i).ty == ty {
+                ret true
+            }
             i = i + 1
         }
         false
@@ -831,20 +872,28 @@ Nexus :: struct {
 
     is_const_call_arg :: fn(self &Self, call u32, index u32) bool {
         p := self.const_call_args.get(call)
-        if p == (0 as &u32) { ret false }
+        if p == (0 as &u32) {
+            ret false
+        }
         list := *p
-        if list == id_none() { ret false }
+        if list == id_none() {
+            ret false
+        }
         args := self.get_list(list)
         i: u64 = 0
         while i < args.len {
-            if *(args.ptr + i) == index { ret true }
+            if *(args.ptr + i) == index {
+                ret true
+            }
             i = i + 1
         }
         false
     }
 
     find_mono_sym :: fn(self &Self, orig_sym u32, mono_ty u32) u32 {
-        if (orig_sym == id_none()) or (mono_ty == ty_id_none()) { ret id_none() }
+        if (orig_sym == id_none()) or (mono_ty == ty_id_none()) {
+            ret id_none()
+        }
         i: u64 = 0
         while i < self.mono_funcs.len {
             f := self.mono_funcs.get(i)
@@ -857,7 +906,9 @@ Nexus :: struct {
     }
 
     alloc_mono_sym :: fn(self &Self, orig_sym u32, mono_ty u32) u32 {
-        if (orig_sym == id_none()) or (mono_ty == ty_id_none()) { ret id_none() }
+        if (orig_sym == id_none()) or (mono_ty == ty_id_none()) {
+            ret id_none()
+        }
         file_id: u32 = 0
         name_id: u32 = 0
         if (orig_sym & 2147483648) != 0 {
@@ -870,58 +921,57 @@ Nexus :: struct {
             name_id = self.sym_name(orig_sym)
         }
         sym_id := self.symbols.len as u32
-        self.symbols.push(.{
-            name: name_id,
-            file: file_id,
-            tok_start: id_none(),
-            tok_end: id_none(),
-            hir_start: id_none(),
-            hir_end: id_none(),
-            target: id_none(),
-            node: id_none(),
-            mod_fid: id_none(),
-            flags: 0
-        })
+        self.symbols.push(.{ name: name_id, file: file_id, tok_start: id_none(), tok_end: id_none(), hir_start: id_none(), hir_end: id_none(), target: id_none(), node: id_none(), mod_fid: id_none(), flags: 0 })
 
         idx := self.mono_funcs.len as u32
-        self.mono_funcs.push(.{
-            orig_sym: orig_sym,
-            mono_ty: mono_ty,
-            mono_sym: sym_id,
-            snap_start: 0,
-            snap_len: 0
-        })
+        self.mono_funcs.push(.{ orig_sym: orig_sym, mono_ty: mono_ty, mono_sym: sym_id, snap_start: 0, snap_len: 0 })
         self.sym_to_mono.set_safe(sym_id, idx, id_none())
         sym_id
     }
 
     get_mono_orig_sym :: fn(self &Self, sym u32) u32 {
-        if (sym as u64) >= (self.sym_to_mono.count() as u64) { ret id_none() }
+        if (sym as u64) >= (self.sym_to_mono.count() as u64) {
+            ret id_none()
+        }
         idx := self.sym_to_mono.get(sym)
-        if idx == id_none() { ret id_none() }
+        if idx == id_none() {
+            ret id_none()
+        }
         self.mono_funcs.get(idx as u64).orig_sym
     }
 
     get_mono_type :: fn(self &Self, sym u32) u32 {
-        if (sym as u64) >= (self.sym_to_mono.count() as u64) { ret ty_id_none() }
+        if (sym as u64) >= (self.sym_to_mono.count() as u64) {
+            ret ty_id_none()
+        }
         idx := self.sym_to_mono.get(sym)
-        if idx == id_none() { ret ty_id_none() }
+        if idx == id_none() {
+            ret ty_id_none()
+        }
         self.mono_funcs.get(idx as u64).mono_ty
     }
 
     set_mono_type :: fn(self &Self, sym u32, ty u32) {
-        if (sym as u64) >= (self.sym_to_mono.count() as u64) { ret }
+        if (sym as u64) >= (self.sym_to_mono.count() as u64) {
+            ret
+        }
         idx := self.sym_to_mono.get(sym)
-        if idx == id_none() { ret }
+        if idx == id_none() {
+            ret
+        }
         f := self.mono_funcs.ptr_at(idx as u64)
         f.mono_ty = ty
     }
 
     update_mono_call_type :: fn(self &Self, node u32, old_ty u32, new_ty u32) {
-        if self.hir.kind(node) != hir_kind.call { ret }
+        if self.hir.kind(node) != hir_kind.call {
+            ret
+        }
         callee := self.hir.lhs(node)
         target_sym := self.get_hir_symbol(callee)
-        if target_sym == id_none() { ret }
+        if target_sym == id_none() {
+            ret
+        }
         target_sym = self.resolve_sym(target_sym)
         i: u64 = 0
         while i < self.mono_funcs.len {
@@ -935,7 +985,9 @@ Nexus :: struct {
     }
 
     is_mono_sym :: fn(self &Self, sym u32) bool {
-        if (sym as u64) >= (self.sym_to_mono.count() as u64) { ret false }
+        if (sym as u64) >= (self.sym_to_mono.count() as u64) {
+            ret false
+        }
         self.sym_to_mono.get(sym) != id_none()
     }
 
@@ -967,11 +1019,7 @@ Nexus :: struct {
 
     add_mono_nominal :: fn(self &Self, sym u32, args Slice(u32), res_ty u32) {
         list_id := self.add_list(args)
-        self.mono_nominals.push(.{
-            sym: sym,
-            arg_id: list_id,
-            res_ty: res_ty
-        })
+        self.mono_nominals.push(.{ sym: sym, arg_id: list_id, res_ty: res_ty })
     }
 
     set_union_coerce :: fn(self &Self, expr u32, ty u32, idx u32) {
@@ -985,19 +1033,25 @@ Nexus :: struct {
 
     has_union_coerce :: fn(self &Self, expr u32) bool {
         p := self.union_coerce.get(expr)
-        if p == (0 as &u64) { ret false }
+        if p == (0 as &u64) {
+            ret false
+        }
         (((*p) >> 32) as u32) != ty_id_none()
     }
 
     get_union_coerce_ty :: fn(self &Self, expr u32) u32 {
         p := self.union_coerce.get(expr)
-        if p == (0 as &u64) { ret ty_id_none() }
+        if p == (0 as &u64) {
+            ret ty_id_none()
+        }
         ((*p) >> 32) as u32
     }
 
     get_union_coerce_idx :: fn(self &Self, expr u32) u32 {
         p := self.union_coerce.get(expr)
-        if p == (0 as &u64) { ret 0 }
+        if p == (0 as &u64) {
+            ret 0
+        }
         (*p) as u32
     }
 
@@ -1007,13 +1061,17 @@ Nexus :: struct {
 
     get_auto_deref_depth :: fn(self &Self, expr u32) u32 {
         p := self.auto_deref_depth.get(expr)
-        if p == (0 as &u32) { ret 0 }
+        if p == (0 as &u32) {
+            ret 0
+        }
         *p
     }
 
     get_for_sources :: fn(self &Self, id u32) u32 {
         p := self.for_sources.get(id)
-        if p == (0 as &u32) { ret hir_none() }
+        if p == (0 as &u32) {
+            ret hir_none()
+        }
         *p
     }
 
@@ -1022,7 +1080,9 @@ Nexus :: struct {
     }
 
     snapshot_mono_node :: fn(self &Self, n u32) {
-        if n == id_none() { ret }
+        if n == id_none() {
+            ret
+        }
         sym := self.get_hir_symbol(n)
         slot_ty := self.get_node_type(n)
         const_ty := self.get_const_type(n)
@@ -1030,46 +1090,51 @@ Nexus :: struct {
         is_c := self.is_const(n)
         u_val: u64 = 0
         p_u := self.union_coerce.get(n)
-        if p_u != (0 as &u64) { u_val = *p_u }
+        if p_u != (0 as &u64) {
+            u_val = *p_u
+        }
         deref: u32 = 0
         p_d := self.auto_deref_depth.get(n)
-        if p_d != (0 as &u32) { deref = *p_d }
+        if p_d != (0 as &u32) {
+            deref = *p_d
+        }
         rhs := self.hir.rhs(n)
         extra := self.hir.extra(n)
-        self.mono_snapshots.push(.{
-            node: n,
-            sym: sym,
-            slot_ty: slot_ty,
-            const_ty: const_ty,
-            const_val: const_val,
-            is_const: is_c,
-            union_val: u_val,
-            auto_deref: deref,
-            rhs: rhs,
-            extra: extra
-        })
+        self.mono_snapshots.push(.{ node: n, sym: sym, slot_ty: slot_ty, const_ty: const_ty, const_val: const_val, is_const: is_c, union_val: u_val, auto_deref: deref, rhs: rhs, extra: extra })
     }
 
     has_mono_snapshot :: fn(self &Self, sym_id u32) bool {
-        if (sym_id as u64) >= (self.sym_to_mono.count() as u64) { ret false }
+        if (sym_id as u64) >= (self.sym_to_mono.count() as u64) {
+            ret false
+        }
         idx := self.sym_to_mono.get(sym_id)
-        if idx == id_none() { ret false }
+        if idx == id_none() {
+            ret false
+        }
         self.mono_funcs.get(idx as u64).snap_len > 0
     }
 
     snapshot_mono_func :: fn(self &Self, sym_id u32) {
-        if (sym_id as u64) >= (self.sym_to_mono.count() as u64) { ret }
+        if (sym_id as u64) >= (self.sym_to_mono.count() as u64) {
+            ret
+        }
         idx := self.sym_to_mono.get(sym_id)
-        if idx == id_none() { ret }
+        if idx == id_none() {
+            ret
+        }
         f := self.mono_funcs.ptr_at(idx as u64)
-        if f.snap_len > 0 { ret }
-
+        if f.snap_len > 0 {
+            ret
+        }
         orig_sym := self.get_mono_orig_sym(sym_id)
-        if orig_sym == id_none() { ret }
+        if orig_sym == id_none() {
+            ret
+        }
         real_sym := self.resolve_sym(orig_sym)
         func_id := self.get_fn_node(real_sym)
-        if func_id == id_none() { ret }
-
+        if func_id == id_none() {
+            ret
+        }
         start := self.mono_snapshots.len as u32
 
         self.snapshot_mono_node(func_id)
@@ -1088,7 +1153,6 @@ Nexus :: struct {
                 p_i = p_i + 1
             }
         }
-
         body_id := self.hir.extra(func_id)
         if body_id != hir_none() {
             n := func_id + 1
@@ -1097,7 +1161,6 @@ Nexus :: struct {
                 n = n + 1
             }
         }
-
         mono_func_ty := self.get_mono_type(sym_id)
         struct_ty := ty_id_none()
         mono_params := self.types.func_params(mono_func_ty)
@@ -1148,18 +1211,23 @@ Nexus :: struct {
                 }
             }
         }
-
         f = self.mono_funcs.ptr_at(idx as u64)
         f.snap_start = start
         f.snap_len = (self.mono_snapshots.len as u32) - start
     }
 
     restore_mono_func :: fn(self &Self, sym_id u32) {
-        if (sym_id as u64) >= (self.sym_to_mono.count() as u64) { ret }
+        if (sym_id as u64) >= (self.sym_to_mono.count() as u64) {
+            ret
+        }
         idx := self.sym_to_mono.get(sym_id)
-        if idx == id_none() { ret }
+        if idx == id_none() {
+            ret
+        }
         f := self.mono_funcs.get(idx as u64)
-        if f.snap_len == 0 { ret }
+        if f.snap_len == 0 {
+            ret
+        }
         start := f.snap_start
         len := f.snap_len
         i: u64 = 0

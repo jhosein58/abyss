@@ -6,90 +6,162 @@ import std.ascii: Ascii
 -- Fast keyword lookup grouped by token length
 match_keyword :: fn(text Str) Tk {
     if text.len == 2 {
-        if text.eq("if") { ret Tk.kw_if }
-        if text.eq("as") { ret Tk.kw_as }
-        if text.eq("or") { ret Tk.kw_or }
-        if text.eq("fn") { ret Tk.kw_fn }
-        if text.eq("in") { ret Tk.kw_in }
+        if text.eq("if") {
+            ret Tk.kw_if
+        }
+        if text.eq("as") {
+            ret Tk.kw_as
+        }
+        if text.eq("or") {
+            ret Tk.kw_or
+        }
+        if text.eq("fn") {
+            ret Tk.kw_fn
+        }
+        if text.eq("in") {
+            ret Tk.kw_in
+        }
     }
-
     if text.len == 3 {
-        if text.eq("ret") { ret Tk.kw_ret }
-        if text.eq("and") { ret Tk.kw_and }
-        if text.eq("not") { ret Tk.kw_not }
-        if text.eq("for") { ret Tk.kw_for }
+        if text.eq("ret") {
+            ret Tk.kw_ret
+        }
+        if text.eq("and") {
+            ret Tk.kw_and
+        }
+        if text.eq("not") {
+            ret Tk.kw_not
+        }
+        if text.eq("for") {
+            ret Tk.kw_for
+        }
     }
-
     if text.len == 4 {
-        if text.eq("else") { ret Tk.kw_else }
-        if text.eq("cont") { ret Tk.kw_cont }
-        if text.eq("true") { ret Tk.kw_true }
-        if text.eq("enum") { ret Tk.kw_enum }
-        if text.eq("cmpt") { ret Tk.kw_cmpt }
+        if text.eq("else") {
+            ret Tk.kw_else
+        }
+        if text.eq("cont") {
+            ret Tk.kw_cont
+        }
+        if text.eq("true") {
+            ret Tk.kw_true
+        }
+        if text.eq("enum") {
+            ret Tk.kw_enum
+        }
+        if text.eq("cmpt") {
+            ret Tk.kw_cmpt
+        }
     }
-
     if text.len == 5 {
-        if text.eq("while") { ret Tk.kw_while }
-        if text.eq("break") { ret Tk.kw_break }
-        if text.eq("false") { ret Tk.kw_false }
-        if text.eq("match") { ret Tk.kw_match }
+        if text.eq("while") {
+            ret Tk.kw_while
+        }
+        if text.eq("break") {
+            ret Tk.kw_break
+        }
+        if text.eq("false") {
+            ret Tk.kw_false
+        }
+        if text.eq("match") {
+            ret Tk.kw_match
+        }
     }
-
     if text.len == 6 {
-        if text.eq("struct") { ret Tk.kw_struct }
-        if text.eq("import") { ret Tk.kw_import }
+        if text.eq("struct") {
+            ret Tk.kw_struct
+        }
+        if text.eq("import") {
+            ret Tk.kw_import
+        }
     }
-
     Tk.ident
 }
 
 is_base_digit :: fn(c u8, base u32) bool {
-    if base == 10 { ret Ascii.is_digit(c)     }
-    if base == 16 { ret Ascii.is_hex_digit(c) }
-    if base == 2  { ret Ascii.is_bin_digit(c) }
-    if base == 8  { ret Ascii.is_oct_digit(c) }
+    if base == 10 {
+        ret Ascii.is_digit(c)
+    }
+    if base == 16 {
+        ret Ascii.is_hex_digit(c)
+    }
+    if base == 2 {
+        ret Ascii.is_bin_digit(c)
+    }
+    if base == 8 {
+        ret Ascii.is_oct_digit(c)
+    }
     false
 }
 
 -- Maps standard C/ASCII escape chars to byte values
 -- ex: simple_escape('n') == '\n'
 simple_escape :: fn(c u8) i32 {
-    if c == 'n'  { ret 10 }
-    if c == 'r'  { ret 13 }
-    if c == 't'  { ret 9  }
-    if c == '0'  { ret 0  }
-    if c == 'a'  { ret 7  }
-    if c == 'b'  { ret 8  }
-    if c == 'f'  { ret 12 }
-    if c == 'v'  { ret 11 }
-    if c == '\\' { ret 92 }
-    if c == '\'' { ret 39 }
-    if c == '"'  { ret 34 }
-    if c == '?'  { ret 63 }
-    -1 -- returns -1 on unhandled
+    if c == 'n' {
+        ret 10
+    }
+    if c == 'r' {
+        ret 13
+    }
+    if c == 't' {
+        ret 9
+    }
+    if c == '0' {
+        ret 0
+    }
+    if c == 'a' {
+        ret 7
+    }
+    if c == 'b' {
+        ret 8
+    }
+    if c == 'f' {
+        ret 12
+    }
+    if c == 'v' {
+        ret 11
+    }
+    if c == '\\' {
+        ret 92
+    }
+    if c == '\'' {
+        ret 39
+    }
+    if c == '"' {
+        ret 34
+    }
+    if c == '?' {
+        ret 63
+    }
+    -1
+    -- returns -1 on unhandled
 }
 
 -- Inspects leading byte bitmask to determine UTF-8 sequence width (1 to 4 bytes)
 utf8_len :: fn(b0 u8) u32 {
-    if (b0 & 0x80) == 0    { ret 1 }
-    if (b0 & 0xE0) == 0xC0 { ret 2 }
-    if (b0 & 0xF0) == 0xE0 { ret 3 }
-    if (b0 & 0xF8) == 0xF0 { ret 4 }
+    if (b0 & 0x80) == 0 {
+        ret 1
+    }
+    if (b0 & 0xE0) == 0xC0 {
+        ret 2
+    }
+    if (b0 & 0xF0) == 0xE0 {
+        ret 3
+    }
+    if (b0 & 0xF8) == 0xF0 {
+        ret 4
+    }
     0
 }
 
 Lexer :: struct {
     source, path Str
     cursor u64
-    had_newline bool -- Tracks preceding newline for statement separation
+    had_newline bool
+    -- Tracks preceding newline for statement separation
 
     new :: fn(source, path Str) Self {
-        .{
-            source:      source,
-            path:        path,
-            cursor:      0,
-            had_newline: true
-        }
+        .{ source: source, path: path, cursor: 0, had_newline: true }
     }
 
     is_eof :: fn(self &Self) bool {
@@ -97,12 +169,16 @@ Lexer :: struct {
     }
 
     current :: fn(self &Self) u8 {
-        if self.is_eof() { ret 0 as u8 }
+        if self.is_eof() {
+            ret 0 as u8
+        }
         *(self.source.ptr + self.cursor)
     }
 
     peek :: fn(self &Self) u8 {
-        if self.cursor + 1 >= self.source.len { ret 0 as u8 }
+        if self.cursor + 1 >= self.source.len {
+            ret 0 as u8
+        }
         *(self.source.ptr + self.cursor + 1)
     }
 
@@ -122,13 +198,15 @@ Lexer :: struct {
 
     -- Turns single operator into compound assignment if followed by '=' (e.g. + vs +=)
     match_eq :: fn(self &Self, base Tk, with_eq Tk) Tk {
-        if self.consume_char('=') { ret with_eq }
+        if self.consume_char('=') {
+            ret with_eq
+        }
         base
     }
 
     error :: fn(self &Self, msg Str, offset u64) {
         pos := calc_pos(self.source, offset as u32)
-        printf("\n[lex error] {}\n       --> {}:{}:{}\n", .{msg, self.path, pos.line, pos.col})
+        printf("\n[lex error] {}\n       --> {}:{}:{}\n", .{ msg, self.path, pos.line, pos.col })
         fall()
     }
 
@@ -141,8 +219,12 @@ Lexer :: struct {
 
     valid_escape :: fn(self &Self) bool {
         c := self.current()
-        if c == 'x' { ret Ascii.is_hex_digit(self.peek()) }
-        if c == 'u' { ret self.peek() == '{' }
+        if c == 'x' {
+            ret Ascii.is_hex_digit(self.peek())
+        }
+        if c == 'u' {
+            ret self.peek() == '{'
+        }
         simple_escape(c) >= 0
     }
 
@@ -173,10 +255,13 @@ Lexer :: struct {
         if self.current() == '0' {
             p := self.peek()
             base := 0
-            if (p == 'x') or (p == 'X') { base = 16 }
-            else if (p == 'b') or (p == 'B') { base = 2 }
-            else if (p == 'o') or (p == 'O') { base = 8 }
-
+            if (p == 'x') or (p == 'X') {
+                base = 16
+            } else if (p == 'b') or (p == 'B') {
+                base = 2
+            } else if (p == 'o') or (p == 'O') {
+                base = 8
+            }
             if base != 0 {
                 self.bump()
                 self.bump()
@@ -188,7 +273,6 @@ Lexer :: struct {
                 ret
             }
         }
-
         self.scan_digits(10)
 
         -- 2. Fractional part (requires a following digit to disambiguate from member access '.')
@@ -197,7 +281,6 @@ Lexer :: struct {
             self.bump()
             self.scan_digits(10)
         }
-
         -- 3. Exponent notation (e.g. 1e-4, 2E+10)
         if (self.current() == 'e') or (self.current() == 'E') {
             has_sign := (self.peek() == '+') or (self.peek() == '-')
@@ -209,7 +292,6 @@ Lexer :: struct {
             } else if Ascii.is_digit(self.peek()) {
                 has_exp_digits = true
             }
-
             if has_exp_digits {
                 is_float = true
                 self.bump()
@@ -219,14 +301,19 @@ Lexer :: struct {
                 self.scan_digits(10)
             }
         }
-
-        kind := if is_float { Tk.lit_float } else { Tk.lit_int }
+        kind := if is_float {
+            Tk.lit_float
+        } else {
+            Tk.lit_int
+        }
         self.emit(stream, kind, offset)
     }
 
     scan_str :: fn(self &Self, stream &TokenStream, is_c bool) {
         offset := self.cursor
-        if is_c { self.bump() }
+        if is_c {
+            self.bump()
+        }
         self.bump()
 
         while (not self.is_eof()) and (self.current() != '"') {
@@ -247,7 +334,11 @@ Lexer :: struct {
         }
         self.bump()
 
-        kind := if is_c { Tk.lit_cstr } else { Tk.lit_str }
+        kind := if is_c {
+            Tk.lit_cstr
+        } else {
+            Tk.lit_str
+        }
         self.emit(stream, kind, offset)
     }
 
@@ -344,22 +435,48 @@ Lexer :: struct {
         c := self.current()
         self.bump()
 
-        if c == '+' { ret self.match_eq(Tk.plus, Tk.plus_eq) }
-        if c == '-' { ret self.match_eq(Tk.minus, Tk.minus_eq) }
-        if c == '*' { ret self.match_eq(Tk.star, Tk.star_eq) }
-        if c == '/' { ret self.match_eq(Tk.slash, Tk.slash_eq) }
-        if c == '%' { ret self.match_eq(Tk.percent, Tk.percent_eq) }
-        if c == '&' { ret self.match_eq(Tk.amp, Tk.amp_eq) }
-        if c == '|' { ret self.match_eq(Tk.pipe, Tk.pipe_eq) }
-        if c == '^' { ret self.match_eq(Tk.caret, Tk.caret_eq) }
-        if c == '~' { ret Tk.tilde }
-        if c == '=' { ret self.match_eq(Tk.eq, Tk.eq_eq) }
-        if c == '!' { ret self.match_eq(Tk.unknown, Tk.bang_eq) }
+        if c == '+' {
+            ret self.match_eq(Tk.plus, Tk.plus_eq)
+        }
+        if c == '-' {
+            ret self.match_eq(Tk.minus, Tk.minus_eq)
+        }
+        if c == '*' {
+            ret self.match_eq(Tk.star, Tk.star_eq)
+        }
+        if c == '/' {
+            ret self.match_eq(Tk.slash, Tk.slash_eq)
+        }
+        if c == '%' {
+            ret self.match_eq(Tk.percent, Tk.percent_eq)
+        }
+        if c == '&' {
+            ret self.match_eq(Tk.amp, Tk.amp_eq)
+        }
+        if c == '|' {
+            ret self.match_eq(Tk.pipe, Tk.pipe_eq)
+        }
+        if c == '^' {
+            ret self.match_eq(Tk.caret, Tk.caret_eq)
+        }
+        if c == '~' {
+            ret Tk.tilde
+        }
+        if c == '=' {
+            ret self.match_eq(Tk.eq, Tk.eq_eq)
+        }
+        if c == '!' {
+            ret self.match_eq(Tk.unknown, Tk.bang_eq)
+        }
         if c == ':' {
-            if self.consume_char(':') { ret Tk.colon_colon }
+            if self.consume_char(':') {
+                ret Tk.colon_colon
+            }
             ret Tk.colon
         }
-        if c == '.' { ret Tk.dot }
+        if c == '.' {
+            ret Tk.dot
+        }
         if c == '<' {
             if self.consume_char('<') {
                 ret self.match_eq(Tk.left_shift, Tk.left_shift_eq)
@@ -372,17 +489,36 @@ Lexer :: struct {
             }
             ret self.match_eq(Tk.gt, Tk.gt_eq)
         }
-        if c == ',' { ret Tk.comma }
-        if c == ';' { ret Tk.semi }
-        if c == '(' { ret Tk.o_paren }
-        if c == ')' { ret Tk.c_paren }
-        if c == '{' { ret Tk.o_brace }
-        if c == '}' { ret Tk.c_brace }
-        if c == '[' { ret Tk.o_bracket }
-        if c == ']' { ret Tk.c_bracket }
-        if c == '#' { ret Tk.hash }
-        if c == '@' { ret Tk.at }
-
+        if c == ',' {
+            ret Tk.comma
+        }
+        if c == ';' {
+            ret Tk.semi
+        }
+        if c == '(' {
+            ret Tk.o_paren
+        }
+        if c == ')' {
+            ret Tk.c_paren
+        }
+        if c == '{' {
+            ret Tk.o_brace
+        }
+        if c == '}' {
+            ret Tk.c_brace
+        }
+        if c == '[' {
+            ret Tk.o_bracket
+        }
+        if c == ']' {
+            ret Tk.c_bracket
+        }
+        if c == '#' {
+            ret Tk.hash
+        }
+        if c == '@' {
+            ret Tk.at
+        }
         Tk.unknown
     }
 }
@@ -401,7 +537,6 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
             }
             cont
         }
-
         if Ascii.is_newline(c) {
             lexer.had_newline = true
             lexer.bump()
@@ -410,7 +545,6 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
             }
             cont
         }
-
         if (c == '-') and (lexer.peek() == '-') {
             lexer.bump()
             lexer.bump()
@@ -419,37 +553,30 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
             }
             cont
         }
-
         if Ascii.is_digit(c) {
             lexer.scan_number(stream)
             cont
         }
-
         if (c == 'c') and (lexer.peek() == '"') {
             lexer.scan_str(stream, true)
             cont
         }
-
         if c == '"' {
             lexer.scan_str(stream, false)
             cont
         }
-
         if c == '`' {
             lexer.scan_raw_str(stream)
             cont
         }
-
         if c == '\'' {
             lexer.scan_char(stream)
             cont
         }
-
         if Ascii.is_alpha(c) {
             lexer.scan_identifier(stream)
             cont
         }
-
         offset := lexer.cursor
         kind := lexer.scan_symbol()
         if kind == Tk.unknown {
@@ -464,21 +591,29 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
 -- Decodes character literal escape or UTF-8 sequence to unicode codepoint
 -- ex: decode_char_lit("'\\n'") == 10
 decode_char_lit :: fn(raw Str) u32 {
-    if raw.len < 3 { ret 0 }
+    if raw.len < 3 {
+        ret 0
+    }
     ptr := raw.ptr + 1
     len := raw.len - 2
 
     if *ptr == '\\' {
-        if len < 2 { ret 0 }
+        if len < 2 {
+            ret 0
+        }
         esc := *(ptr + 1)
         s := simple_escape(esc)
-        if s >= 0 { ret s as u32 }
+        if s >= 0 {
+            ret s as u32
+        }
         if esc == 'x' {
             val: u32 = 0
             i: u64 = 2
             while i < len {
                 ch := *(ptr + i)
-                if not Ascii.is_hex_digit(ch) { break }
+                if not Ascii.is_hex_digit(ch) {
+                    break
+                }
                 val = (val << 4) | Ascii.hex_digit_value(ch)
                 i = i + 1
             }
@@ -489,8 +624,12 @@ decode_char_lit :: fn(raw Str) u32 {
             i: u64 = 3
             while i < len {
                 ch := *(ptr + i)
-                if ch == '}' { break }
-                if not Ascii.is_hex_digit(ch) { break }
+                if ch == '}' {
+                    break
+                }
+                if not Ascii.is_hex_digit(ch) {
+                    break
+                }
                 val = (val << 4) | Ascii.hex_digit_value(ch)
                 i = i + 1
             }
@@ -498,7 +637,6 @@ decode_char_lit :: fn(raw Str) u32 {
         }
         ret esc as u32
     }
-
     b0 := *ptr
     n := utf8_len(b0)
     if (n <= 1) or ((len as u32) < n) {

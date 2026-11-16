@@ -17,20 +17,15 @@ import std.sys: fall
 import .lower: lower_function
 
 Engine :: struct {
-    nexus         Nexus
-    file_count    u32
-
+    nexus Nexus
+    file_count u32
     new :: fn(arena &Arena) Self {
-        res: Self = .{
-            nexus         : Nexus.new(),
-            file_count    : 0
-        }
+        res: Self = .{ nexus: Nexus.new(), file_count: 0 }
         res.nexus.init_tuple_names()
         res
     }
 
-    destroy :: fn(self &Self) {
-    }
+    destroy :: fn(self &Self) {}
 
     add_file :: fn(self &Self, arena &Arena, path Str, source Str) u32 {
         norm_path := Path.normalize(arena, path)
@@ -55,23 +50,14 @@ Engine :: struct {
             print("\n[syntax error] symbol not found")
             fall()
         }
-
-        file_id   := self.nexus.sym_file(sym_id)
+        file_id := self.nexus.sym_file(sym_id)
         tok_start := self.nexus.sym_tok_start(sym_id)
-        tok_end   := self.nexus.sym_tok_end(sym_id)
-        count     := tok_end - tok_start
+        tok_end := self.nexus.sym_tok_end(sym_id)
+        count := tok_end - tok_start
 
         hir_start := self.nexus.hir.len()
 
-        parser := Parser_new(
-            &self.nexus,
-            &self.nexus.tokens,
-            &self.nexus.hir,
-            file_id,
-            sym_id,
-            tok_start,
-            count
-        )
+        parser := Parser_new(&self.nexus, &self.nexus.tokens, &self.nexus.hir, file_id, sym_id, tok_start, count)
 
         parse_expr(&parser, 0)
         if peek(&parser) != Token.eof {
@@ -86,7 +72,7 @@ Engine :: struct {
 
     type_check :: fn(self &Self, sym_id u32) {
         hir_start := self.nexus.sym_hir_start(sym_id)
-        hir_end   := self.nexus.sym_hir_end(sym_id)
+        hir_end := self.nexus.sym_hir_end(sym_id)
 
         type_check(self, hir_start, hir_end)
         fn_node := self.nexus.get_fn_node(sym_id)
@@ -98,17 +84,21 @@ Engine :: struct {
     predeclare_nominal :: fn(self &Self, sym_id u32) {
         db := &self.nexus
         decl_hir := db.get_sym_hir(sym_id)
-        if decl_hir == id_none() { ret }
-
+        if decl_hir == id_none() {
+            ret
+        }
         hir_end := db.sym_hir_end(sym_id)
-        if (hir_end == id_none()) or (hir_end == 0) { ret }
-
+        if (hir_end == id_none()) or (hir_end == 0) {
+            ret
+        }
         root := hir_end - 1
-        if db.hir.kind(root) != hir_kind.binding { ret }
-
+        if db.hir.kind(root) != hir_kind.binding {
+            ret
+        }
         value_node := db.hir.extra(root)
-        if (value_node == id_none()) or (db.hir.kind(value_node) != hir_kind.struct_) { ret }
-
+        if (value_node == id_none()) or (db.hir.kind(value_node) != hir_kind.struct_) {
+            ret
+        }
         names_list := db.hir.lhs(value_node)
         if names_list != id_none() {
             names := db.get_list(names_list)
@@ -122,10 +112,10 @@ Engine :: struct {
                 }
             }
         }
-
         existing := db.get_const_type(decl_hir)
-        if existing != ty_id_none() { ret }
-
+        if existing != ty_id_none() {
+            ret
+        }
         name_id := db.sym_name(sym_id)
         name := db.interner.get(name_id)
         named := db.types.alloc_nominal(ty_id_none(), name, value_node)
@@ -142,7 +132,9 @@ Engine :: struct {
     }
 
     ensure_resolved :: fn(self &Self, sym_id u32) {
-        if sym_id == id_none() { ret }
+        if sym_id == id_none() {
+            ret
+        }
         db := &self.nexus
 
         real_sym := db.resolve_sym(sym_id)
@@ -151,7 +143,6 @@ Engine :: struct {
         if tok_start == id_none() {
             ret
         }
-
         decl_hir := db.get_sym_hir(real_sym)
         if decl_hir != id_none() {
             s := (&db.unify).get_slot(decl_hir)
@@ -162,18 +153,15 @@ Engine :: struct {
                 }
             }
         }
-
         if db.is_sym_resolving(real_sym) {
             ret
         }
-
         hir_start := db.sym_hir_start(real_sym)
         if hir_start == id_none() {
             db.set_sym_resolving(real_sym, true)
             self.parse(real_sym)
             db.set_sym_resolving(real_sym, false)
         }
-
         decl_hir = db.get_sym_hir(real_sym)
         if decl_hir != id_none() {
             s := (&db.unify).get_slot(decl_hir)
@@ -181,7 +169,6 @@ Engine :: struct {
                 (&db.unify).new_slot(decl_hir)
             }
         }
-
         self.predeclare_nominal(real_sym)
 
         db.set_sym_resolving(real_sym, true)
@@ -190,7 +177,9 @@ Engine :: struct {
     }
 
     slot_of :: fn(self &Self, sym_id u32) u32 {
-        if sym_id == id_none() { ret slot_none() }
+        if sym_id == id_none() {
+            ret slot_none()
+        }
         db := &self.nexus
 
         real_sym := db.resolve_sym(sym_id)
@@ -198,19 +187,24 @@ Engine :: struct {
         tok_start := db.sym_tok_start(real_sym)
         if tok_start == id_none() {
             decl_hir := db.get_sym_hir(real_sym)
-            if decl_hir == id_none() { ret slot_none() }
+            if decl_hir == id_none() {
+                ret slot_none()
+            }
             ret (&db.unify).get_slot(decl_hir)
         }
-
         self.ensure_resolved(real_sym)
         decl_hir := db.get_sym_hir(real_sym)
-        if decl_hir == id_none() { ret slot_none() }
+        if decl_hir == id_none() {
+            ret slot_none()
+        }
         (&db.unify).get_slot(decl_hir)
     }
 
     type_of :: fn(self &Self, sym_id u32) u32 {
         slot := self.slot_of(sym_id)
-        if slot == slot_none() { ret ty_id_none() }
+        if slot == slot_none() {
+            ret ty_id_none()
+        }
         (&self.nexus.unify).resolve_type(slot)
     }
 
@@ -245,7 +239,7 @@ Engine :: struct {
             print("\n[type error] main must be a function")
             fall()
         }
-          if ((&(*types)).func_params_len( ty) != 0) or (&(*types)).func_is_extern( ty) {
+        if ((&(*types)).func_params_len(ty) != 0) or (&(*types)).func_is_extern(ty) {
             print("\n[type error] main must be a defined function with no arguments")
             fall()
         }
@@ -261,7 +255,6 @@ Engine :: struct {
 
         sym_id
     }
-
 
     compile :: fn(self &Self, B type, L type, backend &B, builder &L, arena &Arena, sym_id u32) {
         visited := HashSet(u32).new()

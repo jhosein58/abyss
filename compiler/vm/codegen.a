@@ -9,24 +9,23 @@ import compiler.lexer: decode_char_lit
 malloc :: fn(size u64) &u8
 
 VmValKind :: enum u8 {
-    none,
-    stack,
-    local,
-    global,
-    const_int,
-    ptr,
-    list,
-    deref,
-    member_local,
+    none
+    stack
+    local
+    global
+    const_int
+    ptr
+    list
+    deref
+    member_local
     member_deref
 }
 
 VmVal :: struct {
-    kind      VmValKind
+    kind VmValKind
     elem_size u16
-    id        u32
-    raw       u64
-
+    id u32
+    raw u64
     empty :: fn() Self {
         .{ kind: VmValKind.none, elem_size: 0, id: 0, raw: 0 }
     }
@@ -57,16 +56,15 @@ VmVal :: struct {
 }
 
 VmLoopScope :: struct {
-    loop_start_ip   u32
+    loop_start_ip u32
     prev_loop_start u32
-    id              u32
-    break_mark      u32
-    iterator        bool
+    id u32
+    break_mark u32
+    iterator bool
 }
 
 VmCodeBuilder :: struct {
     cg &VmCodeGen
-
     new :: fn(cg &VmCodeGen) Self {
         .{ cg: cg }
     }
@@ -90,56 +88,30 @@ VmCodeBuilder :: struct {
 }
 
 VmCodeGen :: struct {
-    arena               &Arena
-    chunk               Chunk
-    main_sym            u32
-    main_entry          u32
-    current_fn          u32
+    arena &Arena
+    chunk Chunk
+    main_sym u32
+    main_entry u32
+    current_fn u32
     current_fn_ret_type u32
-    local_count         u32
-    current_loop_start  u32
-
-    types               &TypeStorage
-    local_types         Vec(u32)
-    init_field_ids      Vec(u32)
-    local_syms          Vec(u32)
-    fn_syms             Vec(u32)
-    fn_ips              Vec(u32)
-    call_fixups_ip      Vec(u32)
-    call_fixups_sym     Vec(u32)
-    if_patches          Vec(u32)
-    loop_breaks         Vec(u32)
-    field_ids           Vec(u32)
-    field_offsets       Vec(u32)
-    fn_ptr_fixups_idx   Vec(u32)
-    fn_ptr_fixups_sym   Vec(u32)
-
+    local_count u32
+    current_loop_start u32
+    types &TypeStorage
+    local_types Vec(u32)
+    init_field_ids Vec(u32)
+    local_syms Vec(u32)
+    fn_syms Vec(u32)
+    fn_ips Vec(u32)
+    call_fixups_ip Vec(u32)
+    call_fixups_sym Vec(u32)
+    if_patches Vec(u32)
+    loop_breaks Vec(u32)
+    field_ids Vec(u32)
+    field_offsets Vec(u32)
+    fn_ptr_fixups_idx Vec(u32)
+    fn_ptr_fixups_sym Vec(u32)
     new :: fn(arena &Arena) Self {
-        .{
-            arena: arena,
-            chunk: Chunk.new(),
-            main_sym: 0,
-            main_entry: 0,
-            current_fn: 0,
-            current_fn_ret_type: 0,
-            local_count: 0,
-            current_loop_start: 0,
-
-            types: 0 as &TypeStorage,
-            local_types: Vec(u32).new(),
-            init_field_ids: Vec(u32).new(),
-            local_syms: Vec(u32).new(),
-            fn_syms: Vec(u32).new(),
-            fn_ips: Vec(u32).new(),
-            call_fixups_ip: Vec(u32).new(),
-            call_fixups_sym: Vec(u32).new(),
-            if_patches: Vec(u32).new(),
-            loop_breaks: Vec(u32).new(),
-            field_ids: Vec(u32).new(),
-            field_offsets: Vec(u32).new(),
-            fn_ptr_fixups_idx: Vec(u32).new(),
-            fn_ptr_fixups_sym: Vec(u32).new()
-        }
+        .{ arena: arena, chunk: Chunk.new(), main_sym: 0, main_entry: 0, current_fn: 0, current_fn_ret_type: 0, local_count: 0, current_loop_start: 0, types: 0 as &TypeStorage, local_types: Vec(u32).new(), init_field_ids: Vec(u32).new(), local_syms: Vec(u32).new(), fn_syms: Vec(u32).new(), fn_ips: Vec(u32).new(), call_fixups_ip: Vec(u32).new(), call_fixups_sym: Vec(u32).new(), if_patches: Vec(u32).new(), loop_breaks: Vec(u32).new(), field_ids: Vec(u32).new(), field_offsets: Vec(u32).new(), fn_ptr_fixups_idx: Vec(u32).new(), fn_ptr_fixups_sym: Vec(u32).new() }
     }
 
     destroy :: fn(self &Self) {
@@ -159,11 +131,17 @@ VmCodeGen :: struct {
         self.fn_ptr_fixups_sym.destroy()
     }
 
-    empty_value :: fn(self &Self) VmVal { VmVal.empty() }
+    empty_value :: fn(self &Self) VmVal {
+        VmVal.empty()
+    }
 
-    is_vm :: fn(self &Self) bool { true }
+    is_vm :: fn(self &Self) bool {
+        true
+    }
 
-    has_value :: fn(self &Self, val VmVal) bool { val.kind != VmValKind.none }
+    has_value :: fn(self &Self, val VmVal) bool {
+        val.kind != VmValKind.none
+    }
 
     abyss_main :: fn(self &Self, sym_id u32) {
         self.main_sym = sym_id
@@ -197,9 +175,13 @@ VmCodeGen :: struct {
         t := ty
         while true {
             k := self.types.kind(t)
-            if k == TyKind.nominal { t = self.types.nominal_base(t) }
-            else if k == TyKind.ptr { t = self.types.payload(t) }
-            else { break }
+            if k == TyKind.nominal {
+                t = self.types.nominal_base(t)
+            } else if k == TyKind.ptr {
+                t = self.types.payload(t)
+            } else {
+                break
+            }
         }
         t
     }
@@ -216,7 +198,9 @@ VmCodeGen :: struct {
         count := fields.len / 2
         i: u64 = 0
         while i < count {
-            if *(fields.ptr + (i * 2)) == field_id { ret (i * 8) as u32 }
+            if *(fields.ptr + (i * 2)) == field_id {
+                ret (i * 8) as u32
+            }
             i = i + 1
         }
         self.get_field_offset(field_id)
@@ -237,19 +221,27 @@ VmCodeGen :: struct {
     }
 
     find_struct_field_elem_size :: fn(self &Self, struct_ty u32, field_id u32) u16 {
-        if (self.types == (0 as &TypeStorage)) or (struct_ty == 0) { ret 0 }
+        if (self.types == (0 as &TypeStorage)) or (struct_ty == 0) {
+            ret 0
+        }
         ty := self.unwrap_base_type(struct_ty)
-        if self.types.kind(ty) != TyKind.struct_ { ret 0 }
+        if self.types.kind(ty) != TyKind.struct_ {
+            ret 0
+        }
         fields := self.types.get_struct_fields(ty)
         count := fields.len / 2
         i: u64 = 0
         while i < count {
             if *(fields.ptr + (i * 2)) == field_id {
                 t_f := *(fields.ptr + (i * 2) + 1)
-                while self.types.kind(t_f) == TyKind.nominal { t_f = self.types.nominal_base(t_f) }
+                while self.types.kind(t_f) == TyKind.nominal {
+                    t_f = self.types.nominal_base(t_f)
+                }
                 if self.types.kind(t_f) == TyKind.ptr {
                     pointee := self.types.payload(t_f)
-                    if self.is_struct_type(pointee) { ret 8 }
+                    if self.is_struct_type(pointee) {
+                        ret 8
+                    }
                     ret vm_element_size(self.types, pointee) as u16
                 }
                 ret 0
@@ -263,8 +255,12 @@ VmCodeGen :: struct {
         ty := self.get_local_type(slot)
         if (self.types != (0 as &TypeStorage)) and (ty != 0) {
             t := ty
-            while self.types.kind(t) == TyKind.nominal { t = self.types.nominal_base(t) }
-            if self.types.kind(t) == TyKind.ptr { ret self.types.payload(t) }
+            while self.types.kind(t) == TyKind.nominal {
+                t = self.types.nominal_base(t)
+            }
+            if self.types.kind(t) == TyKind.ptr {
+                ret self.types.payload(t)
+            }
         }
         0
     }
@@ -272,7 +268,9 @@ VmCodeGen :: struct {
     get_local_elem_size :: fn(self &Self, slot u32) u16 {
         pointee := self.get_local_pointee_type(slot)
         if pointee != 0 {
-            if self.is_struct_type(pointee) { ret 8 }
+            if self.is_struct_type(pointee) {
+                ret 8
+            }
             ret vm_element_size(self.types, pointee) as u16
         }
         0
@@ -556,13 +554,7 @@ VmCodeGen :: struct {
     }
 
     begin_loop :: fn(self &Self, id u32) VmLoopScope {
-        .{
-            loop_start_ip: 0,
-            prev_loop_start: self.current_loop_start,
-            id: id,
-            break_mark: self.loop_breaks.len as u32,
-            iterator: false
-        }
+        .{ loop_start_ip: 0, prev_loop_start: self.current_loop_start, id: id, break_mark: self.loop_breaks.len as u32, iterator: false }
     }
 
     start_loop :: fn(self &Self, arena &Arena, scope &VmLoopScope) {
@@ -616,42 +608,77 @@ VmCodeGen :: struct {
 
     extern_name :: fn(self &Self, name Str) VmVal {
         ext_id: u32 = 0
-        if name.eq(Str.of("print_cstr")) or name.eq(Str.of("print")) { ext_id = 1 }
-        else if name.eq(Str.of("print_i32")) { ext_id = 2 }
-        else if name.eq(Str.of("print_u32")) { ext_id = 3 }
-        else if name.eq(Str.of("print_bool")) { ext_id = 4 }
-        else if name.eq(Str.of("print_char")) { ext_id = 5 }
-        else if name.eq(Str.of("malloc")) { ext_id = 6 }
-        else if name.eq(Str.of("free")) { ext_id = 7 }
-        else if name.eq(Str.of("mem_copy")) { ext_id = 8 }
-        else if name.eq(Str.of("mem_set")) { ext_id = 9 }
-        else if name.eq(Str.of("print_i64")) { ext_id = 10 }
-        else if name.eq(Str.of("print_u64")) { ext_id = 11 }
-        else if name.eq(Str.of("print_i8")) { ext_id = 12 }
-        else if name.eq(Str.of("print_i16")) { ext_id = 13 }
-        else if name.eq(Str.of("print_u8")) { ext_id = 14 }
-        else if name.eq(Str.of("print_u16")) { ext_id = 15 }
-        else if name.eq(Str.of("realloc")) { ext_id = 16 }
-        else if name.eq(Str.of("print_f32")) { ext_id = 17 }
-        else if name.eq(Str.of("print_f64")) { ext_id = 18 }
-        else if name.eq(Str.of("file_open")) { ext_id = 19 }
-        else if name.eq(Str.of("file_close")) { ext_id = 20 }
-        else if name.eq(Str.of("file_seek")) { ext_id = 21 }
-        else if name.eq(Str.of("file_tell")) { ext_id = 22 }
-        else if name.eq(Str.of("file_read")) { ext_id = 23 }
-        else if name.eq(Str.of("file_write")) { ext_id = 24 }
-        else if name.eq(Str.of("get_arg_count")) { ext_id = 25 }
-        else if name.eq(Str.of("get_arg")) { ext_id = 26 }
-        else if name.eq(Str.of("get_env")) { ext_id = 27 }
-        else if name.eq(Str.of("str_len")) { ext_id = 28 }
-        else if name.eq(Str.of("abyss_fall")) { ext_id = 29 }
-        else if name.eq(Str.of("compile_and_run")) { ext_id = 30 }
-        else if name.eq(Str.of("print_f16")) { ext_id = 31 }
-        else if name.eq(Str.of("print_bytes")) { ext_id = 32 }
-        else if name.eq(Str.of("print_i128")) { ext_id = 33 }
-        else if name.eq(Str.of("print_u128")) { ext_id = 34 }
-        else if name.eq(Str.of("string_float64")) { ext_id = 35 }
-        else {
+        if name.eq(Str.of("print_cstr")) or name.eq(Str.of("print")) {
+            ext_id = 1
+        } else if name.eq(Str.of("print_i32")) {
+            ext_id = 2
+        } else if name.eq(Str.of("print_u32")) {
+            ext_id = 3
+        } else if name.eq(Str.of("print_bool")) {
+            ext_id = 4
+        } else if name.eq(Str.of("print_char")) {
+            ext_id = 5
+        } else if name.eq(Str.of("malloc")) {
+            ext_id = 6
+        } else if name.eq(Str.of("free")) {
+            ext_id = 7
+        } else if name.eq(Str.of("mem_copy")) {
+            ext_id = 8
+        } else if name.eq(Str.of("mem_set")) {
+            ext_id = 9
+        } else if name.eq(Str.of("print_i64")) {
+            ext_id = 10
+        } else if name.eq(Str.of("print_u64")) {
+            ext_id = 11
+        } else if name.eq(Str.of("print_i8")) {
+            ext_id = 12
+        } else if name.eq(Str.of("print_i16")) {
+            ext_id = 13
+        } else if name.eq(Str.of("print_u8")) {
+            ext_id = 14
+        } else if name.eq(Str.of("print_u16")) {
+            ext_id = 15
+        } else if name.eq(Str.of("realloc")) {
+            ext_id = 16
+        } else if name.eq(Str.of("print_f32")) {
+            ext_id = 17
+        } else if name.eq(Str.of("print_f64")) {
+            ext_id = 18
+        } else if name.eq(Str.of("file_open")) {
+            ext_id = 19
+        } else if name.eq(Str.of("file_close")) {
+            ext_id = 20
+        } else if name.eq(Str.of("file_seek")) {
+            ext_id = 21
+        } else if name.eq(Str.of("file_tell")) {
+            ext_id = 22
+        } else if name.eq(Str.of("file_read")) {
+            ext_id = 23
+        } else if name.eq(Str.of("file_write")) {
+            ext_id = 24
+        } else if name.eq(Str.of("get_arg_count")) {
+            ext_id = 25
+        } else if name.eq(Str.of("get_arg")) {
+            ext_id = 26
+        } else if name.eq(Str.of("get_env")) {
+            ext_id = 27
+        } else if name.eq(Str.of("str_len")) {
+            ext_id = 28
+        } else if name.eq(Str.of("abyss_fall")) {
+            ext_id = 29
+        } else if name.eq(Str.of("compile_and_run")) {
+            ext_id = 30
+        } else if name.eq(Str.of("print_f16")) {
+            ext_id = 31
+        } else if name.eq(Str.of("print_bytes")) {
+            ext_id = 32
+        } else if name.eq(Str.of("print_i128")) {
+            ext_id = 33
+        } else if name.eq(Str.of("print_u128")) {
+            ext_id = 34
+        } else if name.eq(Str.of("string_float64")) {
+            ext_id = 35
+        } else {
             buf := self.arena.alloc(name.len + 1)
             i: u64 = 0
             while i < name.len {
@@ -665,7 +692,9 @@ VmCodeGen :: struct {
         VmVal.global(1000000 + ext_id)
     }
 
-    empty_parameters :: fn(self &Self) VmVal { VmVal.empty() }
+    empty_parameters :: fn(self &Self) VmVal {
+        VmVal.empty()
+    }
 
     parameter_name :: fn(self &Self, arena &Arena, index u32) VmVal {
         VmVal.local(index)
@@ -694,10 +723,16 @@ VmCodeGen :: struct {
 
     emit_integer_cast :: fn(self &Self, ty u32) {
         width := self.types.payload(ty)
-        if (width == 0) or (width >= 64) { ret }
+        if (width == 0) or (width >= 64) {
+            ret
+        }
         self.chunk.inst(OpCode.cast_integer)
         self.chunk.emit_u8(width as u8)
-        self.chunk.emit_u8(if self.types.kind(ty) == TyKind.int { 1 as u8 } else { 0 as u8 })
+        self.chunk.emit_u8(if self.types.kind(ty) == TyKind.int {
+            1 as u8
+        } else {
+            0 as u8
+        })
     }
 
     expr_typed_cast :: fn(self &Self, arena &Arena, target VmVal, inner VmVal, source u32) VmVal {
@@ -712,17 +747,30 @@ VmCodeGen :: struct {
             self.ensure_on_stack(inner)
             if src_float {
                 width := self.types.payload(source)
-                if width == 32 { self.chunk.inst(OpCode.f32_to_f64) }
-            } else { self.emit_integer_cast(source) }
-            if src_float and dst_int { self.chunk.inst(OpCode.f64_to_i64) }
+                if width == 32 {
+                    self.chunk.inst(OpCode.f32_to_f64)
+                }
+            } else {
+                self.emit_integer_cast(source)
+            }
+            if src_float and dst_int {
+                self.chunk.inst(OpCode.f64_to_i64)
+            }
             if src_int and dst_float {
-                if src_kind == TyKind.uint { self.chunk.inst(OpCode.u64_to_f64) }
-                else { self.chunk.inst(OpCode.i64_to_f64) }
+                if src_kind == TyKind.uint {
+                    self.chunk.inst(OpCode.u64_to_f64)
+                } else {
+                    self.chunk.inst(OpCode.i64_to_f64)
+                }
             }
             if dst_float {
                 width := self.types.payload(ty)
-                if width == 32 { self.chunk.inst(OpCode.f64_to_f32) }
-            } else { self.emit_integer_cast(ty) }
+                if width == 32 {
+                    self.chunk.inst(OpCode.f64_to_f32)
+                }
+            } else {
+                self.emit_integer_cast(ty)
+            }
             ret VmVal.stack()
         }
         self.expr_cast(arena, target, inner)
@@ -753,7 +801,11 @@ VmCodeGen :: struct {
     }
 
     expr_bool :: fn(self &Self, val bool) VmVal {
-        VmVal.const_int(if val { 1 } else { 0 })
+        VmVal.const_int(if val {
+            1
+        } else {
+            0
+        })
     }
 
     expr_char_lit :: fn(self &Self, arena &Arena, raw Str) VmVal {
@@ -762,7 +814,9 @@ VmCodeGen :: struct {
 
     expr_cstr_lit :: fn(self &Self, arena &Arena, raw Str) VmVal {
         start: u64 = 1
-        if *(raw.ptr) == 'c' { start = 2 }
+        if *(raw.ptr) == 'c' {
+            start = 2
+        }
         end := raw.len - 1
         buf_len := end - start + 1
         buf := malloc(buf_len)
@@ -780,11 +834,17 @@ VmCodeGen :: struct {
                     cont
                 } else if not is_backtick {
                     src = src + 1
-                    if next == 'n' { *(buf + dst) = 10 as u8 }
-                    else if next == 't' { *(buf + dst) = 9 as u8 }
-                    else if next == 'r' { *(buf + dst) = 13 as u8 }
-                    else if next == '0' { *(buf + dst) = 0 as u8 }
-                    else { *(buf + dst) = next }
+                    if next == 'n' {
+                        *(buf + dst) = 10 as u8
+                    } else if next == 't' {
+                        *(buf + dst) = 9 as u8
+                    } else if next == 'r' {
+                        *(buf + dst) = 13 as u8
+                    } else if next == '0' {
+                        *(buf + dst) = 0 as u8
+                    } else {
+                        *(buf + dst) = next
+                    }
                     dst = dst + 1
                     src = src + 1
                     cont
@@ -849,20 +909,30 @@ VmCodeGen :: struct {
     }
 
     is_struct_type :: fn(self &Self, ty_id u32) bool {
-        if (self.types == (0 as &TypeStorage)) or (ty_id == 0) { ret false }
+        if (self.types == (0 as &TypeStorage)) or (ty_id == 0) {
+            ret false
+        }
         k := self.types.kind(self.unwrap_nominal(ty_id))
         (k == TyKind.struct_) or (k == TyKind.array)
     }
 
     struct_alloc_size :: fn(self &Self, ty_id u32) u64 {
-        if (self.types == (0 as &TypeStorage)) or (ty_id == 0) { ret 8 }
+        if (self.types == (0 as &TypeStorage)) or (ty_id == 0) {
+            ret 8
+        }
         t := self.unwrap_nominal(ty_id)
         k := self.types.kind(t)
-        if k == TyKind.array { ret type_size(self.types, t) }
-        if k != TyKind.struct_ { ret 8 }
+        if k == TyKind.array {
+            ret type_size(self.types, t)
+        }
+        if k != TyKind.struct_ {
+            ret 8
+        }
         fields := self.types.get_struct_fields(t)
         sz := (fields.len / 2) * 8
-        if sz == 0 { sz = 8 }
+        if sz == 0 {
+            sz = 8
+        }
         sz as u64
     }
 
@@ -961,23 +1031,41 @@ VmCodeGen :: struct {
             }
         }
         k := hir_kind
-        if kind == k.binary_add { self.chunk.inst(OpCode.add) }
-        else if kind == k.binary_sub { self.chunk.inst(OpCode.sub) }
-        else if kind == k.binary_mul { self.chunk.inst(OpCode.mul) }
-        else if kind == k.binary_div { self.chunk.inst(OpCode.div) }
-        else if kind == k.binary_mod { self.chunk.inst(OpCode.mod) }
-        else if kind == k.binary_eq_eq { self.chunk.inst(OpCode.eq) }
-        else if kind == k.binary_neq { self.chunk.inst(OpCode.ne) }
-        else if kind == k.binary_lt { self.chunk.inst(OpCode.lt) }
-        else if kind == k.binary_lt_eq { self.chunk.inst(OpCode.le) }
-        else if kind == k.binary_gt { self.chunk.inst(OpCode.gt) }
-        else if kind == k.binary_gt_eq { self.chunk.inst(OpCode.ge) }
-        else if kind == k.binary_bit_and { self.chunk.inst(OpCode.bit_and) }
-        else if kind == k.binary_bit_or { self.chunk.inst(OpCode.bit_or) }
-        else if kind == k.binary_bit_xor { self.chunk.inst(OpCode.bit_xor) }
-        else if kind == k.binary_shl { self.chunk.inst(OpCode.shl) }
-        else if kind == k.binary_shr { self.chunk.inst(OpCode.shr) }
-        else { self.chunk.inst(OpCode.add) }
+        if kind == k.binary_add {
+            self.chunk.inst(OpCode.add)
+        } else if kind == k.binary_sub {
+            self.chunk.inst(OpCode.sub)
+        } else if kind == k.binary_mul {
+            self.chunk.inst(OpCode.mul)
+        } else if kind == k.binary_div {
+            self.chunk.inst(OpCode.div)
+        } else if kind == k.binary_mod {
+            self.chunk.inst(OpCode.mod)
+        } else if kind == k.binary_eq_eq {
+            self.chunk.inst(OpCode.eq)
+        } else if kind == k.binary_neq {
+            self.chunk.inst(OpCode.ne)
+        } else if kind == k.binary_lt {
+            self.chunk.inst(OpCode.lt)
+        } else if kind == k.binary_lt_eq {
+            self.chunk.inst(OpCode.le)
+        } else if kind == k.binary_gt {
+            self.chunk.inst(OpCode.gt)
+        } else if kind == k.binary_gt_eq {
+            self.chunk.inst(OpCode.ge)
+        } else if kind == k.binary_bit_and {
+            self.chunk.inst(OpCode.bit_and)
+        } else if kind == k.binary_bit_or {
+            self.chunk.inst(OpCode.bit_or)
+        } else if kind == k.binary_bit_xor {
+            self.chunk.inst(OpCode.bit_xor)
+        } else if kind == k.binary_shl {
+            self.chunk.inst(OpCode.shl)
+        } else if kind == k.binary_shr {
+            self.chunk.inst(OpCode.shr)
+        } else {
+            self.chunk.inst(OpCode.add)
+        }
         VmVal.stack()
     }
 
@@ -986,13 +1074,22 @@ VmCodeGen :: struct {
         result := self.expr_binary_kind(arena, kind, lhs, rhs)
         if (self.types != (0 as &TypeStorage)) and (self.types.kind(ty) == TyKind.uint) and (self.chunk.buf.len > start) {
             op := OpCode.halt
-            if kind == hir_kind.binary_div { op = OpCode.udiv }
-            else if kind == hir_kind.binary_mod { op = OpCode.umod }
-            else if kind == hir_kind.binary_lt { op = OpCode.ult }
-            else if kind == hir_kind.binary_lt_eq { op = OpCode.ule }
-            else if kind == hir_kind.binary_gt { op = OpCode.ugt }
-            else if kind == hir_kind.binary_gt_eq { op = OpCode.uge }
-            if op != OpCode.halt { self.chunk.buf.set(self.chunk.buf.len - 1, op as u8) }
+            if kind == hir_kind.binary_div {
+                op = OpCode.udiv
+            } else if kind == hir_kind.binary_mod {
+                op = OpCode.umod
+            } else if kind == hir_kind.binary_lt {
+                op = OpCode.ult
+            } else if kind == hir_kind.binary_lt_eq {
+                op = OpCode.ule
+            } else if kind == hir_kind.binary_gt {
+                op = OpCode.ugt
+            } else if kind == hir_kind.binary_gt_eq {
+                op = OpCode.uge
+            }
+            if op != OpCode.halt {
+                self.chunk.buf.set(self.chunk.buf.len - 1, op as u8)
+            }
         }
         result
     }
@@ -1026,9 +1123,13 @@ VmCodeGen :: struct {
         VmVal.stack()
     }
 
-    expr_not :: fn(self &Self, arena &Arena, inner VmVal) VmVal { self.expr_unary_op(inner, OpCode.l_not) }
+    expr_not :: fn(self &Self, arena &Arena, inner VmVal) VmVal {
+        self.expr_unary_op(inner, OpCode.l_not)
+    }
 
-    expr_bit_not :: fn(self &Self, arena &Arena, inner VmVal) VmVal { self.expr_unary_op(inner, OpCode.bit_not) }
+    expr_bit_not :: fn(self &Self, arena &Arena, inner VmVal) VmVal {
+        self.expr_unary_op(inner, OpCode.bit_not)
+    }
 
     expr_typed_address :: fn(self &Self, arena &Arena, inner VmVal, ty u32) VmVal {
         if self.is_struct_type(ty) {
@@ -1110,7 +1211,9 @@ VmCodeGen :: struct {
                 self.chunk.emit_u16(temp_dst as u16)
                 ret VmVal.stack()
             }
-            if elem_sz == 0 { elem_sz = self.get_local_elem_size(inner.id) }
+            if elem_sz == 0 {
+                elem_sz = self.get_local_elem_size(inner.id)
+            }
             ret .{ kind: VmValKind.deref, elem_size: elem_sz, id: inner.id, raw: 0 }
         }
         self.ensure_on_stack(inner)
@@ -1230,7 +1333,9 @@ VmCodeGen :: struct {
         struct_ty := struct_name.raw as u32
         count := fields_body.id as u64
         size := count * 8
-        if size == 0 { size = 8 }
+        if size == 0 {
+            size = 8
+        }
         temp_buf := self.alloc_heap_temp(size)
 
         i := count
@@ -1267,9 +1372,13 @@ VmCodeGen :: struct {
         if (self.types != (0 as &TypeStorage)) and (elem_ty != 0) {
             elem_size = vm_element_size(self.types, elem_ty)
         }
-        if elem_size == 0 { elem_size = 8 }
+        if elem_size == 0 {
+            elem_size = 8
+        }
         total_size := c * elem_size
-        if total_size == 0 { total_size = 8 }
+        if total_size == 0 {
+            total_size = 8
+        }
         temp_buf := self.alloc_heap_temp(total_size)
 
         i := c
@@ -1309,8 +1418,9 @@ VmCodeGen :: struct {
         if (self.types != (0 as &TypeStorage)) and (elem_ty != 0) {
             elem_size = vm_element_size(self.types, elem_ty)
         }
-        if elem_size == 0 { elem_size = 8 }
-
+        if elem_size == 0 {
+            elem_size = 8
+        }
         self.ensure_on_stack(index)
         if elem_size != 1 {
             c_sz := self.chunk.alloc_const(elem_size)
@@ -1339,8 +1449,9 @@ VmCodeGen :: struct {
         if (self.types != (0 as &TypeStorage)) and (elem_ty != 0) {
             elem_size = vm_element_size(self.types, elem_ty)
         }
-        if elem_size == 0 { elem_size = 8 }
-
+        if elem_size == 0 {
+            elem_size = 8
+        }
         self.ensure_on_stack(index)
         if elem_size != 1 {
             c_sz := self.chunk.alloc_const(elem_size)
@@ -1462,11 +1573,17 @@ VmCodeGen :: struct {
         self.expr_member(arena, value, 0, field_id)
     }
 
-    expr_equal :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal { self.expr_binary_op(lhs, rhs, OpCode.eq) }
+    expr_equal :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal {
+        self.expr_binary_op(lhs, rhs, OpCode.eq)
+    }
 
-    expr_or :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal { self.expr_binary_op(lhs, rhs, OpCode.bit_or) }
+    expr_or :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal {
+        self.expr_binary_op(lhs, rhs, OpCode.bit_or)
+    }
 
-    expr_less_equal :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal { self.expr_binary_op(lhs, rhs, OpCode.le) }
+    expr_less_equal :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal {
+        self.expr_binary_op(lhs, rhs, OpCode.le)
+    }
 
     expr_add :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal {
         self.expr_binary_kind(arena, hir_kind.binary_add, lhs, rhs)
@@ -1518,24 +1635,44 @@ VmCodeGen :: struct {
 type_align :: fn(types &TypeStorage, ty_id u32) u64 {
     k := types.kind(ty_id)
     match k {
-        bool { 1 }
+        bool {
+            1
+        }
         int, uint {
             p := types.payload(ty_id)
-            if p <= 8 { ret 1 }
-            if p <= 16 { ret 2 }
-            if p <= 32 { ret 4 }
+            if p <= 8 {
+                ret 1
+            }
+            if p <= 16 {
+                ret 2
+            }
+            if p <= 32 {
+                ret 4
+            }
             8
         }
         float {
             p := types.payload(ty_id)
-            if p <= 32 { ret 4 }
+            if p <= 32 {
+                ret 4
+            }
             8
         }
-        ptr, func, type_, untyped_int, untyped_float, unknown, infer { 8 }
-        unit, never, error { 1 }
-        nominal { type_align(types, types.nominal_base(ty_id)) }
-        enum_ { type_align(types, types.enum_backing(ty_id)) }
-        array { type_align(types, types.get_array_type(ty_id)) }
+        ptr, func, type_, untyped_int, untyped_float, unknown, infer {
+            8
+        }
+        unit, never, error {
+            1
+        }
+        nominal {
+            type_align(types, types.nominal_base(ty_id))
+        }
+        enum_ {
+            type_align(types, types.enum_backing(ty_id))
+        }
+        array {
+            type_align(types, types.get_array_type(ty_id))
+        }
         struct_ {
             fields := types.get_struct_fields(ty_id)
             count := fields.len / 2
@@ -1544,7 +1681,9 @@ type_align :: fn(types &TypeStorage, ty_id u32) u64 {
             while i < count {
                 f_ty := *(fields.ptr + (i * 2) + 1)
                 a := type_align(types, f_ty)
-                if a > max_a { max_a = a }
+                if a > max_a {
+                    max_a = a
+                }
                 i = i + 1
             }
             max_a
@@ -1556,7 +1695,9 @@ type_align :: fn(types &TypeStorage, ty_id u32) u64 {
             while i < members.len {
                 m_ty := *(members.ptr + i)
                 a := type_align(types, m_ty)
-                if a > max_a { max_a = a }
+                if a > max_a {
+                    max_a = a
+                }
                 i = i + 1
             }
             max_a
@@ -1570,30 +1711,50 @@ vm_element_size :: fn(types &TypeStorage, ty u32) u64 {
         ty = types.nominal_base(ty)
         kind = types.kind(ty)
     }
-    if (kind == TyKind.struct_) or (kind == TyKind.array) or (kind == TyKind.union_) { ret 8 }
+    if (kind == TyKind.struct_) or (kind == TyKind.array) or (kind == TyKind.union_) {
+        ret 8
+    }
     type_size(types, ty)
 }
 
 type_size :: fn(types &TypeStorage, ty_id u32) u64 {
     k := types.kind(ty_id)
     match k {
-        bool { 1 }
+        bool {
+            1
+        }
         int, uint {
             p := types.payload(ty_id)
-            if p <= 8 { ret 1 }
-            if p <= 16 { ret 2 }
-            if p <= 32 { ret 4 }
+            if p <= 8 {
+                ret 1
+            }
+            if p <= 16 {
+                ret 2
+            }
+            if p <= 32 {
+                ret 4
+            }
             8
         }
         float {
             p := types.payload(ty_id)
-            if p <= 32 { ret 4 }
+            if p <= 32 {
+                ret 4
+            }
             8
         }
-        ptr, func, type_, untyped_int, untyped_float, unknown, infer { 8 }
-        unit, never, error { 0 }
-        nominal { type_size(types, types.nominal_base(ty_id)) }
-        enum_ { type_size(types, types.enum_backing(ty_id)) }
+        ptr, func, type_, untyped_int, untyped_float, unknown, infer {
+            8
+        }
+        unit, never, error {
+            0
+        }
+        nominal {
+            type_size(types, types.nominal_base(ty_id))
+        }
+        enum_ {
+            type_size(types, types.enum_backing(ty_id))
+        }
         array {
             elem_ty := types.get_array_type(ty_id)
             len := types.get_array_len(ty_id)
@@ -1609,12 +1770,18 @@ type_size :: fn(types &TypeStorage, ty_id u32) u64 {
                 f_ty := *(fields.ptr + (i * 2) + 1)
                 sz := type_size(types, f_ty)
                 a := type_align(types, f_ty)
-                if a > max_a { max_a = a }
-                if a > 0 { offset = (offset + a - 1) & ~(a - 1) }
+                if a > max_a {
+                    max_a = a
+                }
+                if a > 0 {
+                    offset = (offset + a - 1) & ~(a - 1)
+                }
                 offset = offset + sz
                 i = i + 1
             }
-            if max_a > 0 { offset = (offset + max_a - 1) & ~(max_a - 1) }
+            if max_a > 0 {
+                offset = (offset + max_a - 1) & ~(max_a - 1)
+            }
             offset
         }
         union_ {
@@ -1626,14 +1793,22 @@ type_size :: fn(types &TypeStorage, ty_id u32) u64 {
                 m_ty := *(members.ptr + i)
                 sz := type_size(types, m_ty)
                 a := type_align(types, m_ty)
-                if sz > max_m_sz { max_m_sz = sz }
-                if a > max_a { max_a = a }
+                if sz > max_m_sz {
+                    max_m_sz = sz
+                }
+                if a > max_a {
+                    max_a = a
+                }
                 i = i + 1
             }
             offset: u64 = 4
-            if max_a > 0 { offset = (offset + max_a - 1) & ~(max_a - 1) }
+            if max_a > 0 {
+                offset = (offset + max_a - 1) & ~(max_a - 1)
+            }
             offset = offset + max_m_sz
-            if max_a > 0 { offset = (offset + max_a - 1) & ~(max_a - 1) }
+            if max_a > 0 {
+                offset = (offset + max_a - 1) & ~(max_a - 1)
+            }
             offset
         }
     }
@@ -1649,7 +1824,9 @@ parse_float :: fn(s Str) f64 {
     int_part: f64 = 0.0
     while idx < s.len {
         c := *(s.ptr + idx)
-        if (c == '.') or (c == 'e') or (c == 'E') { break }
+        if (c == '.') or (c == 'e') or (c == 'E') {
+            break
+        }
         if (c >= '0') and (c <= '9') {
             int_part = int_part * 10.0 + ((c - '0') as f64)
         }
@@ -1661,7 +1838,9 @@ parse_float :: fn(s Str) f64 {
         idx = idx + 1
         while idx < s.len {
             c := *(s.ptr + idx)
-            if (c == 'e') or (c == 'E') { break }
+            if (c == 'e') or (c == 'E') {
+                break
+            }
             if (c >= '0') and (c <= '9') {
                 frac_div = frac_div * 10.0
                 frac_part = frac_part + (((c - '0') as f64) / frac_div)
@@ -1689,7 +1868,9 @@ parse_float :: fn(s Str) f64 {
             }
             idx = idx + 1
         }
-        if exp_val > 400 { exp_val = 400 }
+        if exp_val > 400 {
+            exp_val = 400
+        }
         e_i: u64 = 0
         while e_i < exp_val {
             if exp_neg {
@@ -1700,6 +1881,8 @@ parse_float :: fn(s Str) f64 {
             e_i = e_i + 1
         }
     }
-    if neg { ret -res }
+    if neg {
+        ret -res
+    }
     res
 }

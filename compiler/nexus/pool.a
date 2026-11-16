@@ -4,11 +4,8 @@ id_none :: fn() u32 {
 
 PoolU32 :: struct {
     data Vec(u32)
-
     new :: fn() Self {
-        .{
-            data: Vec(u32).new()
-        }
+        .{ data: Vec(u32).new() }
     }
 
     destroy :: fn(self &Self) {
@@ -51,11 +48,8 @@ PoolU32 :: struct {
 
 PoolU64 :: struct {
     data Vec(u64)
-
     new :: fn() Self {
-        .{
-            data: Vec(u64).new()
-        }
+        .{ data: Vec(u64).new() }
     }
 
     destroy :: fn(self &Self) {

@@ -1,34 +1,24 @@
 import compiler.token: Token, TokenStream
 import compiler.hir: HirTable
 import std.string: Str
-import compiler.nexus.nexus: Nexus,
-       calc_pos, Span, Pos, span_new, span_merge
+import compiler.nexus.nexus: Nexus, calc_pos, Span, Pos, span_new, span_merge
 import .env: ScopeEnv
 import compiler.nexus.pool: id_none
 import std.sys: fall
 
 Parser :: struct {
-    db        &Nexus
-    tokens    &TokenStream
-    hir       &HirTable
-    cursor    u32
-    end       u32
-    file_id   u32
+    db &Nexus
+    tokens &TokenStream
+    hir &HirTable
+    cursor u32
+    end u32
+    file_id u32
     toplv_sym u32
-    env       ScopeEnv
+    env ScopeEnv
 }
 
 Parser_new :: fn(db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv_sym u32, start u32, count u32) Parser {
-    .{
-        db        : db,
-        tokens    : tokens,
-        hir       : hir,
-        cursor    : start,
-        end       : start + count,
-        file_id   : file_id,
-        toplv_sym : toplv_sym,
-        env       : ScopeEnv.new()
-    }
+    .{ db: db, tokens: tokens, hir: hir, cursor: start, end: start + count, file_id: file_id, toplv_sym: toplv_sym, env: ScopeEnv.new() }
 }
 
 lookup_sym :: fn(p &Parser, name_id u32) u32 {
@@ -36,7 +26,6 @@ lookup_sym :: fn(p &Parser, name_id u32) u32 {
     if sym != id_none() {
         ret sym
     }
-
     (*p).db.find_symbol((*p).file_id, name_id)
 }
 
@@ -93,21 +82,21 @@ prev_text :: fn(p &Parser) Str {
     if (*p).cursor == 0 {
         ret Str.empty()
     }
-     p.tokens.text(p.cursor - 1)
+    p.tokens.text(p.cursor - 1)
 }
 
 tok_span :: fn(p &Parser, idx u32) Span {
     if idx >= (*p).end {
         if (*p).end > 0 {
             last := (*p).end - 1
-            st :=  p.tokens.start(last)
-            ln :=  p.tokens.len(last)
+            st := p.tokens.start(last)
+            ln := p.tokens.len(last)
             ret span_new(st + ln, st + ln)
         }
         ret span_new(0, 0)
     }
-    st :=  p.tokens.start(idx)
-    ln :=  p.tokens.len(idx)
+    st := p.tokens.start(idx)
+    ln := p.tokens.len(idx)
     span_new(st, st + ln)
 }
 
@@ -116,7 +105,9 @@ curr_span :: fn(p &Parser) Span {
 }
 
 prev_span :: fn(p &Parser) Span {
-    if (*p).cursor == 0 { ret span_new(0, 0) }
+    if (*p).cursor == 0 {
+        ret span_new(0, 0)
+    }
     tok_span(p, (*p).cursor - 1)
 }
 
@@ -124,7 +115,7 @@ parse_error_at :: fn(p &Parser, msg &u8, sp Span) {
     path := (*p).db.get_file_path((*p).file_id)
     src := (*p).db.get_file_source((*p).file_id)
     pos := calc_pos(src, sp.start)
-    printf("\n\033[1;31m[syntax error]\033[0m {}\n       --> {}:{}:{}\n\n", .{msg, path, pos.line, pos.col})
+    printf("\n\033[1;31m[syntax error]\033[0m {}\n       --> {}:{}:{}\n\n", .{ msg, path, pos.line, pos.col })
     fall()
 }
 

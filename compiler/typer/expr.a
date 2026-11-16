@@ -35,7 +35,9 @@ synth_lit_bool :: fn(db &Nexus, tbl &HirTable, id u32) {
     (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
     db.set_is_const(id, true)
     b_val: u64 = 0
-    if tbl.kind(id) == hir_kind.lit_bool_true { b_val = 1 }
+    if tbl.kind(id) == hir_kind.lit_bool_true {
+        b_val = 1
+    }
     db.set_const_val(id, b_val)
 }
 
@@ -78,12 +80,15 @@ synth_unary_num :: fn(db &Nexus, tbl &HirTable, id u32) {
         kind := db.types.kind(child_ty)
         is_int := (kind == TyKind.int) or (kind == TyKind.uint) or (kind == TyKind.untyped_int)
         if is_int {
-            if db.is_const(child) { db.set_is_const(id, true) }
+            if db.is_const(child) {
+                db.set_is_const(id, true)
+            }
             ret
         }
-        if (tbl.kind(id) == hir_kind.unary_neg) and
-           ((kind == TyKind.float) or (kind == TyKind.untyped_float)) {
-            if db.is_const(child) { db.set_is_const(id, true) }
+        if (tbl.kind(id) == hir_kind.unary_neg) and ((kind == TyKind.float) or (kind == TyKind.untyped_float)) {
+            if db.is_const(child) {
+                db.set_is_const(id, true)
+            }
             ret
         }
     }
@@ -101,13 +106,19 @@ synth_unary_not :: fn(db &Nexus, tbl &HirTable, id u32) {
         db.unify.bind_type(&db.types, child_slot, ty_id_bool())
     }
     db.unify.bind_type(&db.types, slot, ty_id_bool())
-    if db.is_const(child) { db.set_is_const(id, true) }
+    if db.is_const(child) {
+        db.set_is_const(id, true)
+    }
 }
 
 synth_unary_addr_of :: fn(db &Nexus, tbl &HirTable, id u32) {
-    if db.get_const_type(id) != ty_id_none() { ret }
+    if db.get_const_type(id) != ty_id_none() {
+        ret
+    }
     slot := db.unify.get_slot(id)
-    if slot == slot_none() { slot = db.unify.new_slot(id) }
+    if slot == slot_none() {
+        slot = db.unify.new_slot(id)
+    }
     child := tbl.lhs(id)
     child_slot := db.unify.get_slot(child)
 
@@ -120,7 +131,6 @@ synth_unary_addr_of :: fn(db &Nexus, tbl &HirTable, id u32) {
             ret
         }
     }
-
     if child_slot != slot_none() {
         child_ty := db.unify.resolve_type_deep(&db.types, child_slot)
         if db.types.kind(child_ty) == TyKind.type_ {
@@ -141,7 +151,9 @@ synth_unary_addr_of :: fn(db &Nexus, tbl &HirTable, id u32) {
 
 synth_unary_deref :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := db.unify.get_slot(id)
-    if slot == slot_none() { slot = db.unify.new_slot(id) }
+    if slot == slot_none() {
+        slot = db.unify.new_slot(id)
+    }
     child := tbl.lhs(id)
     child_slot := db.unify.get_slot(child)
 
@@ -164,7 +176,9 @@ synth_unary_deref :: fn(db &Nexus, tbl &HirTable, id u32) {
 
 synth_binary :: fn(db &Nexus, tbl &HirTable, id u32) {
     slot := db.unify.get_slot(id)
-    if slot == slot_none() { slot = db.unify.new_slot(id) }
+    if slot == slot_none() {
+        slot = db.unify.new_slot(id)
+    }
     lhs := tbl.lhs(id)
     rhs := tbl.rhs(id)
 
@@ -195,7 +209,6 @@ synth_binary :: fn(db &Nexus, tbl &HirTable, id u32) {
                 ret
             }
         }
-
         if (lhs_k == TyKind.ptr) or (rhs_k == TyKind.ptr) {
             if (lhs_k == TyKind.ptr) and rhs_int and ((op == hir_kind.binary_add) or (op == hir_kind.binary_sub)) {
                 db.unify.bind_type(&db.types, slot, lhs_ty)
@@ -206,17 +219,16 @@ synth_binary :: fn(db &Nexus, tbl &HirTable, id u32) {
                 ret
             }
         } else if lhs_num and rhs_num {
-            bitwise := (op == hir_kind.binary_bit_and) or (op == hir_kind.binary_bit_or) or
-                       (op == hir_kind.binary_bit_xor) or (op == hir_kind.binary_shl) or
-                       (op == hir_kind.binary_shr)
+            bitwise := (op == hir_kind.binary_bit_and) or (op == hir_kind.binary_bit_or) or (op == hir_kind.binary_bit_xor) or (op == hir_kind.binary_shl) or (op == hir_kind.binary_shr)
             if (not bitwise) or (lhs_int and rhs_int) {
                 db.unify.union(&db.types, lhs_slot, rhs_slot)
                 db.unify.union(&db.types, slot, lhs_slot)
-                if db.is_const(lhs) and db.is_const(rhs) { db.set_is_const(id, true) }
+                if db.is_const(lhs) and db.is_const(rhs) {
+                    db.set_is_const(id, true)
+                }
                 ret
             }
         }
-
         printf("\n[type error] invalid arithmetic operands\n       --> ", .{})
         db.print_loc(id)
         print("")
@@ -251,13 +263,14 @@ synth_assign :: fn(db &Nexus, tbl &HirTable, id u32) {
         print("")
         fall()
     }
-
     lhs_slot := db.unify.get_slot(lhs)
     rhs_slot := db.unify.get_slot(rhs)
 
     if (lhs_slot != slot_none()) and (rhs_slot != slot_none()) {
         lhs_ty := db.unify.resolve_type(lhs_slot)
-        if lhs_ty != ty_id_none() { check_value(db, rhs, lhs_ty) }
+        if lhs_ty != ty_id_none() {
+            check_value(db, rhs, lhs_ty)
+        }
         rhs_slot = db.unify.get_slot(rhs)
         db.unify.union(&db.types, lhs_slot, rhs_slot)
         rhs_ty := db.unify.resolve_type_deep(&db.types, lhs_slot)
@@ -279,17 +292,13 @@ synth_binary_comp :: fn(db &Nexus, tbl &HirTable, id u32) {
         rhs_ty := db.unify.resolve_type_deep(&db.types, rhs_slot)
         lhs_kind := db.types.kind(lhs_ty)
         rhs_kind := db.types.kind(rhs_ty)
-        lhs_num := (lhs_kind == TyKind.int) or (lhs_kind == TyKind.uint) or (lhs_kind == TyKind.float) or
-                   (lhs_kind == TyKind.untyped_int) or (lhs_kind == TyKind.untyped_float)
-        rhs_num := (rhs_kind == TyKind.int) or (rhs_kind == TyKind.uint) or (rhs_kind == TyKind.float) or
-                   (rhs_kind == TyKind.untyped_int) or (rhs_kind == TyKind.untyped_float)
+        lhs_num := (lhs_kind == TyKind.int) or (lhs_kind == TyKind.uint) or (lhs_kind == TyKind.float) or (lhs_kind == TyKind.untyped_int) or (lhs_kind == TyKind.untyped_float)
+        rhs_num := (rhs_kind == TyKind.int) or (rhs_kind == TyKind.uint) or (rhs_kind == TyKind.float) or (rhs_kind == TyKind.untyped_int) or (rhs_kind == TyKind.untyped_float)
         valid := lhs_num and rhs_num
         if not valid {
             op := tbl.kind(id)
             if (op == hir_kind.binary_eq_eq) or (op == hir_kind.binary_neq) {
-                valid = ((lhs_kind == TyKind.bool) and (rhs_kind == TyKind.bool)) or
-                        ((lhs_kind == TyKind.ptr) and (rhs_kind == TyKind.ptr)) or
-                        ((lhs_kind == TyKind.enum_) and (rhs_kind == TyKind.enum_))
+                valid = ((lhs_kind == TyKind.bool) and (rhs_kind == TyKind.bool)) or ((lhs_kind == TyKind.ptr) and (rhs_kind == TyKind.ptr)) or ((lhs_kind == TyKind.enum_) and (rhs_kind == TyKind.enum_))
             }
         }
         if not valid {
@@ -305,7 +314,9 @@ synth_binary_comp :: fn(db &Nexus, tbl &HirTable, id u32) {
         fall()
     }
     db.unify.bind_type(&db.types, slot, ty_id_bool())
-    if db.is_const(lhs) and db.is_const(rhs) { db.set_is_const(id, true) }
+    if db.is_const(lhs) and db.is_const(rhs) {
+        db.set_is_const(id, true)
+    }
 }
 
 synth_logic_and_or :: fn(db &Nexus, tbl &HirTable, id u32) {
@@ -315,22 +326,32 @@ synth_logic_and_or :: fn(db &Nexus, tbl &HirTable, id u32) {
     check_bool_operand(db, lhs, c"logical operator operand")
     check_bool_operand(db, rhs, c"logical operator operand")
     db.unify.bind_type(&db.types, slot, ty_id_bool())
-    if db.is_const(lhs) and db.is_const(rhs) { db.set_is_const(id, true) }
+    if db.is_const(lhs) and db.is_const(rhs) {
+        db.set_is_const(id, true)
+    }
 }
 
 synth_cast :: fn(eng &Engine, id u32) {
     db := &eng.nexus
     tbl := &db.hir
     slot := db.unify.get_slot(id)
-    if slot == slot_none() { slot = db.unify.new_slot(id) }
+    if slot == slot_none() {
+        slot = db.unify.new_slot(id)
+    }
     lhs := tbl.lhs(id)
     rhs := tbl.rhs(id)
-    if db.is_const(lhs) { db.set_is_const(id, true) }
+    if db.is_const(lhs) {
+        db.set_is_const(id, true)
+    }
     rhs_type := db.get_const_type(rhs)
-    if rhs_type == ty_id_none() { rhs_type = synth_type_node(eng, rhs) }
+    if rhs_type == ty_id_none() {
+        rhs_type = synth_type_node(eng, rhs)
+    }
     if (rhs_type == ty_id_none()) and db.is_const(rhs) {
         rhs_type = eval_const(db, rhs) as u32
-        if rhs_type != ty_id_none() { db.set_const_type(rhs, rhs_type) }
+        if rhs_type != ty_id_none() {
+            db.set_const_type(rhs, rhs_type)
+        }
     }
     if rhs_type != ty_id_none() {
         lhs_slot := db.unify.get_slot(lhs)
@@ -370,9 +391,7 @@ synth_cast :: fn(eng &Engine, id u32) {
                 ret
             }
         }
-        if not ((src_num and dst_num) or ((src == TyKind.ptr) and (dst == TyKind.ptr)) or
-                (src_int and (dst == TyKind.ptr)) or ((src == TyKind.ptr) and dst_int) or
-                ((src == TyKind.ptr) and (dst == TyKind.bool))) {
+        if not ((src_num and dst_num) or ((src == TyKind.ptr) and (dst == TyKind.ptr)) or (src_int and (dst == TyKind.ptr)) or ((src == TyKind.ptr) and dst_int) or ((src == TyKind.ptr) and (dst == TyKind.bool))) {
             printf("\n[type error] invalid cast\n       --> ", .{})
             db.print_loc(id)
             print("")
@@ -397,14 +416,14 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
     if slot == slot_none() {
         slot = (unify_ptr).new_slot(id)
     }
-
     name_id := (tbl).lhs(id)
     name := db.interner.get(name_id)
     args_list_id := (tbl).rhs(id)
     args := db.get_list(args_list_id)
 
-    if synth_reflection_builtin(eng, id, name, args) { ret }
-
+    if synth_reflection_builtin(eng, id, name, args) {
+        ret
+    }
     if name.eq(Str.of("sizeof")) {
         if args.len != 1 {
             printf("\n\033[1;31m[type error]\033[0m @sizeof expects exactly 1 argument\n       --> ", .{})
@@ -426,7 +445,6 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
         db.set_is_const(id, true)
         ret
     }
-
     if name.eq(Str.of("typeof")) {
         if args.len != 1 {
             printf("\n\033[1;31m[type error]\033[0m @typeof expects exactly 1 argument\n       --> ", .{})
@@ -455,7 +473,6 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
         db.set_is_const(id, true)
         ret
     }
-
     if name.eq(Str.of("is")) {
         if args.len != 2 {
             printf("\n\033[1;31m[type error]\033[0m @is expects exactly 2 arguments (val, Type)\n       --> ", .{})
@@ -477,7 +494,6 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
         db.set_const_type(id, target_ty)
         ret
     }
-
     if name.eq(Str.of("tag")) {
         if args.len != 1 {
             printf("\n\033[1;31m[type error]\033[0m @tag expects exactly 1 argument\n       --> ", .{})
@@ -491,8 +507,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
         (&(*db).unify).bind_type(&(*db).types, slot, u32_ty)
         ret
     }
-
-    printf("\n\033[1;31m[type error]\033[0m unknown builtin function '@{}'\n       --> ", .{name})
+    printf("\n\033[1;31m[type error]\033[0m unknown builtin function '@{}'\n       --> ", .{ name })
     db.print_loc(id)
     print("")
     fall()
@@ -513,7 +528,6 @@ synth_array_type_node :: fn(eng &Engine, id u32) u32 {
         print("")
         fall()
     }
-
     synth_node(eng, len_node)
     len_val := eval_const(db, len_node)
     if len_val == 0 {
@@ -535,7 +549,6 @@ synth_array_type_node :: fn(eng &Engine, id u32) u32 {
         print("")
         fall()
     }
-
     arr_ty := types_ptr.alloc_array(elem_ty, len_val as u32)
     db.set_const_type(id, arr_ty)
     slot := unify_ptr.get_slot(id)
@@ -567,7 +580,6 @@ synth_array_init :: fn(eng &Engine, id u32) {
         db.set_const_type(id, arr_ty)
         ret
     }
-
     elements := db.get_list(list_id)
     len := elements.len as u32
     i: u64 = 0
@@ -609,15 +621,17 @@ synth_index :: fn(eng &Engine, id u32) {
     if (idx_k == TyKind.untyped_int) or (idx_k == TyKind.infer) {
         unify_ptr.bind_type(types_ptr, idx_slot, types_ptr.alloc_uint(64))
     }
-
     lhs_slot := unify_ptr.get_slot(lhs)
     lhs_ty := unify_ptr.resolve_type(lhs_slot)
     if (lhs_ty == ty_id_none()) or (types_ptr.kind(lhs_ty) == TyKind.infer) {
         lhs_ty = unify_ptr.resolve_type_deep(types_ptr, lhs_slot)
     }
-    if lhs_ty == ty_id_none() { lhs_ty = db.get_node_type(lhs) }
-    if lhs_ty == ty_id_none() { lhs_ty = db.get_const_type(lhs) }
-
+    if lhs_ty == ty_id_none() {
+        lhs_ty = db.get_node_type(lhs)
+    }
+    if lhs_ty == ty_id_none() {
+        lhs_ty = db.get_const_type(lhs)
+    }
     k := types_ptr.kind(lhs_ty)
     if k == TyKind.array {
         elem_ty := types_ptr.get_array_type(lhs_ty)
@@ -641,7 +655,6 @@ synth_index :: fn(eng &Engine, id u32) {
         db.set_const_type(id, elem_ty)
         ret
     }
-
     if k == TyKind.ptr {
         elem_ty := types_ptr.payload(lhs_ty)
         res_slot := unify_ptr.new_slot(id)
@@ -649,7 +662,6 @@ synth_index :: fn(eng &Engine, id u32) {
         db.set_const_type(id, elem_ty)
         ret
     }
-
     t := lhs_ty
     while types_ptr.kind(t) == TyKind.nominal {
         t = types_ptr.nominal_base(t)
@@ -678,7 +690,6 @@ synth_index :: fn(eng &Engine, id u32) {
             ret
         }
     }
-
     printf("\n[type error] cannot index non-array type\n       --> ", .{})
     db.print_loc(lhs)
     print("")

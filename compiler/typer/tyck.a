@@ -13,11 +13,7 @@ import compiler.parser.common: check_separator
 import compiler.engine: Engine
 import .fn: synth_func, synth_return, synth_call
 import .specialize: resolve_ty_id
-import .expr: synth_lit_int, synth_lit_float, synth_lit_bool, synth_lit_str, synth_lit_char, synth_lit_cstr,
-       synth_unary_num, synth_unary_not, synth_unary_addr_of, synth_unary_deref,
-       synth_binary, synth_assign, synth_binary_comp,
-       synth_logic_and_or, synth_cast, synth_builtin_call,
-       synth_array_type, synth_array_init, synth_index
+import .expr: synth_lit_int, synth_lit_float, synth_lit_bool, synth_lit_str, synth_lit_char, synth_lit_cstr, synth_unary_num, synth_unary_not, synth_unary_addr_of, synth_unary_deref, synth_binary, synth_assign, synth_binary_comp, synth_logic_and_or, synth_cast, synth_builtin_call, synth_array_type, synth_array_init, synth_index
 import .var: synth_ident, synth_var_or_binding, synth_arg, synth_destructure, synth_type_node
 import .control: synth_block, synth_if, synth_while, synth_for, synth_break_cont, synth_match, prepare_match_bindings
 import .decl: synth_struct, synth_struct_init, synth_member, synth_enum
@@ -32,72 +28,123 @@ synth_node :: fn(eng &Engine, id u32) {
     k := hir_kind
     curr := tbl.kind(id)
 
-    if curr == k.lit_int       { synth_lit_int(db, tbl, id) }
-    if curr == k.ident         { synth_ident(eng, id) }
-    if curr == k.var           { synth_var_or_binding(eng, id) }
-    if curr == k.destructure   { synth_destructure(eng, id) }
-    if curr == k.binding       { synth_var_or_binding(eng, id) }
-    if curr == k.arg           { synth_arg(db, tbl, id) }
-    if curr == k.function      { synth_func(eng, id) }
-    if curr == k.k_ret         { synth_return(db, tbl, id) }
-    if curr == k.call          { synth_call(eng, id) }
-    if curr == k.builtin_call  { synth_builtin_call(eng, id) }
-    if curr == k.block         { synth_block(db, tbl, id) }
-    if curr == k.binary_assign { synth_assign(db, tbl, id) }
-
-    if curr == k.lit_float      { synth_lit_float(db, tbl, id) }
-    if (curr == k.lit_bool_true) or (curr == k.lit_bool_false) { synth_lit_bool(db, tbl, id) }
-    if curr == k.lit_str        { synth_lit_str(eng, id) }
-    if curr == k.lit_char       { synth_lit_char(db, tbl, id) }
-    if curr == k.lit_cstr       { synth_lit_cstr(db, tbl, id) }
-
+    if curr == k.lit_int {
+        synth_lit_int(db, tbl, id)
+    }
+    if curr == k.ident {
+        synth_ident(eng, id)
+    }
+    if curr == k.var {
+        synth_var_or_binding(eng, id)
+    }
+    if curr == k.destructure {
+        synth_destructure(eng, id)
+    }
+    if curr == k.binding {
+        synth_var_or_binding(eng, id)
+    }
+    if curr == k.arg {
+        synth_arg(db, tbl, id)
+    }
+    if curr == k.function {
+        synth_func(eng, id)
+    }
+    if curr == k.k_ret {
+        synth_return(db, tbl, id)
+    }
+    if curr == k.call {
+        synth_call(eng, id)
+    }
+    if curr == k.builtin_call {
+        synth_builtin_call(eng, id)
+    }
+    if curr == k.block {
+        synth_block(db, tbl, id)
+    }
+    if curr == k.binary_assign {
+        synth_assign(db, tbl, id)
+    }
+    if curr == k.lit_float {
+        synth_lit_float(db, tbl, id)
+    }
+    if (curr == k.lit_bool_true) or (curr == k.lit_bool_false) {
+        synth_lit_bool(db, tbl, id)
+    }
+    if curr == k.lit_str {
+        synth_lit_str(eng, id)
+    }
+    if curr == k.lit_char {
+        synth_lit_char(db, tbl, id)
+    }
+    if curr == k.lit_cstr {
+        synth_lit_cstr(db, tbl, id)
+    }
     if (curr == k.unary_neg) or (curr == k.unary_bit_not) {
         synth_unary_num(db, tbl, id)
     }
-    if curr == k.unary_not      { synth_unary_not(db, tbl, id) }
-    if curr == k.unary_addr_of  { synth_unary_addr_of(db, tbl, id) }
-    if curr == k.unary_deref    { synth_unary_deref(db, tbl, id) }
-    if (curr == k.k_break) or (curr == k.k_cont) { synth_break_cont(db, tbl, id) }
-
-    if curr == k.k_if           { synth_if(db, tbl, id) }
-    if curr == k.k_while        { synth_while(db, tbl, id) }
-    if curr == k.k_for          { synth_for(eng, id) }
-    if curr == k.k_match        { synth_match(eng, id) }
-
-    if curr == k.cast           { synth_cast(eng, id) }
-
-    if curr == k.struct_        { synth_struct(eng, id) }
-    if curr == k.struct_init    { synth_struct_init(db, tbl, id) }
-    if curr == k.enum_          { synth_enum(eng, id) }
-    if curr == k.member         { synth_member(eng, id) }
-
-    if (curr == k.binary_and) or (curr == k.binary_or) { synth_logic_and_or(db, tbl, id) }
-
-    if (curr == k.binary_add) or (curr == k.binary_sub) or
-        (curr == k.binary_mul) or (curr == k.binary_div) or
-        (curr == k.binary_mod) or (curr == k.binary_bit_and) or
-        (curr == k.binary_bit_or) or (curr == k.binary_bit_xor) or
-        (curr == k.binary_shl) or (curr == k.binary_shr) {
+    if curr == k.unary_not {
+        synth_unary_not(db, tbl, id)
+    }
+    if curr == k.unary_addr_of {
+        synth_unary_addr_of(db, tbl, id)
+    }
+    if curr == k.unary_deref {
+        synth_unary_deref(db, tbl, id)
+    }
+    if (curr == k.k_break) or (curr == k.k_cont) {
+        synth_break_cont(db, tbl, id)
+    }
+    if curr == k.k_if {
+        synth_if(db, tbl, id)
+    }
+    if curr == k.k_while {
+        synth_while(db, tbl, id)
+    }
+    if curr == k.k_for {
+        synth_for(eng, id)
+    }
+    if curr == k.k_match {
+        synth_match(eng, id)
+    }
+    if curr == k.cast {
+        synth_cast(eng, id)
+    }
+    if curr == k.struct_ {
+        synth_struct(eng, id)
+    }
+    if curr == k.struct_init {
+        synth_struct_init(db, tbl, id)
+    }
+    if curr == k.enum_ {
+        synth_enum(eng, id)
+    }
+    if curr == k.member {
+        synth_member(eng, id)
+    }
+    if (curr == k.binary_and) or (curr == k.binary_or) {
+        synth_logic_and_or(db, tbl, id)
+    }
+    if (curr == k.binary_add) or (curr == k.binary_sub) or (curr == k.binary_mul) or (curr == k.binary_div) or (curr == k.binary_mod) or (curr == k.binary_bit_and) or (curr == k.binary_bit_or) or (curr == k.binary_bit_xor) or (curr == k.binary_shl) or (curr == k.binary_shr) {
         synth_binary(db, tbl, id)
     }
-
-    if (curr == k.binary_eq_eq) or (curr == k.binary_neq) or
-       (curr == k.binary_lt) or (curr == k.binary_lt_eq) or
-       (curr == k.binary_gt) or (curr == k.binary_gt_eq) {
+    if (curr == k.binary_eq_eq) or (curr == k.binary_neq) or (curr == k.binary_lt) or (curr == k.binary_lt_eq) or (curr == k.binary_gt) or (curr == k.binary_gt_eq) {
         synth_binary_comp(db, tbl, id)
     }
-
     if curr == k.k_cmpt {
         synth_cmpt(eng, id)
     }
-
     if curr == k.splice {
         synth_splice(eng, id)
     }
-
-    if curr == k.array_init { synth_array_init(eng, id) }
-    if curr == k.index      { synth_index(eng, id) }
-    if curr == k.array      { synth_array_type(eng, id) }
+    if curr == k.array_init {
+        synth_array_init(eng, id)
+    }
+    if curr == k.index {
+        synth_index(eng, id)
+    }
+    if curr == k.array {
+        synth_array_type(eng, id)
+    }
 }
 
 synth_splice :: fn(eng &Engine, id u32) {
@@ -153,7 +200,6 @@ synth_splice :: fn(eng &Engine, id u32) {
     if macro_src.len == 0 {
         ret
     }
-
     tokens := TokenStream.new()
     lex(&tokens, macro_src, Str.of("<splice>"))
     tok_count := tokens.count() as u32
@@ -220,10 +266,7 @@ synth_splice :: fn(eng &Engine, id u32) {
             glob_stack.push(parse_expr(&sub_p, 0 as u8))
             check_separator(&sub_p, Token.eof, c"expected ',' or newline between macro expressions")
         }
-        slice: Slice(u32) = .{
-            ptr: glob_stack.ptr_at(mark),
-            len: glob_stack.len - mark
-        }
+        slice: Slice(u32) = .{ ptr: glob_stack.ptr_at(mark), len: glob_stack.len - mark }
         list_id := db.add_list(slice)
         glob_stack.reset(mark)
         node := tbl.push(hir_kind.block, list_id, hir_none(), hir_none())
@@ -240,7 +283,6 @@ synth_splice :: fn(eng &Engine, id u32) {
         print("")
         fall()
     }
-
     tbl.set_extra(id, parsed_node)
     macro_sp := db.get_hir_span(id)
     prepare_match_bindings(eng, node_start, node_end)
@@ -285,7 +327,6 @@ synth_cmpt :: fn(eng &Engine, id u32) {
     if child_slot != slot_none() {
         db.union(slot, child_slot)
     }
-
     db.set_is_const(id, true)
 
     child_ty_val := db.get_const_type(child)
@@ -295,7 +336,6 @@ synth_cmpt :: fn(eng &Engine, id u32) {
         db.set_const_val(id, child_ty_val as u64)
         ret
     }
-
     process_mono_funcs(eng)
     val := eval_const(db, child)
     db.set_const_val(id, val)
@@ -331,7 +371,9 @@ type_check :: fn(eng &Engine, start u32, len u32) {
 vec_contains :: fn(v &Vec(u32), val u32) bool {
     i: u64 = 0
     while i < (*v).len {
-        if v.get(i) == val { ret true }
+        if v.get(i) == val {
+            ret true
+        }
         i = i + 1
     }
     false
@@ -342,25 +384,35 @@ type_has_infer :: fn(types &TypeStorage, ty_id u32) bool {
 }
 
 type_has_infer_seen :: fn(types &TypeStorage, ty_id u32, visited &Vec(u32)) bool {
-    if ty_id == ty_id_none() { ret true }
-    if vec_contains(visited, ty_id) { ret false }
+    if ty_id == ty_id_none() {
+        ret true
+    }
+    if vec_contains(visited, ty_id) {
+        ret false
+    }
     visited.push(ty_id)
     kind := types.kind(ty_id)
-    if (kind == TyKind.infer) or (kind == TyKind.unknown) or (kind == TyKind.error) { ret true }
+    if (kind == TyKind.infer) or (kind == TyKind.unknown) or (kind == TyKind.error) {
+        ret true
+    }
     if (kind == TyKind.struct_) or (kind == TyKind.nominal) {
         if kind == TyKind.nominal {
             origin := types.nominal_origin(ty_id)
             creator_args := types.get_nominal_creator_args(origin)
             i: u64 = 0
             while i < creator_args.len {
-                if type_has_infer_seen(types, *(creator_args.ptr + i), visited) { ret true }
+                if type_has_infer_seen(types, *(creator_args.ptr + i), visited) {
+                    ret true
+                }
                 i = i + 1
             }
         }
         fields := types.get_struct_fields(ty_id)
         i: u64 = 0
         while i < fields.len / 2 {
-            if type_has_infer_seen(types, *(fields.ptr + i * 2 + 1), visited) { ret true }
+            if type_has_infer_seen(types, *(fields.ptr + i * 2 + 1), visited) {
+                ret true
+            }
             i = i + 1
         }
     } else if kind == TyKind.ptr {
@@ -368,18 +420,24 @@ type_has_infer_seen :: fn(types &TypeStorage, ty_id u32, visited &Vec(u32)) bool
     } else if kind == TyKind.array {
         ret type_has_infer_seen(types, types.get_array_type(ty_id), visited)
     } else if kind == TyKind.func {
-        if type_has_infer_seen(types, types.func_return(ty_id), visited) { ret true }
+        if type_has_infer_seen(types, types.func_return(ty_id), visited) {
+            ret true
+        }
         params := types.func_params(ty_id)
         i: u64 = 0
         while i < params.len {
-            if type_has_infer_seen(types, *(params.ptr + i), visited) { ret true }
+            if type_has_infer_seen(types, *(params.ptr + i), visited) {
+                ret true
+            }
             i = i + 1
         }
     } else if kind == TyKind.union_ {
         members := types.union_members(ty_id)
         i: u64 = 0
         while i < members.len {
-            if type_has_infer_seen(types, *(members.ptr + i), visited) { ret true }
+            if type_has_infer_seen(types, *(members.ptr + i), visited) {
+                ret true
+            }
             i = i + 1
         }
     }
@@ -390,7 +448,9 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
     db := &eng.nexus
     tbl := &db.hir
     body := tbl.extra(func_id)
-    if body == hir_none() { ret }
+    if body == hir_none() {
+        ret
+    }
     skipped := Vec(u32).new()
     scan := func_id + 1
     while scan <= body {
@@ -401,7 +461,9 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
                 params := db.get_list(tbl.lhs(scan))
                 first := *(params.ptr + 0)
                 start := tbl.lhs(first)
-                if start == hir_none() { start = tbl.rhs(first) }
+                if start == hir_none() {
+                    start = tbl.rhs(first)
+                }
                 if nested_body != hir_none() {
                     skipped.push(start)
                     skipped.push(nested_body)
@@ -421,7 +483,9 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
             }
             skip_i = skip_i + 2
         }
-        if node > body { break }
+        if node > body {
+            break
+        }
         slot := db.unify.get_slot(node)
         if slot != slot_none() {
             ty := db.unify.resolve_type(slot)
@@ -467,22 +531,33 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     db := &eng.nexus
     tbl := &db.hir
 
-    if db.is_sym_resolving(sym_id) { ret }
-    if db.has_mono_snapshot(sym_id) { ret }
-
+    if db.is_sym_resolving(sym_id) {
+        ret
+    }
+    if db.has_mono_snapshot(sym_id) {
+        ret
+    }
     orig_sym := db.get_mono_orig_sym(sym_id)
     mono_func_ty := db.get_mono_type(sym_id)
     real_sym := db.resolve_sym(orig_sym)
 
-    if db.is_sym_mono_resolving(real_sym) { ret }
-
+    if db.is_sym_mono_resolving(real_sym) {
+        ret
+    }
     func_id := db.get_fn_node(real_sym)
-    if func_id == id_none() { ret }
-    if tbl.kind(func_id) != hir_kind.function { ret }
-    if mono_func_ty == ty_id_none() { ret }
-
+    if func_id == id_none() {
+        ret
+    }
+    if tbl.kind(func_id) != hir_kind.function {
+        ret
+    }
+    if mono_func_ty == ty_id_none() {
+        ret
+    }
     mono_func_ty = resolve_ty_id(eng, &db.unify, &db.types, mono_func_ty)
-    if type_has_infer(&db.types, mono_func_ty) { ret }
+    if type_has_infer(&db.types, mono_func_ty) {
+        ret
+    }
     db.set_mono_type(sym_id, mono_func_ty)
     db.set_sym_resolving(sym_id, true)
     db.set_sym_mono_resolving(real_sym, true)
@@ -492,7 +567,6 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     if orig_func_ty == ty_id_none() {
         orig_func_ty = mono_func_ty
     }
-
     struct_ty := ty_id_none()
     mono_params := db.types.func_params(mono_func_ty)
     if mono_params.len > 0 {
@@ -513,7 +587,6 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
             }
         }
     }
-
     if struct_ty != ty_id_none() {
         s_origin := db.types.nominal_origin(struct_ty)
         creator_sym := db.types.get_nominal_creator_sym(s_origin)
@@ -570,7 +643,6 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
             }
         }
     }
-
     orig_params := db.types.func_params(orig_func_ty)
     args_list_id := tbl.lhs(func_id)
     has_type_param := false
@@ -612,7 +684,9 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
                         db.set_const_val(arg_ident, value)
                         db.set_is_const(arg_ident, true)
                         param_sym := db.get_hir_symbol(arg_ident)
-                        if param_sym != id_none() { db.set_sym_is_const(param_sym, true) }
+                        if param_sym != id_none() {
+                            db.set_sym_is_const(param_sym, true)
+                        }
                     }
                 }
             }
@@ -665,7 +739,6 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
         }
         type_check(eng, func_id + 1, body_id + 1)
     }
-
     finalize_inferred_types(eng, func_id)
 
     if has_type_param {
@@ -673,7 +746,6 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
     } else if (saved_orig_ty != ty_id_none()) and db.types.func_has_type_param(saved_orig_ty) {
         db.set_const_type(func_id, saved_orig_ty)
     }
-
     db.snapshot_mono_func(sym_id)
     db.set_sym_mono_resolving(real_sym, false)
     db.set_sym_resolving(sym_id, false)

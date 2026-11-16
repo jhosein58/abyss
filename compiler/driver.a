@@ -9,13 +9,12 @@ import compiler.vm.codegen: VmCodeGen, VmCodeBuilder
 import compiler.vm.vm: Vm
 
 CompilerConfig :: struct {
-    src_path    &u8
-    out_path    &u8
-    is_vm_run   bool
+    src_path &u8
+    out_path &u8
+    is_vm_run bool
     import_dirs Vec(Str)
-    map_keys    Vec(Str)
-    map_values  Vec(Str)
-
+    map_keys Vec(Str)
+    map_values Vec(Str)
     from_env :: fn() Self {
         argc := Env.args_len()
         src := Env.get_or(c"ABYSS_SRC", c"main.a")
@@ -71,40 +70,28 @@ CompilerConfig :: struct {
             i = i + 1
         }
 
-        .{
-            src_path    : src
-            out_path    : out
-            is_vm_run   : vm_run
-            import_dirs : import_dirs
-            map_keys    : map_keys
-            map_values  : map_values
-        }
+        .{ src_path: src, out_path: out, is_vm_run: vm_run, import_dirs: import_dirs, map_keys: map_keys, map_values: map_values }
     }
 }
 
 Driver :: struct {
-    arena  &Arena
+    arena &Arena
     config CompilerConfig
-
     new :: fn(arena &Arena) Self {
-        .{
-            arena  : arena,
-            config : CompilerConfig.from_env(),
-        }
+        .{ arena: arena, config: CompilerConfig.from_env() }
     }
 
     with_config :: fn(arena &Arena, config CompilerConfig) Self {
-        .{
-            arena  : arena,
-            config : config,
-        }
+        .{ arena: arena, config: config }
     }
 
     resolve_prelude :: fn(self &Self) Str {
         env_prelude := Env.get(c"ABYSS_PRELUDE")
         if env_prelude != (0 as &u8) {
             opt := File.read_to_string(self.arena, Str.of(env_prelude))
-            if opt.is_some() { ret opt.unwrap() }
+            if opt.is_some() {
+                ret opt.unwrap()
+            }
         }
         env_dev := Env.get(c"ABYSS_DEV")
         if env_dev != (0 as &u8) {
@@ -112,23 +99,35 @@ Driver :: struct {
             if (not dev_str.eq(Str.of("1"))) and (not dev_str.eq(Str.of("true"))) {
                 p1 := Path.join(self.arena, dev_str, Str.of("pods/core/runtime/prelude.c"))
                 opt1 := File.read_to_string(self.arena, p1)
-                if opt1.is_some() { ret opt1.unwrap() }
+                if opt1.is_some() {
+                    ret opt1.unwrap()
+                }
                 p2 := Path.join(self.arena, dev_str, Str.of("runtime/prelude.c"))
                 opt2 := File.read_to_string(self.arena, p2)
-                if opt2.is_some() { ret opt2.unwrap() }
+                if opt2.is_some() {
+                    ret opt2.unwrap()
+                }
             }
         }
         opt_pod := File.read_to_string(self.arena, Str.of("pods/core/runtime/prelude.c"))
-        if opt_pod.is_some() { ret opt_pod.unwrap() }
+        if opt_pod.is_some() {
+            ret opt_pod.unwrap()
+        }
         opt_vfs := File.read_to_string(self.arena, Str.of("/pods/core/runtime/prelude.c"))
-        if opt_vfs.is_some() { ret opt_vfs.unwrap() }
+        if opt_vfs.is_some() {
+            ret opt_vfs.unwrap()
+        }
         opt_leg := File.read_to_string(self.arena, Str.of("runtime/prelude.c"))
-        if opt_leg.is_some() { ret opt_leg.unwrap() }
+        if opt_leg.is_some() {
+            ret opt_leg.unwrap()
+        }
         env_home := Env.get(c"HOME")
         if env_home != (0 as &u8) {
             p_home := Path.join(self.arena, Str.of(env_home), Str.of(".abyss/pods/core/runtime/prelude.c"))
             opt_h := File.read_to_string(self.arena, p_home)
-            if opt_h.is_some() { ret opt_h.unwrap() }
+            if opt_h.is_some() {
+                ret opt_h.unwrap()
+            }
         }
         Str.empty()
     }
@@ -164,7 +163,6 @@ Driver :: struct {
             vcg.destroy()
             ret
         }
-
         ccg := CCodeGen_new(self.arena)
         builder := CCodeBuilder.new()
         ccg.abyss_main(sym_id)

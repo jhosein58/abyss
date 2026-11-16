@@ -7,7 +7,9 @@ is_composite_type :: fn(k TyKind) bool {
 }
 
 topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8), ty_id u32) {
-    if (ty_id as u64) >= (*states).len { ret }
+    if (ty_id as u64) >= (*states).len {
+        ret
+    }
     st := states.get(ty_id as u64)
     if st == (1 as u8) {
         printf("\n[type error] recursive value type has infinite size: '", .{})
@@ -25,8 +27,9 @@ topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8),
         }
         fall()
     }
-    if st != (0 as u8) { ret }
-
+    if st != (0 as u8) {
+        ret
+    }
     states.set(ty_id as u64, 1 as u8)
 
     kind := types.kind(ty_id)
@@ -77,7 +80,6 @@ topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8),
             topo_dfs(db, types, sorted, states, b_ty)
         }
     }
-
     sorted.push(ty_id)
     states.set(ty_id as u64, 2 as u8)
 }
@@ -87,7 +89,7 @@ topo_sort :: fn(db &Nexus, type_queue &Vec(u32)) Vec(u32) {
     sorted := Vec(u32).new()
     states := Vec(u8).new()
 
-     total_types := (&(*types)).len()
+    total_types := (&(*types)).len()
     i: u32 = 0
     while i < total_types {
         states.push(0 as u8)

@@ -5,46 +5,62 @@ import std.sort: sort, sort_chunks
 import std.hash: hash_combine, hash_words
 
 TyKind :: enum u8 {
-    unknown,
-    infer,
-    untyped_int,
-    untyped_float,
-    int,
-    uint,
-    float,
-    bool,
-    ptr,
-    type_,
-    unit,
-    func,
-    never,
-    struct_,
-    array,
-    error,
-    nominal,
-    enum_,
+    unknown
+    infer
+    untyped_int
+    untyped_float
+    int
+    uint
+    float
+    bool
+    ptr
+    type_
+    unit
+    func
+    never
+    struct_
+    array
+    error
+    nominal
+    enum_
     union_
 }
 
 ty_kind_name :: fn(k TyKind) Str {
-    names: [19]Str = .[
-        "Unknown", "Infer", "UtInt", "UtFloat", "Int", "UInt", "Float", "Bool",
-        "Ptr", "Type", "Unit", "Func", "Never", "Struct", "Array", "Error",
-        "Nominal", "Enum", "Union"
-    ]
+    names: [19]Str = .[ "Unknown", "Infer", "UtInt", "UtFloat", "Int", "UInt", "Float", "Bool", "Ptr", "Type", "Unit", "Func", "Never", "Struct", "Array", "Error", "Nominal", "Enum", "Union" ]
     names[k as u64]
 }
 
-ty_id_none          :: fn() u32 { 4294967295 as u32 }
-ty_id_unknown       :: fn() u32 { 0 }
-ty_id_untyped_int   :: fn() u32 { 1 }
-ty_id_untyped_float :: fn() u32 { 2 }
-ty_id_bool          :: fn() u32 { 3 }
-ty_id_type          :: fn() u32 { 4 }
-ty_id_unit          :: fn() u32 { 5 }
-ty_id_never         :: fn() u32 { 6 }
-ty_id_error         :: fn() u32 { 7 }
-ty_builtin_count    :: fn() u32 { 8 }
+ty_id_none :: fn() u32 {
+    4294967295 as u32
+}
+ty_id_unknown :: fn() u32 {
+    0
+}
+ty_id_untyped_int :: fn() u32 {
+    1
+}
+ty_id_untyped_float :: fn() u32 {
+    2
+}
+ty_id_bool :: fn() u32 {
+    3
+}
+ty_id_type :: fn() u32 {
+    4
+}
+ty_id_unit :: fn() u32 {
+    5
+}
+ty_id_never :: fn() u32 {
+    6
+}
+ty_id_error :: fn() u32 {
+    7
+}
+ty_builtin_count :: fn() u32 {
+    8
+}
 
 TypeStorage :: struct {
     kinds Vec(TyKind)
@@ -56,23 +72,12 @@ TypeStorage :: struct {
     nominal_creator_items Vec(u32)
     nominal_struct_node HashMap(u32, u32)
     dependent_funcs HashSet(u32)
-
     new :: fn() Self {
-        result: Self = .{
-            kinds: Vec(TyKind).new(), payloads: Vec(u32).new(),
-            next: Vec(u32).new(), extra_data: Vec(u32).new(),
-            intern: HashMap(u32, u32).new(), names: Vec(Str).new(),
-            origin_types: HashMap(u32, u32).new(),
-            nominal_creators: HashMap(u32, u32).new(),
-            nominal_creator_items: Vec(u32).new(),
-            nominal_struct_node: HashMap(u32, u32).new(),
-            dependent_funcs: HashSet(u32).new()
+        result: Self = .{ kinds: Vec(TyKind).new(), payloads: Vec(u32).new(), next: Vec(u32).new(), extra_data: Vec(u32).new(), intern: HashMap(u32, u32).new(), names: Vec(Str).new(), origin_types: HashMap(u32, u32).new(), nominal_creators: HashMap(u32, u32).new(), nominal_creator_items: Vec(u32).new(), nominal_struct_node: HashMap(u32, u32).new(), dependent_funcs: HashSet(u32).new() }
+        builtins: [8]TyKind = .[ TyKind.unknown, TyKind.untyped_int, TyKind.untyped_float, TyKind.bool, TyKind.type_, TyKind.unit, TyKind.never, TyKind.error ]
+        for kind in Slice(TyKind).new(&builtins[0], 8) {
+            result.push(kind, 0)
         }
-        builtins: [8]TyKind = .[
-            TyKind.unknown, TyKind.untyped_int, TyKind.untyped_float, TyKind.bool,
-            TyKind.type_, TyKind.unit, TyKind.never, TyKind.error
-        ]
-        for kind in Slice(TyKind).new(&builtins[0], 8) { result.push(kind, 0) }
         result
     }
 
@@ -95,7 +100,11 @@ TypeStorage :: struct {
     }
 
     kind :: fn(self &Self, id u32) TyKind {
-        if id == ty_id_none() { TyKind.unknown } else { self.kinds.get(id as u64) }
+        if id == ty_id_none() {
+            TyKind.unknown
+        } else {
+            self.kinds.get(id as u64)
+        }
     }
 
     payload :: fn(self &Self, id u32) u32 {
@@ -115,27 +124,45 @@ TypeStorage :: struct {
         offset := (items.ptr as u64 - self.extra_data.ptr as u64) / @sizeof(u32)
         borrowed := (items.ptr as u64 >= self.extra_data.ptr as u64) and (offset < self.extra_data.len)
         self.extra_data.reserve(header.len + items.len)
-        if borrowed { items.ptr = self.extra_data.ptr_at(offset) }
+        if borrowed {
+            items.ptr = self.extra_data.ptr_at(offset)
+        }
         self.extra_data.extend(header.ptr, header.len)
         self.extra_data.extend(items.ptr, items.len)
         start
     }
 
-    alloc_unknown :: fn() u32 { ty_id_unknown() }
+    alloc_unknown :: fn() u32 {
+        ty_id_unknown()
+    }
 
-    alloc_untyped_int :: fn() u32 { ty_id_untyped_int() }
+    alloc_untyped_int :: fn() u32 {
+        ty_id_untyped_int()
+    }
 
-    alloc_untyped_float :: fn() u32 { ty_id_untyped_float() }
+    alloc_untyped_float :: fn() u32 {
+        ty_id_untyped_float()
+    }
 
-    alloc_bool :: fn() u32 { ty_id_bool() }
+    alloc_bool :: fn() u32 {
+        ty_id_bool()
+    }
 
-    alloc_type :: fn() u32 { ty_id_type() }
+    alloc_type :: fn() u32 {
+        ty_id_type()
+    }
 
-    alloc_unit :: fn() u32 { ty_id_unit() }
+    alloc_unit :: fn() u32 {
+        ty_id_unit()
+    }
 
-    alloc_never :: fn() u32 { ty_id_never() }
+    alloc_never :: fn() u32 {
+        ty_id_never()
+    }
 
-    alloc_error :: fn() u32 { ty_id_error() }
+    alloc_error :: fn() u32 {
+        ty_id_error()
+    }
 
     extra :: fn(self &Self, id u32, offset u64) u32 {
         self.extra_data.get(self.payload(id) as u64 + offset)
@@ -146,24 +173,33 @@ TypeStorage :: struct {
     }
 
     intern_type :: fn(self &Self, kind TyKind, header Slice(u32), items Slice(u32)) u32 {
-        inline := (kind != TyKind.array) and (kind != TyKind.func) and
-                  (kind != TyKind.struct_) and (kind != TyKind.union_)
+        inline := (kind != TyKind.array) and (kind != TyKind.func) and (kind != TyKind.struct_) and (kind != TyKind.union_)
         h := hash_words(items, hash_words(header, hash_combine(2166136261, kind as u32)))
         bucket := self.intern.get(h)
-        first := if bucket == (0 as &u32) { ty_id_none() } else { *bucket }
+        first := if bucket == (0 as &u32) {
+            ty_id_none()
+        } else {
+            *bucket
+        }
         id := first
         while id != ty_id_none() {
             if self.kind(id) == kind {
                 stored := if inline {
                     Slice(u32).new(self.payloads.ptr_at(id as u64), 1)
-                } else { self.items(id, 0, header.len + items.len) }
+                } else {
+                    self.items(id, 0, header.len + items.len)
+                }
                 if stored.sub(0, header.len).equals(header) and stored.sub(header.len, items.len).equals(items) {
                     ret id
                 }
             }
             id = self.next.get(id as u64)
         }
-        payload := if inline { header.get(0) } else { self.append_record(header, items) }
+        payload := if inline {
+            header.get(0)
+        } else {
+            self.append_record(header, items)
+        }
         id = self.push(kind, payload)
         self.next.set(id as u64, first)
         self.intern.insert(h, id)
@@ -195,12 +231,12 @@ TypeStorage :: struct {
     }
 
     alloc_array :: fn(self &Self, ty u32, len u32) u32 {
-        header: [2]u32 = .[ty, len]
+        header: [2]u32 = .[ ty, len ]
         self.intern_type(TyKind.array, Slice(u32).new(&header[0], 2), Slice(u32).empty())
     }
 
     alloc_func :: fn(self &Self, params Slice(u32), ret_ty u32, is_extern bool) u32 {
-        header: [2]u32 = .[((params.len as u32) << 16) | (is_extern as u32), ret_ty]
+        header: [2]u32 = .[ ((params.len as u32) << 16) | (is_extern as u32), ret_ty ]
         self.intern_type(TyKind.func, Slice(u32).new(&header[0], 2), params)
     }
 
@@ -208,28 +244,40 @@ TypeStorage :: struct {
         generic := (origin & 2147483648) != 0
         if not generic {
             existing := self.origin_types.get(origin)
-            if existing != (0 as &u32) { ret *existing }
+            if existing != (0 as &u32) {
+                ret *existing
+            }
         }
-        header: [3]u32 = .[base, self.names.len as u32, origin]
+        header: [3]u32 = .[ base, self.names.len as u32, origin ]
         self.names.push(name)
         payload := self.append_record(Slice(u32).new(&header[0], 3), Slice(u32).empty())
         id := self.push(TyKind.nominal, payload)
-        if not generic { self.origin_types.insert(origin, id) }
+        if not generic {
+            self.origin_types.insert(origin, id)
+        }
         id
     }
 
-    nominal_base :: fn(self &Self, id u32) u32 { self.extra(id, 0) }
+    nominal_base :: fn(self &Self, id u32) u32 {
+        self.extra(id, 0)
+    }
 
     set_nominal_base :: fn(self &Self, id u32, base u32) {
         self.extra_data.set(self.payload(id) as u64, base)
     }
 
-    nominal_origin :: fn(self &Self, id u32) u32 { self.extra(id, 2) }
+    nominal_origin :: fn(self &Self, id u32) u32 {
+        self.extra(id, 2)
+    }
 
-    nominal_name :: fn(self &Self, id u32) Str { self.names.get(self.extra(id, 1) as u64) }
+    nominal_name :: fn(self &Self, id u32) Str {
+        self.names.get(self.extra(id, 1) as u64)
+    }
 
     record_nominal_creator :: fn(self &Self, origin u32, sym u32, args Slice(u32)) {
-        if (origin & 2147483648) == 0 { ret }
+        if (origin & 2147483648) == 0 {
+            ret
+        }
         origin = origin & 2147483647
         start := self.nominal_creator_items.len as u32
         self.nominal_creator_items.push(sym)
@@ -240,34 +288,46 @@ TypeStorage :: struct {
 
     get_nominal_creator_sym :: fn(self &Self, origin u32) u32 {
         start_ptr := self.nominal_creator_index(origin)
-        if start_ptr == (0 as &u32) { ret ty_id_none() }
+        if start_ptr == (0 as &u32) {
+            ret ty_id_none()
+        }
         self.nominal_creator_items.get(*start_ptr as u64)
     }
 
     get_nominal_creator_args :: fn(self &Self, origin u32) Slice(u32) {
         start_ptr := self.nominal_creator_index(origin)
-        if start_ptr == (0 as &u32) { ret Slice(u32).empty() }
+        if start_ptr == (0 as &u32) {
+            ret Slice(u32).empty()
+        }
         start := *start_ptr as u64
         len := self.nominal_creator_items.get(start + 1)
         self.nominal_creator_items.as_slice().sub(start + 2, len as u64)
     }
 
     nominal_creator_index :: fn(self &Self, origin u32) &u32 {
-        if (origin & 2147483648) == 0 { ret 0 as &u32 }
+        if (origin & 2147483648) == 0 {
+            ret 0 as &u32
+        }
         self.nominal_creators.get(origin & 2147483647)
     }
 
     record_nominal_struct_node :: fn(self &Self, origin u32, node u32) {
-        if (origin & 2147483648) == 0 { ret }
+        if (origin & 2147483648) == 0 {
+            ret
+        }
         origin = origin & 2147483647
         self.nominal_struct_node.insert(origin, node)
     }
 
     get_nominal_struct_node :: fn(self &Self, origin u32) u32 {
-        if (origin & 2147483648) == 0 { ret ty_id_none() }
+        if (origin & 2147483648) == 0 {
+            ret ty_id_none()
+        }
         origin = origin & 2147483647
         node := self.nominal_struct_node.get(origin)
-        if node == (0 as &u32) { ret ty_id_none() }
+        if node == (0 as &u32) {
+            ret ty_id_none()
+        }
         *node
     }
 
@@ -279,8 +339,10 @@ TypeStorage :: struct {
 
     alloc_enum :: fn(self &Self, backing_ty u32, name Str, origin u32, variants Slice(u32)) u32 {
         existing := self.origin_types.get(origin)
-        if existing != (0 as &u32) { ret *existing }
-        header: [4]u32 = .[backing_ty, self.names.len as u32, origin, (variants.len / 2) as u32]
+        if existing != (0 as &u32) {
+            ret *existing
+        }
+        header: [4]u32 = .[ backing_ty, self.names.len as u32, origin, (variants.len / 2) as u32 ]
         self.names.push(name)
         payload := self.append_record(Slice(u32).new(&header[0], 4), variants)
         id := self.push(TyKind.enum_, payload)
@@ -288,26 +350,40 @@ TypeStorage :: struct {
         id
     }
 
-    enum_backing :: fn(self &Self, id u32) u32 { self.nominal_base(id) }
+    enum_backing :: fn(self &Self, id u32) u32 {
+        self.nominal_base(id)
+    }
 
-    enum_name :: fn(self &Self, id u32) Str { self.nominal_name(id) }
+    enum_name :: fn(self &Self, id u32) Str {
+        self.nominal_name(id)
+    }
 
-    enum_origin :: fn(self &Self, id u32) u32 { self.nominal_origin(id) }
+    enum_origin :: fn(self &Self, id u32) u32 {
+        self.nominal_origin(id)
+    }
 
-    enum_variant_count :: fn(self &Self, id u32) u32 { self.extra(id, 3) }
+    enum_variant_count :: fn(self &Self, id u32) u32 {
+        self.extra(id, 3)
+    }
 
-    enum_variants :: fn(self &Self, id u32) Slice(u32) { self.items(id, 4, self.enum_variant_count(id) as u64 * 2) }
+    enum_variants :: fn(self &Self, id u32) Slice(u32) {
+        self.items(id, 4, self.enum_variant_count(id) as u64 * 2)
+    }
 
     enum_has_variant :: fn(self &Self, id u32, name_id u32) bool {
         for variant in self.enum_variants(id).chunks(2) {
-            if variant.get(0) == name_id { ret true }
+            if variant.get(0) == name_id {
+                ret true
+            }
         }
         false
     }
 
     enum_variant_val :: fn(self &Self, id u32, name_id u32) u32 {
         for variant in self.enum_variants(id).chunks(2) {
-            if variant.get(0) == name_id { ret variant.get(1) }
+            if variant.get(0) == name_id {
+                ret variant.get(1)
+            }
         }
         0
     }
@@ -318,9 +394,13 @@ TypeStorage :: struct {
         self.intern_type(TyKind.union_, Slice(u32).new(&count, 1), members)
     }
 
-    union_members_len :: fn(self &Self, id u32) u32 { self.extra(id, 0) }
+    union_members_len :: fn(self &Self, id u32) u32 {
+        self.extra(id, 0)
+    }
 
-    union_members :: fn(self &Self, id u32) Slice(u32) { self.items(id, 1, self.union_members_len(id) as u64) }
+    union_members :: fn(self &Self, id u32) Slice(u32) {
+        self.items(id, 1, self.union_members_len(id) as u64)
+    }
 
     union_contains :: fn(self &Self, id u32, member u32) bool {
         self.union_members(id).contains(member)
@@ -349,13 +429,17 @@ TypeStorage :: struct {
     }
 
     make_union_2 :: fn(self &Self, a u32, b u32) u32 {
-        if a == b { ret a }
+        if a == b {
+            ret a
+        }
         members := Vec(u32).new()
         self.extend_union(&members, a)
         self.extend_union(&members, b)
         sort(members.as_slice())
         members.dedup()
-        result := if members.len == 1 { members.get(0) } else {
+        result := if members.len == 1 {
+            members.get(0)
+        } else {
             count := members.len as u32
             self.intern_type(TyKind.union_, Slice(u32).new(&count, 1), members.as_slice())
         }
@@ -367,24 +451,38 @@ TypeStorage :: struct {
         if self.kind(id) == TyKind.union_ {
             items := self.union_members(id)
             members.extend(items.ptr, items.len)
-        } else { members.push(id) }
+        } else {
+            members.push(id)
+        }
     }
 
     infer_slot :: fn(self &Self, id u32) u32 {
         self.payload(id)
     }
 
-    get_array_type :: fn(self &Self, id u32) u32 { self.extra(id, 0) }
+    get_array_type :: fn(self &Self, id u32) u32 {
+        self.extra(id, 0)
+    }
 
-    get_array_len :: fn(self &Self, id u32) u32 { self.extra(id, 1) }
+    get_array_len :: fn(self &Self, id u32) u32 {
+        self.extra(id, 1)
+    }
 
-    func_return :: fn(self &Self, func u32) u32 { self.extra(func, 1) }
+    func_return :: fn(self &Self, func u32) u32 {
+        self.extra(func, 1)
+    }
 
-    func_params_len :: fn(self &Self, func u32) u32 { self.extra(func, 0) >> 16 }
+    func_params_len :: fn(self &Self, func u32) u32 {
+        self.extra(func, 0) >> 16
+    }
 
-    func_is_extern :: fn(self &Self, func u32) bool { (self.extra(func, 0) & 65535) != 0 }
+    func_is_extern :: fn(self &Self, func u32) bool {
+        (self.extra(func, 0) & 65535) != 0
+    }
 
-    func_params :: fn(self &Self, func u32) Slice(u32) { self.items(func, 2, self.func_params_len(func) as u64) }
+    func_params :: fn(self &Self, func u32) Slice(u32) {
+        self.items(func, 2, self.func_params_len(func) as u64)
+    }
 
     record_dependent_func :: fn(self &Self, func u32) {
         self.dependent_funcs.insert(func)
@@ -395,29 +493,43 @@ TypeStorage :: struct {
     }
 
     func_has_type_param :: fn(self &Self, func u32) bool {
-        if self.kind(func) != TyKind.func { ret false }
+        if self.kind(func) != TyKind.func {
+            ret false
+        }
         self.is_dependent_func(func) or self.func_params(func).contains(ty_id_type())
     }
 
     func_leading_type_params :: fn(self &Self, func u32) u32 {
-        if self.kind(func) != TyKind.func { ret 0 }
+        if self.kind(func) != TyKind.func {
+            ret 0
+        }
         count: u32 = 0
         for param in self.func_params(func) {
-            if param != ty_id_type() { break }
+            if param != ty_id_type() {
+                break
+            }
             count = count + 1
         }
         count
     }
 
     get_struct_fields_len :: fn(self &Self, id u32) u32 {
-        if id == ty_id_none() { ret 0 }
-        if self.kind(id) == TyKind.nominal { ret self.get_struct_fields_len(self.nominal_base(id)) }
+        if id == ty_id_none() {
+            ret 0
+        }
+        if self.kind(id) == TyKind.nominal {
+            ret self.get_struct_fields_len(self.nominal_base(id))
+        }
         self.extra(id, 0)
     }
 
     get_struct_fields :: fn(self &Self, id u32) Slice(u32) {
-        if id == ty_id_none() { ret Slice(u32).empty() }
-        if self.kind(id) == TyKind.nominal { ret self.get_struct_fields(self.nominal_base(id)) }
+        if id == ty_id_none() {
+            ret Slice(u32).empty()
+        }
+        if self.kind(id) == TyKind.nominal {
+            ret self.get_struct_fields(self.nominal_base(id))
+        }
         self.items(id, 1, self.get_struct_fields_len(id) as u64 * 2)
     }
 
@@ -425,7 +537,7 @@ TypeStorage :: struct {
         arena := Arena.new(256)
         out := String.new(&arena)
         self.format_type(&out, id, false)
-        printf("{}", .{out.as_str()})
+        printf("{}", .{ out.as_str() })
         arena.destroy()
     }
 
@@ -436,31 +548,58 @@ TypeStorage :: struct {
     format_list :: fn(self &Self, out &String, ids Slice(u32), separator Str, mangled bool) {
         first := true
         for id in ids {
-            if not first { out.append(separator) }
+            if not first {
+                out.append(separator)
+            }
             self.format_type(out, id, mangled)
             first = false
         }
     }
 
     format_type :: fn(self &Self, out &String, id u32, mangled bool) {
-        if id == ty_id_none() { out.append("None"), ret }
+        if id == ty_id_none() {
+            out.append("None")
+            ,
+            ret
+        }
         kind := self.kind(id)
         match kind {
             int, uint, float {
-                prefix := match kind { int { "i" }, uint { "u" }, else { "f" } }
+                prefix := match kind {
+                    int {
+                        "i"
+                    }
+                    uint {
+                        "u"
+                    }
+                    else {
+                        "f"
+                    }
+                }
                 out.append(prefix).append_u32(self.payload(id))
                 ret
             }
             ptr {
-                out.append(if mangled { "R_" } else { "&" })
+                out.append(if mangled {
+                    "R_"
+                } else {
+                    "&"
+                })
                 self.format_type(out, self.payload(id), mangled)
                 ret
             }
             array {
-                out.append(if mangled { "A_" } else { "[" })
+                out.append(if mangled {
+                    "A_"
+                } else {
+                    "["
+                })
                 self.format_type(out, self.get_array_type(id), mangled)
-                if mangled { out.append("_").append_u32(self.get_array_len(id)) }
-                else { out.append("; ").append_u32(self.get_array_len(id)).append("]") }
+                if mangled {
+                    out.append("_").append_u32(self.get_array_len(id))
+                } else {
+                    out.append("; ").append_u32(self.get_array_len(id)).append("]")
+                }
                 ret
             }
             func {
@@ -475,49 +614,97 @@ TypeStorage :: struct {
                     out.append("S_")
                     first := true
                     for field in self.get_struct_fields(id).chunks(2) {
-                        if not first { out.append("_") }
+                        if not first {
+                            out.append("_")
+                        }
                         out.append_u32(field.get(0)).append("_")
                         self.format_type(out, field.get(1), mangled)
                         first = false
                     }
-                } else { out.append("struct { count: ").append_u32(self.get_struct_fields_len(id)).append(" }") }
+                } else {
+                    out.append("struct { count: ").append_u32(self.get_struct_fields_len(id)).append(" }")
+                }
                 ret
             }
-            enum_, nominal { out.append(self.nominal_name(id)), ret }
+            enum_, nominal {
+                out.append(self.nominal_name(id))
+                ,
+                ret
+            }
             union_ {
-                if mangled { out.append("U_") }
-                self.format_list(out, self.union_members(id), if mangled { "_" } else { " | " }, mangled)
+                if mangled {
+                    out.append("U_")
+                }
+                self.format_list(out, self.union_members(id), if mangled {
+                    "_"
+                } else {
+                    " | "
+                }, mangled)
                 ret
             }
-            infer { out.append("Infer(").append_u32(self.payload(id)).append(")"), ret }
-            bool { out.append("bool"), ret }
-            unit { out.append("void"), ret }
-            never { out.append("!"), ret }
-            error { out.append("Err!"), ret }
-            else { out.append(ty_kind_name(kind)), ret }
+            infer {
+                out.append("Infer(").append_u32(self.payload(id)).append(")")
+                ,
+                ret
+            }
+            bool {
+                out.append("bool")
+                ,
+                ret
+            }
+            unit {
+                out.append("void")
+                ,
+                ret
+            }
+            never {
+                out.append("!")
+                ,
+                ret
+            }
+            error {
+                out.append("Err!")
+                ,
+                ret
+            }
+            else {
+                out.append(ty_kind_name(kind))
+                ,
+                ret
+            }
         }
     }
 
     has_infer_seen :: fn(self &Self, ty_id u32, visited &Vec(u32)) bool {
-        if ty_id == ty_id_none() { ret false }
-        if visited.contains(ty_id) { ret false }
+        if ty_id == ty_id_none() {
+            ret false
+        }
+        if visited.contains(ty_id) {
+            ret false
+        }
         visited.push(ty_id)
         kind := self.kind(ty_id)
-        if (kind == TyKind.infer) or (kind == TyKind.unknown) or (kind == TyKind.error) { ret true }
+        if (kind == TyKind.infer) or (kind == TyKind.unknown) or (kind == TyKind.error) {
+            ret true
+        }
         if (kind == TyKind.struct_) or (kind == TyKind.nominal) {
             if kind == TyKind.nominal {
                 origin := self.nominal_origin(ty_id)
                 creator_args := self.get_nominal_creator_args(origin)
                 i: u64 = 0
                 while i < creator_args.len {
-                    if self.has_infer_seen(*(creator_args.ptr + i), visited) { ret true }
+                    if self.has_infer_seen(*(creator_args.ptr + i), visited) {
+                        ret true
+                    }
                     i = i + 1
                 }
             }
             fields := self.get_struct_fields(ty_id)
             i: u64 = 0
             while i < fields.len / 2 {
-                if self.has_infer_seen(*(fields.ptr + i * 2 + 1), visited) { ret true }
+                if self.has_infer_seen(*(fields.ptr + i * 2 + 1), visited) {
+                    ret true
+                }
                 i = i + 1
             }
         } else if kind == TyKind.ptr {
@@ -525,18 +712,24 @@ TypeStorage :: struct {
         } else if kind == TyKind.array {
             ret self.has_infer_seen(self.get_array_type(ty_id), visited)
         } else if kind == TyKind.func {
-            if self.has_infer_seen(self.func_return(ty_id), visited) { ret true }
+            if self.has_infer_seen(self.func_return(ty_id), visited) {
+                ret true
+            }
             params := self.func_params(ty_id)
             i: u64 = 0
             while i < params.len {
-                if self.has_infer_seen(*(params.ptr + i), visited) { ret true }
+                if self.has_infer_seen(*(params.ptr + i), visited) {
+                    ret true
+                }
                 i = i + 1
             }
         } else if kind == TyKind.union_ {
             members := self.union_members(ty_id)
             i: u64 = 0
             while i < members.len {
-                if self.has_infer_seen(*(members.ptr + i), visited) { ret true }
+                if self.has_infer_seen(*(members.ptr + i), visited) {
+                    ret true
+                }
                 i = i + 1
             }
         }
@@ -551,6 +744,6 @@ TypeStorage :: struct {
     }
 
     name :: fn(a &Arena, id u32) Str {
-        fmt(a, "ty{}", .{id}).as_str()
+        fmt(a, "ty{}", .{ id }).as_str()
     }
 }

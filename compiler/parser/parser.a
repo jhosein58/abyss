@@ -22,12 +22,10 @@ parse_expr :: fn(p &Parser, min_bp u8) u32 {
                 break
             }
         }
-
         bp := bp_from_infix(tk)
         if (not bp.is_some) or (bp.left < min_bp) {
             break
         }
-
         bump(p)
         lhs = dispatch_infix(p, tk, lhs, bp.right)
     }
@@ -38,14 +36,24 @@ parse_expr :: fn(p &Parser, min_bp u8) u32 {
 is_destructure_start :: fn(p &Parser) bool {
     t := Token
     c := p.cursor
-    if p.tokens.kind(c) != t.ident { ret false }
-    if c + 1 >= p.end { ret false }
-    if p.tokens.kind(c + 1) != t.comma { ret false }
+    if p.tokens.kind(c) != t.ident {
+        ret false
+    }
+    if c + 1 >= p.end {
+        ret false
+    }
+    if p.tokens.kind(c + 1) != t.comma {
+        ret false
+    }
     scan := c + 2
     while scan < p.end {
-        if p.tokens.kind(scan) != t.ident { ret false }
+        if p.tokens.kind(scan) != t.ident {
+            ret false
+        }
         scan = scan + 1
-        if scan >= p.end { ret false }
+        if scan >= p.end {
+            ret false
+        }
         k := p.tokens.kind(scan)
         if k == t.comma {
             scan = scan + 1
@@ -66,48 +74,93 @@ dispatch_prefix :: fn(p &Parser, min_bp u8) u32 {
     t := Token
     tk := peek(p)
 
-    if tk == t.eof        { ret hir_none() }
-
-    if tk == t.lit_int    { ret parse_lit_int(p) }
-    if tk == t.lit_float  { ret parse_float(p) }
-    if tk == t.lit_str    { ret parse_str(p) }
-    if tk == t.lit_char   { ret parse_char(p) }
-    if tk == t.lit_cstr   { ret parse_cstr(p) }
-    if tk == t.kw_true    { ret parse_true(p) }
-    if tk == t.kw_false   { ret parse_false(p) }
-
+    if tk == t.eof {
+        ret hir_none()
+    }
+    if tk == t.lit_int {
+        ret parse_lit_int(p)
+    }
+    if tk == t.lit_float {
+        ret parse_float(p)
+    }
+    if tk == t.lit_str {
+        ret parse_str(p)
+    }
+    if tk == t.lit_char {
+        ret parse_char(p)
+    }
+    if tk == t.lit_cstr {
+        ret parse_cstr(p)
+    }
+    if tk == t.kw_true {
+        ret parse_true(p)
+    }
+    if tk == t.kw_false {
+        ret parse_false(p)
+    }
     if tk == t.ident {
         if is_destructure_start(p) {
             ret parse_destructure(p)
         }
         ret parse_ident(p)
     }
-    if tk == t.o_paren    { ret parse_paren(p) }
-    if tk == t.o_brace    { ret parse_block(p) }
-
-    if tk == t.kw_if      { ret parse_if(p) }
-    if tk == t.kw_while   { ret parse_while(p) }
-    if tk == t.kw_for     { ret parse_for(p) }
-    if tk == t.kw_break   { ret parse_break(p) }
-    if tk == t.kw_cont    { ret parse_cont(p) }
-    if tk == t.kw_ret     { ret parse_return(p) }
-    if tk == t.kw_match   { ret parse_match(p) }
-
-    if tk == t.kw_struct  { ret parse_struct(p) }
-    if tk == t.kw_enum    { ret parse_enum(p) }
-    if tk == t.kw_fn      { ret parse_fn(p, min_bp) }
-    if tk == t.at         { ret parse_builtin(p) }
-    if (tk == t.dot) and (peek_n(p, 1) == t.o_brace) { ret parse_struct_init(p) }
-    if (tk == t.dot) and (peek_n(p, 1) == t.o_bracket) { ret parse_array_lit(p) }
-    if tk == t.o_bracket  { ret parse_array_type(p, min_bp) }
-
-    if tk == t.kw_cmpt    { ret parse_cmpt(p, min_bp) }
-    if tk == t.hash       { ret parse_splice(p, min_bp) }
-
+    if tk == t.o_paren {
+        ret parse_paren(p)
+    }
+    if tk == t.o_brace {
+        ret parse_block(p)
+    }
+    if tk == t.kw_if {
+        ret parse_if(p)
+    }
+    if tk == t.kw_while {
+        ret parse_while(p)
+    }
+    if tk == t.kw_for {
+        ret parse_for(p)
+    }
+    if tk == t.kw_break {
+        ret parse_break(p)
+    }
+    if tk == t.kw_cont {
+        ret parse_cont(p)
+    }
+    if tk == t.kw_ret {
+        ret parse_return(p)
+    }
+    if tk == t.kw_match {
+        ret parse_match(p)
+    }
+    if tk == t.kw_struct {
+        ret parse_struct(p)
+    }
+    if tk == t.kw_enum {
+        ret parse_enum(p)
+    }
+    if tk == t.kw_fn {
+        ret parse_fn(p, min_bp)
+    }
+    if tk == t.at {
+        ret parse_builtin(p)
+    }
+    if (tk == t.dot) and (peek_n(p, 1) == t.o_brace) {
+        ret parse_struct_init(p)
+    }
+    if (tk == t.dot) and (peek_n(p, 1) == t.o_bracket) {
+        ret parse_array_lit(p)
+    }
+    if tk == t.o_bracket {
+        ret parse_array_type(p, min_bp)
+    }
+    if tk == t.kw_cmpt {
+        ret parse_cmpt(p, min_bp)
+    }
+    if tk == t.hash {
+        ret parse_splice(p, min_bp)
+    }
     if (tk == t.minus) or (tk == t.kw_not) or (tk == t.tilde) or (tk == t.amp) or (tk == t.star) {
         ret parse_unary(p, tk)
     }
-
     parse_error_at(p, c"unexpected token in expression", curr_span(p))
     hir_none()
 }
@@ -118,7 +171,9 @@ parse_cmpt :: fn(p &Parser, min_bp u8) u32 {
     bump(p)
     min := min_bp
     pr := prec().assignment + (1 as u8)
-    if min < pr { min = pr }
+    if min < pr {
+        min = pr
+    }
     body := parse_expr(p, min)
     sp_end := span_of_hir(p, body)
     node := p.hir.push(k.k_cmpt, body, hir_none(), hir_none())
@@ -136,11 +191,16 @@ parse_splice :: fn(p &Parser, min_bp u8) u32 {
         has_paren = true
         bump(p)
     }
-
     min := min_bp
     pr := prec().assignment + (1 as u8)
-    if min < pr { min = pr }
-    expr := parse_expr(p, if has_paren { 0 as u8 } else { min })
+    if min < pr {
+        min = pr
+    }
+    expr := parse_expr(p, if has_paren {
+        0 as u8
+    } else {
+        min
+    })
     if has_paren {
         if not expect(p, t.c_paren) {
             parse_error_at(p, c"expected ')' after '#' expression", curr_span(p))
@@ -158,12 +218,23 @@ parse_splice :: fn(p &Parser, min_bp u8) u32 {
 dispatch_infix :: fn(p &Parser, op Token, lhs u32, right_bp u8) u32 {
     t := Token
 
-    if op == t.colon_colon { ret parse_binding(p, lhs, right_bp) }
-    if op == t.colon       { ret parse_var_decl(p, lhs, right_bp) }
-    if op == t.eq          { ret parse_assign(p, lhs, right_bp) }
-    if op == t.o_paren     { ret parse_call(p, lhs, right_bp) }
-    if op == t.o_bracket   { ret parse_index(p, lhs, right_bp) }
-    if op == t.dot         { ret parse_member(p, lhs, right_bp) }
-
+    if op == t.colon_colon {
+        ret parse_binding(p, lhs, right_bp)
+    }
+    if op == t.colon {
+        ret parse_var_decl(p, lhs, right_bp)
+    }
+    if op == t.eq {
+        ret parse_assign(p, lhs, right_bp)
+    }
+    if op == t.o_paren {
+        ret parse_call(p, lhs, right_bp)
+    }
+    if op == t.o_bracket {
+        ret parse_index(p, lhs, right_bp)
+    }
+    if op == t.dot {
+        ret parse_member(p, lhs, right_bp)
+    }
     parse_binary(p, op, lhs, right_bp)
 }

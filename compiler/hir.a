@@ -5,86 +5,80 @@ hir_none :: fn() u32 {
 }
 
 HirExprKind :: enum u8 {
-    empty,
-
-    lit_int,
-    lit_float,
-    lit_bool_true,
-    lit_bool_false,
-    lit_str,
-    lit_char,
-    ident,
-
-    binary_assign,
-    binary_assign_add,
-    binary_assign_sub,
-    binary_assign_mul,
-    binary_assign_div,
-    binary_assign_mod,
-    binary_assign_bit_and,
-    binary_assign_bit_or,
-    binary_assign_bit_xor,
-    binary_assign_shl,
-    binary_assign_shr,
-    binary_add,
-    binary_sub,
-    binary_mul,
-    binary_div,
-    binary_mod,
-    binary_eq_eq,
-    binary_neq,
-    binary_lt,
-    binary_gt,
-    binary_lt_eq,
-    binary_gt_eq,
-    binary_and,
-    binary_or,
-    binary_bit_and,
-    binary_bit_or,
-    binary_bit_xor,
-    binary_shl,
-    binary_shr,
-    binary_colon,
-
-    unary_neg,
-    unary_not,
-    unary_bit_not,
-    unary_deref,
-    unary_addr_of,
-
-    arg,
-    function,
-    call,
-    binding,
-    var,
-    k_ret,
-    block,
-    k_if,
-    k_while,
-    k_match,
-    match_arm,
-    match_binding,
-    k_for,
-    for_iter,
-    k_break,
-    k_cont,
-
-    cast,
-    struct_,
-    struct_init,
-    array,
-    array_init,
-    index,
-    member,
-    wildcard,
-
-    error,
-    marker_fn_start,
-    builtin_call,
-    enum_,
-    lit_cstr,
-    k_cmpt,
-    splice,
+    empty
+    lit_int
+    lit_float
+    lit_bool_true
+    lit_bool_false
+    lit_str
+    lit_char
+    ident
+    binary_assign
+    binary_assign_add
+    binary_assign_sub
+    binary_assign_mul
+    binary_assign_div
+    binary_assign_mod
+    binary_assign_bit_and
+    binary_assign_bit_or
+    binary_assign_bit_xor
+    binary_assign_shl
+    binary_assign_shr
+    binary_add
+    binary_sub
+    binary_mul
+    binary_div
+    binary_mod
+    binary_eq_eq
+    binary_neq
+    binary_lt
+    binary_gt
+    binary_lt_eq
+    binary_gt_eq
+    binary_and
+    binary_or
+    binary_bit_and
+    binary_bit_or
+    binary_bit_xor
+    binary_shl
+    binary_shr
+    binary_colon
+    unary_neg
+    unary_not
+    unary_bit_not
+    unary_deref
+    unary_addr_of
+    arg
+    function
+    call
+    binding
+    var
+    k_ret
+    block
+    k_if
+    k_while
+    k_match
+    match_arm
+    match_binding
+    k_for
+    for_iter
+    k_break
+    k_cont
+    cast
+    struct_
+    struct_init
+    array
+    array_init
+    index
+    member
+    wildcard
+    error
+    marker_fn_start
+    builtin_call
+    enum_
+    lit_cstr
+    k_cmpt
+    splice
     destructure
 }
 
@@ -93,98 +87,241 @@ hir_kind :: HirExprKind
 hir_kind_name :: fn(kind HirExprKind) Str {
 
     match kind {
-        empty                 { "Empty"         }
-        lit_int               { "LitInt"        }
-        lit_float             { "LitFloat"      }
-        lit_bool_true         { "LitBoolTrue"   }
-        lit_bool_false        { "LitBoolFalse"  }
-        lit_str               { "LitStr"        }
-        lit_char              { "LitChar"       }
-        lit_cstr              { "LitCStr"       }
-        ident                 { "Ident"         }
-        binary_assign         { "="             }
-        binary_assign_add     { "+="            }
-        binary_assign_sub     { "-="            }
-        binary_assign_mul     { "*="            }
-        binary_assign_div     { "/="            }
-        binary_assign_mod     { "%="            }
-        binary_assign_bit_and { "&="            }
-        binary_assign_bit_or  { "|="            }
-        binary_assign_bit_xor { "^="            }
-        binary_assign_shl     { "<<="           }
-        binary_assign_shr     { ">>="           }
-        binary_add            { "+"             }
-        binary_sub            { "-"             }
-        binary_mul            { "*"             }
-        binary_div            { "/"             }
-        binary_mod            { "%"             }
-        binary_eq_eq          { "=="            }
-        binary_neq            { "!="            }
-        binary_lt             { "<"             }
-        binary_gt             { ">"             }
-        binary_lt_eq          { "<="            }
-        binary_gt_eq          { ">="            }
-        binary_and            { "and"           }
-        binary_or             { "or"            }
-        binary_bit_and        { "&"             }
-        binary_bit_or         { "|"             }
-        binary_bit_xor        { "^"             }
-        binary_shl            { "<<"            }
-        binary_shr            { ">>"            }
-        binary_colon          { ":"             }
-        unary_neg             { "UnaryNeg"      }
-        unary_not             { "UnaryNot"      }
-        unary_bit_not         { "UnaryBitNot"   }
-        unary_deref           { "UnaryDeref"    }
-        unary_addr_of         { "UnaryAddrOf"   }
-        arg                   { "Arg"           }
-        function              { "Function"      }
-        call                  { "Call"          }
-        binding               { "Binding"       }
-        var                   { "Var"           }
-        k_ret                 { "Ret"           }
-        block                 { "Block"         }
-        k_if                  { "If"            }
-        k_while               { "While"         }
-        k_match               { "Match"         }
-        match_arm             { "MatchArm"      }
-        match_binding         { "MatchBinding"  }
-        k_for                 { "For"           }
-        for_iter              { "ForIter"       }
-        k_break               { "Break"         }
-        k_cont                { "Cont"          }
-        cast                  { "Cast"          }
-        struct_               { "Struct"        }
-        struct_init           { "StructInit"    }
-        array                 { "Array"         }
-        array_init            { "ArrayInit"     }
-        index                 { "Index"         }
-        member                { "Member"        }
-        wildcard              { "Wildcard"      }
-        error                 { "Error"         }
-        marker_fn_start       { "MarkerFnStart" }
-        builtin_call          { "BuiltinCall"   }
-        enum_                 { "Enum"          }
-        k_cmpt                { "Cmpt"          }
-        splice                { "Splice"        }
-        destructure           { "Destructure"   }
+        empty {
+            "Empty"
+        }
+        lit_int {
+            "LitInt"
+        }
+        lit_float {
+            "LitFloat"
+        }
+        lit_bool_true {
+            "LitBoolTrue"
+        }
+        lit_bool_false {
+            "LitBoolFalse"
+        }
+        lit_str {
+            "LitStr"
+        }
+        lit_char {
+            "LitChar"
+        }
+        lit_cstr {
+            "LitCStr"
+        }
+        ident {
+            "Ident"
+        }
+        binary_assign {
+            "="
+        }
+        binary_assign_add {
+            "+="
+        }
+        binary_assign_sub {
+            "-="
+        }
+        binary_assign_mul {
+            "*="
+        }
+        binary_assign_div {
+            "/="
+        }
+        binary_assign_mod {
+            "%="
+        }
+        binary_assign_bit_and {
+            "&="
+        }
+        binary_assign_bit_or {
+            "|="
+        }
+        binary_assign_bit_xor {
+            "^="
+        }
+        binary_assign_shl {
+            "<<="
+        }
+        binary_assign_shr {
+            ">>="
+        }
+        binary_add {
+            "+"
+        }
+        binary_sub {
+            "-"
+        }
+        binary_mul {
+            "*"
+        }
+        binary_div {
+            "/"
+        }
+        binary_mod {
+            "%"
+        }
+        binary_eq_eq {
+            "=="
+        }
+        binary_neq {
+            "!="
+        }
+        binary_lt {
+            "<"
+        }
+        binary_gt {
+            ">"
+        }
+        binary_lt_eq {
+            "<="
+        }
+        binary_gt_eq {
+            ">="
+        }
+        binary_and {
+            "and"
+        }
+        binary_or {
+            "or"
+        }
+        binary_bit_and {
+            "&"
+        }
+        binary_bit_or {
+            "|"
+        }
+        binary_bit_xor {
+            "^"
+        }
+        binary_shl {
+            "<<"
+        }
+        binary_shr {
+            ">>"
+        }
+        binary_colon {
+            ":"
+        }
+        unary_neg {
+            "UnaryNeg"
+        }
+        unary_not {
+            "UnaryNot"
+        }
+        unary_bit_not {
+            "UnaryBitNot"
+        }
+        unary_deref {
+            "UnaryDeref"
+        }
+        unary_addr_of {
+            "UnaryAddrOf"
+        }
+        arg {
+            "Arg"
+        }
+        function {
+            "Function"
+        }
+        call {
+            "Call"
+        }
+        binding {
+            "Binding"
+        }
+        var {
+            "Var"
+        }
+        k_ret {
+            "Ret"
+        }
+        block {
+            "Block"
+        }
+        k_if {
+            "If"
+        }
+        k_while {
+            "While"
+        }
+        k_match {
+            "Match"
+        }
+        match_arm {
+            "MatchArm"
+        }
+        match_binding {
+            "MatchBinding"
+        }
+        k_for {
+            "For"
+        }
+        for_iter {
+            "ForIter"
+        }
+        k_break {
+            "Break"
+        }
+        k_cont {
+            "Cont"
+        }
+        cast {
+            "Cast"
+        }
+        struct_ {
+            "Struct"
+        }
+        struct_init {
+            "StructInit"
+        }
+        array {
+            "Array"
+        }
+        array_init {
+            "ArrayInit"
+        }
+        index {
+            "Index"
+        }
+        member {
+            "Member"
+        }
+        wildcard {
+            "Wildcard"
+        }
+        error {
+            "Error"
+        }
+        marker_fn_start {
+            "MarkerFnStart"
+        }
+        builtin_call {
+            "BuiltinCall"
+        }
+        enum_ {
+            "Enum"
+        }
+        k_cmpt {
+            "Cmpt"
+        }
+        splice {
+            "Splice"
+        }
+        destructure {
+            "Destructure"
+        }
     }
 }
 
-
 HirTable :: struct {
-    kinds      Vec(u8)
-    lhs_list   Vec(u32)
-    rhs_list   Vec(u32)
+    kinds Vec(u8)
+    lhs_list Vec(u32)
+    rhs_list Vec(u32)
     extra_list Vec(u32)
-
     new :: fn() HirTable {
-        .{
-            kinds:      Vec(u8).new()
-            lhs_list:   Vec(u32).new()
-            rhs_list:   Vec(u32).new()
-            extra_list: Vec(u32).new()
-        }
+        .{ kinds: Vec(u8).new(), lhs_list: Vec(u32).new(), rhs_list: Vec(u32).new(), extra_list: Vec(u32).new() }
     }
 
     destroy :: fn(self &Self) {

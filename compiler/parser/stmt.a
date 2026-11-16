@@ -24,7 +24,6 @@ parse_if :: fn(p &Parser) u32 {
         elseb = parse_expr(p, prec().assignment + (1 as u8))
         sp_end = span_of_hir(p, elseb)
     }
-
     node := p.hir.push(k.k_if, cond, thenb, elseb)
     set_span(p, node, span_merge(sp_start, sp_end))
 }
@@ -58,7 +57,9 @@ parse_for :: fn(p &Parser) u32 {
     vars.push(first)
     while (peek(p) != t.kw_in) and (not is_eof(p)) {
         check_separator(p, t.kw_in, c"expected ',' or newline between for variables")
-        if peek(p) == t.kw_in { break }
+        if peek(p) == t.kw_in {
+            break
+        }
         name := parse_ident(p)
         name_id := p.hir.lhs(name)
         sym := p.db.alloc_local_symbol(p.file_id, name_id, name)
@@ -69,18 +70,18 @@ parse_for :: fn(p &Parser) u32 {
     if not expect(p, t.kw_in) {
         parse_error_at(p, c"expected 'in' after for variables", curr_span(p))
     }
-
     iters := Vec(u32).new()
     iters.push(parse_expr(p, 0 as u8))
     while (peek(p) != t.o_brace) and (not is_eof(p)) {
         check_separator(p, t.o_brace, c"expected ',' or newline between for iterators")
-        if peek(p) == t.o_brace { break }
+        if peek(p) == t.o_brace {
+            break
+        }
         iters.push(parse_expr(p, 0 as u8))
     }
     if vars.len != iters.len {
         parse_error_at(p, c"for requires one iterator for each loop variable", curr_span(p))
     }
-
     if peek(p) != t.o_brace {
         parse_error_at(p, c"expected '{' after for iterators", curr_span(p))
     }
@@ -137,14 +138,10 @@ parse_block :: fn(p &Parser) u32 {
     if is_eof(p) and (peek(p) != t.c_brace) {
         parse_error_at(p, c"unclosed block, expected '}'", sp_start)
     }
-
     expect(p, t.c_brace)
     sp_end := prev_span(p)
 
-    slice: Slice(u32) = .{
-        ptr: glob_stack.ptr_at(mark),
-        len: glob_stack.len - mark
-    }
+    slice: Slice(u32) = .{ ptr: glob_stack.ptr_at(mark), len: glob_stack.len - mark }
     list_id := db.add_list(slice)
 
     glob_stack.reset(mark)
@@ -166,7 +163,6 @@ parse_return :: fn(p &Parser) u32 {
         val = parse_expr(p, 0 as u8)
         sp_end = span_of_hir(p, val)
     }
-
     node := p.hir.push(k.k_ret, val, hir_none(), hir_none())
     set_span(p, node, span_merge(sp_start, sp_end))
 }
@@ -210,7 +206,6 @@ parse_match :: fn(p &Parser) u32 {
     if not expect(p, t.o_brace) {
         parse_error_at(p, c"expected '{' after match value", curr_span(p))
     }
-
     arms := Vec(u32).new()
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
         arm_sp_start := curr_span(p)
@@ -224,7 +219,9 @@ parse_match :: fn(p &Parser) u32 {
             patterns.push(parse_expr(p, prec().logic_or))
             while (peek(p) != t.o_brace) and (not is_eof(p)) {
                 check_separator(p, t.o_brace, c"expected ',' or newline between match patterns")
-                if peek(p) == t.o_brace { break }
+                if peek(p) == t.o_brace {
+                    break
+                }
                 patterns.push(parse_expr(p, prec().logic_or))
             }
         }
@@ -237,7 +234,6 @@ parse_match :: fn(p &Parser) u32 {
             binder_sym := p.db.alloc_local_symbol(p.file_id, p.hir.lhs(binder_name), binder_ident)
             p.env.define(p.hir.lhs(binder_name), binder_sym)
         }
-
         if peek(p) != t.o_brace {
             parse_error_at(p, c"expected '{' after match pattern", curr_span(p))
         }
@@ -247,7 +243,9 @@ parse_match :: fn(p &Parser) u32 {
         patterns_id := add_list(p, &patterns)
         patterns.destroy()
         marker := hir_none()
-        if binding_mode { marker = binder_ident }
+        if binding_mode {
+            marker = binder_ident
+        }
         arm := p.hir.push(k.match_arm, patterns_id, body, marker)
         set_span(p, arm, span_merge(arm_sp_start, prev_span(p)))
         arms.push(arm)
