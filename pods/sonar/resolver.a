@@ -11,45 +11,31 @@ import .vendor: ensure_dir_all
 system :: fn(cmd &u8) i32
 
 ResolvedPod :: struct {
-    name       Str
-    version    SemVer
-    root_dir   Str
-    entry      Str
-    c_build    CBuildInfo
-
+    name Str
+    version SemVer
+    root_dir Str
+    entry Str
+    c_build CBuildInfo
     new :: fn(name Str, version SemVer, root_dir Str, entry Str, c_build CBuildInfo) Self {
-        .{
-            name: name
-            version: version
-            root_dir: root_dir
-            entry: entry
-            c_build: c_build
-        }
+        .{ name: name, version: version, root_dir: root_dir, entry: entry, c_build: c_build }
     }
 }
 
 ResolutionResult :: struct {
-    pods   Vec(ResolvedPod)
+    pods Vec(ResolvedPod)
     errors Vec(Str)
-
     ok :: fn(self &Self) bool {
         self.errors.len == 0
     }
 }
 
 Resolver :: struct {
-    arena        &Arena
-    resolved     Vec(ResolvedPod)
+    arena &Arena
+    resolved Vec(ResolvedPod)
     active_stack Vec(Str)
-    errors       Vec(Str)
-
+    errors Vec(Str)
     new :: fn(arena &Arena) Self {
-        .{
-            arena: arena
-            resolved: Vec(ResolvedPod).new()
-            active_stack: Vec(Str).new()
-            errors: Vec(Str).new()
-        }
+        .{ arena: arena, resolved: Vec(ResolvedPod).new(), active_stack: Vec(Str).new(), errors: Vec(Str).new() }
     }
 
     find_resolved :: fn(self &Self, name Str) Maybe(u64) {
@@ -66,7 +52,9 @@ Resolver :: struct {
     is_active :: fn(self &Self, name Str) bool {
         i: u64 = 0
         while i < self.active_stack.len {
-            if self.active_stack.get(i).eq(name) { ret true }
+            if self.active_stack.get(i).eq(name) {
+                ret true
+            }
             i = i + 1
         }
         false
@@ -77,8 +65,14 @@ Resolver :: struct {
     }
 
     resolve_dir :: fn(self &Self, base_dir Str, dep_path Str) Str {
-        if dep_path.len == 0 { ret base_dir }
-        joined := if base_dir.len > 0 { Path.join(self.arena, base_dir, dep_path) } else { dep_path }
+        if dep_path.len == 0 {
+            ret base_dir
+        }
+        joined := if base_dir.len > 0 {
+            Path.join(self.arena, base_dir, dep_path)
+        } else {
+            dep_path
+        }
         Path.normalize(self.arena, joined)
     }
 
@@ -138,7 +132,6 @@ Resolver :: struct {
                 }
             }
         }
-
         if dep.subdir.len > 0 {
             Path.join(self.arena, cache_base, dep.subdir)
         } else {
@@ -151,7 +144,6 @@ Resolver :: struct {
         if self.is_active(name) {
             ret
         }
-
         target_dir := if dep.git.len > 0 {
             self.resolve_git_pod(dep)
         } else if dep.path.len > 0 {
@@ -191,7 +183,6 @@ Resolver :: struct {
             self.add_error(err_buf.as_str())
             ret
         }
-
         existing_idx := self.find_resolved(name)
         if existing_idx.is_some() {
             idx := existing_idx.unwrap()
@@ -212,7 +203,6 @@ Resolver :: struct {
             }
             ret
         }
-
         self.active_stack.push(name)
         self.resolved.push(ResolvedPod.new(name, manifest.version, target_dir, manifest.entry, manifest.c_build))
 
@@ -233,9 +223,6 @@ Resolver :: struct {
             self.resolve_pod(root_dir, dep)
             i = i + 1
         }
-        .{
-            pods: self.resolved
-            errors: self.errors
-        }
+        .{ pods: self.resolved, errors: self.errors }
     }
 }

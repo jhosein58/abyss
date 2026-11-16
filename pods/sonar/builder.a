@@ -10,23 +10,19 @@ import .vendor: ensure_dir_all
 system :: fn(cmd &u8) i32
 
 Builder :: struct {
-    arena      &Arena
+    arena &Arena
     vendor_dir Str
-    cache_dir  Str
-    cc         Str
-
+    cache_dir Str
+    cc Str
     new :: fn(arena &Arena, vendor_dir Str) Self {
         c_dir := Path.join(arena, vendor_dir, ".cache")
-        .{
-            arena: arena
-            vendor_dir: vendor_dir
-            cache_dir: c_dir
-            cc: "gcc"
-        }
+        .{ arena: arena, vendor_dir: vendor_dir, cache_dir: c_dir, cc: "gcc" }
     }
 
     compile_manifest_c_sources :: fn(self &Self, base_dir Str, pod_name Str, c_build CBuildInfo, objects &Vec(Str), ld_flags &Vec(Str)) bool {
-        if c_build.sources.len == 0 { ret true }
+        if c_build.sources.len == 0 {
+            ret true
+        }
         ensure_dir_all(self.arena, self.cache_dir)
         pod_cache_dir := Path.join(self.arena, self.cache_dir, pod_name)
         ensure_dir_all(self.arena, pod_cache_dir)
@@ -67,7 +63,6 @@ Builder :: struct {
             if status != 0 {
                 ret false
             }
-
             objects.push(obj_path)
             si = si + 1
         }
@@ -85,9 +80,15 @@ Builder :: struct {
         i: u64 = 0
         while i < pods.len {
             pod := pods.get(i)
-            base_dir := if pod.root_dir.len > 0 { pod.root_dir } else { Path.join(self.arena, self.vendor_dir, pod.name) }
+            base_dir := if pod.root_dir.len > 0 {
+                pod.root_dir
+            } else {
+                Path.join(self.arena, self.vendor_dir, pod.name)
+            }
             ok := self.compile_manifest_c_sources(base_dir, pod.name, pod.c_build, objects, ld_flags)
-            if not ok { ret false }
+            if not ok {
+                ret false
+            }
             i = i + 1
         }
         true
@@ -124,7 +125,6 @@ Builder :: struct {
         if status != 0 {
             ret false
         }
-
         cmd_link := String.new(self.arena)
         cmd_link.push_str(self.cc)
         cmd_link.push_str(" -std=gnu99 -D_POSIX_C_SOURCE=200809L -Wno-implicit-function-declaration -Wno-error=incompatible-pointer-types -O2 ")

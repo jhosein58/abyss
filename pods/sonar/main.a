@@ -24,7 +24,11 @@ print_line :: fn(s Str) {
 }
 
 cmd_init :: fn(arena &Arena, name Str) {
-    pod_name := if name.len > 0 { name } else { "my-pod" }
+    pod_name := if name.len > 0 {
+        name
+    } else {
+        "my-pod"
+    }
     manifest_buf := String.new(arena)
     manifest_buf.push_str("{\n  \"name\": \"")
     manifest_buf.push_str(pod_name)
@@ -35,26 +39,32 @@ cmd_init :: fn(arena &Arena, name Str) {
 
 find_index_dir :: fn(arena &Arena) Str {
     env_idx := Str.of(Env.get_or(c"SONAR_INDEX_PATH", c""))
-    if env_idx.len > 0 { ret env_idx }
-
+    if env_idx.len > 0 {
+        ret env_idx
+    }
     c_sibling := to_cstr(arena, "../abyss-index")
-    if Dir.exists(c_sibling) { ret "../abyss-index" }
-
+    if Dir.exists(c_sibling) {
+        ret "../abyss-index"
+    }
     c_sibling2 := to_cstr(arena, "/home/jhosein58/Workspace/abyss-index")
-    if Dir.exists(c_sibling2) { ret "/home/jhosein58/Workspace/abyss-index" }
-
+    if Dir.exists(c_sibling2) {
+        ret "/home/jhosein58/Workspace/abyss-index"
+    }
     home := Str.of(Env.get_or(c"HOME", c"."))
     idx_path := Path.join(arena, home, ".abyss/index")
     c_idx := to_cstr(arena, idx_path)
-    if Dir.exists(c_idx) { ret idx_path }
-
+    if Dir.exists(c_idx) {
+        ret idx_path
+    }
     clone_cmd := String.new(arena)
     clone_cmd.push_str("git clone --depth 1 https://github.com/jhosein58/abyss-index.git ")
     clone_cmd.push_str(idx_path)
     clone_cmd.push_str(" >/dev/null 2>&1")
     system(to_cstr(arena, clone_cmd.as_str()))
 
-    if Dir.exists(c_idx) { ret idx_path }
+    if Dir.exists(c_idx) {
+        ret idx_path
+    }
     Str.empty()
 }
 
@@ -77,7 +87,6 @@ cmd_vendor :: fn(arena &Arena) Vec(Str) {
         }
         fall()
     }
-
     vm := VendorManager.new(arena, ".vendor")
     map_args := vm.vendor_all(res.pods)
     print_line("[sonar] vendored dependencies into .vendor/")
@@ -89,13 +98,11 @@ cmd_add :: fn(arena &Arena, pod_name Str, ver_arg Str) {
         print_line("[sonar error] pod name required for 'sonar add'")
         fall()
     }
-
     idx_dir := find_index_dir(arena)
     if idx_dir.len == 0 {
         print_line("[sonar error] cannot locate pod index repository (abyss-index)")
         fall()
     }
-
     pod_meta_path := String.new(arena)
     pod_meta_path.push_str(idx_dir)
     pod_meta_path.push_str("/pods/")
@@ -109,7 +116,6 @@ cmd_add :: fn(arena &Arena, pod_name Str, ver_arg Str) {
         print_line("' not found in index")
         fall()
     }
-
     meta_json_opt := parse_json(arena, meta_src_opt.unwrap())
     if meta_json_opt.is_none() {
         print_line("[sonar error] corrupted index entry")
@@ -118,13 +124,25 @@ cmd_add :: fn(arena &Arena, pod_name Str, ver_arg Str) {
     meta_json := meta_json_opt.unwrap()
 
     git_url_opt := meta_json.get_str("git")
-    git_url := if git_url_opt.is_some() { git_url_opt.unwrap() } else { Str.empty() }
+    git_url := if git_url_opt.is_some() {
+        git_url_opt.unwrap()
+    } else {
+        Str.empty()
+    }
 
     subdir_opt := meta_json.get_str("subdir")
-    subdir := if subdir_opt.is_some() { subdir_opt.unwrap() } else { Str.empty() }
+    subdir := if subdir_opt.is_some() {
+        subdir_opt.unwrap()
+    } else {
+        Str.empty()
+    }
 
     latest_opt := meta_json.get_str("latest")
-    latest := if latest_opt.is_some() { latest_opt.unwrap() } else { "0.1.0" }
+    latest := if latest_opt.is_some() {
+        latest_opt.unwrap()
+    } else {
+        "0.1.0"
+    }
 
     ver_req := if ver_arg.len > 0 {
         ver_arg
@@ -156,7 +174,6 @@ cmd_add :: fn(arena &Arena, pod_name Str, ver_arg Str) {
     if not found {
         manifest.deps.push(Dependency.new(pod_name, ver_req, Str.empty(), git_url, subdir))
     }
-
     File.write_string("pod.json", manifest.to_json(arena))
     print_str("[sonar] added '")
     print_str(pod_name)
@@ -183,10 +200,18 @@ cmd_update :: fn(arena &Arena) {
 
 find_abyssc :: fn() Str {
     env_c := Str.of(Env.get_or(c"ABYSS_COMPILER", c""))
-    if (env_c.len > 0) and File.exists(env_c) { ret env_c }
-    if File.exists("abyssc") { ret "./abyssc" }
-    if File.exists("../abyssc") { ret "../abyssc" }
-    if File.exists("../../abyssc") { ret "../../abyssc" }
+    if (env_c.len > 0) and File.exists(env_c) {
+        ret env_c
+    }
+    if File.exists("abyssc") {
+        ret "./abyssc"
+    }
+    if File.exists("../abyssc") {
+        ret "../abyssc"
+    }
+    if File.exists("../../abyssc") {
+        ret "../../abyssc"
+    }
     "abyssc"
 }
 
@@ -198,8 +223,16 @@ cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
     }
     manifest := manifest_opt.unwrap()
 
-    target_src := if target_arg.len > 0 { target_arg } else { manifest.entry }
-    out_bin := if out_arg.len > 0 { out_arg } else { Path.join(arena, "bin", manifest.name) }
+    target_src := if target_arg.len > 0 {
+        target_arg
+    } else {
+        manifest.entry
+    }
+    out_bin := if out_arg.len > 0 {
+        out_arg
+    } else {
+        Path.join(arena, "bin", manifest.name)
+    }
 
     resolver := Resolver.new(arena)
     res := resolver.resolve_root(".", manifest)
@@ -212,7 +245,6 @@ cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
         }
         fall()
     }
-
     vm := VendorManager.new(arena, ".vendor")
     map_args := vm.vendor_all(res.pods)
 
@@ -230,14 +262,12 @@ cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
         print_line("[sonar error] failed to compile native C sources for root pod")
         fall()
     }
-
     abyssc_bin := find_abyssc()
     ok := builder.build_target(abyssc_bin, target_src, out_bin, map_args, objects, ld_flags)
     if not ok {
         print_line("[sonar error] build failed")
         fall()
     }
-
     print_str("[sonar] successfully built ")
     print_line(out_bin)
     out_bin
@@ -255,19 +285,37 @@ cmd_run :: fn(arena &Arena, target_arg Str) {
 
 find_dev_root :: fn(arena &Arena) Str {
     env_dev := Str.of(Env.get_or(c"ABYSS_DEV", c""))
-    if env_dev.len > 0 { ret env_dev }
-    if Dir.exists(to_cstr(arena, "pods/core")) { ret "." }
-    if Dir.exists(to_cstr(arena, "../pods/core")) { ret ".." }
-    if Dir.exists(to_cstr(arena, "../../pods/core")) { ret "../.." }
+    if env_dev.len > 0 {
+        ret env_dev
+    }
+    if Dir.exists(to_cstr(arena, "pods/core")) {
+        ret "."
+    }
+    if Dir.exists(to_cstr(arena, "../pods/core")) {
+        ret ".."
+    }
+    if Dir.exists(to_cstr(arena, "../../pods/core")) {
+        ret "../.."
+    }
     Str.empty()
 }
 
 find_test_pod_path :: fn(arena &Arena) Str {
-    if File.exists(".vendor/test/pod.json") { ret ".vendor/test" }
-    if File.exists("pods/test/pod.json") { ret "pods/test" }
-    if File.exists("pod.json") and File.exists("test.a") { ret "test" }
-    if File.exists("../pods/test/pod.json") { ret "../pods/test" }
-    if File.exists("../../pods/test/pod.json") { ret "../../pods/test" }
+    if File.exists(".vendor/test/pod.json") {
+        ret ".vendor/test"
+    }
+    if File.exists("pods/test/pod.json") {
+        ret "pods/test"
+    }
+    if File.exists("pod.json") and File.exists("test.a") {
+        ret "test"
+    }
+    if File.exists("../pods/test/pod.json") {
+        ret "../pods/test"
+    }
+    if File.exists("../../pods/test/pod.json") {
+        ret "../../pods/test"
+    }
     home := Str.of(Env.get_or(c"HOME", c"."))
     home_test := Path.join(arena, home, ".abyss/pods/test/pod.json")
     if File.exists(home_test) {
@@ -315,7 +363,6 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
         print_line("[sonar test] no test files found")
         ret
     }
-
     map_args := Vec(Str).new()
     objects := Vec(Str).new()
     ld_flags := Vec(Str).new()
@@ -329,7 +376,11 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
         manifest_opt := PodManifest.load_file(arena, pod_json_path)
         if manifest_opt.is_some() {
             manifest := manifest_opt.unwrap()
-            resolve_dir := if pod_root.len > 0 { pod_root } else { "." }
+            resolve_dir := if pod_root.len > 0 {
+                pod_root
+            } else {
+                "."
+            }
             resolver := Resolver.new(arena)
             res := resolver.resolve_root(resolve_dir, manifest)
             vendor_dir := if pod_root.len > 0 {
@@ -364,7 +415,6 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
             }
         }
     }
-
     has_test := false
     mi: u64 = 0
     while mi < map_args.len {
@@ -382,7 +432,6 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
         test_map.push_str(test_path)
         map_args.push(test_map.as_str())
     }
-
     dev_root := find_dev_root(arena)
     abyssc_bin := find_abyssc()
     print_str("[sonar test] discovered ")
@@ -474,28 +523,55 @@ main :: fn() {
         cmd_help()
         ret
     }
-
     cmd := Str.of(Env.arg(1))
     if cmd.eq("init") {
-        name := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
+        name := if argc > 2 {
+            Str.of(Env.arg(2))
+        } else {
+            Str.empty()
+        }
         cmd_init(&arena, name)
     } else if cmd.eq("add") {
-        pod := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
-        ver := if argc > 3 { Str.of(Env.arg(3)) } else { Str.empty() }
+        pod := if argc > 2 {
+            Str.of(Env.arg(2))
+        } else {
+            Str.empty()
+        }
+        ver := if argc > 3 {
+            Str.of(Env.arg(3))
+        } else {
+            Str.empty()
+        }
         cmd_add(&arena, pod, ver)
     } else if cmd.eq("update") {
         cmd_update(&arena)
     } else if cmd.eq("vendor") {
         cmd_vendor(&arena)
     } else if cmd.eq("build") {
-        target := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
-        out := if argc > 3 { Str.of(Env.arg(3)) } else { Str.empty() }
+        target := if argc > 2 {
+            Str.of(Env.arg(2))
+        } else {
+            Str.empty()
+        }
+        out := if argc > 3 {
+            Str.of(Env.arg(3))
+        } else {
+            Str.empty()
+        }
         cmd_build(&arena, target, out)
     } else if cmd.eq("run") {
-        target := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
+        target := if argc > 2 {
+            Str.of(Env.arg(2))
+        } else {
+            Str.empty()
+        }
         cmd_run(&arena, target)
     } else if cmd.eq("test") {
-        target := if argc > 2 { Str.of(Env.arg(2)) } else { Str.empty() }
+        target := if argc > 2 {
+            Str.of(Env.arg(2))
+        } else {
+            Str.empty()
+        }
         cmd_test(&arena, target)
     } else if cmd.eq("help") or cmd.eq("--help") or cmd.eq("-h") {
         cmd_help()

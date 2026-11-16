@@ -6,22 +6,29 @@ SemVer :: struct {
     major u32
     minor u32
     patch u32
-
     new :: fn(major u32, minor u32, patch u32) Self {
-        .{
-            major: major
-            minor: minor
-            patch: patch
-        }
+        .{ major: major, minor: minor, patch: patch }
     }
 
     compare :: fn(self &Self, other SemVer) i32 {
-        if self.major < other.major { ret -1 }
-        if self.major > other.major { ret 1 }
-        if self.minor < other.minor { ret -1 }
-        if self.minor > other.minor { ret 1 }
-        if self.patch < other.patch { ret -1 }
-        if self.patch > other.patch { ret 1 }
+        if self.major < other.major {
+            ret -1
+        }
+        if self.major > other.major {
+            ret 1
+        }
+        if self.minor < other.minor {
+            ret -1
+        }
+        if self.minor > other.minor {
+            ret 1
+        }
+        if self.patch < other.patch {
+            ret -1
+        }
+        if self.patch > other.patch {
+            ret 1
+        }
         0
     }
 
@@ -56,11 +63,14 @@ SemVer :: struct {
         while (clean.len > 0) and (*clean.ptr == (' ' as u8)) {
             clean = clean.sub(1, clean.len - 1)
         }
-        if (clean.len == 0) or clean.eq("*") { ret true }
-
+        if (clean.len == 0) or clean.eq("*") {
+            ret true
+        }
         if clean.starts_with("^") {
             target_opt := SemVer.parse(clean.sub(1, clean.len - 1))
-            if target_opt.is_none() { ret false }
+            if target_opt.is_none() {
+                ret false
+            }
             target := target_opt.unwrap()
             if target.major > 0 {
                 ret (self.major == target.major) and self.gte(target)
@@ -70,28 +80,32 @@ SemVer :: struct {
                 ret (self.major == 0) and (self.minor == 0) and (self.patch == target.patch)
             }
         }
-
         if clean.starts_with("~") {
             target_opt := SemVer.parse(clean.sub(1, clean.len - 1))
-            if target_opt.is_none() { ret false }
+            if target_opt.is_none() {
+                ret false
+            }
             target := target_opt.unwrap()
             ret (self.major == target.major) and (self.minor == target.minor) and self.gte(target)
         }
-
         if clean.starts_with(">=") {
             target_opt := SemVer.parse(clean.sub(2, clean.len - 2))
-            if target_opt.is_none() { ret false }
+            if target_opt.is_none() {
+                ret false
+            }
             ret self.gte(target_opt.unwrap())
         }
-
         if clean.starts_with("==") {
             target_opt := SemVer.parse(clean.sub(2, clean.len - 2))
-            if target_opt.is_none() { ret false }
+            if target_opt.is_none() {
+                ret false
+            }
             ret self.eq(target_opt.unwrap())
         }
-
         target_opt := SemVer.parse(clean)
-        if target_opt.is_none() { ret false }
+        if target_opt.is_none() {
+            ret false
+        }
         self.eq(target_opt.unwrap())
     }
 
@@ -100,43 +114,54 @@ SemVer :: struct {
         while (clean.len > 0) and ((*clean.ptr == (' ' as u8)) or (*clean.ptr == ('v' as u8))) {
             clean = clean.sub(1, clean.len - 1)
         }
-        if clean.len == 0 { ret Maybe(SemVer).none() }
-
+        if clean.len == 0 {
+            ret Maybe(SemVer).none()
+        }
         p0: u64 = 0
         while (p0 < clean.len) and (*(clean.ptr + p0) != ('.' as u8)) {
             c := *(clean.ptr + p0)
-            if (c < ('0' as u8)) or (c > ('9' as u8)) { ret Maybe(SemVer).none() }
+            if (c < ('0' as u8)) or (c > ('9' as u8)) {
+                ret Maybe(SemVer).none()
+            }
             p0 = p0 + 1
         }
-        if p0 == 0 { ret Maybe(SemVer).none() }
+        if p0 == 0 {
+            ret Maybe(SemVer).none()
+        }
         maj := parse_u32(clean.sub(0, p0))
 
         if p0 >= clean.len {
             ret Maybe(SemVer).some(SemVer.new(maj, 0, 0))
         }
-
         clean2 := clean.sub(p0 + 1, clean.len - p0 - 1)
         p1: u64 = 0
         while (p1 < clean2.len) and (*(clean2.ptr + p1) != ('.' as u8)) {
             c := *(clean2.ptr + p1)
-            if (c < ('0' as u8)) or (c > ('9' as u8)) { ret Maybe(SemVer).none() }
+            if (c < ('0' as u8)) or (c > ('9' as u8)) {
+                ret Maybe(SemVer).none()
+            }
             p1 = p1 + 1
         }
-        if p1 == 0 { ret Maybe(SemVer).none() }
+        if p1 == 0 {
+            ret Maybe(SemVer).none()
+        }
         min := parse_u32(clean2.sub(0, p1))
 
         if p1 >= clean2.len {
             ret Maybe(SemVer).some(SemVer.new(maj, min, 0))
         }
-
         clean3 := clean2.sub(p1 + 1, clean2.len - p1 - 1)
         p2: u64 = 0
         while (p2 < clean3.len) and (*(clean3.ptr + p2) != ('-' as u8)) and (*(clean3.ptr + p2) != ('+' as u8)) {
             c := *(clean3.ptr + p2)
-            if (c < ('0' as u8)) or (c > ('9' as u8)) { break }
+            if (c < ('0' as u8)) or (c > ('9' as u8)) {
+                break
+            }
             p2 = p2 + 1
         }
-        if p2 == 0 { ret Maybe(SemVer).none() }
+        if p2 == 0 {
+            ret Maybe(SemVer).none()
+        }
         pat := parse_u32(clean3.sub(0, p2))
 
         Maybe(SemVer).some(SemVer.new(maj, min, pat))

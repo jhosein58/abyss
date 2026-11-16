@@ -9,7 +9,9 @@ system :: fn(cmd &u8) i32
 
 ensure_dir_all :: fn(arena &Arena, dir_path Str) {
     c_path := to_cstr(arena, dir_path)
-    if Dir.exists(c_path) { ret }
+    if Dir.exists(c_path) {
+        ret
+    }
     cmd := String.new(arena)
     cmd.push_str("mkdir -p ")
     cmd.push_str(dir_path)
@@ -18,7 +20,9 @@ ensure_dir_all :: fn(arena &Arena, dir_path Str) {
 
 copy_file :: fn(arena &Arena, src Str, dst Str) {
     content_opt := File.read_to_string(arena, src)
-    if content_opt.is_none() { ret }
+    if content_opt.is_none() {
+        ret
+    }
     dst_dir := Path.dir(dst)
     if dst_dir.len > 0 {
         ensure_dir_all(arena, dst_dir)
@@ -27,14 +31,10 @@ copy_file :: fn(arena &Arena, src Str, dst Str) {
 }
 
 VendorManager :: struct {
-    arena      &Arena
+    arena &Arena
     vendor_dir Str
-
     new :: fn(arena &Arena, vendor_dir Str) Self {
-        .{
-            arena: arena
-            vendor_dir: vendor_dir
-        }
+        .{ arena: arena, vendor_dir: vendor_dir }
     }
 
     vendor_all :: fn(self &Self, pods Vec(ResolvedPod)) Vec(Str) {
@@ -64,7 +64,11 @@ VendorManager :: struct {
                 fi = fi + 1
             }
 
-            entry_stem := if pod.entry.ends_with(".a") { pod.entry.sub(0, pod.entry.len - 2) } else { pod.entry }
+            entry_stem := if pod.entry.ends_with(".a") {
+                pod.entry.sub(0, pod.entry.len - 2)
+            } else {
+                pod.entry
+            }
             entry_path := Path.join(self.arena, target_pod_dir, entry_stem)
             map_arg := String.new(self.arena)
             map_arg.push_str(pod.name)
