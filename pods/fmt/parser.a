@@ -893,6 +893,17 @@ CstParser :: struct {
         0 as u8
     }
 
+    has_newline_immediately_after :: fn(self &Self) bool {
+        idx := self.cursor
+        while idx < self.tokens.len() {
+            t := self.tokens.get(idx)
+            if t.is_newline() { ret true }
+            if not t.is_whitespace() { ret false }
+            idx = idx + 1
+        }
+        true
+    }
+
     parse_prefix :: fn(self &Self) &CstNode {
         self.skip_ws()
         k := self.peek()
@@ -1015,7 +1026,7 @@ CstParser :: struct {
         if k == TokenKind.kw_ret {
             self.bump()
             ret_node := cst_new(self.arena, CstKind.ret_expr, Str.empty())
-            if not self.has_newline_before() and self.peek() != TokenKind.semi and self.peek() != TokenKind.c_brace and not self.is_eof() {
+            if (not self.has_newline_immediately_after()) and (self.peek() != TokenKind.semi) and (self.peek() != TokenKind.c_brace) and (not self.is_eof()) {
                 val := self.parse_expr(0 as u8)
                 ret_node.add_child(val)
             }
