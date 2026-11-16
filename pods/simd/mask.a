@@ -1,11 +1,12 @@
 SimdMask :: fn(cmpt N u64) type {
     struct {
         bits [N]bool
-
         all :: fn(self &Self) bool {
             i: u64 = 0
             while i < N {
-                if not self.bits[i] { ret false }
+                if not self.bits[i] {
+                    ret false
+                }
                 i = i + 1
             }
             true
@@ -14,7 +15,9 @@ SimdMask :: fn(cmpt N u64) type {
         any :: fn(self &Self) bool {
             i: u64 = 0
             while i < N {
-                if self.bits[i] { ret true }
+                if self.bits[i] {
+                    ret true
+                }
                 i = i + 1
             }
             false
@@ -28,7 +31,9 @@ SimdMask :: fn(cmpt N u64) type {
             c: u64 = 0
             i: u64 = 0
             while i < N {
-                if self.bits[i] { c = c + 1 }
+                if self.bits[i] {
+                    c = c + 1
+                }
                 i = i + 1
             }
             c

@@ -4,7 +4,11 @@ import test: Suite, Test, assert_true, assert_eq
 
 approx_eq :: fn(a f32, b f32, eps f32) bool {
     diff := a - b
-    abs_d := if diff < 0.0 { -diff } else { diff }
+    abs_d := if diff < 0.0 {
+        -diff
+    } else {
+        diff
+    }
     abs_d <= eps
 }
 

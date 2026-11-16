@@ -1,65 +1,114 @@
 import .mask: SimdMask
 
-abyss_simd_sin_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_sin_fast_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_cos_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_cos_fast_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_tan_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_tan_fast_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_asin_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_acos_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_atan_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_atan2_f32x4 :: fn(dst &f32, y &f32, x &f32)
-abyss_simd_exp_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_exp_fast_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_exp2_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_ln_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_ln_fast_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_log2_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_log10_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_pow_f32x4 :: fn(dst &f32, a &f32, b &f32)
-abyss_simd_sqrt_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_rsqrt_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_rsqrt_fast_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_cbrt_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_hypot_f32x4 :: fn(dst &f32, a &f32, b &f32)
-abyss_simd_sinh_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_cosh_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_tanh_f32x4 :: fn(dst &f32, src &f32)
-abyss_simd_fma_f32x4 :: fn(dst &f32, a &f32, b &f32, c &f32)
+abyss_simd_sin_f32x4 :: fn(dst &f32, src &f32) 
 
-abyss_simd_sin_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_sin_fast_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_cos_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_cos_fast_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_tan_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_asin_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_acos_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_atan_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_atan2_f64x2 :: fn(dst &f64, y &f64, x &f64)
-abyss_simd_exp_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_exp_fast_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_exp2_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_ln_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_ln_fast_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_log2_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_log10_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_pow_f64x2 :: fn(dst &f64, a &f64, b &f64)
-abyss_simd_sqrt_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_rsqrt_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_cbrt_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_hypot_f64x2 :: fn(dst &f64, a &f64, b &f64)
-abyss_simd_sinh_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_cosh_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_tanh_f64x2 :: fn(dst &f64, src &f64)
-abyss_simd_fma_f64x2 :: fn(dst &f64, a &f64, b &f64, c &f64)
+abyss_simd_sin_fast_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_cos_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_cos_fast_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_tan_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_tan_fast_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_asin_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_acos_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_atan_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_atan2_f32x4 :: fn(dst &f32, y &f32, x &f32) 
+
+abyss_simd_exp_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_exp_fast_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_exp2_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_ln_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_ln_fast_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_log2_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_log10_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_pow_f32x4 :: fn(dst &f32, a &f32, b &f32) 
+
+abyss_simd_sqrt_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_rsqrt_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_rsqrt_fast_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_cbrt_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_hypot_f32x4 :: fn(dst &f32, a &f32, b &f32) 
+
+abyss_simd_sinh_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_cosh_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_tanh_f32x4 :: fn(dst &f32, src &f32) 
+
+abyss_simd_fma_f32x4 :: fn(dst &f32, a &f32, b &f32, c &f32) 
+
+abyss_simd_sin_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_sin_fast_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_cos_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_cos_fast_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_tan_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_asin_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_acos_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_atan_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_atan2_f64x2 :: fn(dst &f64, y &f64, x &f64) 
+
+abyss_simd_exp_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_exp_fast_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_exp2_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_ln_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_ln_fast_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_log2_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_log10_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_pow_f64x2 :: fn(dst &f64, a &f64, b &f64) 
+
+abyss_simd_sqrt_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_rsqrt_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_cbrt_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_hypot_f64x2 :: fn(dst &f64, a &f64, b &f64) 
+
+abyss_simd_sinh_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_cosh_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_tanh_f64x2 :: fn(dst &f64, src &f64) 
+
+abyss_simd_fma_f64x2 :: fn(dst &f64, a &f64, b &f64, c &f64) 
 
 abyss_simd_cpu_features :: fn() u32
 
 Simd :: fn(T type, cmpt N u64) type {
     struct {
         data [N]T
-
         splat :: fn(v T) Self {
             res: Self
             i: u64 = 0
@@ -171,7 +220,11 @@ Simd :: fn(T type, cmpt N u64) type {
             i: u64 = 0
             while i < N {
                 v := self.data[i]
-                res.data[i] = if v < 0 { -v } else { v }
+                res.data[i] = if v < 0 {
+                    -v
+                } else {
+                    v
+                }
                 i = i + 1
             }
             res
@@ -183,7 +236,11 @@ Simd :: fn(T type, cmpt N u64) type {
             while i < N {
                 a := self.data[i]
                 b := other.data[i]
-                res.data[i] = if a < b { a } else { b }
+                res.data[i] = if a < b {
+                    a
+                } else {
+                    b
+                }
                 i = i + 1
             }
             res
@@ -195,7 +252,11 @@ Simd :: fn(T type, cmpt N u64) type {
             while i < N {
                 a := self.data[i]
                 b := other.data[i]
-                res.data[i] = if a > b { a } else { b }
+                res.data[i] = if a > b {
+                    a
+                } else {
+                    b
+                }
                 i = i + 1
             }
             res
@@ -248,7 +309,9 @@ Simd :: fn(T type, cmpt N u64) type {
             res
         }
 
-        and_ :: fn(self Self, other Self) Self { self.bit_and(other) }
+        and_ :: fn(self Self, other Self) Self {
+            self.bit_and(other)
+        }
 
         bit_or :: fn(self Self, other Self) Self {
             res: Self
@@ -280,7 +343,9 @@ Simd :: fn(T type, cmpt N u64) type {
             res
         }
 
-        or_ :: fn(self Self, other Self) Self { self.bit_or(other) }
+        or_ :: fn(self Self, other Self) Self {
+            self.bit_or(other)
+        }
 
         bit_xor :: fn(self Self, other Self) Self {
             res: Self
@@ -312,7 +377,9 @@ Simd :: fn(T type, cmpt N u64) type {
             res
         }
 
-        xor_ :: fn(self Self, other Self) Self { self.bit_xor(other) }
+        xor_ :: fn(self Self, other Self) Self {
+            self.bit_xor(other)
+        }
 
         bit_not :: fn(self Self) Self {
             res: Self
@@ -340,7 +407,9 @@ Simd :: fn(T type, cmpt N u64) type {
             res
         }
 
-        not_ :: fn(self Self) Self { self.bit_not() }
+        not_ :: fn(self Self) Self {
+            self.bit_not()
+        }
 
         sum :: fn(self Self) T {
             acc: T = self.data[0]
@@ -367,7 +436,9 @@ Simd :: fn(T type, cmpt N u64) type {
             i: u64 = 1
             while i < N {
                 v := self.data[i]
-                if v < res { res = v }
+                if v < res {
+                    res = v
+                }
                 i = i + 1
             }
             res
@@ -378,7 +449,9 @@ Simd :: fn(T type, cmpt N u64) type {
             i: u64 = 1
             while i < N {
                 v := self.data[i]
-                if v > res { res = v }
+                if v > res {
+                    res = v
+                }
                 i = i + 1
             }
             res
@@ -408,7 +481,9 @@ Simd :: fn(T type, cmpt N u64) type {
             res
         }
 
-        cmpeq :: fn(self Self, other Self) SimdMask(N) { self.cmp_eq(other) }
+        cmpeq :: fn(self Self, other Self) SimdMask(N) {
+            self.cmp_eq(other)
+        }
 
         cmp_ne :: fn(self Self, other Self) SimdMask(N) {
             res: SimdMask(N)
@@ -420,7 +495,9 @@ Simd :: fn(T type, cmpt N u64) type {
             res
         }
 
-        cmpne :: fn(self Self, other Self) SimdMask(N) { self.cmp_ne(other) }
+        cmpne :: fn(self Self, other Self) SimdMask(N) {
+            self.cmp_ne(other)
+        }
 
         cmp_lt :: fn(self Self, other Self) SimdMask(N) {
             res: SimdMask(N)
@@ -432,7 +509,9 @@ Simd :: fn(T type, cmpt N u64) type {
             res
         }
 
-        cmplt :: fn(self Self, other Self) SimdMask(N) { self.cmp_lt(other) }
+        cmplt :: fn(self Self, other Self) SimdMask(N) {
+            self.cmp_lt(other)
+        }
 
         cmp_le :: fn(self Self, other Self) SimdMask(N) {
             res: SimdMask(N)
@@ -444,7 +523,9 @@ Simd :: fn(T type, cmpt N u64) type {
             res
         }
 
-        cmple :: fn(self Self, other Self) SimdMask(N) { self.cmp_le(other) }
+        cmple :: fn(self Self, other Self) SimdMask(N) {
+            self.cmp_le(other)
+        }
 
         cmp_gt :: fn(self Self, other Self) SimdMask(N) {
             res: SimdMask(N)
@@ -456,7 +537,9 @@ Simd :: fn(T type, cmpt N u64) type {
             res
         }
 
-        cmpgt :: fn(self Self, other Self) SimdMask(N) { self.cmp_gt(other) }
+        cmpgt :: fn(self Self, other Self) SimdMask(N) {
+            self.cmp_gt(other)
+        }
 
         cmp_ge :: fn(self Self, other Self) SimdMask(N) {
             res: SimdMask(N)
@@ -468,13 +551,19 @@ Simd :: fn(T type, cmpt N u64) type {
             res
         }
 
-        cmpge :: fn(self Self, other Self) SimdMask(N) { self.cmp_ge(other) }
+        cmpge :: fn(self Self, other Self) SimdMask(N) {
+            self.cmp_ge(other)
+        }
 
         select :: fn(mask SimdMask(N), on_true Self, on_false Self) Self {
             res: Self
             i: u64 = 0
             while i < N {
-                res.data[i] = if mask.bits[i] { on_true.data[i] } else { on_false.data[i] }
+                res.data[i] = if mask.bits[i] {
+                    on_true.data[i]
+                } else {
+                    on_false.data[i]
+                }
                 i = i + 1
             }
             res

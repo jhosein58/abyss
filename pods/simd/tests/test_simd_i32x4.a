@@ -22,7 +22,7 @@ test_i32x4_bitwise :: fn(t &Test) {
     b := i32x4.splat(10)
 
     and_v := a.bit_and(b)
-    or_v  := a.bit_or(b)
+    or_v := a.bit_or(b)
     xor_v := a.bit_xor(b)
 
     t.assert_eq(i32, and_v.get(0), 8, "i32 bit_and")
