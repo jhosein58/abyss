@@ -1,7 +1,9 @@
-import .main: format_source, format_file_in_place
+import .main: format_source, format_file_in_place, format_path
 import std.allocator: Arena
-import std.fs: File
+import std.fs: File, Dir
 import std.sys: fall
+
+mkdir :: fn(path &u8, mode u32) i32
 
 assert_true :: fn(cond bool, msg Str) {
     if not cond {
@@ -39,6 +41,14 @@ test_struct_and_enum :: fn() {
     res := format_source(&arena, src)
     assert_true(res.eq(src), Str.of("struct with method"))
 
+    src_tuple := "Pair :: struct { i32, Str }\n"
+    res_tuple := format_source(&arena, src_tuple)
+    assert_true(res_tuple.eq(src_tuple), Str.of("tuple struct"))
+
+    src_empty := "Empty :: struct {}\n"
+    res_empty := format_source(&arena, src_empty)
+    assert_true(res_empty.eq(src_empty), Str.of("empty struct"))
+
     src_enum := "Color :: enum u32 {\n    Red\n    Green = 10\n    Blue\n}\n"
     res_enum := format_source(&arena, src_enum)
     assert_true(res_enum.eq(src_enum), Str.of("enum with values"))
@@ -61,9 +71,65 @@ test_control_flow :: fn() {
     res_for := format_source(&arena, src_for)
     assert_true(res_for.eq(src_for), Str.of("for loop"))
 
+    src_for_multi := "main :: fn() {\n    for a, b in xs.iter(), ys.iter() {\n        print(a + b)\n    }\n}\n"
+    res_for_multi := format_source(&arena, src_for_multi)
+    assert_true(res_for_multi.eq(src_for_multi), Str.of("for multi-variable multi-iterator"))
+
     src_match := "main :: fn() {\n    match val {\n        1 {\n            print(10)\n        }\n        2, 3 {\n            print(20)\n        }\n        else {\n            print(0)\n        }\n    }\n}\n"
     res_match := format_source(&arena, src_match)
     assert_true(res_match.eq(src_match), Str.of("match expression"))
+
+    src_match_in := "main :: fn() {\n    match val in u {\n        Foo {\n            print(val)\n        }\n        Bar {\n            print(0)\n        }\n    }\n}\n"
+    res_match_in := format_source(&arena, src_match_in)
+    assert_true(res_match_in.eq(src_match_in), Str.of("match in expression"))
+
+    arena.destroy()
+}
+
+test_struct_init_and_tuples :: fn() {
+    arena := Arena.new(65536)
+
+    src_named := "main :: fn() {\n    p := .{ x: 10, y: 20 }\n}\n"
+    res_named := format_source(&arena, src_named)
+    assert_true(res_named.eq(src_named), Str.of("struct init named"))
+
+    src_pos := "main :: fn() {\n    t := .{ 10, 20 }\n    printf(\"msg: {}\\n\", .{ msg })\n}\n"
+    res_pos := format_source(&arena, src_pos)
+    assert_true(res_pos.eq(src_pos), Str.of("struct init positional tuple"))
+
+    src_destruct := "main :: fn() {\n    a, b := .{ 10, 20 }\n    x, y, z := triple\n}\n"
+    res_destruct := format_source(&arena, src_destruct)
+    assert_true(res_destruct.eq(src_destruct), Str.of("destructure assignment"))
+
+    arena.destroy()
+}
+
+test_advanced_syntax :: fn() {
+    arena := Arena.new(65536)
+
+    src_builtins := "main :: fn() {\n    sz := @sizeof(Point)\n    al := @alignof(Point)\n    name := @type_name(i32)\n}\n"
+    res_builtins := format_source(&arena, src_builtins)
+    assert_true(res_builtins.eq(src_builtins), Str.of("builtins sizeof alignof type_name"))
+
+    src_splice := "main :: fn() {\n    #x\n    #(expr + 1)\n}\n"
+    res_splice := format_source(&arena, src_splice)
+    assert_true(res_splice.eq(src_splice), Str.of("splices"))
+
+    src_fn_types := "SortFn :: fn(Str, Str) bool\nUnaryOp :: fn(i32) i32\n"
+    res_fn_types := format_source(&arena, src_fn_types)
+    assert_true(res_fn_types.eq(src_fn_types), Str.of("anonymous function types"))
+
+    src_fn_multi_params := "add3 :: fn(a, b, c i32) i32 {\n    a + b + c\n}\n"
+    res_fn_multi_params := format_source(&arena, src_fn_multi_params)
+    assert_true(res_fn_multi_params.eq(src_fn_multi_params), Str.of("multi-name parameters"))
+
+    src_arrays := "main :: fn() {\n    arr: [4]i32 = .[ 1, 2, 3, 4 ]\n    sl: []u8 = .[]\n}\n"
+    res_arrays := format_source(&arena, src_arrays)
+    assert_true(res_arrays.eq(src_arrays), Str.of("array and slice types and literals"))
+
+    src_vars := "main :: fn() {\n    a := 1\n    b: i32 = 2\n    c: i32 : 3\n    d: i32\n}\n"
+    res_vars := format_source(&arena, src_vars)
+    assert_true(res_vars.eq(src_vars), Str.of("var decl variants"))
 
     arena.destroy()
 }
@@ -71,7 +137,7 @@ test_control_flow :: fn() {
 test_idempotency :: fn() {
     arena := Arena.new(65536)
 
-    messy := "import   std.io :print ,printf as log\n\nPoint::struct{\nx,y i32\n}\n\nmain::fn(){\nx:=10+20*3\np:Point=.{x:1,y:2}\nprint(x)\n}\n"
+    messy := "import   std.io :print ,printf as log\n\nPoint::struct{\nx,y i32\n}\n\nmain::fn(){\nx:=10+20*3\np:Point=.{x:1,y:2}\nt:=.{10,20}\nprintf(\"hello {}\\n\",.{x})\n}\n"
     pass1 := format_source(&arena, messy)
     pass2 := format_source(&arena, pass1)
 
@@ -80,18 +146,29 @@ test_idempotency :: fn() {
     arena.destroy()
 }
 
-test_file_replace :: fn() {
+test_file_and_directory_formatting :: fn() {
     arena := Arena.new(65536)
-    path := "tmp/fmt_file_test.a"
-    messy := "main::fn(){\nx:=42\nret x\n}\n"
-    File.write_string(path, messy)
+    dir_path := "tmp/fmt_dir_test"
+    mkdir(c"tmp/fmt_dir_test", 511 as u32)
 
-    ok := format_file_in_place(c"tmp/fmt_file_test.a")
-    assert_true(ok, Str.of("file replacement succeeded"))
+    path1 := "tmp/fmt_dir_test/file1.a"
+    messy1 := "main::fn(){\nx:=42\nret x\n}\n"
+    File.write_string(path1, messy1)
 
-    read_back := File.read_to_string(&arena, path).unwrap()
-    expected := "main :: fn() {\n    x := 42\n    ret x\n}\n"
-    assert_true(read_back.eq(expected), Str.of("file formatted correctly in place"))
+    path2 := "tmp/fmt_dir_test/file2.a"
+    messy2 := "Point::struct{\nx,y i32\n}\n"
+    File.write_string(path2, messy2)
+
+    count := format_path(&arena, c"tmp/fmt_dir_test")
+    assert_true(count == 2 as u32, Str.of("formatted 2 files in directory"))
+
+    read1 := File.read_to_string(&arena, path1).unwrap()
+    exp1 := "main :: fn() {\n    x := 42\n    ret x\n}\n"
+    assert_true(read1.eq(exp1), Str.of("file1 formatted correctly"))
+
+    read2 := File.read_to_string(&arena, path2).unwrap()
+    exp2 := "Point :: struct {\n    x, y i32\n}\n"
+    assert_true(read2.eq(exp2), Str.of("file2 formatted correctly"))
 
     arena.destroy()
 }
@@ -100,7 +177,9 @@ main :: fn() {
     test_imports()
     test_struct_and_enum()
     test_control_flow()
+    test_struct_init_and_tuples()
+    test_advanced_syntax()
     test_idempotency()
-    test_file_replace()
+    test_file_and_directory_formatting()
     printf("all fmt tests passed\n", .{})
 }

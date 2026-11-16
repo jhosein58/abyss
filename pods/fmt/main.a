@@ -1,9 +1,9 @@
 import .parser: parse_to_cst
 import .formatter: format_cst
 import std.allocator: Arena
-import std.fs: File
+import std.fs: File, Dir, to_cstr
 import std.env: Env
-import std.string: Str
+import std.string: Str, String
 
 format_source :: fn(arena &Arena, source Str) Str {
     tree := parse_to_cst(arena, source)
@@ -11,7 +11,7 @@ format_source :: fn(arena &Arena, source Str) Str {
 }
 
 format_file_in_place :: fn(path &u8) bool {
-    arena := Arena.new(1024 * 128)
+    arena := Arena.new(1024 * 512)
     file_opt := File.read_to_string(&arena, Str.of(path))
     if file_opt.is_none() {
         arena.destroy()
@@ -24,21 +24,49 @@ format_file_in_place :: fn(path &u8) bool {
     ok
 }
 
+format_path :: fn(arena &Arena, path &u8) u32 {
+    if Dir.exists(path) {
+        files := Dir.walk(arena, Str.of(path), Str.of(".a"))
+        count: u32 = 0
+        i: u64 = 0
+        while i < files.len {
+            file_str := files.get(i)
+            c_p := to_cstr(arena, file_str)
+            if format_file_in_place(c_p) {
+                count = count + 1
+            } else {
+                printf("error: failed to format {}\n", .{c_p})
+            }
+            i = i + 1
+        }
+        ret count
+    }
+
+    if format_file_in_place(path) {
+        ret 1
+    }
+    printf("error: failed to format {}\n", .{path})
+    0
+}
+
 main :: fn() {
     count := Env.args_len()
     if count < 2 {
-        printf("usage: abyss r pods/fmt/main.a <file.a> ...\n", .{})
+        printf("usage: abyss fmt <path> ...\n", .{})
         ret
     }
+
+    arena := Arena.new(1024 * 1024)
+    total_formatted: u32 = 0
 
     i: i32 = 1
     while i < count {
         path := Env.arg(i)
-        if format_file_in_place(path) {
-            printf("formatted {}\n", .{path})
-        } else {
-            printf("error: failed to format {}\n", .{path})
-        }
+        n := format_path(&arena, path)
+        total_formatted = total_formatted + n
         i = i + 1
     }
+
+    printf("formatted {} files\n", .{total_formatted})
+    arena.destroy()
 }
