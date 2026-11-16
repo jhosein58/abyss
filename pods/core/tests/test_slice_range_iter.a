@@ -9,7 +9,9 @@ test_range_iteration :: fn(t &Test) {
     sum: i32 = 0
     while true {
         item := r.next()
-        if item.is_none() { break }
+        if item.is_none() {
+            break
+        }
         sum = sum + item.unwrap()
     }
     t.assert_eq(i32, sum, 10, "")
