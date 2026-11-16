@@ -659,9 +659,9 @@ CstParser :: struct {
         if_node.add_child(cond)
         if_node.add_child(then_block)
 
-        self.skip_ws()
+        self.skip_ws_and_nl()
         if self.consume_if(TokenKind.kw_else) {
-            self.skip_ws()
+            self.skip_ws_and_nl()
             if self.peek() == TokenKind.kw_if {
                 else_if := self.parse_if()
                 if_node.add_child(else_if)
@@ -871,7 +871,16 @@ CstParser :: struct {
     }
 
     is_soft_op :: fn(self &Self, k TokenKind) bool {
-        k == TokenKind.plus or k == TokenKind.minus or k == TokenKind.star or k == TokenKind.slash or k == TokenKind.percent or k == TokenKind.eq_eq or k == TokenKind.bang_eq or k == TokenKind.lt or k == TokenKind.gt or k == TokenKind.lt_eq or k == TokenKind.gt_eq or k == TokenKind.kw_and or k == TokenKind.kw_or or k == TokenKind.kw_as or k == TokenKind.dot
+        if k == TokenKind.plus or k == TokenKind.slash or k == TokenKind.percent { ret true }
+        if k == TokenKind.colon or k == TokenKind.colon_colon { ret true }
+        if k == TokenKind.eq_eq or k == TokenKind.bang_eq { ret true }
+        if k == TokenKind.lt or k == TokenKind.gt or k == TokenKind.lt_eq or k == TokenKind.gt_eq { ret true }
+        if k == TokenKind.kw_and or k == TokenKind.kw_or { ret true }
+        if k == TokenKind.pipe or k == TokenKind.caret or k == TokenKind.left_shift or k == TokenKind.right_shift { ret true }
+        if k == TokenKind.eq or k == TokenKind.plus_eq or k == TokenKind.minus_eq or k == TokenKind.star_eq or k == TokenKind.slash_eq or k == TokenKind.percent_eq { ret true }
+        if k == TokenKind.amp_eq or k == TokenKind.pipe_eq or k == TokenKind.caret_eq or k == TokenKind.left_shift_eq or k == TokenKind.right_shift_eq { ret true }
+        if k == TokenKind.kw_as { ret true }
+        false
     }
 
     infix_binding_power :: fn(self &Self, k TokenKind) u8 {

@@ -11,14 +11,12 @@ CstKind :: enum u16 {
     expr_stmt
     empty_line
     comment_stmt
-
     type_named
     type_ptr
     type_slice
     type_array
     type_generic
     type_fn
-
     fn_def
     fn_param
     struct_def
@@ -28,7 +26,6 @@ CstKind :: enum u16 {
     array_lit
     enum_def
     enum_variant
-
     if_expr
     while_expr
     for_expr
@@ -40,7 +37,6 @@ CstKind :: enum u16 {
     cont_expr
     cmpt_expr
     splice_expr
-
     lit_int
     lit_float
     lit_str
@@ -61,10 +57,9 @@ CstKind :: enum u16 {
 }
 
 CstNode :: struct {
-    kind     CstKind
-    text     Str
+    kind CstKind
+    text Str
     children Vec(&CstNode)
-
     alloc :: fn(arena &Arena, kind CstKind, text Str) &Self {
         ptr := arena.alloc(@sizeof(Self)) as &Self
         (*ptr).kind = kind
