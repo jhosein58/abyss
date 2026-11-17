@@ -12,13 +12,32 @@ shift || true
 
 prepare_compiler() {
     export ABYSS_DEV="${ROOT_DIR}"
-    if [ ! -f "${ROOT_DIR}/abyssc" ] || [ -n "$(find "${ROOT_DIR}/compiler" "${ROOT_DIR}/core" "${ROOT_DIR}/std" "${ROOT_DIR}/runtime" -type f -newer "${ROOT_DIR}/abyssc" 2>/dev/null)" ]; then
-        BUILD_DIR=$(mktemp -d "${ROOT_DIR}/tmp/embed_build.XXXXXX")
+    if [ ! -f "${ROOT_DIR}/abyssc" ]; then
+        echo "[INFO] Seed compiler '${ROOT_DIR}/abyssc' not found. Fetching latest release..."
+        SEED_TMP=$(mktemp -d "${ROOT_DIR}/tmp/seed_fetch.XXXXXX" 2>/dev/null || mktemp -d)
+        SEED_URL="https://github.com/jhosein58/abyss/releases/latest/download/abyss-linux-x86_64.tar.gz"
+        if command -v curl >/dev/null 2>&1; then
+            curl -fsSL "${SEED_URL}" -o "${SEED_TMP}/abyss.tar.gz" 2>/dev/null || true
+        elif command -v wget >/dev/null 2>&1; then
+            wget -qO "${SEED_TMP}/abyss.tar.gz" "${SEED_URL}" 2>/dev/null || true
+        fi
+        if [ -s "${SEED_TMP}/abyss.tar.gz" ]; then
+            tar -xzf "${SEED_TMP}/abyss.tar.gz" -C "${SEED_TMP}" --strip-components=1 2>/dev/null || true
+            if [ -f "${SEED_TMP}/bin/abyssc" ]; then
+                cp "${SEED_TMP}/bin/abyssc" "${ROOT_DIR}/abyssc"
+                chmod +x "${ROOT_DIR}/abyssc"
+                echo "✔ Downloaded seed compiler to ${ROOT_DIR}/abyssc"
+            fi
+        fi
+        rm -rf "${SEED_TMP}"
         if [ ! -f "${ROOT_DIR}/abyssc" ]; then
-            echo "[ERROR] Seed compiler '${ROOT_DIR}/abyssc' not found!" >&2
-            rm -rf "${BUILD_DIR}"
+            echo "[ERROR] Seed compiler '${ROOT_DIR}/abyssc' not found and could not be fetched!" >&2
             exit 1
         fi
+    fi
+
+    if [ -n "$(find "${ROOT_DIR}/compiler" "${ROOT_DIR}/core" "${ROOT_DIR}/std" "${ROOT_DIR}/runtime" -type f -newer "${ROOT_DIR}/abyssc" 2>/dev/null)" ]; then
+        BUILD_DIR=$(mktemp -d "${ROOT_DIR}/tmp/embed_build.XXXXXX")
         if ! "${ROOT_DIR}/abyssc" "${ROOT_DIR}/compiler/main.a" "${BUILD_DIR}/stage1.c" 2>"${BUILD_DIR}/stage1_compile.log"; then
             echo "[ERROR] Stage 1 failed: Current seed compiler failed to compile compiler sources!" >&2
             cat "${BUILD_DIR}/stage1_compile.log" >&2
@@ -170,6 +189,7 @@ EOF
     release)
         ROUNDS="${1:-3}"
         export ABYSS_DEV="${ROOT_DIR}"
+        prepare_compiler
         bash "${ROOT_DIR}/scripts/bootstrap.sh" "${ROUNDS}"
         DIST_DIR="${ROOT_DIR}/dist"
         mkdir -p "${DIST_DIR}"
