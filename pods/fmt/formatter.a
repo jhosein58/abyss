@@ -3,6 +3,121 @@ import std.allocator: Arena
 import std.collections.vec: Vec
 import std.string: Str, String
 
+str_less :: fn(a Str, b Str) bool {
+    min_len := if a.len < b.len { a.len } else { b.len }
+    i: u64 = 0
+    while i < min_len {
+        ca := *(a.ptr + i)
+        cb := *(b.ptr + i)
+        if ca < cb {
+            ret true
+        }
+        if ca > cb {
+            ret false
+        }
+        i = i + 1
+    }
+    a.len < b.len
+}
+
+import_group :: fn(path Str) u32 {
+    if path.starts_with(Str.of("std.")) or path.starts_with(Str.of("core.")) or path.eq(Str.of("std")) or path.eq(Str.of("core")) {
+        ret 1 as u32
+    }
+    if path.starts_with(Str.of(".")) {
+        ret 3 as u32
+    }
+    2 as u32
+}
+
+import_less :: fn(a &CstNode, b &CstNode) bool {
+    if str_less(a.text, b.text) {
+        ret true
+    }
+    if str_less(b.text, a.text) {
+        ret false
+    }
+    a_count := a.child_count()
+    b_count := b.child_count()
+    if (a_count > 0) and (b_count > 0) {
+        sym_a := a.child(0)
+        sym_b := b.child(0)
+        if (sym_a.kind == CstKind.import_symbol) and (sym_b.kind == CstKind.import_symbol) {
+            if str_less(sym_a.text, sym_b.text) {
+                ret true
+            }
+            if str_less(sym_b.text, sym_a.text) {
+                ret false
+            }
+        }
+    }
+    a_count < b_count
+}
+
+sort_imports :: fn(v &Vec(&CstNode)) {
+    if v.len < 2 {
+        ret
+    }
+    i: u64 = 0
+    while i < v.len {
+        min_idx := i
+        j := i + 1
+        while j < v.len {
+            node_j := v.get(j)
+            node_min := v.get(min_idx)
+            if import_less(node_j, node_min) {
+                min_idx = j
+            }
+            j = j + 1
+        }
+        if min_idx != i {
+            tmp := v.get(i)
+            v.set(i, v.get(min_idx))
+            v.set(min_idx, tmp)
+        }
+        i = i + 1
+    }
+}
+
+sort_symbols :: fn(v &Vec(&CstNode)) {
+    if v.len < 2 {
+        ret
+    }
+    i: u64 = 0
+    while i < v.len {
+        min_idx := i
+        j := i + 1
+        while j < v.len {
+            sym_j := v.get(j)
+            sym_min := v.get(min_idx)
+            if str_less(sym_j.text, sym_min.text) {
+                min_idx = j
+            }
+            j = j + 1
+        }
+        if min_idx != i {
+            tmp := v.get(i)
+            v.set(i, v.get(min_idx))
+            v.set(min_idx, tmp)
+        }
+        i = i + 1
+    }
+    write_idx: u64 = 1
+    read_idx: u64 = 1
+    while read_idx < v.len {
+        prev := v.get(write_idx - 1)
+        curr := v.get(read_idx)
+        if not curr.text.eq(prev.text) {
+            if write_idx != read_idx {
+                v.set(write_idx, curr)
+            }
+            write_idx = write_idx + 1
+        }
+        read_idx = read_idx + 1
+    }
+    v.len = write_idx
+}
+
 Formatter :: struct {
     buf   String
     arena &Arena
@@ -214,19 +329,163 @@ Formatter :: struct {
     }
 
     format_file :: fn(self &Self, node &CstNode) {
+        has_imports := false
+        first_import_idx: u64 = node.child_count()
+        idx: u64 = 0
+        while idx < node.child_count() {
+            c := node.child(idx)
+            if c.kind == CstKind.import_stmt {
+                if not has_imports {
+                    has_imports = true
+                    first_import_idx = idx
+                }
+            }
+            idx = idx + 1
+        }
+
+        if not has_imports {
+            i: u64 = 0
+            while i < node.child_count() {
+                c := node.child(i)
+                if c.kind == CstKind.empty_line {
+                    self.buf.push_char('\n' as u8)
+                } else if c.kind == CstKind.comment_stmt {
+                    self.buf.push_str(c.text)
+                    self.buf.push_char('\n' as u8)
+                } else {
+                    self.format_node(c, 0)
+                    self.buf.push_char('\n' as u8)
+                }
+                i = i + 1
+            }
+            ret
+        }
+
+        leading_content := false
         i: u64 = 0
-        while i < node.child_count() {
+        while i < first_import_idx {
             c := node.child(i)
-            if c.kind == CstKind.empty_line {
-                self.buf.push_char('\n' as u8)
-            } else if c.kind == CstKind.comment_stmt {
+            if c.kind == CstKind.comment_stmt {
+                leading_content = true
                 self.buf.push_str(c.text)
                 self.buf.push_char('\n' as u8)
-            } else {
-                self.format_node(c, 0)
-                self.buf.push_char('\n' as u8)
+            } else if c.kind == CstKind.empty_line {
+                if leading_content {
+                    self.buf.push_char('\n' as u8)
+                }
             }
             i = i + 1
+        }
+
+        g1 := Vec(&CstNode).new()
+        g2 := Vec(&CstNode).new()
+        g3 := Vec(&CstNode).new()
+
+        scan_idx: u64 = 0
+        while scan_idx < node.child_count() {
+            c := node.child(scan_idx)
+            if c.kind == CstKind.import_stmt {
+                if (c.child_count() > 0) and (c.child(0).kind == CstKind.import_symbol) {
+                    sort_symbols(&c.children)
+                }
+                grp := import_group(c.text)
+                if grp == (1 as u32) {
+                    g1.push(c)
+                } else if grp == (2 as u32) {
+                    g2.push(c)
+                } else {
+                    g3.push(c)
+                }
+            }
+            scan_idx = scan_idx + 1
+        }
+
+        sort_imports(&g1)
+        sort_imports(&g2)
+        sort_imports(&g3)
+
+        groups_emitted: u32 = 0
+
+        if g1.len > 0 {
+            j: u64 = 0
+            while j < g1.len {
+                self.format_import(g1.get(j))
+                self.buf.push_char('\n' as u8)
+                j = j + 1
+            }
+            groups_emitted = groups_emitted + 1
+        }
+
+        if g2.len > 0 {
+            if groups_emitted > 0 {
+                self.buf.push_char('\n' as u8)
+            }
+            j: u64 = 0
+            while j < g2.len {
+                self.format_import(g2.get(j))
+                self.buf.push_char('\n' as u8)
+                j = j + 1
+            }
+            groups_emitted = groups_emitted + 1
+        }
+
+        if g3.len > 0 {
+            if groups_emitted > 0 {
+                self.buf.push_char('\n' as u8)
+            }
+            j: u64 = 0
+            while j < g3.len {
+                self.format_import(g3.get(j))
+                self.buf.push_char('\n' as u8)
+                j = j + 1
+            }
+            groups_emitted = groups_emitted + 1
+        }
+
+        g1.destroy()
+        g2.destroy()
+        g3.destroy()
+
+        first_rest_idx: u64 = node.child_count()
+        has_rest := false
+        r_idx: u64 = first_import_idx
+        while r_idx < node.child_count() {
+            c := node.child(r_idx)
+            if (c.kind != CstKind.import_stmt) and (c.kind != CstKind.empty_line) {
+                first_rest_idx = r_idx
+                has_rest = true
+                break
+            }
+            r_idx = r_idx + 1
+        }
+
+        if has_rest {
+            self.buf.push_char('\n' as u8)
+            last_was_empty := true
+
+            rem_idx := first_rest_idx
+            while rem_idx < node.child_count() {
+                c := node.child(rem_idx)
+                if c.kind == CstKind.import_stmt {
+                    rem_idx = rem_idx + 1
+                    cont
+                }
+                if c.kind == CstKind.empty_line {
+                    if not last_was_empty {
+                        self.buf.push_char('\n' as u8)
+                        last_was_empty = true
+                    }
+                } else if c.kind == CstKind.comment_stmt {
+                    self.buf.push_str(c.text)
+                    self.buf.push_char('\n' as u8)
+                    last_was_empty = false
+                } else {
+                    self.format_node(c, 0)
+                    self.buf.push_char('\n' as u8)
+                    last_was_empty = false
+                }
+                rem_idx = rem_idx + 1
+            }
         }
     }
 
@@ -234,12 +493,15 @@ Formatter :: struct {
         self.buf.push_str(Str.of("import "))
         self.buf.push_str(node.text)
 
-        if node.child_count() == 1 and node.child(0).kind == CstKind.ident {
+        if (node.child_count() == 1) and (node.child(0).kind == CstKind.ident) {
             self.buf.push_str(Str.of(" as "))
             self.buf.push_str(node.child(0).text)
             ret
         }
         if node.child_count() > 0 {
+            if node.child(0).kind == CstKind.import_symbol {
+                sort_symbols(&node.children)
+            }
             self.buf.push_str(Str.of(": "))
             i: u64 = 0
             while i < node.child_count() {

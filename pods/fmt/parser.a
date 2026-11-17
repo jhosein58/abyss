@@ -265,7 +265,7 @@ CstParser :: struct {
                         break
                     }
                     next_tok := self.peek()
-                    if next_tok == TokenKind.kw_import or self.is_binding() or self.is_var_decl() {
+                    if next_tok == TokenKind.kw_import or self.is_binding() or self.is_var_decl() or self.is_destructure() {
                         break
                     }
                 }
@@ -284,9 +284,23 @@ CstParser :: struct {
 
                 if self.consume_if(TokenKind.comma) {
                     cont
-                } else {
-                    break
                 }
+                self.skip_ws()
+                if self.peek() == TokenKind.newline {
+                    self.bump()
+                    self.skip_ws()
+                    if self.peek() == TokenKind.newline or self.peek() == TokenKind.eof {
+                        break
+                    }
+                    next_tok := self.peek()
+                    if next_tok == TokenKind.kw_import or self.is_binding() or self.is_var_decl() or self.is_destructure() {
+                        break
+                    }
+                    if self.peek() == TokenKind.ident {
+                        cont
+                    }
+                }
+                break
             }
         }
         import_node
