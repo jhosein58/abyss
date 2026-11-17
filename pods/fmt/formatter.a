@@ -144,7 +144,7 @@ Formatter :: struct {
             ret
         }
         if k == CstKind.import_stmt {
-            self.format_import(node)
+            self.format_import(node, 0 as u64)
             ret
         }
         if k == CstKind.binding_stmt {
@@ -407,12 +407,7 @@ Formatter :: struct {
         groups_emitted: u32 = 0
 
         if g1.len > 0 {
-            j: u64 = 0
-            while j < g1.len {
-                self.format_import(g1.get(j))
-                self.buf.push_char('\n' as u8)
-                j = j + 1
-            }
+            self.format_import_group(&g1)
             groups_emitted = groups_emitted + 1
         }
 
@@ -420,12 +415,7 @@ Formatter :: struct {
             if groups_emitted > 0 {
                 self.buf.push_char('\n' as u8)
             }
-            j: u64 = 0
-            while j < g2.len {
-                self.format_import(g2.get(j))
-                self.buf.push_char('\n' as u8)
-                j = j + 1
-            }
+            self.format_import_group(&g2)
             groups_emitted = groups_emitted + 1
         }
 
@@ -433,12 +423,7 @@ Formatter :: struct {
             if groups_emitted > 0 {
                 self.buf.push_char('\n' as u8)
             }
-            j: u64 = 0
-            while j < g3.len {
-                self.format_import(g3.get(j))
-                self.buf.push_char('\n' as u8)
-                j = j + 1
-            }
+            self.format_import_group(&g3)
             groups_emitted = groups_emitted + 1
         }
 
@@ -489,7 +474,42 @@ Formatter :: struct {
         }
     }
 
-    format_import :: fn(self &Self, node &CstNode) {
+    calc_group_align :: fn(self &Self, g &Vec(&CstNode)) u64 {
+        max_len: u64 = 0
+        min_len: u64 = 999999
+        has_symbols := false
+        j: u64 = 0
+        while j < g.len {
+            item := g.get(j)
+            if (item.child_count() > 0) and (item.child(0).kind == CstKind.import_symbol) {
+                has_symbols = true
+                l := item.text.len
+                if l > max_len {
+                    max_len = l
+                }
+                if l < min_len {
+                    min_len = l
+                }
+            }
+            j = j + 1
+        }
+        if has_symbols and (max_len - min_len <= 12) {
+            ret max_len
+        }
+        0 as u64
+    }
+
+    format_import_group :: fn(self &Self, g &Vec(&CstNode)) {
+        align_len := self.calc_group_align(g)
+        j: u64 = 0
+        while j < g.len {
+            self.format_import(g.get(j), align_len)
+            self.buf.push_char('\n' as u8)
+            j = j + 1
+        }
+    }
+
+    format_import :: fn(self &Self, node &CstNode, align_len u64) {
         self.buf.push_str(Str.of("import "))
         self.buf.push_str(node.text)
 
@@ -502,7 +522,17 @@ Formatter :: struct {
             if node.child(0).kind == CstKind.import_symbol {
                 sort_symbols(&node.children)
             }
-            self.buf.push_str(Str.of(": "))
+            self.buf.push_char(':' as u8)
+            pad := if (align_len > 0) and (align_len >= node.text.len) {
+                align_len - node.text.len + 1
+            } else {
+                1 as u64
+            }
+            p_i: u64 = 0
+            while p_i < pad {
+                self.buf.push_char(' ' as u8)
+                p_i = p_i + 1
+            }
             i: u64 = 0
             while i < node.child_count() {
                 if i > 0 {

@@ -111,43 +111,48 @@ test_import_three_group_partitioning :: fn(t &Test) {
 
     src_g1 := "import std.string: Str\nimport core.allocator: Arena\nimport std.fs: File\n"
     res_g1 := format_source(&arena, src_g1)
-    exp_g1 := "import core.allocator: Arena\nimport std.fs: File\nimport std.string: Str\n"
+    exp_g1 := "import core.allocator: Arena\nimport std.fs:         File\nimport std.string:     Str\n"
     t.assert_str_eq(res_g1, exp_g1, "group 1 only sorted")
 
     src_g2 := "import test: Suite\nimport json: Parser\nimport sonar: Builder\n"
     res_g2 := format_source(&arena, src_g2)
-    exp_g2 := "import json: Parser\nimport sonar: Builder\nimport test: Suite\n"
+    exp_g2 := "import json:  Parser\nimport sonar: Builder\nimport test:  Suite\n"
     t.assert_str_eq(res_g2, exp_g2, "group 2 only sorted")
 
     src_g3 := "import .types: TypeKind\nimport .lexer: Lexer\nimport .hir: HirNode\n"
     res_g3 := format_source(&arena, src_g3)
-    exp_g3 := "import .hir: HirNode\nimport .lexer: Lexer\nimport .types: TypeKind\n"
+    exp_g3 := "import .hir:   HirNode\nimport .lexer: Lexer\nimport .types: TypeKind\n"
     t.assert_str_eq(res_g3, exp_g3, "group 3 only sorted")
 
     src_12 := "import test: Suite\nimport std.fs: File\nimport json: Parser\nimport std.allocator: Arena\n"
     res_12 := format_source(&arena, src_12)
-    exp_12 := "import std.allocator: Arena\nimport std.fs: File\n\nimport json: Parser\nimport test: Suite\n"
+    exp_12 := "import std.allocator: Arena\nimport std.fs:        File\n\nimport json: Parser\nimport test: Suite\n"
     t.assert_str_eq(res_12, exp_12, "group 1 and group 2 separated")
 
     src_13 := "import .token: Token\nimport std.fs: File\nimport .lexer: Lexer\nimport std.allocator: Arena\n"
     res_13 := format_source(&arena, src_13)
-    exp_13 := "import std.allocator: Arena\nimport std.fs: File\n\nimport .lexer: Lexer\nimport .token: Token\n"
+    exp_13 := "import std.allocator: Arena\nimport std.fs:        File\n\nimport .lexer: Lexer\nimport .token: Token\n"
     t.assert_str_eq(res_13, exp_13, "group 1 and group 3 separated")
 
     src_23 := "import .lexer: Lexer\nimport json: Parser\nimport .cst: CstNode\nimport test: Suite\n"
     res_23 := format_source(&arena, src_23)
-    exp_23 := "import json: Parser\nimport test: Suite\n\nimport .cst: CstNode\nimport .lexer: Lexer\n"
+    exp_23 := "import json: Parser\nimport test: Suite\n\nimport .cst:   CstNode\nimport .lexer: Lexer\n"
     t.assert_str_eq(res_23, exp_23, "group 2 and group 3 separated")
 
     src_123 := "import .lexer: Lexer\nimport test: Suite\nimport std.fs: File\nimport .cst: CstNode\nimport json: Parser\nimport core.allocator: Arena\n"
     res_123 := format_source(&arena, src_123)
-    exp_123 := "import core.allocator: Arena\nimport std.fs: File\n\nimport json: Parser\nimport test: Suite\n\nimport .cst: CstNode\nimport .lexer: Lexer\n"
+    exp_123 := "import core.allocator: Arena\nimport std.fs:         File\n\nimport json: Parser\nimport test: Suite\n\nimport .cst:   CstNode\nimport .lexer: Lexer\n"
     t.assert_str_eq(res_123, exp_123, "all three groups partitioned and separated")
 
     src_collapse := "import std.fs: File\n\n\n\nimport test: Suite\n"
     res_collapse := format_source(&arena, src_collapse)
     exp_collapse := "import std.fs: File\n\nimport test: Suite\n"
     t.assert_str_eq(res_collapse, exp_collapse, "multiple blank lines between groups collapsed")
+
+    src_thresh := "import std.a: A\nimport std.very_long_module_path_exceeding_twelve_chars: B\n"
+    res_thresh := format_source(&arena, src_thresh)
+    exp_thresh := "import std.a: A\nimport std.very_long_module_path_exceeding_twelve_chars: B\n"
+    t.assert_str_eq(res_thresh, exp_thresh, "gap threshold fallback to single space")
 
     arena.destroy()
 }
