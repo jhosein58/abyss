@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 
 $Repo = "jhosein58/abyss"
 $Version = if ($env:ABYSS_VERSION) { $env:ABYSS_VERSION } else { "latest" }
