@@ -333,7 +333,12 @@ TypeStorage :: struct {
 
     alloc_struct :: fn(self &Self, fields Slice(u32)) u32 {
         sort_chunks(fields, 2)
-        count := (fields.len / 2) as u32
+        count := ((fields.len / 2) as u32) << 1
+        self.intern_type(TyKind.struct_, Slice(u32).new(&count, 1), fields)
+    }
+
+    alloc_extern_struct :: fn(self &Self, fields Slice(u32)) u32 {
+        count := (((fields.len / 2) as u32) << 1) | 1
         self.intern_type(TyKind.struct_, Slice(u32).new(&count, 1), fields)
     }
 
@@ -520,7 +525,17 @@ TypeStorage :: struct {
         if self.kind(id) == TyKind.nominal {
             ret self.get_struct_fields_len(self.nominal_base(id))
         }
-        self.extra(id, 0)
+        self.extra(id, 0) >> 1
+    }
+
+    struct_is_extern :: fn(self &Self, id u32) bool {
+        if id == ty_id_none() {
+            ret false
+        }
+        if self.kind(id) == TyKind.nominal {
+            ret self.struct_is_extern(self.nominal_base(id))
+        }
+        (self.extra(id, 0) & 1) != 0
     }
 
     get_struct_fields :: fn(self &Self, id u32) Slice(u32) {

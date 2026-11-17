@@ -52,8 +52,17 @@ find_index_dir :: fn(arena &Arena) Str {
     if Dir.exists(c_sibling2) {
         ret "/home/jhosein58/Workspace/abyss-index"
     }
-    home := Str.of(Env.get_or(c"HOME", c"."))
-    idx_path := Path.join(arena, home, ".abyss/index")
+    abyss_h := Env.abyss_home(arena)
+    idx_path := if abyss_h.len > 0 {
+        Path.join(arena, abyss_h, "index")
+    } else {
+        home := Env.home_dir(arena)
+        if home.len > 0 {
+            Path.join(arena, home, ".abyss/index")
+        } else {
+            ".abyss/index"
+        }
+    }
     c_idx := to_cstr(arena, idx_path)
     if Dir.exists(c_idx) {
         ret idx_path
@@ -208,11 +217,26 @@ find_abyssc :: fn() Str {
     if File.exists("abyssc") {
         ret "./abyssc"
     }
+    if File.exists("abyssc.exe") {
+        ret "./abyssc.exe"
+    }
     if File.exists("../abyssc") {
         ret "../abyssc"
     }
+    if File.exists("../abyssc.exe") {
+        ret "../abyssc.exe"
+    }
     if File.exists("../../abyssc") {
         ret "../../abyssc"
+    }
+    if File.exists("../../abyssc.exe") {
+        ret "../../abyssc.exe"
+    }
+    if File.exists("../bin/abyssc.exe") {
+        ret "../bin/abyssc.exe"
+    }
+    if File.exists("../bin/abyssc") {
+        ret "../bin/abyssc"
     }
     "abyssc"
 }
@@ -318,10 +342,19 @@ find_test_pod_path :: fn(arena &Arena) Str {
     if File.exists("../../pods/test/pod.json") {
         ret "../../pods/test"
     }
-    home := Str.of(Env.get_or(c"HOME", c"."))
-    home_test := Path.join(arena, home, ".abyss/pods/test/pod.json")
-    if File.exists(home_test) {
-        ret Path.join(arena, home, ".abyss/pods/test")
+    abyss_h := Env.abyss_home(arena)
+    if abyss_h.len > 0 {
+        home_test := Path.join(arena, abyss_h, "pods/test/pod.json")
+        if File.exists(home_test) {
+            ret Path.join(arena, abyss_h, "pods/test")
+        }
+    }
+    home := Env.home_dir(arena)
+    if home.len > 0 {
+        home_test2 := Path.join(arena, home, ".abyss/pods/test/pod.json")
+        if File.exists(home_test2) {
+            ret Path.join(arena, home, ".abyss/pods/test")
+        }
     }
     "pods/test"
 }

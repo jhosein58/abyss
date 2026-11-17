@@ -219,7 +219,11 @@ synth_struct :: fn(eng &Engine, id u32) {
     }
     slice: Slice(u32) = .{ ptr: ptr, len: fields_vec.len }
 
-    tyid := types_ptr.alloc_struct(slice)
+    tyid := if db.is_extern_struct(id) {
+        types_ptr.alloc_extern_struct(slice)
+    } else {
+        types_ptr.alloc_struct(slice)
+    }
     fields_vec.destroy()
 
     if (sym_id != id_none()) and (not is_tuple) {

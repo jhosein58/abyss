@@ -198,12 +198,30 @@ VmCodeGen :: struct {
         }
         fields := self.types.get_struct_fields(ty)
         count := fields.len / 2
-        i: u64 = 0
-        while i < count {
-            if *(fields.ptr + (i * 2)) == field_id {
-                ret (i * 8) as u32
+        if self.types.struct_is_extern(ty) {
+            offset: u64 = 0
+            i: u64 = 0
+            while i < count {
+                f_name := *(fields.ptr + (i * 2))
+                f_ty := *(fields.ptr + (i * 2) + 1)
+                a := type_align(self.types, f_ty)
+                if a > 0 {
+                    offset = (offset + a - 1) & ~(a - 1)
+                }
+                if f_name == field_id {
+                    ret offset as u32
+                }
+                offset = offset + type_size(self.types, f_ty)
+                i = i + 1
             }
-            i = i + 1
+        } else {
+            i: u64 = 0
+            while i < count {
+                if *(fields.ptr + (i * 2)) == field_id {
+                    ret (i * 8) as u32
+                }
+                i = i + 1
+            }
         }
         self.get_field_offset(field_id)
     }
@@ -1597,11 +1615,27 @@ VmCodeGen :: struct {
         }
         fields := types.get_struct_fields(ty_id)
         count := fields.len / 2
-        i: u64 = 0
-        while i < count {
-            f_name := *(fields.ptr + (i * 2))
-            self.set_field_offset(f_name, (i * 8) as u32)
-            i = i + 1
+        if types.struct_is_extern(ty_id) {
+            offset: u64 = 0
+            i: u64 = 0
+            while i < count {
+                f_name := *(fields.ptr + (i * 2))
+                f_ty := *(fields.ptr + (i * 2) + 1)
+                a := type_align(types, f_ty)
+                if a > 0 {
+                    offset = (offset + a - 1) & ~(a - 1)
+                }
+                self.set_field_offset(f_name, offset as u32)
+                offset = offset + type_size(types, f_ty)
+                i = i + 1
+            }
+        } else {
+            i: u64 = 0
+            while i < count {
+                f_name := *(fields.ptr + (i * 2))
+                self.set_field_offset(f_name, (i * 8) as u32)
+                i = i + 1
+            }
         }
     }
 

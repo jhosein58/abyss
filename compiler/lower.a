@@ -428,6 +428,17 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                         }
                     }
                     if db.types.func_is_extern(ty) and (db.sym_tok_start(real_sym) != id_none()) {
+                        fn_node := db.get_fn_node(real_sym)
+                        if (fn_node != id_none()) and ccg.is_vm() and (db.hir.extra(fn_node) != hir_none()) {
+                            ret ccg.sym_name(arena, real_sym)
+                        }
+                        custom_sym := id_none()
+                        if fn_node != id_none() {
+                            custom_sym = db.get_extern_fn_custom(fn_node)
+                        }
+                        if custom_sym != id_none() {
+                            ret ccg.extern_name(db.interner.get(custom_sym))
+                        }
                         ret ccg.extern_name(db.interner.get(db.sym_name(real_sym)))
                     }
                     ret ccg.sym_name(arena, real_sym)
@@ -612,7 +623,20 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             if call_sym == id_none() {
                 callee_str = lower_expr(ctx, callee_id)
             } else if db.types.func_is_extern(db.get_node_type(callee_id)) and (db.sym_tok_start(call_sym) != id_none()) {
-                callee_str = ccg.extern_name(db.interner.get(db.sym_name(call_sym)))
+                fn_node := db.get_fn_node(call_sym)
+                if (fn_node != id_none()) and ccg.is_vm() and (db.hir.extra(fn_node) != hir_none()) {
+                    callee_str = ccg.sym_name(arena, call_sym)
+                } else {
+                    custom_sym := id_none()
+                    if fn_node != id_none() {
+                        custom_sym = db.get_extern_fn_custom(fn_node)
+                    }
+                    if custom_sym != id_none() {
+                        callee_str = ccg.extern_name(db.interner.get(custom_sym))
+                    } else {
+                        callee_str = ccg.extern_name(db.interner.get(db.sym_name(call_sym)))
+                    }
+                }
             }
             args_fmt := builder.new_list(arena)
             first_arg := true
@@ -1558,7 +1582,10 @@ format_func_signature :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_
     if is_mono {
         fn_name = ccg.sym_name(arena, sym_id)
     } else if is_extern {
-        if binding_id != id_none() {
+        custom_sym := db.get_extern_fn_custom(func_id)
+        if custom_sym != id_none() {
+            fn_name = ccg.extern_name(db.interner.get(custom_sym))
+        } else if binding_id != id_none() {
             name_hir := db.hir.lhs(binding_id)
             name_id := db.hir.lhs(name_hir)
             fn_name = ccg.extern_name(db.interner.get(name_id))
@@ -1589,14 +1616,19 @@ format_func_signature :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_
         }
         p_ty := ccg.type_str(&db.types, arena, *(params_slice.ptr + i))
         name := ccg.parameter_name(arena, i as u32)
-        if not is_extern {
+        body_id := db.hir.extra(func_id)
+        if (not is_extern) or (body_id != hir_none()) {
             args_list_id := db.hir.lhs(func_id)
             if args_list_id != hir_none() {
                 args := db.get_list(args_list_id)
-                arg_ident := db.hir.lhs(*(args.ptr + i))
-                arg_sym := db.get_hir_symbol(arg_ident)
-                if arg_sym != id_none() {
-                    name = ccg.sym_name(arena, arg_sym)
+                if i < args.len {
+                    arg_ident := db.hir.lhs(*(args.ptr + i))
+                    if arg_ident != hir_none() {
+                        arg_sym := db.get_hir_symbol(arg_ident)
+                        if arg_sym != id_none() {
+                            name = ccg.sym_name(arena, arg_sym)
+                        }
+                    }
                 }
             }
         }
@@ -1609,6 +1641,25 @@ format_func_signature :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_
         params_str = ccg.empty_parameters()
     }
     .{ fn_name: fn_name, params_str: params_str }
+}
+
+is_libc_fn :: fn(name Str) bool {
+    if name.eq(Str.of("puts")) or name.eq(Str.of("printf")) or name.eq(Str.of("malloc")) or name.eq(Str.of("free")) or name.eq(Str.of("realloc")) {
+        ret true
+    }
+    if name.eq(Str.of("memcpy")) or name.eq(Str.of("memset")) or name.eq(Str.of("memmove")) or name.eq(Str.of("exit")) or name.eq(Str.of("abort")) {
+        ret true
+    }
+    if name.eq(Str.of("remove")) or name.eq(Str.of("strlen")) or name.eq(Str.of("strcmp")) or name.eq(Str.of("strncmp")) or name.eq(Str.of("getenv")) {
+        ret true
+    }
+    if name.eq(Str.of("fopen")) or name.eq(Str.of("fclose")) or name.eq(Str.of("fread")) or name.eq(Str.of("fwrite")) or name.eq(Str.of("fseek")) or name.eq(Str.of("ftell")) {
+        ret true
+    }
+    if name.eq(Str.of("system")) {
+        ret true
+    }
+    false
 }
 
 lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id u32) {
@@ -1663,7 +1714,20 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
     is_extern := (body_id == hir_none()) or db.types.func_is_extern(func_ty)
     ccg.reset_locals()
     sig := format_func_signature(ctx, sym_id, real_sym, func_id, binding_id, is_mono, is_extern, orig_func_ty, func_ty)
-    if is_extern {
+    if is_extern and (body_id == hir_none()) {
+        if not ccg.is_vm() {
+            custom_sym := db.get_extern_fn_custom(func_id)
+            fn_str := if custom_sym != id_none() {
+                db.interner.get(custom_sym)
+            } else {
+                db.interner.get(db.sym_name(real_sym))
+            }
+            if not is_libc_fn(fn_str) {
+                ret_ty := db.types.func_return(func_ty)
+                ret_str := ccg.type_str(&db.types, arena, ret_ty)
+                ccg.declare_function(sig.fn_name, ret_str, sig.params_str)
+            }
+        }
         ret
     }
     add_type_to_queue(db, db.types.func_return(func_ty), ctx.type_queue)

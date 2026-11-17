@@ -1,164 +1,95 @@
 Token :: enum u8 {
     eof
-    -- eof
     unknown
-    -- unknown
     ident
-    -- identifier
 
     lit_int
-    -- 123
     lit_float
-    -- 1.0
     lit_str
-    -- "..."
     lit_char
-    -- 'c'
 
     kw_ret
-    -- ret
     kw_if
-    -- if
     kw_else
-    -- else
     kw_while
-    -- while
     kw_break
-    -- break
     kw_cont
-    -- cont
     kw_struct
-    -- struct
     kw_import
-    -- import
     kw_true
-    -- true
     kw_false
-    -- false
     kw_as
-    -- as
     kw_and
-    -- and
     kw_or
-    -- or
     kw_not
-    -- not
     kw_fn
-    -- fn
     kw_match
-    -- match
     kw_in
-    -- in
     kw_for
-    -- for
     kw_cmpt
-    -- cmpt
+    kw_extern
 
     plus
-    -- +
     minus
-    -- -
     star
-    -- *
     slash
-    -- /
     percent
-    -- %
     plus_eq
-    -- +=
     minus_eq
-    -- -=
     star_eq
-    -- *=
     slash_eq
-    -- /=
     percent_eq
-    -- %=
 
     amp
-    -- &
     pipe
-    -- |
     caret
-    -- ^
     tilde
-    -- ~
     amp_eq
-    -- &=
     pipe_eq
-    -- |=
     caret_eq
-    -- ^=
 
     left_shift
-    -- <<
     right_shift
-    -- >>
     left_shift_eq
-    -- <<=
     right_shift_eq
-    -- >>=
 
     eq
-    -- =
     eq_eq
-    -- ==
     bang_eq
-    -- !=
     lt
-    -- <
     lt_eq
-    -- <=
     gt
-    -- >
     gt_eq
-    -- >=
 
     colon
-    -- :
     colon_colon
-    -- ::
     semi
-    -- ;
     comma
-    -- ,
     dot
-    -- .
 
     hash
-    -- #
 
     o_paren
-    -- (
     c_paren
-    -- )
     o_brace
-    -- {
     c_brace
-    -- }
     o_bracket
-    -- [
     c_bracket
-    -- ]
     kw_enum
-    -- enum
     at
-    -- @
     lit_cstr
-    -- c"..."
 }
 
 is_path_ident :: fn(tk Token) bool {
     k := tk as u8
-    (tk == Token.ident) or ((k >= (Token.kw_ret as u8)) and (k <= (Token.kw_cmpt as u8))) or (tk == Token.kw_enum)
+    (tk == Token.ident) or ((k >= (Token.kw_ret as u8)) and (k <= (Token.kw_extern as u8))) or (tk == Token.kw_enum)
 }
 
 TokenStream :: struct {
-    kinds  Vec(u8)
-    starts Vec(u32)
-    lens   Vec(u32)
-    texts  Vec(Str)
-    -- TODO: drop? slice from src[start..len]
+    kinds           Vec(u8)
+    starts          Vec(u32)
+    lens            Vec(u32)
+    texts           Vec(Str)
     newline_befores Vec(bool)
     new :: fn() TokenStream {
         .{ kinds: Vec(u8).new(), starts: Vec(u32).new(), lens: Vec(u32).new(), texts: Vec(Str).new(), newline_befores: Vec(bool).new() }

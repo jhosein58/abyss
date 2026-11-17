@@ -1,8 +1,9 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $Repo = "jhosein58/abyss"
 $Version = if ($env:ABYSS_VERSION) { $env:ABYSS_VERSION } else { "latest" }
-$InstallDir = if ($env:ABYSS_INSTALL_DIR) { $env:ABYSS_INSTALL_DIR } else { Join-Path $HOME ".abyss" }
+$UserHome = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($HOME) { $HOME } else { [Environment]::GetFolderPath("UserProfile") }
+$InstallDir = if ($env:ABYSS_INSTALL_DIR) { $env:ABYSS_INSTALL_DIR } else { Join-Path $UserHome ".abyss" }
 $BinDir = Join-Path $InstallDir "bin"
 
 if ($Version -eq "latest") {
@@ -42,12 +43,16 @@ Copy-Item -Path "$SourceRoot\*" -Destination $InstallDir -Recurse -Force
 Remove-Item -Force $TempZip -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force $TempExtract -ErrorAction SilentlyContinue
 
+[Environment]::SetEnvironmentVariable("ABYSS_INSTALL_DIR", $InstallDir, "User")
+$env:ABYSS_INSTALL_DIR = $InstallDir
+
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($UserPath -notlike "*$BinDir*") {
     $NewPath = if ($UserPath) { "$UserPath;$BinDir" } else { $BinDir }
     [Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
     Write-Host "Added $BinDir to User PATH."
 }
+$env:PATH = "$BinDir;$env:PATH"
 
 Write-Host ""
 Write-Host "✔ Abyss, Sonar & Abyssfmt installed successfully to $InstallDir!"

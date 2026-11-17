@@ -21,6 +21,7 @@ file_close :: fn(handle &u8) i32
 dir_open :: fn(path &u8) &u8
 dir_read :: fn(dir &u8) &u8
 dir_close :: fn(dir &u8) i32
+dir_create :: fn(path &u8) i32
 
 SEEK_SET :: fn() i32 {
     0
@@ -362,6 +363,10 @@ DirStream :: struct {
 }
 
 Dir :: struct {
+    create :: fn(path &u8) bool {
+        dir_create(path) == 0
+    }
+
     open :: fn(path &u8) Maybe(DirStream) {
         DirStream.open(path)
     }

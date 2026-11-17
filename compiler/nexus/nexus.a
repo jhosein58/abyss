@@ -144,6 +144,8 @@ Nexus :: struct {
     union_coerce              HashMap(u32, u64)
     auto_deref_depth          HashMap(u32, u32)
     for_sources               HashMap(u32, u32)
+    extern_fns                HashMap(u32, u32)
+    extern_structs            HashMap(u32, u32)
     str_type                  u32
     const_status              PoolU32
     const_vals                PoolU64
@@ -152,7 +154,12 @@ Nexus :: struct {
     comptime_cg               &VmCodeGen
     comptime_vm               &Vm
     new :: fn() Self {
-        .{ tokens: TokenStream.new(), hir: HirTable.new(), glob_stack: Vec(u32).new(), u32_items: Vec(u32).new(), interner: Interner.new(), types: TypeStorage.new(), unify: UnifyStorage.new(), import_dirs: Vec(Str).new(), map_keys: Vec(Str).new(), map_values: Vec(Str).new(), symbols: Vec(Symbol).new(), hir_to_symbol: PoolU32.new(), const_types: HashMap(u32, u32).new(), method_owner: HashMap(u32, u32).new(), mod_types: HashMap(u32, u32).new(), core_prelude: id_none(), std_prelude: id_none(), file_sources: Vec(Str).new(), file_paths: Vec(Str).new(), node_locs: Vec(NodeLoc).new(), type_specialization_depth: 0, mono_funcs: Vec(MonoFunc).new(), sym_to_mono: PoolU32.new(), mono_snapshots: Vec(MonoNodeAttr).new(), const_funcs: Vec(ConstFunc).new(), const_call_args: HashMap(u32, u32).new(), mono_nominals: Vec(MonoNominal).new(), union_coerce: HashMap(u32, u64).new(), auto_deref_depth: HashMap(u32, u32).new(), for_sources: HashMap(u32, u32).new(), str_type: ty_id_none(), const_status: PoolU32.new(), const_vals: PoolU64.new(), comptime_depth: 0, comptime_arena: Arena.new(65536), comptime_cg: 0 as &VmCodeGen, comptime_vm: 0 as &Vm }
+        .{ tokens: TokenStream.new(), hir: HirTable.new(), glob_stack: Vec(u32).new(), u32_items: Vec(u32).new(), interner: Interner.new(), types: TypeStorage.new(), unify: UnifyStorage.new(), import_dirs: Vec(Str).new(), map_keys: Vec(Str).new(), map_values: Vec(Str).new(), symbols: Vec(Symbol).new(), hir_to_symbol: PoolU32.new(), const_types: HashMap(u32, u32).new(), method_owner: HashMap(u32, u32).new(), mod_types: HashMap(u32, u32).new(), extern_fns: HashMap(u32, u32).new(), extern_structs: HashMap(u32, u32).new(), core_prelude: id_none(), std_prelude: id_none(), file_sources: Vec(Str).new(), file_paths: Vec(Str).new(), node_locs: Vec(NodeLoc).new(), type_specialization_depth: 0, mono_funcs: Vec(MonoFunc).new(), sym_to_mono: PoolU32.new(), mono_snapshots: Vec(MonoNodeAttr).new(), const_funcs: Vec(ConstFunc).new(), const_call_args: HashMap(u32, u32).new(), mono_nominals: Vec(MonoNominal).new(), union_coerce: HashMap(u32, u64).new(), auto_deref_depth: HashMap(u32, u32).new(), for_sources: HashMap(u32, u32).new(), str_type: ty_id_none(), const_status: PoolU32.new(), const_vals: PoolU64.new(), comptime_depth: 0, comptime_arena: Arena.new(65536), comptime_cg: 0 as &VmCodeGen, comptime_vm: 0 as &Vm }
+    }
+
+    destroy :: fn(self &Self) {
+        self.extern_fns.destroy()
+        self.extern_structs.destroy()
     }
 
     add_list :: fn(self &Self, items Slice(u32)) u32 {
@@ -474,6 +481,30 @@ Nexus :: struct {
             ret ty_id_none()
         }
         *p
+    }
+
+    set_extern_fn :: fn(self &Self, hir_id u32, custom_name_id u32) {
+        self.extern_fns.insert(hir_id, custom_name_id)
+    }
+
+    is_extern_fn :: fn(self &Self, hir_id u32) bool {
+        self.extern_fns.contains_key(hir_id)
+    }
+
+    get_extern_fn_custom :: fn(self &Self, hir_id u32) u32 {
+        p := self.extern_fns.get(hir_id)
+        if p == (0 as &u32) {
+            ret id_none()
+        }
+        *p
+    }
+
+    set_extern_struct :: fn(self &Self, hir_id u32) {
+        self.extern_structs.insert(hir_id, 1)
+    }
+
+    is_extern_struct :: fn(self &Self, hir_id u32) bool {
+        self.extern_structs.contains_key(hir_id)
     }
 
     get_node_type :: fn(self &Self, id u32) u32 {

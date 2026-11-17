@@ -106,7 +106,40 @@ synth_type_node :: fn(eng &Engine, id u32) u32 {
 
     if curr == k.ident {
         synth_ident(eng, id)
-        ret db.get_const_type(id)
+        res := db.get_const_type(id)
+        if res != ty_id_none() {
+            ret res
+        }
+        name_id := (tbl).lhs(id)
+        name := db.interner.get(name_id)
+        if name.eq(Str.of("int")) {
+            db.type_error(id, Str.of("unknown type 'int'; did you mean 'i32'?"))
+        }
+        if name.eq(Str.of("char")) {
+            db.type_error(id, Str.of("unknown type 'char'; did you mean 'u8'?"))
+        }
+        if name.eq(Str.of("long")) {
+            db.type_error(id, Str.of("unknown type 'long'; did you mean 'i64'?"))
+        }
+        if name.eq(Str.of("short")) {
+            db.type_error(id, Str.of("unknown type 'short'; did you mean 'i16'?"))
+        }
+        if name.eq(Str.of("float")) {
+            db.type_error(id, Str.of("unknown type 'float'; did you mean 'f32'?"))
+        }
+        if name.eq(Str.of("double")) {
+            db.type_error(id, Str.of("unknown type 'double'; did you mean 'f64'?"))
+        }
+        if name.eq(Str.of("unsigned")) {
+            db.type_error(id, Str.of("unknown type 'unsigned'; did you mean 'u32'?"))
+        }
+        if name.eq(Str.of("void")) {
+            db.type_error(id, Str.of("unknown type 'void'; did you mean '()'?"))
+        }
+        if name.eq(Str.of("size_t")) {
+            db.type_error(id, Str.of("unknown type 'size_t'; did you mean 'u64'?"))
+        }
+        ret ty_id_none()
     }
     if curr == k.member {
         synth_node(eng, id)

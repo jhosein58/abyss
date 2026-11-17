@@ -3,7 +3,7 @@ import std.string: parse_u32
 import compiler.hir:           hir_kind, hir_none
 import compiler.nexus.nexus:   Span, span_merge
 import compiler.nexus.pool:    id_none
-import compiler.parser.core:   Parser, bump, curr_span, expect, is_eof, lookup_sym, optional, parse_error_at, peek, peek_n, peek_preceded_by_newline, prev_span
+import compiler.parser.core:   Parser, bump, curr_span, curr_text, expect, is_eof, lookup_sym, optional, parse_error_at, peek, peek_n, peek_preceded_by_newline, prev_span
 import compiler.parser.parser: parse_expr
 import compiler.parser.prec:   prec
 import compiler.token:         Token
@@ -160,6 +160,9 @@ parse_params :: fn(p &Parser) u32 {
     pending_names := Vec(u32).new()
 
     while (peek(p) != t.c_paren) and (not is_eof(p)) {
+        if peek(p) == t.dot {
+            parse_error_at(p, c"variadic parameters are not supported; use tuples for type-safe formatting", curr_span(p))
+        }
         if optional(p, t.kw_cmpt) {
             if pending_names.len > 0 {
                 parse_error_at(p, c"compile-time parameters cannot share a type with preceding parameters", curr_span(p))
@@ -174,6 +177,14 @@ parse_params :: fn(p &Parser) u32 {
         is_type_token := (peek(p) == t.amp) or (peek(p) == t.star) or (peek(p) == t.o_bracket) or (peek(p) == t.at) or (peek(p) == t.kw_fn) or (peek(p) == t.kw_struct) or (peek(p) == t.kw_enum)
 
         if is_type_token {
+            if pending_names.len > 0 {
+                p_i: u64 = 0
+                while p_i < pending_names.len {
+                    push_arg(p, &args, hir_none(), pending_names.get(p_i))
+                    p_i = p_i + 1
+                }
+                pending_names.reset(0)
+            }
             ty := parse_expr(p, prec().var_def + (1 as u8))
             push_arg(p, &args, hir_none(), ty)
             check_separator(p, t.c_paren, c"expected ',' or newline after parameter")
@@ -284,6 +295,37 @@ parse_fn :: fn(p &Parser, min_bp u8) u32 {
 
     p.hir.set_extra(fn_node, body)
     set_span(p, fn_node, span_merge(sp_start, sp_end))
+}
+
+parse_extern :: fn(p &Parser, min_bp u8) u32 {
+    t := Token
+    bump(p)
+    custom_sym := id_none()
+    if peek(p) == t.lit_str {
+        raw_str := curr_text(p)
+        bump(p)
+        if (raw_str.len >= 2) and (*(raw_str.ptr) == 34) {
+            unquoted := raw_str.sub(1, raw_str.len - 2)
+            custom_sym = p.db.interner.intern(unquoted)
+        } else {
+            custom_sym = p.db.interner.intern(raw_str)
+        }
+        if peek(p) != t.kw_fn {
+            parse_error_at(p, c"expected 'fn' after custom extern symbol", curr_span(p))
+        }
+    }
+    if peek(p) == t.kw_fn {
+        fn_node := parse_fn(p, min_bp)
+        p.db.set_extern_fn(fn_node, custom_sym)
+        ret fn_node
+    }
+    if peek(p) == t.kw_struct {
+        struct_node := parse_struct(p)
+        p.db.set_extern_struct(struct_node)
+        ret struct_node
+    }
+    parse_error_at(p, c"expected 'fn' or 'struct' after 'extern'", curr_span(p))
+    hir_none()
 }
 
 parse_paren :: fn(p &Parser) u32 {

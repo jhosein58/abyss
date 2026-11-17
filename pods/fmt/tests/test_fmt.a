@@ -5,8 +5,6 @@ import std.string:    Str
 import fmt:  format_path, format_source
 import test: Suite, Test
 
-mkdir :: fn(path &u8, mode u32) i32
-
 test_imports :: fn(t &Test) {
     arena := Arena.new(65536)
 
@@ -313,7 +311,7 @@ test_idempotency :: fn(t &Test) {
 test_file_and_directory_formatting :: fn(t &Test) {
     arena := Arena.new(65536)
     dir_path := "tmp/fmt_dir_test"
-    mkdir(c"tmp/fmt_dir_test", 511 as u32)
+    Dir.create(c"tmp/fmt_dir_test")
 
     path1 := "tmp/fmt_dir_test/file1.a"
     messy1 := "main::fn(){\nx:=42\nret x\n}\n"

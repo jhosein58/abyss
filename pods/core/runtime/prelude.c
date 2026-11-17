@@ -464,6 +464,7 @@ int32_t closedir(uint8_t *dir) {
 uint8_t *dir_open(uint8_t *path) { return opendir(path); }
 uint8_t *dir_read(uint8_t *dir) { return readdir(dir); }
 int32_t dir_close(uint8_t *dir) { return closedir(dir); }
+int32_t dir_create(uint8_t *path) { (void)path; return 0; }
 
 int32_t compile_and_run(uint8_t *path) { (void)path; return -1; }
 
@@ -586,6 +587,7 @@ int run_abyss(const uint8_t *src, uint32_t len) {
 #include <sys/stat.h>
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
+#include <direct.h>
 #define popen _popen
 #define pclose _pclose
 #else
@@ -751,6 +753,15 @@ int32_t dir_close(uint8_t *dir) {
     return closedir((DIR *)dir);
 }
 
+int32_t dir_create(uint8_t *path) {
+    if (!path) return -1;
+#if defined(_WIN32) || defined(_WIN64)
+    return _mkdir((const char *)path);
+#else
+    return mkdir((const char *)path, 0755);
+#endif
+}
+
 int32_t compile_and_run(uint8_t *path) {
     if (!path) return -1;
 
@@ -857,6 +868,11 @@ void abyss_fall(void) {
 
 uint64_t abyss_vm_call_dyn(uint8_t *name, uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint32_t arg_count) {
     if (!name) return 0;
+    const char *s = (const char *)name;
+    if (strcmp(s, "dir_open") == 0) return (uint64_t)dir_open((uint8_t *)a0);
+    if (strcmp(s, "dir_read") == 0) return (uint64_t)dir_read((uint8_t *)a0);
+    if (strcmp(s, "dir_close") == 0) return (uint64_t)dir_close((uint8_t *)a0);
+    if (strcmp(s, "dir_create") == 0) return (uint64_t)dir_create((uint8_t *)a0);
 #if defined(_WIN32) || defined(_WIN64)
     HMODULE mod = GetModuleHandle(NULL);
     FARPROC sym = GetProcAddress(mod, (const char *)name);

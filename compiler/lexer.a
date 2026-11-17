@@ -4,7 +4,6 @@ import std.sys:   fall
 import .nexus.nexus: calc_pos
 import .token:       Token as Tk, TokenStream
 
--- Fast keyword lookup grouped by token length
 match_keyword :: fn(text Str) Tk {
     if text.len == 2 {
         if text.eq("if") {
@@ -75,6 +74,9 @@ match_keyword :: fn(text Str) Tk {
         if text.eq("import") {
             ret Tk.kw_import
         }
+        if text.eq("extern") {
+            ret Tk.kw_extern
+        }
     }
     Tk.ident
 }
@@ -95,8 +97,6 @@ is_base_digit :: fn(c u8, base u32) bool {
     false
 }
 
--- Maps standard C/ASCII escape chars to byte values
--- ex: simple_escape('n') == '\n'
 simple_escape :: fn(c u8) i32 {
     if c == 'n' {
         ret 10
@@ -135,10 +135,8 @@ simple_escape :: fn(c u8) i32 {
         ret 63
     }
     -1
-    -- returns -1 on unhandled
 }
 
--- Inspects leading byte bitmask to determine UTF-8 sequence width (1 to 4 bytes)
 utf8_len :: fn(b0 u8) u32 {
     if (b0 & 0x80) == 0 {
         ret 1
@@ -159,7 +157,6 @@ Lexer :: struct {
     source, path Str
     cursor       u64
     had_newline  bool
-    -- Tracks preceding newline for statement separation
 
     new :: fn(source, path Str) Self {
         .{ source: source, path: path, cursor: 0, had_newline: true }
@@ -197,7 +194,6 @@ Lexer :: struct {
         false
     }
 
-    -- Turns single operator into compound assignment if followed by '=' (e.g. + vs +=)
     match_eq :: fn(self &Self, base Tk, with_eq Tk) Tk {
         if self.consume_char('=') {
             ret with_eq
@@ -235,7 +231,6 @@ Lexer :: struct {
             if is_base_digit(c, base) {
                 self.bump()
             } else if c == '_' {
-                -- Underscore must sit strictly between two valid digits
                 prev := *(self.source.ptr + self.cursor - 1)
                 next := self.peek()
                 if (not is_base_digit(prev, base)) or (not is_base_digit(next, base)) {
@@ -252,7 +247,6 @@ Lexer :: struct {
         offset := self.cursor
         is_float := false
 
-        -- 1. Radix prefix handling (0x, 0b, 0o)
         if self.current() == '0' {
             p := self.peek()
             base := 0
@@ -276,13 +270,11 @@ Lexer :: struct {
         }
         self.scan_digits(10)
 
-        -- 2. Fractional part (requires a following digit to disambiguate from member access '.')
         if (self.current() == '.') and (self.peek() != '.') and Ascii.is_digit(self.peek()) {
             is_float = true
             self.bump()
             self.scan_digits(10)
         }
-        -- 3. Exponent notation (e.g. 1e-4, 2E+10)
         if (self.current() == 'e') or (self.current() == 'E') {
             has_sign := (self.peek() == '+') or (self.peek() == '-')
             has_exp_digits := false
@@ -343,7 +335,6 @@ Lexer :: struct {
         self.emit(stream, kind, offset)
     }
 
-    -- Raw string literal; only escaped backtick (\`) is unescaped
     scan_raw_str :: fn(self &Self, stream &TokenStream) {
         offset := self.cursor
         self.bump()
@@ -363,7 +354,6 @@ Lexer :: struct {
         self.emit(stream, Tk.lit_str, offset)
     }
 
-    -- Character literal; supports \xNN, \u{...}, and multibyte UTF-8
     scan_char :: fn(self &Self, stream &TokenStream) {
         offset := self.cursor
         self.bump()
@@ -431,7 +421,6 @@ Lexer :: struct {
         self.emit(stream, match_keyword(text), offset)
     }
 
-    -- Scans single/multi-char operator symbols (e.g. '::', '<<=')
     scan_symbol :: fn(self &Self) Tk {
         c := self.current()
         self.bump()
@@ -524,7 +513,6 @@ Lexer :: struct {
     }
 }
 
--- Main entry point: converts source code into a token stream
 lex :: fn(stream &TokenStream, source Str, path Str) {
     lexer := Lexer.new(source, path)
 
@@ -589,8 +577,6 @@ lex :: fn(stream &TokenStream, source Str, path Str) {
     stream.push(Tk.eof, lexer.cursor as u32, 0, Str.empty(), lexer.had_newline)
 }
 
--- Decodes character literal escape or UTF-8 sequence to unicode codepoint
--- ex: decode_char_lit("'\\n'") == 10
 decode_char_lit :: fn(raw Str) u32 {
     if raw.len < 3 {
         ret 0

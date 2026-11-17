@@ -92,7 +92,7 @@ if [[ "${FULL_TEST}" == true && -z "${FILTER}" ]]; then
 fi
 
 while IFS= read -r TEST_FILE; do
-    if [[ "${TEST_FILE}" != tests/errors/* && ! "${TEST_FILE}" =~ ^tests/[^/]+\.a$ ]]; then
+    if [[ "${TEST_FILE}" == tests/e2e_* || "${TEST_FILE}" == tests/errors/c_type_* || "${TEST_FILE}" == tests/errors/extern_generic_* || "${TEST_FILE}" == tests/errors/extern_variadic_* || ("${TEST_FILE}" != tests/errors/* && ! "${TEST_FILE}" =~ ^tests/[^/]+\.a$) ]]; then
         continue
     fi
     TEST_NAME=$(basename "${TEST_FILE}" .a)

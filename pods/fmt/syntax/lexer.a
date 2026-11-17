@@ -72,6 +72,9 @@ match_keyword :: fn(text Str) TokenKind {
         if text.eq("import") {
             ret TokenKind.kw_import
         }
+        if text.eq("extern") {
+            ret TokenKind.kw_extern
+        }
     }
     TokenKind.ident
 }

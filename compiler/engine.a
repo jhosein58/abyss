@@ -25,7 +25,9 @@ Engine :: struct {
         res
     }
 
-    destroy :: fn(self &Self) {}
+    destroy :: fn(self &Self) {
+        self.nexus.destroy()
+    }
 
     add_file :: fn(self &Self, arena &Arena, path Str, source Str) u32 {
         norm_path := Path.normalize(arena, path)

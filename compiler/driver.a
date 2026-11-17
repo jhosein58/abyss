@@ -110,6 +110,22 @@ Driver :: struct {
                 }
             }
         }
+        env_install := Env.get(c"ABYSS_INSTALL_DIR")
+        if env_install != (0 as &u8) {
+            p_inst := Path.join(self.arena, Str.of(env_install), Str.of("pods/core/runtime/prelude.c"))
+            opt_inst := File.read_to_string(self.arena, p_inst)
+            if opt_inst.is_some() {
+                ret opt_inst.unwrap()
+            }
+        }
+        env_path := Env.get(c"ABYSS_PATH")
+        if env_path != (0 as &u8) {
+            p_path := Path.join(self.arena, Str.of(env_path), Str.of("pods/core/runtime/prelude.c"))
+            opt_path := File.read_to_string(self.arena, p_path)
+            if opt_path.is_some() {
+                ret opt_path.unwrap()
+            }
+        }
         opt_pod := File.read_to_string(self.arena, Str.of("pods/core/runtime/prelude.c"))
         if opt_pod.is_some() {
             ret opt_pod.unwrap()
@@ -122,12 +138,66 @@ Driver :: struct {
         if opt_leg.is_some() {
             ret opt_leg.unwrap()
         }
+        if Env.args_len() > 0 {
+            arg0 := Env.arg(0)
+            if arg0 != (0 as &u8) {
+                arg0_str := Str.of(arg0)
+                bin_dir := Path.dir(arg0_str)
+                if bin_dir.len > 0 {
+                    cand_parent := Path.normalize(self.arena, Path.join(self.arena, bin_dir, Str.of("..")))
+                    p_parent := Path.join(self.arena, cand_parent, Str.of("pods/core/runtime/prelude.c"))
+                    opt_parent := File.read_to_string(self.arena, p_parent)
+                    if opt_parent.is_some() {
+                        ret opt_parent.unwrap()
+                    }
+                    cand_bin := Path.join(self.arena, bin_dir, Str.of("pods/core/runtime/prelude.c"))
+                    opt_bin := File.read_to_string(self.arena, cand_bin)
+                    if opt_bin.is_some() {
+                        ret opt_bin.unwrap()
+                    }
+                }
+            }
+        }
         env_home := Env.get(c"HOME")
         if env_home != (0 as &u8) {
             p_home := Path.join(self.arena, Str.of(env_home), Str.of(".abyss/pods/core/runtime/prelude.c"))
             opt_h := File.read_to_string(self.arena, p_home)
             if opt_h.is_some() {
                 ret opt_h.unwrap()
+            }
+        }
+        env_up := Env.get(c"USERPROFILE")
+        if env_up != (0 as &u8) {
+            p_up := Path.join(self.arena, Str.of(env_up), Str.of(".abyss/pods/core/runtime/prelude.c"))
+            opt_up := File.read_to_string(self.arena, p_up)
+            if opt_up.is_some() {
+                ret opt_up.unwrap()
+            }
+        }
+        env_hd := Env.get(c"HOMEDRIVE")
+        env_hp := Env.get(c"HOMEPATH")
+        if (env_hd != (0 as &u8)) and (env_hp != (0 as &u8)) {
+            hd_hp := Path.join(self.arena, Str.of(env_hd), Str.of(env_hp))
+            p_hdp := Path.join(self.arena, hd_hp, Str.of(".abyss/pods/core/runtime/prelude.c"))
+            opt_hdp := File.read_to_string(self.arena, p_hdp)
+            if opt_hdp.is_some() {
+                ret opt_hdp.unwrap()
+            }
+        }
+        env_lad := Env.get(c"LOCALAPPDATA")
+        if env_lad != (0 as &u8) {
+            p_lad := Path.join(self.arena, Str.of(env_lad), Str.of("abyss/pods/core/runtime/prelude.c"))
+            opt_lad := File.read_to_string(self.arena, p_lad)
+            if opt_lad.is_some() {
+                ret opt_lad.unwrap()
+            }
+        }
+        env_ad := Env.get(c"APPDATA")
+        if env_ad != (0 as &u8) {
+            p_ad := Path.join(self.arena, Str.of(env_ad), Str.of("abyss/pods/core/runtime/prelude.c"))
+            opt_ad := File.read_to_string(self.arena, p_ad)
+            if opt_ad.is_some() {
+                ret opt_ad.unwrap()
             }
         }
         Str.empty()

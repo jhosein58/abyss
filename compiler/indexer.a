@@ -31,6 +31,8 @@ ParsedImportPath :: struct {
 }
 
 get_env :: fn(name &u8) &u8
+get_arg_count :: fn() i32
+get_arg :: fn(idx i32) &u8
 
 index_error :: fn(db &Nexus, file_id u32, offset u32, msg &u8, detail Str) {
     pos := calc_pos(db.get_file_source(file_id), offset)
@@ -171,9 +173,44 @@ Indexer :: struct {
                     }
                 }
             }
+            env_install := get_env(c"ABYSS_INSTALL_DIR")
+            if env_install != (0 as &u8) {
+                inst_pod := Path.join(self.arena, Str.of(env_install), pod_rel)
+                opt_inst := File.read_to_string(self.arena, inst_pod)
+                if opt_inst.is_some() {
+                    ret opt_inst.unwrap()
+                }
+            }
+            env_path := get_env(c"ABYSS_PATH")
+            if env_path != (0 as &u8) {
+                path_pod := Path.join(self.arena, Str.of(env_path), pod_rel)
+                opt_path := File.read_to_string(self.arena, path_pod)
+                if opt_path.is_some() {
+                    ret opt_path.unwrap()
+                }
+            }
             opt_pod := File.read_to_string(self.arena, pod_rel)
             if opt_pod.is_some() {
                 ret opt_pod.unwrap()
+            }
+            if get_arg_count() > 0 {
+                arg0 := get_arg(0)
+                if arg0 != (0 as &u8) {
+                    arg0_str := Str.of(arg0)
+                    bin_dir := Path.dir(arg0_str)
+                    if bin_dir.len > 0 {
+                        cand_parent := Path.normalize(self.arena, Path.join(self.arena, bin_dir, Str.of("..")))
+                        opt_parent := File.read_to_string(self.arena, Path.join(self.arena, cand_parent, pod_rel))
+                        if opt_parent.is_some() {
+                            ret opt_parent.unwrap()
+                        }
+                        cand_bin := Path.join(self.arena, bin_dir, pod_rel)
+                        opt_bin := File.read_to_string(self.arena, cand_bin)
+                        if opt_bin.is_some() {
+                            ret opt_bin.unwrap()
+                        }
+                    }
+                }
             }
             env_home := get_env(c"HOME")
             if env_home != (0 as &u8) {
@@ -181,6 +218,40 @@ Indexer :: struct {
                 opt_home := File.read_to_string(self.arena, home_pod)
                 if opt_home.is_some() {
                     ret opt_home.unwrap()
+                }
+            }
+            env_up := get_env(c"USERPROFILE")
+            if env_up != (0 as &u8) {
+                up_pod := Path.join(self.arena, Str.of(env_up), Path.join(self.arena, Str.of(".abyss"), pod_rel))
+                opt_up := File.read_to_string(self.arena, up_pod)
+                if opt_up.is_some() {
+                    ret opt_up.unwrap()
+                }
+            }
+            env_hd := get_env(c"HOMEDRIVE")
+            env_hp := get_env(c"HOMEPATH")
+            if (env_hd != (0 as &u8)) and (env_hp != (0 as &u8)) {
+                hd_hp := Path.join(self.arena, Str.of(env_hd), Str.of(env_hp))
+                hdp_pod := Path.join(self.arena, hd_hp, Path.join(self.arena, Str.of(".abyss"), pod_rel))
+                opt_hdp := File.read_to_string(self.arena, hdp_pod)
+                if opt_hdp.is_some() {
+                    ret opt_hdp.unwrap()
+                }
+            }
+            env_lad := get_env(c"LOCALAPPDATA")
+            if env_lad != (0 as &u8) {
+                lad_pod := Path.join(self.arena, Str.of(env_lad), Path.join(self.arena, Str.of("abyss"), pod_rel))
+                opt_lad := File.read_to_string(self.arena, lad_pod)
+                if opt_lad.is_some() {
+                    ret opt_lad.unwrap()
+                }
+            }
+            env_ad := get_env(c"APPDATA")
+            if env_ad != (0 as &u8) {
+                ad_pod := Path.join(self.arena, Str.of(env_ad), Path.join(self.arena, Str.of("abyss"), pod_rel))
+                opt_ad := File.read_to_string(self.arena, ad_pod)
+                if opt_ad.is_some() {
+                    ret opt_ad.unwrap()
                 }
             }
             ret Str.empty()

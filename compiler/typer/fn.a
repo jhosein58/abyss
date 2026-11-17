@@ -76,7 +76,16 @@ synth_func :: fn(eng &Engine, id u32) {
     body_id := (tbl).extra(id)
 
     sym_id := db.get_hir_symbol(id)
-    is_extern := (body_id == hir_none()) and (sym_id != id_none()) and (db.sym_tok_start(sym_id) != id_none())
+    is_extern := db.is_extern_fn(id)
+    if (not is_extern) and (body_id == hir_none()) and (sym_id != id_none()) {
+        name_id := db.sym_name(sym_id)
+        name := db.interner.get(name_id)
+        first := if name.len > 0 { *(name.ptr) } else { 0 as u8 }
+        is_type_name := (first >= 65) and (first <= 90)
+        if not is_type_name {
+            is_extern = true
+        }
+    }
 
     params_vec := Vec(u32).new()
     if params_list_id != hir_none() {
@@ -172,6 +181,9 @@ synth_func :: fn(eng &Engine, id u32) {
         slice.len = params_vec.len
     }
     func_ty := (&(*types_ptr)).alloc_func(slice, ret_ty, is_extern)
+    if is_extern and (types_ptr.func_has_type_param(func_ty) or (types_ptr.func_return(func_ty) == ty_id_type())) {
+        db.type_error(id, Str.of("external functions cannot be generic"))
+    }
     if params_list_id != hir_none() {
         fn_args := db.get_list(params_list_id)
         p_i: u64 = 0

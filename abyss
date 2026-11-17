@@ -204,7 +204,7 @@ EOF
 
         echo "Building Linux Sonar package manager..."
         "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" b "${ROOT_DIR}/pods/sonar/main.a" "${DIST_DIR}/sonar_bootstrap.c"
-        gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${DIST_DIR}/sonar_bootstrap.c" -o "${DIST_DIR}/sonar-linux-x86_64"
+        gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration -Wno-builtin-declaration-mismatch -Wno-error=builtin-declaration-mismatch "${DIST_DIR}/sonar_bootstrap.c" -o "${DIST_DIR}/sonar-linux-x86_64"
         cp "${DIST_DIR}/sonar-linux-x86_64" "${ROOT_DIR}/sonar"
 
         echo "Building Linux Abyssfmt code formatter..."
@@ -223,7 +223,7 @@ EOF
         if command -v "${MINGW_CC}" >/dev/null 2>&1; then
             echo "Cross-compiling Windows release binaries with ${MINGW_CC}..."
             "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc-windows-x86_64.exe"
-            "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${DIST_DIR}/sonar_bootstrap.c" -o "${DIST_DIR}/sonar-windows-x86_64.exe"
+            "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration -Wno-builtin-declaration-mismatch -Wno-error=builtin-declaration-mismatch "${DIST_DIR}/sonar_bootstrap.c" -o "${DIST_DIR}/sonar-windows-x86_64.exe"
             "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${DIST_DIR}/fmt_bootstrap.c" -o "${DIST_DIR}/abyssfmt-windows-x86_64.exe"
             if command -v wine >/dev/null 2>&1; then
                 echo "Verifying Windows binaries with Wine..."
