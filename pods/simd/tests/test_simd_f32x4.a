@@ -1,6 +1,7 @@
 import std.allocator: Arena
+
 import simd: Simd, f32x4
-import test: Suite, Test, assert_true, assert_eq
+import test: Suite, Test, assert_eq, assert_true
 
 test_f32x4_constructors_and_access :: fn(t &Test) {
     v := f32x4.splat(3.5)

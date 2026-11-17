@@ -1,8 +1,8 @@
 import std.allocator: Arena
-import std.fs: Dir, File
-import std.string: Str
+import std.fs:        Dir, File
+import std.string:    Str
 
-import fmt: format_path, format_source
+import fmt:  format_path, format_source
 import test: Suite, Test
 
 mkdir :: fn(path &u8, mode u32) i32

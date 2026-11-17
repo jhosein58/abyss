@@ -1,8 +1,9 @@
+import core.slice:    Slice
 import std.allocator: Arena
-import std.sort: sort
-import std.interner: Interner
-import core.slice: Slice
-import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false
+import std.interner:  Interner
+import std.sort:      sort
+
+import test: Suite, Test, assert_eq, assert_false, assert_ne, assert_true
 
 test_sort_slice :: fn(t &Test) {
     arr: [6]i32 = .[ 50, 10, 40, 20, 60, 30 ]

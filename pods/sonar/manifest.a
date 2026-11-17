@@ -1,9 +1,11 @@
-import std.string: Str, String
+import core.maybe: Maybe
 import std.allocator: Arena
 import std.collections.vec: Vec
 import std.fs: File
-import core.maybe: Maybe
-import json: parse_json, JsonVal, JsonKind
+import std.string: Str, String
+
+import json: JsonKind, JsonVal, parse_json
+
 import .semver: SemVer
 
 Dependency :: struct {

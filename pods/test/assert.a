@@ -1,8 +1,9 @@
-import std.string: Str, String
 import std.allocator: Arena
-import std.fmt: fmt
-import std.io: write, print
-import std.sys: fall
+import std.fmt:       fmt
+import std.io:        print, write
+import std.string:    Str, String
+import std.sys:       fall
+
 import .color: Color
 
 assert :: fn(cond bool, hint Str) {

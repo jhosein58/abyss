@@ -1,6 +1,7 @@
 import std.allocator: Arena
-import simd: Simd, f32x4, f64x2, abyss_simd_cpu_features, sin, cos, sin_fast, cos_fast, exp, exp_fast, ln, ln_fast, sqrt, rsqrt, rsqrt_fast
-import test: Suite, Test, assert_true, assert_eq
+
+import simd: Simd, abyss_simd_cpu_features, cos, cos_fast, exp, exp_fast, f32x4, f64x2, ln, ln_fast, rsqrt, rsqrt_fast, sin, sin_fast, sqrt
+import test: Suite, Test, assert_eq, assert_true
 
 approx_eq :: fn(a f32, b f32, eps f32) bool {
     diff := a - b

@@ -1,8 +1,8 @@
 import std.allocator: Arena
-import std.fmt: fmt
-import std.hash: hash_combine, hash_words
-import std.sort: sort, sort_chunks
-import std.string: Str, String
+import std.fmt:       fmt
+import std.hash:      hash_combine, hash_words
+import std.sort:      sort, sort_chunks
+import std.string:    Str, String
 
 TyKind :: enum u8 {
     unknown

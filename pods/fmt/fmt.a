@@ -1,11 +1,12 @@
-import .parser: parse_to_cst, CstParser
-import .formatter: format_cst, Formatter
-import .cst: CstNode, CstKind
-import .syntax.lexer: tokenize, Lexer
-import .syntax.token: Token, TokenKind, TokenList
 import std.allocator: Arena
-import std.fs: File, Dir, to_cstr
-import std.string: Str, String
+import std.fs:        Dir, File, to_cstr
+import std.string:    Str, String
+
+import .cst:          CstKind, CstNode
+import .formatter:    Formatter, format_cst
+import .parser:       CstParser, parse_to_cst
+import .syntax.lexer: Lexer, tokenize
+import .syntax.token: Token, TokenKind, TokenList
 
 format_source :: fn(arena &Arena, source Str) Str {
     tree := parse_to_cst(arena, source)

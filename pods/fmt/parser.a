@@ -1,9 +1,10 @@
-import .syntax.token: TokenKind, Token, TokenList
-import .syntax.lexer: tokenize
-import .cst: CstKind, CstNode, cst_new, cst_leaf, cst_unary, cst_binary
-import std.allocator: Arena
+import std.allocator:       Arena
 import std.collections.vec: Vec
-import std.string: Str, String
+import std.string:          Str, String
+
+import .cst:          CstKind, CstNode, cst_binary, cst_leaf, cst_new, cst_unary
+import .syntax.lexer: tokenize
+import .syntax.token: Token, TokenKind, TokenList
 
 CstParser :: struct {
     tokens TokenList

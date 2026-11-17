@@ -1,6 +1,7 @@
 import std.allocator: Arena
-import simd: Simd, f32x4, SimdMask
-import test: Suite, Test, assert_true, assert_false, assert_eq
+
+import simd: Simd, SimdMask, f32x4
+import test: Suite, Test, assert_eq, assert_false, assert_true
 
 test_simd_mask_queries :: fn(t &Test) {
     a := f32x4.splat(10.0)

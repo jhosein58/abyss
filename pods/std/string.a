@@ -1,7 +1,7 @@
-import core.string: Str
-import std.convert: Convert, value_code
-import std.mem: mem_copy
+import core.string:   Str
 import std.allocator: Arena
+import std.convert:   Convert, value_code
+import std.mem:       mem_copy
 
 String :: struct {
     arena &Arena

@@ -1,12 +1,12 @@
 import std.string: Str, parse_u32
 
-import compiler.hir: hir_kind, hir_none
-import compiler.nexus.nexus: span_merge
-import compiler.nexus.pool: id_none
-import compiler.parser.core: Parser, bump, curr_span, curr_text, expect, is_eof, lookup_sym, optional, parse_error_at, peek, prev_span
+import compiler.hir:           hir_kind, hir_none
+import compiler.nexus.nexus:   span_merge
+import compiler.nexus.pool:    id_none
+import compiler.parser.core:   Parser, bump, curr_span, curr_text, expect, is_eof, lookup_sym, optional, parse_error_at, peek, prev_span
 import compiler.parser.parser: parse_expr
-import compiler.parser.prec: prec
-import compiler.token: Token
+import compiler.parser.prec:   prec
+import compiler.token:         Token
 
 import .common: add_list, check_separator, set_span, span_of_hir
 

@@ -1,4 +1,4 @@
-import std.mem: malloc, free, mem_copy
+import std.mem: free, malloc, mem_copy
 
 align_up :: fn(n u64) u64 {
     (n + 7) & ~7

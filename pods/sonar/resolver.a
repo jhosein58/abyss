@@ -1,12 +1,13 @@
-import std.string: Str, String
+import core.maybe: Maybe
 import std.allocator: Arena
 import std.collections.vec: Vec
+import std.fs: Dir, File, to_cstr
 import std.path: Path
-import std.fs: File, Dir, to_cstr
-import core.maybe: Maybe
-import .semver: SemVer
-import .manifest: PodManifest, Dependency, CBuildInfo
-import .vendor: ensure_dir_all
+import std.string: Str, String
+
+import .manifest: CBuildInfo, Dependency, PodManifest
+import .semver:   SemVer
+import .vendor:   ensure_dir_all
 
 system :: fn(cmd &u8) i32
 

@@ -1,9 +1,10 @@
-import std.string: Str, String
 import std.allocator: Arena
 import std.collections.vec: Vec
-import std.io: write, print
+import std.io: print, write
+import std.string: Str, String
 import std.sys: fall
-import .color: Color
+
+import .color:   Color
 import .context: Test
 
 TestFunc :: fn(t &Test) 

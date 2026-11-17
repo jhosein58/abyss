@@ -1,14 +1,16 @@
-import std.string: Str, String
 import std.allocator: Arena
 import std.collections.vec: Vec
-import std.fs: File, Dir
+import std.fs: Dir, File
 import std.io: print
+import std.string: Str, String
 import std.sys: fall
-import json: parse_json, JsonVal, JsonKind
-import .semver: SemVer
-import .manifest: PodManifest, Dependency, CBuildInfo
-import .resolver: Resolver, ResolvedPod, ResolutionResult
-import .vendor: VendorManager, ensure_dir_all
+
+import json: JsonKind, JsonVal, parse_json
+
+import .manifest: CBuildInfo, Dependency, PodManifest
+import .resolver: ResolutionResult, ResolvedPod, Resolver
+import .semver:   SemVer
+import .vendor:   VendorManager, ensure_dir_all
 
 expect :: fn(cond bool, msg Str) {
     if not cond {

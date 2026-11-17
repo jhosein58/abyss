@@ -1,10 +1,15 @@
-import .cst: CstKind, CstNode
-import std.allocator: Arena
+import std.allocator:       Arena
 import std.collections.vec: Vec
-import std.string: Str, String
+import std.string:          Str, String
+
+import .cst: CstKind, CstNode
 
 str_less :: fn(a Str, b Str) bool {
-    min_len := if a.len < b.len { a.len } else { b.len }
+    min_len := if a.len < b.len {
+        a.len
+    } else {
+        b.len
+    }
     i: u64 = 0
     while i < min_len {
         ca := *(a.ptr + i)
@@ -360,7 +365,6 @@ Formatter :: struct {
             }
             ret
         }
-
         leading_content := false
         i: u64 = 0
         while i < first_import_idx {
@@ -410,7 +414,6 @@ Formatter :: struct {
             self.format_import_group(&g1)
             groups_emitted = groups_emitted + 1
         }
-
         if g2.len > 0 {
             if groups_emitted > 0 {
                 self.buf.push_char('\n' as u8)
@@ -418,7 +421,6 @@ Formatter :: struct {
             self.format_import_group(&g2)
             groups_emitted = groups_emitted + 1
         }
-
         if g3.len > 0 {
             if groups_emitted > 0 {
                 self.buf.push_char('\n' as u8)
@@ -426,7 +428,6 @@ Formatter :: struct {
             self.format_import_group(&g3)
             groups_emitted = groups_emitted + 1
         }
-
         g1.destroy()
         g2.destroy()
         g3.destroy()

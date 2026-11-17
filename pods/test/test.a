@@ -1,4 +1,4 @@
-import .color: Color
-import .assert: assert, assert_true, assert_false, assert_eq, assert_ne, assert_gt, assert_ge, assert_lt, assert_le, assert_str_eq, assert_str_ne, assert_null, assert_not_null
+import .assert:  assert, assert_eq, assert_false, assert_ge, assert_gt, assert_le, assert_lt, assert_ne, assert_not_null, assert_null, assert_str_eq, assert_str_ne, assert_true
+import .color:   Color
 import .context: Test
-import .suite: Suite, TestFunc, TestEntry
+import .suite:   Suite, TestEntry, TestFunc

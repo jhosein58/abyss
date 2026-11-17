@@ -1,9 +1,9 @@
 import std.allocator: Arena
-import std.fmt: Fmt
-import std.string: Str, String
-import std.sys: fall
+import std.fmt:       Fmt
+import std.string:    Str, String
+import std.sys:       fall
 
-import .hir: HirExprKind, hir_kind, hir_none
+import .hir:   HirExprKind, hir_kind, hir_none
 import .lexer: decode_char_lit
 import .types: TyKind, TypeStorage, ty_id_none
 

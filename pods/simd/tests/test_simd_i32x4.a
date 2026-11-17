@@ -1,6 +1,7 @@
 import std.allocator: Arena
+
 import simd: Simd, i32x4
-import test: Suite, Test, assert_true, assert_eq
+import test: Suite, Test, assert_eq, assert_true
 
 test_i32x4_arithmetic :: fn(t &Test) {
     a := i32x4.splat(20)

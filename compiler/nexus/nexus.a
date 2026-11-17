@@ -4,12 +4,12 @@ import std.interner: Interner
 import std.string: Str
 import std.sys: fall
 
-import compiler.hir: HirTable, hir_kind, hir_none
-import compiler.token: TokenStream
-import compiler.types: TyKind, TypeStorage, ty_id_none
-import compiler.unify: UnifyStorage, slot_none
+import compiler.hir:        HirTable, hir_kind, hir_none
+import compiler.token:      TokenStream
+import compiler.types:      TyKind, TypeStorage, ty_id_none
+import compiler.unify:      UnifyStorage, slot_none
 import compiler.vm.codegen: VmCodeGen
-import compiler.vm.vm: Vm
+import compiler.vm.vm:      Vm
 
 import .pool: PoolU32, PoolU64, id_none
 

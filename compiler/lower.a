@@ -1,6 +1,6 @@
 import std.allocator: Arena
-import std.string: Str
-import std.sys: fall
+import std.string:    Str
+import std.sys:       fall
 
 import .hir: HirExprKind, HirTable, hir_kind, hir_none
 import .lexer: decode_char_lit

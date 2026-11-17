@@ -1,8 +1,9 @@
 import std.allocator: Arena
-import std.ascii: Ascii, is_digit, is_hex_digit, is_alpha, is_alphanumeric, is_whitespace, to_lower, to_upper, hex_digit_value
-import std.string: String, parse_u32
-import std.path: Path
-import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false, assert_str_eq
+import std.ascii:     Ascii, hex_digit_value, is_alpha, is_alphanumeric, is_digit, is_hex_digit, is_whitespace, to_lower, to_upper
+import std.path:      Path
+import std.string:    String, parse_u32
+
+import test: Suite, Test, assert_eq, assert_false, assert_ne, assert_str_eq, assert_true
 
 test_ascii_predicates :: fn(t &Test) {
     t.assert_true(is_digit('0'), "")

@@ -1,27 +1,27 @@
-import std.mem: malloc
+import std.mem:    malloc
 import std.string: Str
-import std.sys: fall
+import std.sys:    fall
 
-import compiler.engine: Engine
-import compiler.hir: HirTable, hir_kind, hir_none
-import compiler.lexer: lex
-import compiler.lower: eval_const
-import compiler.nexus.pool: id_none
+import compiler.engine:        Engine
+import compiler.hir:           HirTable, hir_kind, hir_none
+import compiler.lexer:         lex
+import compiler.lower:         eval_const
+import compiler.nexus.pool:    id_none
 import compiler.parser.common: check_separator
-import compiler.parser.core: Parser_new, bump, is_eof, peek
+import compiler.parser.core:   Parser_new, bump, is_eof, peek
 import compiler.parser.parser: parse_expr
-import compiler.token: Token, TokenStream
-import compiler.types: TyKind, TypeStorage, ty_id_none, ty_id_type
-import compiler.unify: slot_none
+import compiler.token:         Token, TokenStream
+import compiler.types:         TyKind, TypeStorage, ty_id_none, ty_id_type
+import compiler.unify:         slot_none
 
-import .common: unescape_splice_str
-import .control: prepare_match_bindings, synth_block, synth_break_cont, synth_for, synth_if, synth_match, synth_while
-import .decl: synth_enum, synth_member, synth_struct, synth_struct_init
-import .expr: synth_array_init, synth_array_type, synth_assign, synth_binary, synth_binary_comp, synth_builtin_call, synth_cast, synth_index, synth_lit_bool, synth_lit_char, synth_lit_cstr, synth_lit_float, synth_lit_int, synth_lit_str, synth_logic_and_or, synth_unary_addr_of, synth_unary_deref, synth_unary_not, synth_unary_num
-import .fn: synth_call, synth_func, synth_return
+import .common:     unescape_splice_str
+import .control:    prepare_match_bindings, synth_block, synth_break_cont, synth_for, synth_if, synth_match, synth_while
+import .decl:       synth_enum, synth_member, synth_struct, synth_struct_init
+import .expr:       synth_array_init, synth_array_type, synth_assign, synth_binary, synth_binary_comp, synth_builtin_call, synth_cast, synth_index, synth_lit_bool, synth_lit_char, synth_lit_cstr, synth_lit_float, synth_lit_int, synth_lit_str, synth_logic_and_or, synth_unary_addr_of, synth_unary_deref, synth_unary_not, synth_unary_num
+import .fn:         synth_call, synth_func, synth_return
 import .reflection: macro_template, reflection_read
 import .specialize: resolve_ty_id
-import .var: synth_arg, synth_destructure, synth_ident, synth_type_node, synth_var_or_binding
+import .var:        synth_arg, synth_destructure, synth_ident, synth_type_node, synth_var_or_binding
 
 synth_node :: fn(eng &Engine, id u32) {
     db := &eng.nexus

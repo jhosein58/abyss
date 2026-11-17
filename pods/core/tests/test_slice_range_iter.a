@@ -1,8 +1,9 @@
-import std.allocator: Arena
-import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false
-import core.range: Range
-import core.slice: Slice
 import core.iterator: Iterator
+import core.range:    Range
+import core.slice:    Slice
+import std.allocator: Arena
+
+import test: Suite, Test, assert_eq, assert_false, assert_ne, assert_true
 
 test_range_iteration :: fn(t &Test) {
     r := Range.new(0, 5)

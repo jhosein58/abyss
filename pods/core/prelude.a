@@ -1,9 +1,8 @@
-import core.string: Str, CharIter
-import core.maybe: Maybe
-import core.iterator: Iterator
+import core.choice:       Choice
+import core.iterator:     Iterator
+import core.maybe:        Maybe
+import core.range:        Range
 import core.ref_iterator: RefIterator
-import core.range: Range
-import core.choice: Choice
-import core.slice: Slice
-
-import core.reflection: TypeInfo, FieldInfo, TypeKind
+import core.reflection:   FieldInfo, TypeInfo, TypeKind
+import core.slice:        Slice
+import core.string:       CharIter, Str

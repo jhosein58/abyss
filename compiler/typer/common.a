@@ -1,11 +1,11 @@
 import std.allocator: malloc
-import std.string: Str
-import std.sys: fall
+import std.string:    Str
+import std.sys:       fall
 
-import compiler.hir: HirTable, hir_kind, hir_none
+import compiler.hir:         HirTable, hir_kind, hir_none
 import compiler.nexus.nexus: Nexus
-import compiler.types: TyKind, TypeStorage, ty_id_bool, ty_id_none, ty_id_type
-import compiler.unify: UnifyStorage, slot_none
+import compiler.types:       TyKind, TypeStorage, ty_id_bool, ty_id_none, ty_id_type
+import compiler.unify:       UnifyStorage, slot_none
 
 parse_builtin_type :: fn(types &TypeStorage, name Str) u32 {
     if name.eq(Str.of("bool")) {

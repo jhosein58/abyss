@@ -1,6 +1,6 @@
-import std.string: Str, String
+import core.maybe:    Maybe
 import std.allocator: Arena
-import core.maybe: Maybe
+import std.string:    Str, String
 
 SemVer :: struct {
     major u32

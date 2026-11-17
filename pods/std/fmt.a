@@ -1,6 +1,6 @@
 import std.allocator: Arena
-import std.string: Str, String
-import std.convert: Convert, conversion_error
+import std.convert:   Convert, conversion_error
+import std.string:    Str, String
 
 Escape :: struct {
     reset             &u8

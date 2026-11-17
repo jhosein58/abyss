@@ -1,13 +1,13 @@
 import std.allocator: Arena
-import std.fs: File
-import std.path: Path
-import std.string: Str, String
-import std.sys: fall
+import std.fs:        File
+import std.path:      Path
+import std.string:    Str, String
+import std.sys:       fall
 
-import .lexer: lex
+import .lexer:       lex
 import .nexus.nexus: Nexus, calc_pos
-import .nexus.pool: id_none
-import .token: Token, is_path_ident
+import .nexus.pool:  id_none
+import .token:       Token, is_path_ident
 
 QueuedFile :: struct {
     fid       u32

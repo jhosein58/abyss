@@ -1,13 +1,13 @@
-import compiler.hir: hir_kind, hir_none
-import compiler.nexus.nexus: span_merge
-import compiler.nexus.pool: id_none
-import compiler.parser.core: Parser, bump, curr_span, expect, is_eof, optional, parse_error_at, peek, peek_preceded_by_newline, prev_span
+import compiler.hir:           hir_kind, hir_none
+import compiler.nexus.nexus:   span_merge
+import compiler.nexus.pool:    id_none
+import compiler.parser.core:   Parser, bump, curr_span, expect, is_eof, optional, parse_error_at, peek, peek_preceded_by_newline, prev_span
 import compiler.parser.parser: parse_expr
-import compiler.parser.prec: prec
-import compiler.token: Token
+import compiler.parser.prec:   prec
+import compiler.token:         Token
 
 import .common: add_list, check_separator, parse_scoped_import, set_span, span_of_hir
-import .expr: parse_ident
+import .expr:   parse_ident
 
 parse_if :: fn(p &Parser) u32 {
     t := Token

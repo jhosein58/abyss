@@ -1,5 +1,6 @@
-import .token: TokenKind, Token, TokenList
 import std.ascii: Ascii
+
+import .token: Token, TokenKind, TokenList
 
 match_keyword :: fn(text Str) TokenKind {
     if text.len == 2 {

@@ -1,17 +1,17 @@
 import std.convert: Convert
-import std.string: Str, String
-import std.sys: fall
+import std.string:  Str, String
+import std.sys:     fall
 
-import compiler.engine: Engine
-import compiler.hir: hir_kind, hir_none
-import compiler.lower: eval_const
+import compiler.engine:      Engine
+import compiler.hir:         hir_kind, hir_none
+import compiler.lower:       eval_const
 import compiler.nexus.nexus: Nexus
-import compiler.nexus.pool: id_none
-import compiler.types: TyKind, ty_id_none, ty_id_type
+import compiler.nexus.pool:  id_none
+import compiler.types:       TyKind, ty_id_none, ty_id_type
 
 import .tyck: synth_node
 import .tyck: type_has_infer
-import .var: synth_type_node
+import .var:  synth_type_node
 
 reflection_error :: fn(db &Nexus, id u32, message &u8) {
     printf("\n[type error] {}\n       --> ", .{ message })

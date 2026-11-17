@@ -1,6 +1,7 @@
 import std.allocator: Arena
-import json: parse_json, JsonVal, JsonKind
-import test: Suite, Test, assert_true, assert_eq, assert_str_eq
+
+import json: JsonKind, JsonVal, parse_json
+import test: Suite, Test, assert_eq, assert_str_eq, assert_true
 
 test_parse_object :: fn(t &Test) {
     arena := Arena.new(2048)

@@ -1,7 +1,8 @@
+import core.choice:   Choice
+import core.maybe:    Maybe
 import std.allocator: Arena
-import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false, assert_str_eq
-import core.maybe: Maybe
-import core.choice: Choice
+
+import test: Suite, Test, assert_eq, assert_false, assert_ne, assert_str_eq, assert_true
 
 Point :: struct {
     x i32

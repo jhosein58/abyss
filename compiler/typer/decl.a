@@ -1,5 +1,5 @@
 import std.string: Str
-import std.sys: fall
+import std.sys:    fall
 
 import compiler.engine: Engine
 import compiler.hir: HirTable, hir_kind, hir_none
@@ -18,8 +18,8 @@ import compiler.types: TyKind, ty_id_none, ty_id_type, ty_id_unit
 import compiler.unify: slot_none
 
 import .common: unescape_splice_str
-import .fn: func_has_self, synth_func
-import .var: synth_type_node
+import .fn:     func_has_self, synth_func
+import .var:    synth_type_node
 
 process_methods :: fn(eng &Engine, id u32, methods_id u32, sym_id u32) u32 {
     db := &eng.nexus

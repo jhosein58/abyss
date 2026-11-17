@@ -1,5 +1,6 @@
 import std.allocator: Arena
-import test: Suite, Test, assert_eq, assert_ne, assert_str_eq, assert_true, assert_false, assert_gt, assert_lt
+
+import test: Suite, Test, assert_eq, assert_false, assert_gt, assert_lt, assert_ne, assert_str_eq, assert_true
 
 test_scalar_assertions :: fn(t &Test) {
     t.assert_eq(i32, 42, 42, "")

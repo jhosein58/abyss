@@ -1,6 +1,7 @@
+import core.string:   CharIter, Str
 import std.allocator: Arena
-import test: Suite, Test, assert_eq, assert_ne, assert_true, assert_false, assert_str_eq, assert_str_ne
-import core.string: Str, CharIter
+
+import test: Suite, Test, assert_eq, assert_false, assert_ne, assert_str_eq, assert_str_ne, assert_true
 
 test_str_basics :: fn(t &Test) {
     s_empty := Str.empty()

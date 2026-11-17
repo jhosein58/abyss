@@ -1,6 +1,6 @@
-import std.string: Str, String
 import std.allocator: Arena
-import std.fmt: fmt
+import std.fmt:       fmt
+import std.string:    Str, String
 
 Test :: struct {
     name            Str

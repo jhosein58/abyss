@@ -1,7 +1,8 @@
-import .fmt: format_path
 import std.allocator: Arena
-import std.env: Env
-import std.string: Str
+import std.env:       Env
+import std.string:    Str
+
+import .fmt: format_path
 
 main :: fn() {
     count := Env.args_len()

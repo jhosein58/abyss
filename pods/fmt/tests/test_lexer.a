@@ -1,8 +1,9 @@
 import std.allocator: Arena
-import std.fs: File
-import test: Suite, Test
-import fmt.syntax.token: TokenKind, Token, TokenList
+import std.fs:        File
+
 import fmt.syntax.lexer: Lexer, tokenize
+import fmt.syntax.token: Token, TokenKind, TokenList
+import test:             Suite, Test
 
 test_basic_tokens :: fn(t &Test) {
     src := "x := 42 + 3.14\n"

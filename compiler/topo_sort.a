@@ -1,7 +1,7 @@
 import std.sys: fall
 
 import .nexus.nexus: Nexus
-import .types: TyKind, TypeStorage
+import .types:       TyKind, TypeStorage
 
 is_composite_type :: fn(k TyKind) bool {
     (k == TyKind.struct_) or (k == TyKind.nominal) or (k == TyKind.func) or (k == TyKind.array) or (k == TyKind.union_) or (k == TyKind.enum_)

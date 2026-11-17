@@ -1,15 +1,15 @@
 import std.allocator: Arena
-import std.path: Path
-import std.string: Str, String
+import std.path:      Path
+import std.string:    Str, String
 
-import compiler.hir: HirExprKind, hir_kind, hir_none
-import compiler.indexer: module_path
-import compiler.nexus.nexus: Span, span_merge
-import compiler.nexus.pool: id_none
-import compiler.parser.core: Parser, bump, curr_span, optional, parse_error_at, peek, peek_n, peek_preceded_by_newline
+import compiler.hir:           HirExprKind, hir_kind, hir_none
+import compiler.indexer:       module_path
+import compiler.nexus.nexus:   Span, span_merge
+import compiler.nexus.pool:    id_none
+import compiler.parser.core:   Parser, bump, curr_span, optional, parse_error_at, peek, peek_n, peek_preceded_by_newline
 import compiler.parser.parser: parse_expr
-import compiler.parser.prec: prec
-import compiler.token: Token, is_path_ident
+import compiler.parser.prec:   prec
+import compiler.token:         Token, is_path_ident
 
 span_of_hir :: fn(p &Parser, hir_id u32) Span {
     p.db.get_hir_span(hir_id)

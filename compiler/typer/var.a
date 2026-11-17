@@ -1,14 +1,14 @@
 import std.string: Str
-import std.sys: fall
+import std.sys:    fall
 
-import compiler.engine: Engine
-import compiler.hir: HirTable, hir_kind, hir_none
-import compiler.lower: eval_const
+import compiler.engine:      Engine
+import compiler.hir:         HirTable, hir_kind, hir_none
+import compiler.lower:       eval_const
 import compiler.nexus.nexus: Nexus
-import compiler.nexus.pool: id_none
-import compiler.typer.tyck: synth_node
-import compiler.types: TyKind, TypeStorage, ty_id_none, ty_id_type, ty_id_unit
-import compiler.unify: slot_none
+import compiler.nexus.pool:  id_none
+import compiler.typer.tyck:  synth_node
+import compiler.types:       TyKind, TypeStorage, ty_id_none, ty_id_type, ty_id_unit
+import compiler.unify:       slot_none
 
 import .common: check_value, parse_builtin_type
 

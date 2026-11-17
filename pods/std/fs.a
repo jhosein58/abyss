@@ -1,11 +1,11 @@
-import std.allocator: Arena
-import std.string: Str, String
-import std.sys: fall
-import core.maybe: Maybe
+import core.maybe:          Maybe
+import std.allocator:       Arena
 import std.collections.vec: Vec
-import std.path: Path
-import std.convert: Convert
-import std.mem: malloc, free
+import std.convert:         Convert
+import std.mem:             free, malloc
+import std.path:            Path
+import std.string:          Str, String
+import std.sys:             fall
 
 print_cstr :: fn(s &u8) 
 
