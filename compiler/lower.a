@@ -1,16 +1,17 @@
-import .typer.reflection: reflection_value, reflection_error, macro_template, reflection_read, reflection_quote
-import .nexus.nexus: Nexus
-import .hir: HirTable, hir_kind, hir_none, HirExprKind
-import .nexus.pool: id_none
-import std.string: Str
 import std.allocator: Arena
-import .types: TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_unit, ty_id_bool, ty_id_untyped_int
-import .topo_sort: topo_sort
+import std.string: Str
 import std.sys: fall
-import .typer.fn: func_has_self
-import .vm.codegen: VmCodeGen, VmCodeBuilder, VmVal, VmValKind
-import .vm.op: OpCode
+
+import .hir: HirExprKind, HirTable, hir_kind, hir_none
 import .lexer: decode_char_lit
+import .nexus.nexus: Nexus
+import .nexus.pool: id_none
+import .topo_sort: topo_sort
+import .typer.fn: func_has_self
+import .typer.reflection: macro_template, reflection_error, reflection_quote, reflection_read, reflection_value
+import .types: TyKind, TypeStorage, ty_id_bool, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_int
+import .vm.codegen: VmCodeBuilder, VmCodeGen, VmVal, VmValKind
+import .vm.op: OpCode
 
 LowerCtx :: fn(B type, L type, V type) type {
     struct {

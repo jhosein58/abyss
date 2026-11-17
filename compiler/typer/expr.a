@@ -1,18 +1,20 @@
-import compiler.engine: Engine
-import compiler.nexus.nexus: Nexus
-import compiler.hir: HirTable, hir_kind, hir_none
-import compiler.types: TypeStorage, TyKind, ty_id_none, ty_id_type, ty_id_bool, ty_id_untyped_int, ty_id_untyped_float, ty_id_error
-import compiler.unify: slot_none
-import compiler.nexus.pool: id_none
-import compiler.lexer: decode_char_lit
-import compiler.lower: eval_const
-import compiler.typer.tyck: synth_node
-import compiler.typer.reflection: synth_reflection_builtin
-import compiler.typer.specialize: resolve_ty_id
-import .common: check_value, check_bool_operand
-import .var: synth_type_node
 import std.string: Str
 import std.sys: fall
+
+import compiler.engine: Engine
+import compiler.hir: HirTable, hir_kind, hir_none
+import compiler.lexer: decode_char_lit
+import compiler.lower: eval_const
+import compiler.nexus.nexus: Nexus
+import compiler.nexus.pool: id_none
+import compiler.typer.reflection: synth_reflection_builtin
+import compiler.typer.specialize: resolve_ty_id
+import compiler.typer.tyck: synth_node
+import compiler.types: TyKind, TypeStorage, ty_id_bool, ty_id_error, ty_id_none, ty_id_type, ty_id_untyped_float, ty_id_untyped_int
+import compiler.unify: slot_none
+
+import .common: check_bool_operand, check_value
+import .var: synth_type_node
 
 synth_lit_int :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify

@@ -1,11 +1,12 @@
-import std.string: Str
 import std.allocator: Arena
-import std.fs: File, read_file, write_file
 import std.env: Env
+import std.fs: File, read_file, write_file
 import std.path: Path
+import std.string: Str
+
+import compiler.codegen: CCodeBuilder, CCodeGen, CCodeGen_destroy, CCodeGen_finish, CCodeGen_new
 import compiler.engine: Engine
-import compiler.codegen: CCodeGen, CCodeBuilder, CCodeGen_new, CCodeGen_destroy, CCodeGen_finish
-import compiler.vm.codegen: VmCodeGen, VmCodeBuilder
+import compiler.vm.codegen: VmCodeBuilder, VmCodeGen
 import compiler.vm.vm: Vm
 
 CompilerConfig :: struct {

@@ -1,20 +1,20 @@
-import .nexus.nexus: Nexus
-
-import .token: Token, TokenStream
-import .lexer: lex
-import .indexer: index_file
-import .parser.core: Parser_new, peek, curr_span, parse_error_at
-import .parser.parser: parse_expr
-import .typer.tyck: type_check, process_mono_funcs, finalize_inferred_types
-import .nexus.pool: id_none
-import .unify: slot_none
-import .types: ty_id_none, ty_id_type, TyKind
-import .hir: hir_kind
-import std.string: Str
-import std.path: Path
 import std.allocator: Arena
+import std.path: Path
+import std.string: Str
 import std.sys: fall
+
+import .hir: hir_kind
+import .indexer: index_file
+import .lexer: lex
 import .lower: lower_function
+import .nexus.nexus: Nexus
+import .nexus.pool: id_none
+import .parser.core: Parser_new, curr_span, parse_error_at, peek
+import .parser.parser: parse_expr
+import .token: Token, TokenStream
+import .typer.tyck: finalize_inferred_types, process_mono_funcs, type_check
+import .types: TyKind, ty_id_none, ty_id_type
+import .unify: slot_none
 
 Engine :: struct {
     nexus      Nexus

@@ -1,16 +1,17 @@
+import std.allocator: Arena
+import std.collections.hash_map: HashMap
 import std.interner: Interner
 import std.string: Str
-import std.collections.hash_map: HashMap
+import std.sys: fall
 
-import compiler.types: TypeStorage, TyKind, ty_id_none
-import compiler.unify: UnifyStorage, slot_none
-import compiler.token: TokenStream
 import compiler.hir: HirTable, hir_kind, hir_none
-import .pool: PoolU32, PoolU64, id_none
-import std.allocator: Arena
+import compiler.token: TokenStream
+import compiler.types: TyKind, TypeStorage, ty_id_none
+import compiler.unify: UnifyStorage, slot_none
 import compiler.vm.codegen: VmCodeGen
 import compiler.vm.vm: Vm
-import std.sys: fall
+
+import .pool: PoolU32, PoolU64, id_none
 
 MonoFunc :: struct {
     orig_sym   u32

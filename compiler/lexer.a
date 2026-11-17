@@ -1,7 +1,8 @@
-import .token: Token as Tk, TokenStream
-import .nexus.nexus: calc_pos
-import std.sys: fall
 import std.ascii: Ascii
+import std.sys: fall
+
+import .nexus.nexus: calc_pos
+import .token: Token as Tk, TokenStream
 
 -- Fast keyword lookup grouped by token length
 match_keyword :: fn(text Str) Tk {

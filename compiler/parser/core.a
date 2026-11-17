@@ -1,10 +1,12 @@
-import compiler.token: Token, TokenStream
-import compiler.hir: HirTable
 import std.string: Str
-import compiler.nexus.nexus: Nexus, calc_pos, Span, Pos, span_new, span_merge
-import .env: ScopeEnv
-import compiler.nexus.pool: id_none
 import std.sys: fall
+
+import compiler.hir: HirTable
+import compiler.nexus.nexus: Nexus, Pos, Span, calc_pos, span_merge, span_new
+import compiler.nexus.pool: id_none
+import compiler.token: Token, TokenStream
+
+import .env: ScopeEnv
 
 Parser :: struct {
     db        &Nexus
