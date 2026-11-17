@@ -62,7 +62,7 @@ find_index_dir :: fn(arena &Arena) Str {
     clone_cmd.push_str("git clone --depth 1 https://github.com/jhosein58/abyss-index.git ")
     clone_cmd.push_str(idx_path)
     clone_cmd.push_str(" >/dev/null 2>&1")
-    system(to_cstr(arena, clone_cmd.as_str()))
+    _clone_res := system(to_cstr(arena, clone_cmd.as_str()))
 
     if Dir.exists(c_idx) {
         ret idx_path
@@ -196,7 +196,7 @@ cmd_update :: fn(arena &Arena) {
     cmd.push_str("git -C ")
     cmd.push_str(idx_dir)
     cmd.push_str(" pull --ff-only >/dev/null 2>&1")
-    system(to_cstr(arena, cmd.as_str()))
+    _pull_res := system(to_cstr(arena, cmd.as_str()))
     print_line("[sonar] pod index updated successfully")
 }
 
@@ -282,7 +282,7 @@ cmd_run :: fn(arena &Arena, target_arg Str) {
     run_cmd := String.new(arena)
     run_cmd.push_str("./")
     run_cmd.push_str(out_bin)
-    system(to_cstr(arena, run_cmd.as_str()))
+    _run_res := system(to_cstr(arena, run_cmd.as_str()))
 }
 
 find_dev_root :: fn(arena &Arena) Str {

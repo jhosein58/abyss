@@ -129,7 +129,7 @@ Resolver :: struct {
                     cmd2.push_str(" ")
                     cmd2.push_str(cache_base)
                     cmd2.push_str(" >/dev/null 2>&1")
-                    system(to_cstr(self.arena, cmd2.as_str()))
+                    _res2 := system(to_cstr(self.arena, cmd2.as_str()))
                 }
             }
         }

@@ -16,7 +16,7 @@ ensure_dir_all :: fn(arena &Arena, dir_path Str) {
     cmd := String.new(arena)
     cmd.push_str("mkdir -p ")
     cmd.push_str(dir_path)
-    system(to_cstr(arena, cmd.as_str()))
+    _res := system(to_cstr(arena, cmd.as_str()))
 }
 
 copy_file :: fn(arena &Arena, src Str, dst Str) {

@@ -461,6 +461,10 @@ int32_t closedir(uint8_t *dir) {
     return -1;
 }
 
+uint8_t *dir_open(uint8_t *path) { return opendir(path); }
+uint8_t *dir_read(uint8_t *dir) { return readdir(dir); }
+int32_t dir_close(uint8_t *dir) { return closedir(dir); }
+
 int32_t compile_and_run(uint8_t *path) { (void)path; return -1; }
 
 static char arg0[] = "abyssc";
@@ -733,6 +737,18 @@ int32_t file_close(uint8_t *handle) {
 
 uint64_t file_write(uint8_t *handle, uint8_t *ptr, uint64_t size, uint64_t count) {
     return fwrite(ptr, size, count, (FILE*)handle);
+}
+
+uint8_t *dir_open(uint8_t *path) {
+    return (uint8_t *)opendir((const char *)path);
+}
+
+uint8_t *dir_read(uint8_t *dir) {
+    return (uint8_t *)readdir((DIR *)dir);
+}
+
+int32_t dir_close(uint8_t *dir) {
+    return closedir((DIR *)dir);
 }
 
 int32_t compile_and_run(uint8_t *path) {

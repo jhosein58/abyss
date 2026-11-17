@@ -18,9 +18,9 @@ file_read :: fn(handle, ptr &u8, s, count u64) u64
 file_write :: fn(handle, ptr &u8, s, count u64) u64
 file_close :: fn(handle &u8) i32
 
-opendir :: fn(path &u8) &u8
-readdir :: fn(dir &u8) &u8
-closedir :: fn(dir &u8) i32
+dir_open :: fn(path &u8) &u8
+dir_read :: fn(dir &u8) &u8
+dir_close :: fn(dir &u8) i32
 
 SEEK_SET :: fn() i32 {
     0
@@ -318,7 +318,7 @@ DirEntry :: struct {
 DirStream :: struct {
     handle &u8
     open :: fn(path &u8) Maybe(Self) {
-        h := opendir(path)
+        h := dir_open(path)
         if h == (0 as &u8) {
             ret Maybe(Self).none()
         }
@@ -329,7 +329,7 @@ DirStream :: struct {
         if self.handle == (0 as &u8) {
             ret false
         }
-        res := closedir(self.handle)
+        res := dir_close(self.handle)
         self.handle = 0 as &u8
         res == 0
     }
@@ -339,7 +339,7 @@ DirStream :: struct {
             ret Maybe(DirEntry).none()
         }
         while true {
-            ent := readdir(self.handle)
+            ent := dir_read(self.handle)
             if ent == (0 as &u8) {
                 ret Maybe(DirEntry).none()
             }
