@@ -55,6 +55,6 @@ cp "${ROOT_DIR}/tests/23_embedded_core.a" "${WORK_DIR}/main.a"
         STATUS=$?
     fi
     [[ ${STATUS} -eq 1 && ! -e missing.c ]]
-    rg -q 'embedded module not found' missing.log
+    grep -q 'embedded module not found' missing.log
 )
 printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[Isolation]\033[0m\n" "standalone_compiler_isolation"

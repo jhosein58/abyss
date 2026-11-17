@@ -14,7 +14,7 @@ cp "${COMPILER}" "${WORK_DIR}/abyssc"
     printf 'invalid user program\n' > main.a
     printf '\n#define ABYSS_CLI_EMBED_TEST 1\n' >> pods/core/runtime/prelude.c
     timeout 120s ./abyss b program.a
-    rg -q '^#define ABYSS_CLI_EMBED_TEST 1$' tmp/out.c
+    grep -q '^#define ABYSS_CLI_EMBED_TEST 1$' tmp/out.c
     ./tmp/out > actual.out
     printf 'automatic embedding\n7 true\n' > expected.out
     diff -u expected.out actual.out
@@ -30,7 +30,7 @@ cp "${COMPILER}" "${WORK_DIR}/abyssc"
         echo 'FAIL CLI embedding: invalid runtime was accepted'
         exit 1
     fi
-    rg -q ABYSS_CLI_EMBED_FAILURE failure.log
+    grep -q ABYSS_CLI_EMBED_FAILURE failure.log
     cmp abyssc previous_compiler
 )
 printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[CLI]\033[0m\n" "cli_embedding_and_cache"

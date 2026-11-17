@@ -230,7 +230,7 @@ while IFS= read -r TEST_FILE; do
         printf "  ${GREEN}✔ PASS${RESET}  %-36s ${DIM}[C+VM]${RESET} ${DIM}(%sms)${RESET}\n" "${TEST_NAME}" "${CASE_MS}"
     fi
     PASSED=$((PASSED + 1))
-done < <(rg --files tests -g '*.a' | sort)
+done < <(find tests -type f -name '*.a' | sort)
 
 if [[ ${TOTAL} -eq 0 ]]; then
     echo -e "${YELLOW}No tests matched: ${FILTER}${RESET}"
