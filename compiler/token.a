@@ -154,10 +154,10 @@ is_path_ident :: fn(tk Token) bool {
 }
 
 TokenStream :: struct {
-    kinds Vec(u8)
+    kinds  Vec(u8)
     starts Vec(u32)
-    lens Vec(u32)
-    texts Vec(Str)
+    lens   Vec(u32)
+    texts  Vec(Str)
     -- TODO: drop? slice from src[start..len]
     newline_befores Vec(bool)
     new :: fn() TokenStream {

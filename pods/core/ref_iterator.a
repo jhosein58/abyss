@@ -2,8 +2,8 @@ import core.maybe: Maybe
 
 RefIterator :: fn(T type) type {
     struct {
-        ptr &T
-        len u64
+        ptr   &T
+        len   u64
         index u64
         new :: fn(ptr &T, len u64) Self {
             .{ ptr: ptr, len: len, index: 0 }

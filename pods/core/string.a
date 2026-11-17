@@ -1,8 +1,8 @@
 import core.maybe: Maybe
 
 CharIter :: struct {
-    ptr &u8
-    len u64
+    ptr   &u8
+    len   u64
     index u64
     new :: fn(ptr &u8, len u64) Self {
         .{ ptr: ptr, len: len, index: 0 }

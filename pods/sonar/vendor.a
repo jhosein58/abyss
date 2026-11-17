@@ -31,7 +31,7 @@ copy_file :: fn(arena &Arena, src Str, dst Str) {
 }
 
 VendorManager :: struct {
-    arena &Arena
+    arena      &Arena
     vendor_dir Str
     new :: fn(arena &Arena, vendor_dir Str) Self {
         .{ arena: arena, vendor_dir: vendor_dir }

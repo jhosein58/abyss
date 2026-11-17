@@ -9,12 +9,12 @@ import compiler.vm.codegen: VmCodeGen, VmCodeBuilder
 import compiler.vm.vm: Vm
 
 CompilerConfig :: struct {
-    src_path &u8
-    out_path &u8
-    is_vm_run bool
+    src_path    &u8
+    out_path    &u8
+    is_vm_run   bool
     import_dirs Vec(Str)
-    map_keys Vec(Str)
-    map_values Vec(Str)
+    map_keys    Vec(Str)
+    map_values  Vec(Str)
     from_env :: fn() Self {
         argc := Env.args_len()
         src := Env.get_or(c"ABYSS_SRC", c"main.a")
@@ -75,7 +75,7 @@ CompilerConfig :: struct {
 }
 
 Driver :: struct {
-    arena &Arena
+    arena  &Arena
     config CompilerConfig
     new :: fn(arena &Arena) Self {
         .{ arena: arena, config: CompilerConfig.from_env() }

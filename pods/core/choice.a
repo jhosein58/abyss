@@ -1,7 +1,7 @@
 Choice :: fn(T type, E type) type {
     struct {
         is_ok bool
-        val T | E
+        val   T | E
         ok :: fn(v T) Self {
             .{ is_ok: true, val: v }
         }

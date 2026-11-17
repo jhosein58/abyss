@@ -156,8 +156,8 @@ utf8_len :: fn(b0 u8) u32 {
 
 Lexer :: struct {
     source, path Str
-    cursor u64
-    had_newline bool
+    cursor       u64
+    had_newline  bool
     -- Tracks preceding newline for statement separation
 
     new :: fn(source, path Str) Self {

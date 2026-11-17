@@ -316,9 +316,9 @@ hir_kind_name :: fn(kind HirExprKind) Str {
 }
 
 HirTable :: struct {
-    kinds Vec(u8)
-    lhs_list Vec(u32)
-    rhs_list Vec(u32)
+    kinds      Vec(u8)
+    lhs_list   Vec(u32)
+    rhs_list   Vec(u32)
     extra_list Vec(u32)
     new :: fn() HirTable {
         .{ kinds: Vec(u8).new(), lhs_list: Vec(u32).new(), rhs_list: Vec(u32).new(), extra_list: Vec(u32).new() }

@@ -8,15 +8,15 @@ slot_none :: fn() u32 {
 }
 
 UnifyStorage :: struct {
-    error_path Str
+    error_path   Str
     error_source Str
     error_offset u32
-    parents Vec(u32)
-    ranks Vec(u8)
-    types Vec(u32)
-    origins Vec(u32)
-    hir_to_slot Vec(u32)
-    scratch Vec(u32)
+    parents      Vec(u32)
+    ranks        Vec(u8)
+    types        Vec(u32)
+    origins      Vec(u32)
+    hir_to_slot  Vec(u32)
+    scratch      Vec(u32)
     new :: fn() Self {
         .{ error_path: Str.empty(), error_source: Str.empty(), error_offset: 0, parents: Vec(u32).new(), ranks: Vec(u8).new(), types: Vec(u32).new(), origins: Vec(u32).new(), hir_to_slot: Vec(u32).new(), scratch: Vec(u32).new() }
     }

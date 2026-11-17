@@ -78,10 +78,10 @@ TokenKind :: enum u8 {
 }
 
 Token :: struct {
-    kind TokenKind
-    text Str
+    kind  TokenKind
+    text  Str
     start u32
-    len u32
+    len   u32
     new :: fn(kind TokenKind, text Str, start u32, len u32) Self {
         .{ kind: kind, text: text, start: start, len: len }
     }

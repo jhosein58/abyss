@@ -23,15 +23,15 @@ string_view :: fn(v &String) Str {
 }
 
 LoopCondition :: struct {
-    id u32
-    breaks bool
+    id        u32
+    breaks    bool
     continues bool
 }
 
 LoopScope :: struct {
-    outer LoopCondition
-    id u32
-    breaks bool
+    outer    LoopCondition
+    id       u32
+    breaks   bool
     iterator bool
 }
 
@@ -57,18 +57,18 @@ CCodeBuilder :: struct {
 }
 
 CCodeGen :: struct {
-    arena &Arena
+    arena                &Arena
     struct_forward_decls String
-    struct_decls String
-    struct_defs String
-    func_decls String
-    code String
-    emitted_structs Vec(u32)
-    main_sym u32
-    has_main bool
-    indent u32
-    loop_condition LoopCondition
-    temp_count u32
+    struct_decls         String
+    struct_defs          String
+    func_decls           String
+    code                 String
+    emitted_structs      Vec(u32)
+    main_sym             u32
+    has_main             bool
+    indent               u32
+    loop_condition       LoopCondition
+    temp_count           u32
     new :: fn(arena &Arena) Self {
         .{ arena: arena, struct_forward_decls: String.new(arena), struct_decls: String.new(arena), struct_defs: String.new(arena), func_decls: String.new(arena), code: String.new(arena), emitted_structs: Vec(u32).new(), main_sym: 0, has_main: false, indent: 0, loop_condition: .{ id: hir_none(), breaks: false, continues: false }, temp_count: 0 }
     }

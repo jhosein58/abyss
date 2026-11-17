@@ -9,24 +9,24 @@ import .nexus.pool: id_none
 import std.sys: fall
 
 QueuedFile :: struct {
-    fid u32
+    fid       u32
     tok_start u32
-    tok_end u32
+    tok_end   u32
 }
 
 PendingImport :: struct {
-    src_fid u32
+    src_fid  u32
     loc_name u32
     imp_name u32
-    tgt_fid u32
-    sym_tok u32
+    tgt_fid  u32
+    sym_tok  u32
 }
 
 ParsedImportPath :: struct {
-    path Str
+    path        Str
     last_seg_id u32
-    start_tok u32
-    next_tok u32
+    start_tok   u32
+    next_tok    u32
 }
 
 get_env :: fn(name &u8) &u8
@@ -124,10 +124,10 @@ scan_import_path :: fn(db &Nexus, arena &Arena, fid u32, start u32, end_tok u32)
 }
 
 Indexer :: struct {
-    db &Nexus
-    arena &Arena
-    loaded_paths Vec(u32)
-    queue Vec(QueuedFile)
+    db              &Nexus
+    arena           &Arena
+    loaded_paths    Vec(u32)
+    queue           Vec(QueuedFile)
     pending_imports Vec(PendingImport)
     new :: fn(db &Nexus, arena &Arena) Self {
         .{ db: db, arena: arena, loaded_paths: Vec(u32).new(), queue: Vec(QueuedFile).new(), pending_imports: Vec(PendingImport).new() }

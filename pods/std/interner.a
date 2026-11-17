@@ -18,9 +18,9 @@ intern_none :: fn() u32 {
 
 Interner :: struct {
     strings Vec(Str)
-    table &u32
-    cap u64
-    count u64
+    table   &u32
+    cap     u64
+    count   u64
     new :: fn() Self {
         Self.with_cap(64)
     }

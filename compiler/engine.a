@@ -17,7 +17,7 @@ import std.sys: fall
 import .lower: lower_function
 
 Engine :: struct {
-    nexus Nexus
+    nexus      Nexus
     file_count u32
     new :: fn(arena &Arena) Self {
         res: Self = .{ nexus: Nexus.new(), file_count: 0 }

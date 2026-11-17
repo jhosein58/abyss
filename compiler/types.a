@@ -63,15 +63,15 @@ ty_builtin_count :: fn() u32 {
 }
 
 TypeStorage :: struct {
-    kinds Vec(TyKind)
+    kinds                      Vec(TyKind)
     payloads, next, extra_data Vec(u32)
-    intern HashMap(u32, u32)
-    names Vec(Str)
-    origin_types HashMap(u32, u32)
-    nominal_creators HashMap(u32, u32)
-    nominal_creator_items Vec(u32)
-    nominal_struct_node HashMap(u32, u32)
-    dependent_funcs HashSet(u32)
+    intern                     HashMap(u32, u32)
+    names                      Vec(Str)
+    origin_types               HashMap(u32, u32)
+    nominal_creators           HashMap(u32, u32)
+    nominal_creator_items      Vec(u32)
+    nominal_struct_node        HashMap(u32, u32)
+    dependent_funcs            HashSet(u32)
     new :: fn() Self {
         result: Self = .{ kinds: Vec(TyKind).new(), payloads: Vec(u32).new(), next: Vec(u32).new(), extra_data: Vec(u32).new(), intern: HashMap(u32, u32).new(), names: Vec(Str).new(), origin_types: HashMap(u32, u32).new(), nominal_creators: HashMap(u32, u32).new(), nominal_creator_items: Vec(u32).new(), nominal_struct_node: HashMap(u32, u32).new(), dependent_funcs: HashSet(u32).new() }
         builtins: [8]TyKind = .[ TyKind.unknown, TyKind.untyped_int, TyKind.untyped_float, TyKind.bool, TyKind.type_, TyKind.unit, TyKind.never, TyKind.error ]

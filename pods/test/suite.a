@@ -14,11 +14,11 @@ TestEntry :: struct {
 }
 
 Suite :: struct {
-    name Str
-    arena &Arena
+    name    Str
+    arena   &Arena
     entries Vec(TestEntry)
-    passed u32
-    failed u32
+    passed  u32
+    failed  u32
     new :: fn(arena &Arena, name Str) Self {
         .{ name: name, arena: arena, entries: Vec(TestEntry).new(), passed: 0, failed: 0 }
     }

@@ -7,14 +7,14 @@ import compiler.nexus.pool: id_none
 import std.sys: fall
 
 Parser :: struct {
-    db &Nexus
-    tokens &TokenStream
-    hir &HirTable
-    cursor u32
-    end u32
-    file_id u32
+    db        &Nexus
+    tokens    &TokenStream
+    hir       &HirTable
+    cursor    u32
+    end       u32
+    file_id   u32
     toplv_sym u32
-    env ScopeEnv
+    env       ScopeEnv
 }
 
 Parser_new :: fn(db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv_sym u32, start u32, count u32) Parser {

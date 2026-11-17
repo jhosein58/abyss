@@ -10,10 +10,10 @@ import .vendor: ensure_dir_all
 system :: fn(cmd &u8) i32
 
 Builder :: struct {
-    arena &Arena
+    arena      &Arena
     vendor_dir Str
-    cache_dir Str
-    cc Str
+    cache_dir  Str
+    cc         Str
     new :: fn(arena &Arena, vendor_dir Str) Self {
         c_dir := Path.join(arena, vendor_dir, ".cache")
         .{ arena: arena, vendor_dir: vendor_dir, cache_dir: c_dir, cc: "gcc" }

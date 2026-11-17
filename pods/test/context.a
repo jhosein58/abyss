@@ -3,10 +3,10 @@ import std.allocator: Arena
 import std.fmt: fmt
 
 Test :: struct {
-    name Str
-    arena &Arena
-    failed bool
-    failure_msg String
+    name            Str
+    arena           &Arena
+    failed          bool
+    failure_msg     String
     assertion_count u32
     new :: fn(arena &Arena, name Str) Self {
         .{ name: name, arena: arena, failed: false, failure_msg: String.new(arena), assertion_count: 0 }

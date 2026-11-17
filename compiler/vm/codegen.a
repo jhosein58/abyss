@@ -22,10 +22,10 @@ VmValKind :: enum u8 {
 }
 
 VmVal :: struct {
-    kind VmValKind
+    kind      VmValKind
     elem_size u16
-    id u32
-    raw u64
+    id        u32
+    raw       u64
     empty :: fn() Self {
         .{ kind: VmValKind.none, elem_size: 0, id: 0, raw: 0 }
     }
@@ -56,11 +56,11 @@ VmVal :: struct {
 }
 
 VmLoopScope :: struct {
-    loop_start_ip u32
+    loop_start_ip   u32
     prev_loop_start u32
-    id u32
-    break_mark u32
-    iterator bool
+    id              u32
+    break_mark      u32
+    iterator        bool
 }
 
 VmCodeBuilder :: struct {
@@ -88,28 +88,28 @@ VmCodeBuilder :: struct {
 }
 
 VmCodeGen :: struct {
-    arena &Arena
-    chunk Chunk
-    main_sym u32
-    main_entry u32
-    current_fn u32
+    arena               &Arena
+    chunk               Chunk
+    main_sym            u32
+    main_entry          u32
+    current_fn          u32
     current_fn_ret_type u32
-    local_count u32
-    current_loop_start u32
-    types &TypeStorage
-    local_types Vec(u32)
-    init_field_ids Vec(u32)
-    local_syms Vec(u32)
-    fn_syms Vec(u32)
-    fn_ips Vec(u32)
-    call_fixups_ip Vec(u32)
-    call_fixups_sym Vec(u32)
-    if_patches Vec(u32)
-    loop_breaks Vec(u32)
-    field_ids Vec(u32)
-    field_offsets Vec(u32)
-    fn_ptr_fixups_idx Vec(u32)
-    fn_ptr_fixups_sym Vec(u32)
+    local_count         u32
+    current_loop_start  u32
+    types               &TypeStorage
+    local_types         Vec(u32)
+    init_field_ids      Vec(u32)
+    local_syms          Vec(u32)
+    fn_syms             Vec(u32)
+    fn_ips              Vec(u32)
+    call_fixups_ip      Vec(u32)
+    call_fixups_sym     Vec(u32)
+    if_patches          Vec(u32)
+    loop_breaks         Vec(u32)
+    field_ids           Vec(u32)
+    field_offsets       Vec(u32)
+    fn_ptr_fixups_idx   Vec(u32)
+    fn_ptr_fixups_sym   Vec(u32)
     new :: fn(arena &Arena) Self {
         .{ arena: arena, chunk: Chunk.new(), main_sym: 0, main_entry: 0, current_fn: 0, current_fn_ret_type: 0, local_count: 0, current_loop_start: 0, types: 0 as &TypeStorage, local_types: Vec(u32).new(), init_field_ids: Vec(u32).new(), local_syms: Vec(u32).new(), fn_syms: Vec(u32).new(), fn_ips: Vec(u32).new(), call_fixups_ip: Vec(u32).new(), call_fixups_sym: Vec(u32).new(), if_patches: Vec(u32).new(), loop_breaks: Vec(u32).new(), field_ids: Vec(u32).new(), field_offsets: Vec(u32).new(), fn_ptr_fixups_idx: Vec(u32).new(), fn_ptr_fixups_sym: Vec(u32).new() }
     }

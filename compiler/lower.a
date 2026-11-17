@@ -14,13 +14,13 @@ import .lexer: decode_char_lit
 
 LowerCtx :: fn(B type, L type, V type) type {
     struct {
-        db &Nexus
-        ccg &B
-        builder &L
-        empty V
-        arena &Arena
-        visited &HashSet(u32)
-        queue &Vec(u32)
+        db         &Nexus
+        ccg        &B
+        builder    &L
+        empty      V
+        arena      &Arena
+        visited    &HashSet(u32)
+        queue      &Vec(u32)
         type_queue &Vec(u32)
     }
 }
@@ -1543,7 +1543,7 @@ lower_expr :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
 
 FuncSignature :: fn(V type) type {
     struct {
-        fn_name V
+        fn_name    V
         params_str V
     }
 }

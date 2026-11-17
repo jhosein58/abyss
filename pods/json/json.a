@@ -13,12 +13,12 @@ JsonKind :: enum u8 {
 }
 
 JsonVal :: struct {
-    kind JsonKind
-    str_val Str
+    kind     JsonKind
+    str_val  Str
     bool_val bool
-    int_val i64
-    keys Vec(Str)
-    vals Vec(JsonVal)
+    int_val  i64
+    keys     Vec(Str)
+    vals     Vec(JsonVal)
     null :: fn() Self {
         .{ kind: JsonKind.null_val, str_val: Str.empty(), bool_val: false, int_val: 0, keys: Vec(Str).new(), vals: Vec(JsonVal).new() }
     }
@@ -92,9 +92,9 @@ JsonVal :: struct {
 }
 
 JsonParser :: struct {
-    src Str
+    src    Str
     cursor u64
-    arena &Arena
+    arena  &Arena
     new :: fn(arena &Arena, src Str) Self {
         .{ src: src, cursor: 0, arena: arena }
     }

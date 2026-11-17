@@ -8,7 +8,7 @@ import std.string: Str, String
 CstParser :: struct {
     tokens TokenList
     cursor u64
-    arena &Arena
+    arena  &Arena
     source Str
     new :: fn(arena &Arena, source Str) Self {
         .{ tokens: tokenize(source), cursor: 0, arena: arena, source: source }

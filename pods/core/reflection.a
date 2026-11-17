@@ -24,27 +24,27 @@ TypeKind :: enum u8 {
 
 TypeInfo :: fn() type {
     struct {
-        id u32
-        name Str
-        kind TypeKind
-        bits u32
-        length u64
-        fields &&FieldInfo()
-        field_count u64
-        element &TypeInfo()
-        members &&TypeInfo()
+        id           u32
+        name         Str
+        kind         TypeKind
+        bits         u32
+        length       u64
+        fields       &&FieldInfo()
+        field_count  u64
+        element      &TypeInfo()
+        members      &&TypeInfo()
         member_count u64
-        params &&TypeInfo()
-        param_count u64
-        result &TypeInfo()
-        is_extern bool
+        params       &&TypeInfo()
+        param_count  u64
+        result       &TypeInfo()
+        is_extern    bool
     }
 }
 
 FieldInfo :: fn() type {
     struct {
-        name Str
+        name      Str
         type_info &TypeInfo()
-        value u64
+        value     u64
     }
 }

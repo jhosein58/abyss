@@ -5,9 +5,9 @@ import std.allocator: Arena
 
 String :: struct {
     arena &Arena
-    ptr &u8
-    len u64
-    cap u64
+    ptr   &u8
+    len   u64
+    cap   u64
     new :: fn(a &Arena) String {
         .{ arena: a, ptr: 0 as &u8, len: 0, cap: 0 }
     }

@@ -2,11 +2,11 @@ import std.mem: malloc, free, mem_set
 
 HashMap :: fn(K type, V type) type {
     struct {
-        keys &K
-        values &V
+        keys     &K
+        values   &V
         occupied &bool
-        len u64
-        cap u64
+        len      u64
+        cap      u64
         new :: fn() Self {
             Self.with_cap(16)
         }

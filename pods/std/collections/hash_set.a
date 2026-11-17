@@ -2,10 +2,10 @@ import std.mem: malloc, free, mem_set
 
 HashSet :: fn(T type) type {
     struct {
-        keys &T
+        keys     &T
         occupied &bool
-        len u64
-        cap u64
+        len      u64
+        cap      u64
         new :: fn() Self {
             Self.with_cap(16)
         }

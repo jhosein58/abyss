@@ -1,6 +1,6 @@
 Worklist :: fn(T type) type {
     struct {
-        vec &Vec(T)
+        vec   &Vec(T)
         index u64
         new :: fn(vec &Vec(T)) Self {
             .{ vec: vec, index: 0 }

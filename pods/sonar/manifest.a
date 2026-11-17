@@ -7,31 +7,31 @@ import json: parse_json, JsonVal, JsonKind
 import .semver: SemVer
 
 Dependency :: struct {
-    name Str
+    name        Str
     version_req Str
-    path Str
-    git Str
-    subdir Str
+    path        Str
+    git         Str
+    subdir      Str
     new :: fn(name Str, version_req Str, path Str, git Str, subdir Str) Self {
         .{ name: name, version_req: version_req, path: path, git: git, subdir: subdir }
     }
 }
 
 CBuildInfo :: struct {
-    sources Vec(Str)
+    sources      Vec(Str)
     include_dirs Vec(Str)
-    c_flags Vec(Str)
-    ld_flags Vec(Str)
+    c_flags      Vec(Str)
+    ld_flags     Vec(Str)
     empty :: fn() Self {
         .{ sources: Vec(Str).new(), include_dirs: Vec(Str).new(), c_flags: Vec(Str).new(), ld_flags: Vec(Str).new() }
     }
 }
 
 PodManifest :: struct {
-    name Str
+    name    Str
     version SemVer
-    entry Str
-    deps Vec(Dependency)
+    entry   Str
+    deps    Vec(Dependency)
     c_build CBuildInfo
     default :: fn() Self {
         .{ name: "my-pod", version: SemVer.new(0, 1, 0), entry: "main.a", deps: Vec(Dependency).new(), c_build: CBuildInfo.empty() }

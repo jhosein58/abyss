@@ -11,18 +11,18 @@ import .vendor: ensure_dir_all
 system :: fn(cmd &u8) i32
 
 ResolvedPod :: struct {
-    name Str
-    version SemVer
+    name     Str
+    version  SemVer
     root_dir Str
-    entry Str
-    c_build CBuildInfo
+    entry    Str
+    c_build  CBuildInfo
     new :: fn(name Str, version SemVer, root_dir Str, entry Str, c_build CBuildInfo) Self {
         .{ name: name, version: version, root_dir: root_dir, entry: entry, c_build: c_build }
     }
 }
 
 ResolutionResult :: struct {
-    pods Vec(ResolvedPod)
+    pods   Vec(ResolvedPod)
     errors Vec(Str)
     ok :: fn(self &Self) bool {
         self.errors.len == 0
@@ -30,10 +30,10 @@ ResolutionResult :: struct {
 }
 
 Resolver :: struct {
-    arena &Arena
-    resolved Vec(ResolvedPod)
+    arena        &Arena
+    resolved     Vec(ResolvedPod)
     active_stack Vec(Str)
-    errors Vec(Str)
+    errors       Vec(Str)
     new :: fn(arena &Arena) Self {
         .{ arena: arena, resolved: Vec(ResolvedPod).new(), active_stack: Vec(Str).new(), errors: Vec(Str).new() }
     }

@@ -13,43 +13,43 @@ import compiler.vm.vm: Vm
 import std.sys: fall
 
 MonoFunc :: struct {
-    orig_sym u32
-    mono_ty u32
-    mono_sym u32
+    orig_sym   u32
+    mono_ty    u32
+    mono_sym   u32
     snap_start u32
-    snap_len u32
+    snap_len   u32
 }
 
 MonoNominal :: struct {
-    sym u32
+    sym    u32
     arg_id u32
     res_ty u32
 }
 
 ConstFunc :: struct {
-    base u32
-    ty u32
-    key u32
+    base  u32
+    ty    u32
+    key   u32
     value u32
 }
 
 MonoNodeAttr :: struct {
-    node u32
-    sym u32
-    slot_ty u32
-    const_ty u32
-    const_val u64
-    is_const bool
-    union_val u64
+    node       u32
+    sym        u32
+    slot_ty    u32
+    const_ty   u32
+    const_val  u64
+    is_const   bool
+    union_val  u64
     auto_deref u32
-    rhs u32
-    extra u32
+    rhs        u32
+    extra      u32
 }
 
 NodeLoc :: struct {
-    file u32
+    file  u32
     start u32
-    end u32
+    end   u32
 }
 
 Span :: struct {
@@ -100,56 +100,56 @@ calc_pos :: fn(source Str, offset u32) Pos {
 }
 
 Symbol :: struct {
-    name u32
-    file u32
+    name      u32
+    file      u32
     tok_start u32
-    tok_end u32
+    tok_end   u32
     hir_start u32
-    hir_end u32
-    target u32
-    node u32
-    mod_fid u32
-    flags u32
+    hir_end   u32
+    target    u32
+    node      u32
+    mod_fid   u32
+    flags     u32
 }
 
 Nexus :: struct {
-    tokens TokenStream
-    hir HirTable
-    glob_stack Vec(u32)
-    u32_items Vec(u32)
-    interner Interner
-    types TypeStorage
-    unify UnifyStorage
-    import_dirs Vec(Str)
-    map_keys Vec(Str)
-    map_values Vec(Str)
-    symbols Vec(Symbol)
-    hir_to_symbol PoolU32
-    const_types HashMap(u32, u32)
-    method_owner HashMap(u32, u32)
-    mod_types HashMap(u32, u32)
-    core_prelude u32
-    std_prelude u32
-    file_sources Vec(Str)
-    file_paths Vec(Str)
-    node_locs Vec(NodeLoc)
+    tokens                    TokenStream
+    hir                       HirTable
+    glob_stack                Vec(u32)
+    u32_items                 Vec(u32)
+    interner                  Interner
+    types                     TypeStorage
+    unify                     UnifyStorage
+    import_dirs               Vec(Str)
+    map_keys                  Vec(Str)
+    map_values                Vec(Str)
+    symbols                   Vec(Symbol)
+    hir_to_symbol             PoolU32
+    const_types               HashMap(u32, u32)
+    method_owner              HashMap(u32, u32)
+    mod_types                 HashMap(u32, u32)
+    core_prelude              u32
+    std_prelude               u32
+    file_sources              Vec(Str)
+    file_paths                Vec(Str)
+    node_locs                 Vec(NodeLoc)
     type_specialization_depth u32
-    mono_funcs Vec(MonoFunc)
-    sym_to_mono PoolU32
-    mono_snapshots Vec(MonoNodeAttr)
-    const_funcs Vec(ConstFunc)
-    const_call_args HashMap(u32, u32)
-    mono_nominals Vec(MonoNominal)
-    union_coerce HashMap(u32, u64)
-    auto_deref_depth HashMap(u32, u32)
-    for_sources HashMap(u32, u32)
-    str_type u32
-    const_status PoolU32
-    const_vals PoolU64
-    comptime_depth u32
-    comptime_arena Arena
-    comptime_cg &VmCodeGen
-    comptime_vm &Vm
+    mono_funcs                Vec(MonoFunc)
+    sym_to_mono               PoolU32
+    mono_snapshots            Vec(MonoNodeAttr)
+    const_funcs               Vec(ConstFunc)
+    const_call_args           HashMap(u32, u32)
+    mono_nominals             Vec(MonoNominal)
+    union_coerce              HashMap(u32, u64)
+    auto_deref_depth          HashMap(u32, u32)
+    for_sources               HashMap(u32, u32)
+    str_type                  u32
+    const_status              PoolU32
+    const_vals                PoolU64
+    comptime_depth            u32
+    comptime_arena            Arena
+    comptime_cg               &VmCodeGen
+    comptime_vm               &Vm
     new :: fn() Self {
         .{ tokens: TokenStream.new(), hir: HirTable.new(), glob_stack: Vec(u32).new(), u32_items: Vec(u32).new(), interner: Interner.new(), types: TypeStorage.new(), unify: UnifyStorage.new(), import_dirs: Vec(Str).new(), map_keys: Vec(Str).new(), map_values: Vec(Str).new(), symbols: Vec(Symbol).new(), hir_to_symbol: PoolU32.new(), const_types: HashMap(u32, u32).new(), method_owner: HashMap(u32, u32).new(), mod_types: HashMap(u32, u32).new(), core_prelude: id_none(), std_prelude: id_none(), file_sources: Vec(Str).new(), file_paths: Vec(Str).new(), node_locs: Vec(NodeLoc).new(), type_specialization_depth: 0, mono_funcs: Vec(MonoFunc).new(), sym_to_mono: PoolU32.new(), mono_snapshots: Vec(MonoNodeAttr).new(), const_funcs: Vec(ConstFunc).new(), const_call_args: HashMap(u32, u32).new(), mono_nominals: Vec(MonoNominal).new(), union_coerce: HashMap(u32, u64).new(), auto_deref_depth: HashMap(u32, u32).new(), for_sources: HashMap(u32, u32).new(), str_type: ty_id_none(), const_status: PoolU32.new(), const_vals: PoolU64.new(), comptime_depth: 0, comptime_arena: Arena.new(65536), comptime_cg: 0 as &VmCodeGen, comptime_vm: 0 as &Vm }
     }

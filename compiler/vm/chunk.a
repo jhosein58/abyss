@@ -1,8 +1,8 @@
 import .op: OpCode
 
 Chunk :: struct {
-    buf Vec(u8)
-    const Vec(u64)
+    buf          Vec(u8)
+    const        Vec(u64)
     extern_names Vec(u64)
     new :: fn() Self {
         .{ buf: Vec(u8).new(), const: Vec(u64).new(), extern_names: Vec(u64).new() }

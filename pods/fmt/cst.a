@@ -57,8 +57,8 @@ CstKind :: enum u16 {
 }
 
 CstNode :: struct {
-    kind CstKind
-    text Str
+    kind     CstKind
+    text     Str
     children Vec(&CstNode)
     alloc :: fn(arena &Arena, kind CstKind, text Str) &Self {
         ptr := arena.alloc(@sizeof(Self)) as &Self
