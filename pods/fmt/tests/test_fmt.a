@@ -47,6 +47,11 @@ test_struct_and_enum :: fn(t &Test) {
     res_enum := format_source(&arena, src_enum)
     t.assert_str_eq(res_enum, src_enum, "enum with values")
 
+    src_aligned_in := "CCodeGen :: struct {\n    arena &Arena\n    struct_forward_decls String\n    struct_decls String\n    code String\n    emitted_structs Vec(u32)\n}\n"
+    res_aligned := format_source(&arena, src_aligned_in)
+    exp_aligned := "CCodeGen :: struct {\n    arena                &Arena\n    struct_forward_decls String\n    struct_decls         String\n    code                 String\n    emitted_structs      Vec(u32)\n}\n"
+    t.assert_str_eq(res_aligned, exp_aligned, "struct field alignment")
+
     arena.destroy()
 }
 
