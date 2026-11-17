@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="brand-logo" viewBox="230 250 2750 740">
+  <defs>
+    <filter id="soft-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1" stdDeviation="3.5" flood-color="#000000" flood-opacity="0.16"></feDropShadow>
+    </filter>
+    <style>
+      .abyss-glyph, .abyss-text {
+        fill: #05070a;
+      }
+      .abyss-text {
+        font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size: 710px;
+        font-weight: 900;
+        letter-spacing: 20px;
+      }
+      @media (prefers-color-scheme: dark) {
+        .abyss-glyph, .abyss-text {
+          fill: #FDFCFD;
+        }
+      }
+    </style>
+  </defs>
+  <g filter="url(#soft-shadow)">
+    <g class="abyss-glyph">
+      <polygon points="550.0,313.5 702.0,313.5 975.0,939.5 820.0,939.5 626.0,468.0 425.0,939.5 270.0,939.5"></polygon>
+      <circle cx="626.0" cy="745.0" r="70.0"></circle>
+    </g>
+    <text x="1060" y="939.5" class="abyss-text">BYSS</text>
+  </g>
+</svg>

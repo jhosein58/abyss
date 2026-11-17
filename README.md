@@ -1,4 +1,6 @@
-# <img src="assets/logo.svg" alt="A" height="28" />byss
+<p align="center">
+  <img src=".github/assets/logo.svg" alt="Abyss" width="360" />
+</p>
 
 **Built for the deep.**
 
