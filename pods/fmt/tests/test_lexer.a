@@ -1,0 +1,157 @@
+import std.allocator: Arena
+import std.fs: File
+import test: Suite, Test
+import fmt.syntax.token: TokenKind, Token, TokenList
+import fmt.syntax.lexer: Lexer, tokenize
+
+test_basic_tokens :: fn(t &Test) {
+    src := "x := 42 + 3.14\n"
+    tokens := tokenize(src)
+
+    t.assert_eq(u64, tokens.len(), 12 as u64, "basic token count")
+    t.assert_true(tokens.get(0).kind == TokenKind.ident, "ident x")
+    t.assert_true(tokens.get(1).kind == TokenKind.whitespace, "space")
+    t.assert_true(tokens.get(2).kind == TokenKind.colon, "colon")
+    t.assert_true(tokens.get(3).kind == TokenKind.eq, "eq")
+    t.assert_true(tokens.get(4).kind == TokenKind.whitespace, "space")
+    t.assert_true(tokens.get(5).kind == TokenKind.lit_int, "lit_int 42")
+    t.assert_true(tokens.get(6).kind == TokenKind.whitespace, "space")
+    t.assert_true(tokens.get(7).kind == TokenKind.plus, "plus")
+    t.assert_true(tokens.get(8).kind == TokenKind.whitespace, "space")
+    t.assert_true(tokens.get(9).kind == TokenKind.lit_float, "lit_float 3.14")
+    t.assert_true(tokens.get(10).kind == TokenKind.newline, "newline")
+    t.assert_true(tokens.get(11).kind == TokenKind.eof, "eof")
+
+    tokens.destroy()
+}
+
+test_keywords_and_symbols :: fn(t &Test) {
+    src := "fn add(a i32, b i32) i32 { ret a + b; }"
+    tokens := tokenize(src)
+
+    t.assert_true(tokens.get(0).kind == TokenKind.kw_fn, "kw_fn")
+    t.assert_true(tokens.get(0).is_keyword(), "is_keyword")
+    t.assert_true(tokens.get(2).kind == TokenKind.ident, "add")
+    t.assert_true(tokens.get(3).kind == TokenKind.o_paren, "o_paren")
+    t.assert_true(tokens.get(3).is_symbol(), "is_symbol")
+
+    tokens.destroy()
+}
+
+test_strings_and_comments :: fn(t &Test) {
+    src := "-- this is a comment\ns := \"hello world\"\nc := c\"cstr\"\nr := `raw`\nch := 'x'\n"
+    tokens := tokenize(src)
+
+    t.assert_true(tokens.get(0).kind == TokenKind.comment, "comment")
+    t.assert_true(tokens.get(0).is_trivia(), "comment is trivia")
+    t.assert_str_eq(tokens.get(0).text, "-- this is a comment", "comment text")
+    t.assert_true(tokens.get(1).kind == TokenKind.newline, "newline after comment")
+
+    tokens.destroy()
+}
+
+test_number_bases :: fn(t &Test) {
+    src := "0xFF 0b1010 0o77 1_000_000 1.5e+3"
+    tokens := tokenize(src)
+
+    t.assert_true(tokens.get(0).kind == TokenKind.lit_int, "hex")
+    t.assert_str_eq(tokens.get(0).text, "0xFF", "hex text")
+    t.assert_true(tokens.get(2).kind == TokenKind.lit_int, "bin")
+    t.assert_str_eq(tokens.get(2).text, "0b1010", "bin text")
+    t.assert_true(tokens.get(4).kind == TokenKind.lit_int, "oct")
+    t.assert_str_eq(tokens.get(4).text, "0o77", "oct text")
+    t.assert_true(tokens.get(6).kind == TokenKind.lit_int, "dec separator")
+    t.assert_str_eq(tokens.get(6).text, "1_000_000", "dec separator text")
+    t.assert_true(tokens.get(8).kind == TokenKind.lit_float, "scientific float")
+    t.assert_str_eq(tokens.get(8).text, "1.5e+3", "scientific float text")
+
+    tokens.destroy()
+}
+
+test_operators :: fn(t &Test) {
+    src := "<<= >>= += -= *= /= %= &= |= ^= != == <= >= ::"
+    tokens := tokenize(src)
+
+    t.assert_true(tokens.get(0).kind == TokenKind.left_shift_eq, "left_shift_eq")
+    t.assert_true(tokens.get(2).kind == TokenKind.right_shift_eq, "right_shift_eq")
+    t.assert_true(tokens.get(4).kind == TokenKind.plus_eq, "plus_eq")
+    t.assert_true(tokens.get(6).kind == TokenKind.minus_eq, "minus_eq")
+    t.assert_true(tokens.get(8).kind == TokenKind.star_eq, "star_eq")
+    t.assert_true(tokens.get(10).kind == TokenKind.slash_eq, "slash_eq")
+    t.assert_true(tokens.get(12).kind == TokenKind.percent_eq, "percent_eq")
+    t.assert_true(tokens.get(14).kind == TokenKind.amp_eq, "amp_eq")
+    t.assert_true(tokens.get(16).kind == TokenKind.pipe_eq, "pipe_eq")
+    t.assert_true(tokens.get(18).kind == TokenKind.caret_eq, "caret_eq")
+    t.assert_true(tokens.get(20).kind == TokenKind.bang_eq, "bang_eq")
+    t.assert_true(tokens.get(22).kind == TokenKind.eq_eq, "eq_eq")
+    t.assert_true(tokens.get(24).kind == TokenKind.lt_eq, "lt_eq")
+    t.assert_true(tokens.get(26).kind == TokenKind.gt_eq, "gt_eq")
+    t.assert_true(tokens.get(28).kind == TokenKind.colon_colon, "colon_colon")
+
+    tokens.destroy()
+}
+
+test_lossless_roundtrip :: fn(t &Test) {
+    src := "import std.allocator: Arena\n\n-- Lossless CST test\nPoint :: struct {\n    x i32\n    y i32\n\n    new :: fn(x, y i32) Self {\n        .{ x: x, y: y }\n    }\n}\n\nmain :: fn() {\n    p := Point.new(10, 20)\n    if p.x > 0 and p.y > 0 {\n        printf(\"ok\\n\", .{})\n    }\n}\n"
+    tokens := tokenize(src)
+
+    arena := Arena.new(1024 * 64)
+    reconstructed := tokens.reconstruct(&arena)
+
+    t.assert_str_eq(reconstructed.as_str(), src, "exact lossless roundtrip")
+    t.assert_eq(u64, reconstructed.len, src.len, "exact length match")
+
+    arena.destroy()
+    tokens.destroy()
+}
+
+test_real_file_roundtrip :: fn(t &Test) {
+    arena := Arena.new(1024 * 64)
+    file_path := if File.exists("pods/std/ascii.a") {
+        "pods/std/ascii.a"
+    } else {
+        "std/ascii.a"
+    }
+    file_opt := File.read_to_string(&arena, file_path)
+    t.assert_true(file_opt.is_some(), "read std/ascii.a")
+    src := file_opt.unwrap()
+
+    tokens := tokenize(src)
+    reconstructed := tokens.reconstruct(&arena)
+
+    t.assert_str_eq(reconstructed.as_str(), src, "std/ascii.a exact roundtrip")
+    t.assert_eq(u64, reconstructed.len, src.len, "std/ascii.a exact length")
+
+    tokens.destroy()
+    arena.destroy()
+}
+
+test_resilience :: fn(t &Test) {
+    src := "$ @ ~ != # \"unterminated"
+    tokens := tokenize(src)
+
+    t.assert_true(tokens.get(0).kind == TokenKind.unknown, "unknown $")
+    t.assert_str_eq(tokens.get(0).text, "$", "unknown text $")
+    t.assert_true(tokens.get(2).kind == TokenKind.at, "at")
+    t.assert_true(tokens.get(4).kind == TokenKind.tilde, "tilde")
+    t.assert_true(tokens.get(6).kind == TokenKind.bang_eq, "bang_eq")
+    t.assert_true(tokens.get(8).kind == TokenKind.hash, "hash")
+    t.assert_true(tokens.get(10).kind == TokenKind.lit_str, "unterminated str")
+
+    tokens.destroy()
+}
+
+main :: fn() {
+    arena := Arena.new(65536)
+    suite := Suite.new(&arena, "Syntax Lexer Test Suite")
+    suite.add("basic_tokens", test_basic_tokens)
+    suite.add("keywords_and_symbols", test_keywords_and_symbols)
+    suite.add("strings_and_comments", test_strings_and_comments)
+    suite.add("number_bases", test_number_bases)
+    suite.add("operators", test_operators)
+    suite.add("lossless_roundtrip", test_lossless_roundtrip)
+    suite.add("real_file_roundtrip", test_real_file_roundtrip)
+    suite.add("resilience", test_resilience)
+    suite.run_and_exit()
+    arena.destroy()
+}

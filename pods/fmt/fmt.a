@@ -1,0 +1,52 @@
+import .parser: parse_to_cst, CstParser
+import .formatter: format_cst, Formatter
+import .cst: CstNode, CstKind
+import .syntax.lexer: tokenize, Lexer
+import .syntax.token: Token, TokenKind, TokenList
+import std.allocator: Arena
+import std.fs: File, Dir, to_cstr
+import std.string: Str, String
+
+format_source :: fn(arena &Arena, source Str) Str {
+    tree := parse_to_cst(arena, source)
+    format_cst(arena, tree)
+}
+
+format_file_in_place :: fn(path &u8) bool {
+    arena := Arena.new(1024 * 512)
+    file_opt := File.read_to_string(&arena, Str.of(path))
+    if file_opt.is_none() {
+        arena.destroy()
+        ret false
+    }
+    source := file_opt.unwrap()
+    formatted := format_source(&arena, source)
+    ok := File.write_string(Str.of(path), formatted)
+    arena.destroy()
+    ok
+}
+
+format_path :: fn(arena &Arena, path &u8) u32 {
+    s_path := Str.of(path)
+    if Dir.exists(path) {
+        files := Dir.walk(arena, s_path, Str.of(".a"))
+        count: u32 = 0
+        i: u64 = 0
+        while i < files.len {
+            file_str := files.get(i)
+            c_p := to_cstr(arena, file_str)
+            if format_file_in_place(c_p) {
+                count = count + 1
+            } else {
+                printf("error: failed to format {}\n", .{ c_p })
+            }
+            i = i + 1
+        }
+        ret count
+    }
+    if format_file_in_place(path) {
+        ret 1
+    }
+    printf("error: failed to format {}\n", .{ path })
+    0
+}

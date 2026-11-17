@@ -279,8 +279,8 @@ EOF
         echo "  b [file]          Build in release mode (auto-rebuilds compiler if sources changed)"
         echo "  br [file]         Build and run in release mode"
         echo "  sonar             Run Sonar package manager (init, vendor, build, run)"
-        echo "  sonar-test        Run Sonar package manager test suite
-  test-pods         Run pod unit test suites (core, std, test, json)"
+        echo "  sonar-test        Run Sonar package manager test suite"
+        echo "  test-pods         Run pod unit test suites (core, std, test, json, simd, fmt)"
         echo "  b-win [file]      Build Windows binary (default: abyssc.exe)"
         echo "  r-win [file]      Build and run Windows binary with wine"
         echo "  test [filter]     Run fast dev test suite (C + VM backends via TCC/GCC)"
