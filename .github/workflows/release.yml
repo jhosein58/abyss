@@ -24,7 +24,7 @@ jobs:
       - name: Fetch seed compiler
         run: |
           mkdir -p /tmp/seed
-          curl -fsSL "https://github.com/jhosein58/abyss/releases/latest/download/abyss-linux-x86_64.tar.gz" -o /tmp/seed/abyss.tar.gz
+          curl -fsSL "https://github.com/abysslang/abyss/releases/latest/download/abyss-linux-x86_64.tar.gz" -o /tmp/seed/abyss.tar.gz
           tar -xzf /tmp/seed/abyss.tar.gz -C /tmp/seed --strip-components=1
           cp /tmp/seed/bin/abyssc ./abyssc
           chmod +x ./abyssc

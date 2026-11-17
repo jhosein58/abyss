@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-REPO="jhosein58/abyss"
+REPO="abysslang/abyss"
 VERSION="${ABYSS_VERSION:-latest}"
 INSTALL_DIR="${ABYSS_INSTALL_DIR:-$HOME/.abyss}"
 BIN_DIR="${INSTALL_DIR}/bin"

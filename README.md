@@ -68,10 +68,10 @@ main :: fn() {
 
 ```sh
 # Linux / macOS
-curl -fsSL https://raw.githubusercontent.com/jhosein58/abyss/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/abysslang/abyss/main/scripts/install.sh | bash
 
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/jhosein58/abyss/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/abysslang/abyss/main/scripts/install.ps1 | iex
 ```
 
 ---

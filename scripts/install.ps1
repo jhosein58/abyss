@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$Repo = "jhosein58/abyss"
+$Repo = "abysslang/abyss"
 $Version = if ($env:ABYSS_VERSION) { $env:ABYSS_VERSION } else { "latest" }
 $UserHome = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($HOME) { $HOME } else { [Environment]::GetFolderPath("UserProfile") }
 $InstallDir = if ($env:ABYSS_INSTALL_DIR) { $env:ABYSS_INSTALL_DIR } else { Join-Path $UserHome ".abyss" }
