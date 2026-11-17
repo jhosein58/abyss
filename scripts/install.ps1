@@ -50,6 +50,6 @@ if ($UserPath -notlike "*$BinDir*") {
 }
 
 Write-Host ""
-Write-Host "✔ Abyss & Sonar installed successfully to $InstallDir!"
+Write-Host "✔ Abyss, Sonar & Abyssfmt installed successfully to $InstallDir!"
 Write-Host "Binaries available in: $BinDir"
 Write-Host "Please restart your PowerShell session to apply PATH changes."

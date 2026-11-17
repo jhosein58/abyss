@@ -164,7 +164,7 @@ EOF
             "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/compiler/main.a" "${DIST_DIR}/bootstrap.c"
         fi
         clang -w --target=wasm32 -nostdlib -O3 -Wl,--no-entry -Wl,--export-all "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc.wasm"
-        python3 -c "import json; from pathlib import Path; bundle = {str(f.relative_to('${ROOT_DIR}').as_posix()): f.read_text(encoding='utf-8', errors='replace') for pod in ['core', 'std', 'json'] for f in (Path('${ROOT_DIR}') / 'pods' / pod).rglob('*') if f.is_file() and not f.name.endswith('.swp') and not f.name.endswith('.o')}; Path('${DIST_DIR}/vfs_bundle.json').write_text(json.dumps(bundle), encoding='utf-8')"
+        python3 -c "import json; from pathlib import Path; bundle = {str(f.relative_to('${ROOT_DIR}').as_posix()): f.read_text(encoding='utf-8', errors='replace') for pod in ['core', 'std', 'json', 'test', 'simd', 'fmt'] for f in (Path('${ROOT_DIR}') / 'pods' / pod).rglob('*') if f.is_file() and not f.name.endswith('.swp') and not f.name.endswith('.o')}; Path('${DIST_DIR}/vfs_bundle.json').write_text(json.dumps(bundle), encoding='utf-8')"
         echo "Built ${DIST_DIR}/abyssc.wasm and ${DIST_DIR}/vfs_bundle.json"
         ;;
     release)
@@ -186,30 +186,38 @@ EOF
         gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${DIST_DIR}/sonar_bootstrap.c" -o "${DIST_DIR}/sonar-linux-x86_64"
         cp "${DIST_DIR}/sonar-linux-x86_64" "${ROOT_DIR}/sonar"
 
-        echo "Verifying Linux Sonar package manager and pods..."
+        echo "Building Linux Abyssfmt code formatter..."
+        "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/pods/fmt/main.a" "${DIST_DIR}/fmt_bootstrap.c"
+        gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${DIST_DIR}/fmt_bootstrap.c" -o "${DIST_DIR}/abyssfmt-linux-x86_64"
+        cp "${DIST_DIR}/abyssfmt-linux-x86_64" "${ROOT_DIR}/abyssfmt"
+
+        echo "Verifying Linux release tools and pods..."
         "${ROOT_DIR}/abyssc" --map json="${ROOT_DIR}/pods/json/json" r "${ROOT_DIR}/pods/sonar/test_sonar.a" >/dev/null 2>&1
         "${DIST_DIR}/sonar-linux-x86_64" help >/dev/null 2>&1
+        "${DIST_DIR}/abyssfmt-linux-x86_64" --help >/dev/null 2>&1
         bash "${ROOT_DIR}/scripts/test_pods.sh" "${DIST_DIR}/abyssc-linux-x86_64"
-        echo "✔ Linux x86_64 Sonar package manager and pods verified!"
+        echo "✔ Linux x86_64 tools (abyssc, sonar, abyssfmt) and pods verified!"
 
         MINGW_CC="${MINGW_CC:-x86_64-w64-mingw32-gcc}"
         if command -v "${MINGW_CC}" >/dev/null 2>&1; then
             echo "Cross-compiling Windows release binaries with ${MINGW_CC}..."
             "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc-windows-x86_64.exe"
             "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${DIST_DIR}/sonar_bootstrap.c" -o "${DIST_DIR}/sonar-windows-x86_64.exe"
+            "${MINGW_CC}" -std=gnu99 -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${DIST_DIR}/fmt_bootstrap.c" -o "${DIST_DIR}/abyssfmt-windows-x86_64.exe"
             if command -v wine >/dev/null 2>&1; then
                 echo "Verifying Windows binaries with Wine..."
                 WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${DIST_DIR}/abyssc-windows-x86_64.exe" r "${ROOT_DIR}/tests/01_literals.a" >/dev/null 2>&1
                 WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${DIST_DIR}/abyssc-windows-x86_64.exe" b "${ROOT_DIR}/tests/01_literals.a" "${ROOT_DIR}/tmp/win_verify.c" >/dev/null 2>&1
                 WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${DIST_DIR}/sonar-windows-x86_64.exe" help >/dev/null 2>&1
-                echo "✔ Windows x86_64 binaries (abyssc.exe + sonar.exe) verified via Wine!"
+                WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${DIST_DIR}/abyssfmt-windows-x86_64.exe" --help >/dev/null 2>&1
+                echo "✔ Windows x86_64 binaries (abyssc.exe + sonar.exe + abyssfmt.exe) verified via Wine!"
             fi
         fi
 
         if command -v clang >/dev/null 2>&1; then
             echo "Building WebAssembly release binary..."
             clang -w --target=wasm32 -nostdlib -O3 -Wl,--no-entry -Wl,--export-all "${DIST_DIR}/bootstrap.c" -o "${DIST_DIR}/abyssc.wasm"
-            python3 -c "import json; from pathlib import Path; bundle = {str(f.relative_to('${ROOT_DIR}').as_posix()): f.read_text(encoding='utf-8', errors='replace') for pod in ['core', 'std', 'json', 'test'] for f in (Path('${ROOT_DIR}') / 'pods' / pod).rglob('*') if f.is_file() and not f.name.endswith('.swp') and not f.name.endswith('.o')}; Path('${DIST_DIR}/vfs_bundle.json').write_text(json.dumps(bundle), encoding='utf-8')"
+            python3 -c "import json; from pathlib import Path; bundle = {str(f.relative_to('${ROOT_DIR}').as_posix()): f.read_text(encoding='utf-8', errors='replace') for pod in ['core', 'std', 'json', 'test', 'simd', 'fmt'] for f in (Path('${ROOT_DIR}') / 'pods' / pod).rglob('*') if f.is_file() and not f.name.endswith('.swp') and not f.name.endswith('.o')}; Path('${DIST_DIR}/vfs_bundle.json').write_text(json.dumps(bundle), encoding='utf-8')"
             echo "✔ WebAssembly binary and VFS bundle verified!"
         fi
 
@@ -219,18 +227,22 @@ EOF
         mkdir -p "${LINUX_BUNDLE}/bin"
         cp "${DIST_DIR}/abyssc-linux-x86_64" "${LINUX_BUNDLE}/bin/abyssc"
         cp "${DIST_DIR}/sonar-linux-x86_64" "${LINUX_BUNDLE}/bin/sonar"
+        cp "${DIST_DIR}/abyssfmt-linux-x86_64" "${LINUX_BUNDLE}/bin/abyssfmt"
+        ln -sf abyssfmt "${LINUX_BUNDLE}/bin/abyss-fmt"
         cp -r "${ROOT_DIR}/pods" "${LINUX_BUNDLE}/pods"
         cp "${ROOT_DIR}/README.md" "${LINUX_BUNDLE}/" 2>/dev/null || true
         cp "${ROOT_DIR}/LICENSE" "${LINUX_BUNDLE}/" 2>/dev/null || true
         tar -czf "${DIST_DIR}/abyss-linux-x86_64.tar.gz" -C "${ROOT_DIR}/tmp" "abyss"
         rm -rf "${LINUX_BUNDLE}"
 
-        if [ -f "${DIST_DIR}/abyssc-windows-x86_64.exe" ] && [ -f "${DIST_DIR}/sonar-windows-x86_64.exe" ]; then
+        if [ -f "${DIST_DIR}/abyssc-windows-x86_64.exe" ] && [ -f "${DIST_DIR}/sonar-windows-x86_64.exe" ] && [ -f "${DIST_DIR}/abyssfmt-windows-x86_64.exe" ]; then
             WIN_BUNDLE="${ROOT_DIR}/tmp/abyss"
             rm -rf "${WIN_BUNDLE}"
             mkdir -p "${WIN_BUNDLE}/bin"
             cp "${DIST_DIR}/abyssc-windows-x86_64.exe" "${WIN_BUNDLE}/bin/abyssc.exe"
             cp "${DIST_DIR}/sonar-windows-x86_64.exe" "${WIN_BUNDLE}/bin/sonar.exe"
+            cp "${DIST_DIR}/abyssfmt-windows-x86_64.exe" "${WIN_BUNDLE}/bin/abyssfmt.exe"
+            cp "${DIST_DIR}/abyssfmt-windows-x86_64.exe" "${WIN_BUNDLE}/bin/abyss-fmt.exe"
             cp -r "${ROOT_DIR}/pods" "${WIN_BUNDLE}/pods"
             cp "${ROOT_DIR}/README.md" "${WIN_BUNDLE}/" 2>/dev/null || true
             cp "${ROOT_DIR}/LICENSE" "${WIN_BUNDLE}/" 2>/dev/null || true
@@ -247,7 +259,17 @@ EOF
         ls -lh "${DIST_DIR}"
         ;;
     fmt)
-        "${ROOT_DIR}/abyssc" r "${ROOT_DIR}/pods/fmt/main.a" "$@"
+        if [ -x "${ROOT_DIR}/abyssfmt" ]; then
+            "${ROOT_DIR}/abyssfmt" "$@"
+        else
+            "${ROOT_DIR}/abyssc" r "${ROOT_DIR}/pods/fmt/main.a" "$@"
+        fi
+        ;;
+    b-fmt)
+        prepare_compiler
+        "${ROOT_DIR}/abyssc" b "${ROOT_DIR}/pods/fmt/main.a" "${ROOT_DIR}/tmp/fmt.c"
+        gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration "${ROOT_DIR}/tmp/fmt.c" -o "${ROOT_DIR}/abyssfmt"
+        echo "Built ${ROOT_DIR}/abyssfmt"
         ;;
     sonar)
         CALLER_DIR="${ORIG_PWD}"
@@ -278,6 +300,8 @@ EOF
         echo "  r [file]          Run on VM (auto-rebuilds compiler if sources changed)"
         echo "  b [file]          Build in release mode (auto-rebuilds compiler if sources changed)"
         echo "  br [file]         Build and run in release mode"
+        echo "  fmt [path]...     Format Abyss source files with abyssfmt"
+        echo "  b-fmt             Build standalone native abyssfmt binary"
         echo "  sonar             Run Sonar package manager (init, vendor, build, run)"
         echo "  sonar-test        Run Sonar package manager test suite"
         echo "  test-pods         Run pod unit test suites (core, std, test, json, simd, fmt)"

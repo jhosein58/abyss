@@ -4,10 +4,19 @@ import std.string:    Str
 
 import .fmt: format_path
 
+print_help :: fn() {
+    printf("usage: abyssfmt <path> ... (or: abyss fmt <path> ...)\n", .{})
+}
+
 main :: fn() {
     count := Env.args_len()
     if count < 2 {
-        printf("usage: abyss fmt <path> ...\n", .{})
+        print_help()
+        ret
+    }
+    first := Str.of(Env.arg(1))
+    if first.eq("-h") or first.eq("--help") or first.eq("help") {
+        print_help()
         ret
     }
     arena := Arena.new(1024 * 1024)

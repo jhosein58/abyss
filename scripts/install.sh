@@ -44,6 +44,8 @@ tar -xzf "${TMP_DIR}/abyss.tar.gz" -C "${INSTALL_DIR}" --strip-components=1
 
 chmod +x "${BIN_DIR}/abyssc" 2>/dev/null || true
 chmod +x "${BIN_DIR}/sonar" 2>/dev/null || true
+chmod +x "${BIN_DIR}/abyssfmt" 2>/dev/null || true
+chmod +x "${BIN_DIR}/abyss-fmt" 2>/dev/null || true
 
 add_to_profile() {
     PROFILE_FILE="$1"
@@ -60,6 +62,6 @@ add_to_profile "${HOME}/.zshrc"
 add_to_profile "${HOME}/.profile"
 
 echo ""
-echo "✔ Abyss & Sonar installed successfully to ${INSTALL_DIR}!"
+echo "✔ Abyss, Sonar & Abyssfmt installed successfully to ${INSTALL_DIR}!"
 echo "Binaries available in: ${BIN_DIR}"
 echo "Restart your terminal or run: export PATH=\"${BIN_DIR}:\$PATH\""
