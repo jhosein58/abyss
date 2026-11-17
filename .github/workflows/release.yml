@@ -28,13 +28,9 @@ jobs:
           tar -xzf /tmp/seed/abyss.tar.gz -C /tmp/seed --strip-components=1
           cp /tmp/seed/bin/abyssc ./abyssc
           chmod +x ./abyssc
+          touch -d "2020-01-01" ./abyssc
 
-      - name: Run compiler and pod tests
-        run: |
-          ./abyss test
-          ./abyss test-pods
-
-      - name: Build release artifacts
+      - name: Build, test and package release
         run: |
           ./abyss release 3
 

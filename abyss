@@ -26,6 +26,7 @@ prepare_compiler() {
             if [ -f "${SEED_TMP}/bin/abyssc" ]; then
                 cp "${SEED_TMP}/bin/abyssc" "${ROOT_DIR}/abyssc"
                 chmod +x "${ROOT_DIR}/abyssc"
+                touch -d "2020-01-01" "${ROOT_DIR}/abyssc" 2>/dev/null || true
                 echo "✔ Downloaded seed compiler to ${ROOT_DIR}/abyssc"
             fi
         fi
@@ -36,7 +37,7 @@ prepare_compiler() {
         fi
     fi
 
-    if [ -n "$(find "${ROOT_DIR}/compiler" "${ROOT_DIR}/core" "${ROOT_DIR}/std" "${ROOT_DIR}/runtime" -type f -newer "${ROOT_DIR}/abyssc" 2>/dev/null)" ]; then
+    if [ -n "$(find "${ROOT_DIR}/compiler" "${ROOT_DIR}/pods" -type f -newer "${ROOT_DIR}/abyssc" 2>/dev/null)" ]; then
         BUILD_DIR=$(mktemp -d "${ROOT_DIR}/tmp/embed_build.XXXXXX")
         if ! "${ROOT_DIR}/abyssc" "${ROOT_DIR}/compiler/main.a" "${BUILD_DIR}/stage1.c" 2>"${BUILD_DIR}/stage1_compile.log"; then
             echo "[ERROR] Stage 1 failed: Current seed compiler failed to compile compiler sources!" >&2
