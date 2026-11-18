@@ -1,110 +1,110 @@
 import .mask: SimdMask
 
-abyss_simd_sin_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_sin_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_sin_fast_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_sin_fast_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_cos_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_cos_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_cos_fast_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_cos_fast_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_tan_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_tan_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_tan_fast_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_tan_fast_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_asin_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_asin_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_acos_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_acos_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_atan_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_atan_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_atan2_f32x4 :: fn(dst &f32, y &f32, x &f32) 
+abyss_simd_atan2_f32x4 :: extern fn(dst &f32, y &f32, x &f32)
 
-abyss_simd_exp_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_exp_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_exp_fast_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_exp_fast_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_exp2_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_exp2_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_ln_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_ln_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_ln_fast_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_ln_fast_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_log2_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_log2_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_log10_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_log10_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_pow_f32x4 :: fn(dst &f32, a &f32, b &f32) 
+abyss_simd_pow_f32x4 :: extern fn(dst &f32, a &f32, b &f32)
 
-abyss_simd_sqrt_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_sqrt_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_rsqrt_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_rsqrt_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_rsqrt_fast_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_rsqrt_fast_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_cbrt_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_cbrt_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_hypot_f32x4 :: fn(dst &f32, a &f32, b &f32) 
+abyss_simd_hypot_f32x4 :: extern fn(dst &f32, a &f32, b &f32)
 
-abyss_simd_sinh_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_sinh_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_cosh_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_cosh_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_tanh_f32x4 :: fn(dst &f32, src &f32) 
+abyss_simd_tanh_f32x4 :: extern fn(dst &f32, src &f32)
 
-abyss_simd_fma_f32x4 :: fn(dst &f32, a &f32, b &f32, c &f32) 
+abyss_simd_fma_f32x4 :: extern fn(dst &f32, a &f32, b &f32, c &f32)
 
-abyss_simd_sin_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_sin_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_sin_fast_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_sin_fast_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_cos_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_cos_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_cos_fast_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_cos_fast_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_tan_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_tan_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_asin_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_asin_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_acos_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_acos_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_atan_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_atan_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_atan2_f64x2 :: fn(dst &f64, y &f64, x &f64) 
+abyss_simd_atan2_f64x2 :: extern fn(dst &f64, y &f64, x &f64)
 
-abyss_simd_exp_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_exp_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_exp_fast_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_exp_fast_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_exp2_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_exp2_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_ln_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_ln_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_ln_fast_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_ln_fast_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_log2_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_log2_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_log10_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_log10_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_pow_f64x2 :: fn(dst &f64, a &f64, b &f64) 
+abyss_simd_pow_f64x2 :: extern fn(dst &f64, a &f64, b &f64)
 
-abyss_simd_sqrt_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_sqrt_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_rsqrt_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_rsqrt_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_cbrt_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_cbrt_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_hypot_f64x2 :: fn(dst &f64, a &f64, b &f64) 
+abyss_simd_hypot_f64x2 :: extern fn(dst &f64, a &f64, b &f64)
 
-abyss_simd_sinh_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_sinh_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_cosh_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_cosh_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_tanh_f64x2 :: fn(dst &f64, src &f64) 
+abyss_simd_tanh_f64x2 :: extern fn(dst &f64, src &f64)
 
-abyss_simd_fma_f64x2 :: fn(dst &f64, a &f64, b &f64, c &f64) 
+abyss_simd_fma_f64x2 :: extern fn(dst &f64, a &f64, b &f64, c &f64)
 
-abyss_simd_cpu_features :: fn() u32
+abyss_simd_cpu_features :: extern fn() u32
 
 Simd :: fn(T type, cmpt N u64) type {
     struct {

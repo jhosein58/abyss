@@ -6,7 +6,7 @@ import std.string: Str, String
 
 import .resolver: ResolvedPod
 
-system :: fn(cmd &u8) i32
+system :: extern fn(cmd &u8) i32
 
 ensure_dir_all :: fn(arena &Arena, dir_path Str) {
     c_path := to_cstr(arena, dir_path)

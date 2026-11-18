@@ -7,21 +7,21 @@ import std.path:            Path
 import std.string:          Str, String
 import std.sys:             fall
 
-print_cstr :: fn(s &u8) 
+print_cstr :: extern fn(s &u8)
 
-get_env :: fn(name &u8) &u8
+get_env :: extern fn(name &u8) &u8
 
-file_open :: fn(path, mode &u8) &u8
-file_seek :: fn(handle &u8, offset i64, w i32) i32
-file_tell :: fn(handle &u8) i64
-file_read :: fn(handle, ptr &u8, s, count u64) u64
-file_write :: fn(handle, ptr &u8, s, count u64) u64
-file_close :: fn(handle &u8) i32
+file_open :: extern fn(path, mode &u8) &u8
+file_seek :: extern fn(handle &u8, offset i64, w i32) i32
+file_tell :: extern fn(handle &u8) i64
+file_read :: extern fn(handle, ptr &u8, s, count u64) u64
+file_write :: extern fn(handle, ptr &u8, s, count u64) u64
+file_close :: extern fn(handle &u8) i32
 
-dir_open :: fn(path &u8) &u8
-dir_read :: fn(dir &u8) &u8
-dir_close :: fn(dir &u8) i32
-dir_create :: fn(path &u8) i32
+dir_open :: extern fn(path &u8) &u8
+dir_read :: extern fn(dir &u8) &u8
+dir_close :: extern fn(dir &u8) i32
+dir_create :: extern fn(path &u8) i32
 
 SEEK_SET :: fn() i32 {
     0

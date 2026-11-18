@@ -1,67 +1,110 @@
 import .chunk: Chunk
 import .op:    OpCode
+import .codegen: vm_entry_tag, vm_extern_tag
 
-print_cstr :: fn(s &u8) 
+print_cstr :: extern fn(s &u8)
 
-print_bytes :: fn(s &u8, len u64) 
+print_bytes :: extern fn(s &u8, len u64)
 
-print_char :: fn(c u8) 
+print_char :: extern fn(c u8)
 
-print_bool :: fn(v bool) 
+print_bool :: extern fn(v bool)
 
-print_i8 :: fn(v i8) 
+print_i8 :: extern fn(v i8)
 
-print_i16 :: fn(v i16) 
+print_i16 :: extern fn(v i16)
 
-print_i32 :: fn(v i32) 
+print_i32 :: extern fn(v i32)
 
-print_i64 :: fn(v i64) 
+print_i64 :: extern fn(v i64)
 
-print_u8 :: fn(v u8) 
+print_u8 :: extern fn(v u8)
 
-print_u16 :: fn(v u16) 
+print_u16 :: extern fn(v u16)
 
-print_u32 :: fn(v u32) 
+print_u32 :: extern fn(v u32)
 
-print_u64 :: fn(v u64) 
+print_u64 :: extern fn(v u64)
 
-print_f32 :: fn(v f32) 
+print_f32 :: extern fn(v f32)
 
-print_f64 :: fn(v f64) 
+print_f64 :: extern fn(v f64)
 
-string_float64 :: fn(ptr &u8, capacity u64, value f64) u64
-malloc :: fn(size u64) &u8
-realloc :: fn(ptr &u8, size u64) &u8
-free :: fn(ptr &u8) 
+string_float64 :: extern fn(ptr &u8, capacity u64, value f64) u64
+malloc :: extern fn(size u64) &u8
+realloc :: extern fn(ptr &u8, size u64) &u8
+free :: extern fn(ptr &u8)
 
-mem_copy :: fn(dest &u8, src &u8, n u64) 
+mem_copy :: extern fn(dest &u8, src &u8, n u64)
 
-mem_set :: fn(dest &u8, val u8, n u64) 
+mem_set :: extern fn(dest &u8, val u8, n u64)
 
-file_open :: fn(path, mode &u8) &u8
-file_close :: fn(handle &u8) i32
-file_seek :: fn(handle &u8, offset i64, w i32) i32
-file_tell :: fn(handle &u8) i64
-file_read :: fn(handle, ptr &u8, s, count u64) u64
-file_write :: fn(handle, ptr &u8, s, count u64) u64
-get_arg_count :: fn() i32
-get_arg :: fn(idx i32) &u8
-get_env :: fn(name &u8) &u8
-abyss_fall :: fn() 
+file_open :: extern fn(path, mode &u8) &u8
+file_close :: extern fn(handle &u8) i32
+file_seek :: extern fn(handle &u8, offset i64, w i32) i32
+file_tell :: extern fn(handle &u8) i64
+file_read :: extern fn(handle, ptr &u8, s, count u64) u64
+file_write :: extern fn(handle, ptr &u8, s, count u64) u64
+get_arg_count :: extern fn() i32
+get_arg :: extern fn(idx i32) &u8
+get_env :: extern fn(name &u8) &u8
+abyss_fall :: extern fn()
 
-compile_and_run :: fn(path &u8) i32
-str_len :: fn(s &u8) u64
-abyss_vm_call_dyn :: fn(name &u8, a0, a1, a2, a3, a4, a5 u64, arg_count u32) u64
+compile_and_run :: extern fn(path &u8) i32
+str_len :: extern fn(s &u8) u64
+dir_open :: extern fn(path &u8) &u8
+dir_read :: extern fn(handle &u8) &u8
+dir_close :: extern fn(handle &u8) i32
+dir_create :: extern fn(path &u8) i32
+
+VmCallback :: fn(&&u8, &u8, u32, &u64, u32) u64
+
+abyss_ffi_call :: extern fn(scope &&u8, invoke VmCallback, chunk &u8, name &u8, address u64, signature &u32, args &u64) u64
+abyss_ffi_callback :: extern fn(scope &&u8, invoke VmCallback, chunk &u8, entry u32, signature &u32) u64
+abyss_ffi_alloc :: extern fn(scope &&u8, size u64) &u8
+abyss_ffi_destroy :: extern fn(scope &u8)
+abyss_ffi_symbol_address :: extern fn(name &u8) u64
+
+invoke_vm_callback :: fn(scope &&u8, chunk &u8, entry u32, argv &u64, argc u32) u64 {
+    vm := Vm.new()
+    vm.ffi_owner = scope
+    value := vm.run_with_args(chunk as &Chunk, entry, Slice(u64).new(argv, argc as u64))
+    vm.destroy()
+    value
+}
 
 vm_noop :: fn() {}
+
+float_binary :: fn(T type, op OpCode, a, b T) u64 {
+    if op == OpCode.eq { ret (a == b) as u64 }
+    if op == OpCode.ne { ret (a != b) as u64 }
+    if op == OpCode.lt { ret (a < b) as u64 }
+    if op == OpCode.le { ret (a <= b) as u64 }
+    if op == OpCode.gt { ret (a > b) as u64 }
+    if op == OpCode.ge { ret (a >= b) as u64 }
+    res := if op == OpCode.add {
+        a + b
+    } else if op == OpCode.sub {
+        a - b
+    } else if op == OpCode.mul {
+        a * b
+    } else {
+        a / b
+    }
+    bits: u64 = 0
+    *(&bits as &T) = res
+    bits
+}
 
 Vm :: struct {
     stack     Vec(u64)
     locals    Vec(u64)
     frames_ip Vec(u32)
     frames_fp Vec(u32)
+    ffi_scope &u8
+    ffi_owner &&u8
     new :: fn() Self {
-        .{ stack: Vec(u64).with_cap(4096), locals: Vec(u64).with_cap(4096), frames_ip: Vec(u32).with_cap(1024), frames_fp: Vec(u32).with_cap(1024) }
+        .{ stack: Vec(u64).with_cap(4096), locals: Vec(u64).with_cap(4096), frames_ip: Vec(u32).with_cap(1024), frames_fp: Vec(u32).with_cap(1024), ffi_scope: 0 as &u8, ffi_owner: 0 as &&u8 }
     }
 
     destroy :: fn(self &Self) {
@@ -69,6 +112,7 @@ Vm :: struct {
         self.locals.destroy()
         self.frames_ip.destroy()
         self.frames_fp.destroy()
+        abyss_ffi_destroy(self.ffi_scope)
     }
 
     ensure_local_slot :: fn(self &Self, idx u32) {
@@ -232,50 +276,57 @@ Vm :: struct {
             capacity := self.stack.pop()
             ptr := self.stack.pop() as &u8
             self.stack.push(string_float64(ptr, capacity, *(&bits as &f64)))
+        } else if id == 36 {
+            self.stack.push(dir_open(self.stack.pop() as &u8) as u64)
+        } else if id == 37 {
+            self.stack.push(dir_read(self.stack.pop() as &u8) as u64)
+        } else if id == 38 {
+            self.stack.push(dir_close(self.stack.pop() as &u8) as u64)
+        } else if id == 39 {
+            self.stack.push(dir_create(self.stack.pop() as &u8) as u64)
         } else if id >= 100 {
-            name_ptr := prog.get_extern_name(id - 100)
-            a0: u64 = 0
-            a1: u64 = 0
-            a2: u64 = 0
-            a3: u64 = 0
-            a4: u64 = 0
-            a5: u64 = 0
-            if arg_count == 1 {
-                a0 = self.stack.pop()
-            } else if arg_count == 2 {
-                a1 = self.stack.pop()
-                a0 = self.stack.pop()
-            } else if arg_count == 3 {
-                a2 = self.stack.pop()
-                a1 = self.stack.pop()
-                a0 = self.stack.pop()
-            } else if arg_count == 4 {
-                a3 = self.stack.pop()
-                a2 = self.stack.pop()
-                a1 = self.stack.pop()
-                a0 = self.stack.pop()
-            } else if arg_count == 5 {
-                a4 = self.stack.pop()
-                a3 = self.stack.pop()
-                a2 = self.stack.pop()
-                a1 = self.stack.pop()
-                a0 = self.stack.pop()
-            } else if arg_count >= 6 {
-                a5 = self.stack.pop()
-                a4 = self.stack.pop()
-                a3 = self.stack.pop()
-                a2 = self.stack.pop()
-                a1 = self.stack.pop()
-                a0 = self.stack.pop()
-            }
-            res := abyss_vm_call_dyn(name_ptr, a0, a1, a2, a3, a4, a5, arg_count as u32)
-            self.stack.push(res)
+            foreign := prog.externs.get((id - 100) as u64)
+            self.call_foreign(prog, foreign.name, 0, foreign.signature, arg_count)
         } else {
             self.stack.push(0)
         }
     }
 
+    scope :: fn(self &Self) &&u8 {
+        if self.ffi_owner != (0 as &&u8) {
+            ret self.ffi_owner
+        }
+        &self.ffi_scope
+    }
+
+    call_foreign :: fn(self &Self, prog &Chunk, name &u8, address u64, signature &u32, argc u8) {
+        start := self.stack.len - (argc as u64)
+        args := self.stack.as_slice().ptr + start
+        result := abyss_ffi_call(self.scope(), invoke_vm_callback, prog as &u8, name, address, signature, args)
+        self.stack.reset(start)
+        self.stack.push(result)
+    }
+
+    push_frame :: fn(self &Self, ip, fp, argc u32) u32 {
+        next := self.locals.len as u32
+        self.frames_ip.push(ip)
+        self.frames_fp.push(fp)
+        while self.locals.len < ((next + argc) as u64) {
+            self.locals.push(0)
+        }
+        i := argc
+        while i > 0 {
+            i = i - 1
+            self.locals.set((next + i) as u64, self.stack.pop())
+        }
+        next
+    }
+
     run :: fn(self &Self, prog &Chunk, entry_ip u32) u64 {
+        self.run_with_args(prog, entry_ip, Slice(u64).empty())
+    }
+
+    run_with_args :: fn(self &Self, prog &Chunk, entry_ip u32, args Slice(u64)) u64 {
         ip := entry_ip
         fp: u32 = 0
 
@@ -283,6 +334,7 @@ Vm :: struct {
         self.frames_fp.clear()
         self.stack.clear()
         self.locals.clear()
+        self.locals.extend(args.ptr, args.len)
 
         while ip < (prog.buf.len as u32) {
             op := prog.buf.get(ip as u64) as OpCode
@@ -535,6 +587,7 @@ Vm :: struct {
                     target := prog.read_u32(ip)
                     ip = target
                     vm_noop()
+                    vm_noop()
                 }
                 jmp_if_false {
                     target := prog.read_u32(ip)
@@ -553,80 +606,81 @@ Vm :: struct {
                     }
                 }
                 call {
-                    target_ip := prog.read_u32(ip)
-                    arg_count := prog.read_u8(ip + 4) as u32
+                    target := prog.read_u32(ip)
+                    argc := prog.read_u8(ip + 4)
                     ip = ip + 5
-                    new_fp := self.locals.len as u32
-                    self.frames_ip.push(ip)
-                    self.frames_fp.push(fp)
-                    fp = new_fp
-                    i := arg_count
-                    while self.locals.len < ((new_fp + arg_count) as u64) {
-                        self.locals.push(0)
-                    }
-                    while i > 0 {
-                        i = i - 1
-                        val := self.stack.pop()
-                        self.locals.set((fp + i) as u64, val)
-                    }
-                    ip = target_ip
+                    fp = self.push_frame(ip, fp, argc as u32)
+                    ip = target
                     vm_noop()
                 }
                 call_extern {
                     ext_id := prog.read_u16(ip) as u32
-                    arg_count := prog.read_u8(ip + 2)
+                    argc := prog.read_u8(ip + 2)
                     ip = ip + 3
-                    self.dispatch_extern(prog, ext_id, arg_count)
+                    self.dispatch_extern(prog, ext_id, argc)
                 }
                 call_ptr {
-                    arg_count := prog.read_u8(ip) as u32
-                    ip = ip + 1
-                    target_ip := self.stack.pop() as u32
-                    if target_ip >= 1000000 {
-                        ext_id := target_ip - 1000000
-                        self.dispatch_extern(prog, ext_id, arg_count as u8)
+                    argc := prog.read_u8(ip)
+                    sig := prog.const.get(prog.read_u16(ip + 1) as u64) as &u32
+                    pos := if prog.read_u8(ip + 3) == 1 {
+                        self.stack.len - 1 - (argc as u64)
                     } else {
-                        new_fp := self.locals.len as u32
-                        self.frames_ip.push(ip)
-                        self.frames_fp.push(fp)
-                        fp = new_fp
-                        i := arg_count
-                        while self.locals.len < ((new_fp + arg_count) as u64) {
-                            self.locals.push(0)
-                        }
-                        while i > 0 {
-                            i = i - 1
-                            val := self.stack.pop()
-                            self.locals.set((fp + i) as u64, val)
-                        }
-                        ip = target_ip
+                        self.stack.len - 1
                     }
-                    vm_noop()
+                    ip = ip + 4
+                    address := self.stack.get(pos)
+                    for i in Range.new(0, (self.stack.len - 1 - pos) as i32) {
+                        index := pos + (i as u64)
+                        self.stack.set(index, self.stack.get(index + 1))
+                    }
+                    self.stack.pop()
+                    if (address & vm_entry_tag()) != 0 {
+                        fp = self.push_frame(ip, fp, argc as u32)
+                        ip = address as u32
+                    } else if (address & vm_extern_tag()) != 0 {
+                        self.dispatch_extern(prog, address as u32, argc)
+                    } else {
+                        self.call_foreign(prog, 0 as &u8, address, sig, argc)
+                    }
                 }
-                call_ptr_stack {
-                    arg_count := prog.read_u8(ip) as u32
-                    ip = ip + 1
-                    target_ip := self.stack.pop() as u32
-                    if target_ip >= 1000000 {
-                        ext_id := target_ip - 1000000
-                        self.dispatch_extern(prog, ext_id, arg_count as u8)
-                    } else {
-                        new_fp := self.locals.len as u32
-                        self.frames_ip.push(ip)
-                        self.frames_fp.push(fp)
-                        fp = new_fp
-                        i := arg_count
-                        while self.locals.len < ((new_fp + arg_count) as u64) {
-                            self.locals.push(0)
-                        }
-                        while i > 0 {
-                            i = i - 1
-                            val := self.stack.pop()
-                            self.locals.set((fp + i) as u64, val)
-                        }
-                        ip = target_ip
+                ffi_symbol {
+                    foreign := prog.externs.get(prog.read_u16(ip) as u64)
+                    ip = ip + 2
+                    self.stack.push(abyss_ffi_symbol_address(foreign.name))
+                }
+                ffi_callback {
+                    sig := prog.const.get(prog.read_u16(ip) as u64) as &u32
+                    ip = ip + 2
+                    value := self.stack.pop()
+                    if (value & vm_entry_tag()) != 0 {
+                        value = abyss_ffi_callback(self.scope(), invoke_vm_callback, prog as &u8, value as u32, sig)
                     }
-                    vm_noop()
+                    self.stack.push(value)
+                }
+                float_binary {
+                    op := prog.read_u8(ip) as OpCode
+                    width := prog.read_u8(ip + 1)
+                    ip = ip + 2
+                    b := self.stack.pop()
+                    a := self.stack.pop()
+                    if width == 32 {
+                        self.stack.push(float_binary(f32, op, *(&a as &f32), *(&b as &f32)))
+                    } else {
+                        self.stack.push(float_binary(f64, op, *(&a as &f64), *(&b as &f64)))
+                    }
+                }
+                alloc_ffi {
+                    size := self.stack.pop()
+                    self.stack.push(abyss_ffi_alloc(self.scope(), size) as u64)
+                }
+                copy_ffi {
+                    size := prog.const.get(prog.read_u16(ip) as u64)
+                    ip = ip + 2
+                    dest := self.stack.pop() as &u8
+                    src := self.stack.pop() as &u8
+                    if dest != src {
+                        mem_copy(dest, src, size)
+                    }
                 }
                 ret_val {
                     rv: u64 = 0

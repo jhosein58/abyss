@@ -90,7 +90,7 @@ CCodeGen :: struct {
         value.len > 0
     }
 
-    extern_name :: fn(self &Self, name Str) Str {
+    extern_name :: fn(self &Self, name Str, ty u32) Str {
         name
     }
 
@@ -790,7 +790,7 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
-    expr_neg :: fn(self &Self, arena &Arena, inner Str) Str {
+    expr_neg :: fn(self &Self, arena &Arena, inner Str, ty u32) Str {
         self.expr_unary(arena, Str.of("-"), inner)
     }
 
@@ -810,6 +810,10 @@ CCodeGen :: struct {
         self.expr_unary(arena, Str.of("&"), inner)
     }
 
+    expr_typed_deref :: fn(self &Self, arena &Arena, inner Str, ty u32) Str {
+        self.expr_deref(arena, inner)
+    }
+
     expr_deref :: fn(self &Self, arena &Arena, inner Str) Str {
         self.expr_unary(arena, Str.of("*"), inner)
     }
@@ -826,7 +830,7 @@ CCodeGen :: struct {
         fmt.as_str()
     }
 
-    expr_call :: fn(self &Self, arena &Arena, callee Str, args Str) Str {
+    expr_call :: fn(self &Self, arena &Arena, callee Str, args Str, ty u32) Str {
         fmt := Fmt.new(arena)
         fmt.str(callee).char(40 as u8).str(args).char(41 as u8)
         fmt.as_str()

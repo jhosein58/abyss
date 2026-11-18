@@ -491,6 +491,14 @@ Nexus :: struct {
         self.extern_fns.contains_key(hir_id)
     }
 
+    extern_link_name :: fn(self &Self, sym u32, node u32) u32 {
+        name := self.get_extern_fn_custom(node)
+        if name != id_none() {
+            ret name
+        }
+        self.sym_name(sym)
+    }
+
     get_extern_fn_custom :: fn(self &Self, hir_id u32) u32 {
         p := self.extern_fns.get(hir_id)
         if p == (0 as &u32) {

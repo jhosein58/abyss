@@ -414,6 +414,32 @@ CstParser :: struct {
         self.parse_expr(0 as u8)
     }
 
+    parse_extern :: fn(self &Self) &CstNode {
+        self.bump()
+        kind := self.peek()
+        name := if kind == TokenKind.lit_str or kind == TokenKind.lit_raw_str {
+            self.bump().text
+        } else {
+            Str.empty()
+        }
+        node := cst_new(self.arena, CstKind.extern_decl, name)
+        if self.peek() == TokenKind.kw_struct {
+            node.add_child(self.parse_struct())
+        } else if self.peek() == TokenKind.kw_fn {
+            node.add_child(self.parse_fn())
+        }
+        node
+    }
+
+    flush_anonymous_params :: fn(self &Self, node &CstNode, pending &Vec(Str)) {
+        for name in pending.as_slice() {
+            param := cst_new(self.arena, CstKind.fn_param, Str.empty())
+            param.add_child(cst_leaf(self.arena, CstKind.type_named, name))
+            node.add_child(param)
+        }
+        pending.clear()
+    }
+
     parse_fn :: fn(self &Self) &CstNode {
         self.bump()
         fn_node := cst_new(self.arena, CstKind.fn_def, Str.empty())
@@ -421,13 +447,20 @@ CstParser :: struct {
         if self.consume_if(TokenKind.o_paren) {
             pending_names := Vec(Str).new()
             while (not self.is_eof()) and (self.peek() != TokenKind.c_paren) {
-                self.skip_ws_and_nl()
+                self.skip_ws()
+                if self.peek() == TokenKind.newline {
+                    fn_node.text = "multiline"
+                    self.flush_anonymous_params(fn_node, &pending_names)
+                    self.skip_ws_and_nl()
+                }
                 if self.peek() == TokenKind.c_paren {
                     break
                 }
                 is_cmpt := self.consume_if(TokenKind.kw_cmpt)
 
-                if self.is_type_token(self.peek()) {
+                next := self.peek_non_ws(1)
+                if self.is_type_token(self.peek()) or (self.peek() == TokenKind.ident and next.kind == TokenKind.dot) {
+                    self.flush_anonymous_params(fn_node, &pending_names)
                     ty_node := self.parse_type()
                     p_node := cst_new(self.arena, CstKind.fn_param, if is_cmpt {
                         Str.of("cmpt")
@@ -437,7 +470,6 @@ CstParser :: struct {
                     p_node.add_child(ty_node)
                     fn_node.add_child(p_node)
                     self.consume_if(TokenKind.comma)
-                    self.skip_ws_and_nl()
                     cont
                 }
                 name_tok := self.bump()
@@ -462,11 +494,9 @@ CstParser :: struct {
                     fn_node.add_child(p_node)
                     pending_names.clear()
                     self.consume_if(TokenKind.comma)
-                    self.skip_ws_and_nl()
                     cont
                 }
                 if self.consume_if(TokenKind.comma) {
-                    self.skip_ws_and_nl()
                     cont
                 }
                 if self.peek() == TokenKind.c_paren {
@@ -474,19 +504,14 @@ CstParser :: struct {
                 }
             }
 
-            p_i: u64 = 0
-            while p_i < pending_names.len {
-                p_node := cst_new(self.arena, CstKind.fn_param, Str.empty())
-                p_node.add_child(cst_leaf(self.arena, CstKind.type_named, pending_names.get(p_i)))
-                fn_node.add_child(p_node)
-                p_i = p_i + 1
-            }
+            self.flush_anonymous_params(fn_node, &pending_names)
             pending_names.destroy()
 
             self.consume_if(TokenKind.c_paren)
         }
         self.skip_ws()
-        if (self.peek() != TokenKind.o_brace) and (self.peek() != TokenKind.semi) and (not self.is_eof()) {
+        next := self.peek()
+        if next == TokenKind.ident or self.is_type_token(next) or next == TokenKind.o_paren {
             ret_ty := self.parse_type()
             fn_node.add_child(ret_ty)
         }
@@ -1081,6 +1106,9 @@ CstParser :: struct {
         }
         if k == TokenKind.o_bracket {
             ret self.parse_type()
+        }
+        if k == TokenKind.kw_extern {
+            ret self.parse_extern()
         }
         if k == TokenKind.kw_fn {
             ret self.parse_fn()

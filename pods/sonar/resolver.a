@@ -9,7 +9,7 @@ import .manifest: CBuildInfo, Dependency, PodManifest
 import .semver:   SemVer
 import .vendor:   ensure_dir_all
 
-system :: fn(cmd &u8) i32
+system :: extern fn(cmd &u8) i32
 
 ResolvedPod :: struct {
     name     Str

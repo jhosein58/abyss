@@ -15,7 +15,7 @@ import .resolver: Resolver
 import .semver:   SemVer
 import .vendor:   VendorManager
 
-system :: fn(cmd &u8) i32
+system :: extern fn(cmd &u8) i32
 
 print_str :: fn(s Str) {
     write(s)

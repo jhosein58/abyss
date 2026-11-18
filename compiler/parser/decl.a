@@ -1,3 +1,4 @@
+import std.ascii:  Ascii
 import std.string: parse_u32
 
 import compiler.hir:           hir_kind, hir_none
@@ -7,6 +8,8 @@ import compiler.parser.core:   Parser, bump, curr_span, curr_text, expect, is_eo
 import compiler.parser.parser: parse_expr
 import compiler.parser.prec:   prec
 import compiler.token:         Token
+import compiler.typer.common:  parse_builtin_type
+import compiler.types:         ty_id_none
 
 import .common: add_list, add_methods_id, bind_method_owners, check_separator, ensure_type_node, finish_type_node, parse_method, parse_scoped_import, set_span, span_of_hir
 import .expr:   parse_ident
@@ -153,6 +156,19 @@ push_arg :: fn(p &Parser, args &Vec(u32), name u32, ty u32) {
     args.push(arg_id)
 }
 
+flush_anonymous_params :: fn(p &Parser, args, pending &Vec(u32)) {
+    for param in pending.as_slice() {
+        push_arg(p, args, hir_none(), param)
+    }
+    pending.clear()
+}
+
+reject_ellipsis :: fn(p &Parser) {
+    if peek(p) == Token.dot and peek_n(p, 1) == Token.dot and peek_n(p, 2) == Token.dot {
+        parse_error_at(p, c"variadic parameters are not supported; use tuples for type-safe formatting", curr_span(p))
+    }
+}
+
 parse_params :: fn(p &Parser) u32 {
     t := Token
     k := hir_kind
@@ -160,8 +176,9 @@ parse_params :: fn(p &Parser) u32 {
     pending_names := Vec(u32).new()
 
     while (peek(p) != t.c_paren) and (not is_eof(p)) {
-        if peek(p) == t.dot {
-            parse_error_at(p, c"variadic parameters are not supported; use tuples for type-safe formatting", curr_span(p))
+        reject_ellipsis(p)
+        if pending_names.len > 0 and peek_preceded_by_newline(p) {
+            flush_anonymous_params(p, &args, &pending_names)
         }
         if optional(p, t.kw_cmpt) {
             if pending_names.len > 0 {
@@ -176,15 +193,8 @@ parse_params :: fn(p &Parser) u32 {
         }
         is_type_token := (peek(p) == t.amp) or (peek(p) == t.star) or (peek(p) == t.o_bracket) or (peek(p) == t.at) or (peek(p) == t.kw_fn) or (peek(p) == t.kw_struct) or (peek(p) == t.kw_enum)
 
-        if is_type_token {
-            if pending_names.len > 0 {
-                p_i: u64 = 0
-                while p_i < pending_names.len {
-                    push_arg(p, &args, hir_none(), pending_names.get(p_i))
-                    p_i = p_i + 1
-                }
-                pending_names.reset(0)
-            }
+        if is_type_token or (peek(p) == t.ident and peek_n(p, 1) == t.dot and peek_n(p, 2) == t.ident) {
+            flush_anonymous_params(p, &args, &pending_names)
             ty := parse_expr(p, prec().var_def + (1 as u8))
             push_arg(p, &args, hir_none(), ty)
             check_separator(p, t.c_paren, c"expected ',' or newline after parameter")
@@ -195,20 +205,23 @@ parse_params :: fn(p &Parser) u32 {
         }
         name := parse_ident(p)
         pending_names.push(name)
+        reject_ellipsis(p)
 
         next_tk := peek(p)
         has_explicit_type := (next_tk == t.ident) or (next_tk == t.amp) or (next_tk == t.star) or (next_tk == t.o_bracket) or (next_tk == t.at) or (next_tk == t.kw_fn) or (next_tk == t.kw_struct) or (next_tk == t.kw_enum)
-
-        if has_explicit_type and (not peek_preceded_by_newline(p)) {
+        if has_explicit_type and not peek_preceded_by_newline(p) {
             ty := parse_expr(p, prec().var_def + (1 as u8))
-            p_i: u64 = 0
-            while p_i < pending_names.len {
-                push_arg(p, &args, pending_names.get(p_i), ty)
-                p_i = p_i + 1
+            for param in pending_names.as_slice() {
+                push_arg(p, &args, param, ty)
             }
-            pending_names.reset(0)
+            pending_names.clear()
             check_separator(p, t.c_paren, c"expected ',' or newline after parameter")
             cont
+        }
+
+        name_text := p.db.interner.get(p.hir.lhs(name))
+        if parse_builtin_type(&p.db.types, name_text) != ty_id_none() {
+            flush_anonymous_params(p, &args, &pending_names)
         }
         if optional(p, t.comma) {
             cont
@@ -217,12 +230,6 @@ parse_params :: fn(p &Parser) u32 {
             break
         }
         if peek_preceded_by_newline(p) {
-            p_i: u64 = 0
-            while p_i < pending_names.len {
-                push_arg(p, &args, hir_none(), pending_names.get(p_i))
-                p_i = p_i + 1
-            }
-            pending_names.reset(0)
             cont
         }
         parse_error_at(p, c"expected parameter type or ','", curr_span(p))
@@ -230,11 +237,7 @@ parse_params :: fn(p &Parser) u32 {
 
     expect(p, t.c_paren)
 
-    p_i: u64 = 0
-    while p_i < pending_names.len {
-        push_arg(p, &args, hir_none(), pending_names.get(p_i))
-        p_i = p_i + 1
-    }
+    flush_anonymous_params(p, &args, &pending_names)
     pending_names.destroy()
 
     params := hir_none()
@@ -299,22 +302,30 @@ parse_fn :: fn(p &Parser, min_bp u8) u32 {
 
 parse_extern :: fn(p &Parser, min_bp u8) u32 {
     t := Token
+    start := curr_span(p)
     bump(p)
     custom_sym := id_none()
     if peek(p) == t.lit_str {
-        raw_str := curr_text(p)
-        bump(p)
-        if (raw_str.len >= 2) and (*(raw_str.ptr) == 34) {
-            unquoted := raw_str.sub(1, raw_str.len - 2)
-            custom_sym = p.db.interner.intern(unquoted)
-        } else {
-            custom_sym = p.db.interner.intern(raw_str)
+        raw := curr_text(p)
+        name := raw.sub(1, raw.len - 2)
+        if name.len == 0 or not Ascii.is_alpha(*name.ptr) {
+            parse_error_at(p, c"expected a C identifier for the external symbol", curr_span(p))
         }
+        for i in Range.new(1, name.len as i32) {
+            if not Ascii.is_alphanumeric(*(name.ptr + i)) {
+                parse_error_at(p, c"expected a C identifier for the external symbol", curr_span(p))
+            }
+        }
+        custom_sym = p.db.interner.intern(name)
+        bump(p)
         if peek(p) != t.kw_fn {
             parse_error_at(p, c"expected 'fn' after custom extern symbol", curr_span(p))
         }
     }
     if peek(p) == t.kw_fn {
+        if p.toplv_sym == id_none() or p.db.sym_tok_start(p.toplv_sym) == id_none() {
+            parse_error_at(p, c"external functions require a top-level binding", start)
+        }
         fn_node := parse_fn(p, min_bp)
         p.db.set_extern_fn(fn_node, custom_sym)
         ret fn_node

@@ -1,8 +1,8 @@
-malloc :: fn(size u64) &u8
-free :: fn(ptr &u8) 
+malloc :: extern fn(size u64) &u8
+free :: extern fn(ptr &u8)
 
-realloc :: fn(ptr &u8, size u64) &u8
-mem_copy :: fn(dest &u8, src &u8, n u64) 
+realloc :: extern fn(ptr &u8, size u64) &u8
+mem_copy :: extern fn(dest &u8, src &u8, n u64)
 
-mem_set :: fn(dest &u8, val u8, n u64) 
+mem_set :: extern fn(dest &u8, val u8, n u64)
 

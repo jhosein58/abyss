@@ -3,7 +3,7 @@ import std.path:      Path
 import std.string:    Str
 import std.sys:       fall
 
-import .hir:           hir_kind
+import .hir:           hir_kind, hir_none
 import .indexer:       index_file
 import .lexer:         lex
 import .lower:         lower_function
@@ -253,6 +253,32 @@ Engine :: struct {
         self.type_check(sym_id)
         self.validate_main(sym_id)
 
+        total := self.nexus.sym_count()
+        exports := HashMap(u32, u32).new()
+        for index in Range.new(0, total as i32) {
+            i := index as u32
+            start := self.nexus.sym_tok_start(i)
+            if start == id_none() {
+                cont
+            }
+            if self.nexus.sym_file(i) != fid and self.nexus.tokens.kind(start + 2) != Token.kw_extern {
+                cont
+            }
+            self.ensure_resolved(i)
+            node := self.nexus.get_fn_node(i)
+            if node == id_none() or not self.nexus.is_extern_fn(node) or self.nexus.hir.extra(node) == hir_none() {
+                cont
+            }
+            name := self.nexus.extern_link_name(i, node)
+            if self.nexus.interner.get(name).eq("main") {
+                self.nexus.type_error(node, "the C symbol 'main' is reserved for the program entry point")
+            }
+            if exports.get(name) != (0 as &u32) {
+                self.nexus.type_error(node, "duplicate exported C symbol")
+            }
+            exports.insert(name, i)
+        }
+        exports.destroy()
         process_mono_funcs(self)
 
         sym_id
@@ -261,6 +287,18 @@ Engine :: struct {
     compile :: fn(self &Self, B type, L type, backend &B, builder &L, arena &Arena, sym_id u32) {
         visited := HashSet(u32).new()
         lower_function(&self.nexus, backend, builder, backend.empty_value(), arena, sym_id, &visited)
+        if not backend.is_vm() {
+            for index in Range.new(0, self.nexus.sym_count() as i32) {
+                i := index as u32
+                if self.nexus.sym_tok_start(i) == id_none() {
+                    cont
+                }
+                node := self.nexus.get_fn_node(i)
+                if node != id_none() and self.nexus.is_extern_fn(node) and self.nexus.hir.extra(node) != hir_none() {
+                    lower_function(&self.nexus, backend, builder, backend.empty_value(), arena, i, &visited)
+                }
+            }
+        }
         visited.destroy()
     }
 

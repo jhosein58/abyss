@@ -335,6 +335,48 @@ test_file_and_directory_formatting :: fn(t &Test) {
     arena.destroy()
 }
 
+test_extern :: fn(t &Test) {
+    arena := Arena.new(65536)
+    source := `import core
+
+Packet::extern struct{
+tag u8
+value i64
+}
+send::extern "send_packet" fn(
+Packet,
+count i32
+&u8
+) bool
+reset::extern fn()
+Callback::fn(i32) i32
+adjust::extern fn(x i32) i32{
+x+1
+}
+`
+    expected := `import core
+
+Packet :: extern struct {
+    tag   u8
+    value i64
+}
+send :: extern "send_packet" fn(
+    Packet
+    count i32
+    &u8
+) bool
+reset :: extern fn()
+Callback :: fn(i32) i32
+adjust :: extern fn(x i32) i32 {
+    x + 1
+}
+`
+    formatted := format_source(&arena, source)
+    t.assert_str_eq(formatted, expected, "extern declarations and parameter order")
+    t.assert_str_eq(format_source(&arena, formatted), formatted, "extern formatting is idempotent")
+    arena.destroy()
+}
+
 main :: fn() {
     arena := Arena.new(65536)
     suite := Suite.new(&arena, "Fmt Code Formatter Test Suite")
@@ -347,6 +389,7 @@ main :: fn() {
     suite.add("control_flow", test_control_flow)
     suite.add("struct_init_and_tuples", test_struct_init_and_tuples)
     suite.add("advanced_syntax", test_advanced_syntax)
+    suite.add("extern", test_extern)
     suite.add("idempotency", test_idempotency)
     suite.add("file_and_directory_formatting", test_file_and_directory_formatting)
     suite.run_and_exit()

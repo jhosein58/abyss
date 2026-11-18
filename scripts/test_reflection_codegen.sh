@@ -67,7 +67,7 @@ printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[Precision]\033[0m\n" "wide
 cat > "${WORK_DIR}/balance.a" <<'ABYSS'
 import std.io: print, printf
 import std.sys: fall
-allocation_balance :: fn() u64
+allocation_balance :: extern fn() u64
 main :: fn() {
     i: u32 = 0
     while i < 1000 {

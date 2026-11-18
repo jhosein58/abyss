@@ -1,10 +1,10 @@
 import std.collections.vec: Vec
 
-print_cstr :: fn(s &u8)
-print_u32 :: fn(v u32)
-print_u64 :: fn(v u64)
-print_i32 :: fn(v i32)
-print_bool :: fn(b bool)
+print_cstr :: extern fn(s &u8)
+print_u32 :: extern fn(v u32)
+print_u64 :: extern fn(v u64)
+print_i32 :: extern fn(v i32)
+print_bool :: extern fn(b bool)
 
 println_u32 :: fn(v u32) {
     print_u32(v)

@@ -1,17 +1,22 @@
 import .op: OpCode
 
+VmExtern :: struct {
+    name      &u8
+    signature &u32
+}
+
 Chunk :: struct {
     buf          Vec(u8)
     const        Vec(u64)
-    extern_names Vec(u64)
+    externs Vec(VmExtern)
     new :: fn() Self {
-        .{ buf: Vec(u8).new(), const: Vec(u64).new(), extern_names: Vec(u64).new() }
+        .{ buf: Vec(u8).new(), const: Vec(u64).new(), externs: Vec(VmExtern).new() }
     }
 
     destroy :: fn(self &Self) {
         self.buf.destroy()
         self.const.destroy()
-        self.extern_names.destroy()
+        self.externs.destroy()
     }
 
     inst :: fn(self &Self, op OpCode) {
@@ -44,16 +49,9 @@ Chunk :: struct {
         (self.const.len as u16) - 1
     }
 
-    add_extern :: fn(self &Self, name_ptr &u8) u32 {
-        self.extern_names.push(name_ptr as u64)
-        (self.extern_names.len as u32) - 1
-    }
-
-    get_extern_name :: fn(self &Self, id u32) &u8 {
-        if (id as u64) < self.extern_names.len {
-            ret self.extern_names.get(id as u64) as &u8
-        }
-        0 as &u8
+    add_extern :: fn(self &Self, name &u8, signature &u32) u32 {
+        self.externs.push(.{ name: name, signature: signature })
+        (self.externs.len as u32) - 1
     }
 
     patch_u32 :: fn(self &Self, offset u32, val u32) {

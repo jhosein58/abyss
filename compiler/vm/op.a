@@ -39,7 +39,6 @@ OpCode :: enum u8 {
     call
     call_extern
     call_ptr
-    call_ptr_stack
     ret_val
     f64_to_f32
     f32_to_i32
@@ -56,4 +55,9 @@ OpCode :: enum u8 {
     u64_to_f64
     f64_to_i64
     cast_integer
+    ffi_callback
+    ffi_symbol
+    float_binary
+    alloc_ffi
+    copy_ffi
 }

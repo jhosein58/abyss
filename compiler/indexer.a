@@ -30,9 +30,9 @@ ParsedImportPath :: struct {
     next_tok    u32
 }
 
-get_env :: fn(name &u8) &u8
-get_arg_count :: fn() i32
-get_arg :: fn(idx i32) &u8
+get_env :: extern fn(name &u8) &u8
+get_arg_count :: extern fn() i32
+get_arg :: extern fn(idx i32) &u8
 
 index_error :: fn(db &Nexus, file_id u32, offset u32, msg &u8, detail Str) {
     pos := calc_pos(db.get_file_source(file_id), offset)

@@ -1,7 +1,7 @@
 import std.io: write as print
 
 Empty :: struct {}
-foreign :: fn(value &u16, flag bool) i32
+foreign :: extern fn(value &u16, flag bool) i32
 sample :: fn(value i32) bool { value > 0 }
 
 main :: fn() {

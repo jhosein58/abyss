@@ -1,7 +1,7 @@
 import std.collections.vec: Vec
 
-print_u32 :: fn(v u32)
-print_cstr :: fn(s &u8)
+print_u32 :: extern fn(v u32)
+print_cstr :: extern fn(s &u8)
 
 Marker0 :: struct { value u32 }
 Marker1 :: struct { value u32 }

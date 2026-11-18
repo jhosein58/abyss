@@ -535,6 +535,9 @@ TypeStorage :: struct {
         if self.kind(id) == TyKind.nominal {
             ret self.struct_is_extern(self.nominal_base(id))
         }
+        if self.kind(id) != TyKind.struct_ {
+            ret false
+        }
         (self.extra(id, 0) & 1) != 0
     }
 
