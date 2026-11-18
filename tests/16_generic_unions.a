@@ -1,9 +1,6 @@
 import std.collections.vec: Vec
 
-print_cstr :: extern fn(s &u8)
-print_u32 :: extern fn(v u32)
-print_i32 :: extern fn(v i32)
-print_bool :: extern fn(v bool)
+import std.io: write as print_cstr, write as print_u32, write as print_i32, write as print_bool
 
 Maybe :: fn(T type) type { T | bool }
 

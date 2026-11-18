@@ -427,6 +427,20 @@ VmCodeGen :: struct {
         self.chunk.inst(OpCode.pop)
     }
 
+    intrinsic_memcpy :: fn(self &Self, arena &Arena, args VmVal) VmVal {
+        self.chunk.inst(OpCode.call_extern)
+        self.chunk.emit_u16(8)
+        self.chunk.emit_u8(3)
+        VmVal.stack()
+    }
+
+    intrinsic_trap :: fn(self &Self) VmVal {
+        self.chunk.inst(OpCode.call_extern)
+        self.chunk.emit_u16(29)
+        self.chunk.emit_u8(0)
+        VmVal.stack()
+    }
+
     ensure_on_stack :: fn(self &Self, val VmVal) {
         if val.kind == VmValKind.stack {
             ret
@@ -592,6 +606,8 @@ VmCodeGen :: struct {
     }
 
     declare_function :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal) {}
+
+    declare_foreign :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal, module Str, name Str) {}
     begin_inline_scope :: fn(self &Self) {}
     end_inline_scope :: fn(self &Self) {}
 
@@ -775,84 +791,16 @@ VmCodeGen :: struct {
 
     extern_name :: fn(self &Self, name Str, ty u32) VmVal {
         ext_id: u32 = 0
-        if name.eq(Str.of("print_cstr")) or name.eq(Str.of("print")) {
-            ext_id = 1
-        } else if name.eq(Str.of("print_i32")) {
-            ext_id = 2
-        } else if name.eq(Str.of("print_u32")) {
-            ext_id = 3
-        } else if name.eq(Str.of("print_bool")) {
-            ext_id = 4
-        } else if name.eq(Str.of("print_char")) {
-            ext_id = 5
-        } else if name.eq(Str.of("malloc")) {
+        if name.eq("malloc") {
             ext_id = 6
-        } else if name.eq(Str.of("free")) {
+        } else if name.eq("free") {
             ext_id = 7
-        } else if name.eq(Str.of("mem_copy")) {
-            ext_id = 8
-        } else if name.eq(Str.of("mem_set")) {
-            ext_id = 9
-        } else if name.eq(Str.of("print_i64")) {
-            ext_id = 10
-        } else if name.eq(Str.of("print_u64")) {
-            ext_id = 11
-        } else if name.eq(Str.of("print_i8")) {
-            ext_id = 12
-        } else if name.eq(Str.of("print_i16")) {
-            ext_id = 13
-        } else if name.eq(Str.of("print_u8")) {
-            ext_id = 14
-        } else if name.eq(Str.of("print_u16")) {
-            ext_id = 15
-        } else if name.eq(Str.of("realloc")) {
+        } else if name.eq("realloc") {
             ext_id = 16
-        } else if name.eq(Str.of("print_f32")) {
-            ext_id = 17
-        } else if name.eq(Str.of("print_f64")) {
-            ext_id = 18
-        } else if name.eq(Str.of("file_open")) {
-            ext_id = 19
-        } else if name.eq(Str.of("file_close")) {
-            ext_id = 20
-        } else if name.eq(Str.of("file_seek")) {
-            ext_id = 21
-        } else if name.eq(Str.of("file_tell")) {
-            ext_id = 22
-        } else if name.eq(Str.of("file_read")) {
-            ext_id = 23
-        } else if name.eq(Str.of("file_write")) {
-            ext_id = 24
-        } else if name.eq(Str.of("get_arg_count")) {
+        } else if name.eq("abyss_process_arg_count") {
             ext_id = 25
-        } else if name.eq(Str.of("get_arg")) {
+        } else if name.eq("abyss_process_arg") {
             ext_id = 26
-        } else if name.eq(Str.of("get_env")) {
-            ext_id = 27
-        } else if name.eq(Str.of("str_len")) {
-            ext_id = 28
-        } else if name.eq(Str.of("abyss_fall")) {
-            ext_id = 29
-        } else if name.eq(Str.of("compile_and_run")) {
-            ext_id = 30
-        } else if name.eq(Str.of("print_f16")) {
-            ext_id = 31
-        } else if name.eq(Str.of("print_bytes")) {
-            ext_id = 32
-        } else if name.eq(Str.of("print_i128")) {
-            ext_id = 33
-        } else if name.eq(Str.of("print_u128")) {
-            ext_id = 34
-        } else if name.eq(Str.of("string_float64")) {
-            ext_id = 35
-        } else if name.eq("dir_open") {
-            ext_id = 36
-        } else if name.eq("dir_read") {
-            ext_id = 37
-        } else if name.eq("dir_close") {
-            ext_id = 38
-        } else if name.eq("dir_create") {
-            ext_id = 39
         } else {
             buf := self.arena.alloc(name.len + 1)
             i: u64 = 0

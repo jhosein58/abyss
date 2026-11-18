@@ -1,0 +1,20 @@
+import .posix: Directory, close_handle, dispatch_syscall, exit_process, make_directory, open_handle, read_handle, seek_handle, write_handle
+
+import .decimal: format_float
+
+getenv :: extern fn(name &u8) &u8
+errno_location :: extern "__errno_location" fn() &i32
+
+environment :: fn(name &u8) &u8 {
+    getenv(name)
+}
+
+last_error :: fn() i32 {
+    *errno_location()
+}
+
+host_call :: fn(name Str, args &u64) Maybe(u64) {
+    if name.eq("getenv") { ret Maybe(u64).some(environment(*args as &u8) as u64) }
+    if name.eq("__errno_location") { ret Maybe(u64).some(errno_location() as u64) }
+    dispatch_syscall(name, args)
+}

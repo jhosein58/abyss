@@ -9,6 +9,7 @@ import compiler.parser.parser: parse_expr
 import compiler.parser.prec:   prec
 import compiler.token:         Token
 import compiler.typer.common:  parse_builtin_type
+import compiler.typer.decl:    is_core_source
 import compiler.types:         ty_id_none
 
 import .common: add_list, add_methods_id, bind_method_owners, check_separator, ensure_type_node, finish_type_node, parse_method, parse_scoped_import, set_span, span_of_hir
@@ -300,24 +301,36 @@ parse_fn :: fn(p &Parser, min_bp u8) u32 {
     set_span(p, fn_node, span_merge(sp_start, sp_end))
 }
 
+extern_identifier :: fn(p &Parser) u32 {
+    raw := curr_text(p)
+    name := raw.sub(1, raw.len - 2)
+    if name.len == 0 or not Ascii.is_alpha(*name.ptr) {
+        parse_error_at(p, c"expected a C identifier for the external symbol", curr_span(p))
+    }
+    for index in Range.new(1, name.len as i32) {
+        if not Ascii.is_alphanumeric(*(name.ptr + index)) {
+            parse_error_at(p, c"expected a C identifier for the external symbol", curr_span(p))
+        }
+    }
+    bump(p)
+    p.db.interner.intern(name)
+}
+
 parse_extern :: fn(p &Parser, min_bp u8) u32 {
     t := Token
     start := curr_span(p)
+    if is_core_source(p.db.get_file_path(p.file_id)) {
+        parse_error_at(p, c"core modules cannot declare extern", start)
+    }
     bump(p)
     custom_sym := id_none()
+    import_module := id_none()
     if peek(p) == t.lit_str {
-        raw := curr_text(p)
-        name := raw.sub(1, raw.len - 2)
-        if name.len == 0 or not Ascii.is_alpha(*name.ptr) {
-            parse_error_at(p, c"expected a C identifier for the external symbol", curr_span(p))
+        custom_sym = extern_identifier(p)
+        if peek(p) == t.lit_str {
+            import_module = custom_sym
+            custom_sym = extern_identifier(p)
         }
-        for i in Range.new(1, name.len as i32) {
-            if not Ascii.is_alphanumeric(*(name.ptr + i)) {
-                parse_error_at(p, c"expected a C identifier for the external symbol", curr_span(p))
-            }
-        }
-        custom_sym = p.db.interner.intern(name)
-        bump(p)
         if peek(p) != t.kw_fn {
             parse_error_at(p, c"expected 'fn' after custom extern symbol", curr_span(p))
         }
@@ -327,6 +340,12 @@ parse_extern :: fn(p &Parser, min_bp u8) u32 {
             parse_error_at(p, c"external functions require a top-level binding", start)
         }
         fn_node := parse_fn(p, min_bp)
+        if import_module != id_none() {
+            if p.hir.extra(fn_node) != hir_none() {
+                parse_error_at(p, c"WebAssembly imports cannot have a function body", start)
+            }
+            p.db.extern_modules.insert(fn_node, import_module)
+        }
         p.db.set_extern_fn(fn_node, custom_sym)
         ret fn_node
     }

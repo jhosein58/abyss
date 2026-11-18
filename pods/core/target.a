@@ -1,0 +1,26 @@
+import core.target_values: target_os, target_arch, target_ptr_bits
+
+Os :: enum u8 {
+    linux
+    darwin
+    windows
+    wasi
+    freestanding
+}
+
+Arch :: enum u8 {
+    x86_64
+    aarch64
+    wasm32
+}
+
+Target :: struct {
+    os Os
+    arch Arch
+    ptr_bits u8
+}
+
+target :: cmpt {
+    profile: Target = .{ os: target_os, arch: target_arch, ptr_bits: target_ptr_bits }
+    profile
+}

@@ -1,6 +1,7 @@
 import std.allocator: Arena
 import std.convert:   Convert, conversion_error
 import std.string:    Str, String
+import std.sys:       write_console
 
 Escape :: struct {
     reset             &u8
@@ -154,11 +155,9 @@ Fmt :: struct {
     }
 
     print :: fn(self &Self) {
-        print_bytes(self.buf.ptr, self.buf.len)
+        write_console(self.buf.as_str())
     }
 }
-
-print_bytes :: extern fn(ptr &u8, len u64)
 
 format_code :: fn(pattern Str, info &TypeInfo()) Str {
     if (info.kind != TypeKind.tuple) and ((info.kind != TypeKind.struct_) or (info.field_count != 0)) {

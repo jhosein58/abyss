@@ -1,2 +1,2 @@
-print_cstr :: extern fn(s &u8)
+import std.io: write as print_cstr
 main :: fn() { print_cstr(c"a") print_cstr(c"b") }

@@ -1,0 +1,179 @@
+import .decimal: format_float
+import .types: DirectoryEntry, OpenMode
+import std.mem: free, malloc
+
+FindData :: extern struct {
+    attributes u32
+    times [6]u32
+    size_hi, size_lo u32
+    reserved [2]u32
+    name [260]u8
+    short_name [14]u8
+}
+
+CreateFileA :: extern fn(path &u8, access, share u32, security &u8, creation, flags u32, template &u8) &u8
+ReadFile :: extern fn(handle, buf &u8, count u32, received &u32, overlapped &u8) i32
+WriteFile :: extern fn(handle, buf &u8, count u32, sent &u32, overlapped &u8) i32
+CloseHandle :: extern fn(handle &u8) i32
+SetFilePointerEx :: extern fn(handle &u8, offset i64, position &i64, whence u32) i32
+GetStdHandle :: extern fn(kind u32) &u8
+FindFirstFileA :: extern fn(pattern &u8, entry &FindData) &u8
+FindNextFileA :: extern fn(handle &u8, entry &FindData) i32
+FindClose :: extern fn(handle &u8) i32
+CreateDirectoryA :: extern fn(path, security &u8) i32
+GetFileAttributesA :: extern fn(path &u8) u32
+GetEnvironmentVariableA :: extern fn(name, buffer &u8, size u32) u32
+ExitProcess :: extern fn(status u32)
+errno_location :: extern "_errno" fn() &i32
+
+last_error :: fn() i32 { *errno_location() }
+
+open_handle :: fn(path &u8, mode OpenMode) i64 {
+    access: u32 = 0
+    if mode.read { access = access | 0x80000000 }
+    if mode.write { access = access | (if mode.append { 4 } else { 0x40000000 }) }
+    disposition: u32 = if mode.truncate { 2 } else if mode.create { 4 } else { 3 }
+    CreateFileA(path, access, 7, 0 as &u8, disposition, 128, 0 as &u8) as i64
+}
+
+os_handle :: fn(handle i64) &u8 {
+    if handle >= 0 and handle <= 2 { ret GetStdHandle((-10 - handle) as u32) }
+    handle as &u8
+}
+
+read_handle :: fn(handle i64, buf &u8, count u64) i64 {
+    received: u32 = 0
+    size := if count > 0xffffffff { 0xffffffff as u32 } else { count as u32 }
+    if ReadFile(os_handle(handle), buf, size, &received, 0 as &u8) == 0 { ret -1 }
+    received as i64
+}
+
+write_handle :: fn(handle i64, buf &u8, count u64) i64 {
+    sent: u32 = 0
+    size := if count > 0xffffffff { 0xffffffff as u32 } else { count as u32 }
+    if WriteFile(os_handle(handle), buf, size, &sent, 0 as &u8) == 0 { ret -1 }
+    sent as i64
+}
+
+close_handle :: fn(handle i64) bool { CloseHandle(os_handle(handle)) != 0 }
+
+seek_handle :: fn(handle i64, offset i64, whence i32) i64 {
+    position: i64 = 0
+    if SetFilePointerEx(os_handle(handle), offset, &position, whence as u32) == 0 { ret -1 }
+    position
+}
+
+make_directory :: fn(path &u8) bool { CreateDirectoryA(path, 0 as &u8) != 0 }
+exit_process :: fn(status i32) { ExitProcess(status as u32) }
+
+Directory :: struct {
+    handle &u8
+    data &FindData
+    first bool
+
+    open :: fn(path &u8) Maybe(Self) {
+        attributes := GetFileAttributesA(path)
+        if attributes == 0xffffffff or (attributes & 16) == 0 { ret Maybe(Self).none() }
+        name := Str.of(path)
+        pattern := malloc(name.len + 3)
+        data := malloc(@sizeof(FindData)) as &FindData
+        if pattern == (0 as &u8) or data == (0 as &FindData) {
+            free(pattern)
+            free(data as &u8)
+            ret Maybe(Self).none()
+        }
+        index: u64 = 0
+        while index < name.len {
+            pattern[index] = name.ptr[index]
+            index = index + 1
+        }
+        if not name.ends_with("/") and not name.ends_with("\\") {
+            pattern[index] = '/'
+            index = index + 1
+        }
+        pattern[index] = '*'
+        pattern[index + 1] = 0
+        handle := FindFirstFileA(pattern, data)
+        free(pattern)
+        if handle == (-1 as &u8) {
+            free(data as &u8)
+            ret Maybe(Self).some(.{ handle: handle, data: 0 as &FindData, first: false })
+        }
+        Maybe(Self).some(.{ handle: handle, data: data, first: true })
+    }
+
+    next :: fn(self &Self) Maybe(DirectoryEntry) {
+        if self.data == (0 as &FindData) { ret Maybe(DirectoryEntry).none() }
+        if self.first {
+            self.first = false
+        } else if FindNextFileA(self.handle, self.data) == 0 {
+            ret Maybe(DirectoryEntry).none()
+        }
+        kind: u8 = if (self.data.attributes & 16) != 0 { 2 } else { 1 }
+        Maybe(DirectoryEntry).some(.{ name: Str.of(&self.data.name[0]), kind: kind })
+    }
+
+    close :: fn(self &Self) bool {
+        if self.data == (0 as &FindData) { ret false }
+        free(self.data as &u8)
+        self.data = 0 as &FindData
+        FindClose(self.handle) != 0
+    }
+}
+
+CachedEnv :: extern struct {
+    name_ptr &u8
+    name_len u64
+    value &u8
+    next &CachedEnv
+}
+
+abyss_process_env :: extern fn() &u8
+abyss_process_set_env :: extern fn(env &u8)
+
+environment :: fn(key &u8) &u8 {
+    if key == (0 as &u8) { ret 0 as &u8 }
+    name := Str.of(key)
+    head := abyss_process_env() as &CachedEnv
+    entry := head
+    while entry != (0 as &CachedEnv) {
+        if Str.new(entry.name_ptr, entry.name_len).eq(name) { ret entry.value }
+        entry = entry.next
+    }
+    size := GetEnvironmentVariableA(key, 0 as &u8, 0)
+    if size == 0 { ret 0 as &u8 }
+    block := malloc(@sizeof(CachedEnv) + name.len + (size as u64)) as &CachedEnv
+    if block == (0 as &CachedEnv) { ret 0 as &u8 }
+    name_copy := (block as &u8) + @sizeof(CachedEnv)
+    value := name_copy + name.len
+    for index in Range.new(0, name.len as i32) { name_copy[index] = name.ptr[index] }
+    count := GetEnvironmentVariableA(key, value, size)
+    if count >= size { free(block as &u8), ret 0 as &u8 }
+    value[count] = 0
+    block.name_ptr = name_copy
+    block.name_len = name.len
+    block.value = value
+    block.next = head
+    abyss_process_set_env(block as &u8)
+    value
+}
+
+host_call :: fn(name Str, args &u64) Maybe(u64) {
+    if name.eq("CreateFileA") { ret Maybe(u64).some(CreateFileA(args[0] as &u8, args[1] as u32, args[2] as u32, args[3] as &u8, args[4] as u32, args[5] as u32, args[6] as &u8) as u64) }
+    if name.eq("ReadFile") { ret Maybe(u64).some(ReadFile(args[0] as &u8, args[1] as &u8, args[2] as u32, args[3] as &u32, args[4] as &u8) as u64) }
+    if name.eq("WriteFile") { ret Maybe(u64).some(WriteFile(args[0] as &u8, args[1] as &u8, args[2] as u32, args[3] as &u32, args[4] as &u8) as u64) }
+    if name.eq("CloseHandle") { ret Maybe(u64).some(CloseHandle(args[0] as &u8) as u64) }
+    if name.eq("SetFilePointerEx") { ret Maybe(u64).some(SetFilePointerEx(args[0] as &u8, args[1] as i64, args[2] as &i64, args[3] as u32) as u64) }
+    if name.eq("GetStdHandle") { ret Maybe(u64).some(GetStdHandle(args[0] as u32) as u64) }
+    if name.eq("FindFirstFileA") { ret Maybe(u64).some(FindFirstFileA(args[0] as &u8, args[1] as &FindData) as u64) }
+    if name.eq("FindNextFileA") { ret Maybe(u64).some(FindNextFileA(args[0] as &u8, args[1] as &FindData) as u64) }
+    if name.eq("FindClose") { ret Maybe(u64).some(FindClose(args[0] as &u8) as u64) }
+    if name.eq("CreateDirectoryA") { ret Maybe(u64).some(CreateDirectoryA(args[0] as &u8, args[1] as &u8) as u64) }
+    if name.eq("GetFileAttributesA") { ret Maybe(u64).some(GetFileAttributesA(args[0] as &u8) as u64) }
+    if name.eq("GetEnvironmentVariableA") { ret Maybe(u64).some(GetEnvironmentVariableA(args[0] as &u8, args[1] as &u8, args[2] as u32) as u64) }
+    if name.eq("ExitProcess") { exit_process(args[0] as i32), ret Maybe(u64).some(0) }
+    if name.eq("_errno") { ret Maybe(u64).some(errno_location() as u64) }
+    if name.eq("abyss_process_env") { ret Maybe(u64).some(abyss_process_env() as u64) }
+    if name.eq("abyss_process_set_env") { abyss_process_set_env(args[0] as &u8), ret Maybe(u64).some(0) }
+    Maybe(u64).none()
+}

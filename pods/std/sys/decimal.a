@@ -1,0 +1,79 @@
+format_float :: fn(buf &u8, capacity u64, value f64) u64 {
+    input := value
+    bits := *(&input as &u64)
+    exponent := ((bits >> 52) & 0x7ff) as i32
+    mantissa := bits & (((1 as u64) << 52) - 1)
+    negative := (bits >> 63) != 0
+    start: u64 = if negative { 1 } else { 0 }
+    if exponent == 2047 {
+        if capacity <= start + 3 { ret 0 }
+        if negative { buf[0] = '-' }
+        word := if mantissa == 0 { "inf" } else { "nan" }
+        for index in Range.new(0, 3) { buf[start + index as u64] = word.ptr[index] }
+        ret start + 3
+    }
+    power: i32 = -1074
+    if exponent != 0 {
+        mantissa = mantissa | (1 as u64) << 52
+        power = exponent - 1075
+    }
+    digits: [320]u8
+    for index in Range.new(0, 7) { digits[index] = 0 }
+    count: i32 = 6
+    if power > -75 {
+        while mantissa > 0 {
+            digits[count] = (mantissa % 10) as u8
+            mantissa = mantissa / 10
+            count = count + 1
+        }
+        while power > 0 {
+            carry: u8 = 0
+            for index in Range.new(0, count) {
+                digit := digits[index] * 2 + carry
+                digits[index] = digit % 10
+                carry = digit / 10
+            }
+            if carry != 0 { digits[count] = carry, count = count + 1 }
+            power = power - 1
+        }
+        sticky := false
+        while power < 0 {
+            carry: u8 = 0
+            index := count
+            while index > 0 {
+                index = index - 1
+                digit := digits[index] + carry * 10
+                digits[index] = digit / 2
+                carry = digit % 2
+            }
+            power = power + 1
+            if power == 0 and carry != 0 and (sticky or (digits[0] % 2 != 0)) {
+                index = 0
+                while index < count and digits[index] == 9 {
+                    digits[index] = 0
+                    index = index + 1
+                }
+                if index == count {
+                    digits[index] = 1
+                    count = count + 1
+                } else {
+                    digits[index] = digits[index] + 1
+                }
+            }
+            sticky = sticky or carry != 0
+        }
+    }
+    while count > 7 and digits[count - 1] == 0 { count = count - 1 }
+    if count < 7 { count = 7 }
+    needed := start + (count as u64) + 1
+    if capacity <= needed { ret 0 }
+    if negative { buf[0] = '-' }
+    cursor := start
+    while count > 0 {
+        if count == 6 { buf[cursor] = '.', cursor = cursor + 1 }
+        count = count - 1
+        buf[cursor] = digits[count] + 48
+        cursor = cursor + 1
+    }
+    needed
+}

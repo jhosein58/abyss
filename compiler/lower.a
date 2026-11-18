@@ -289,6 +289,16 @@ lower_builtin_call :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32)
     name := db.interner.get(name_id)
     args := db.get_list(db.hir.rhs(id))
 
+    if name.eq("trap") {
+        ret ccg.intrinsic_trap()
+    }
+    if name.eq("memcpy") {
+        values := ctx.builder.new_list(arena)
+        for index in Range.new(0, 3) {
+            ctx.builder.append_list_item(&values, lower_expr(ctx, args.ptr[index]), index == 0)
+        }
+        ret ccg.intrinsic_memcpy(arena, ctx.builder.finish_list(&values))
+    }
     if name.eq("type_info") {
         if db.comptime_depth == 0 {
             reflection_error(db, id, c"@type_info is compile-time only; use cmpt or a macro")
@@ -457,6 +467,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                             ret ccg.expr_bool(true)
                         }
                         ret ccg.expr_bool(false)
+                    }
+                    if (k == TyKind.struct_ or k == TyKind.nominal) and not db.types.struct_is_extern(ty) {
+                        ret lower_const_record(ctx, id, ty, val)
                     }
                     ret ccg.expr_cast(arena, ccg.type_str(&db.types, arena, ty), ccg.expr_u64(arena, val))
                 }
@@ -731,6 +744,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             }
             val := eval_const(db, id)
             k := db.types.kind(ty)
+            if (k == TyKind.struct_ or k == TyKind.nominal) and not db.types.struct_is_extern(ty) {
+                ret lower_const_record(ctx, id, ty, val)
+            }
             if k == TyKind.bool {
                 if val != 0 {
                     ret ccg.expr_bool(true)
@@ -1523,6 +1539,34 @@ lower_for :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     empty
 }
 
+lower_const_record :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32, ty u32, value u64) V {
+    db := ctx.db
+    ccg := ctx.ccg
+    arena := ctx.arena
+    fields := db.types.get_struct_fields(ty)
+    items := ctx.builder.new_list(arena)
+    index: u64 = 0
+    while index < fields.len / 2 {
+        field := fields.ptr[index * 2]
+        field_type := fields.ptr[index * 2 + 1]
+        kind := db.types.kind(field_type)
+        bits := *((value + index * 8) as &u64)
+        item := ctx.empty
+        if kind == TyKind.bool {
+            item = ccg.expr_bool(bits != 0)
+        } else if kind == TyKind.int or kind == TyKind.uint or kind == TyKind.enum_ {
+            add_type_to_queue(db, field_type, ctx.type_queue)
+            item = ccg.expr_cast(arena, ccg.type_str(&db.types, arena, field_type), ccg.expr_u64(arena, bits))
+        } else {
+            reflection_error(db, id, c"compile-time records require integer, enum or boolean fields")
+        }
+        ctx.builder.append_list_item(&items, ccg.expr_struct_init_field(arena, field, item), index == 0)
+        index = index + 1
+    }
+    add_type_to_queue(db, ty, ctx.type_queue)
+    ccg.expr_struct_init(arena, ccg.type_str(&db.types, arena, ty), ctx.builder.finish_list(&items))
+}
+
 lower_expr :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     val_str := lower_expr_node(ctx, id)
     if not ctx.ccg.has_value(val_str) {
@@ -1549,6 +1593,9 @@ lower_function_name :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym u3
     db := ctx.db
     ccg := ctx.ccg
     if node != id_none() and db.is_extern_fn(node) and (not ccg.is_vm() or db.hir.extra(node) == hir_none()) {
+        if not ccg.is_vm() and db.extern_module(node).len > 0 {
+            ret ccg.sym_name(ctx.arena, sym)
+        }
         ret ccg.extern_name(db.interner.get(db.extern_link_name(sym, node)), ty)
     }
     ccg.sym_name(ctx.arena, sym)
@@ -1690,7 +1737,7 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
     }
     ret_str := ccg.type_str(&db.types, arena, ret_ty)
     if body_id == hir_none() {
-        ccg.declare_function(sig.fn_name, ret_str, sig.params_str)
+        ccg.declare_foreign(sig.fn_name, ret_str, sig.params_str, db.extern_module(func_id), db.interner.get(db.extern_link_name(real_sym, func_id)))
         ret
     }
     ccg.start_function(sig.fn_name, ret_str, sig.params_str)

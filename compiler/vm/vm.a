@@ -2,60 +2,9 @@ import .chunk: Chunk
 import .op:    OpCode
 import .codegen: vm_entry_tag, vm_extern_tag
 
-print_cstr :: extern fn(s &u8)
-
-print_bytes :: extern fn(s &u8, len u64)
-
-print_char :: extern fn(c u8)
-
-print_bool :: extern fn(v bool)
-
-print_i8 :: extern fn(v i8)
-
-print_i16 :: extern fn(v i16)
-
-print_i32 :: extern fn(v i32)
-
-print_i64 :: extern fn(v i64)
-
-print_u8 :: extern fn(v u8)
-
-print_u16 :: extern fn(v u16)
-
-print_u32 :: extern fn(v u32)
-
-print_u64 :: extern fn(v u64)
-
-print_f32 :: extern fn(v f32)
-
-print_f64 :: extern fn(v f64)
-
-string_float64 :: extern fn(ptr &u8, capacity u64, value f64) u64
-malloc :: extern fn(size u64) &u8
-realloc :: extern fn(ptr &u8, size u64) &u8
-free :: extern fn(ptr &u8)
-
-mem_copy :: extern fn(dest &u8, src &u8, n u64)
-
-mem_set :: extern fn(dest &u8, val u8, n u64)
-
-file_open :: extern fn(path, mode &u8) &u8
-file_close :: extern fn(handle &u8) i32
-file_seek :: extern fn(handle &u8, offset i64, w i32) i32
-file_tell :: extern fn(handle &u8) i64
-file_read :: extern fn(handle, ptr &u8, s, count u64) u64
-file_write :: extern fn(handle, ptr &u8, s, count u64) u64
-get_arg_count :: extern fn() i32
-get_arg :: extern fn(idx i32) &u8
-get_env :: extern fn(name &u8) &u8
-abyss_fall :: extern fn()
-
-compile_and_run :: extern fn(path &u8) i32
-str_len :: extern fn(s &u8) u64
-dir_open :: extern fn(path &u8) &u8
-dir_read :: extern fn(handle &u8) &u8
-dir_close :: extern fn(handle &u8) i32
-dir_create :: extern fn(path &u8) i32
+import std.env: Env
+import std.mem: free, malloc, mem_copy, realloc
+import std.sys: fall, host_call
 
 VmCallback :: fn(&&u8, &u8, u32, &u64, u32) u64
 
@@ -123,172 +72,32 @@ Vm :: struct {
     }
 
     dispatch_extern :: fn(self &Self, prog &Chunk, id u32, arg_count u8) {
-        if id == 1 {
-            s := self.stack.pop() as &u8
-            print_cstr(s)
-            self.stack.push(0)
-        } else if id == 2 {
-            v := self.stack.pop() as i32
-            print_i32(v)
-            self.stack.push(0)
-        } else if id == 3 {
-            v := self.stack.pop() as u32
-            print_u32(v)
-            self.stack.push(0)
-        } else if id == 4 {
-            v := self.stack.pop()
-            print_bool(v != 0)
-            self.stack.push(0)
-        } else if id == 5 {
-            c := self.stack.pop() as u8
-            print_char(c)
-            self.stack.push(0)
-        } else if id == 6 {
-            sz := self.stack.pop()
-            p := malloc(sz) as u64
-            self.stack.push(p)
+        if id == 6 {
+            self.stack.push(malloc(self.stack.pop()) as u64)
         } else if id == 7 {
-            p := self.stack.pop() as &u8
-            free(p)
+            free(self.stack.pop() as &u8)
             self.stack.push(0)
         } else if id == 8 {
-            n := self.stack.pop()
-            src := self.stack.pop() as &u8
-            dst := self.stack.pop() as &u8
-            mem_copy(dst, src, n)
-            self.stack.push(0)
-        } else if id == 9 {
-            n := self.stack.pop()
-            v := self.stack.pop() as u8
-            dst := self.stack.pop() as &u8
-            mem_set(dst, v, n)
-            self.stack.push(0)
-        } else if id == 10 {
-            v := self.stack.pop() as i64
-            print_i64(v)
-            self.stack.push(0)
-        } else if id == 11 {
-            v := self.stack.pop()
-            print_u64(v)
-            self.stack.push(0)
-        } else if id == 12 {
-            v := self.stack.pop() as i8
-            print_i8(v)
-            self.stack.push(0)
-        } else if id == 13 {
-            v := self.stack.pop() as i16
-            print_i16(v)
-            self.stack.push(0)
-        } else if id == 14 {
-            v := self.stack.pop() as u8
-            print_u8(v)
-            self.stack.push(0)
-        } else if id == 15 {
-            v := self.stack.pop() as u16
-            print_u16(v)
+            count := self.stack.pop()
+            source := self.stack.pop() as &u8
+            dest := self.stack.pop() as &u8
+            mem_copy(dest, source, count)
             self.stack.push(0)
         } else if id == 16 {
-            sz := self.stack.pop()
-            p := self.stack.pop() as &u8
-            res := realloc(p, sz) as u64
-            self.stack.push(res)
-        } else if id == 17 {
-            bits := self.stack.pop()
-            f_val := *(&bits as &f32)
-            print_f32(f_val)
-            self.stack.push(0)
-        } else if id == 18 {
-            bits := self.stack.pop()
-            f_val := *(&bits as &f64)
-            print_f64(f_val)
-            self.stack.push(0)
-        } else if id == 19 {
-            mode := self.stack.pop() as &u8
-            path := self.stack.pop() as &u8
-            res := file_open(path, mode) as u64
-            self.stack.push(res)
-        } else if id == 20 {
-            handle := self.stack.pop() as &u8
-            res := file_close(handle) as u64
-            self.stack.push(res)
-        } else if id == 21 {
-            w := self.stack.pop() as i32
-            offset := self.stack.pop() as i64
-            handle := self.stack.pop() as &u8
-            res := file_seek(handle, offset, w) as u64
-            self.stack.push(res)
-        } else if id == 22 {
-            handle := self.stack.pop() as &u8
-            res := file_tell(handle) as u64
-            self.stack.push(res)
-        } else if id == 23 {
-            count := self.stack.pop()
             size := self.stack.pop()
             ptr := self.stack.pop() as &u8
-            handle := self.stack.pop() as &u8
-            res := file_read(handle, ptr, size, count)
-            self.stack.push(res)
-        } else if id == 24 {
-            count := self.stack.pop()
-            size := self.stack.pop()
-            ptr := self.stack.pop() as &u8
-            handle := self.stack.pop() as &u8
-            res := file_write(handle, ptr, size, count)
-            self.stack.push(res)
+            self.stack.push(realloc(ptr, size) as u64)
         } else if id == 25 {
-            res := get_arg_count() as u64
-            self.stack.push(res)
+            self.stack.push(Env.args_len() as u64)
         } else if id == 26 {
-            idx := self.stack.pop() as i32
-            res := get_arg(idx) as u64
-            self.stack.push(res)
-        } else if id == 27 {
-            name := self.stack.pop() as &u8
-            res := get_env(name) as u64
-            self.stack.push(res)
-        } else if id == 28 {
-            s := self.stack.pop() as &u8
-            res := str_len(s)
-            self.stack.push(res)
+            self.stack.push(Env.arg(self.stack.pop() as i32) as u64)
         } else if id == 29 {
-            abyss_fall()
-            self.stack.push(0)
-        } else if id == 30 {
-            path := self.stack.pop() as &u8
-            res := compile_and_run(path) as u64
-            self.stack.push(res)
-        } else if id == 31 {
-            self.stack.pop()
-            self.stack.push(0)
-        } else if id == 32 {
-            len := self.stack.pop()
-            ptr := self.stack.pop() as &u8
-            print_bytes(ptr, len)
-            self.stack.push(0)
-        } else if id == 33 {
-            print_i64(self.stack.pop() as i64)
-            self.stack.push(0)
-        } else if id == 34 {
-            print_u64(self.stack.pop())
-            self.stack.push(0)
-        } else if id == 35 {
-            bits := self.stack.pop()
-            capacity := self.stack.pop()
-            ptr := self.stack.pop() as &u8
-            self.stack.push(string_float64(ptr, capacity, *(&bits as &f64)))
-        } else if id == 36 {
-            self.stack.push(dir_open(self.stack.pop() as &u8) as u64)
-        } else if id == 37 {
-            self.stack.push(dir_read(self.stack.pop() as &u8) as u64)
-        } else if id == 38 {
-            self.stack.push(dir_close(self.stack.pop() as &u8) as u64)
-        } else if id == 39 {
-            self.stack.push(dir_create(self.stack.pop() as &u8) as u64)
+            fall()
         } else if id >= 100 {
             foreign := prog.externs.get((id - 100) as u64)
             self.call_foreign(prog, foreign.name, 0, foreign.signature, arg_count)
         } else {
-            self.stack.push(0)
+            fall()
         }
     }
 
@@ -303,9 +112,14 @@ Vm :: struct {
         start := self.stack.len - (argc as u64)
         args := self.stack.as_slice().ptr + start
         invoke: VmCallback = invoke_vm_callback
-        result := abyss_ffi_call(self.scope(), invoke, prog as &u8, name, address, signature, args)
+        result := if name != (0 as &u8) { host_call(Str.of(name), args) } else { Maybe(u64).none() }
+        value := if result.is_some() {
+            result.unwrap()
+        } else {
+            abyss_ffi_call(self.scope(), invoke, prog as &u8, name, address, signature, args)
+        }
         self.stack.reset(start)
-        self.stack.push(result)
+        self.stack.push(value)
     }
 
     push_frame :: fn(self &Self, ip, fp, argc u32) u32 {

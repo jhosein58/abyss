@@ -23,10 +23,8 @@ import re
 import sys
 
 root = Path(sys.argv[1])
-source = Path(sys.argv[2]).read_text()
-runtime = (root / 'pods/core/runtime/prelude.c').read_text()
-assert source.startswith(runtime), 'generated C must begin with the embedded runtime'
-generated = source[len(runtime):]
+generated = Path(sys.argv[2]).read_text()
+assert 'AbyssFfiScope' not in generated, 'normal programs must not include the VM bridge'
 functions = re.findall(r'^([^\n;{}]*\bsym_\d+\([^\n]*\)) \{\n(.*?)^\}', generated, re.M | re.S)
 formats = [(signature, body) for signature, body in functions if '__FMT_STATIC_OPEN__' in body]
 assert len(formats) == 1, 'expected one specialization for the format literal'
@@ -42,7 +40,7 @@ assert 'TypeInfo' not in generated and 'FieldInfo' not in generated, 'reflection
 for path in (root / 'pods/core').rglob('*.a'):
     text = path.read_text()
     assert 'std/' not in text, f'{path} depends on std'
-    assert not re.search(r'\b(?:malloc|realloc|free|print_bytes|print_char)\b', text), f'{path} depends on allocation or I/O'
+    assert not re.search(r'\bextern\b', text), f'{path} declares a foreign symbol'
 PY
 gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -Werror=implicit-function-declaration -Werror=incompatible-pointer-types "${WORK_DIR}/out.c" -o "${WORK_DIR}/program"
 "${WORK_DIR}/program" > "${WORK_DIR}/actual.out"

@@ -1,5 +1,4 @@
-print_cstr :: extern fn(s &u8)
-print_i32 :: extern fn(v i32)
+import std.io: write as print_cstr, write as print_i32
 
 main :: fn() {
     total := 0 as i32

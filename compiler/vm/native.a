@@ -1,0 +1,384 @@
+vm_ffi_source :: fn() Str {
+    `#if !defined(__wasm__) && !defined(_WIN32)
+#include <dlfcn.h>
+#elif defined(_WIN32)
+void *GetModuleHandleA(const char *);
+void *LoadLibraryA(const char *);
+void *GetProcAddress(void *, const char *);
+#endif
+typedef uint64_t (*AbyssVmCallback)(uint8_t **, uint8_t *, uint32_t, uint64_t *, uint32_t);
+
+#if !defined(__wasm__) && !defined(ABYSS_HAS_LIBFFI) && defined(__has_include)
+#if __has_include(<ffi.h>)
+#include <ffi.h>
+#define ABYSS_HAS_LIBFFI 1
+#endif
+#endif
+#ifndef ABYSS_HAS_LIBFFI
+#define ABYSS_HAS_LIBFFI 0
+#endif
+
+typedef struct AbyssFfiAllocation {
+    struct AbyssFfiAllocation *next;
+    union {
+        uint64_t integer;
+        double floating;
+        void *pointer;
+    } alignment;
+} AbyssFfiAllocation;
+
+typedef struct {
+    AbyssFfiAllocation *allocations;
+#if ABYSS_HAS_LIBFFI
+    struct AbyssFfiSignature *signatures;
+    struct AbyssFfiClosure *closures;
+#endif
+} AbyssFfiScope;
+
+static void abyss_ffi_error(const char *message, const char *name) {
+#if defined(__wasm__)
+    (void)message;
+    (void)name;
+    __builtin_trap();
+#else
+    fprintf(stderr, "\n\033[1;31m[vm error]\033[0m %s%s%s\n", message, name ? ": " : "", name ? name : "");
+    exit(1);
+#endif
+}
+
+static AbyssFfiScope *abyss_ffi_scope(uint8_t **slot) {
+    if (!*slot) {
+        *slot = (uint8_t *)malloc(sizeof(AbyssFfiScope));
+        if (!*slot) abyss_ffi_error("foreign call allocation failed", NULL);
+        memset(*slot, 0, sizeof(AbyssFfiScope));
+    }
+    return (AbyssFfiScope *)*slot;
+}
+
+uint8_t *abyss_ffi_alloc(uint8_t **slot, uint64_t size) {
+    AbyssFfiScope *scope = abyss_ffi_scope(slot);
+    AbyssFfiAllocation *item = (AbyssFfiAllocation *)malloc(sizeof(*item) + (size_t)size);
+    if (!item) abyss_ffi_error("foreign call allocation failed", NULL);
+    item->next = scope->allocations;
+    scope->allocations = item;
+    memset(item + 1, 0, (size_t)size);
+    return (uint8_t *)(item + 1);
+}
+
+#if !defined(__wasm__)
+static void *abyss_ffi_symbol(const char *name) {
+#if defined(_WIN32)
+    void *module = GetModuleHandleA(NULL);
+    void *symbol = GetProcAddress(module, name);
+    if (!symbol) {
+        module = GetModuleHandleA("msvcrt.dll");
+        if (module) symbol = GetProcAddress(module, name);
+    }
+    return (void *)symbol;
+#else
+    return dlsym(RTLD_DEFAULT, name);
+#endif
+}
+#endif
+
+uint64_t abyss_ffi_symbol_address(uint8_t *name) {
+#if !defined(__wasm__)
+    void *symbol = abyss_ffi_symbol((const char *)name);
+    if (symbol) return (uintptr_t)symbol;
+#endif
+    abyss_ffi_error("undefined external symbol", (const char *)name);
+    return 0;
+}
+
+#if ABYSS_HAS_LIBFFI
+
+enum {
+    ABYSS_FFI_VOID, ABYSS_FFI_I8, ABYSS_FFI_U8, ABYSS_FFI_I16, ABYSS_FFI_U16,
+    ABYSS_FFI_I32, ABYSS_FFI_U32, ABYSS_FFI_I64, ABYSS_FFI_U64, ABYSS_FFI_F32,
+    ABYSS_FFI_F64, ABYSS_FFI_POINTER, ABYSS_FFI_RECORD, ABYSS_FFI_CALLBACK
+};
+
+typedef struct AbyssFfiSignature {
+    struct AbyssFfiSignature *next;
+    const uint32_t *key;
+    const uint32_t *result;
+    const uint32_t **params;
+    ffi_cif cif;
+} AbyssFfiSignature;
+
+typedef struct AbyssFfiClosure {
+    struct AbyssFfiClosure *next;
+    AbyssFfiSignature *signature;
+    ffi_closure *closure;
+    void *code;
+    uint8_t **scope;
+    uint8_t *chunk;
+    AbyssVmCallback invoke;
+    uint32_t entry;
+} AbyssFfiClosure;
+
+static struct {
+    ffi_status (*prep_cif)(ffi_cif *, ffi_abi, unsigned, ffi_type *, ffi_type **);
+    void (*call)(ffi_cif *, void (*)(void), void *, void **);
+    void *(*closure_alloc)(size_t, void **);
+    void (*closure_free)(void *);
+    ffi_status (*prep_closure)(ffi_closure *, ffi_cif *, void (*)(ffi_cif *, void *, void **, void *), void *, void *);
+    ffi_type *types[ABYSS_FFI_POINTER + 1];
+} abyss_libffi;
+
+static void *abyss_ffi_library(void) {
+#if defined(_WIN32)
+    const char *names[] = {"libffi-8.dll", "libffi.dll"};
+#elif defined(__APPLE__)
+    const char *names[] = {"libffi.dylib", "/usr/lib/libffi.dylib"};
+#else
+    const char *names[] = {"libffi.so.8", "libffi.so.7", "libffi.so.6", "libffi.so"};
+#endif
+    for (size_t i = 0; i < sizeof(names) / sizeof(*names); ++i) {
+#if defined(_WIN32)
+        void *handle = (void *)LoadLibraryA(names[i]);
+#else
+        void *handle = dlopen(names[i], RTLD_LOCAL | RTLD_NOW);
+#endif
+        if (handle) return handle;
+    }
+    abyss_ffi_error("VM foreign calls require libffi", NULL);
+    return NULL;
+}
+
+static void *abyss_ffi_load(void *handle, const char *name) {
+#if defined(_WIN32)
+    void *symbol = (void *)GetProcAddress(handle, name);
+#else
+    void *symbol = dlsym(handle, name);
+#endif
+    if (!symbol) abyss_ffi_error("missing libffi symbol", name);
+    return symbol;
+}
+
+static void abyss_ffi_init(void) {
+    if (abyss_libffi.call) return;
+    void *handle = abyss_ffi_library();
+    const char *types[] = {"void", "sint8", "uint8", "sint16", "uint16", "sint32", "uint32",
+        "sint64", "uint64", "float", "double", "pointer"};
+    for (size_t i = 0; i < sizeof(types) / sizeof(*types); ++i) {
+        char name[32];
+        snprintf(name, sizeof(name), "ffi_type_%s", types[i]);
+        abyss_libffi.types[i] = (ffi_type *)abyss_ffi_load(handle, name);
+    }
+    abyss_libffi.prep_cif = (ffi_status (*)(ffi_cif *, ffi_abi, unsigned, ffi_type *, ffi_type **))abyss_ffi_load(handle, "ffi_prep_cif");
+    abyss_libffi.closure_alloc = (void *(*)(size_t, void **))abyss_ffi_load(handle, "ffi_closure_alloc");
+    abyss_libffi.closure_free = (void (*)(void *))abyss_ffi_load(handle, "ffi_closure_free");
+    abyss_libffi.prep_closure = (ffi_status (*)(ffi_closure *, ffi_cif *, void (*)(ffi_cif *, void *, void **, void *), void *, void *))abyss_ffi_load(handle, "ffi_prep_closure_loc");
+    abyss_libffi.call = (void (*)(ffi_cif *, void (*)(void), void *, void **))abyss_ffi_load(handle, "ffi_call");
+}
+
+static void abyss_ffi_skip(const uint32_t **cursor) {
+    uint32_t kind = *(*cursor)++;
+    if (kind == ABYSS_FFI_RECORD || kind == ABYSS_FFI_CALLBACK) {
+        uint32_t count = *(*cursor)++ + (kind == ABYSS_FFI_CALLBACK);
+        for (uint32_t i = 0; i < count; ++i) abyss_ffi_skip(cursor);
+    }
+}
+
+static ffi_type *abyss_ffi_type(uint8_t **scope, const uint32_t **cursor) {
+    uint32_t kind = **cursor;
+    if (kind <= ABYSS_FFI_POINTER) {
+        ++*cursor;
+        return abyss_libffi.types[kind];
+    }
+    if (kind == ABYSS_FFI_CALLBACK) {
+        abyss_ffi_skip(cursor);
+        return abyss_libffi.types[ABYSS_FFI_POINTER];
+    }
+    if (kind == ABYSS_FFI_RECORD) {
+        ++*cursor;
+        uint32_t count = *(*cursor)++;
+        ffi_type *type = (ffi_type *)abyss_ffi_alloc(scope, sizeof(*type));
+        type->type = FFI_TYPE_STRUCT;
+        type->elements = (ffi_type **)abyss_ffi_alloc(scope, (count + 1) * sizeof(*type->elements));
+        for (uint32_t i = 0; i < count; ++i) type->elements[i] = abyss_ffi_type(scope, cursor);
+        return type;
+    }
+    abyss_ffi_error("unsupported C ABI type in VM foreign call", NULL);
+    return NULL;
+}
+
+static AbyssFfiSignature *abyss_ffi_signature(uint8_t **slot, const uint32_t *key) {
+    if (!key) abyss_ffi_error("foreign call has no function signature", NULL);
+    abyss_ffi_init();
+    AbyssFfiScope *scope = abyss_ffi_scope(slot);
+    for (AbyssFfiSignature *sig = scope->signatures; sig; sig = sig->next)
+        if (sig->key == key) return sig;
+    AbyssFfiSignature *sig = (AbyssFfiSignature *)abyss_ffi_alloc(slot, sizeof(*sig));
+    const uint32_t *cursor = key;
+    uint32_t count = *cursor++;
+    if (count > UINT8_MAX) abyss_ffi_error("too many VM foreign call parameters", NULL);
+    sig->key = key;
+    sig->result = cursor;
+    ffi_type *result = abyss_ffi_type(slot, &cursor);
+    sig->params = (const uint32_t **)abyss_ffi_alloc(slot, count * sizeof(*sig->params));
+    ffi_type **params = (ffi_type **)abyss_ffi_alloc(slot, count * sizeof(*params));
+    for (uint32_t i = 0; i < count; ++i) {
+        sig->params[i] = cursor;
+        params[i] = abyss_ffi_type(slot, &cursor);
+    }
+    if (abyss_libffi.prep_cif(&sig->cif, FFI_DEFAULT_ABI, count, result, params) != FFI_OK)
+        abyss_ffi_error("invalid C ABI signature", NULL);
+    sig->next = scope->signatures;
+    scope->signatures = sig;
+    return sig;
+}
+
+uint64_t abyss_ffi_callback(uint8_t **slot, AbyssVmCallback invoke, uint8_t *chunk, uint32_t entry, uint32_t *key);
+
+static uint64_t abyss_ffi_read(uint8_t **slot, uint32_t kind, const void *data, size_t size) {
+    uint64_t value = 0;
+    switch (kind) {
+        case ABYSS_FFI_VOID: return 0;
+        case ABYSS_FFI_I8: return (uint64_t)*(const int8_t *)data;
+        case ABYSS_FFI_I16: return (uint64_t)*(const int16_t *)data;
+        case ABYSS_FFI_I32: return (uint64_t)*(const int32_t *)data;
+        case ABYSS_FFI_U8: return *(const uint8_t *)data;
+        case ABYSS_FFI_U16: return *(const uint16_t *)data;
+        case ABYSS_FFI_U32: return *(const uint32_t *)data;
+        case ABYSS_FFI_F32: {
+            uint32_t bits;
+            memcpy(&bits, data, sizeof(bits));
+            return bits;
+        }
+        case ABYSS_FFI_POINTER:
+        case ABYSS_FFI_CALLBACK: return (uintptr_t)*(void *const *)data;
+        case ABYSS_FFI_RECORD: {
+            void *copy = abyss_ffi_alloc(slot, size);
+            memcpy(copy, data, size);
+            return (uintptr_t)copy;
+        }
+        default: memcpy(&value, data, sizeof(value)); return value;
+    }
+}
+
+static void abyss_ffi_write(uint8_t **slot, AbyssVmCallback invoke, uint8_t *chunk, const uint32_t *type, void *out, uint64_t value, size_t size) {
+    switch (*type) {
+        case ABYSS_FFI_VOID: return;
+        case ABYSS_FFI_I8:
+        case ABYSS_FFI_U8: *(uint8_t *)out = (uint8_t)value; return;
+        case ABYSS_FFI_I16:
+        case ABYSS_FFI_U16: *(uint16_t *)out = (uint16_t)value; return;
+        case ABYSS_FFI_I32:
+        case ABYSS_FFI_U32:
+        case ABYSS_FFI_F32: {
+            uint32_t bits = (uint32_t)value;
+            memcpy(out, &bits, sizeof(bits));
+            return;
+        }
+        case ABYSS_FFI_CALLBACK:
+            if (value >> 63) value = abyss_ffi_callback(slot, invoke, chunk, (uint32_t)value, (uint32_t *)(type + 1));
+            if (value >> 62) abyss_ffi_error("foreign function value is not a native callback", NULL);
+            *(void **)out = (void *)(uintptr_t)value;
+            return;
+        case ABYSS_FFI_POINTER: *(void **)out = (void *)(uintptr_t)value; return;
+        case ABYSS_FFI_RECORD: memcpy(out, (void *)(uintptr_t)value, size); return;
+        default: memcpy(out, &value, sizeof(value)); return;
+    }
+}
+
+static void abyss_ffi_invoke(ffi_cif *cif, void *out, void **args, void *data) {
+    AbyssFfiClosure *closure = (AbyssFfiClosure *)data;
+    uint64_t values[256];
+    for (unsigned i = 0; i < cif->nargs; ++i)
+        values[i] = abyss_ffi_read(closure->scope, *closure->signature->params[i], args[i], cif->arg_types[i]->size);
+    uint64_t result = closure->invoke(closure->scope, closure->chunk, closure->entry, values, cif->nargs);
+    uint32_t kind = *closure->signature->result;
+    if (kind >= ABYSS_FFI_I8 && kind <= ABYSS_FFI_U32)
+        *(ffi_arg *)out = (ffi_arg)result;
+    else
+        abyss_ffi_write(closure->scope, closure->invoke, closure->chunk, closure->signature->result, out, result, cif->rtype->size);
+}
+
+uint64_t abyss_ffi_callback(uint8_t **slot, AbyssVmCallback invoke, uint8_t *chunk, uint32_t entry, uint32_t *key) {
+    AbyssFfiSignature *sig = abyss_ffi_signature(slot, key);
+    AbyssFfiScope *scope = abyss_ffi_scope(slot);
+    for (AbyssFfiClosure *item = scope->closures; item; item = item->next)
+        if (item->chunk == chunk && item->entry == entry && item->signature == sig) return (uintptr_t)item->code;
+    AbyssFfiClosure *item = (AbyssFfiClosure *)abyss_ffi_alloc(slot, sizeof(*item));
+    item->signature = sig;
+    item->scope = slot;
+    item->chunk = chunk;
+    item->invoke = invoke;
+    item->entry = entry;
+    item->closure = (ffi_closure *)abyss_libffi.closure_alloc(sizeof(ffi_closure), &item->code);
+    if (!item->closure || abyss_libffi.prep_closure(item->closure, &sig->cif, abyss_ffi_invoke, item, item->code) != FFI_OK)
+        abyss_ffi_error("could not create a VM callback", NULL);
+    item->next = scope->closures;
+    scope->closures = item;
+    return (uintptr_t)item->code;
+}
+#else
+uint64_t abyss_ffi_callback(uint8_t **slot, AbyssVmCallback invoke, uint8_t *chunk, uint32_t entry, uint32_t *key) {
+    (void)slot; (void)invoke; (void)chunk; (void)entry; (void)key;
+    abyss_ffi_error("VM native callbacks require libffi", NULL);
+    return 0;
+}
+#endif
+
+uint64_t abyss_ffi_call(uint8_t **slot, AbyssVmCallback invoke, uint8_t *chunk, uint8_t *name, uint64_t address, uint32_t *key, uint64_t *args) {
+#if !defined(__wasm__)
+    if (name) address = abyss_ffi_symbol_address(name);
+    if (!address) abyss_ffi_error("null foreign function pointer", NULL);
+#endif
+#if !defined(__wasm__) && !ABYSS_HAS_LIBFFI
+    if (name && key && key[0] == 1 && key[1] == 5 && key[2] == 11 &&
+        (strcmp((const char *)name, "puts") == 0 || strcmp((const char *)name, "remove") == 0)) {
+        return (uint64_t)((int (*)(const char *))(uintptr_t)address)((const char *)(uintptr_t)args[0]);
+    }
+#endif
+#if ABYSS_HAS_LIBFFI
+    AbyssFfiSignature *sig = abyss_ffi_signature(slot, key);
+    ffi_cif *cif = &sig->cif;
+    uint64_t slots[256];
+    void *values[256];
+    for (unsigned i = 0; i < cif->nargs; ++i) {
+        if (*sig->params[i] == ABYSS_FFI_RECORD) {
+            values[i] = (void *)(uintptr_t)args[i];
+        } else {
+            values[i] = &slots[i];
+            abyss_ffi_write(slot, invoke, chunk, sig->params[i], values[i], args[i], cif->arg_types[i]->size);
+        }
+    }
+    uint32_t kind = *sig->result;
+    uint64_t scalar = 0;
+    void *result = kind == ABYSS_FFI_RECORD ? (void *)abyss_ffi_alloc(slot, cif->rtype->size) : (void *)&scalar;
+    abyss_libffi.call(cif, (void (*)(void))(uintptr_t)address, result, values);
+    if (kind == ABYSS_FFI_RECORD) return (uintptr_t)result;
+    if (kind >= ABYSS_FFI_I8 && kind <= ABYSS_FFI_U32) {
+        ffi_arg bits = *(ffi_arg *)result;
+        if (kind == ABYSS_FFI_I8) return (uint64_t)(int8_t)bits;
+        if (kind == ABYSS_FFI_I16) return (uint64_t)(int16_t)bits;
+        if (kind == ABYSS_FFI_I32) return (uint64_t)(int32_t)bits;
+        return (uint64_t)bits;
+    }
+    return abyss_ffi_read(slot, kind, result, cif->rtype->size);
+#else
+    (void)slot; (void)invoke; (void)chunk; (void)name; (void)address; (void)key; (void)args;
+    abyss_ffi_error("VM foreign calls require libffi", NULL);
+    return 0;
+#endif
+}
+
+void abyss_ffi_destroy(uint8_t *ptr) {
+    if (!ptr) return;
+    AbyssFfiScope *scope = (AbyssFfiScope *)ptr;
+#if ABYSS_HAS_LIBFFI
+    for (AbyssFfiClosure *item = scope->closures; item; item = item->next)
+        abyss_libffi.closure_free(item->closure);
+#endif
+    while (scope->allocations) {
+        AbyssFfiAllocation *item = scope->allocations;
+        scope->allocations = item->next;
+        free(item);
+    }
+    free(scope);
+}
+`
+}

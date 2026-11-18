@@ -1,0 +1,29 @@
+OpenMode :: struct {
+    read bool
+    write bool
+    create bool
+    truncate bool
+    append bool
+
+    parse :: fn(mode &u8) Maybe(Self) {
+        if mode == (0 as &u8) { ret Maybe(Self).none() }
+        base := *mode
+        if base != 'r' and base != 'w' and base != 'a' { ret Maybe(Self).none() }
+        update := false
+        suffix := mode + 1
+        while *suffix != 0 {
+            if *suffix == '+' and not update {
+                update = true
+            } else if *suffix != 'b' {
+                ret Maybe(Self).none()
+            }
+            suffix = suffix + 1
+        }
+        Maybe(Self).some(.{ read: base == 'r' or update, write: base != 'r' or update, create: base != 'r', truncate: base == 'w', append: base == 'a' })
+    }
+}
+
+DirectoryEntry :: struct {
+    name Str
+    kind u8
+}

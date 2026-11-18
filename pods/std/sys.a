@@ -1,5 +1,26 @@
-abyss_fall :: extern fn()
+import std.sys.sys: Directory, close_handle, environment, exit_process, format_float, host_call, last_error, make_directory, open_handle, read_handle, seek_handle, write_handle
+import std.sys.types: OpenMode
+
+STDIN :: 0
+STDOUT :: 1
+STDERR :: 2
+
+write_all :: fn(handle i64, buf &u8, count u64) u64 {
+    done: u64 = 0
+    while done < count {
+        result := write_handle(handle, buf + done, count - done)
+        if result <= 0 { break }
+        done = done + (result as u64)
+    }
+    done
+}
+
+write_console :: fn(text Str) {
+    write_all(STDOUT, text.ptr, text.len)
+}
 
 fall :: fn() {
-    abyss_fall()
+    message := Str.of("\n\x1b[1;35m[fall]\x1b[0m unfathomable.\n\n")
+    write_all(STDERR, message.ptr, message.len)
+    exit_process(1)
 }

@@ -25,7 +25,7 @@ cp -r "${ROOT_DIR}/pods" "${WORK_DIR}/pods"
 cp "${ROOT_DIR}/tests/23_embedded_core.a" "${WORK_DIR}/main.a"
 (
     cd "${WORK_DIR}"
-    env -u ABYSS_SRC -u ABYSS_OUT ABYSS_PRELUDE=/nonexistent/prelude.c timeout 30s ./abyssc
+    env -u ABYSS_SRC -u ABYSS_OUT timeout 30s ./abyssc
     "${C_COMPILER}" ${C_FLAGS} out.c -o program
     timeout 5s ./program > actual.out
     diff -u "${ROOT_DIR}/tests/23_embedded_core.out" actual.out
@@ -40,10 +40,9 @@ cp "${ROOT_DIR}/tests/23_embedded_core.a" "${WORK_DIR}/main.a"
         diff -u "${TEST_FILE%.a}.out" relocated.out
     done
     cp "${ROOT_DIR}/tests/23_embedded_core.a" main.a
-    mkdir -p std/collections core runtime
+    mkdir -p std/collections core
     printf 'this is invalid Abyss\n' > std/collections/vec.a
     printf 'this is invalid Abyss\n' > core/prelude.a
-    printf 'this is invalid C\n' > runtime/prelude.c
     timeout 30s ./abyssc main.a shadow.c
     cmp out.c shadow.c
     printf 'import std.missing: Missing\nmain :: fn() {}\n' > missing.a

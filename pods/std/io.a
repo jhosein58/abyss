@@ -1,13 +1,15 @@
 import std.allocator: Arena
 import std.fmt:       fmt
 import std.string:    String
-
-print_bytes :: extern fn(ptr &u8, len u64)
-
-print_char :: extern fn(value u8)
+import std.sys:       write_console
 
 write_str :: fn(value Str) {
-    print_bytes(value.ptr, value.len)
+    write_console(value)
+}
+
+write_byte :: fn(value u8) {
+    byte := value
+    write_str(Str.new(&byte, 1))
 }
 
 print_body :: fn(newline bool) Str {
@@ -17,7 +19,7 @@ print_body :: fn(newline bool) Str {
             text := fmt(&arena, "{}", .{value})
             write_str(text.as_str())
             arena.destroy()
-            print_char('\n')
+            write_byte('\n')
         }`
     }
     `{

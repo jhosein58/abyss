@@ -245,13 +245,25 @@ Engine :: struct {
             print("\n[type error] main must be a defined function with no arguments")
             fall()
         }
+        result := types.func_return(ty)
+        if types.kind(result) != TyKind.unit and result != types.alloc_int(32) {
+            print("\n[type error] main must return i32 or no value")
+            fall()
+        }
     }
 
     build_main :: fn(self &Self, fid u32) u32 {
-        sym_id := self.get_symbol_id(fid, Str.of("main"))
-        self.parse(sym_id)
-        self.type_check(sym_id)
-        self.validate_main(sym_id)
+        self.build_entry(fid, true)
+    }
+
+    build_entry :: fn(self &Self, fid u32, executable bool) u32 {
+        sym_id := id_none()
+        if executable {
+            sym_id = self.get_symbol_id(fid, Str.of("main"))
+            self.parse(sym_id)
+            self.type_check(sym_id)
+            self.validate_main(sym_id)
+        }
 
         total := self.nexus.sym_count()
         exports := HashMap(u32, u32).new()
@@ -270,7 +282,7 @@ Engine :: struct {
                 cont
             }
             name := self.nexus.extern_link_name(i, node)
-            if self.nexus.interner.get(name).eq("main") {
+            if executable and self.nexus.interner.get(name).eq("main") {
                 self.nexus.type_error(node, "the C symbol 'main' is reserved for the program entry point")
             }
             if exports.get(name) != (0 as &u32) {

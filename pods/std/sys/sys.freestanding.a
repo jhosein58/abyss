@@ -1,0 +1,19 @@
+import .types: DirectoryEntry, OpenMode
+import .decimal: format_float
+
+open_handle :: fn(path &u8, mode OpenMode) i64 { -1 }
+read_handle :: fn(handle i64, buf &u8, len u64) i64 { -1 }
+write_handle :: fn(handle i64, buf &u8, len u64) i64 { -1 }
+close_handle :: fn(handle i64) bool { false }
+seek_handle :: fn(handle i64, offset i64, whence i32) i64 { -1 }
+make_directory :: fn(path &u8) bool { false }
+environment :: fn(name &u8) &u8 { 0 as &u8 }
+last_error :: fn() i32 { 0 }
+exit_process :: fn(status i32) { @trap() }
+host_call :: fn(name Str, args &u64) Maybe(u64) { Maybe(u64).none() }
+
+Directory :: struct {
+    open :: fn(path &u8) Maybe(Self) { Maybe(Self).none() }
+    next :: fn(self &Self) Maybe(DirectoryEntry) { Maybe(DirectoryEntry).none() }
+    close :: fn(self &Self) bool { false }
+}

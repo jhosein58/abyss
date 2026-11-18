@@ -1,8 +1,7 @@
 import std.io: write as print
 import std.collections.vec: Vec
 
-print_i32 :: extern fn(v i32)
-print_u64 :: extern fn(v u64)
+import std.io: write as print_i32, write as print_u64
 
 Color :: enum { red, green, blue }
 

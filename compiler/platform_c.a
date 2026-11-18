@@ -1,0 +1,156 @@
+import core.target: Os
+
+c_header :: fn(os Os) Str {
+    if os == Os.wasi or os == Os.freestanding {
+        ret `#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+`
+    }
+    `#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#ifdef __TINYC__
+#define __int128 long long
+typedef uint16_t _Float16;
+#endif
+`
+}
+
+process_source :: fn() Str {
+    `static int abyss_process_argc;
+static uint8_t **abyss_process_argv;
+void abyss_process_set_args(int argc, uint8_t **argv) {
+    abyss_process_argc = argc;
+    abyss_process_argv = argv;
+}
+int32_t abyss_process_arg_count(void) { return abyss_process_argc; }
+uint8_t *abyss_process_arg(int32_t index) {
+    return index >= 0 && index < abyss_process_argc ? abyss_process_argv[index] : 0;
+}
+uint8_t **abyss_process_args(void) { return abyss_process_argv; }
+static uint8_t *abyss_process_env_data;
+static int32_t abyss_process_last_error;
+uint8_t *abyss_process_env(void) { return abyss_process_env_data; }
+void abyss_process_set_env(uint8_t *data) { abyss_process_env_data = data; }
+int32_t abyss_process_error(void) { return abyss_process_last_error; }
+void abyss_process_set_error(int32_t error) { abyss_process_last_error = error; }
+`
+}
+
+wasi_memory :: fn() Str {
+    `void *memcpy(void *dest, const void *src, size_t size) {
+    uint8_t *out = dest;
+    const uint8_t *in = src;
+    for (size_t index = 0; index < size; ++index) out[index] = in[index];
+    return dest;
+}
+void *memset(void *dest, int value, size_t size) {
+    uint8_t *out = dest;
+    for (size_t index = 0; index < size; ++index) out[index] = (uint8_t)value;
+    return dest;
+}
+void *memmove(void *dest, const void *src, size_t size) {
+    uint8_t *out = dest;
+    const uint8_t *in = src;
+    if ((uintptr_t)out <= (uintptr_t)in) return memcpy(dest, src, size);
+    while (size) { --size; out[size] = in[size]; }
+    return dest;
+}
+extern uint8_t __heap_base;
+typedef struct AbyssHeapBlock {
+    size_t size;
+    struct AbyssHeapBlock *next;
+} AbyssHeapBlock;
+static AbyssHeapBlock *abyss_heap_free;
+static uintptr_t abyss_heap_end;
+void *malloc(size_t size) {
+    const size_t header = 16;
+    if (size > SIZE_MAX - 31) return 0;
+    size = (size + 15) & ~(size_t)15;
+    if (!size) size = 16;
+    AbyssHeapBlock **link = &abyss_heap_free;
+    while (*link && (*link)->size < size) link = &(*link)->next;
+    AbyssHeapBlock *block = *link;
+    if (block) {
+        if (block->size >= size + header + 16) {
+            AbyssHeapBlock *rest = (void *)((uintptr_t)block + header + size);
+            rest->size = block->size - size - header;
+            rest->next = block->next;
+            *link = rest;
+            block->size = size;
+        } else {
+            *link = block->next;
+        }
+    } else {
+        if (!abyss_heap_end) abyss_heap_end = ((uintptr_t)&__heap_base + 15) & ~(uintptr_t)15;
+        if (abyss_heap_end > UINTPTR_MAX - header - size) return 0;
+        uintptr_t end = abyss_heap_end + header + size;
+        size_t pages = ((end - 1) >> 16) + 1;
+        size_t present = __builtin_wasm_memory_size(0);
+        if (pages > present && __builtin_wasm_memory_grow(0, pages - present) == (size_t)-1) return 0;
+        block = (void *)abyss_heap_end;
+        block->size = size;
+        abyss_heap_end = end;
+    }
+    return (void *)((uintptr_t)block + header);
+}
+void free(void *ptr) {
+    if (!ptr) return;
+    const size_t header = 16;
+    AbyssHeapBlock *block = (void *)((uintptr_t)ptr - header);
+    AbyssHeapBlock **link = &abyss_heap_free;
+    AbyssHeapBlock *prev = 0;
+    while (*link && (uintptr_t)*link < (uintptr_t)block) { prev = *link; link = &prev->next; }
+    block->next = *link;
+    *link = block;
+    if (block->next && (uintptr_t)block + header + block->size == (uintptr_t)block->next) {
+        block->size += header + block->next->size;
+        block->next = block->next->next;
+    }
+    if (prev && (uintptr_t)prev + header + prev->size == (uintptr_t)block) {
+        prev->size += header + block->size;
+        prev->next = block->next;
+    }
+}
+void *realloc(void *ptr, size_t size) {
+    if (!ptr) return malloc(size);
+    if (!size) { free(ptr); return 0; }
+    size_t old = ((AbyssHeapBlock *)((uintptr_t)ptr - 16))->size;
+    if (size <= old) return ptr;
+    void *res = malloc(size);
+    if (res) { memcpy(res, ptr, old); free(ptr); }
+    return res;
+}
+`
+}
+
+host_source :: fn() Str {
+    `uint8_t abyss_host_os(void) {
+#if defined(__wasi__)
+    return 3;
+#elif defined(_WIN32)
+    return 2;
+#elif defined(__APPLE__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+uint8_t abyss_host_arch(void) {
+#if defined(__wasm32__)
+    return 2;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return 1;
+#else
+    return 0;
+#endif
+}
+`
+}

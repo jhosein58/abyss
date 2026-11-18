@@ -10,7 +10,7 @@ import compiler.nexus.pool: id_none
 import compiler.typer.reflection: synth_reflection_builtin
 import compiler.typer.specialize: resolve_ty_id
 import compiler.typer.tyck: synth_node
-import compiler.types: TyKind, TypeStorage, ty_id_bool, ty_id_error, ty_id_none, ty_id_type, ty_id_untyped_float, ty_id_untyped_int
+import compiler.types: TyKind, TypeStorage, ty_id_bool, ty_id_error, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_float, ty_id_untyped_int
 import compiler.unify: slot_none
 
 import .common: check_bool_operand, check_value
@@ -424,6 +424,20 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
     args := db.get_list(args_list_id)
 
     if synth_reflection_builtin(eng, id, name, args) {
+        ret
+    }
+    if name.eq("trap") {
+        if args.len != 0 { db.type_error(id, "@trap expects no arguments") }
+        db.bind_type(slot, ty_id_unit())
+        ret
+    }
+    if name.eq("memcpy") {
+        if args.len != 3 { db.type_error(id, "@memcpy expects destination, source and byte count") }
+        bytes := db.types.alloc_ptr(db.types.alloc_uint(8))
+        check_value(db, args.ptr[0], bytes)
+        check_value(db, args.ptr[1], bytes)
+        check_value(db, args.ptr[2], db.types.alloc_uint(64))
+        db.bind_type(slot, ty_id_unit())
         ret
     }
     if name.eq(Str.of("sizeof")) {

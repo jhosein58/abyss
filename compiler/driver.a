@@ -1,13 +1,16 @@
+import core.target: Arch, Os
 import std.allocator: Arena
 import std.env:       Env
-import std.fs:        File, read_file, write_file
-import std.path:      Path
+import std.fs:        read_file, write_file
 import std.string:    Str
+import std.sys:       exit_process, fall
 
 import compiler.codegen:    CCodeBuilder, CCodeGen, CCodeGen_destroy, CCodeGen_finish, CCodeGen_new
 import compiler.engine:     Engine
+import compiler.platform:   host_arch, host_os, parse_arch, parse_os
 import compiler.vm.codegen: VmCodeBuilder, VmCodeGen
 import compiler.vm.vm:      Vm
+import compiler.types:      TyKind
 
 CompilerConfig :: struct {
     src_path    &u8
@@ -16,6 +19,10 @@ CompilerConfig :: struct {
     import_dirs Vec(Str)
     map_keys    Vec(Str)
     map_values  Vec(Str)
+    target_os   Os
+    target_arch Arch
+    is_library  bool
+    source_index i32
     from_env :: fn() Self {
         argc := Env.args_len()
         src := Env.get_or(c"ABYSS_SRC", c"main.a")
@@ -24,8 +31,12 @@ CompilerConfig :: struct {
         import_dirs := Vec(Str).new()
         map_keys := Vec(Str).new()
         map_values := Vec(Str).new()
+        target_os := host_os()
+        arch := Maybe(Arch).none()
+        library := false
 
         pos_idx: i32 = 0
+        source_index: i32 = 0
         i: i32 = 1
         while i < argc {
             arg_cstr := Env.arg(i)
@@ -34,6 +45,26 @@ CompilerConfig :: struct {
                 vm_run = true
             } else if arg_str.eq("b") or arg_str.eq("build") {
                 vm_run = false
+            } else if arg_str.eq("--version") {
+                print("abyssc target-aware")
+                exit_process(0)
+            } else if arg_str.eq("--target") {
+                i = i + 1
+                os := parse_os(Str.of(Env.arg(i)))
+                if os.is_none() {
+                    print("--target expects linux, windows, darwin, wasi, or freestanding")
+                    fall()
+                }
+                target_os = os.unwrap()
+            } else if arg_str.eq("--arch") {
+                i = i + 1
+                arch = parse_arch(Str.of(Env.arg(i)))
+                if arch.is_none() {
+                    print("--arch expects x86_64, aarch64, or wasm32")
+                    fall()
+                }
+            } else if arg_str.eq("--library") {
+                library = true
             } else if arg_str.eq("-I") {
                 if (i + 1) < argc {
                     i = i + 1
@@ -62,6 +93,7 @@ CompilerConfig :: struct {
             } else {
                 if pos_idx == 0 {
                     src = arg_cstr
+                    source_index = i
                     pos_idx = 1
                 } else if pos_idx == 1 {
                     out = arg_cstr
@@ -71,7 +103,22 @@ CompilerConfig :: struct {
             i = i + 1
         }
 
-        .{ src_path: src, out_path: out, is_vm_run: vm_run, import_dirs: import_dirs, map_keys: map_keys, map_values: map_values }
+        target_arch := arch.unwrap_or(if target_os == Os.wasi {
+            Arch.wasm32
+        } else if host_arch() == Arch.wasm32 and target_os != Os.freestanding {
+            Arch.x86_64
+        } else {
+            host_arch()
+        })
+        if (target_os == Os.wasi and target_arch != Arch.wasm32) or (target_arch == Arch.wasm32 and target_os != Os.wasi and target_os != Os.freestanding) {
+            print("unsupported target OS and architecture combination")
+            fall()
+        }
+        if vm_run and (library or target_os != host_os() or target_arch != host_arch()) {
+            print("VM execution requires a program for the host target")
+            fall()
+        }
+        .{ src_path: src, out_path: out, is_vm_run: vm_run, import_dirs: import_dirs, map_keys: map_keys, map_values: map_values, target_os: target_os, target_arch: target_arch, is_library: library, source_index: source_index }
     }
 }
 
@@ -86,126 +133,11 @@ Driver :: struct {
         .{ arena: arena, config: config }
     }
 
-    resolve_prelude :: fn(self &Self) Str {
-        env_prelude := Env.get(c"ABYSS_PRELUDE")
-        if env_prelude != (0 as &u8) {
-            opt := File.read_to_string(self.arena, Str.of(env_prelude))
-            if opt.is_some() {
-                ret opt.unwrap()
-            }
-        }
-        env_dev := Env.get(c"ABYSS_DEV")
-        if env_dev != (0 as &u8) {
-            dev_str := Str.of(env_dev)
-            if (not dev_str.eq(Str.of("1"))) and (not dev_str.eq(Str.of("true"))) {
-                p1 := Path.join(self.arena, dev_str, Str.of("pods/core/runtime/prelude.c"))
-                opt1 := File.read_to_string(self.arena, p1)
-                if opt1.is_some() {
-                    ret opt1.unwrap()
-                }
-                p2 := Path.join(self.arena, dev_str, Str.of("runtime/prelude.c"))
-                opt2 := File.read_to_string(self.arena, p2)
-                if opt2.is_some() {
-                    ret opt2.unwrap()
-                }
-            }
-        }
-        env_install := Env.get(c"ABYSS_INSTALL_DIR")
-        if env_install != (0 as &u8) {
-            p_inst := Path.join(self.arena, Str.of(env_install), Str.of("pods/core/runtime/prelude.c"))
-            opt_inst := File.read_to_string(self.arena, p_inst)
-            if opt_inst.is_some() {
-                ret opt_inst.unwrap()
-            }
-        }
-        env_path := Env.get(c"ABYSS_PATH")
-        if env_path != (0 as &u8) {
-            p_path := Path.join(self.arena, Str.of(env_path), Str.of("pods/core/runtime/prelude.c"))
-            opt_path := File.read_to_string(self.arena, p_path)
-            if opt_path.is_some() {
-                ret opt_path.unwrap()
-            }
-        }
-        opt_pod := File.read_to_string(self.arena, Str.of("pods/core/runtime/prelude.c"))
-        if opt_pod.is_some() {
-            ret opt_pod.unwrap()
-        }
-        opt_vfs := File.read_to_string(self.arena, Str.of("/pods/core/runtime/prelude.c"))
-        if opt_vfs.is_some() {
-            ret opt_vfs.unwrap()
-        }
-        opt_leg := File.read_to_string(self.arena, Str.of("runtime/prelude.c"))
-        if opt_leg.is_some() {
-            ret opt_leg.unwrap()
-        }
-        if Env.args_len() > 0 {
-            arg0 := Env.arg(0)
-            if arg0 != (0 as &u8) {
-                arg0_str := Str.of(arg0)
-                bin_dir := Path.dir(arg0_str)
-                if bin_dir.len > 0 {
-                    cand_parent := Path.normalize(self.arena, Path.join(self.arena, bin_dir, Str.of("..")))
-                    p_parent := Path.join(self.arena, cand_parent, Str.of("pods/core/runtime/prelude.c"))
-                    opt_parent := File.read_to_string(self.arena, p_parent)
-                    if opt_parent.is_some() {
-                        ret opt_parent.unwrap()
-                    }
-                    cand_bin := Path.join(self.arena, bin_dir, Str.of("pods/core/runtime/prelude.c"))
-                    opt_bin := File.read_to_string(self.arena, cand_bin)
-                    if opt_bin.is_some() {
-                        ret opt_bin.unwrap()
-                    }
-                }
-            }
-        }
-        env_home := Env.get(c"HOME")
-        if env_home != (0 as &u8) {
-            p_home := Path.join(self.arena, Str.of(env_home), Str.of(".abyss/pods/core/runtime/prelude.c"))
-            opt_h := File.read_to_string(self.arena, p_home)
-            if opt_h.is_some() {
-                ret opt_h.unwrap()
-            }
-        }
-        env_up := Env.get(c"USERPROFILE")
-        if env_up != (0 as &u8) {
-            p_up := Path.join(self.arena, Str.of(env_up), Str.of(".abyss/pods/core/runtime/prelude.c"))
-            opt_up := File.read_to_string(self.arena, p_up)
-            if opt_up.is_some() {
-                ret opt_up.unwrap()
-            }
-        }
-        env_hd := Env.get(c"HOMEDRIVE")
-        env_hp := Env.get(c"HOMEPATH")
-        if (env_hd != (0 as &u8)) and (env_hp != (0 as &u8)) {
-            hd_hp := Path.join(self.arena, Str.of(env_hd), Str.of(env_hp))
-            p_hdp := Path.join(self.arena, hd_hp, Str.of(".abyss/pods/core/runtime/prelude.c"))
-            opt_hdp := File.read_to_string(self.arena, p_hdp)
-            if opt_hdp.is_some() {
-                ret opt_hdp.unwrap()
-            }
-        }
-        env_lad := Env.get(c"LOCALAPPDATA")
-        if env_lad != (0 as &u8) {
-            p_lad := Path.join(self.arena, Str.of(env_lad), Str.of("abyss/pods/core/runtime/prelude.c"))
-            opt_lad := File.read_to_string(self.arena, p_lad)
-            if opt_lad.is_some() {
-                ret opt_lad.unwrap()
-            }
-        }
-        env_ad := Env.get(c"APPDATA")
-        if env_ad != (0 as &u8) {
-            p_ad := Path.join(self.arena, Str.of(env_ad), Str.of("abyss/pods/core/runtime/prelude.c"))
-            opt_ad := File.read_to_string(self.arena, p_ad)
-            if opt_ad.is_some() {
-                ret opt_ad.unwrap()
-            }
-        }
-        Str.empty()
-    }
-
     run :: fn(self &Self) {
         source := read_file(self.arena, self.config.src_path)
         eng := Engine.new(self.arena)
+        eng.nexus.target_os = self.config.target_os
+        eng.nexus.target_arch = self.config.target_arch
         i: u64 = 0
         while i < self.config.import_dirs.len {
             eng.nexus.import_dirs.push(self.config.import_dirs.get(i))
@@ -218,10 +150,10 @@ Driver :: struct {
             j = j + 1
         }
         fid := eng.add_file(self.arena, Str.of(self.config.src_path), source)
-        sym_id := eng.build_main(fid)
+        executable := not self.config.is_library and self.config.target_os != Os.freestanding
+        sym_id := eng.build_entry(fid, executable)
 
         if self.config.is_vm_run {
-            Env.shift_args()
             vcg := VmCodeGen.new(self.arena)
             vcg.init_types(&eng.nexus.types, self.arena)
             vbuilder := VmCodeBuilder.new(&vcg)
@@ -229,17 +161,25 @@ Driver :: struct {
             eng.compile(&vcg, &vbuilder, self.arena, sym_id)
             vcg.finish_linking()
             vm := Vm.new()
-            vm.run(&vcg.chunk, vcg.main_entry)
+            Env.shift_args(self.config.source_index)
+            status := vm.run(&vcg.chunk, vcg.main_entry)
             vm.destroy()
             vcg.destroy()
+            if eng.nexus.types.kind(eng.nexus.types.func_return(eng.type_of(sym_id))) != TyKind.unit {
+                exit_process(status as i32)
+            }
             ret
         }
         ccg := CCodeGen_new(self.arena)
         builder := CCodeBuilder.new()
-        ccg.abyss_main(sym_id)
+        ccg.target_os = self.config.target_os
+        if executable {
+            ccg.abyss_main(sym_id)
+            return_type := eng.nexus.types.func_return(eng.type_of(sym_id))
+            ccg.main_returns_status = eng.nexus.types.kind(return_type) != TyKind.unit
+        }
         eng.compile(&ccg, &builder, self.arena, sym_id)
-        prelude_source := self.resolve_prelude()
-        c_code := CCodeGen_finish(&ccg, prelude_source)
+        c_code := CCodeGen_finish(&ccg)
         write_file(self.config.out_path, c_code)
         CCodeGen_destroy(&ccg)
     }

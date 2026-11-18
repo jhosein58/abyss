@@ -1,4 +1,6 @@
+import core.target: Arch, Os
 import std.allocator: Arena
+import std.env:       Env
 import std.fs:        File
 import std.path:      Path
 import std.string:    Str, String
@@ -7,7 +9,9 @@ import std.sys:       fall
 import .lexer:       lex
 import .nexus.nexus: Nexus, calc_pos
 import .nexus.pool:  id_none
+import .platform:    arch_name, os_name
 import .token:       Token, is_path_ident
+import .typer.decl:  is_core_source
 
 QueuedFile :: struct {
     fid       u32
@@ -29,10 +33,6 @@ ParsedImportPath :: struct {
     start_tok   u32
     next_tok    u32
 }
-
-get_env :: extern fn(name &u8) &u8
-get_arg_count :: extern fn() i32
-get_arg :: extern fn(idx i32) &u8
 
 index_error :: fn(db &Nexus, file_id u32, offset u32, msg &u8, detail Str) {
     pos := calc_pos(db.get_file_source(file_id), offset)
@@ -154,8 +154,39 @@ Indexer :: struct {
     }
 
     try_load_source :: fn(self &Self, target_path Str) Str {
+        os := os_name(self.db.target_os)
+        arch := arch_name(self.db.target_arch)
+        if target_path.eq("core/target_values.a") {
+            source := String.new(self.arena)
+            source.push_str("import core.target: Arch, Os\ntarget_os :: Os.")
+            source.push_str(os)
+            source.push_str("\ntarget_arch :: Arch.")
+            source.push_str(arch)
+            source.push_str("\ntarget_ptr_bits :: ")
+            source.push_str(if self.db.target_arch == Arch.wasm32 { "32" } else { "64" })
+            source.push_str(" as u8\n")
+            ret source.as_str()
+        }
+        stem := target_path.sub(0, target_path.len - 2)
+        candidate := String.new(self.arena)
+        candidate.push_str(stem)
+        candidate.push_char('.')
+        candidate.push_str(os)
+        candidate.push_char('.')
+        candidate.push_str(arch)
+        candidate.push_str(".a")
+        source := self.load_source(candidate.as_str())
+        if source.ptr != (0 as &u8) { ret source }
+        candidate.len = stem.len + 1 + os.len
+        candidate.push_str(".a")
+        source = self.load_source(candidate.as_str())
+        if source.ptr != (0 as &u8) { ret source }
+        self.load_source(target_path)
+    }
+
+    load_source :: fn(self &Self, target_path Str) Str {
         if is_embedded_path(target_path) {
-            env_dev := get_env(c"ABYSS_DEV")
+            env_dev := Env.get(c"ABYSS_DEV")
             pod_rel := if target_path.starts_with("std/") or target_path.starts_with("std\\") {
                 Path.join(self.arena, Str.of("pods/std"), target_path.sub(4, target_path.len - 4))
             } else if target_path.starts_with("core/") or target_path.starts_with("core\\") {
@@ -173,7 +204,7 @@ Indexer :: struct {
                     }
                 }
             }
-            env_install := get_env(c"ABYSS_INSTALL_DIR")
+            env_install := Env.get(c"ABYSS_INSTALL_DIR")
             if env_install != (0 as &u8) {
                 inst_pod := Path.join(self.arena, Str.of(env_install), pod_rel)
                 opt_inst := File.read_to_string(self.arena, inst_pod)
@@ -181,7 +212,7 @@ Indexer :: struct {
                     ret opt_inst.unwrap()
                 }
             }
-            env_path := get_env(c"ABYSS_PATH")
+            env_path := Env.get(c"ABYSS_PATH")
             if env_path != (0 as &u8) {
                 path_pod := Path.join(self.arena, Str.of(env_path), pod_rel)
                 opt_path := File.read_to_string(self.arena, path_pod)
@@ -193,8 +224,8 @@ Indexer :: struct {
             if opt_pod.is_some() {
                 ret opt_pod.unwrap()
             }
-            if get_arg_count() > 0 {
-                arg0 := get_arg(0)
+            if Env.args_len() > 0 {
+                arg0 := Env.arg(0)
                 if arg0 != (0 as &u8) {
                     arg0_str := Str.of(arg0)
                     bin_dir := Path.dir(arg0_str)
@@ -212,7 +243,7 @@ Indexer :: struct {
                     }
                 }
             }
-            env_home := get_env(c"HOME")
+            env_home := Env.get(c"HOME")
             if env_home != (0 as &u8) {
                 home_pod := Path.join(self.arena, Str.of(env_home), Path.join(self.arena, Str.of(".abyss"), pod_rel))
                 opt_home := File.read_to_string(self.arena, home_pod)
@@ -220,7 +251,7 @@ Indexer :: struct {
                     ret opt_home.unwrap()
                 }
             }
-            env_up := get_env(c"USERPROFILE")
+            env_up := Env.get(c"USERPROFILE")
             if env_up != (0 as &u8) {
                 up_pod := Path.join(self.arena, Str.of(env_up), Path.join(self.arena, Str.of(".abyss"), pod_rel))
                 opt_up := File.read_to_string(self.arena, up_pod)
@@ -228,8 +259,8 @@ Indexer :: struct {
                     ret opt_up.unwrap()
                 }
             }
-            env_hd := get_env(c"HOMEDRIVE")
-            env_hp := get_env(c"HOMEPATH")
+            env_hd := Env.get(c"HOMEDRIVE")
+            env_hp := Env.get(c"HOMEPATH")
             if (env_hd != (0 as &u8)) and (env_hp != (0 as &u8)) {
                 hd_hp := Path.join(self.arena, Str.of(env_hd), Str.of(env_hp))
                 hdp_pod := Path.join(self.arena, hd_hp, Path.join(self.arena, Str.of(".abyss"), pod_rel))
@@ -238,7 +269,7 @@ Indexer :: struct {
                     ret opt_hdp.unwrap()
                 }
             }
-            env_lad := get_env(c"LOCALAPPDATA")
+            env_lad := Env.get(c"LOCALAPPDATA")
             if env_lad != (0 as &u8) {
                 lad_pod := Path.join(self.arena, Str.of(env_lad), Path.join(self.arena, Str.of("abyss"), pod_rel))
                 opt_lad := File.read_to_string(self.arena, lad_pod)
@@ -246,7 +277,7 @@ Indexer :: struct {
                     ret opt_lad.unwrap()
                 }
             }
-            env_ad := get_env(c"APPDATA")
+            env_ad := Env.get(c"APPDATA")
             if env_ad != (0 as &u8) {
                 ad_pod := Path.join(self.arena, Str.of(env_ad), Path.join(self.arena, Str.of("abyss"), pod_rel))
                 opt_ad := File.read_to_string(self.arena, ad_pod)
@@ -422,6 +453,9 @@ Indexer :: struct {
         while cursor < end_tok {
             tk := db.tokens.kind(cursor)
 
+            if tk == Token.kw_extern and is_core_source(curr_path) {
+                index_error(db, file_id, db.tokens.start(cursor), c"core modules cannot declare extern", Str.empty())
+            }
             if (tk == Token.o_brace) or (tk == Token.o_paren) or (tk == Token.o_bracket) {
                 depth = depth + 1
             } else if (tk == Token.c_brace) or (tk == Token.c_paren) or (tk == Token.c_bracket) {

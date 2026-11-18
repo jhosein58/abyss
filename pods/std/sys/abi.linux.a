@@ -1,0 +1,11 @@
+O_CREAT :: 64
+O_TRUNC :: 512
+O_APPEND :: 1024
+
+Dirent :: extern struct {
+    inode u64
+    offset i64
+    record_size u16
+    kind u8
+    name [256]u8
+}

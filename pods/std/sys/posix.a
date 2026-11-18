@@ -1,0 +1,77 @@
+import .abi: Dirent, O_APPEND, O_CREAT, O_TRUNC
+import .types: DirectoryEntry, OpenMode
+
+O_RDONLY :: 0
+O_WRONLY :: 1
+O_RDWR :: 2
+
+open :: extern fn(path &u8, flags i32, mode u32) i32
+read :: extern fn(fd i32, buf &u8, count u64) i64
+write :: extern fn(fd i32, buf &u8, count u64) i64
+close :: extern fn(fd i32) i32
+lseek :: extern fn(fd i32, offset i64, whence i32) i64
+opendir :: extern fn(path &u8) &u8
+readdir :: extern fn(dir &u8) &Dirent
+closedir :: extern fn(dir &u8) i32
+mkdir :: extern fn(path &u8, mode u32) i32
+exit :: extern fn(status i32)
+
+open_handle :: fn(path &u8, mode OpenMode) i64 {
+    flags: i32 = if mode.write { if mode.read { O_RDWR } else { O_WRONLY } } else { O_RDONLY }
+    if mode.create { flags = flags | O_CREAT }
+    if mode.truncate { flags = flags | O_TRUNC }
+    if mode.append { flags = flags | O_APPEND }
+    open(path, flags, 438) as i64
+}
+
+read_handle :: fn(handle i64, buf &u8, count u64) i64 {
+    read(handle as i32, buf, count)
+}
+
+write_handle :: fn(handle i64, buf &u8, count u64) i64 {
+    write(handle as i32, buf, count)
+}
+
+close_handle :: fn(handle i64) bool { close(handle as i32) == 0 }
+seek_handle :: fn(handle i64, offset i64, whence i32) i64 { lseek(handle as i32, offset, whence) }
+make_directory :: fn(path &u8) bool { mkdir(path, 493) == 0 }
+exit_process :: fn(status i32) { exit(status) }
+
+Directory :: struct {
+    handle &u8
+
+    open :: fn(path &u8) Maybe(Self) {
+        handle := opendir(path)
+        if handle == (0 as &u8) { ret Maybe(Self).none() }
+        Maybe(Self).some(.{ handle: handle })
+    }
+
+    next :: fn(self &Self) Maybe(DirectoryEntry) {
+        if self.handle == (0 as &u8) { ret Maybe(DirectoryEntry).none() }
+        entry := readdir(self.handle)
+        if entry == (0 as &Dirent) { ret Maybe(DirectoryEntry).none() }
+        kind: u8 = if entry.kind == 4 { 2 } else if entry.kind == 8 { 1 } else { 0 }
+        Maybe(DirectoryEntry).some(.{ name: Str.of(&entry.name[0]), kind: kind })
+    }
+
+    close :: fn(self &Self) bool {
+        if self.handle == (0 as &u8) { ret false }
+        ok := closedir(self.handle) == 0
+        self.handle = 0 as &u8
+        ok
+    }
+}
+
+dispatch_syscall :: fn(name Str, args &u64) Maybe(u64) {
+    if name.eq("open") { ret Maybe(u64).some(open(args[0] as &u8, args[1] as i32, args[2] as u32) as u64) }
+    if name.eq("read") { ret Maybe(u64).some(read(args[0] as i32, args[1] as &u8, args[2]) as u64) }
+    if name.eq("write") { ret Maybe(u64).some(write(args[0] as i32, args[1] as &u8, args[2]) as u64) }
+    if name.eq("close") { ret Maybe(u64).some(close(args[0] as i32) as u64) }
+    if name.eq("lseek") { ret Maybe(u64).some(lseek(args[0] as i32, args[1] as i64, args[2] as i32) as u64) }
+    if name.eq("opendir") { ret Maybe(u64).some(opendir(args[0] as &u8) as u64) }
+    if name.eq("readdir") { ret Maybe(u64).some(readdir(args[0] as &u8) as u64) }
+    if name.eq("closedir") { ret Maybe(u64).some(closedir(args[0] as &u8) as u64) }
+    if name.eq("mkdir") { ret Maybe(u64).some(mkdir(args[0] as &u8, args[1] as u32) as u64) }
+    if name.eq("exit") { exit(args[0] as i32), ret Maybe(u64).some(0) }
+    Maybe(u64).none()
+}

@@ -2,7 +2,19 @@ malloc :: extern fn(size u64) &u8
 free :: extern fn(ptr &u8)
 
 realloc :: extern fn(ptr &u8, size u64) &u8
-mem_copy :: extern fn(dest &u8, src &u8, n u64)
+mem_copy :: fn(dest &u8, src &u8, count u64) {
+    index: u64 = 0
+    while index < count {
+        dest[index] = src[index]
+        index = index + 1
+    }
+}
 
-mem_set :: extern fn(dest &u8, val u8, n u64)
+mem_set :: fn(dest &u8, val u8, count u64) {
+    index: u64 = 0
+    while index < count {
+        dest[index] = val
+        index = index + 1
+    }
+}
 

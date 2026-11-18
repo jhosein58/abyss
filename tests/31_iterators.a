@@ -1,8 +1,6 @@
 import std.collections.vec: Vec
 
-print_cstr :: extern fn(s &u8)
-print_i32 :: extern fn(v i32)
-print_bool :: extern fn(v bool)
+import std.io: write as print_cstr, write as print_i32, write as print_bool
 
 main :: fn() {
     values := Vec(i32).new()

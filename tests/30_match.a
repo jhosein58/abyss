@@ -1,7 +1,6 @@
 import std.io: write as print
 
-print_i32 :: extern fn(v i32)
-print_bool :: extern fn(v bool)
+import std.io: write as print_i32, write as print_bool
 
 Color :: enum { red, green, blue }
 

@@ -1,0 +1,5 @@
+import core.target: Arch, Os
+
+target_os :: Os.linux
+target_arch :: Arch.x86_64
+target_ptr_bits :: 64 as u8

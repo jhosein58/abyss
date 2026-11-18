@@ -144,6 +144,18 @@ process_methods :: fn(eng &Engine, id u32, methods_id u32, sym_id u32) u32 {
     ret new_methods_id
 }
 
+is_core_source :: fn(path Str) bool {
+    if path.starts_with("core/") or path.starts_with("pods/core/") {
+        ret true
+    }
+    offset: u64 = 0
+    while offset + 11 <= path.len {
+        if path.sub(offset, 11).eq("/pods/core/") { ret true }
+        offset = offset + 1
+    }
+    false
+}
+
 synth_struct :: fn(eng &Engine, id u32) {
     db := &eng.nexus
     tbl := &db.hir

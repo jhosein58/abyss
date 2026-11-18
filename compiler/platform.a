@@ -1,0 +1,41 @@
+import core.target: Arch, Os
+
+abyss_host_os :: extern fn() u8
+abyss_host_arch :: extern fn() u8
+
+host_os :: fn() Os { abyss_host_os() as Os }
+host_arch :: fn() Arch { abyss_host_arch() as Arch }
+
+os_name :: fn(os Os) Str {
+    match os {
+        linux { "linux" }
+        darwin { "darwin" }
+        windows { "windows" }
+        wasi { "wasi" }
+        freestanding { "freestanding" }
+    }
+}
+
+arch_name :: fn(arch Arch) Str {
+    match arch {
+        x86_64 { "x86_64" }
+        aarch64 { "aarch64" }
+        wasm32 { "wasm32" }
+    }
+}
+
+parse_os :: fn(name Str) Maybe(Os) {
+    for code in Range.new(0, 5) {
+        os := code as Os
+        if os_name(os).eq(name) { ret Maybe(Os).some(os) }
+    }
+    Maybe(Os).none()
+}
+
+parse_arch :: fn(name Str) Maybe(Arch) {
+    for code in Range.new(0, 3) {
+        arch := code as Arch
+        if arch_name(arch).eq(name) { ret Maybe(Arch).some(arch) }
+    }
+    Maybe(Arch).none()
+}

@@ -1,0 +1,233 @@
+import .types: DirectoryEntry, OpenMode
+import .decimal: format_float
+import std.mem: free, malloc
+
+Ciovec :: extern struct {
+    address u32
+    len u32
+}
+
+Prestat :: extern struct {
+    tag u32
+    len u32
+}
+
+Dirent :: extern struct {
+    next u64
+    inode u64
+    name_len u32
+    kind u8
+}
+
+fd_read :: extern "wasi_snapshot_preview1" "fd_read" fn(fd u32, iovs &Ciovec, count u32, received &u32) u32
+fd_write :: extern "wasi_snapshot_preview1" "fd_write" fn(fd u32, iovs &Ciovec, count u32, sent &u32) u32
+fd_close :: extern "wasi_snapshot_preview1" "fd_close" fn(fd u32) u32
+fd_seek :: extern "wasi_snapshot_preview1" "fd_seek" fn(fd u32, offset i64, whence u32, position &u64) u32
+fd_readdir :: extern "wasi_snapshot_preview1" "fd_readdir" fn(fd u32, buf &u8, len u32, cookie u64, used &u32) u32
+fd_prestat_get :: extern "wasi_snapshot_preview1" "fd_prestat_get" fn(fd u32, result &Prestat) u32
+fd_prestat_dir_name :: extern "wasi_snapshot_preview1" "fd_prestat_dir_name" fn(fd u32, name &u8, len u32) u32
+path_open :: extern "wasi_snapshot_preview1" "path_open" fn(fd u32, lookup u32, path &u8, len u32, flags u32, rights u64, inherited u64, fd_flags u32, opened &u32) u32
+path_create_directory :: extern "wasi_snapshot_preview1" "path_create_directory" fn(fd u32, path &u8, len u32) u32
+environ_sizes_get :: extern "wasi_snapshot_preview1" "environ_sizes_get" fn(count, bytes &u32) u32
+environ_get :: extern "wasi_snapshot_preview1" "environ_get" fn(entries &u32, buf &u8) u32
+proc_exit :: extern "wasi_snapshot_preview1" "proc_exit" fn(status u32)
+
+abyss_process_env :: extern fn() &u8
+abyss_process_set_env :: extern fn(env &u8)
+abyss_process_error :: extern fn() i32
+abyss_process_set_error :: extern fn(error i32)
+
+RIGHT_READ :: 2
+RIGHT_SEEK :: 4
+RIGHT_WRITE :: 64
+RIGHT_READDIR :: 16384
+RIGHT_SET_SIZE :: 4194304
+OPEN_CREATE :: 1
+OPEN_DIRECTORY :: 2
+OPEN_TRUNCATE :: 8
+FD_APPEND :: 1
+
+PathAt :: struct {
+    fd u32
+    path Str
+}
+
+resolve_path :: fn(path Str) Maybe(PathAt) {
+    if path.len == 0 { ret Maybe(PathAt).none() }
+    absolute := path.starts_with("/")
+    found := false
+    best: u64 = 0
+    result: PathAt = .{ fd: 0, path: path }
+    fd: u32 = 3
+    while true {
+        info: Prestat
+        status := fd_prestat_get(fd, &info)
+        if status == 8 { break }
+        if status == 0 and info.tag == 0 and info.len <= 4096 {
+            buffer: [4096]u8
+            if fd_prestat_dir_name(fd, &buffer[0], info.len) == 0 {
+                mount := Str.new(&buffer[0], info.len as u64)
+                if mount.len > 1 and mount.ends_with("/") { mount.len = mount.len - 1 }
+                prefix: u64 = 0
+                if absolute {
+                    if mount.eq("/") {
+                        prefix = 1
+                    } else if mount.starts_with("/") and path.starts_with(mount) and (path.len == mount.len or path.ptr[mount.len] == '/') {
+                        prefix = mount.len
+                    }
+                }
+                if (absolute and prefix > best) or (not absolute and not found and (mount.eq(".") or mount.eq("/"))) {
+                    found = true
+                    best = prefix
+                    relative := path.sub(prefix, path.len - prefix)
+                    while relative.starts_with("/") { relative = relative.sub(1, relative.len - 1) }
+                    result = .{ fd: fd, path: if relative.len == 0 { "." } else { relative } }
+                }
+            }
+        }
+        fd = fd + 1
+    }
+    if found { ret Maybe(PathAt).some(result) }
+    Maybe(PathAt).none()
+}
+
+record_status :: fn(status u32) bool {
+    abyss_process_set_error(status as i32)
+    status == 0
+}
+
+last_error :: fn() i32 { abyss_process_error() }
+
+open_at :: fn(path &u8, flags u32, rights u64, behavior u32) i64 {
+    location := resolve_path(Str.of(path))
+    if location.is_none() { record_status(44), ret -1 }
+    at := location.unwrap()
+    opened: u32 = 0
+    if not record_status(path_open(at.fd, 1, at.path.ptr, at.path.len as u32, flags, rights, 0, behavior, &opened)) { ret -1 }
+    opened as i64
+}
+
+open_handle :: fn(path &u8, mode OpenMode) i64 {
+    flags: u32 = 0
+    rights: u64 = RIGHT_SEEK
+    if mode.read { rights = rights | RIGHT_READ }
+    if mode.write { rights = rights | RIGHT_WRITE }
+    if mode.create { flags = flags | OPEN_CREATE }
+    if mode.truncate {
+        flags = flags | OPEN_TRUNCATE
+        rights = rights | RIGHT_SET_SIZE
+    }
+    open_at(path, flags, rights, if mode.append { FD_APPEND } else { 0 })
+}
+
+read_handle :: fn(handle i64, buf &u8, len u64) i64 {
+    vector: Ciovec = .{ address: buf as u32, len: if len > 0xffffffff { 0xffffffff } else { len as u32 } }
+    received: u32 = 0
+    if not record_status(fd_read(handle as u32, &vector, 1, &received)) { ret -1 }
+    received as i64
+}
+
+write_handle :: fn(handle i64, buf &u8, len u64) i64 {
+    vector: Ciovec = .{ address: buf as u32, len: if len > 0xffffffff { 0xffffffff } else { len as u32 } }
+    sent: u32 = 0
+    if not record_status(fd_write(handle as u32, &vector, 1, &sent)) { ret -1 }
+    sent as i64
+}
+
+close_handle :: fn(handle i64) bool { record_status(fd_close(handle as u32)) }
+
+seek_handle :: fn(handle i64, offset i64, whence i32) i64 {
+    position: u64 = 0
+    if not record_status(fd_seek(handle as u32, offset, whence as u32, &position)) { ret -1 }
+    position as i64
+}
+
+Directory :: struct {
+    cookie u64
+    handle i64
+    buffer &u8
+
+    open :: fn(path &u8) Maybe(Self) {
+        handle := open_at(path, OPEN_DIRECTORY, RIGHT_READDIR, 0)
+        if handle < 0 { ret Maybe(Self).none() }
+        buffer := malloc(4096)
+        if buffer == (0 as &u8) { close_handle(handle), ret Maybe(Self).none() }
+        Maybe(Self).some(.{ cookie: 0, handle: handle, buffer: buffer })
+    }
+
+    next :: fn(self &Self) Maybe(DirectoryEntry) {
+        if self.buffer == (0 as &u8) { ret Maybe(DirectoryEntry).none() }
+        used: u32 = 0
+        if not record_status(fd_readdir(self.handle as u32, self.buffer, 4096, self.cookie, &used)) or used < 24 {
+            ret Maybe(DirectoryEntry).none()
+        }
+        entry := self.buffer as &Dirent
+        if entry.name_len > used - 24 { ret Maybe(DirectoryEntry).none() }
+        self.cookie = entry.next
+        kind: u8 = if entry.kind == 3 { 2 } else if entry.kind == 4 { 1 } else { 0 }
+        Maybe(DirectoryEntry).some(.{ name: Str.new(self.buffer + 24, entry.name_len as u64), kind: kind })
+    }
+
+    close :: fn(self &Self) bool {
+        if self.buffer == (0 as &u8) { ret false }
+        free(self.buffer)
+        self.buffer = 0 as &u8
+        close_handle(self.handle)
+    }
+}
+
+make_directory :: fn(path &u8) bool {
+    location := resolve_path(Str.of(path))
+    if location.is_none() { ret record_status(44) }
+    at := location.unwrap()
+    record_status(path_create_directory(at.fd, at.path.ptr, at.path.len as u32))
+}
+
+environment :: fn(key &u8) &u8 {
+    entries := abyss_process_env() as &u32
+    if entries == (0 as &u32) {
+        count: u32 = 0
+        bytes: u32 = 0
+        if environ_sizes_get(&count, &bytes) != 0 or count == 0 { ret 0 as &u8 }
+        entries = malloc(((count as u64) + 1) * 4) as &u32
+        buffer := malloc(bytes as u64)
+        if entries == (0 as &u32) or buffer == (0 as &u8) or environ_get(entries, buffer) != 0 {
+            free(entries as &u8)
+            free(buffer)
+            ret 0 as &u8
+        }
+        entries[count] = 0
+        abyss_process_set_env(entries as &u8)
+    }
+    name := Str.of(key)
+    while *entries != 0 {
+        entry := Str.of(*entries as &u8)
+        if entry.len > name.len and entry.starts_with(name) and entry.ptr[name.len] == '=' {
+            ret entry.ptr + name.len + 1
+        }
+        entries = entries + 1
+    }
+    0 as &u8
+}
+
+exit_process :: fn(status i32) { proc_exit(status as u32) }
+
+host_call :: fn(name Str, args &u64) Maybe(u64) {
+    if name.eq("fd_read") { ret Maybe(u64).some(fd_read(args[0] as u32, args[1] as &Ciovec, args[2] as u32, args[3] as &u32) as u64) }
+    if name.eq("fd_write") { ret Maybe(u64).some(fd_write(args[0] as u32, args[1] as &Ciovec, args[2] as u32, args[3] as &u32) as u64) }
+    if name.eq("fd_close") { ret Maybe(u64).some(fd_close(args[0] as u32) as u64) }
+    if name.eq("fd_seek") { ret Maybe(u64).some(fd_seek(args[0] as u32, args[1] as i64, args[2] as u32, args[3] as &u64) as u64) }
+    if name.eq("fd_readdir") { ret Maybe(u64).some(fd_readdir(args[0] as u32, args[1] as &u8, args[2] as u32, args[3], args[4] as &u32) as u64) }
+    if name.eq("fd_prestat_get") { ret Maybe(u64).some(fd_prestat_get(args[0] as u32, args[1] as &Prestat) as u64) }
+    if name.eq("fd_prestat_dir_name") { ret Maybe(u64).some(fd_prestat_dir_name(args[0] as u32, args[1] as &u8, args[2] as u32) as u64) }
+    if name.eq("path_open") { ret Maybe(u64).some(path_open(args[0] as u32, args[1] as u32, args[2] as &u8, args[3] as u32, args[4] as u32, args[5], args[6], args[7] as u32, args[8] as &u32) as u64) }
+    if name.eq("path_create_directory") { ret Maybe(u64).some(path_create_directory(args[0] as u32, args[1] as &u8, args[2] as u32) as u64) }
+    if name.eq("environ_sizes_get") { ret Maybe(u64).some(environ_sizes_get(args[0] as &u32, args[1] as &u32) as u64) }
+    if name.eq("environ_get") { ret Maybe(u64).some(environ_get(args[0] as &u32, args[1] as &u8) as u64) }
+    if name.eq("proc_exit") { proc_exit(args[0] as u32), ret Maybe(u64).some(0) }
+    if name.eq("abyss_process_env") { ret Maybe(u64).some(abyss_process_env() as u64) }
+    if name.eq("abyss_process_set_env") { abyss_process_set_env(args[0] as &u8), ret Maybe(u64).some(0) }
+    if name.eq("abyss_process_error") { ret Maybe(u64).some(abyss_process_error() as u64) }
+    if name.eq("abyss_process_set_error") { abyss_process_set_error(args[0] as i32), ret Maybe(u64).some(0) }
+    Maybe(u64).none()
+}
