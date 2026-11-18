@@ -440,36 +440,44 @@ Embed :: struct {
     }
 
     sources :: fn(a &Arena) Str {
-        root_prefix := Str.empty()
-        env_dev := environment(c"ABYSS_DEV")
-        if env_dev != (0 as &u8) {
-            dev_str := Str.of(env_dev)
-            if (not dev_str.eq(Str.of("1"))) and (not dev_str.eq(Str.of("true"))) {
-                root_prefix = dev_str
+        pods_prefix := if Dir.exists(c"pods") {
+            Str.of("pods")
+        } else {
+            root_prefix := Str.empty()
+            env_dev := environment(c"ABYSS_DEV")
+            if env_dev != (0 as &u8) {
+                dev_str := Str.of(env_dev)
+                if (not dev_str.eq(Str.of("1"))) and (not dev_str.eq(Str.of("true"))) {
+                    root_prefix = dev_str
+                }
+            }
+            if root_prefix.len > 0 {
+                Path.join(a, root_prefix, Str.of("pods"))
+            } else {
+                Str.of("pods")
             }
         }
         files := Vec(Str).new()
-        Dir.collect_entries(a, &files, root_prefix, Str.of("core"), Str.of(".a"))
-        Dir.collect_entries(a, &files, root_prefix, Str.of("std"), Str.of(".a"))
+        Dir.collect_entries(a, &files, pods_prefix, Str.of("core"), Str.of(".a"))
+        Dir.collect_entries(a, &files, pods_prefix, Str.of("std"), Str.of(".a"))
         sort_strings(&files)
 
         out := String.new(a)
-        out.push_str("{\n")
+        out.push_str("fn(mod_path Str) Str {\n")
         i: u64 = 0
         while i < files.len {
             rel_p := files.get(i)
-            full_p := if root_prefix.len > 0 {
-                Path.join(a, root_prefix, rel_p)
-            } else {
-                rel_p
+            is_test_or_vendor := rel_p.starts_with(".vendor/") or rel_p.starts_with("std/.vendor/") or rel_p.starts_with("core/tests/") or rel_p.starts_with("std/tests/")
+            if not is_test_or_vendor {
+                full_p := Path.join(a, pods_prefix, rel_p)
+                c_full := to_cstr(a, full_p)
+                content := read_file(a, c_full)
+                out.push_str("    if mod_path.eq(Str.of(")
+                Convert.quote_source(&out, rel_p)
+                out.push_str(")) {\n        ret Str.of(")
+                Convert.quote_source(&out, content)
+                out.push_str(")\n    }\n")
             }
-            c_full := to_cstr(a, full_p)
-            content := read_file(a, c_full)
-            out.push_str("    if mod_path.eq(Str.of(")
-            Convert.quote_source(&out, rel_p)
-            out.push_str(")) { ret Str.of(")
-            Convert.quote_source(&out, content)
-            out.push_str(") }\n")
             i = i + 1
         }
         out.push_str("    Str.empty()\n}")

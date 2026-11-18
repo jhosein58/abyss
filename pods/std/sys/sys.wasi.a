@@ -32,8 +32,6 @@ environ_sizes_get :: extern "wasi_snapshot_preview1" "environ_sizes_get" fn(coun
 environ_get :: extern "wasi_snapshot_preview1" "environ_get" fn(entries &u32, buf &u8) u32
 proc_exit :: extern "wasi_snapshot_preview1" "proc_exit" fn(status u32)
 
-wasi_env_data: &u8
-
 RIGHT_READ :: 2
 RIGHT_SEEK :: 4
 RIGHT_WRITE :: 64
@@ -180,30 +178,29 @@ make_directory :: fn(path &u8) bool {
 }
 
 environment :: fn(key &u8) &u8 {
-    entries := wasi_env_data as &u32
-    if entries == (0 as &u32) {
-        count: u32 = 0
-        bytes: u32 = 0
-        if environ_sizes_get(&count, &bytes) != 0 or count == 0 { ret 0 as &u8 }
-        entries = malloc(((count as u64) + 1) * 4) as &u32
-        buffer := malloc(bytes as u64)
-        if entries == (0 as &u32) or buffer == (0 as &u8) or environ_get(entries, buffer) != 0 {
-            free(entries as &u8)
-            free(buffer)
-            ret 0 as &u8
-        }
-        entries[count] = 0
-        wasi_env_data = entries as &u8
+    count: u32 = 0
+    bytes: u32 = 0
+    if environ_sizes_get(&count, &bytes) != 0 or count == 0 { ret 0 as &u8 }
+    entries := malloc(((count as u64) + 1) * 4) as &u32
+    buffer := malloc(bytes as u64)
+    if entries == (0 as &u32) or buffer == (0 as &u8) or environ_get(entries, buffer) != 0 {
+        free(entries as &u8)
+        free(buffer)
+        ret 0 as &u8
     }
+    entries[count] = 0
     name := Str.of(key)
-    while *entries != 0 {
-        entry := Str.of(*entries as &u8)
+    curr := entries
+    result: &u8 = 0 as &u8
+    while *curr != 0 {
+        entry := Str.of(*curr as &u8)
         if entry.len > name.len and entry.starts_with(name) and entry.ptr[name.len] == '=' {
-            ret entry.ptr + name.len + 1
+            result = entry.ptr + name.len + 1
+            break
         }
-        entries = entries + 1
+        curr = curr + 1
     }
-    0 as &u8
+    result
 }
 
 exit_process :: fn(status i32) { proc_exit(status as u32) }

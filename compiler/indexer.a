@@ -6,6 +6,7 @@ import std.path:      Path
 import std.string:    Str, String
 import std.sys:       fall
 
+import .embedded:    lookup_embedded
 import .lexer:       lex
 import .nexus.nexus: Nexus, calc_pos
 import .nexus.pool:  id_none
@@ -185,6 +186,10 @@ Indexer :: struct {
     }
 
     load_source :: fn(self &Self, target_path Str) Str {
+        embedded := lookup_embedded(target_path)
+        if embedded.len > 0 {
+            ret embedded
+        }
         if is_embedded_path(target_path) {
             env_dev := Env.get(c"ABYSS_DEV")
             pod_rel := if target_path.starts_with("std/") or target_path.starts_with("std\\") {
@@ -202,22 +207,6 @@ Indexer :: struct {
                     if opt_dp.is_some() {
                         ret opt_dp.unwrap()
                     }
-                }
-            }
-            env_install := Env.get(c"ABYSS_INSTALL_DIR")
-            if env_install != (0 as &u8) {
-                inst_pod := Path.join(self.arena, Str.of(env_install), pod_rel)
-                opt_inst := File.read_to_string(self.arena, inst_pod)
-                if opt_inst.is_some() {
-                    ret opt_inst.unwrap()
-                }
-            }
-            env_path := Env.get(c"ABYSS_PATH")
-            if env_path != (0 as &u8) {
-                path_pod := Path.join(self.arena, Str.of(env_path), pod_rel)
-                opt_path := File.read_to_string(self.arena, path_pod)
-                if opt_path.is_some() {
-                    ret opt_path.unwrap()
                 }
             }
             opt_pod := File.read_to_string(self.arena, pod_rel)
@@ -241,48 +230,6 @@ Indexer :: struct {
                             ret opt_bin.unwrap()
                         }
                     }
-                }
-            }
-            env_home := Env.get(c"HOME")
-            if env_home != (0 as &u8) {
-                home_pod := Path.join(self.arena, Str.of(env_home), Path.join(self.arena, Str.of(".abyss"), pod_rel))
-                opt_home := File.read_to_string(self.arena, home_pod)
-                if opt_home.is_some() {
-                    ret opt_home.unwrap()
-                }
-            }
-            env_up := Env.get(c"USERPROFILE")
-            if env_up != (0 as &u8) {
-                up_pod := Path.join(self.arena, Str.of(env_up), Path.join(self.arena, Str.of(".abyss"), pod_rel))
-                opt_up := File.read_to_string(self.arena, up_pod)
-                if opt_up.is_some() {
-                    ret opt_up.unwrap()
-                }
-            }
-            env_hd := Env.get(c"HOMEDRIVE")
-            env_hp := Env.get(c"HOMEPATH")
-            if (env_hd != (0 as &u8)) and (env_hp != (0 as &u8)) {
-                hd_hp := Path.join(self.arena, Str.of(env_hd), Str.of(env_hp))
-                hdp_pod := Path.join(self.arena, hd_hp, Path.join(self.arena, Str.of(".abyss"), pod_rel))
-                opt_hdp := File.read_to_string(self.arena, hdp_pod)
-                if opt_hdp.is_some() {
-                    ret opt_hdp.unwrap()
-                }
-            }
-            env_lad := Env.get(c"LOCALAPPDATA")
-            if env_lad != (0 as &u8) {
-                lad_pod := Path.join(self.arena, Str.of(env_lad), Path.join(self.arena, Str.of("abyss"), pod_rel))
-                opt_lad := File.read_to_string(self.arena, lad_pod)
-                if opt_lad.is_some() {
-                    ret opt_lad.unwrap()
-                }
-            }
-            env_ad := Env.get(c"APPDATA")
-            if env_ad != (0 as &u8) {
-                ad_pod := Path.join(self.arena, Str.of(env_ad), Path.join(self.arena, Str.of("abyss"), pod_rel))
-                opt_ad := File.read_to_string(self.arena, ad_pod)
-                if opt_ad.is_some() {
-                    ret opt_ad.unwrap()
                 }
             }
             ret Str.empty()

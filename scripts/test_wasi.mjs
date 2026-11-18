@@ -6,7 +6,6 @@ import { pathToFileURL } from "node:url";
 const shim = process.argv[2] ? pathToFileURL(resolve(process.argv[2])).href : "@bjorn3/browser_wasi_shim";
 const { WASI, File, OpenFile, ConsoleStdout, Directory, PreopenDirectory } = await import(shim);
 const distribution = new URL("../dist/", import.meta.url);
-const bundle = JSON.parse(await readFile(new URL("vfs_bundle.json", distribution), "utf8"));
 const wasm = await WebAssembly.compile(await readFile(new URL("abyssc.wasm", distribution)));
 const imports = WebAssembly.Module.imports(wasm);
 assert.ok(imports.length > 0);
@@ -55,7 +54,7 @@ function mount(files) {
 async function run(args) {
     const stdout = [];
     const stderr = [];
-    const root = mount({ ...bundle, "main.a": source });
+    const root = mount({ "main.a": source });
     const wasi = new WASI(["abyssc", ...args], ["ENTRY=environment"], [
         new OpenFile(new File([])),
         ConsoleStdout.lineBuffered(line => stdout.push(line)),

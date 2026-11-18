@@ -89,22 +89,10 @@ prepare_compiler() {
 build_wasi() {
     local dist_dir="${ROOT_DIR}/dist"
     mkdir -p "${dist_dir}"
+    "${COMPILER_BIN}" r "${ROOT_DIR}/scripts/generate_embedded.a"
     "${COMPILER_BIN}" b --target wasi "${ROOT_DIR}/compiler/main.a" "${dist_dir}/abyssc-wasi.c"
     clang -w --target=wasm32-wasi -ffreestanding -nostdlib -O3 -Wl,-z,stack-size=2097152 "${dist_dir}/abyssc-wasi.c" -o "${dist_dir}/abyssc.wasm"
-    python3 - "${ROOT_DIR}" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-bundle = {
-    f.relative_to(root).as_posix(): f.read_text(encoding="utf-8")
-    for pod in ["core", "std", "json", "test", "simd", "fmt"]
-    for f in sorted((root / "pods" / pod).rglob("*.a"))
-}
-(root / "dist/vfs_bundle.json").write_text(json.dumps(bundle), encoding="utf-8")
-PY
-    echo "Built ${dist_dir}/abyssc.wasm and ${dist_dir}/vfs_bundle.json"
+    echo "Built ${dist_dir}/abyssc.wasm"
 }
 
 case "${CMD}" in

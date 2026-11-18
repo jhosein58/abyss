@@ -55,7 +55,7 @@ clang --target=wasm32-wasi -ffreestanding -nostdlib program.c -o program.wasm
 
 An import of `platform` selects `platform.<os>.<arch>.a`, then `platform.<os>.a`, then `platform.a`. Folder modules use the same suffixes on their entry file. Import `Os`, `Arch` and the typed `target` constant from `core.target` to inspect the selected profile. Use `--library` to emit C exports without an executable entry point. A freestanding target also omits the entry point.
 
-`./abyss wasm` produces `dist/abyssc.wasm` and `dist/vfs_bundle.json`. For a browser playground, load the bundle into a `browser_wasi_shim` `PreopenDirectory` at `/`, add the user's source file, and pass arguments such as `["abyssc", "r", "main.a"]` to the shim. Instantiate the module with the shim's `wasi_snapshot_preview1` imports and call `wasi.start(instance)`. To emit C, use `["abyssc", "b", "main.a", "out.c"]` and read `out.c` from the same directory.
+`./abyss wasm` produces a standalone `dist/abyssc.wasm` with `core` and `std` embedded directly into the binary. For a browser playground, add the user's source file to a `browser_wasi_shim` `PreopenDirectory` at `/` without needing any external standard library bundles, and pass arguments such as `["abyssc", "r", "main.a"]` to the shim. Instantiate the module with the shim's `wasi_snapshot_preview1` imports and call `wasi.start(instance)`. To emit C, use `["abyssc", "b", "main.a", "out.c"]` and read `out.c` from the same directory.
 
 ---
 

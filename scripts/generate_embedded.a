@@ -1,0 +1,36 @@
+import std.allocator: Arena
+import std.collections.vec: Vec
+import std.convert: Convert
+import std.fs: Dir, File, sort_strings
+import std.path: Path
+import std.string: Str, String
+
+main :: fn() {
+    arena := Arena.new(1024 * 1024 * 64)
+    pods_prefix := Str.of("pods")
+    files := Vec(Str).new()
+    Dir.collect_entries(&arena, &files, pods_prefix, Str.of("core"), Str.of(".a"))
+    Dir.collect_entries(&arena, &files, pods_prefix, Str.of("std"), Str.of(".a"))
+    sort_strings(&files)
+
+    out := String.new(&arena)
+    out.push_str("import std.string: Str\n\nlookup_embedded :: fn(mod_path Str) Str {\n")
+    i: u64 = 0
+    while i < files.len {
+        rel_p := files.get(i)
+        is_test_or_vendor := rel_p.starts_with(".vendor/") or rel_p.starts_with("std/.vendor/") or rel_p.starts_with("core/tests/") or rel_p.starts_with("std/tests/")
+        if not is_test_or_vendor {
+            full_p := Path.join(&arena, pods_prefix, rel_p)
+            content := File.read_to_string(&arena, full_p).unwrap_or(Str.empty())
+            out.push_str("    if mod_path.eq(Str.of(")
+            Convert.quote_source(&out, rel_p)
+            out.push_str(")) {\n        ret Str.of(")
+            Convert.quote_source(&out, content)
+            out.push_str(")\n    }\n")
+        }
+        i = i + 1
+    }
+    out.push_str("    Str.empty()\n}\n")
+    File.write_string("compiler/embedded.wasi.a", out.as_str())
+    arena.destroy()
+}
