@@ -1,0 +1,26 @@
+generic_parameter	1	external functions cannot be generic	bad :: extern fn(T type, x T)|main :: fn() {}
+generic_anonymous	1	external functions cannot be generic	bad :: extern fn(type)|main :: fn() {}
+generic_result	1	external functions cannot be generic	bad :: extern fn() type|main :: fn() {}
+generic_export	1	external functions cannot be generic	bad :: extern "my_export" fn(T, U type, x T) U { x }|main :: fn() {}
+comptime_parameter	1	external functions cannot have compile-time parameters	bad :: extern fn(cmpt mode i32)|main :: fn() {}
+variadic_only	1	variadic parameters are not supported	bad :: extern fn(...)|main :: fn() {}
+variadic_trailing	2	variadic parameters are not supported	bad :: extern fn(fmt &u8, |...)|main :: fn() {}
+variadic_middle	1	variadic parameters are not supported	bad :: extern fn(a i32, ..., b i32)|main :: fn() {}
+variadic_named	1	variadic parameters are not supported	bad :: extern fn(args ...)|main :: fn() {}
+variadic_export	1	variadic parameters are not supported	bad :: extern "my_export" fn(fmt &u8, ...) i32 { 0 }|main :: fn() {}
+variadic_alias	1	variadic parameters are not supported	Callback :: fn(...) i32|main :: fn() {}
+invalid_symbol_empty	1	expected a C identifier for the external symbol	bad :: extern "" fn()|main :: fn() {}
+invalid_symbol_character	1	expected a C identifier for the external symbol	bad :: extern "has space" fn()|main :: fn() {}
+invalid_symbol_struct	1	expected 'fn' after custom extern symbol	Bad :: extern "c_name" struct { x i32 }|main :: fn() {}
+invalid_symbol_local	2	external functions require a top-level binding	main :: fn() {|    bad :: extern fn()|}
+duplicate_export	2	duplicate exported C symbol	first :: extern "duplicated" fn() {}|second :: extern "duplicated" fn() {}|main :: fn() {}
+c_type_int	1	unknown type 'int'; did you mean 'i32'?	bad :: extern fn(value int)|main :: fn() {}
+c_type_char	1	unknown type 'char'; did you mean 'u8'?	bad :: extern fn(char)|main :: fn() {}
+c_type_short	1	unknown type 'short'; did you mean 'i16'?	bad :: extern fn(short)|main :: fn() {}
+c_type_long	1	unknown type 'long'; did you mean 'i64'?	bad :: extern fn() long|main :: fn() {}
+c_type_float	1	unknown type 'float'; did you mean 'f32'?	bad :: extern fn(value float)|main :: fn() {}
+c_type_double	1	unknown type 'double'; did you mean 'f64'?	bad :: extern fn(double)|main :: fn() {}
+c_type_unsigned	1	unknown type 'unsigned'; did you mean 'u32'?	bad :: extern fn(unsigned)|main :: fn() {}
+c_type_size_t	2	unknown type 'size_t'; did you mean 'u64'?	Bad :: extern struct {|    x size_t|}|main :: fn() {}
+c_type_void	1	unknown type 'void'; did you mean '()'?	bad :: extern fn() void|main :: fn() {}
+reserved_export	1	the C symbol 'main' is reserved for the program entry point	entry :: extern "main" fn() {}|main :: fn() {}

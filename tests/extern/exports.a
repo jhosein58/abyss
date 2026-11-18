@@ -1,0 +1,21 @@
+NativeResult :: extern struct {
+    status i8
+    total f64
+}
+
+abyss_unreferenced :: extern fn(n i32) i32 {
+    if n < 2 { ret 1 }
+    n * abyss_unreferenced(n - 1)
+}
+
+compute :: extern "AbyssCustomExport_42" fn(a f64, b i32) NativeResult {
+    .{ status: -7, total: a * 2.0 + (b as f64) }
+}
+
+abyss_update :: extern fn(target &i32, value i32) {
+    *target = value
+}
+
+isolated :: extern "abyss_only_called_from_c" fn(n i32) i32 {
+    n - 2
+}

@@ -92,7 +92,7 @@ if [[ "${FULL_TEST}" == true && -z "${FILTER}" ]]; then
 fi
 
 while IFS= read -r TEST_FILE; do
-    if [[ "${TEST_FILE}" == tests/e2e_* || "${TEST_FILE}" == tests/errors/c_type_* || "${TEST_FILE}" == tests/errors/extern_generic_* || "${TEST_FILE}" == tests/errors/extern_variadic_* || ("${TEST_FILE}" != tests/errors/* && ! "${TEST_FILE}" =~ ^tests/[^/]+\.a$) ]]; then
+    if [[ ("${TEST_FILE}" != tests/errors/* && ! "${TEST_FILE}" =~ ^tests/[^/]+\.a$) ]]; then
         continue
     fi
     TEST_NAME=$(basename "${TEST_FILE}" .a)
@@ -231,6 +231,15 @@ while IFS= read -r TEST_FILE; do
     fi
     PASSED=$((PASSED + 1))
 done < <(find tests -type f -name '*.a' | sort)
+
+if [[ -z "${FILTER}" || extern == *"${FILTER}"* ]]; then
+    TOTAL=$((TOTAL + 1))
+    if bash "${ROOT_DIR}/scripts/test_c_abi.sh" "${COMPILER}"; then
+        PASSED=$((PASSED + 1))
+    else
+        FAILED=$((FAILED + 1))
+    fi
+fi
 
 if [[ ${TOTAL} -eq 0 ]]; then
     echo -e "${YELLOW}No tests matched: ${FILTER}${RESET}"

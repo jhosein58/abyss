@@ -1,0 +1,155 @@
+import .exports: abyss_unreferenced
+import std.sys: fall
+
+Unary :: fn(i32) i32
+mapper :: fn(i32) Unary
+Select :: fn()
+Named :: fn(value i32) i32
+
+Point :: extern struct {
+    fraction f32
+    distance f64
+}
+
+Packet :: extern struct {
+    tag u8
+    pos Point
+    delta i16
+    active bool
+    serial u64
+}
+
+Tiny :: extern struct {
+    value i8
+}
+
+PacketCallback :: fn(Packet, f64) Packet
+Handler :: extern struct {
+    id u16
+    update PacketCallback
+}
+
+c_reset :: extern fn()
+c_store :: extern fn(value i8)
+c_read :: extern fn() i8
+c_bool :: extern fn(bool) bool
+c_tiny :: extern fn(Tiny) Tiny
+c_identity_pointer :: extern fn(&&i16) &i16
+c_packet :: extern fn(Packet) Packet
+c_layout :: extern fn(&Packet, u64, &f64, &i16, &bool, &u64) bool
+c_invoke :: extern fn(i32, fn(i32) i32) i32
+c_register :: extern fn(Handler)
+c_dispatch :: extern fn(&Packet) Packet
+c_get_mapper :: extern fn() Unary
+c_call_select :: extern fn(Select)
+c_double :: extern fn(i32) i32
+CAbs :: extern "abs" fn(i32) i32
+
+mix :: extern "C_ABI_Mixed_widths_0123456789" fn(
+    i8, group_a, group_b u16
+    named i32
+    u8
+    signed64 i64
+    unsigned32 u32
+    unsigned64 u64
+    value f32
+    f64
+    is_valid bool
+) f64
+
+require :: fn(ok bool, name Str) {
+    if not ok {
+        print(name)
+        fall()
+    }
+}
+
+choose :: fn(x i32) Unary {
+    if x == 0 { ret CAbs }
+    c_double
+}
+
+reenter :: fn(x i32) i32 {
+    if x < 1 { ret c_read() as i32 }
+    c_invoke(x - 1, reenter) + x
+}
+
+update :: fn(packet Packet, gain f64) Packet {
+    packet.delta = packet.delta + 2
+    packet.pos.distance = packet.pos.distance * gain
+    packet.pos.fraction = -packet.pos.fraction + (0.75 as f32)
+    packet
+}
+
+select :: fn() {
+    c_store(-17)
+}
+
+local_export :: extern "abyss_local_export" fn(i32, named i32) i32 {
+    named + 1
+}
+
+check_scalars :: fn() {
+    c_reset()
+    require(c_read() == 0, "zero argument and void functions")
+    c_store(-3)
+    require(c_read() == -3, "signed narrow return")
+    require(c_bool(false) and not c_bool(true), "C bool arguments and results")
+    value := mix(-5, 65000, 30000, -90000, 250, -((1 as i64) << 32), 4000000000, (1 as u64) << 63, 1.25 as f32, -2.5, true)
+    require(value == -3.75, "mixed widths and float registers")
+    nested: i16 = -42
+    pointer := &nested
+    require(*c_identity_pointer(&pointer) as i32 == -42, "nested pointer argument and pointer return")
+    require(CAbs(-7) == 7, "uppercase binding and explicit libc symbol")
+    require(local_export(0, 8) == 9, "direct call to exported Abyss function with anonymous parameter")
+}
+
+check_records :: fn() {
+    small: Tiny = .{ value: -45 }
+    require(c_tiny(small).value == -44, "one byte record ABI")
+
+    record: Packet = .{
+        tag: 19
+        pos: .{ fraction: 1.25 as f32, distance: 6.0 }
+        delta: -100
+        active: true
+        serial: 99
+    }
+    require(c_layout(&record, @sizeof(Packet), &record.pos.distance, &record.delta, &record.active, &record.serial), "nested layout, declaration order, field addresses and padding")
+    copy := record
+    copy.pos.distance = 5.0
+    copy.delta = -101
+    require(record.pos.distance == 6.0 and record.delta == -100, "record assignment by value")
+    out := c_packet(copy)
+    require(out.tag == 20 and out.pos.distance == 10.0 and out.delta == -99 and not out.active and out.serial == 100, "record argument and return through C")
+    require(copy.pos.distance == 5.0 and copy.delta == -101, "C receives a copy")
+
+    handler: Handler = .{ id: 6, update: update }
+    c_register(handler)
+    result := c_dispatch(&record)
+    require(result.pos.distance == 18.0 and result.pos.fraction == (-0.5 as f32), "floating point and nested record callback")
+    require(result.delta == -98 and record.delta == -100, "callback takes and returns records by value")
+    restored := handler.update(record, 2.0)
+    require(restored.pos.distance == 12.0, "indirect call through ABI field")
+}
+
+check_callbacks :: fn() {
+    picker: mapper = choose
+    fun: Unary = picker(0)
+    require(fun(-39) == 39, "lowercase alias and imported function as a value")
+    named: Named = c_get_mapper()
+    require(named(8) == 16, "foreign return of a function pointer")
+    require(c_invoke(4, c_double) == 8, "imported C function as a callback")
+    c_call_select(select)
+    require(c_read() == -17, "zero argument void callback")
+    c_store(-3)
+    require(c_invoke(4, reenter) == 7, "C and Abyss reentrancy")
+    require(abyss_unreferenced(5) == 120, "recursive export in imported module")
+}
+
+main :: fn() {
+    check_scalars()
+    check_records()
+    check_callbacks()
+    print("extern ABI verified")
+}

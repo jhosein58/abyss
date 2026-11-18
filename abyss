@@ -166,7 +166,7 @@ case "${CMD}" in
 WINEDEBUG=-all WINEPREFIX="${ROOT_DIR}/tmp/.wine" wine "${ROOT_DIR}/dist/abyssc-windows-x86_64.exe" "\$@"
 EOF
         chmod +x "${WRAPPER}"
-        bash "${ROOT_DIR}/scripts/test_compiler.sh" "${WRAPPER}" "${TARGET}"
+        ABYSS_TEST_WINE=true bash "${ROOT_DIR}/scripts/test_compiler.sh" "${WRAPPER}" "${TARGET}"
         ;;
     bootstrap|test-bootstrap)
         bash "${ROOT_DIR}/scripts/bootstrap.sh" "$@"

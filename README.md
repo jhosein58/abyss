@@ -9,6 +9,7 @@ A statically typed, data-oriented systems programming language. Pairs modern erg
 - **100% Self-Hosted:** Bit-for-bit deterministic bootstrap verification.
 - **Pure C99 Target:** Emits standard portable C. Compiles with GCC, Clang, or MSVC.
 - **Integrated Bytecode VM:** Instant compile-and-run without external toolchain latency.
+- **C Interoperability:** [Import C functions, export Abyss functions, and pass C-compatible structs](docs/02-quickstart/c-interop.md).
 - **Zero-Cost Formatting & Reflection:** Compile-time format verification and type inspection with zero runtime overhead.
 - **Compile-Time Evaluation:** Run arbitrary logic at compile time via `cmpt` and macros.
 - **First-Class Types:** Compute, return, and pass types dynamically at compile time.
