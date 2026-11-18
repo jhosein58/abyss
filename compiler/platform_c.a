@@ -35,12 +35,6 @@ uint8_t *abyss_process_arg(int32_t index) {
     return index >= 0 && index < abyss_process_argc ? abyss_process_argv[index] : 0;
 }
 uint8_t **abyss_process_args(void) { return abyss_process_argv; }
-static uint8_t *abyss_process_env_data;
-static int32_t abyss_process_last_error;
-uint8_t *abyss_process_env(void) { return abyss_process_env_data; }
-void abyss_process_set_env(uint8_t *data) { abyss_process_env_data = data; }
-int32_t abyss_process_error(void) { return abyss_process_last_error; }
-void abyss_process_set_error(int32_t error) { abyss_process_last_error = error; }
 `
 }
 
@@ -127,30 +121,6 @@ void *realloc(void *ptr, size_t size) {
     void *res = malloc(size);
     if (res) { memcpy(res, ptr, old); free(ptr); }
     return res;
-}
-`
-}
-
-host_source :: fn() Str {
-    `uint8_t abyss_host_os(void) {
-#if defined(__wasi__)
-    return 3;
-#elif defined(_WIN32)
-    return 2;
-#elif defined(__APPLE__)
-    return 1;
-#else
-    return 0;
-#endif
-}
-uint8_t abyss_host_arch(void) {
-#if defined(__wasm32__)
-    return 2;
-#elif defined(__aarch64__) || defined(_M_ARM64)
-    return 1;
-#else
-    return 0;
-#endif
 }
 `
 }

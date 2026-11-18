@@ -6,7 +6,7 @@ import std.sys:       fall
 
 import .hir:   HirExprKind, hir_kind, hir_none
 import .lexer: decode_char_lit
-import .platform_c: c_header, host_source, process_source, wasi_memory
+import .platform_c: c_header, process_source, wasi_memory
 import .types: TyKind, TypeStorage, ty_id_none
 import .vm.native: vm_ffi_source
 
@@ -77,12 +77,11 @@ CCodeGen :: struct {
     target_os            Os
     needs_process        bool
     needs_ffi            bool
-    needs_host           bool
     indent               u32
     loop_condition       LoopCondition
     temp_count           u32
     new :: fn(arena &Arena) Self {
-        .{ arena: arena, struct_forward_decls: String.new(arena), struct_decls: String.new(arena), struct_defs: String.new(arena), func_decls: String.new(arena), global_decls: String.new(arena), global_defs: String.new(arena), static_init: false, code: String.new(arena), emitted_structs: Vec(u32).new(), main_sym: 0, has_main: false, main_returns_status: false, target_os: Os.linux, needs_process: false, needs_ffi: false, needs_host: false, indent: 0, loop_condition: .{ id: hir_none(), breaks: false, continues: false }, temp_count: 0 }
+        .{ arena: arena, struct_forward_decls: String.new(arena), struct_decls: String.new(arena), struct_defs: String.new(arena), func_decls: String.new(arena), global_decls: String.new(arena), global_defs: String.new(arena), static_init: false, code: String.new(arena), emitted_structs: Vec(u32).new(), main_sym: 0, has_main: false, main_returns_status: false, target_os: Os.linux, needs_process: false, needs_ffi: false, indent: 0, loop_condition: .{ id: hir_none(), breaks: false, continues: false }, temp_count: 0 }
     }
 
     destroy :: fn(self &Self) {
@@ -193,7 +192,6 @@ CCodeGen :: struct {
     declare_foreign :: fn(self &Self, fn_name Str, ret_type Str, params Str, module Str, name Str) {
         if name.starts_with("abyss_ffi_") { self.needs_ffi = true }
         if name.starts_with("abyss_process_") { self.needs_process = true }
-        if name.starts_with("abyss_host_") { self.needs_host = true }
         if module.len > 0 {
             self.func_decls.push_str("__attribute__((import_module(\"")
             self.func_decls.push_str(module)
@@ -653,9 +651,8 @@ CCodeGen :: struct {
 
         out.push_str(c_header(self.target_os))
         if self.target_os == Os.wasi { out.push_str(wasi_memory()) }
-        if self.has_main or self.needs_process { out.push_str(process_source()) }
+        if self.needs_process { out.push_str(process_source()) }
         if self.needs_ffi { out.push_str(vm_ffi_source()) }
-        if self.needs_host { out.push_str(host_source()) }
 
         append_str(&out, Str.of("// Struct Declarations\n"))
         append_str(&out, string_view(&self.struct_forward_decls))
@@ -671,7 +668,12 @@ CCodeGen :: struct {
         append_str(&out, string_view(&self.code))
 
         if self.has_main {
-            append_str(&out, Str.of("static int abyss_main(int argc, uint8_t **argv) { abyss_process_set_args(argc, argv); "))
+            append_str(&out, Str.of("static int abyss_main(int argc, uint8_t **argv) { "))
+            if self.needs_process {
+                out.push_str("abyss_process_set_args(argc, argv); ")
+            } else {
+                out.push_str("(void)argc; (void)argv; ")
+            }
             if self.main_returns_status { out.push_str("return (int)") }
             out.push_str("sym_")
             append_u32(&out, self.main_sym)

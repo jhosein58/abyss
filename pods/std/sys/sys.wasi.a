@@ -32,10 +32,7 @@ environ_sizes_get :: extern "wasi_snapshot_preview1" "environ_sizes_get" fn(coun
 environ_get :: extern "wasi_snapshot_preview1" "environ_get" fn(entries &u32, buf &u8) u32
 proc_exit :: extern "wasi_snapshot_preview1" "proc_exit" fn(status u32)
 
-abyss_process_env :: extern fn() &u8
-abyss_process_set_env :: extern fn(env &u8)
-abyss_process_error :: extern fn() i32
-abyss_process_set_error :: extern fn(error i32)
+wasi_env_data: &u8
 
 RIGHT_READ :: 2
 RIGHT_SEEK :: 4
@@ -92,11 +89,10 @@ resolve_path :: fn(path Str) Maybe(PathAt) {
 }
 
 record_status :: fn(status u32) bool {
-    abyss_process_set_error(status as i32)
     status == 0
 }
 
-last_error :: fn() i32 { abyss_process_error() }
+last_error :: fn() i32 { 0 }
 
 open_at :: fn(path &u8, flags u32, rights u64, behavior u32) i64 {
     location := resolve_path(Str.of(path))
@@ -184,7 +180,7 @@ make_directory :: fn(path &u8) bool {
 }
 
 environment :: fn(key &u8) &u8 {
-    entries := abyss_process_env() as &u32
+    entries := wasi_env_data as &u32
     if entries == (0 as &u32) {
         count: u32 = 0
         bytes: u32 = 0
@@ -197,7 +193,7 @@ environment :: fn(key &u8) &u8 {
             ret 0 as &u8
         }
         entries[count] = 0
-        abyss_process_set_env(entries as &u8)
+        wasi_env_data = entries as &u8
     }
     name := Str.of(key)
     while *entries != 0 {
@@ -225,9 +221,5 @@ host_call :: fn(name Str, args &u64) Maybe(u64) {
     if name.eq("environ_sizes_get") { ret Maybe(u64).some(environ_sizes_get(args[0] as &u32, args[1] as &u32) as u64) }
     if name.eq("environ_get") { ret Maybe(u64).some(environ_get(args[0] as &u32, args[1] as &u8) as u64) }
     if name.eq("proc_exit") { proc_exit(args[0] as u32), ret Maybe(u64).some(0) }
-    if name.eq("abyss_process_env") { ret Maybe(u64).some(abyss_process_env() as u64) }
-    if name.eq("abyss_process_set_env") { abyss_process_set_env(args[0] as &u8), ret Maybe(u64).some(0) }
-    if name.eq("abyss_process_error") { ret Maybe(u64).some(abyss_process_error() as u64) }
-    if name.eq("abyss_process_set_error") { abyss_process_set_error(args[0] as i32), ret Maybe(u64).some(0) }
     Maybe(u64).none()
 }

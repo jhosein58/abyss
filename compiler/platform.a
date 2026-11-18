@@ -1,10 +1,7 @@
-import core.target: Arch, Os
+import core.target: Arch, Os, target
 
-abyss_host_os :: extern fn() u8
-abyss_host_arch :: extern fn() u8
-
-host_os :: fn() Os { abyss_host_os() as Os }
-host_arch :: fn() Arch { abyss_host_arch() as Arch }
+host_os :: fn() Os { target.os }
+host_arch :: fn() Arch { target.arch }
 
 os_name :: fn(os Os) Str {
     match os {

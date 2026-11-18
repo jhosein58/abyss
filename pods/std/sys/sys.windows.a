@@ -128,13 +128,12 @@ CachedEnv :: extern struct {
     next &CachedEnv
 }
 
-abyss_process_env :: extern fn() &u8
-abyss_process_set_env :: extern fn(env &u8)
+win_cached_env: &CachedEnv
 
 environment :: fn(key &u8) &u8 {
     if key == (0 as &u8) { ret 0 as &u8 }
     name := Str.of(key)
-    head := abyss_process_env() as &CachedEnv
+    head := win_cached_env
     entry := head
     while entry != (0 as &CachedEnv) {
         if Str.new(entry.name_ptr, entry.name_len).eq(name) { ret entry.value }
@@ -154,7 +153,7 @@ environment :: fn(key &u8) &u8 {
     block.name_len = name.len
     block.value = value
     block.next = head
-    abyss_process_set_env(block as &u8)
+    win_cached_env = block
     value
 }
 
@@ -173,7 +172,5 @@ host_call :: fn(name Str, args &u64) Maybe(u64) {
     if name.eq("GetEnvironmentVariableA") { ret Maybe(u64).some(GetEnvironmentVariableA(args[0] as &u8, args[1] as &u8, args[2] as u32) as u64) }
     if name.eq("ExitProcess") { exit_process(args[0] as i32), ret Maybe(u64).some(0) }
     if name.eq("_errno") { ret Maybe(u64).some(errno_location() as u64) }
-    if name.eq("abyss_process_env") { ret Maybe(u64).some(abyss_process_env() as u64) }
-    if name.eq("abyss_process_set_env") { abyss_process_set_env(args[0] as &u8), ret Maybe(u64).some(0) }
     Maybe(u64).none()
 }

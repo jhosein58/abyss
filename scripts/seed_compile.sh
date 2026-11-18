@@ -34,7 +34,6 @@ SEED_HEADER="${SDK}/seed.h"
     printf '%s\n' '#define _GNU_SOURCE' '#include <stdint.h>' '#include <stdbool.h>' '#include <stddef.h>' '#include <stdio.h>' '#include <stdlib.h>' '#include <string.h>' '#ifdef __TINYC__' '#define __int128 long long' 'typedef uint16_t _Float16;' '#endif'
     printf '%s\n' '#define abyss_process_argc abyss_argc' '#define abyss_process_argv abyss_argv'
     source_literal "${ROOT_DIR}/compiler/platform_c.a" process_source
-    source_literal "${ROOT_DIR}/compiler/platform_c.a" host_source
     source_literal "${ROOT_DIR}/compiler/vm/native.a" vm_ffi_source
 } > "${SEED_HEADER}"
 
