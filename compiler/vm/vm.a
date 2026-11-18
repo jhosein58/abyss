@@ -302,7 +302,8 @@ Vm :: struct {
     call_foreign :: fn(self &Self, prog &Chunk, name &u8, address u64, signature &u32, argc u8) {
         start := self.stack.len - (argc as u64)
         args := self.stack.as_slice().ptr + start
-        result := abyss_ffi_call(self.scope(), invoke_vm_callback, prog as &u8, name, address, signature, args)
+        invoke: VmCallback = invoke_vm_callback
+        result := abyss_ffi_call(self.scope(), invoke, prog as &u8, name, address, signature, args)
         self.stack.reset(start)
         self.stack.push(result)
     }
@@ -653,7 +654,8 @@ Vm :: struct {
                     ip = ip + 2
                     value := self.stack.pop()
                     if (value & vm_entry_tag()) != 0 {
-                        value = abyss_ffi_callback(self.scope(), invoke_vm_callback, prog as &u8, value as u32, sig)
+                        invoke: VmCallback = invoke_vm_callback
+                        value = abyss_ffi_callback(self.scope(), invoke, prog as &u8, value as u32, sig)
                     }
                     self.stack.push(value)
                 }
