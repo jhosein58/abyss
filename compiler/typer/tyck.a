@@ -339,6 +339,7 @@ synth_cmpt :: fn(eng &Engine, id u32) {
         ret
     }
     process_mono_funcs(eng)
+    tbl.set_rhs(id, db.get_node_type(child))
     val := eval_const(db, child)
     db.set_const_val(id, val)
     resolved_ty := unify_ptr.resolve_type(slot)

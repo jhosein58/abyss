@@ -670,6 +670,11 @@ VmCodeGen :: struct {
                     (storage as &u64)[i] = self.zero_global(elem) as u64
                 }
             }
+        } else if kind == TyKind.union_ {
+            member := self.types.union_members(base).ptr[0]
+            if self.global_is_aggregate(member) {
+                (storage as &u64)[1] = self.zero_global(member) as u64
+            }
         }
         storage
     }
@@ -1003,10 +1008,17 @@ VmCodeGen :: struct {
         VmVal.const_int(val as u64)
     }
 
-    expr_float :: fn(self &Self, raw Str) VmVal {
-        f := parse_float(raw)
-        bits := *(&f as &u64)
-        .{ kind: VmValKind.const_int, elem_size: 64, id: 0, raw: bits }
+    expr_typed_float :: fn(self &Self, raw Str, narrow bool) VmVal {
+        self.expr_folded_float(self.arena, parse_float(raw), narrow)
+    }
+
+    expr_folded_float :: fn(self &Self, arena &Arena, value f64, narrow bool) VmVal {
+        if narrow {
+            f := value as f32
+            bits := *(&f as &u32) as u64
+            ret .{ kind: VmValKind.const_int, elem_size: 32, id: 0, raw: bits }
+        }
+        .{ kind: VmValKind.const_int, elem_size: 64, id: 0, raw: *(&value as &u64) }
     }
 
     expr_bool :: fn(self &Self, val bool) VmVal {
@@ -1573,17 +1585,8 @@ VmCodeGen :: struct {
             ty := self.find_struct_field_type(base, field_id)
             ret .{ kind: VmValKind.ffi_field, elem_size: elem_sz, id: address, raw: ty as u64 }
         }
-        if value.kind == VmValKind.data and depth <= 1 {
-            self.ensure_on_stack(value)
-            address := self.alloc_temp()
-            self.chunk.inst(OpCode.store_local)
-            self.chunk.emit_u16(address as u16)
-            value = VmVal.local(address)
-        }
-        if (depth == 0) or (depth == 1) {
-            if (value.kind == VmValKind.local) or (value.kind == VmValKind.deref) {
-                ret .{ kind: VmValKind.member_local, elem_size: elem_sz, id: value.id, raw: offset as u64 }
-            }
+        if depth <= 1 and value.kind == VmValKind.local {
+            ret .{ kind: VmValKind.member_local, elem_size: elem_sz, id: value.id, raw: offset as u64 }
         }
         self.ensure_on_stack(value)
         d := depth
@@ -1591,14 +1594,10 @@ VmCodeGen :: struct {
             self.chunk.inst(OpCode.load64)
             d = d - 1
         }
-        if offset > 0 {
-            c_idx := self.chunk.alloc_const(offset as u64)
-            self.chunk.inst(OpCode.push_const)
-            self.chunk.emit_u16(c_idx)
-            self.chunk.inst(OpCode.add)
-        }
-        self.chunk.inst(OpCode.load64)
-        ret .{ kind: VmValKind.stack, elem_size: elem_sz, id: 0, raw: 0 }
+        address := self.alloc_temp()
+        self.chunk.inst(OpCode.store_local)
+        self.chunk.emit_u16(address as u16)
+        .{ kind: VmValKind.member_local, elem_size: elem_sz, id: address, raw: offset as u64 }
     }
 
     expr_struct_init_field :: fn(self &Self, arena &Arena, field_id u32, val_str VmVal) VmVal {

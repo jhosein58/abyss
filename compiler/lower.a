@@ -10,7 +10,7 @@ import .topo_sort: topo_sort
 import .typer.fn: func_has_self
 import .typer.reflection: macro_template, reflection_error, reflection_quote, reflection_read, reflection_value
 import .types: TyKind, TypeStorage, ty_id_bool, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_int
-import .vm.codegen: VmCodeBuilder, VmCodeGen, VmVal, VmValKind
+import .vm.codegen: VmCodeBuilder, VmCodeGen, VmVal, VmValKind, vm_element_size
 import .vm.op: OpCode
 
 LowerCtx :: fn(B type, L type, V type) type {
@@ -369,7 +369,8 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             ret ccg.expr_int(arena, db.hir.lhs(id))
         }
         lit_float {
-            ret ccg.expr_float(db.interner.get(db.hir.lhs(id)))
+            ty := expression_value_type(db, id)
+            ret ccg.expr_typed_float(db.interner.get(db.hir.lhs(id)), db.types.payload(ty) == 32)
         }
         lit_bool_true {
             ret ccg.expr_bool(true)
@@ -706,7 +707,10 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             ret ccg.expr_typed_cast(arena, ty_str, lhs_v, lhs_ty)
         }
         k_cmpt {
-            ty := db.get_node_type(id)
+            ty := expression_value_type(db, id)
+            if ctx.global_init {
+                ret lower_global_constant(ctx, id, db.hir.rhs(id), ty, eval_const(db, id))
+            }
             if (ty == ty_id_type()) or (db.types.kind(ty) == TyKind.type_) {
                 if ccg.is_vm() {
                     c_ty := db.get_const_type(id)
@@ -1559,13 +1563,96 @@ lower_const_record :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32,
     ccg.expr_struct_init(arena, ccg.type_str(&db.types, arena, ty), ctx.builder.finish_list(&items))
 }
 
+expression_value_type :: fn(db &Nexus, id u32) u32 {
+    if db.has_union_coerce(id) {
+        members := db.types.union_members(db.get_union_coerce_ty(id))
+        ret members.ptr[db.get_union_coerce_idx(id)]
+    }
+    db.get_node_type(id)
+}
+
+lower_global_constant :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32, source u32, ty u32, bits u64) V {
+    db := ctx.db
+    types := &db.types
+    cg := ctx.ccg
+    arena := ctx.arena
+    add_type_to_queue(db, ty, ctx.type_queue)
+    type_name := cg.type_str(types, arena, ty)
+    kind := types.kind(ty)
+    if ty == db.str_type {
+        ptr := reflection_read(db, bits, ty, "ptr") as &u8
+        len := reflection_read(db, bits, ty, "len")
+        raw := reflection_quote(db, Str.new(ptr, len))
+        ret cg.expr_str_lit(arena, type_name, db.interner.intern("ptr"), db.interner.intern("len"), raw)
+    }
+    if kind == TyKind.bool {
+        ret cg.expr_bool(bits != 0)
+    }
+    if kind == TyKind.float or kind == TyKind.untyped_float {
+        value := if types.payload(source) == 32 {
+            (*(&bits as &f32)) as f64
+        } else {
+            *(&bits as &f64)
+        }
+        ret cg.expr_folded_float(arena, value, types.payload(ty) == 32)
+    }
+    if kind == TyKind.ptr or kind == TyKind.func {
+        if bits != 0 {
+            db.type_error(id, "compile-time pointers cannot escape into runtime storage")
+        }
+    } else if kind == TyKind.struct_ or kind == TyKind.nominal {
+        if types.struct_is_extern(ty) {
+            db.type_error(id, "compile-time extern records cannot initialize mutable globals")
+        }
+        fields := types.get_struct_fields(ty)
+        source_fields := types.get_struct_fields(source)
+        items := ctx.builder.new_list(arena)
+        i: u64 = 0
+        while i < fields.len / 2 {
+            field_bits := (bits as &u64)[i]
+            value := lower_global_constant(ctx, id, source_fields.ptr[i * 2 + 1], fields.ptr[i * 2 + 1], field_bits)
+            ctx.builder.append_list_item(&items, cg.expr_struct_init_field(arena, fields.ptr[i * 2], value), i == 0)
+            i = i + 1
+        }
+        ret cg.expr_struct_init(arena, type_name, ctx.builder.finish_list(&items))
+    } else if kind == TyKind.array {
+        elem := types.get_array_type(ty)
+        source_elem := types.get_array_type(source)
+        count := types.get_array_len(ty)
+        size := vm_element_size(types, source_elem)
+        items := ctx.builder.new_list(arena)
+        for index in Range.new(0, count as i32) {
+            ptr := (bits + (index as u64) * size) as &u8
+            raw := if size == 1 {
+                *ptr as u64
+            } else if size == 2 {
+                * (ptr as &u16) as u64
+            } else if size == 4 {
+                * (ptr as &u32) as u64
+            } else {
+                * (ptr as &u64)
+            }
+            value := lower_global_constant(ctx, id, source_elem, elem, raw)
+            ctx.builder.append_list_item(&items, cg.expr_array_init_elem(arena, value), index == 0)
+        }
+        ret cg.expr_array_init(arena, type_name, ctx.builder.finish_list(&items), elem, count)
+    } else if kind == TyKind.union_ {
+        tag := *(bits as &u64) as u32
+        members := types.union_members(ty)
+        source_members := types.union_members(source)
+        value := lower_global_constant(ctx, id, source_members.ptr[tag], members.ptr[tag], (bits as &u64)[1])
+        ret cg.expr_union(arena, type_name, tag, value)
+    }
+    cg.expr_cast(arena, type_name, cg.expr_u64(arena, bits))
+}
+
 global_init_source :: fn(db &Nexus, id u32) u32 {
     tbl := &db.hir
     match tbl.kind(id) {
         ident, member {
             value := db.binding_value(db.get_hir_symbol(id))
             if value != hir_none() {
-                ret value
+                ret global_init_source(db, value)
             }
             if tbl.kind(id) == hir_kind.member and tbl.lhs(id) != hir_none() {
                 source := global_init_source(db, tbl.lhs(id))
@@ -1576,7 +1663,7 @@ global_init_source :: fn(db &Nexus, id u32) u32 {
                     i: u64 = 0
                     while i < names.len {
                         if tbl.lhs(names.ptr[i]) == field {
-                            ret values.ptr[i]
+                            ret global_init_source(db, values.ptr[i])
                         }
                         i = i + 1
                     }
@@ -1587,12 +1674,13 @@ global_init_source :: fn(db &Nexus, id u32) u32 {
         block {
             items := db.get_list(tbl.lhs(id))
             if items.len > 0 {
-                ret items.ptr[items.len - 1]
+                ret global_init_source(db, items.ptr[items.len - 1])
             }
             ret id
         }
         k_if {
-            ret if eval_const(db, tbl.lhs(id)) != 0 { tbl.rhs(id) } else { tbl.extra(id) }
+            branch := if eval_const(db, tbl.lhs(id)) != 0 { tbl.rhs(id) } else { tbl.extra(id) }
+            ret global_init_source(db, branch)
         }
         index {
             source := global_init_source(db, tbl.lhs(id))
@@ -1602,12 +1690,12 @@ global_init_source :: fn(db &Nexus, id u32) u32 {
                 if index >= items.len {
                     db.type_error(id, "array index out of bounds")
                 }
-                ret items.ptr[index]
+                ret global_init_source(db, items.ptr[index])
             }
             ret id
         }
         splice {
-            ret tbl.extra(id)
+            ret global_init_source(db, tbl.extra(id))
         }
         else { ret id }
     }
@@ -1629,7 +1717,12 @@ lower_expr :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     if not ctx.ccg.has_value(val_str) {
         source := if ctx.global_init { global_init_source(db, id) } else { id }
         if source == id {
-            val_str = lower_expr_node(ctx, id)
+            if ctx.global_init and (kind == hir_kind.member or kind == hir_kind.index) and db.hir.kind(global_init_source(db, db.hir.lhs(id))) == hir_kind.k_cmpt {
+                ty := expression_value_type(db, id)
+                val_str = lower_global_constant(ctx, id, ty, ty, eval_const(db, id))
+            } else {
+                val_str = lower_expr_node(ctx, id)
+            }
         } else {
             val_str = lower_expr(ctx, source)
         }

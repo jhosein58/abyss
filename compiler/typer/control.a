@@ -517,7 +517,7 @@ synth_block :: fn(db &Nexus, tbl &HirTable, id u32) {
         }
         if (target_id != hir_none()) and db.is_const(target_id) {
             db.set_is_const(id, true)
-            if db.has_const_val(target_id) {
+            if items.len == 1 and db.has_const_val(target_id) {
                 db.set_const_val(id, db.get_const_val(target_id))
             }
             target_slot := unify_ptr.get_slot(target_id)

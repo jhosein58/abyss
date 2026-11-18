@@ -115,8 +115,36 @@ CCodeGen :: struct {
         name
     }
 
-    expr_float :: fn(self &Self, raw Str) Str {
-        raw
+    expr_typed_float :: fn(self &Self, raw Str, narrow bool) Str {
+        if not narrow {
+            ret raw
+        }
+        fmt := Fmt.new(self.arena)
+        fmt.cstr(c"((float)(").str(raw).cstr(c"))")
+        fmt.as_str()
+    }
+
+    expr_folded_float :: fn(self &Self, arena &Arena, value f64, narrow bool) Str {
+        bits := *(&value as &u64)
+        exponent := ((bits >> 52) & 2047) as i32
+        fraction := bits & (((1 as u64) << 52) - 1)
+        fmt := Fmt.new(arena)
+        fmt.cstr(c"(")
+        if (bits >> 63) != 0 {
+            fmt.cstr(c"-")
+        }
+        if exponent == 2047 {
+            fmt.cstr(if fraction == 0 { c"(1.0/0.0)" } else { c"(0.0/0.0)" })
+        } else {
+            fmt.cstr(if exponent == 0 { c"0x0." } else { c"0x1." })
+            for index in Range.new(0, 13) {
+                digit := ((fraction >> (((12 - index) * 4) as u64)) & 15) as u64
+                fmt.char("0123456789abcdef".ptr[digit])
+            }
+            fmt.cstr(c"p").int32(if exponent == 0 { -1022 } else { exponent - 1023 })
+        }
+        fmt.cstr(c")")
+        self.expr_typed_float(fmt.as_str(), narrow)
     }
 
     empty_parameters :: fn(self &Self) Str {

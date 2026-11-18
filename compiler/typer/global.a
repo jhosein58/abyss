@@ -15,7 +15,7 @@ static_address :: fn(db &Nexus, id u32) bool {
         ret db.get_auto_deref_depth(id) == 0 and static_address(db, lhs)
     }
     if tbl.kind(id) == hir_kind.index {
-        ret db.types.kind(db.get_node_type(lhs)) == TyKind.array and static_address(db, lhs) and db.is_const(tbl.rhs(id))
+        ret db.types.kind(db.get_node_type(lhs)) == TyKind.array and static_address(db, lhs) and global_initializer_is_const(db, tbl.rhs(id))
     }
     false
 }
@@ -77,7 +77,19 @@ global_initializer_is_const :: fn(db &Nexus, id u32) bool {
         cast, unary_neg, unary_not, unary_bit_not {
             ret global_initializer_is_const(db, tbl.lhs(id))
         }
-        binary_add, binary_sub, binary_mul, binary_div, binary_mod, binary_bit_and, binary_bit_or, binary_bit_xor, binary_shl, binary_shr,
+        binary_div, binary_mod {
+            left := tbl.lhs(id)
+            right := tbl.rhs(id)
+            if not global_initializer_is_const(db, left) or not global_initializer_is_const(db, right) {
+                ret false
+            }
+            kind := db.types.kind(db.get_node_type(right))
+            if kind != TyKind.float and kind != TyKind.untyped_float and eval_const(db, right) == 0 {
+                db.type_error(right, "division by zero in mutable global initializer")
+            }
+            ret true
+        }
+        binary_add, binary_sub, binary_mul, binary_bit_and, binary_bit_or, binary_bit_xor, binary_shl, binary_shr,
         binary_eq_eq, binary_neq, binary_lt, binary_lt_eq, binary_gt, binary_gt_eq, binary_and, binary_or {
             ret global_initializer_is_const(db, tbl.lhs(id)) and global_initializer_is_const(db, tbl.rhs(id))
         }

@@ -266,6 +266,10 @@ Engine :: struct {
         if executable {
             sym_id = self.get_symbol_id(fid, Str.of("main"))
             self.parse(sym_id)
+            global := self.nexus.global_var(sym_id)
+            if global != hir_none() {
+                self.nexus.type_error(global, "main must be a function declaration")
+            }
             self.type_check(sym_id)
             self.validate_main(sym_id)
         }

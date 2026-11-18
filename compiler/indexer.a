@@ -445,6 +445,7 @@ Indexer :: struct {
         db := self.db
         cursor := start_tok
         depth: u32 = 0
+        declarations := HashSet(u32).new()
 
         has_sym := false
         curr_sym_name: u32 = 0
@@ -521,7 +522,11 @@ Indexer :: struct {
                         if has_sym {
                             db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
                         }
-                        curr_sym_name = db.interner.intern(db.tokens.text(cursor))
+                        name := db.tokens.text(cursor)
+                        curr_sym_name = db.interner.intern(name)
+                        if not declarations.insert(curr_sym_name) {
+                            index_error(db, file_id, db.tokens.start(cursor), c"duplicate declaration", name)
+                        }
                         curr_sym_tok = cursor
                         has_sym = true
                         cursor = cursor + 1
@@ -534,6 +539,7 @@ Indexer :: struct {
         if has_sym {
             db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, end_tok)
         }
+        declarations.destroy()
     }
 
     resolve_pending_imports :: fn(self &Self) {
