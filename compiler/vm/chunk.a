@@ -1,3 +1,5 @@
+import compiler.types: TypeStorage
+
 import .op: OpCode
 
 VmExtern :: struct {
@@ -8,9 +10,10 @@ VmExtern :: struct {
 Chunk :: struct {
     buf          Vec(u8)
     const        Vec(u64)
-    externs Vec(VmExtern)
+    externs      Vec(VmExtern)
+    types        &TypeStorage
     new :: fn() Self {
-        .{ buf: Vec(u8).new(), const: Vec(u64).new(), externs: Vec(VmExtern).new() }
+        .{ buf: Vec(u8).new(), const: Vec(u64).new(), externs: Vec(VmExtern).new(), types: 0 as &TypeStorage }
     }
 
     destroy :: fn(self &Self) {

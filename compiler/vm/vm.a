@@ -1,6 +1,8 @@
 import .chunk: Chunk
 import .op:    OpCode
-import .codegen: vm_entry_tag, vm_extern_tag
+import .codegen: vm_data_base, vm_data_size, vm_entry_tag, vm_extern_tag, vm_is_aggregate, vm_is_indirect
+
+import compiler.types: TyKind, TypeStorage
 
 import std.env: Env
 import std.mem: free, malloc, mem_copy, realloc
@@ -43,6 +45,57 @@ float_binary :: fn(T type, op OpCode, a, b T) u64 {
     bits: u64 = 0
     *(&bits as &T) = res
     bits
+}
+
+copy_vm_data :: fn(scope &&u8, types &TypeStorage, ty u32, dest, src &u8) &u8 {
+    if dest == src {
+        ret dest
+    }
+    base := vm_data_base(types, ty)
+    kind := types.kind(base)
+    size := vm_data_size(types, base)
+    fresh := dest == (0 as &u8)
+    target := if fresh {
+        abyss_ffi_alloc(scope, if size == 0 { 1 } else { size })
+    } else {
+        dest
+    }
+    input := src as &u64
+    output := target as &u64
+    if kind == TyKind.struct_ and not types.struct_is_extern(base) {
+        fields := types.get_struct_fields(base)
+        i: u64 = 0
+        while i < fields.len / 2 {
+            field := fields.ptr[i * 2 + 1]
+            if vm_is_aggregate(types, field) {
+                dst := if fresh { 0 as &u8 } else { output[i] as &u8 }
+                output[i] = copy_vm_data(scope, types, field, dst, input[i] as &u8) as u64
+            } else {
+                output[i] = input[i]
+            }
+            i = i + 1
+        }
+    } else if kind == TyKind.array and vm_is_indirect(types, types.get_array_type(base)) {
+        elem := types.get_array_type(base)
+        for i in Range.new(0, types.get_array_len(base) as i32) {
+            dst := if fresh { 0 as &u8 } else { output[i] as &u8 }
+            output[i] = copy_vm_data(scope, types, elem, dst, input[i] as &u8) as u64
+        }
+    } else if kind == TyKind.union_ {
+        tag := input[0]
+        member := types.union_members(base).ptr[tag]
+        payload := input[1]
+        if vm_is_aggregate(types, member) {
+            dst := if fresh or output[0] != tag { 0 as &u8 } else { output[1] as &u8 }
+            output[1] = copy_vm_data(scope, types, member, dst, payload as &u8) as u64
+        } else {
+            output[1] = payload
+        }
+        output[0] = tag
+    } else {
+        mem_copy(target, src, size)
+    }
+    target
 }
 
 Vm :: struct {
@@ -497,6 +550,13 @@ Vm :: struct {
                     if dest != src {
                         mem_copy(dest, src, size)
                     }
+                }
+                copy_data {
+                    ty := prog.read_u32(ip)
+                    ip = ip + 4
+                    dest := self.stack.pop() as &u8
+                    src := self.stack.pop() as &u8
+                    self.stack.push(copy_vm_data(self.scope(), prog.types, ty, dest, src) as u64)
                 }
                 ret_val {
                     rv: u64 = 0

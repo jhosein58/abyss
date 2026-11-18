@@ -21,6 +21,7 @@ VmValKind :: enum u8 {
     local
     global
     data
+    data_ref
     const_int
     ptr
     list
@@ -467,15 +468,19 @@ VmCodeGen :: struct {
             self.chunk.emit_u16(val.id as u16)
             ret
         }
-        if val.kind == VmValKind.data {
-            self.ensure_on_stack(VmVal.const_int(val.raw))
-            if not self.global_is_aggregate(val.id) {
-                self.emit_load(type_size(self.types, val.id))
-                k := self.types.kind(val.id)
+        if val.kind == VmValKind.data or val.kind == VmValKind.data_ref {
+            ty := self.data_type(val)
+            self.emit_data_address(val)
+            if vm_is_aggregate(self.types, ty) {
+                self.chunk.inst(OpCode.push_0)
+                self.emit_copy_data(ty)
+            } else {
+                self.emit_load(type_size(self.types, ty))
+                k := self.types.kind(ty)
                 if k == TyKind.int {
-                    self.emit_integer_cast(val.id)
+                    self.emit_integer_cast(ty)
                 } else if k == TyKind.enum_ {
-                    self.emit_integer_cast(self.types.enum_backing(val.id))
+                    self.emit_integer_cast(self.types.enum_backing(ty))
                 }
             }
             ret
@@ -629,26 +634,8 @@ VmCodeGen :: struct {
     begin_inline_scope :: fn(self &Self) {}
     end_inline_scope :: fn(self &Self) {}
 
-    global_size :: fn(self &Self, ty u32) u64 {
-        base := self.unwrap_nominal(ty)
-        if self.types.kind(base) == TyKind.union_ {
-            ret 16
-        }
-        if self.types.kind(base) == TyKind.array {
-            ret vm_element_size(self.types, self.types.get_array_type(base)) * (self.types.get_array_len(base) as u64)
-        }
-        if self.is_struct_type(base) {
-            ret self.struct_alloc_size(base)
-        }
-        8
-    }
-
-    global_is_aggregate :: fn(self &Self, ty u32) bool {
-        self.is_struct_type(ty) or self.types.kind(ty) == TyKind.union_
-    }
-
     zero_global :: fn(self &Self, ty u32) &u8 {
-        size := self.global_size(ty)
+        size := vm_data_size(self.types, ty)
         storage := self.arena.alloc(if size == 0 { 8 } else { size })
         mem_set(storage, 0, size)
         base := self.unwrap_nominal(ty)
@@ -658,25 +645,53 @@ VmCodeGen :: struct {
             i: u64 = 0
             while i < fields.len / 2 {
                 field_ty := fields.ptr[i * 2 + 1]
-                if self.global_is_aggregate(field_ty) {
+                if vm_is_aggregate(self.types, field_ty) {
                     (storage as &u64)[i] = self.zero_global(field_ty) as u64
                 }
                 i = i + 1
             }
         } else if kind == TyKind.array {
             elem := self.types.get_array_type(base)
-            if self.global_is_aggregate(elem) and not self.types.struct_is_extern(elem) {
+            if vm_is_indirect(self.types, elem) {
                 for i in Range.new(0, self.types.get_array_len(base) as i32) {
                     (storage as &u64)[i] = self.zero_global(elem) as u64
                 }
             }
         } else if kind == TyKind.union_ {
             member := self.types.union_members(base).ptr[0]
-            if self.global_is_aggregate(member) {
+            if vm_is_aggregate(self.types, member) {
                 (storage as &u64)[1] = self.zero_global(member) as u64
             }
         }
         storage
+    }
+
+    data_type :: fn(self &Self, value VmVal) u32 {
+        if value.kind == VmValKind.data {
+            ret value.id
+        }
+        value.raw as u32
+    }
+
+    emit_data_address :: fn(self &Self, value VmVal) {
+        if value.kind == VmValKind.data {
+            self.ensure_on_stack(VmVal.const_int(value.raw))
+        } else {
+            self.chunk.inst(OpCode.load_local)
+            self.chunk.emit_u16(value.id as u16)
+        }
+    }
+
+    capture_data_ref :: fn(self &Self, ty u32) VmVal {
+        slot := self.alloc_temp()
+        self.chunk.inst(OpCode.store_local)
+        self.chunk.emit_u16(slot as u16)
+        .{ kind: VmValKind.data_ref, elem_size: 0, id: slot, raw: ty as u64 }
+    }
+
+    emit_copy_data :: fn(self &Self, ty u32) {
+        self.chunk.inst(OpCode.copy_data)
+        self.chunk.emit_u32(ty)
     }
 
     global_ref :: fn(self &Self, arena &Arena, sym u32, ty u32) VmVal {
@@ -1166,13 +1181,15 @@ VmCodeGen :: struct {
 
     expr_assign :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal {
         self.ensure_on_stack(rhs)
-        if lhs.kind == VmValKind.data {
+        if lhs.kind == VmValKind.data or lhs.kind == VmValKind.data_ref {
+            ty := self.data_type(lhs)
             self.chunk.inst(OpCode.dup)
-            self.ensure_on_stack(VmVal.const_int(lhs.raw))
-            if self.global_is_aggregate(lhs.id) {
-                self.emit_copy_ffi(self.global_size(lhs.id))
+            self.emit_data_address(lhs)
+            if vm_is_aggregate(self.types, ty) {
+                self.emit_copy_data(ty)
+                self.chunk.inst(OpCode.pop)
             } else {
-                self.emit_ffi_store(lhs.id)
+                self.emit_ffi_store(ty)
             }
             ret VmVal.stack()
         }
@@ -1391,6 +1408,9 @@ VmCodeGen :: struct {
     }
 
     expr_typed_address :: fn(self &Self, arena &Arena, inner VmVal, ty u32) VmVal {
+        if inner.kind == VmValKind.data or inner.kind == VmValKind.data_ref {
+            ret self.expr_address(arena, inner)
+        }
         if self.is_struct_type(ty) {
             self.ensure_on_stack(inner)
             ret VmVal.stack()
@@ -1426,7 +1446,11 @@ VmCodeGen :: struct {
             }
             ret VmVal.stack()
         }
-        if inner.kind == VmValKind.ptr or inner.kind == VmValKind.data {
+        if inner.kind == VmValKind.data or inner.kind == VmValKind.data_ref {
+            self.emit_data_address(inner)
+            ret VmVal.stack()
+        }
+        if inner.kind == VmValKind.ptr {
             ret VmVal.const_int(inner.raw)
         }
         if inner.kind == VmValKind.stack {
@@ -1571,6 +1595,28 @@ VmCodeGen :: struct {
         offset := self.find_struct_field_offset(struct_ty, field_id)
         elem_sz := self.find_struct_field_elem_size(struct_ty, field_id)
         base := self.unwrap_base_type(struct_ty)
+        if value.kind == VmValKind.data or value.kind == VmValKind.data_ref {
+            if depth == 0 {
+                self.emit_data_address(value)
+            } else {
+                self.ensure_on_stack(value)
+                for _ in Range.new(1, depth as i32) {
+                    self.chunk.inst(OpCode.load64)
+                }
+            }
+            self.emit_offset(offset as u64)
+            ty := self.find_struct_field_type(base, field_id)
+            if not self.types.struct_is_extern(base) and vm_is_aggregate(self.types, ty) {
+                self.chunk.inst(OpCode.load64)
+            }
+            if self.types.struct_is_extern(base) {
+                slot := self.alloc_temp()
+                self.chunk.inst(OpCode.store_local)
+                self.chunk.emit_u16(slot as u16)
+                ret .{ kind: VmValKind.ffi_field, elem_size: elem_sz, id: slot, raw: ty as u64 }
+            }
+            ret self.capture_data_ref(ty)
+        }
         if self.types.struct_is_extern(base) {
             self.ensure_on_stack(value)
             d := depth
@@ -1716,10 +1762,22 @@ VmCodeGen :: struct {
         self.chunk.inst(OpCode.store_local)
         self.chunk.emit_u16(temp_off as u16)
 
-        self.ensure_on_stack(value)
+        data := value.kind == VmValKind.data or value.kind == VmValKind.data_ref
+        if data and vm_is_aggregate(self.types, self.data_type(value)) {
+            self.emit_data_address(value)
+        } else {
+            self.ensure_on_stack(value)
+        }
         self.chunk.inst(OpCode.load_local)
         self.chunk.emit_u16(temp_off as u16)
         self.chunk.inst(OpCode.add)
+
+        if data {
+            if vm_is_indirect(self.types, elem_ty) {
+                self.chunk.inst(OpCode.load64)
+            }
+            ret self.capture_data_ref(elem_ty)
+        }
 
         temp_addr := self.alloc_temp()
         self.chunk.inst(OpCode.store_local)
@@ -1908,6 +1966,7 @@ VmCodeGen :: struct {
 
     init_types :: fn(self &Self, types &TypeStorage, arena &Arena) {
         self.types = types
+        self.chunk.types = types
         t: u32 = 0
         total := types.len()
         while t < total {
@@ -2005,6 +2064,37 @@ type_align :: fn(types &TypeStorage, ty_id u32) u64 {
             }
             max_a
         }
+    }
+}
+
+vm_data_base :: fn(types &TypeStorage, ty u32) u32 {
+    while types.kind(ty) == TyKind.nominal {
+        ty = types.nominal_base(ty)
+    }
+    ty
+}
+
+vm_is_aggregate :: fn(types &TypeStorage, ty u32) bool {
+    kind := types.kind(vm_data_base(types, ty))
+    kind == TyKind.struct_ or kind == TyKind.array or kind == TyKind.union_
+}
+
+vm_is_indirect :: fn(types &TypeStorage, ty u32) bool {
+    vm_is_aggregate(types, ty) and not types.struct_is_extern(ty)
+}
+
+vm_data_size :: fn(types &TypeStorage, ty u32) u64 {
+    base := vm_data_base(types, ty)
+    match types.kind(base) {
+        union_ { ret 16 }
+        array { ret vm_element_size(types, types.get_array_type(base)) * (types.get_array_len(base) as u64) }
+        struct_ {
+            if types.struct_is_extern(base) {
+                ret type_size(types, base)
+            }
+            ret (types.get_struct_fields(base).len / 2) * 8
+        }
+        else { ret type_size(types, base) }
     }
 }
 
