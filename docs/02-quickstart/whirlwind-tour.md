@@ -35,6 +35,20 @@ active := true         -- Boolean
 x = x + 10
 ```
 
+Mutable variables can also be declared at module scope. Use `:=` with a compile-time constant initializer, or declare a type without an initializer to start at zero.
+
+```abyss
+initial :: 10
+requests := initial * 2
+failures: u64
+
+record_failure :: fn() {
+    failures = failures + 1
+}
+```
+
+Each module has one instance of each global. Functions can read and update it, including through imports. A global's current value is a runtime value, so it cannot initialize another global or be read during compile-time evaluation. Taking the address of a global is allowed in an initializer because its storage is fixed.
+
 ---
 
 ## 3. Control Flow

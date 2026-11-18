@@ -19,3 +19,12 @@ abyss_update :: extern fn(target &i32, value i32) {
 isolated :: extern "abyss_only_called_from_c" fn(n i32) i32 {
     n - 2
 }
+
+status := 7
+first_call: i32
+
+global_status :: extern "abyss_global_status" fn(change i32) i32 {
+    first_call = first_call + 1
+    status = status + change
+    status * 10 + first_call
+}

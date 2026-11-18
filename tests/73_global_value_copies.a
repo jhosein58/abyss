@@ -1,0 +1,27 @@
+Pair :: struct {
+    items [2]i32
+}
+
+source: Pair = .{ items: .[1, 2] }
+target: Pair
+first_item := &target.items[0]
+
+change_copy :: fn(value Pair) i32 {
+    value.items[0] = 40
+    value.items[0]
+}
+
+main :: fn() {
+    target = source
+    print(*first_item)
+    target.items = .[3, 4]
+    print(*first_item)
+    *first_item = -5
+    print(target.items[0])
+    print(source.items[0])
+    local := source
+    local.items[0] = 20
+    print(source.items[0])
+    print(change_copy(source))
+    print(source.items[0])
+}

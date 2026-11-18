@@ -1,0 +1,54 @@
+import .modules.global_state as state
+import .modules.global_state:
+    count as imported_count
+    step
+
+limit := base * 2
+base :: 21
+counter: i32
+small: i16 = -7
+numbers := .[1, 2, 3]
+pair := .{ x: 5, y: "abc" }
+saved := &counter
+item := &numbers[1]
+field := &pair.x
+callback := increment
+
+increment :: fn(x i32) i32 { x + 1 }
+double :: fn(x i32) i32 { x * 2 }
+
+modify :: fn() {
+    counter = counter + 1
+    *saved = *saved + 2
+    *item = 9
+    *field = 7
+}
+
+shadow :: fn() i32 {
+    counter := 100
+    counter = counter + 1
+    counter
+}
+
+main :: fn() {
+    print(limit)
+    print(counter)
+    print(small)
+    print(pair.y)
+    print(shadow())
+    modify()
+    modify()
+    print(counter)
+    print(numbers[1])
+    print(pair.x)
+    print(callback(8))
+    callback = double
+    print(callback(8))
+    print(imported_count)
+    state.count = 5
+    step()
+    print(imported_count)
+    imported_count = 12
+    print(state.count)
+    print(state.initial)
+}

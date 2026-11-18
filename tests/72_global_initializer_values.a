@@ -1,0 +1,63 @@
+Label :: struct {
+    value i32
+}
+
+Pair :: struct {
+    label Label
+    arr [2]i32
+}
+
+Color :: enum { red, blue }
+scale := 1.25
+small: f32 = 2.5
+selected: i32 | bool = true
+blank: Pair
+matrix: [2][2]i32
+nested := .{ words: .["left", "right"], cell: .{ num: 3 } }
+color := Color.blue
+record: Label = cmpt .{ value: 15 }
+wide := cmpt (4294967290 as u64) + (10 as u64)
+folded := cmpt { 1.5 + 0.25 }
+folded_array := cmpt .[4, 5]
+message := if (2 + 3) == 5 { "yes" } else { "no" }
+call := fn(x i32) i32 { x * 2 }
+table :: .[10, 20, 30]
+copied := table[1 + 1]
+size := @sizeof(i32)
+macro := #"6 * 7"
+logic := (2 < 3 and 7 != 1) or false
+coerced: i32 | bool = cmpt 42
+projected := (cmpt .{ x: 19 }).x
+precise: f32 = cmpt 2.25
+slot := &table_storage[0]
+table_storage := .[4, 8]
+
+main :: fn() {
+    print(scale)
+    print(small)
+    print(@is(selected, bool))
+    print(blank.label.value)
+    blank.label.value = 12
+    print(blank.label.value)
+    matrix[0][1] = 8
+    print(matrix[0][1])
+    print(nested.words[1])
+    nested.cell.num = 11
+    print(nested.cell.num)
+    print(color == Color.blue)
+    print(record.value)
+    print(wide)
+    print(folded)
+    print(folded_array[1])
+    print(message)
+    print(call(3))
+    print(copied)
+    print(size)
+    print(macro)
+    print(logic)
+    print(coerced as i32)
+    print(projected)
+    print(precise)
+    slot = slot + 1
+    print(*slot)
+}

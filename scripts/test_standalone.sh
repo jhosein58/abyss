@@ -22,6 +22,7 @@ else
 fi
 cp "${COMPILER}" "${WORK_DIR}/abyssc"
 cp -r "${ROOT_DIR}/pods" "${WORK_DIR}/pods"
+cp -r "${ROOT_DIR}/tests/modules" "${WORK_DIR}/modules"
 cp "${ROOT_DIR}/tests/23_embedded_core.a" "${WORK_DIR}/main.a"
 (
     cd "${WORK_DIR}"
