@@ -252,6 +252,7 @@ if [[ -z "${FILTER}" ]]; then
     bash "${ROOT_DIR}/scripts/test_pods.sh" "${COMPILER}"
     if [[ "${FULL_TEST}" == true ]]; then
         bash "${ROOT_DIR}/scripts/test_reflection_codegen.sh" "${COMPILER}"
+        bash "${ROOT_DIR}/scripts/test_targets.sh" "${COMPILER}"
         bash "${ROOT_DIR}/scripts/test_standalone.sh" "${COMPILER}"
         bash "${ROOT_DIR}/scripts/test_cli_embedding.sh" "${COMPILER}"
     fi

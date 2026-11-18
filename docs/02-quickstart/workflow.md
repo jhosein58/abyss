@@ -44,6 +44,21 @@ The resulting `.exe` binary is completely standalone—it links directly to stan
 
 ---
 
+## Target Selection
+
+The compiler defaults to the host OS and architecture. Use `--target linux|windows|darwin|wasi|freestanding` and, if needed, `--arch x86_64|aarch64|wasm32` to select a different profile. WASI defaults to `wasm32`. The flags select the ABI and module sources; use a C toolchain for the same target when linking.
+
+```sh
+./abyss emit b --target wasi main.a program.c
+clang --target=wasm32-wasi -ffreestanding -nostdlib program.c -o program.wasm
+```
+
+An import of `platform` selects `platform.<os>.<arch>.a`, then `platform.<os>.a`, then `platform.a`. Folder modules use the same suffixes on their entry file. Import `Os`, `Arch` and the typed `target` constant from `core.target` to inspect the selected profile. Use `--library` to emit C exports without an executable entry point. A freestanding target also omits the entry point.
+
+`./abyss wasm` produces `dist/abyssc.wasm` and `dist/vfs_bundle.json`. For a browser playground, load the bundle into a `browser_wasi_shim` `PreopenDirectory` at `/`, add the user's source file, and pass arguments such as `["abyssc", "r", "main.a"]` to the shim. Instantiate the module with the shim's `wasi_snapshot_preview1` imports and call `wasi.start(instance)`. To emit C, use `["abyssc", "b", "main.a", "out.c"]` and read `out.c` from the same directory.
+
+---
+
 ## Testing & Quality Assurance
 
 Abyss has an automated test suite verifying both execution backends:
