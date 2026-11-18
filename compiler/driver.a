@@ -162,6 +162,7 @@ Driver :: struct {
             vcg.finish_linking()
             vm := Vm.new()
             Env.shift_args(self.config.source_index)
+            vm.run(&vcg.chunk, vcg.globals_entry)
             status := vm.run(&vcg.chunk, vcg.main_entry)
             vm.destroy()
             vcg.destroy()

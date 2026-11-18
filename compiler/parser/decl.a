@@ -65,6 +65,8 @@ parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
         p.env.define(name_id, sym_id)
     }
 
+    saved_toplv := p.toplv_sym
+    p.toplv_sym = id_none()
     ty := hir_none()
     val := hir_none()
     kind := k.var
@@ -93,6 +95,7 @@ parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     } else if has_init {
         parse_error_at(p, c"expected an initializer after declaration operator", curr_span(p))
     }
+    p.toplv_sym = saved_toplv
     node := p.hir.push(kind, lhs, ty, val)
     set_span(p, node, span_merge(sp_lhs, sp_end))
     p.db.set_hir_symbol(node, sym_id)

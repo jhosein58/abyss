@@ -1,4 +1,5 @@
 import std.allocator: Arena
+import std.mem: mem_set
 import std.string:    Str, String
 
 import compiler.hir:   HirExprKind, hir_kind, hir_none
@@ -19,6 +20,7 @@ VmValKind :: enum u8 {
     stack
     local
     global
+    data
     const_int
     ptr
     list
@@ -103,6 +105,8 @@ VmCodeGen :: struct {
     current_fn_ret_type u32
     local_count         u32
     current_loop_start  u32
+    data_cells          HashMap(u32, u64)
+    globals_entry       u32
     types               &TypeStorage
     local_types         Vec(u32)
     init_field_ids      Vec(u32)
@@ -119,11 +123,12 @@ VmCodeGen :: struct {
     fn_ptr_fixups_idx   Vec(u32)
     fn_ptr_fixups_sym   Vec(u32)
     new :: fn(arena &Arena) Self {
-        .{ arena: arena, chunk: Chunk.new(), main_sym: 0, main_entry: 0, current_fn: 0, current_fn_ret_type: 0, local_count: 0, current_loop_start: 0, types: 0 as &TypeStorage, local_types: Vec(u32).new(), init_field_ids: Vec(u32).new(), local_syms: Vec(u32).new(), fn_syms: Vec(u32).new(), fn_ips: Vec(u32).new(), call_fixups_ip: Vec(u32).new(), call_fixups_sym: Vec(u32).new(), if_patches: Vec(u32).new(), loop_breaks: Vec(u32).new(), field_ids: Vec(u32).new(), field_offsets: Vec(u32).new(), ffi_signatures: HashMap(u32, u16).new(), fn_ptr_fixups_idx: Vec(u32).new(), fn_ptr_fixups_sym: Vec(u32).new() }
+        .{ arena: arena, chunk: Chunk.new(), main_sym: 0, main_entry: 0, current_fn: 0, current_fn_ret_type: 0, local_count: 0, current_loop_start: 0, data_cells: HashMap(u32, u64).new(), globals_entry: 0, types: 0 as &TypeStorage, local_types: Vec(u32).new(), init_field_ids: Vec(u32).new(), local_syms: Vec(u32).new(), fn_syms: Vec(u32).new(), fn_ips: Vec(u32).new(), call_fixups_ip: Vec(u32).new(), call_fixups_sym: Vec(u32).new(), if_patches: Vec(u32).new(), loop_breaks: Vec(u32).new(), field_ids: Vec(u32).new(), field_offsets: Vec(u32).new(), ffi_signatures: HashMap(u32, u16).new(), fn_ptr_fixups_idx: Vec(u32).new(), fn_ptr_fixups_sym: Vec(u32).new() }
     }
 
     destroy :: fn(self &Self) {
         self.chunk.destroy()
+        self.data_cells.destroy()
         self.local_types.destroy()
         self.init_field_ids.destroy()
         self.local_syms.destroy()
@@ -462,6 +467,19 @@ VmCodeGen :: struct {
             self.chunk.emit_u16(val.id as u16)
             ret
         }
+        if val.kind == VmValKind.data {
+            self.ensure_on_stack(VmVal.const_int(val.raw))
+            if not self.global_is_aggregate(val.id) {
+                self.emit_load(type_size(self.types, val.id))
+                k := self.types.kind(val.id)
+                if k == TyKind.int {
+                    self.emit_integer_cast(val.id)
+                } else if k == TyKind.enum_ {
+                    self.emit_integer_cast(self.types.enum_backing(val.id))
+                }
+            }
+            ret
+        }
         if val.kind == VmValKind.ptr {
             c_idx := self.chunk.alloc_const(val.raw)
             self.chunk.inst(OpCode.push_const)
@@ -610,6 +628,72 @@ VmCodeGen :: struct {
     declare_foreign :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal, module Str, name Str) {}
     begin_inline_scope :: fn(self &Self) {}
     end_inline_scope :: fn(self &Self) {}
+
+    global_size :: fn(self &Self, ty u32) u64 {
+        base := self.unwrap_nominal(ty)
+        if self.types.kind(base) == TyKind.union_ {
+            ret 16
+        }
+        if self.types.kind(base) == TyKind.array {
+            ret vm_element_size(self.types, self.types.get_array_type(base)) * (self.types.get_array_len(base) as u64)
+        }
+        if self.is_struct_type(base) {
+            ret self.struct_alloc_size(base)
+        }
+        8
+    }
+
+    global_is_aggregate :: fn(self &Self, ty u32) bool {
+        self.is_struct_type(ty) or self.types.kind(ty) == TyKind.union_
+    }
+
+    zero_global :: fn(self &Self, ty u32) &u8 {
+        size := self.global_size(ty)
+        storage := self.arena.alloc(if size == 0 { 8 } else { size })
+        mem_set(storage, 0, size)
+        base := self.unwrap_nominal(ty)
+        kind := self.types.kind(base)
+        if kind == TyKind.struct_ and not self.types.struct_is_extern(base) {
+            fields := self.types.get_struct_fields(base)
+            i: u64 = 0
+            while i < fields.len / 2 {
+                field_ty := fields.ptr[i * 2 + 1]
+                if self.global_is_aggregate(field_ty) {
+                    (storage as &u64)[i] = self.zero_global(field_ty) as u64
+                }
+                i = i + 1
+            }
+        } else if kind == TyKind.array {
+            elem := self.types.get_array_type(base)
+            if self.global_is_aggregate(elem) and not self.types.struct_is_extern(elem) {
+                for i in Range.new(0, self.types.get_array_len(base) as i32) {
+                    (storage as &u64)[i] = self.zero_global(elem) as u64
+                }
+            }
+        }
+        storage
+    }
+
+    global_ref :: fn(self &Self, arena &Arena, sym u32, ty u32) VmVal {
+        .{ kind: VmValKind.data, elem_size: 0, id: ty, raw: *self.data_cells.get(sym) }
+    }
+
+    declare_global :: fn(self &Self, sym u32, ty u32, name VmVal, type_name VmVal) {
+        self.data_cells.insert(sym, self.zero_global(ty) as u64)
+    }
+
+    begin_globals :: fn(self &Self) {
+        self.reset_locals()
+        self.globals_entry = self.chunk.buf.len as u32
+    }
+
+    initialize_global :: fn(self &Self, name VmVal, ty VmVal, value VmVal) {
+        self.expr(self.expr_assign(self.arena, name, value))
+    }
+
+    end_globals :: fn(self &Self) {
+        self.end_function()
+    }
 
     create_variable :: fn(self &Self, name VmVal, ty VmVal, init_val VmVal, has_init bool) {
         slot := name.id
@@ -1070,6 +1154,16 @@ VmCodeGen :: struct {
 
     expr_assign :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal {
         self.ensure_on_stack(rhs)
+        if lhs.kind == VmValKind.data {
+            self.chunk.inst(OpCode.dup)
+            self.ensure_on_stack(VmVal.const_int(lhs.raw))
+            if self.global_is_aggregate(lhs.id) {
+                self.emit_copy_ffi(self.global_size(lhs.id))
+            } else {
+                self.emit_ffi_store(lhs.id)
+            }
+            ret VmVal.stack()
+        }
         if lhs.kind == VmValKind.ffi_field {
             self.chunk.inst(OpCode.dup)
             ty := lhs.raw as u32
@@ -1320,7 +1414,7 @@ VmCodeGen :: struct {
             }
             ret VmVal.stack()
         }
-        if inner.kind == VmValKind.ptr {
+        if inner.kind == VmValKind.ptr or inner.kind == VmValKind.data {
             ret VmVal.const_int(inner.raw)
         }
         if inner.kind == VmValKind.stack {
@@ -1424,7 +1518,7 @@ VmCodeGen :: struct {
 
     expr_call :: fn(self &Self, arena &Arena, callee VmVal, args VmVal, ty u32) VmVal {
         arg_count := args.id as u8
-        if callee.id >= 1000000 {
+        if callee.kind == VmValKind.global and callee.id >= 1000000 {
             ext_id := (callee.id - 1000000) as u16
             self.chunk.inst(OpCode.call_extern)
             self.chunk.emit_u16(ext_id)
@@ -1478,6 +1572,13 @@ VmCodeGen :: struct {
             self.chunk.emit_u16(address as u16)
             ty := self.find_struct_field_type(base, field_id)
             ret .{ kind: VmValKind.ffi_field, elem_size: elem_sz, id: address, raw: ty as u64 }
+        }
+        if value.kind == VmValKind.data and depth <= 1 {
+            self.ensure_on_stack(value)
+            address := self.alloc_temp()
+            self.chunk.inst(OpCode.store_local)
+            self.chunk.emit_u16(address as u16)
+            value = VmVal.local(address)
         }
         if (depth == 0) or (depth == 1) {
             if (value.kind == VmValKind.local) or (value.kind == VmValKind.deref) {

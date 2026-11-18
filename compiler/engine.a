@@ -12,6 +12,7 @@ import .nexus.pool:    id_none
 import .parser.core:   Parser_new, curr_span, parse_error_at, peek
 import .parser.parser: parse_expr
 import .token:         Token, TokenStream
+import .typer.global:  check_global_var
 import .typer.tyck:    finalize_inferred_types, process_mono_funcs, type_check
 import .types:         TyKind, ty_id_none, ty_id_type
 import .unify:         slot_none
@@ -77,6 +78,10 @@ Engine :: struct {
         hir_end := self.nexus.sym_hir_end(sym_id)
 
         type_check(self, hir_start, hir_end)
+        global := self.nexus.global_var(sym_id)
+        if global != hir_none() {
+            check_global_var(self, global)
+        }
         fn_node := self.nexus.get_fn_node(sym_id)
         if fn_node != id_none() {
             finalize_inferred_types(self, fn_node)
@@ -273,7 +278,7 @@ Engine :: struct {
             if start == id_none() {
                 cont
             }
-            if self.nexus.sym_file(i) != fid and self.nexus.tokens.kind(start + 2) != Token.kw_extern {
+            if self.nexus.sym_file(i) != fid and self.nexus.tokens.kind(start + 1) != Token.colon and self.nexus.tokens.kind(start + 2) != Token.kw_extern {
                 cont
             }
             self.ensure_resolved(i)
@@ -298,7 +303,7 @@ Engine :: struct {
 
     compile :: fn(self &Self, B type, L type, backend &B, builder &L, arena &Arena, sym_id u32) {
         visited := HashSet(u32).new()
-        lower_function(&self.nexus, backend, builder, backend.empty_value(), arena, sym_id, &visited)
+        lower_function(&self.nexus, backend, builder, backend.empty_value(), arena, sym_id, &visited, true)
         if not backend.is_vm() {
             for index in Range.new(0, self.nexus.sym_count() as i32) {
                 i := index as u32
@@ -307,7 +312,7 @@ Engine :: struct {
                 }
                 node := self.nexus.get_fn_node(i)
                 if node != id_none() and self.nexus.is_extern_fn(node) and self.nexus.hir.extra(node) != hir_none() {
-                    lower_function(&self.nexus, backend, builder, backend.empty_value(), arena, i, &visited)
+                    lower_function(&self.nexus, backend, builder, backend.empty_value(), arena, i, &visited, false)
                 }
             }
         }

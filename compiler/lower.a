@@ -23,6 +23,7 @@ LowerCtx :: fn(B type, L type, V type) type {
         visited    &HashSet(u32)
         queue      &Vec(u32)
         type_queue &Vec(u32)
+    global_init bool
     }
 }
 
@@ -137,7 +138,7 @@ resolve_call_symbol :: fn(db &Nexus, id u32, callee_id u32, queue &Vec(u32)) u32
     if target_sym != id_none() {
         target_sym = db.resolve_sym(target_sym)
     }
-    if target_sym == id_none() {
+    if target_sym == id_none() or db.global_var(target_sym) != hir_none() {
         ret id_none()
     }
     mono_func_ty := db.get_const_type(id)
@@ -400,22 +401,19 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             ret ccg.expr_str_lit(arena, struct_name, ptr_id, len_id, raw)
         }
         function {
-            body_id := db.hir.extra(id)
-            if body_id == hir_none() {
+            func_ty := db.get_node_type(id)
+            sym := db.get_hir_symbol(id)
+            if sym == id_none() or db.types.func_has_type_param(func_ty) {
                 ret empty
             }
-            func_ty := db.get_node_type(id)
-            add_type_to_queue(db, func_ty, type_queue)
-            sym_id := db.get_hir_symbol(id)
-            if sym_id != id_none() {
-                if not db.types.func_has_type_param(func_ty) {
-                    if not queue.contains(sym_id) {
-                        queue.push(sym_id)
-                    }
-                }
-                ret ccg.sym_name(arena, sym_id)
+            if db.hir.extra(id) == hir_none() and not db.is_extern_fn(id) {
+                ret empty
             }
-            ret empty
+            add_type_to_queue(db, func_ty, type_queue)
+            if not queue.contains(sym) {
+                queue.push(sym)
+            }
+            ret lower_function_name(ctx, sym, id, func_ty)
         }
         ident {
             ty := db.get_node_type(id)
@@ -472,12 +470,6 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                         ret lower_const_record(ctx, id, ty, val)
                     }
                     ret ccg.expr_cast(arena, ccg.type_str(&db.types, arena, ty), ccg.expr_u64(arena, val))
-                }
-                if db.sym_tok_start(real_sym) != id_none() {
-                    printf("\n[codegen error] unsupported global value\n       --> ", .{})
-                    db.print_loc(id)
-                    print("")
-                    fall()
                 }
                 ret ccg.sym_name(arena, sym_id)
             }
@@ -1210,7 +1202,7 @@ eval_const :: fn(db &Nexus, id u32) u64 {
     visited := HashSet(u32).new()
     queue := Vec(u32).new()
     type_queue := Vec(u32).new()
-    ctx: LowerCtx(VmCodeGen, VmCodeBuilder, VmVal) = .{ db: db, ccg: db.comptime_cg, builder: &builder, empty: VmVal.empty(), arena: &db.comptime_arena, visited: &visited, queue: &queue, type_queue: &type_queue }
+    ctx: LowerCtx(VmCodeGen, VmCodeBuilder, VmVal) = .{ db: db, ccg: db.comptime_cg, builder: &builder, empty: VmVal.empty(), arena: &db.comptime_arena, visited: &visited, queue: &queue, type_queue: &type_queue, global_init: false }
     res_val := lower_body(&ctx, id)
     if res_val.kind != VmValKind.none {
         db.comptime_cg.ensure_on_stack(res_val)
@@ -1567,8 +1559,81 @@ lower_const_record :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32,
     ccg.expr_struct_init(arena, ccg.type_str(&db.types, arena, ty), ctx.builder.finish_list(&items))
 }
 
+global_init_source :: fn(db &Nexus, id u32) u32 {
+    tbl := &db.hir
+    match tbl.kind(id) {
+        ident, member {
+            value := db.binding_value(db.get_hir_symbol(id))
+            if value != hir_none() {
+                ret value
+            }
+            if tbl.kind(id) == hir_kind.member and tbl.lhs(id) != hir_none() {
+                source := global_init_source(db, tbl.lhs(id))
+                if tbl.kind(source) == hir_kind.struct_init {
+                    field := tbl.lhs(tbl.rhs(id))
+                    names := db.get_list(tbl.lhs(source))
+                    values := db.get_list(tbl.rhs(source))
+                    i: u64 = 0
+                    while i < names.len {
+                        if tbl.lhs(names.ptr[i]) == field {
+                            ret values.ptr[i]
+                        }
+                        i = i + 1
+                    }
+                }
+            }
+            ret id
+        }
+        block {
+            items := db.get_list(tbl.lhs(id))
+            if items.len > 0 {
+                ret items.ptr[items.len - 1]
+            }
+            ret id
+        }
+        k_if {
+            ret if eval_const(db, tbl.lhs(id)) != 0 { tbl.rhs(id) } else { tbl.extra(id) }
+        }
+        index {
+            source := global_init_source(db, tbl.lhs(id))
+            if tbl.kind(source) == hir_kind.array_init {
+                index := eval_const(db, tbl.rhs(id))
+                items := db.get_list(tbl.lhs(source))
+                if index >= items.len {
+                    db.type_error(id, "array index out of bounds")
+                }
+                ret items.ptr[index]
+            }
+            ret id
+        }
+        splice {
+            ret tbl.extra(id)
+        }
+        else { ret id }
+    }
+}
+
 lower_expr :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
-    val_str := lower_expr_node(ctx, id)
+    db := ctx.db
+    kind := db.hir.kind(id)
+    val_str := ctx.empty
+    if kind == hir_kind.ident or kind == hir_kind.member {
+        sym := db.resolve_sym(db.get_hir_symbol(id))
+        if db.global_var(sym) != hir_none() {
+            if db.comptime_depth > 0 {
+                db.type_error(id, "mutable global cannot be accessed at compile time")
+            }
+            val_str = ctx.ccg.global_ref(ctx.arena, sym, db.get_node_type(id))
+        }
+    }
+    if not ctx.ccg.has_value(val_str) {
+        source := if ctx.global_init { global_init_source(db, id) } else { id }
+        if source == id {
+            val_str = lower_expr_node(ctx, id)
+        } else {
+            val_str = lower_expr(ctx, source)
+        }
+    }
     if not ctx.ccg.has_value(val_str) {
         ret val_str
     }
@@ -1756,16 +1821,59 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
     }
 }
 
-lower_function :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, sym_id u32, visited &HashSet(u32)) {
-    if sym_id == id_none() {
+lower_globals :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V)) {
+    db := ctx.db
+    cg := ctx.ccg
+    arena := ctx.arena
+    globals := Vec(u32).new()
+    for index in Range.new(0, db.sym_count() as i32) {
+        sym := index as u32
+        if db.resolve_sym(sym) != sym {
+            cont
+        }
+        node := db.global_var(sym)
+        if node != hir_none() {
+            ty := db.get_node_type(db.hir.lhs(node))
+            add_type_to_queue(db, ty, ctx.type_queue)
+            cg.declare_global(sym, ty, cg.sym_name(arena, sym), cg.type_str(&db.types, arena, ty))
+            if db.hir.extra(node) != hir_none() {
+                globals.push(sym)
+            }
+        }
+    }
+    cg.begin_globals()
+    ctx.global_init = true
+    for sym in globals {
+        node := db.global_var(sym)
+        init := db.hir.extra(node)
+        ty := db.get_node_type(db.hir.lhs(node))
+        value := lower_expr(ctx, init)
+        if not cg.has_value(value) {
+            db.type_error(init, "mutable global initializer does not produce a runtime value")
+        }
+        cg.initialize_global(cg.global_ref(arena, sym, ty), cg.type_str(&db.types, arena, ty), value)
+    }
+    ctx.global_init = false
+    cg.end_globals()
+    globals.destroy()
+}
+
+lower_function :: fn(B type, L type, V type, db &Nexus, ccg &B, builder &L, empty V, arena &Arena, sym_id u32, visited &HashSet(u32), emit_globals bool) {
+    if sym_id == id_none() and not emit_globals {
         ret
     }
     queue := Vec(u32).new()
     type_queue := Vec(u32).new()
 
-    queue.push(sym_id)
+    if sym_id != id_none() {
+        queue.push(sym_id)
+    }
 
-    ctx: LowerCtx(B, L, V) = .{ db: db, ccg: ccg, builder: builder, empty: empty, arena: arena, visited: visited, queue: &queue, type_queue: &type_queue }
+    ctx: LowerCtx(B, L, V) = .{ db: db, ccg: ccg, builder: builder, empty: empty, arena: arena, visited: visited, queue: &queue, type_queue: &type_queue, global_init: false }
+
+    if emit_globals {
+        lower_globals(&ctx)
+    }
 
     for q_sym in Worklist(u32).new(&queue) {
         if visited.insert(q_sym) {

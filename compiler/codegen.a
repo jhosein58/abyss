@@ -66,6 +66,9 @@ CCodeGen :: struct {
     struct_decls         String
     struct_defs          String
     func_decls           String
+    global_decls         String
+    global_defs          String
+    static_init          bool
     code                 String
     emitted_structs      Vec(u32)
     main_sym             u32
@@ -79,7 +82,7 @@ CCodeGen :: struct {
     loop_condition       LoopCondition
     temp_count           u32
     new :: fn(arena &Arena) Self {
-        .{ arena: arena, struct_forward_decls: String.new(arena), struct_decls: String.new(arena), struct_defs: String.new(arena), func_decls: String.new(arena), code: String.new(arena), emitted_structs: Vec(u32).new(), main_sym: 0, has_main: false, main_returns_status: false, target_os: Os.linux, needs_process: false, needs_ffi: false, needs_host: false, indent: 0, loop_condition: .{ id: hir_none(), breaks: false, continues: false }, temp_count: 0 }
+        .{ arena: arena, struct_forward_decls: String.new(arena), struct_decls: String.new(arena), struct_defs: String.new(arena), func_decls: String.new(arena), global_decls: String.new(arena), global_defs: String.new(arena), static_init: false, code: String.new(arena), emitted_structs: Vec(u32).new(), main_sym: 0, has_main: false, main_returns_status: false, target_os: Os.linux, needs_process: false, needs_ffi: false, needs_host: false, indent: 0, loop_condition: .{ id: hir_none(), breaks: false, continues: false }, temp_count: 0 }
     }
 
     destroy :: fn(self &Self) {
@@ -220,6 +223,36 @@ CCodeGen :: struct {
         self.indent = self.indent - 1
         self.indent_line()
         append_str(&self.code, Str.of("}\n"))
+    }
+
+    global_ref :: fn(self &Self, arena &Arena, sym u32, ty u32) Str {
+        self.sym_name(arena, sym)
+    }
+
+    declare_global :: fn(self &Self, sym u32, ty u32, name Str, type_name Str) {
+        self.global_decls.push_str("static ")
+        self.global_decls.push_str(type_name)
+        self.global_decls.push_char(' ')
+        self.global_decls.push_str(name)
+        self.global_decls.push_str(";\n")
+    }
+
+    begin_globals :: fn(self &Self) {
+        self.static_init = true
+    }
+
+    initialize_global :: fn(self &Self, name Str, ty Str, value Str) {
+        self.global_defs.push_str("static ")
+        self.global_defs.push_str(ty)
+        self.global_defs.push_char(' ')
+        self.global_defs.push_str(name)
+        self.global_defs.push_str(" = ")
+        self.global_defs.push_str(value)
+        self.global_defs.push_str(";\n")
+    }
+
+    end_globals :: fn(self &Self) {
+        self.static_init = false
     }
 
     create_variable :: fn(self &Self, name Str, ty Str, init_val Str, has_init bool) {
@@ -603,6 +636,8 @@ CCodeGen :: struct {
         append_str(&out, string_view(&self.struct_defs))
         append_str(&out, Str.of("\n// Forward Declarations\n"))
         append_str(&out, string_view(&self.func_decls))
+        out.push_str(self.global_decls.as_str())
+        out.push_str(self.global_defs.as_str())
         append_str(&out, Str.of("\n// Implementations\n"))
 
         append_str(&out, string_view(&self.code))
@@ -816,8 +851,8 @@ void _start(void) {
             fmt.wrap(Str.of("((uint8_t*)"), c_raw, Str.of(")"))
             ret fmt.as_str()
         }
-        fmt.cstr(c"((").str(struct_name).cstr(c"){._f").uint32(ptr_id).cstr(c" = ((uint8_t*)").str(c_raw).cstr(c"), ._f").uint32(len_id).cstr(c" = (sizeof(").str(c_raw).cstr(c") - 1)})")
-        fmt.as_str()
+        fmt.cstr(c"._f").uint32(ptr_id).cstr(c" = ((uint8_t*)").str(c_raw).cstr(c"), ._f").uint32(len_id).cstr(c" = (sizeof(").str(c_raw).cstr(c") - 1)")
+        self.expr_struct_init(arena, struct_name, fmt.as_str())
     }
 
     expr_char_lit :: fn(self &Self, arena &Arena, raw Str) Str {
@@ -943,7 +978,11 @@ void _start(void) {
 
     expr_struct_init :: fn(self &Self, arena &Arena, struct_name Str, fields_body Str) Str {
         fmt := Fmt.new(arena)
-        fmt.cstr(c"((").str(struct_name).cstr(c"){").str(fields_body).cstr(c"})")
+        if self.static_init {
+            fmt.cstr(c"{").str(if fields_body.len > 0 { fields_body } else { "0" }).cstr(c"}")
+        } else {
+            fmt.cstr(c"((").str(struct_name).cstr(c"){").str(fields_body).cstr(c"})")
+        }
         fmt.as_str()
     }
 
@@ -959,8 +998,8 @@ void _start(void) {
 
     expr_union :: fn(self &Self, arena &Arena, union_name Str, tag u32, value Str) Str {
         fmt := Fmt.new(arena)
-        fmt.cstr(c"((").str(union_name).cstr(c"){ .tag = ").uint32(tag).cstr(c", .val = { ._v").uint32(tag).cstr(c" = ").str(value).cstr(c" } })")
-        fmt.as_str()
+        fmt.cstr(c" .tag = ").uint32(tag).cstr(c", .val = { ._v").uint32(tag).cstr(c" = ").str(value).cstr(c" } ")
+        self.expr_struct_init(arena, union_name, fmt.as_str())
     }
 
     expr_union_member :: fn(self &Self, arena &Arena, value Str, tag u32) Str {
@@ -1028,11 +1067,10 @@ void _start(void) {
     expr_array_init :: fn(self &Self, arena &Arena, arr_name Str, elems Str, elem_ty u32, count u32) Str {
         fmt := Fmt.new(arena)
         if count == 0 {
-            fmt.cstr(c"((").str(arr_name).cstr(c"){ 0 })")
-        } else {
-            fmt.cstr(c"((").str(arr_name).cstr(c"){ { ").str(elems).cstr(c" } })")
+            ret self.expr_struct_init(arena, arr_name, " 0 ")
         }
-        fmt.as_str()
+        fmt.cstr(c" { ").str(elems).cstr(c" } ")
+        self.expr_struct_init(arena, arr_name, fmt.as_str())
     }
 
     expr_array_init_elem :: fn(self &Self, arena &Arena, val Str) Str {
