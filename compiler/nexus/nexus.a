@@ -301,6 +301,14 @@ Nexus :: struct {
         real_s
     }
 
+    global_var :: fn(self &Self, sym_id u32) u32 {
+        end := self.sym_hir_end(self.resolve_sym(sym_id))
+        if end != id_none() and end > 0 and self.hir.kind(end - 1) == hir_kind.var {
+            ret end - 1
+        }
+        hir_none()
+    }
+
     get_fn_node :: fn(self &Self, sym_id u32) u32 {
         real_s := self.resolve_sym(sym_id)
         if real_s == id_none() {

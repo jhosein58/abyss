@@ -514,7 +514,9 @@ Indexer :: struct {
                 cont
             } else if (depth == 0) and (tk == Token.ident) {
                 if (cursor + 1) < end_tok {
-                    if db.tokens.kind(cursor + 1) == Token.colon_colon {
+                    op := db.tokens.kind(cursor + 1)
+                    at_boundary := (cursor == start_tok) or db.tokens.newline_before(cursor) or (db.tokens.kind(cursor - 1) == Token.comma)
+                    if (op == Token.colon_colon) or ((op == Token.colon) and at_boundary) {
                         ensure_decl_sep(db, file_id, cursor, start_tok)
                         if has_sym {
                             db.alloc_symbol(file_id, curr_sym_name, curr_sym_tok, cursor)
