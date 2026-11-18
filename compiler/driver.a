@@ -7,6 +7,7 @@ import std.sys:       exit_process, fall
 
 import compiler.codegen:    CCodeBuilder, CCodeGen, CCodeGen_destroy, CCodeGen_finish, CCodeGen_new
 import compiler.engine:     Engine
+import compiler.nexus.pool: id_none
 import compiler.platform:   host_arch, host_os, parse_arch, parse_os
 import compiler.vm.codegen: VmCodeBuilder, VmCodeGen
 import compiler.vm.vm:      Vm
@@ -162,7 +163,9 @@ Driver :: struct {
             vcg.finish_linking()
             vm := Vm.new()
             Env.shift_args(self.config.source_index)
-            vm.run(&vcg.chunk, vcg.globals_entry)
+            if vcg.globals_entry != id_none() {
+                vm.run(&vcg.chunk, vcg.globals_entry)
+            }
             status := vm.run(&vcg.chunk, vcg.main_entry)
             vm.destroy()
             vcg.destroy()

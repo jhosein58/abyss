@@ -124,7 +124,7 @@ VmCodeGen :: struct {
     fn_ptr_fixups_idx   Vec(u32)
     fn_ptr_fixups_sym   Vec(u32)
     new :: fn(arena &Arena) Self {
-        .{ arena: arena, chunk: Chunk.new(), main_sym: 0, main_entry: 0, current_fn: 0, current_fn_ret_type: 0, local_count: 0, current_loop_start: 0, data_cells: HashMap(u32, u64).new(), globals_entry: 0, types: 0 as &TypeStorage, local_types: Vec(u32).new(), init_field_ids: Vec(u32).new(), local_syms: Vec(u32).new(), fn_syms: Vec(u32).new(), fn_ips: Vec(u32).new(), call_fixups_ip: Vec(u32).new(), call_fixups_sym: Vec(u32).new(), if_patches: Vec(u32).new(), loop_breaks: Vec(u32).new(), field_ids: Vec(u32).new(), field_offsets: Vec(u32).new(), ffi_signatures: HashMap(u32, u16).new(), fn_ptr_fixups_idx: Vec(u32).new(), fn_ptr_fixups_sym: Vec(u32).new() }
+        .{ arena: arena, chunk: Chunk.new(), main_sym: 0, main_entry: 0, current_fn: 0, current_fn_ret_type: 0, local_count: 0, current_loop_start: 0, data_cells: HashMap(u32, u64).new(), globals_entry: hir_none(), types: 0 as &TypeStorage, local_types: Vec(u32).new(), init_field_ids: Vec(u32).new(), local_syms: Vec(u32).new(), fn_syms: Vec(u32).new(), fn_ips: Vec(u32).new(), call_fixups_ip: Vec(u32).new(), call_fixups_sym: Vec(u32).new(), if_patches: Vec(u32).new(), loop_breaks: Vec(u32).new(), field_ids: Vec(u32).new(), field_offsets: Vec(u32).new(), ffi_signatures: HashMap(u32, u16).new(), fn_ptr_fixups_idx: Vec(u32).new(), fn_ptr_fixups_sym: Vec(u32).new() }
     }
 
     destroy :: fn(self &Self) {
@@ -1258,6 +1258,11 @@ VmCodeGen :: struct {
         elem_sz: u16 = 0
         if lhs.kind == VmValKind.local {
             elem_sz = self.get_local_elem_size(lhs.id)
+        } else if lhs.kind == VmValKind.data or lhs.kind == VmValKind.data_ref {
+            ty := self.data_type(lhs)
+            if self.types.kind(ty) == TyKind.ptr {
+                elem_sz = vm_element_size(self.types, self.types.payload(ty)) as u16
+            }
         } else if lhs.kind == VmValKind.member_deref {
             elem_sz = lhs.elem_size
         } else if lhs.kind == VmValKind.member_local or lhs.kind == VmValKind.ffi_field {

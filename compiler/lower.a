@@ -566,6 +566,11 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             ret ccg.expr_typed_binary_kind(arena, db.hir.kind(id), lhs_val, rhs_val, db.get_node_type(db.hir.lhs(id)))
         }
         binary_and {
+            if ctx.global_init and not ccg.is_vm() {
+                lhs := lower_expr(ctx, db.hir.lhs(id))
+                rhs := lower_expr(ctx, db.hir.rhs(id))
+                ret ccg.expr_binary_kind(arena, hir_kind.binary_and, lhs, rhs)
+            }
             ty_str := ccg.type_str(&db.types, arena, ty_id_bool())
             temp_var := ccg.new_temp(arena, ty_str)
             lhs_val := lower_expr(ctx, db.hir.lhs(id))
@@ -578,6 +583,11 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             ret temp_var
         }
         binary_or {
+            if ctx.global_init and not ccg.is_vm() {
+                lhs := lower_expr(ctx, db.hir.lhs(id))
+                rhs := lower_expr(ctx, db.hir.rhs(id))
+                ret ccg.expr_binary_kind(arena, hir_kind.binary_or, lhs, rhs)
+            }
             ty_str := ccg.type_str(&db.types, arena, ty_id_bool())
             temp_var := ccg.new_temp(arena, ty_str)
             lhs_val := lower_expr(ctx, db.hir.lhs(id))
@@ -709,7 +719,17 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
         k_cmpt {
             ty := expression_value_type(db, id)
             if ctx.global_init {
-                ret lower_global_constant(ctx, id, db.hir.rhs(id), ty, eval_const(db, id))
+                source := db.hir.rhs(id)
+                child := db.hir.lhs(id)
+                bits := eval_const(db, id)
+                if db.types.kind(ty) == TyKind.union_ and db.types.kind(source) != TyKind.union_ and db.has_union_coerce(child) {
+                    tag := db.get_union_coerce_idx(child)
+                    member := db.types.union_members(ty).ptr[tag]
+                    value := lower_global_constant(ctx, id, source, member, bits)
+                    add_type_to_queue(db, ty, type_queue)
+                    ret ccg.expr_union(arena, ccg.type_str(&db.types, arena, ty), tag, value)
+                }
+                ret lower_global_constant(ctx, id, source, ty, bits)
             }
             if (ty == ty_id_type()) or (db.types.kind(ty) == TyKind.type_) {
                 if ccg.is_vm() {
@@ -1571,6 +1591,13 @@ expression_value_type :: fn(db &Nexus, id u32) u32 {
     db.get_node_type(id)
 }
 
+read_vm_constant :: fn(ptr &u8, size u64) u64 {
+    if size == 1 { ret *ptr as u64 }
+    if size == 2 { ret *(ptr as &u16) as u64 }
+    if size == 4 { ret *(ptr as &u32) as u64 }
+    *(ptr as &u64)
+}
+
 lower_global_constant :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32, source u32, ty u32, bits u64) V {
     db := ctx.db
     types := &db.types
@@ -1623,15 +1650,7 @@ lower_global_constant :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u
         items := ctx.builder.new_list(arena)
         for index in Range.new(0, count as i32) {
             ptr := (bits + (index as u64) * size) as &u8
-            raw := if size == 1 {
-                *ptr as u64
-            } else if size == 2 {
-                * (ptr as &u16) as u64
-            } else if size == 4 {
-                * (ptr as &u32) as u64
-            } else {
-                * (ptr as &u64)
-            }
+            raw := read_vm_constant(ptr, size)
             value := lower_global_constant(ctx, id, source_elem, elem, raw)
             ctx.builder.append_list_item(&items, cg.expr_array_init_elem(arena, value), index == 0)
         }
@@ -1647,6 +1666,9 @@ lower_global_constant :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u
 }
 
 global_init_source :: fn(db &Nexus, id u32) u32 {
+    if id == hir_none() {
+        ret id
+    }
     tbl := &db.hir
     match tbl.kind(id) {
         ident, member {
@@ -1701,6 +1723,45 @@ global_init_source :: fn(db &Nexus, id u32) u32 {
     }
 }
 
+lower_global_projection :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
+    db := ctx.db
+    tbl := &db.hir
+    types := &db.types
+    receiver := global_init_source(db, tbl.lhs(id))
+    if receiver == hir_none() {
+        ret ctx.empty
+    }
+    kind := tbl.kind(receiver)
+    if kind != hir_kind.k_cmpt and kind != hir_kind.lit_str {
+        ret ctx.empty
+    }
+    source_ty := if kind == hir_kind.k_cmpt { tbl.rhs(receiver) } else { db.str_type }
+    ty := expression_value_type(db, id)
+    if tbl.kind(id) == hir_kind.index and types.kind(source_ty) == TyKind.array {
+        index := eval_const(db, tbl.rhs(id))
+        if index >= types.get_array_len(source_ty) as u64 {
+            db.type_error(id, "array index out of bounds")
+        }
+        elem := types.get_array_type(source_ty)
+        size := vm_element_size(types, elem)
+        ptr := (eval_const(db, receiver) + index * size) as &u8
+        ret lower_global_constant(ctx, id, elem, ty, read_vm_constant(ptr, size))
+    }
+    if tbl.kind(id) == hir_kind.member and not types.struct_is_extern(source_ty) {
+        field := tbl.lhs(tbl.rhs(id))
+        fields := types.get_struct_fields(source_ty)
+        i: u64 = 0
+        while i < fields.len / 2 {
+            if fields.ptr[i * 2] == field {
+                bits := (eval_const(db, receiver) as &u64)[i]
+                ret lower_global_constant(ctx, id, fields.ptr[i * 2 + 1], ty, bits)
+            }
+            i = i + 1
+        }
+    }
+    ctx.empty
+}
+
 lower_expr :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     db := ctx.db
     kind := db.hir.kind(id)
@@ -1717,10 +1778,10 @@ lower_expr :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     if not ctx.ccg.has_value(val_str) {
         source := if ctx.global_init { global_init_source(db, id) } else { id }
         if source == id {
-            if ctx.global_init and (kind == hir_kind.member or kind == hir_kind.index) and db.hir.kind(global_init_source(db, db.hir.lhs(id))) == hir_kind.k_cmpt {
-                ty := expression_value_type(db, id)
-                val_str = lower_global_constant(ctx, id, ty, ty, eval_const(db, id))
-            } else {
+            if ctx.global_init and (kind == hir_kind.member or kind == hir_kind.index) {
+                val_str = lower_global_projection(ctx, id)
+            }
+            if not ctx.ccg.has_value(val_str) {
                 val_str = lower_expr_node(ctx, id)
             }
         } else {
@@ -1933,6 +1994,10 @@ lower_globals :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V)) {
                 globals.push(sym)
             }
         }
+    }
+    if globals.len == 0 {
+        globals.destroy()
+        ret
     }
     cg.begin_globals()
     ctx.global_init = true
