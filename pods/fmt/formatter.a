@@ -170,7 +170,13 @@ Formatter :: struct {
                 self.buf.push_str(node.text)
                 self.buf.push_char(' ')
             }
-            self.format_node(node.child(0), level)
+            target := node.child(0)
+            if node.children.len == 2 {
+                self.buf.push_str(target.text)
+                self.buf.push_char(' ')
+                target = node.child(1)
+            }
+            self.format_node(target, level)
             ret
         }
         if k == CstKind.fn_def {

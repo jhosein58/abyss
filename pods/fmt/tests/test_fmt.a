@@ -349,6 +349,7 @@ count i32
 &u8
 ) bool
 reset::extern fn()
+fd_close::extern "wasi_snapshot_preview1" "fd_close" fn(u32) u32
 Callback::fn(i32) i32
 adjust::extern fn(x i32) i32{
 x+1
@@ -366,6 +367,7 @@ send :: extern "send_packet" fn(
     &u8
 ) bool
 reset :: extern fn()
+fd_close :: extern "wasi_snapshot_preview1" "fd_close" fn(u32) u32
 Callback :: fn(i32) i32
 adjust :: extern fn(x i32) i32 {
     x + 1

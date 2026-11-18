@@ -423,6 +423,9 @@ CstParser :: struct {
             Str.empty()
         }
         node := cst_new(self.arena, CstKind.extern_decl, name)
+        if self.peek() == TokenKind.lit_str {
+            node.add_child(cst_leaf(self.arena, CstKind.lit_str, self.bump().text))
+        }
         if self.peek() == TokenKind.kw_struct {
             node.add_child(self.parse_struct())
         } else if self.peek() == TokenKind.kw_fn {
