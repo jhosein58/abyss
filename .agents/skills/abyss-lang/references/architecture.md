@@ -32,6 +32,8 @@ abyss/
 └── scripts/            # Test and multi-generation bootstrap scripts
 ```
 
+`pods/fmt/syntax/` tokenizes source without losing whitespace or comments. `parser.a` keeps significant line breaks and distinguishes trailing comments from standalone ones. `formatter.a` builds layout groups, `layout.a` measures and renders them, and `imports.a` organizes imports within contiguous sections while preserving conflicting bindings. Keep raw string bytes intact. When the formatter cannot parse a source, return the original bytes. Verify a second formatting pass and run `./abyss test-pods` for native and VM formatter coverage.
+
 ---
 
 ## 2. The Compiler Pipeline

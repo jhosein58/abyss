@@ -1,5 +1,4 @@
-import std.allocator:       Arena
-import std.collections.vec: Vec
+import std.allocator: Arena
 
 CstKind :: enum u16 {
     file
@@ -8,15 +7,12 @@ CstKind :: enum u16 {
     binding_stmt
     var_decl_stmt
     destructure_stmt
-    expr_stmt
     empty_line
+    continued_expr
     comment_stmt
-    type_named
-    type_ptr
+    inline_comment
     type_slice
     type_array
-    type_generic
-    type_fn
     fn_def
     extern_decl
     fn_param
@@ -46,7 +42,6 @@ CstKind :: enum u16 {
     lit_char
     lit_bool
     ident
-    self_expr
     paren_expr
     call_expr
     index_expr
@@ -58,21 +53,40 @@ CstKind :: enum u16 {
 }
 
 CstNode :: struct {
-    kind     CstKind
-    text     Str
-    children Vec(&CstNode)
+    kind      CstKind
+    text      Str
+    multiline bool
+    arena     &Arena
+    children  Slice(&CstNode)
+    capacity  u64
+    height    u32
+
     alloc :: fn(arena &Arena, kind CstKind, text Str) &Self {
-        ptr := arena.alloc(@sizeof(Self)) as &Self
-        (*ptr).kind = kind
-        (*ptr).text = text
-        (*ptr).children = Vec(&CstNode).new()
-        ptr
+        node := arena.alloc(@sizeof(Self)) as &Self
+        node.kind = kind
+        node.text = text
+        node.multiline = false
+        node.arena = arena
+        node.children = Slice(&CstNode).empty()
+        node.capacity = 0
+        node.height = 0
+        node
     }
 
     add_child :: fn(self &Self, child &CstNode) {
-        if child != (0 as &CstNode) {
-            self.children.push(child)
+        if self.children.len == self.capacity {
+            next := if self.capacity == 0 { 1 as u64 } else { self.capacity * 2 }
+            size := @sizeof(&CstNode)
+            self.children.ptr = self.arena.realloc(
+                self.children.ptr as &u8
+                self.capacity * size
+                next * size
+            ) as &&CstNode
+            self.capacity = next
         }
+        *(self.children.ptr + self.children.len) = child
+        self.children.len = self.children.len + 1
+        if child.height >= self.height { self.height = child.height + 1 }
     }
 
     child :: fn(self &Self, idx u64) &CstNode {
@@ -84,6 +98,10 @@ CstNode :: struct {
 
     child_count :: fn(self &Self) u64 {
         self.children.len
+    }
+
+    is_comment :: fn(self &Self) bool {
+        self.kind == CstKind.comment_stmt or self.kind == CstKind.inline_comment
     }
 }
 

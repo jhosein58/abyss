@@ -1,35 +1,56 @@
 import std.allocator: Arena
 import std.env:       Env
-import std.string:    Str
 
-import .fmt: format_path
+import .fmt: default_width, format_path_with_width
 
 print_help :: fn() {
-    printf("usage: abyssfmt <path> ... (or: abyss fmt <path> ...)\n", .{})
+    print("usage: abyssfmt [--width N] <path> ... (or: abyss fmt [--width N] <path> ...)")
 }
 
-main :: fn() {
-    count := Env.args_len()
-    if count < 2 {
-        print_help()
-        ret
+parse_width :: fn(text Str) Maybe(u64) {
+    value: u64 = 0
+    for c in text.chars() {
+        if c < '0' or c > '9' or value > 100 { ret Maybe(u64).none() }
+        value = value * 10 + ((c - '0') as u64)
     }
-    first := Str.of(Env.arg(1))
-    if first.eq("-h") or first.eq("--help") or first.eq("help") {
-        print_help()
-        ret
-    }
-    arena := Arena.new(1024 * 1024)
-    total_formatted: u32 = 0
+    if value == 0 or value > 1000 { ret Maybe(u64).none() }
+    Maybe(u64).some(value)
+}
 
+main :: fn() i32 {
+    count := Env.args_len()
+    first := Str.of(Env.arg(1))
+    if count < 2 or first.eq("-h") or first.eq("--help") or first.eq("help") {
+        print_help()
+        ret 0
+    }
+    width: u64 = default_width
     i: i32 = 1
+    if first.eq("--width") {
+        if count < 4 {
+            print_help()
+            ret 1
+        }
+        parsed := parse_width(Str.of(Env.arg(2)))
+        if parsed.is_none() {
+            print("error: width must be between 1 and 1000")
+            ret 1
+        }
+        width = parsed.unwrap()
+        i = 3
+    }
+
+    arena := Arena.new(65536)
+    total: u32 = 0
+    failed := false
     while i < count {
-        path := Env.arg(i)
-        n := format_path(&arena, path)
-        total_formatted = total_formatted + n
+        result := format_path_with_width(&arena, Str.of(Env.arg(i)), width)
+        total = total + result.files
+        failed = failed or result.failed
         i = i + 1
     }
-
-    printf("formatted {} files\n", .{ total_formatted })
     arena.destroy()
+    printf("formatted {} files\n", .{ total })
+    if failed { ret 1 }
+    0
 }

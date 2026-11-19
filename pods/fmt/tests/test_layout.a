@@ -1,0 +1,269 @@
+import std.allocator: Arena
+
+import fmt:  format_source, format_source_with_width
+import test: Suite, Test
+
+assert_layout :: fn(t &Test, source Str, expected Str, width u64, hint Str) {
+    arena := Arena.new(65536)
+    result := format_source_with_width(&arena, source, width)
+    t.assert_str_eq(result, expected, hint)
+    t.assert_str_eq(
+        format_source_with_width(&arena, result, width)
+        result
+        "second pass is unchanged"
+    )
+    arena.destroy()
+}
+
+test_comments_and_blank_lines :: fn(t &Test) {
+    input := `import zed: Z  -- package binding
+import std.mem: malloc
+
+
+Value::struct{ -- fields
+short i32 -- exported
+longer i32
+
+  extra i32
+}
+Status::enum {
+ready -- expected
+
+failed
+}
+make::fn( -- args
+x i32, -- first
+y i32
+) i32 {
+if x > 0 { ret x } -- test
+else { ret y }
+
+out:=.{ -- literal
+x:1, -- coordinate
+
+z:.[ 1, 2, -- numbers
+3 ]
+} -- result
+
+ret 0 -- done
+}
+`
+    expected := `import zed: Z -- package binding
+import std.mem: malloc
+
+Value :: struct { -- fields
+    short  i32 -- exported
+    longer i32
+
+    extra i32
+}
+Status :: enum {
+    ready -- expected
+
+    failed
+}
+make :: fn( -- args
+    x i32 -- first
+    y i32
+) i32 {
+    if x > 0 { ret x } -- test
+    else { ret y }
+
+    out := .{ -- literal
+        x: 1 -- coordinate
+
+        z: .[
+            1
+            2 -- numbers
+            3
+        ]
+    } -- result
+
+    ret 0 -- done
+}
+`
+    assert_layout(t, input, expected, 100, "comments and intentional blank lines survive")
+}
+
+test_import_barriers :: fn(t &Test) {
+    input := `import zed: Z
+-- native bindings
+import std.mem: malloc, -- allocate pages
+    free
+import std.allocator: Arena
+
+run :: fn() { ret }
+
+import .local: path
+`
+    expected := `import zed: Z
+
+-- native bindings
+import std.allocator: Arena
+import std.mem:
+    malloc -- allocate pages
+    free
+
+run :: fn() { ret }
+
+import .local: path
+`
+    assert_layout(t, input, expected, 100, "imports stay in their original section")
+    multiline := "import std.fs:\n-- file access\nFile\n\nDir\n"
+    multiline_expected := "import std.fs:\n    -- file access\n    File\n\n    Dir\n"
+    assert_layout(
+        t
+        multiline
+        multiline_expected
+        100
+        "comments and spacing inside symbol lists survive"
+    )
+    sections := "import std.foo:\n    Zed\n\n    Aye\n"
+    assert_layout(t, sections, sections, 100, "blank lines separate groups of imported names")
+    collision := "import std.collections.vec: Vec as Item\nimport core.string: Str as Item\n"
+    assert_layout(t, collision, collision, 100, "ordering of conflicting aliases is stable")
+    aliases := "import .local: Path as Third, Path as First, Path as Third, Path as Second\n"
+    alias_expected := "import .local: Path as First, Path as Second, Path as Third\n"
+    assert_layout(t, aliases, alias_expected, 100, "deduplication preserves distinct aliases")
+}
+
+test_wrapping :: fn(t &Test) {
+    input := `Value :: struct { i32, i64, SomeLongType }
+compute :: fn(first_argument i32, second_argument i32) i32 {
+    result := use(123, .{ x: 111111, y: 222222 }, .[ 11111, 22222, 33333 ])
+    sum := first_argument + second_argument + 1000000000
+    ret 0
+}
+`
+    expected := `Value :: struct {
+    i32
+    i64
+    SomeLongType
+}
+compute :: fn(
+    first_argument i32
+    second_argument i32
+) i32 {
+    result := use(
+        123
+        .{ x: 111111, y: 222222 }
+        .[ 11111, 22222, 33333 ]
+    )
+    sum := first_argument +
+        second_argument +
+        1000000000
+    ret 0
+}
+`
+    assert_layout(
+        t
+        input
+        expected
+        38
+        "wrap signatures, arguments, types and binary expressions"
+    )
+
+    literal := "x :: .{ value: 42 } -- a comment can extend past the width\n"
+    assert_layout(t, literal, literal, 19, "a literal can exactly fill the available width")
+    assert_layout(
+        t
+        literal
+        "x :: .{\n    value: 42\n} -- a comment can extend past the width\n"
+        18
+        "a literal wraps one column over the limit"
+    )
+
+    suffix := "compute :: fn(value i32) ReturnType\n"
+    assert_layout(
+        t
+        suffix
+        "compute :: fn(\n    value i32\n) ReturnType\n"
+        30
+        "the return type counts toward line width"
+    )
+
+    wide := "data :: .{ primary_configuration_value: primary_configuration, secondary_configuration_value: secondary_configuration }\n"
+    split := "data :: .{\n    primary_configuration_value: primary_configuration\n    secondary_configuration_value: secondary_configuration\n}\n"
+    arena := Arena.new(65536)
+    t.assert_str_eq(
+        format_source(&arena, wide)
+        split
+        "the default width wraps a long struct literal"
+    )
+    arena.destroy()
+}
+
+test_nested_lists :: fn(t &Test) {
+    source := "x::use(.{first:1111111111,second:2222222222,values:.[111111,222222,333333,444444]},0)\n"
+    expected := `x :: use(
+    .{
+        first: 1111111111
+        second: 2222222222
+        values: .[
+            111111
+            222222
+            333333
+            444444
+        ]
+    }
+    0
+)
+`
+    assert_layout(t, source, expected, 32, "nested groups indent independently")
+    multiline := "x::.[\n  1\n\n  2\n]\n"
+    assert_layout(
+        t
+        multiline
+        "x :: .[\n    1\n\n    2\n]\n"
+        100
+        "manual multiline layout is preserved"
+    )
+}
+
+test_token_boundaries :: fn(t &Test) {
+    source := "answer::1+ -- addition\n - -2\ntext:=`alpha  \r\n\tbeta` -- preserve bytes\r\n(\r\n    42\r\n)\r\n"
+    expected := "answer :: 1 + -- addition\n    - -2\ntext := `alpha  \r\n\tbeta` -- preserve bytes\n(\n    42\n)\n"
+    assert_layout(
+        t
+        source
+        expected
+        100
+        "comments and raw strings keep their lexical boundaries"
+    )
+
+    code := "Array :: [2 * 3]i32\ncallback :: fn(pkg.Item, pkg.Result) i32\nvalue := .{1,-2,&x,*y}\n"
+    formatted := "Array :: [2 * 3]i32\ncallback :: fn(\n    pkg.Item\n    pkg.Result\n) i32\nvalue := .{\n    1\n    -2\n    &x\n    *y\n}\n"
+    assert_layout(t, code, formatted, 22, "breaks keep separate arguments distinct from operators")
+}
+
+test_invalid_source :: fn(t &Test) {
+    assert_layout(
+        t
+        "main :: fn() {\n  x := call(1, 2\n}\n"
+        "main :: fn() {\n  x := call(1, 2\n}\n"
+        100
+        "unmatched delimiters are left alone"
+    )
+    assert_layout(t, "value:=\"open", "value:=\"open", 100, "unterminated strings are left alone")
+    assert_layout(
+        t
+        "value:=1 2\n"
+        "value:=1 2\n"
+        100
+        "missing separators are not repaired silently"
+    )
+    assert_layout(t, "\r\n \t \r\n", "", 100, "blank files have no trailing whitespace")
+}
+
+main :: fn() {
+    arena := Arena.new(65536)
+    suite := Suite.new(&arena, "Formatter Layout")
+    suite.add("comments and blank lines", test_comments_and_blank_lines)
+    suite.add("import barriers", test_import_barriers)
+    suite.add("wrapping", test_wrapping)
+    suite.add("nested lists", test_nested_lists)
+    suite.add("token boundaries", test_token_boundaries)
+    suite.add("invalid source", test_invalid_source)
+    suite.run_and_exit()
+    arena.destroy()
+}

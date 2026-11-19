@@ -36,3 +36,14 @@ run_pod_test "test"
 run_pod_test "json"
 run_pod_test "simd"
 run_pod_test "fmt"
+
+FMT_VM_LOG="${ROOT_DIR}/tmp/test_pod_fmt_vm.log"
+: > "${FMT_VM_LOG}"
+for SUITE in "${ROOT_DIR}"/pods/fmt/tests/test_*.a; do
+    if ! timeout 10s "${COMPILER}" --map "fmt=${ROOT_DIR}/pods/fmt" --map "test=${ROOT_DIR}/pods/test" r "${SUITE}" >> "${FMT_VM_LOG}" 2>&1; then
+        printf "  \033[1;31m✘ FAIL\033[0m  %-36s \033[1;31m[Pod: fmt, VM]\033[0m\n" "${SUITE##*/}"
+        cat "${FMT_VM_LOG}"
+        exit 1
+    fi
+done
+printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[Pod: fmt, VM]\033[0m\n" "fmt_unit_tests_vm"

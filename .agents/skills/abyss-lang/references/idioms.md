@@ -222,9 +222,9 @@ Never wrap pointers in parentheses with asterisks `(*a).b` for field access or m
 
 ---
 
-## 10. Optional Commas Across Newlines
+## 10. Newlines Between Items
 
-Newlines serve as universal statement and element delimiters. Commas are completely optional whenever breaking to a new line:
+Use newlines between statements and list items when laying them out vertically. Keep commas when they group names in a shared declaration:
 
 ```abyss
 -- Multiline array without commas:
@@ -235,7 +235,7 @@ numbers := .[
 ]
 
 -- Multiline struct initialization without commas:
-user := User.{
+user: User = .{
     id: 101
     name: "Alex"
     active: true

@@ -1,0 +1,174 @@
+import std.allocator: Arena
+import std.string:    String
+
+LayoutKind :: enum u8 {
+    text
+    spaces
+    comment
+    hard_line
+    soft_line
+    group_start
+    group_end
+}
+
+LayoutPart :: struct {
+    kind   LayoutKind
+    text   Str
+    value  u64
+    level  u32
+    suffix u64
+}
+
+LayoutMark :: struct {
+    index u64
+    width u64
+    lines u64
+}
+
+Layout :: struct {
+    parts Vec(LayoutPart)
+    width u64
+    lines u64
+
+    new :: fn() Self {
+        .{ parts: Vec(LayoutPart).new(), width: 0, lines: 0 }
+    }
+
+    destroy :: fn(self &Self) {
+        self.parts.destroy()
+    }
+
+    add :: fn(self &Self, kind LayoutKind, text Str, value u64, level u32) {
+        self.parts.push(.{ kind: kind, text: text, value: value, level: level, suffix: 0 })
+    }
+
+    push_str :: fn(self &Self, text Str) {
+        if text.len == 0 { ret }
+        tail := text.len
+        while tail > 0 {
+            byte := *(text.ptr + tail - 1)
+            if byte == '\n' or byte == '\r' { break }
+            tail = tail - 1
+        }
+        self.add(LayoutKind.text, text, text.len - tail, 0)
+        self.width = self.width + text.len
+        if tail > 0 { self.lines = self.lines + 1 }
+    }
+
+    spaces :: fn(self &Self, count u64) {
+        if count == 0 { ret }
+        self.add(LayoutKind.spaces, "", count, 0)
+        self.width = self.width + count
+    }
+
+    space_and_text :: fn(self &Self, text Str) {
+        self.spaces(1)
+        self.push_str(text)
+    }
+
+    comment :: fn(self &Self, text Str, inline bool) {
+        space := if inline { 1 as u64 } else { 0 as u64 }
+        self.add(LayoutKind.comment, text, space, 0)
+    }
+
+    line :: fn(self &Self, level u32) {
+        self.add(LayoutKind.hard_line, "", 0, level)
+        self.lines = self.lines + 1
+    }
+
+    soft_line :: fn(self &Self, flat Str, level u32) {
+        self.add(LayoutKind.soft_line, flat, 0, level)
+        self.width = self.width + flat.len
+    }
+
+    soft_pad :: fn(self &Self, count u64, level u32) {
+        self.add(LayoutKind.soft_line, "", count, level)
+        self.width = self.width + count
+    }
+
+    start_group :: fn(self &Self) LayoutMark {
+        mark: LayoutMark = .{ index: self.parts.len, width: self.width, lines: self.lines }
+        self.add(LayoutKind.group_start, "", 0, 0)
+        mark
+    }
+
+    end_group :: fn(self &Self, mark LayoutMark, force bool) {
+        part := self.parts.get(mark.index)
+        part.value = self.width - mark.width
+        if force or self.lines != mark.lines {
+            part.level = 1
+            self.lines = self.lines + 1
+        }
+        self.parts.set(mark.index, part)
+        self.add(LayoutKind.group_end, "", mark.index, 0)
+    }
+
+    measure_suffixes :: fn(self &Self) {
+        tail: u64 = 0
+        i := self.parts.len
+        while i > 0 {
+            i = i - 1
+            part := self.parts.get(i)
+            kind := part.kind
+            if kind == LayoutKind.group_end {
+                start := self.parts.get(part.value)
+                start.suffix = tail
+                self.parts.set(part.value, start)
+            } else if kind == LayoutKind.spaces {
+                tail = tail + part.value
+            } else if kind == LayoutKind.text and part.value == part.text.len {
+                tail = tail + part.text.len
+            } else if kind != LayoutKind.group_start {
+                tail = 0
+            }
+        }
+    }
+
+    render :: fn(self &Self, arena &Arena, limit u64) Str {
+        self.measure_suffixes()
+        out := String.new(arena)
+        groups := Vec(bool).new()
+        column: u64 = 0
+        pending: u64 = 0
+        i: u64 = 0
+        while i < self.parts.len {
+            part := self.parts.get(i)
+            i = i + 1
+            if part.kind == LayoutKind.group_start {
+                groups.push(part.level != 0 or column + pending + part.value + part.suffix > limit)
+                cont
+            }
+            if part.kind == LayoutKind.group_end {
+                groups.pop()
+                cont
+            }
+            if part.kind == LayoutKind.spaces {
+                pending = pending + part.value
+                cont
+            }
+            soft := part.kind == LayoutKind.soft_line
+            if part.kind == LayoutKind.hard_line or (soft and groups.last()) {
+                out.push_char('\n')
+                column = 0
+                pending = (part.level as u64) * 4
+                cont
+            }
+            if soft { pending = pending + part.value }
+            if part.kind == LayoutKind.comment and pending < part.value { pending = part.value }
+            if part.text.len == 0 { cont }
+            while pending > 0 {
+                out.push_char(' ')
+                column = column + 1
+                pending = pending - 1
+            }
+            out.push_str(part.text)
+            if part.kind == LayoutKind.text and part.value != part.text.len {
+                column = part.value
+            } else {
+                column = column + part.text.len
+            }
+        }
+        groups.destroy()
+        out.as_str()
+    }
+}

@@ -71,9 +71,8 @@ Abyss is a statically typed, expression-oriented systems programming language fe
    - Abyss has seamless automatic dereferencing for all member and field accesses: write `a.b.c.d` and `tbl.lhs(id)` directly.
    - Pointers to fields/subsystems take the address directly without dereferencing: write `db := &eng.nexus` and `tbl := &db.hir`. The compiler automatically dereferences pointers as deeply as necessary without extra parentheses or asterisks.
 
-10. **Commas Are Completely Optional Across Newlines:**
-    - Whenever an expression, list, or declaration breaks across a new line, the comma `,` becomes 100% optional.
-    - Applies everywhere in the language:
+10. **Newlines as Separators:**
+    - A newline can replace the comma between statements or list items. Examples:
       - Array literals:
         ```abyss
         items := .[
@@ -85,7 +84,8 @@ Abyss is a statically typed, expression-oriented systems programming language fe
       - Struct literals: `.{ x: 10 \n y: 20 }`
       - Function arguments / parameters: `foo(a \n b)`
       - Imports: `import std.mem: \n malloc \n free`
-    - Omitting commas on newlines produces clean, uncluttered, elegant multiline code.
+    - Keep commas within grouped names such as `a, b i32` and within multiple match patterns on the same line.
+    - Keep trailing comments on the line they describe and retain a blank line between related groups of statements or fields. Keep short literals compact and put one entry per line when a list needs to wrap.
 
 11. **Deferred Type Inference & Lean Annotations:**
     - Rely on the bidirectional unification engine: omit redundant type annotations inside function bodies.
@@ -204,7 +204,8 @@ Command | Purpose
 `./abyss test [filter]` | Run the compiler test suite across C and VM backends.
 `./abyss bootstrap [n]` | Verify multi-generation bit-identical self-hosting fixed-point.
 `./abyss promote [n]` | Verify and promote compiler binary to `./abyssc`.
-`./abyss fmt <file.a>` | Format source file in place using CST formatter.
+`./abyss fmt [--width N] <path> ...` | Format files or directories in place. The default target is 100 columns.
+`./abyss b-fmt` | Rebuild the native formatter after changing `pods/fmt`.
 `./abyss sonar <cmd>` | Sonar package manager (or invoke `./sonar` directly): `init`, `add`, `update`, `vendor`, `build`, `run`.
 `./abyss sonar-test` | Run Sonar automated unit and integration test suite.
 `./abyss wasm` | Build the WebAssembly compiler with embedded core and std pods (`dist/abyssc.wasm`).

@@ -137,7 +137,16 @@ test_resilience :: fn(t &Test) {
     t.assert_true(tokens.get(4).kind == TokenKind.tilde, "tilde")
     t.assert_true(tokens.get(6).kind == TokenKind.bang_eq, "bang_eq")
     t.assert_true(tokens.get(8).kind == TokenKind.hash, "hash")
-    t.assert_true(tokens.get(10).kind == TokenKind.lit_str, "unterminated str")
+    t.assert_true(tokens.get(10).kind == TokenKind.unknown, "unterminated string is unknown")
+
+    t.assert_str_eq(tokens.get(10).text, "\"unterminated", "unterminated text is preserved")
+    raw := tokenize("`unterminated")
+    t.assert_true(raw.get(0).is_unknown(), "unterminated raw string is unknown")
+    raw.destroy()
+
+    character := tokenize("'a")
+    t.assert_true(character.get(0).is_unknown(), "unterminated character is unknown")
+    character.destroy()
 
     tokens.destroy()
 }

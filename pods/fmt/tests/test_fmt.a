@@ -2,7 +2,7 @@ import std.allocator: Arena
 import std.fs:        Dir, File
 import std.string:    Str
 
-import fmt:  format_path, format_source
+import fmt:  format_path, format_source, format_source_with_width
 import test: Suite, Test
 
 test_imports :: fn(t &Test) {
@@ -93,12 +93,12 @@ test_import_symbol_sorting_and_dedup :: fn(t &Test) {
 
     src4 := "import std.fs:\n    File,\n    Dir,\n    to_cstr\n"
     res4 := format_source(&arena, src4)
-    exp4 := "import std.fs: Dir, File, to_cstr\n"
+    exp4 := "import std.fs:\n    Dir\n    File\n    to_cstr\n"
     t.assert_str_eq(res4, exp4, "multiline symbol list with commas")
 
     src5 := "import std.mem:\n    malloc\n    free\n"
     res5 := format_source(&arena, src5)
-    exp5 := "import std.mem: free, malloc\n"
+    exp5 := "import std.mem:\n    free\n    malloc\n"
     t.assert_str_eq(res5, exp5, "multiline symbol list without commas")
 
     arena.destroy()
@@ -232,7 +232,7 @@ test_control_flow :: fn(t &Test) {
     res_for_multi := format_source(&arena, src_for_multi)
     t.assert_str_eq(res_for_multi, src_for_multi, "for multi-variable multi-iterator")
 
-    src_match := "main :: fn() {\n    match val {\n        1 {\n            print(10)\n        }\n        2, 3 {\n            print(20)\n        }\n        else {\n            print(0)\n        }\n    }\n}\n"
+    src_match := "main :: fn() {\n    match val {\n        ready {\n            print(10)\n        }\n        waiting, running {\n            print(20)\n        }\n        else {\n            print(0)\n        }\n    }\n}\n"
     res_match := format_source(&arena, src_match)
     t.assert_str_eq(res_match, src_match, "match expression")
 

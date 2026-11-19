@@ -1,0 +1,147 @@
+import std.interner: hash_str
+
+import .cst: CstKind, CstNode
+
+str_less :: fn(a Str, b Str) bool {
+    i: u64 = 0
+    while i < a.len and i < b.len {
+        left := *(a.ptr + i)
+        right := *(b.ptr + i)
+        if left != right { ret left < right }
+        i = i + 1
+    }
+    a.len < b.len
+}
+
+import_group :: fn(path Str) u8 {
+    if path.eq("std") or path.eq("core") or path.starts_with("std.") or path.starts_with("core.") {
+        ret 0
+    }
+    if path.starts_with(".") { ret 2 }
+    1
+}
+
+last_segment :: fn(path Str) Str {
+    i := path.len
+    while i > 0 {
+        if *(path.ptr + i - 1) == '.' { break }
+        i = i - 1
+    }
+    path.sub(i, path.len - i)
+}
+
+record_import :: fn(bindings &HashMap(u32, u64), name Str, owner u64) bool {
+    key := hash_str(name)
+    previous := bindings.get(key)
+    if previous != (0 as &u64) and *previous != owner { ret false }
+    bindings.insert(key, owner)
+    true
+}
+
+can_sort_imports :: fn(nodes Slice(&CstNode)) bool {
+    if nodes.len < 2 { ret true }
+    bindings := HashMap(u32, u64).new()
+    owner: u64 = 0
+    safe := true
+    for node in nodes {
+        if node.child_count() == 0 {
+            safe = safe and record_import(&bindings, last_segment(node.text), owner)
+        } else if node.child(0).kind == CstKind.ident {
+            safe = safe and record_import(&bindings, node.child(0).text, owner)
+        } else {
+            for symbol in node.children {
+                if symbol.kind == CstKind.import_symbol {
+                    safe = safe and record_import(&bindings, symbol_binding(symbol), owner)
+                }
+            }
+        }
+        if not safe { break }
+        owner = owner + 1
+    }
+    bindings.destroy()
+    safe
+}
+
+sort_imports :: fn(nodes &Vec(&CstNode)) {
+    i: u64 = 1
+    while i < nodes.len {
+        node := nodes.get(i)
+        group := import_group(node.text)
+        j := i
+        while j > 0 {
+            prev := nodes.get(j - 1)
+            prev_group := import_group(prev.text)
+            if group > prev_group or (group == prev_group and not str_less(node.text, prev.text)) {
+                break
+            }
+            nodes.set(j, prev)
+            j = j - 1
+        }
+        nodes.set(j, node)
+        i = i + 1
+    }
+}
+
+import_align :: fn(nodes Slice(&CstNode)) u64 {
+    shortest: u64 = 0
+    longest: u64 = 0
+    for node in nodes {
+        if node.child_count() == 0 or node.child(0).kind == CstKind.ident { cont }
+        len := node.text.len
+        if shortest == 0 or len < shortest { shortest = len }
+        if len > longest { longest = len }
+    }
+    if longest - shortest <= 12 { ret longest }
+    0
+}
+
+symbol_binding :: fn(symbol &CstNode) Str {
+    if symbol.child_count() > 0 { ret symbol.child(0).text }
+    symbol.text
+}
+
+symbol_less :: fn(a &CstNode, b &CstNode) bool {
+    if a.text.eq(b.text) { ret str_less(symbol_binding(a), symbol_binding(b)) }
+    str_less(a.text, b.text)
+}
+
+sort_symbols :: fn(symbols &Vec(&CstNode)) {
+    if symbols.len < 2 { ret }
+    bindings := HashMap(u32, u64).new()
+    i: u64 = 0
+    while i < symbols.len {
+        symbol := symbols.get(i)
+        name := hash_str(symbol_binding(symbol))
+        previous := bindings.get(name)
+        if previous != (0 as &u64) and not symbols.get(*previous).text.eq(symbol.text) {
+            bindings.destroy()
+            ret
+        }
+        bindings.insert(name, i)
+        i = i + 1
+    }
+    bindings.destroy()
+    i = 1
+    while i < symbols.len {
+        item := symbols.get(i)
+        j := i
+        while j > 0 and symbol_less(item, symbols.get(j - 1)) {
+            symbols.set(j, symbols.get(j - 1))
+            j = j - 1
+        }
+        symbols.set(j, item)
+        i = i + 1
+    }
+    i = 0
+    n: u64 = 0
+    while i < symbols.len {
+        symbol := symbols.get(i)
+        if n == 0 or not symbols.get(n - 1).text.eq(symbol.text) or
+            not symbol_binding(symbols.get(n - 1)).eq(symbol_binding(symbol)) {
+            symbols.set(n, symbol)
+            n = n + 1
+        }
+        i = i + 1
+    }
+    symbols.len = n
+}

@@ -286,9 +286,11 @@ Lexer :: struct {
             }
         }
 
-        if (not self.is_eof()) and (self.current() == '"') {
-            self.bump()
+        if self.is_eof() or self.current() != '"' {
+            self.emit(tokens, TokenKind.unknown, start)
+            ret
         }
+        self.bump()
         kind := if is_c {
             TokenKind.lit_cstr
         } else {
@@ -308,9 +310,11 @@ Lexer :: struct {
             self.bump()
         }
 
-        if (not self.is_eof()) and (self.current() == '`') {
-            self.bump()
+        if self.is_eof() {
+            self.emit(tokens, TokenKind.unknown, start)
+            ret
         }
+        self.bump()
         self.emit(tokens, TokenKind.lit_raw_str, start)
     }
 
@@ -346,9 +350,11 @@ Lexer :: struct {
                 i = i + 1
             }
         }
-        if (not self.is_eof()) and (self.current() == '\'') {
-            self.bump()
+        if self.is_eof() or self.current() != '\'' or self.cursor == start + 1 {
+            self.emit(tokens, TokenKind.unknown, start)
+            ret
         }
+        self.bump()
         self.emit(tokens, TokenKind.lit_char, start)
     }
 

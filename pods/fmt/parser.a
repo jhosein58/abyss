@@ -1,6 +1,6 @@
-import std.allocator:       Arena
-import std.collections.vec: Vec
-import std.string:          Str, String
+import std.allocator: Arena
+import std.ascii:     Ascii
+import std.string:    String
 
 import .cst:          CstKind, CstNode, cst_binary, cst_leaf, cst_new, cst_unary
 import .syntax.lexer: tokenize
@@ -11,8 +11,17 @@ CstParser :: struct {
     cursor u64
     arena  &Arena
     source Str
+    failed bool
+    depth  u32
     new :: fn(arena &Arena, source Str) Self {
-        .{ tokens: tokenize(source), cursor: 0, arena: arena, source: source }
+        .{
+            tokens: tokenize(source)
+            cursor: 0
+            arena: arena
+            source: source
+            failed: false
+            depth: 0
+        }
     }
 
     destroy :: fn(self &Self) {
@@ -20,7 +29,7 @@ CstParser :: struct {
     }
 
     is_eof :: fn(self &Self) bool {
-        self.cursor >= self.tokens.len() or self.tokens.get(self.cursor).is_eof()
+        self.failed or self.peek() == TokenKind.eof
     }
 
     skip_ws :: fn(self &Self) {
@@ -50,10 +59,6 @@ CstParser :: struct {
 
     peek :: fn(self &Self) TokenKind {
         self.peek_token().kind
-    }
-
-    peek_text :: fn(self &Self) Str {
-        self.peek_token().text
     }
 
     bump :: fn(self &Self) Token {
@@ -90,25 +95,58 @@ CstParser :: struct {
         Token.new(TokenKind.eof, Str.empty(), 0, 0)
     }
 
-    has_newline_before :: fn(self &Self) bool {
-        if self.cursor == 0 {
-            ret false
+    expect :: fn(self &Self, expected TokenKind) {
+        if not self.consume_if(expected) {
+            self.failed = true
         }
-        idx := self.cursor - 1
-        while true {
-            t := self.tokens.get(idx)
-            if t.is_newline() {
-                ret true
-            }
-            if not t.is_whitespace() {
-                ret false
-            }
-            if idx == 0 {
-                break
-            }
+    }
+
+    has_newline_before :: fn(self &Self) bool {
+        idx := self.cursor
+        while idx > 0 {
             idx = idx - 1
+            token := self.tokens.get(idx)
+            if not token.is_whitespace() {
+                ret token.is_newline()
+            }
         }
         false
+    }
+
+    read_trivia :: fn(self &Self, node &CstNode, end TokenKind) {
+        lines: u32 = 0
+        while not self.is_eof() {
+            if self.consume_if(TokenKind.newline) {
+                node.multiline = true
+                lines = lines + 1
+                cont
+            }
+            kind := self.peek()
+            if lines > 1 and node.child_count() > 0 and kind != end {
+                node.add_child(cst_new(self.arena, CstKind.empty_line, ""))
+            }
+            if kind != TokenKind.comment {
+                break
+            }
+            inline := self.cursor > 0 and not self.has_newline_before()
+            text := self.bump().text
+            len := text.len
+            while len > 0 and Ascii.is_whitespace(*(text.ptr + len - 1)) {
+                len = len - 1
+            }
+            comment_kind := if inline { CstKind.inline_comment } else { CstKind.comment_stmt }
+            node.add_child(cst_new(self.arena, comment_kind, text.sub(0, len)))
+            node.multiline = true
+            lines = 0
+        }
+    }
+
+    list_separator :: fn(self &Self, end TokenKind) {
+        if self.is_eof() or self.consume_if(TokenKind.comma) { ret }
+        kind := self.peek()
+        if kind != end and kind != TokenKind.newline and kind != TokenKind.comment {
+            self.failed = true
+        }
     }
 
     is_binding :: fn(self &Self) bool {
@@ -160,15 +198,16 @@ CstParser :: struct {
     }
 
     is_path_token :: fn(self &Self, k TokenKind) bool {
-        if k == TokenKind.ident {
-            ret true
-        }
-        u := k as u8
-        (u >= (TokenKind.kw_if as u8)) and (u <= (TokenKind.kw_cmpt as u8))
+        k == TokenKind.ident or
+            ((k as u8) >= (TokenKind.kw_if as u8) and (k as u8) <= (TokenKind.kw_extern as u8))
     }
 
     is_type_token :: fn(self &Self, k TokenKind) bool {
-        (k == TokenKind.amp) or (k == TokenKind.star) or (k == TokenKind.o_bracket) or (k == TokenKind.at) or (k == TokenKind.kw_fn) or (k == TokenKind.kw_struct) or (k == TokenKind.kw_enum)
+        (k == TokenKind.amp) or (k == TokenKind.star) or (k == TokenKind.o_bracket) or
+            (k == TokenKind.at) or
+            (k == TokenKind.kw_fn) or
+            (k == TokenKind.kw_struct) or
+            (k == TokenKind.kw_enum)
     }
 
     peek_trivia_free :: fn(self &Self, offset u64) Token {
@@ -188,123 +227,120 @@ CstParser :: struct {
     }
 
     is_tuple_struct :: fn(self &Self) bool {
-        t0 := self.peek_trivia_free(0)
-        if (t0.kind == TokenKind.c_brace) or (t0.kind == TokenKind.eof) {
+        idx := self.cursor
+        while self.tokens.get(idx).is_trivia() { idx = idx + 1 }
+        kind := self.tokens.get(idx).kind
+        if kind == TokenKind.c_brace or kind == TokenKind.eof or kind == TokenKind.hash or
+            kind == TokenKind.kw_import {
             ret false
         }
-        if (t0.kind == TokenKind.kw_import) or (t0.kind == TokenKind.hash) {
-            ret false
-        }
-        if t0.kind != TokenKind.ident {
-            ret true
-        }
-        scan: u64 = 0
-        while true {
-            t := self.peek_trivia_free(scan)
-            if (t.kind == TokenKind.c_brace) or (t.kind == TokenKind.eof) {
+        while kind == TokenKind.ident {
+            idx = idx + 1
+            while self.tokens.get(idx).is_whitespace() { idx = idx + 1 }
+            kind = self.tokens.get(idx).kind
+            if kind == TokenKind.comment or kind == TokenKind.newline or
+                kind == TokenKind.c_brace or
+                kind == TokenKind.eof {
                 ret true
             }
-            if (t.kind == TokenKind.colon_colon) or (t.kind == TokenKind.colon) {
-                ret false
-            }
-            if t.kind == TokenKind.ident {
-                next := self.peek_trivia_free(scan + 1)
-                if (next.kind == TokenKind.ident) or self.is_type_token(next.kind) {
+            if kind != TokenKind.comma { ret false }
+            idx = idx + 1
+            while self.tokens.get(idx).is_trivia() { idx = idx + 1 }
+            kind = self.tokens.get(idx).kind
+            if kind == TokenKind.eof { ret true }
+        }
+        true
+    }
+
+    import_symbols_continue :: fn(self &Self, indent u64, allow_unindented bool) bool {
+        idx := self.cursor
+        newline := false
+        while idx < self.tokens.len() {
+            token := self.tokens.get(idx)
+            if token.is_newline() {
+                newline = true
+            } else if token.is_comment() {
+                if newline and not allow_unindented and
+                    self.line_indent(token.start as u64) <= indent { ret false }
+            } else if not token.is_whitespace() {
+                if not newline or token.kind != TokenKind.ident { ret false }
+                if not allow_unindented and self.line_indent(token.start as u64) <= indent {
                     ret false
                 }
-                if next.kind == TokenKind.comma {
-                    scan = scan + 2
-                    cont
-                }
-                if (next.kind == TokenKind.c_brace) or (next.kind == TokenKind.semi) {
-                    ret true
-                }
+                idx = idx + 1
+                while self.tokens.get(idx).is_whitespace() { idx = idx + 1 }
+                next := self.tokens.get(idx).kind
+                ret next != TokenKind.colon and next != TokenKind.colon_colon and
+                    next != TokenKind.eq and
+                    next != TokenKind.dot and
+                    next != TokenKind.o_paren and
+                    next != TokenKind.o_bracket
             }
-            scan = scan + 1
+            idx = idx + 1
         }
         false
     }
 
-    parse_import :: fn(self &Self) &CstNode {
-        self.bump()
-        self.skip_ws()
-
-        path_buf := String.new(self.arena)
-        if self.consume_if(TokenKind.dot) {
-            path_buf.push_char('.' as u8)
+    line_indent :: fn(self &Self, start u64) u64 {
+        pos := start
+        while pos > 0 and not Ascii.is_newline(*(self.source.ptr + pos - 1)) {
+            pos = pos - 1
         }
-        first_seg := self.bump()
-        path_buf.push_str(first_seg.text)
+        width: u64 = 0
+        while pos < self.source.len and Ascii.is_whitespace(*(self.source.ptr + pos)) {
+            width = width + (if *(self.source.ptr + pos) == '\t' { 4 as u64 } else { 1 as u64 })
+            pos = pos + 1
+        }
+        width
+    }
 
-        while self.peek() == TokenKind.dot {
-            next_after_dot := self.peek_non_ws(1)
-            if not self.is_path_token(next_after_dot.kind) {
+    parse_import :: fn(self &Self, top_level bool) &CstNode {
+        start := self.bump().start as u64
+        path := String.new(self.arena)
+        if self.consume_if(TokenKind.dot) { path.push_char('.') }
+        if not self.is_path_token(self.peek()) { self.failed = true }
+        path.push_str(self.bump().text)
+
+        while self.consume_if(TokenKind.dot) {
+            if not self.is_path_token(self.peek()) {
+                self.failed = true
                 break
             }
-            self.bump()
-            seg := self.bump()
-            path_buf.push_char('.' as u8)
-            path_buf.push_str(seg.text)
+            path.push_char('.')
+            path.push_str(self.bump().text)
         }
 
-        path_str := path_buf.as_str()
-        import_node := cst_new(self.arena, CstKind.import_stmt, path_str)
-
+        node := cst_new(self.arena, CstKind.import_stmt, path.as_str())
         if self.consume_if(TokenKind.kw_as) {
-            alias_tok := self.bump()
-            alias_node := cst_leaf(self.arena, CstKind.ident, alias_tok.text)
-            import_node.add_child(alias_node)
-            ret import_node
-        }
-        if self.consume_if(TokenKind.colon) {
+            if self.peek() != TokenKind.ident { self.failed = true }
+            node.add_child(cst_leaf(self.arena, CstKind.ident, self.bump().text))
+        } else if self.consume_if(TokenKind.colon) {
+            indent := self.line_indent(start)
+            has_symbol := false
             while not self.is_eof() {
-                self.skip_ws()
-                if self.peek() == TokenKind.newline {
-                    self.bump()
-                    self.skip_ws()
-                    if self.peek() == TokenKind.newline or self.peek() == TokenKind.eof {
+                kind := self.peek()
+                if kind == TokenKind.newline or kind == TokenKind.comment {
+                    if not self.import_symbols_continue(indent, top_level or not has_symbol) {
                         break
                     }
-                    next_tok := self.peek()
-                    if next_tok == TokenKind.kw_import or self.is_binding() or self.is_var_decl() or self.is_destructure() {
-                        break
-                    }
+                    self.read_trivia(node, TokenKind.eof)
                 }
-                if self.peek() != TokenKind.ident {
+                if self.peek() != TokenKind.ident or self.is_binding() or self.is_var_decl() {
                     break
                 }
-                sym_tok := self.bump()
-                sym_node := cst_new(self.arena, CstKind.import_symbol, sym_tok.text)
-
+                symbol := cst_new(self.arena, CstKind.import_symbol, self.bump().text)
                 if self.consume_if(TokenKind.kw_as) {
-                    sym_alias := self.bump()
-                    alias_node := cst_leaf(self.arena, CstKind.ident, sym_alias.text)
-                    sym_node.add_child(alias_node)
+                    if self.peek() != TokenKind.ident { self.failed = true }
+                    symbol.add_child(cst_leaf(self.arena, CstKind.ident, self.bump().text))
                 }
-                import_node.add_child(sym_node)
-
-                if self.consume_if(TokenKind.comma) {
-                    cont
-                }
-                self.skip_ws()
-                if self.peek() == TokenKind.newline {
-                    self.bump()
-                    self.skip_ws()
-                    if self.peek() == TokenKind.newline or self.peek() == TokenKind.eof {
-                        break
-                    }
-                    next_tok := self.peek()
-                    if next_tok == TokenKind.kw_import or self.is_binding() or self.is_var_decl() or self.is_destructure() {
-                        break
-                    }
-                    if self.peek() == TokenKind.ident {
-                        cont
-                    }
-                }
-                break
+                node.add_child(symbol)
+                has_symbol = true
+                if not self.consume_if(TokenKind.comma) and
+                    not self.import_symbols_continue(indent, top_level) { break }
             }
+            if not has_symbol { self.failed = true }
         }
-        import_node
+        node
     }
 
     parse_binding :: fn(self &Self) &CstNode {
@@ -364,43 +400,26 @@ CstParser :: struct {
     }
 
     parse_block :: fn(self &Self) &CstNode {
-        self.bump()
-        block_node := cst_new(self.arena, CstKind.block_expr, Str.empty())
-
-        consecutive_newlines: u32 = 0
-
-        while (not self.is_eof()) and (self.peek() != TokenKind.c_brace) {
-            if self.peek() == TokenKind.newline {
-                consecutive_newlines = consecutive_newlines + 1
-                self.bump()
-                if consecutive_newlines == 2 {
-                    block_node.add_child(cst_new(self.arena, CstKind.empty_line, Str.empty()))
-                }
-                cont
-            }
-            consecutive_newlines = 0
-
-            if self.peek() == TokenKind.comment {
-                tok := self.bump()
-                block_node.add_child(cst_new(self.arena, CstKind.comment_stmt, tok.text))
-                cont
-            }
-            if self.consume_if(TokenKind.semi) {
-                cont
-            }
-            stmt := self.parse_stmt()
-            if stmt != (0 as &CstNode) {
-                block_node.add_child(stmt)
-            }
-        }
-
-        self.consume_if(TokenKind.c_brace)
-        block_node
+        self.skip_ws_and_nl()
+        self.expect(TokenKind.o_brace)
+        node := cst_new(self.arena, CstKind.block_expr, "")
+        self.parse_statements(node, TokenKind.c_brace)
+        self.expect(TokenKind.c_brace)
+        node
     }
 
-    parse_stmt :: fn(self &Self) &CstNode {
+    parse_statements :: fn(self &Self, node &CstNode, end TokenKind) {
+        while not self.is_eof() {
+            self.read_trivia(node, end)
+            if self.is_eof() or self.peek() == end { break }
+            node.add_child(self.parse_stmt(node.kind == CstKind.file))
+            self.list_separator(end)
+        }
+    }
+
+    parse_stmt :: fn(self &Self, top_level bool) &CstNode {
         if self.peek() == TokenKind.kw_import {
-            ret self.parse_import()
+            ret self.parse_import(top_level)
         }
         if self.is_binding() {
             ret self.parse_binding()
@@ -414,7 +433,7 @@ CstParser :: struct {
         self.parse_expr(0 as u8)
     }
 
-    parse_extern :: fn(self &Self) &CstNode {
+    parse_extern :: fn(self &Self, min_bp u8) &CstNode {
         self.bump()
         kind := self.peek()
         name := if kind == TokenKind.lit_str or kind == TokenKind.lit_raw_str {
@@ -429,101 +448,104 @@ CstParser :: struct {
         if self.peek() == TokenKind.kw_struct {
             node.add_child(self.parse_struct())
         } else if self.peek() == TokenKind.kw_fn {
-            node.add_child(self.parse_fn())
+            node.add_child(self.parse_fn(min_bp))
+        } else {
+            self.failed = true
         }
         node
     }
 
     flush_anonymous_params :: fn(self &Self, node &CstNode, pending &Vec(Str)) {
         for name in pending.as_slice() {
-            param := cst_new(self.arena, CstKind.fn_param, Str.empty())
-            param.add_child(cst_leaf(self.arena, CstKind.type_named, name))
+            param := cst_new(self.arena, CstKind.fn_param, "")
+            param.add_child(cst_leaf(self.arena, CstKind.ident, name))
             node.add_child(param)
         }
         pending.clear()
     }
 
-    parse_fn :: fn(self &Self) &CstNode {
+    is_primitive :: fn(self &Self, name Str) bool {
+        name.eq("i8") or name.eq("i16") or name.eq("i32") or name.eq("i64") or name.eq("i128") or
+            name.eq("u8") or
+            name.eq("u16") or
+            name.eq("u32") or
+            name.eq("u64") or
+            name.eq("u128") or
+            name.eq("f32") or
+            name.eq("f64") or
+            name.eq("bool") or
+            name.eq("type")
+    }
+
+    parse_fn :: fn(self &Self, min_bp u8) &CstNode {
         self.bump()
-        fn_node := cst_new(self.arena, CstKind.fn_def, Str.empty())
-
-        if self.consume_if(TokenKind.o_paren) {
-            pending_names := Vec(Str).new()
-            while (not self.is_eof()) and (self.peek() != TokenKind.c_paren) {
-                self.skip_ws()
-                if self.peek() == TokenKind.newline {
-                    fn_node.text = "multiline"
-                    self.flush_anonymous_params(fn_node, &pending_names)
-                    self.skip_ws_and_nl()
-                }
-                if self.peek() == TokenKind.c_paren {
-                    break
-                }
-                is_cmpt := self.consume_if(TokenKind.kw_cmpt)
-
-                next := self.peek_non_ws(1)
-                if self.is_type_token(self.peek()) or (self.peek() == TokenKind.ident and next.kind == TokenKind.dot) {
-                    self.flush_anonymous_params(fn_node, &pending_names)
-                    ty_node := self.parse_type()
-                    p_node := cst_new(self.arena, CstKind.fn_param, if is_cmpt {
-                        Str.of("cmpt")
-                    } else {
-                        Str.empty()
-                    })
-                    p_node.add_child(ty_node)
-                    fn_node.add_child(p_node)
-                    self.consume_if(TokenKind.comma)
-                    cont
-                }
-                name_tok := self.bump()
-                pending_names.push(name_tok.text)
-
-                next_k := self.peek()
-                has_explicit_ty := (next_k == TokenKind.ident) or self.is_type_token(next_k)
-
-                if has_explicit_ty and not self.has_newline_before() {
-                    ty_node := self.parse_type()
-                    p_node := cst_new(self.arena, CstKind.fn_param, if is_cmpt {
-                        Str.of("cmpt")
-                    } else {
-                        Str.empty()
-                    })
-                    p_i: u64 = 0
-                    while p_i < pending_names.len {
-                        p_node.add_child(cst_leaf(self.arena, CstKind.ident, pending_names.get(p_i)))
-                        p_i = p_i + 1
-                    }
-                    p_node.add_child(ty_node)
-                    fn_node.add_child(p_node)
-                    pending_names.clear()
-                    self.consume_if(TokenKind.comma)
-                    cont
-                }
-                if self.consume_if(TokenKind.comma) {
-                    cont
-                }
-                if self.peek() == TokenKind.c_paren {
-                    break
-                }
+        node := cst_new(self.arena, CstKind.fn_def, "")
+        self.expect(TokenKind.o_paren)
+        pending := Vec(Str).new()
+        while not self.is_eof() {
+            k := self.peek()
+            if k == TokenKind.comment or k == TokenKind.newline or k == TokenKind.c_paren {
+                self.flush_anonymous_params(node, &pending)
+                self.read_trivia(node, TokenKind.c_paren)
+                if self.is_eof() or self.peek() == TokenKind.c_paren { break }
             }
-
-            self.flush_anonymous_params(fn_node, &pending_names)
-            pending_names.destroy()
-
-            self.consume_if(TokenKind.c_paren)
+            comptime := self.consume_if(TokenKind.kw_cmpt)
+            param := cst_new(self.arena, CstKind.fn_param, if comptime { "cmpt" } else { "" })
+            k = self.peek()
+            next := self.peek_non_ws(1).kind
+            if comptime {
+                if pending.len != 0 or k != TokenKind.ident { self.failed = true }
+                param.add_child(cst_leaf(self.arena, CstKind.ident, self.bump().text))
+                param.add_child(self.parse_type())
+            } else if self.is_type_token(k) or
+                (
+                    k == TokenKind.ident and
+                        (
+                            next == TokenKind.dot or next == TokenKind.o_paren or
+                                next == TokenKind.pipe
+                        )
+                ) {
+                self.flush_anonymous_params(node, &pending)
+                param.add_child(self.parse_type())
+            } else if k == TokenKind.ident {
+                name := self.bump().text
+                pending.push(name)
+                k = self.peek()
+                if k == TokenKind.ident or self.is_type_token(k) {
+                    for item in pending.as_slice() {
+                        param.add_child(cst_leaf(self.arena, CstKind.ident, item))
+                    }
+                    pending.clear()
+                    param.add_child(self.parse_type())
+                } else {
+                    if self.is_primitive(name) { self.flush_anonymous_params(node, &pending) }
+                    self.list_separator(TokenKind.c_paren)
+                    cont
+                }
+            } else {
+                self.failed = true
+                break
+            }
+            node.add_child(param)
+            self.list_separator(TokenKind.c_paren)
         }
+        self.flush_anonymous_params(node, &pending)
+        pending.destroy()
+        self.expect(TokenKind.c_paren)
         self.skip_ws()
         next := self.peek()
         if next == TokenKind.ident or self.is_type_token(next) or next == TokenKind.o_paren {
             ret_ty := self.parse_type()
-            fn_node.add_child(ret_ty)
+            node.add_child(ret_ty)
         }
         self.skip_ws()
-        if self.peek() == TokenKind.o_brace {
+        if min_bp <= 15 and self.peek_trivia_free(0).kind == TokenKind.o_brace and
+            self.peek() != TokenKind.comment {
+            self.skip_ws_and_nl()
             body := self.parse_block()
-            fn_node.add_child(body)
+            node.add_child(body)
         }
-        fn_node
+        node
     }
 
     parse_struct :: fn(self &Self) &CstNode {
@@ -531,96 +553,57 @@ CstParser :: struct {
         struct_node := cst_new(self.arena, CstKind.struct_def, Str.empty())
 
         if not self.consume_if(TokenKind.o_brace) {
+            self.failed = true
             ret struct_node
         }
         if self.is_tuple_struct() {
             struct_node.text = Str.of("tuple")
-            while (not self.is_eof()) and (self.peek() != TokenKind.c_brace) {
-                self.skip_ws_and_nl()
-                if self.peek() == TokenKind.c_brace {
-                    break
-                }
-                elem_ty := self.parse_type()
-                field_node := cst_new(self.arena, CstKind.struct_field, Str.empty())
-                field_node.add_child(elem_ty)
-                struct_node.add_child(field_node)
-                self.consume_if(TokenKind.comma)
-                self.skip_ws_and_nl()
+            while not self.is_eof() {
+                self.read_trivia(struct_node, TokenKind.c_brace)
+                if self.is_eof() or self.peek() == TokenKind.c_brace { break }
+                struct_node.add_child(self.parse_type())
+                self.list_separator(TokenKind.c_brace)
             }
-            self.consume_if(TokenKind.c_brace)
+            self.expect(TokenKind.c_brace)
             ret struct_node
         }
-        consecutive_newlines: u32 = 0
-
-        while (not self.is_eof()) and (self.peek() != TokenKind.c_brace) {
-            if self.peek() == TokenKind.newline {
-                consecutive_newlines = consecutive_newlines + 1
-                self.bump()
-                if consecutive_newlines == 2 {
-                    struct_node.add_child(cst_new(self.arena, CstKind.empty_line, Str.empty()))
-                }
-                cont
-            }
-            consecutive_newlines = 0
-
-            if self.peek() == TokenKind.comment {
-                tok := self.bump()
-                struct_node.add_child(cst_new(self.arena, CstKind.comment_stmt, tok.text))
-                cont
-            }
-            if self.consume_if(TokenKind.semi) {
-                cont
-            }
+        while not self.is_eof() {
+            self.read_trivia(struct_node, TokenKind.c_brace)
+            if self.is_eof() or self.peek() == TokenKind.c_brace { break }
             if self.peek() == TokenKind.kw_import {
-                struct_node.add_child(self.parse_import())
+                struct_node.add_child(self.parse_import(false))
                 cont
             }
             if self.peek() == TokenKind.hash {
-                self.bump()
-                has_paren := self.consume_if(TokenKind.o_paren)
-                expr := self.parse_expr(0 as u8)
-                if has_paren {
-                    self.consume_if(TokenKind.c_paren)
-                }
-                node := cst_new(self.arena, CstKind.splice_expr, if has_paren {
-                    Str.of("paren")
-                } else {
-                    Str.empty()
-                })
-                node.add_child(expr)
-                struct_node.add_child(node)
-                self.consume_if(TokenKind.comma)
+                struct_node.add_child(self.parse_expr(0 as u8))
+                self.list_separator(TokenKind.c_brace)
                 cont
             }
             if self.is_binding() {
                 struct_node.add_child(self.parse_binding())
+                self.list_separator(TokenKind.c_brace)
                 cont
             }
             field_node := cst_new(self.arena, CstKind.struct_field, Str.empty())
             first_name := self.bump()
+            if first_name.kind != TokenKind.ident { self.failed = true }
             field_node.add_child(cst_leaf(self.arena, CstKind.ident, first_name.text))
 
             while self.consume_if(TokenKind.comma) {
                 self.skip_ws_and_nl()
-                if self.peek() == TokenKind.c_brace {
-                    break
-                }
                 extra_name := self.bump()
+                if extra_name.kind != TokenKind.ident { self.failed = true }
                 field_node.add_child(cst_leaf(self.arena, CstKind.ident, extra_name.text))
-                if (self.peek() != TokenKind.comma) and (self.peek() != TokenKind.c_brace) {
-                    break
-                }
             }
 
             field_ty := self.parse_type()
             field_node.add_child(field_ty)
             struct_node.add_child(field_node)
 
-            self.consume_if(TokenKind.comma)
-            self.skip_ws_and_nl()
+            self.list_separator(TokenKind.c_brace)
         }
 
-        self.consume_if(TokenKind.c_brace)
+        self.expect(TokenKind.c_brace)
         struct_node
     }
 
@@ -630,58 +613,32 @@ CstParser :: struct {
 
         if self.peek() != TokenKind.o_brace {
             backing_ty := self.parse_type()
+            enum_node.text = "backing"
             enum_node.add_child(backing_ty)
         }
         if not self.consume_if(TokenKind.o_brace) {
+            self.failed = true
             ret enum_node
         }
-        consecutive_newlines: u32 = 0
-
-        while (not self.is_eof()) and (self.peek() != TokenKind.c_brace) {
-            if self.peek() == TokenKind.newline {
-                consecutive_newlines = consecutive_newlines + 1
-                self.bump()
-                if consecutive_newlines == 2 {
-                    enum_node.add_child(cst_new(self.arena, CstKind.empty_line, Str.empty()))
-                }
-                cont
-            }
-            consecutive_newlines = 0
-
-            if self.peek() == TokenKind.comment {
-                tok := self.bump()
-                enum_node.add_child(cst_new(self.arena, CstKind.comment_stmt, tok.text))
-                cont
-            }
-            if self.consume_if(TokenKind.semi) {
-                cont
-            }
+        while not self.is_eof() {
+            self.read_trivia(enum_node, TokenKind.c_brace)
+            if self.is_eof() or self.peek() == TokenKind.c_brace { break }
             if self.peek() == TokenKind.kw_import {
-                enum_node.add_child(self.parse_import())
+                enum_node.add_child(self.parse_import(false))
                 cont
             }
             if self.peek() == TokenKind.hash {
-                self.bump()
-                has_paren := self.consume_if(TokenKind.o_paren)
-                expr := self.parse_expr(0 as u8)
-                if has_paren {
-                    self.consume_if(TokenKind.c_paren)
-                }
-                node := cst_new(self.arena, CstKind.splice_expr, if has_paren {
-                    Str.of("paren")
-                } else {
-                    Str.empty()
-                })
-                node.add_child(expr)
-                enum_node.add_child(node)
-                self.consume_if(TokenKind.comma)
+                enum_node.add_child(self.parse_expr(0 as u8))
+                self.list_separator(TokenKind.c_brace)
                 cont
             }
             if self.is_binding() {
                 enum_node.add_child(self.parse_binding())
+                self.list_separator(TokenKind.c_brace)
                 cont
             }
             var_name := self.bump()
+            if var_name.kind != TokenKind.ident { self.failed = true }
             var_node := cst_new(self.arena, CstKind.enum_variant, var_name.text)
 
             if self.consume_if(TokenKind.eq) {
@@ -689,11 +646,10 @@ CstParser :: struct {
                 var_node.add_child(val_expr)
             }
             enum_node.add_child(var_node)
-            self.consume_if(TokenKind.comma)
-            self.skip_ws_and_nl()
+            self.list_separator(TokenKind.c_brace)
         }
 
-        self.consume_if(TokenKind.c_brace)
+        self.expect(TokenKind.c_brace)
         enum_node
     }
 
@@ -706,15 +662,22 @@ CstParser :: struct {
         if_node.add_child(cond)
         if_node.add_child(then_block)
 
-        self.skip_ws_and_nl()
-        if self.consume_if(TokenKind.kw_else) {
+        if self.peek_trivia_free(0).kind == TokenKind.kw_else {
+            self.read_trivia(if_node, TokenKind.kw_else)
+            self.expect(TokenKind.kw_else)
             self.skip_ws_and_nl()
-            if self.peek() == TokenKind.kw_if {
-                else_if := self.parse_if()
-                if_node.add_child(else_if)
+            if self.peek() == TokenKind.comment {
+                if_node.add_child(self.parse_expr(0 as u8))
+            } else if self.peek() == TokenKind.kw_if {
+                if self.depth >= 256 {
+                    self.failed = true
+                    ret if_node
+                }
+                self.depth = self.depth + 1
+                if_node.add_child(self.parse_if())
+                self.depth = self.depth - 1
             } else {
-                else_block := self.parse_block()
-                if_node.add_child(else_block)
+                if_node.add_child(self.parse_block())
             }
         }
         if_node
@@ -745,7 +708,7 @@ CstParser :: struct {
             vars_node.add_child(cst_leaf(self.arena, CstKind.ident, v.text))
         }
 
-        self.consume_if(TokenKind.kw_in)
+        self.expect(TokenKind.kw_in)
 
         iters_node := cst_new(self.arena, CstKind.paren_expr, Str.empty())
         first_iter := self.parse_expr(0 as u8)
@@ -779,19 +742,14 @@ CstParser :: struct {
             match_node.add_child(first_expr)
         }
 
+        self.skip_ws_and_nl()
         if not self.consume_if(TokenKind.o_brace) {
+            self.failed = true
             ret match_node
         }
-        while (not self.is_eof()) and (self.peek() != TokenKind.c_brace) {
-            self.skip_ws_and_nl()
-            if self.peek() == TokenKind.c_brace {
-                break
-            }
-            if self.peek() == TokenKind.comment {
-                tok := self.bump()
-                match_node.add_child(cst_new(self.arena, CstKind.comment_stmt, tok.text))
-                cont
-            }
+        while not self.is_eof() {
+            self.read_trivia(match_node, TokenKind.c_brace)
+            if self.is_eof() or self.peek() == TokenKind.c_brace { break }
             arm_node := cst_new(self.arena, CstKind.match_arm, Str.empty())
 
             if self.consume_if(TokenKind.kw_else) {
@@ -816,113 +774,58 @@ CstParser :: struct {
             }
 
             match_node.add_child(arm_node)
-            self.consume_if(TokenKind.comma)
-            self.skip_ws_and_nl()
+            self.list_separator(TokenKind.c_brace)
         }
 
-        self.consume_if(TokenKind.c_brace)
+        self.expect(TokenKind.c_brace)
         match_node
     }
 
-    parse_type_atom :: fn(self &Self) &CstNode {
-        self.skip_ws()
-
-        if self.consume_if(TokenKind.amp) {
-            inner := self.parse_type_atom()
-            node := cst_new(self.arena, CstKind.type_ptr, Str.of("&"))
-            node.add_child(inner)
-            ret node
-        }
-        if self.consume_if(TokenKind.o_bracket) {
-            if self.consume_if(TokenKind.c_bracket) {
-                elem := self.parse_type()
-                node := cst_new(self.arena, CstKind.type_slice, Str.empty())
-                node.add_child(elem)
-                ret node
-            } else {
-                len_tok := self.bump()
-                self.consume_if(TokenKind.c_bracket)
-                elem := self.parse_type()
-                node := cst_new(self.arena, CstKind.type_array, len_tok.text)
-                node.add_child(elem)
-                ret node
-            }
-        }
-        if self.peek() == TokenKind.kw_fn {
-            ret self.parse_fn()
-        }
-        if self.peek() == TokenKind.kw_struct {
-            ret self.parse_struct()
-        }
-        if self.peek() == TokenKind.at {
-            self.bump()
-            name_tok := self.bump()
-            node := cst_new(self.arena, CstKind.builtin_expr, name_tok.text)
-            if self.consume_if(TokenKind.o_paren) {
-                while (not self.is_eof()) and (self.peek() != TokenKind.c_paren) {
-                    self.skip_ws_and_nl()
-                    if self.peek() == TokenKind.c_paren {
-                        break
-                    }
-                    arg := self.parse_expr(0 as u8)
-                    node.add_child(arg)
-                    self.consume_if(TokenKind.comma)
-                    self.skip_ws_and_nl()
-                }
-                self.consume_if(TokenKind.c_paren)
-            }
-            ret node
-        }
-        base_tok := self.bump()
-        base_node := cst_leaf(self.arena, CstKind.type_named, base_tok.text)
-
-        if self.peek() == TokenKind.o_paren {
-            self.bump()
-            gen_node := cst_new(self.arena, CstKind.type_generic, base_tok.text)
-            while (not self.is_eof()) and (self.peek() != TokenKind.c_paren) {
-                self.skip_ws_and_nl()
-                if self.peek() == TokenKind.c_paren {
-                    break
-                }
-                arg_ty := self.parse_type()
-                gen_node.add_child(arg_ty)
-                self.consume_if(TokenKind.comma)
-                self.skip_ws_and_nl()
-            }
-            self.consume_if(TokenKind.c_paren)
-            ret gen_node
-        }
-        base_node
+    parse_type :: fn(self &Self) &CstNode {
+        self.parse_expr(16 as u8)
     }
 
-    parse_type :: fn(self &Self) &CstNode {
-        lhs := self.parse_type_atom()
-        while self.peek() == TokenKind.pipe {
-            self.bump()
-            rhs := self.parse_type_atom()
-            node := cst_new(self.arena, CstKind.binary_expr, Str.of("|"))
-            node.add_child(lhs)
-            node.add_child(rhs)
-            lhs = node
+    parse_array_type :: fn(self &Self) &CstNode {
+        self.bump()
+        node := if self.consume_if(TokenKind.c_bracket) {
+            cst_new(self.arena, CstKind.type_slice, "")
+        } else {
+            array := cst_new(self.arena, CstKind.type_array, "")
+            array.add_child(self.parse_expr(0 as u8))
+            self.expect(TokenKind.c_bracket)
+            array
         }
-        lhs
+        node.add_child(self.parse_type())
+        node
     }
 
     parse_expr :: fn(self &Self, min_bp u8) &CstNode {
-        lhs := self.parse_prefix()
+        if self.depth >= 256 {
+            self.failed = true
+            ret cst_leaf(self.arena, CstKind.ident, "")
+        }
+        self.depth = self.depth + 1
+        lhs := self.parse_prefix(min_bp)
 
         while not self.is_eof() {
-            if self.has_newline_before() and not self.is_soft_op(self.peek()) {
-                break
+            checkpoint := self.cursor
+            if self.peek() == TokenKind.newline {
+                self.skip_ws_and_nl()
+                if not self.is_soft_op(self.peek()) {
+                    self.cursor = checkpoint
+                    break
+                }
             }
             bp := self.infix_binding_power(self.peek())
             if bp == 0 as u8 or bp < min_bp {
+                self.cursor = checkpoint
                 break
             }
             op_tok := self.bump()
             lhs = self.parse_infix(op_tok, lhs, bp)
         }
 
+        self.depth = self.depth - 1
         lhs
     }
 
@@ -942,13 +845,19 @@ CstParser :: struct {
         if k == TokenKind.kw_and or k == TokenKind.kw_or {
             ret true
         }
-        if k == TokenKind.pipe or k == TokenKind.caret or k == TokenKind.left_shift or k == TokenKind.right_shift {
+        if k == TokenKind.pipe or k == TokenKind.caret or k == TokenKind.left_shift or
+            k == TokenKind.right_shift {
             ret true
         }
-        if k == TokenKind.eq or k == TokenKind.plus_eq or k == TokenKind.minus_eq or k == TokenKind.star_eq or k == TokenKind.slash_eq or k == TokenKind.percent_eq {
+        if k == TokenKind.eq or k == TokenKind.plus_eq or k == TokenKind.minus_eq or
+            k == TokenKind.star_eq or
+            k == TokenKind.slash_eq or
+            k == TokenKind.percent_eq {
             ret true
         }
-        if k == TokenKind.amp_eq or k == TokenKind.pipe_eq or k == TokenKind.caret_eq or k == TokenKind.left_shift_eq or k == TokenKind.right_shift_eq {
+        if k == TokenKind.amp_eq or k == TokenKind.pipe_eq or k == TokenKind.caret_eq or
+            k == TokenKind.left_shift_eq or
+            k == TokenKind.right_shift_eq {
             ret true
         }
         if k == TokenKind.kw_as {
@@ -985,7 +894,10 @@ CstParser :: struct {
         if k == TokenKind.pipe {
             ret 70
         }
-        if k == TokenKind.eq_eq or k == TokenKind.bang_eq or k == TokenKind.lt or k == TokenKind.gt or k == TokenKind.lt_eq or k == TokenKind.gt_eq {
+        if k == TokenKind.eq_eq or k == TokenKind.bang_eq or k == TokenKind.lt or
+            k == TokenKind.gt or
+            k == TokenKind.lt_eq or
+            k == TokenKind.gt_eq {
             ret 60
         }
         if k == TokenKind.kw_and {
@@ -994,7 +906,15 @@ CstParser :: struct {
         if k == TokenKind.kw_or {
             ret 30
         }
-        if k == TokenKind.eq or k == TokenKind.plus_eq or k == TokenKind.minus_eq or k == TokenKind.star_eq or k == TokenKind.slash_eq or k == TokenKind.percent_eq or k == TokenKind.amp_eq or k == TokenKind.pipe_eq or k == TokenKind.caret_eq or k == TokenKind.left_shift_eq or k == TokenKind.right_shift_eq {
+        if k == TokenKind.eq or k == TokenKind.plus_eq or k == TokenKind.minus_eq or
+            k == TokenKind.star_eq or
+            k == TokenKind.slash_eq or
+            k == TokenKind.percent_eq or
+            k == TokenKind.amp_eq or
+            k == TokenKind.pipe_eq or
+            k == TokenKind.caret_eq or
+            k == TokenKind.left_shift_eq or
+            k == TokenKind.right_shift_eq {
             ret 10
         }
         0 as u8
@@ -1015,7 +935,7 @@ CstParser :: struct {
         true
     }
 
-    parse_prefix :: fn(self &Self) &CstNode {
+    parse_prefix :: fn(self &Self, min_bp u8) &CstNode {
         self.skip_ws_and_nl()
         k := self.peek()
 
@@ -1041,18 +961,21 @@ CstParser :: struct {
             ret cst_leaf(self.arena, CstKind.lit_bool, self.bump().text)
         }
         if k == TokenKind.ident {
-            t := self.bump()
-            if t.text.eq("self") {
-                ret cst_leaf(self.arena, CstKind.self_expr, t.text)
-            }
-            ret cst_leaf(self.arena, CstKind.ident, t.text)
+            ret cst_leaf(self.arena, CstKind.ident, self.bump().text)
         }
         if k == TokenKind.o_paren {
             self.bump()
-            inner := self.parse_expr(0 as u8)
-            self.consume_if(TokenKind.c_paren)
-            node := cst_new(self.arena, CstKind.paren_expr, Str.empty())
-            node.add_child(inner)
+            node := cst_new(self.arena, CstKind.paren_expr, "")
+            self.read_trivia(node, TokenKind.c_paren)
+            node.add_child(self.parse_expr(0 as u8))
+            self.read_trivia(node, TokenKind.c_paren)
+            self.expect(TokenKind.c_paren)
+            ret node
+        }
+        if k == TokenKind.comment {
+            node := cst_new(self.arena, CstKind.continued_expr, "")
+            self.read_trivia(node, TokenKind.eof)
+            node.add_child(self.parse_prefix(min_bp))
             ret node
         }
         if k == TokenKind.o_brace {
@@ -1064,57 +987,45 @@ CstParser :: struct {
                 self.bump()
                 self.bump()
                 init_node := cst_new(self.arena, CstKind.struct_init, Str.empty())
-                while (not self.is_eof()) and (self.peek() != TokenKind.c_brace) {
-                    self.skip_ws_and_nl()
-                    if self.peek() == TokenKind.c_brace {
-                        break
-                    }
-                    is_named := (self.peek() == TokenKind.ident) and (self.peek_non_ws(1).kind == TokenKind.colon)
+                while not self.is_eof() {
+                    self.read_trivia(init_node, TokenKind.c_brace)
+                    if self.is_eof() or self.peek() == TokenKind.c_brace { break }
+                    is_named := (self.peek() == TokenKind.ident) and
+                        (self.peek_non_ws(1).kind == TokenKind.colon)
                     if is_named {
                         field_name := self.bump()
                         self.bump()
-                        field_val := self.parse_expr(0 as u8)
+                        field_val := self.parse_type()
                         f := cst_new(self.arena, CstKind.struct_init_field, field_name.text)
                         f.add_child(field_val)
                         init_node.add_child(f)
                     } else {
-                        field_val := self.parse_expr(0 as u8)
+                        field_val := self.parse_type()
                         f := cst_new(self.arena, CstKind.struct_init_field, Str.empty())
                         f.add_child(field_val)
                         init_node.add_child(f)
                     }
-                    self.consume_if(TokenKind.comma)
-                    self.skip_ws_and_nl()
+                    self.list_separator(TokenKind.c_brace)
                 }
-                self.consume_if(TokenKind.c_brace)
+                self.expect(TokenKind.c_brace)
                 ret init_node
             }
             if next.kind == TokenKind.o_bracket {
                 self.bump()
                 self.bump()
                 arr_node := cst_new(self.arena, CstKind.array_lit, Str.empty())
-                while (not self.is_eof()) and (self.peek() != TokenKind.c_bracket) {
-                    self.skip_ws_and_nl()
-                    if self.peek() == TokenKind.c_bracket {
-                        break
-                    }
-                    elem := self.parse_expr(0 as u8)
-                    arr_node.add_child(elem)
-                    self.consume_if(TokenKind.comma)
-                    self.skip_ws_and_nl()
-                }
-                self.consume_if(TokenKind.c_bracket)
+                self.parse_arguments(arr_node, TokenKind.c_bracket)
                 ret arr_node
             }
         }
         if k == TokenKind.o_bracket {
-            ret self.parse_type()
+            ret self.parse_array_type()
         }
         if k == TokenKind.kw_extern {
-            ret self.parse_extern()
+            ret self.parse_extern(min_bp)
         }
         if k == TokenKind.kw_fn {
-            ret self.parse_fn()
+            ret self.parse_fn(min_bp)
         }
         if k == TokenKind.kw_struct {
             ret self.parse_struct()
@@ -1137,7 +1048,10 @@ CstParser :: struct {
         if k == TokenKind.kw_ret {
             self.bump()
             ret_node := cst_new(self.arena, CstKind.ret_expr, Str.empty())
-            if (not self.has_newline_immediately_after()) and (self.peek() != TokenKind.semi) and (self.peek() != TokenKind.c_brace) and (not self.is_eof()) {
+            if (not self.has_newline_immediately_after()) and (self.peek() != TokenKind.comma) and
+                (self.peek() != TokenKind.comment) and
+                (self.peek() != TokenKind.c_brace) and
+                (not self.is_eof()) {
                 val := self.parse_expr(0 as u8)
                 ret_node.add_child(val)
             }
@@ -1153,23 +1067,17 @@ CstParser :: struct {
         }
         if k == TokenKind.kw_cmpt {
             self.bump()
-            body := self.parse_expr(0 as u8)
+            bp := if min_bp > 11 { min_bp } else { 11 as u8 }
+            body := self.parse_expr(bp)
             node := cst_new(self.arena, CstKind.cmpt_expr, Str.empty())
             node.add_child(body)
             ret node
         }
         if k == TokenKind.hash {
-            self.bump()
-            has_paren := self.consume_if(TokenKind.o_paren)
-            expr := self.parse_expr(0 as u8)
-            if has_paren {
-                self.consume_if(TokenKind.c_paren)
-            }
-            node := cst_new(self.arena, CstKind.splice_expr, if has_paren {
-                Str.of("paren")
-            } else {
-                Str.empty()
-            })
+            hash := self.bump()
+            bp := if min_bp > 11 { min_bp } else { 11 as u8 }
+            expr := self.parse_expr(bp)
+            node := cst_new(self.arena, CstKind.splice_expr, hash.text)
             node.add_child(expr)
             ret node
         }
@@ -1177,32 +1085,39 @@ CstParser :: struct {
             self.bump()
             name_tok := self.bump()
             node := cst_new(self.arena, CstKind.builtin_expr, name_tok.text)
+            if name_tok.kind != TokenKind.ident { self.failed = true }
             if self.consume_if(TokenKind.o_paren) {
-                while (not self.is_eof()) and (self.peek() != TokenKind.c_paren) {
-                    self.skip_ws_and_nl()
-                    if self.peek() == TokenKind.c_paren {
-                        break
-                    }
-                    arg := self.parse_expr(0 as u8)
-                    node.add_child(arg)
-                    self.consume_if(TokenKind.comma)
-                    self.skip_ws_and_nl()
-                }
-                self.consume_if(TokenKind.c_paren)
+                self.parse_arguments(node, TokenKind.c_paren)
+            } else {
+                self.failed = true
             }
             ret node
         }
-        if k == TokenKind.minus or k == TokenKind.kw_not or k == TokenKind.tilde or k == TokenKind.amp or k == TokenKind.star {
+        if k == TokenKind.minus or k == TokenKind.kw_not or k == TokenKind.tilde or
+            k == TokenKind.amp or
+            k == TokenKind.star {
             op_tok := self.bump()
             operand := self.parse_expr(140 as u8)
             ret cst_unary(self.arena, CstKind.unary_expr, op_tok.text, operand)
         }
-        tok := self.bump()
-        cst_leaf(self.arena, CstKind.ident, tok.text)
+        self.failed = true
+        cst_leaf(self.arena, CstKind.ident, "")
+    }
+
+    parse_arguments :: fn(self &Self, node &CstNode, end TokenKind) {
+        while not self.is_eof() {
+            self.read_trivia(node, end)
+            if self.is_eof() or self.peek() == end { break }
+            node.add_child(self.parse_expr(0 as u8))
+            self.list_separator(end)
+        }
+        self.expect(end)
     }
 
     parse_infix :: fn(self &Self, op Token, lhs &CstNode, bp u8) &CstNode {
         if op.kind == TokenKind.dot {
+            k := self.peek()
+            if k != TokenKind.ident and k != TokenKind.lit_int { self.failed = true }
             member_tok := self.bump()
             node := cst_new(self.arena, CstKind.member_expr, member_tok.text)
             node.add_child(lhs)
@@ -1211,17 +1126,7 @@ CstParser :: struct {
         if op.kind == TokenKind.o_paren {
             call_node := cst_new(self.arena, CstKind.call_expr, Str.empty())
             call_node.add_child(lhs)
-            while (not self.is_eof()) and (self.peek() != TokenKind.c_paren) {
-                self.skip_ws_and_nl()
-                if self.peek() == TokenKind.c_paren {
-                    break
-                }
-                arg := self.parse_expr(0 as u8)
-                call_node.add_child(arg)
-                self.consume_if(TokenKind.comma)
-                self.skip_ws_and_nl()
-            }
-            self.consume_if(TokenKind.c_paren)
+            self.parse_arguments(call_node, TokenKind.c_paren)
             ret call_node
         }
         if op.kind == TokenKind.o_bracket {
@@ -1229,17 +1134,26 @@ CstParser :: struct {
             idx_node.add_child(lhs)
             idx_expr := self.parse_expr(0 as u8)
             idx_node.add_child(idx_expr)
-            self.consume_if(TokenKind.c_bracket)
+            self.expect(TokenKind.c_bracket)
             ret idx_node
         }
         if op.kind == TokenKind.kw_as {
-            rhs_ty := self.parse_type()
+            rhs_ty := self.parse_expr(bp + 1 as u8)
             node := cst_new(self.arena, CstKind.binary_expr, Str.of("as"))
             node.add_child(lhs)
             node.add_child(rhs_ty)
             ret node
         }
-        is_assign := op.kind == TokenKind.eq or op.kind == TokenKind.plus_eq or op.kind == TokenKind.minus_eq or op.kind == TokenKind.star_eq or op.kind == TokenKind.slash_eq or op.kind == TokenKind.percent_eq or op.kind == TokenKind.amp_eq or op.kind == TokenKind.pipe_eq or op.kind == TokenKind.caret_eq or op.kind == TokenKind.left_shift_eq or op.kind == TokenKind.right_shift_eq
+        is_assign := op.kind == TokenKind.eq or op.kind == TokenKind.plus_eq or
+            op.kind == TokenKind.minus_eq or
+            op.kind == TokenKind.star_eq or
+            op.kind == TokenKind.slash_eq or
+            op.kind == TokenKind.percent_eq or
+            op.kind == TokenKind.amp_eq or
+            op.kind == TokenKind.pipe_eq or
+            op.kind == TokenKind.caret_eq or
+            op.kind == TokenKind.left_shift_eq or
+            op.kind == TokenKind.right_shift_eq
 
         rhs := self.parse_expr(bp + 1 as u8)
         k := if is_assign {
@@ -1251,41 +1165,16 @@ CstParser :: struct {
     }
 
     parse :: fn(self &Self) &CstNode {
-        file_node := cst_new(self.arena, CstKind.file, Str.empty())
-        consecutive_newlines: u32 = 0
-
-        while not self.is_eof() {
-            if self.peek() == TokenKind.newline {
-                consecutive_newlines = consecutive_newlines + 1
-                self.bump()
-                if consecutive_newlines == 2 {
-                    file_node.add_child(cst_new(self.arena, CstKind.empty_line, Str.empty()))
-                }
-                cont
-            }
-            consecutive_newlines = 0
-
-            if self.peek() == TokenKind.comment {
-                tok := self.bump()
-                file_node.add_child(cst_new(self.arena, CstKind.comment_stmt, tok.text))
-                cont
-            }
-            if self.consume_if(TokenKind.semi) {
-                cont
-            }
-            stmt := self.parse_stmt()
-            if stmt != (0 as &CstNode) {
-                file_node.add_child(stmt)
-            }
-        }
-
-        file_node
+        node := cst_new(self.arena, CstKind.file, "")
+        self.parse_statements(node, TokenKind.eof)
+        node
     }
 }
 
 parse_to_cst :: fn(arena &Arena, source Str) &CstNode {
     parser := CstParser.new(arena, source)
-    cst := parser.parse()
+    tree := parser.parse()
     parser.destroy()
-    cst
+    if parser.failed or tree.height > 256 { ret 0 as &CstNode }
+    tree
 }
