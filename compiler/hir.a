@@ -85,7 +85,6 @@ HirExprKind :: enum u8 {
 hir_kind :: HirExprKind
 
 hir_kind_name :: fn(kind HirExprKind) Str {
-
     match kind {
         empty {
             "Empty"
@@ -321,7 +320,12 @@ HirTable :: struct {
     rhs_list   Vec(u32)
     extra_list Vec(u32)
     new :: fn() HirTable {
-        .{ kinds: Vec(u8).new(), lhs_list: Vec(u32).new(), rhs_list: Vec(u32).new(), extra_list: Vec(u32).new() }
+        .{
+            kinds: Vec(u8).new()
+            lhs_list: Vec(u32).new()
+            rhs_list: Vec(u32).new()
+            extra_list: Vec(u32).new()
+        }
     }
 
     destroy :: fn(self &Self) {

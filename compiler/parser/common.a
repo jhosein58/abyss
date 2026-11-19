@@ -6,7 +6,15 @@ import compiler.hir:           HirExprKind, hir_kind, hir_none
 import compiler.indexer:       module_path
 import compiler.nexus.nexus:   Span, span_merge
 import compiler.nexus.pool:    id_none
-import compiler.parser.core:   Parser, bump, curr_span, optional, parse_error_at, peek, peek_n, peek_preceded_by_newline
+import compiler.parser.core:
+    Parser
+    bump
+    curr_span
+    optional
+    parse_error_at
+    peek
+    peek_n
+    peek_preceded_by_newline
 import compiler.parser.parser: parse_expr
 import compiler.parser.prec:   prec
 import compiler.token:         Token, is_path_ident
@@ -91,7 +99,17 @@ ensure_type_node :: fn(p &Parser, node &u32, kind HirExprKind, toplv u32) {
     }
 }
 
-finish_type_node :: fn(p &Parser, node &u32, kind HirExprKind, lhs u32, rhs u32, extra u32, toplv u32, methods &Vec(u32), sp Span) u32 {
+finish_type_node :: fn(
+    p &Parser
+    node &u32
+    kind HirExprKind
+    lhs u32
+    rhs u32
+    extra u32
+    toplv u32
+    methods &Vec(u32)
+    sp Span
+) u32 {
     if *node == id_none() {
         *node = p.hir.push(kind, lhs, rhs, extra)
         if toplv != id_none() {
@@ -119,7 +137,11 @@ parse_scoped_import :: fn(p &Parser) {
 
     if dot_count > 1 {
         arena.destroy()
-        parse_error_at(p, c"parent directory imports ('..') are not allowed; use absolute paths", path_start_span)
+        parse_error_at(
+            p
+            c"parent directory imports ('..') are not allowed; use absolute paths"
+            path_start_span
+        )
     }
     path_buf := String.new(&arena)
     if dot_count == 1 {
@@ -149,13 +171,24 @@ parse_scoped_import :: fn(p &Parser) {
 
     import_path := path_buf.as_str()
     curr_path := p.db.get_file_path(p.file_id)
-    target_path := module_path(p.db, &arena, p.file_id, p.tokens.start(p.cursor), curr_path, import_path)
+    target_path := module_path(
+        p.db
+        &arena
+        p.file_id
+        p.tokens.start(p.cursor)
+        curr_path
+        import_path
+    )
     target_fid := p.db.find_file_id(target_path)
     if target_fid == id_none() {
         if target_path.ends_with(".a") {
             no_ext := target_path.sub(0, target_path.len - 2)
             dir_name := Path.base(no_ext)
-            folder_file := Path.join(&arena, no_ext, Path.ensure_ext(&arena, dir_name, Str.of(".a")))
+            folder_file := Path.join(
+                &arena
+                no_ext
+                Path.ensure_ext(&arena, dir_name, Str.of(".a"))
+            )
             target_fid = p.db.find_file_id(folder_file)
         }
     }

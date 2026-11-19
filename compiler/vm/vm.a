@@ -1,14 +1,20 @@
-import .chunk: Chunk
-import .native: VmCallback, ffi_alloc, ffi_call, ffi_callback, ffi_destroy, ffi_symbol_address
-import .host: HostDirSlot, dispatch_host_call
-import .op:    OpCode
-import .codegen: vm_data_base, vm_data_size, vm_entry_tag, vm_extern_tag, vm_is_aggregate, vm_is_indirect
-
-import compiler.types: TyKind, TypeStorage
-
 import std.env: Env
 import std.mem: free, malloc, mem_copy, realloc
 import std.sys: fall, host_call
+
+import compiler.types: TyKind, TypeStorage
+
+import .chunk:   Chunk
+import .codegen:
+    vm_data_base
+    vm_data_size
+    vm_entry_tag
+    vm_extern_tag
+    vm_is_aggregate
+    vm_is_indirect
+import .host:    HostDirSlot, dispatch_host_call
+import .native:  VmCallback, ffi_alloc, ffi_call, ffi_callback, ffi_destroy, ffi_symbol_address
+import .op:      OpCode
 
 invoke_vm_callback :: fn(scope &&u8, chunk &u8, entry u32, argv &u64, argc u32) u64 {
     vm := Vm.new()
@@ -101,7 +107,15 @@ Vm :: struct {
     ffi_scope &u8
     ffi_owner &&u8
     new :: fn() Self {
-        .{ stack: Vec(u64).with_cap(4096), locals: Vec(u64).with_cap(4096), frames_ip: Vec(u32).with_cap(1024), frames_fp: Vec(u32).with_cap(1024), dirs: Vec(HostDirSlot).new(), ffi_scope: 0 as &u8, ffi_owner: 0 as &&u8 }
+        .{
+            stack: Vec(u64).with_cap(4096)
+            locals: Vec(u64).with_cap(4096)
+            frames_ip: Vec(u32).with_cap(1024)
+            frames_fp: Vec(u32).with_cap(1024)
+            dirs: Vec(HostDirSlot).new()
+            ffi_scope: 0 as &u8
+            ffi_owner: 0 as &&u8
+        }
     }
 
     destroy :: fn(self &Self) {
@@ -171,7 +185,9 @@ Vm :: struct {
         invoke: VmCallback = invoke_vm_callback
         result := if name != (0 as &u8) {
             host_res := host_call(Str.of(name), args)
-            if host_res.is_some() { host_res } else { dispatch_host_call(&self.dirs, Str.of(name), args) }
+            if host_res.is_some() { host_res } else {
+                dispatch_host_call(&self.dirs, Str.of(name), args)
+            }
         } else {
             Maybe(u64).none()
         }
@@ -401,64 +417,78 @@ Vm :: struct {
                 eq {
                     b := self.stack.pop()
                     a := self.stack.pop()
-                    self.stack.push(if a == b {
-                        1
-                    } else {
-                        0
-                    })
+                    self.stack.push(
+                        if a == b {
+                            1
+                        } else {
+                            0
+                        }
+                    )
                 }
                 ne {
                     b := self.stack.pop()
                     a := self.stack.pop()
-                    self.stack.push(if a != b {
-                        1
-                    } else {
-                        0
-                    })
+                    self.stack.push(
+                        if a != b {
+                            1
+                        } else {
+                            0
+                        }
+                    )
                 }
                 lt {
                     b := self.stack.pop() as i64
                     a := self.stack.pop() as i64
-                    self.stack.push(if a < b {
-                        1
-                    } else {
-                        0
-                    })
+                    self.stack.push(
+                        if a < b {
+                            1
+                        } else {
+                            0
+                        }
+                    )
                 }
                 le {
                     b := self.stack.pop() as i64
                     a := self.stack.pop() as i64
-                    self.stack.push(if a <= b {
-                        1
-                    } else {
-                        0
-                    })
+                    self.stack.push(
+                        if a <= b {
+                            1
+                        } else {
+                            0
+                        }
+                    )
                 }
                 gt {
                     b := self.stack.pop() as i64
                     a := self.stack.pop() as i64
-                    self.stack.push(if a > b {
-                        1
-                    } else {
-                        0
-                    })
+                    self.stack.push(
+                        if a > b {
+                            1
+                        } else {
+                            0
+                        }
+                    )
                 }
                 ge {
                     b := self.stack.pop() as i64
                     a := self.stack.pop() as i64
-                    self.stack.push(if a >= b {
-                        1
-                    } else {
-                        0
-                    })
+                    self.stack.push(
+                        if a >= b {
+                            1
+                        } else {
+                            0
+                        }
+                    )
                 }
                 l_not {
                     a := self.stack.pop()
-                    self.stack.push(if a == 0 {
-                        1
-                    } else {
-                        0
-                    })
+                    self.stack.push(
+                        if a == 0 {
+                            1
+                        } else {
+                            0
+                        }
+                    )
                 }
                 jmp {
                     target := prog.read_u32(ip)

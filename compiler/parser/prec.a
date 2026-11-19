@@ -21,7 +21,25 @@ Precedence :: struct {
 }
 
 prec :: fn() Precedence {
-    .{ none: 0, const_def: 5, assignment: 10, var_def: 15, logic_or: 30, logic_and: 40, comparison: 60, bit_or: 70, bit_xor: 80, bit_and: 90, shift: 100, term: 110, factor: 120, cast: 130, unary: 140, call: 150, member: 160 }
+    .{
+        none: 0
+        const_def: 5
+        assignment: 10
+        var_def: 15
+        logic_or: 30
+        logic_and: 40
+        comparison: 60
+        bit_or: 70
+        bit_xor: 80
+        bit_and: 90
+        shift: 100
+        term: 110
+        factor: 120
+        cast: 130
+        unary: 140
+        call: 150
+        member: 160
+    }
 }
 
 BindingPower :: struct {
@@ -59,10 +77,12 @@ bp_from_infix :: fn(kind Token) BindingPower {
     if kind == t.eq {
         ret bp_right(pr.assignment)
     }
-    if kind == t.plus_eq or kind == t.minus_eq or kind == t.star_eq or kind == t.slash_eq or kind == t.percent_eq {
+    if kind == t.plus_eq or kind == t.minus_eq or kind == t.star_eq or kind == t.slash_eq or
+        kind == t.percent_eq {
         ret bp_right(pr.assignment)
     }
-    if kind == t.amp_eq or kind == t.pipe_eq or kind == t.caret_eq or kind == t.left_shift_eq or kind == t.right_shift_eq {
+    if kind == t.amp_eq or kind == t.pipe_eq or kind == t.caret_eq or kind == t.left_shift_eq or
+        kind == t.right_shift_eq {
         ret bp_right(pr.assignment)
     }
     if kind == t.plus or kind == t.minus {
@@ -89,7 +109,8 @@ bp_from_infix :: fn(kind Token) BindingPower {
     if kind == t.kw_or {
         ret bp_left(pr.logic_or)
     }
-    if kind == t.gt or kind == t.gt_eq or kind == t.lt or kind == t.lt_eq or kind == t.eq_eq or kind == t.bang_eq {
+    if kind == t.gt or kind == t.gt_eq or kind == t.lt or kind == t.lt_eq or kind == t.eq_eq or
+        kind == t.bang_eq {
         ret bp_left(pr.comparison)
     }
     if kind == t.o_paren or kind == t.o_bracket {
@@ -125,10 +146,13 @@ is_soft :: fn(kind Token) bool {
     if kind == t.pipe or kind == t.caret or kind == t.left_shift or kind == t.right_shift {
         ret true
     }
-    if kind == t.eq or kind == t.plus_eq or kind == t.minus_eq or kind == t.star_eq or kind == t.slash_eq or kind == t.percent_eq {
+    if kind == t.eq or kind == t.plus_eq or kind == t.minus_eq or kind == t.star_eq or
+        kind == t.slash_eq or
+        kind == t.percent_eq {
         ret true
     }
-    if kind == t.amp_eq or kind == t.pipe_eq or kind == t.caret_eq or kind == t.left_shift_eq or kind == t.right_shift_eq {
+    if kind == t.amp_eq or kind == t.pipe_eq or kind == t.caret_eq or kind == t.left_shift_eq or
+        kind == t.right_shift_eq {
         ret true
     }
     if kind == t.kw_as {

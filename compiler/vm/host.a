@@ -1,8 +1,18 @@
-import core.maybe: Maybe
+import core.maybe:          Maybe
 import std.collections.vec: Vec
-import std.mem: free, malloc
-import std.string: Str
-import std.sys: Directory, OpenMode, close_handle, environment, exit_process, make_directory, open_handle, read_handle, seek_handle, write_handle
+import std.mem:             free, malloc
+import std.string:          Str
+import std.sys:
+    Directory
+    OpenMode
+    close_handle
+    environment
+    exit_process
+    make_directory
+    open_handle
+    read_handle
+    seek_handle
+    write_handle
 
 HostDirSlot :: struct {
     dir    Directory
@@ -98,10 +108,10 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
             ret Maybe(u64).some(0)
         }
         mode: OpenMode = .{
-            read: (rights & 2) != 0,
-            write: (rights & 64) != 0,
-            create: (flags & 1) != 0,
-            truncate: (flags & 8) != 0,
+            read: (rights & 2) != 0
+            write: (rights & 64) != 0
+            create: (flags & 1) != 0
+            truncate: (flags & 8) != 0
             append: (behavior & 1) != 0
         }
         h := open_handle(cstr, mode)
@@ -192,7 +202,9 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
                     dirent.next = cookie + 1
                     dirent.inode = 1
                     dirent.name_len = entry.name.len as u32
-                    dirent.kind = if entry.kind == 2 { 3 as u8 } else if entry.kind == 1 { 4 as u8 } else { 0 as u8 }
+                    dirent.kind = if entry.kind == 2 { 3 as u8 } else if entry.kind == 1 {
+                        4 as u8
+                    } else { 0 as u8 }
                     name_dst := buf + 24
                     k: u64 = 0
                     while k < entry.name.len {
@@ -240,10 +252,10 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
         access := args[1] as u32
         disp := args[4] as u32
         mode: OpenMode = .{
-            read: (access & 0x80000000) != 0,
-            write: (access & 0x40000000) != 0 or (access & 4) != 0,
-            create: disp == 2 or disp == 4,
-            truncate: disp == 2,
+            read: (access & 0x80000000) != 0
+            write: (access & 0x40000000) != 0 or (access & 4) != 0
+            create: disp == 2 or disp == 4
+            truncate: disp == 2
             append: (access & 4) != 0
         }
         h := open_handle(path, mode)
@@ -297,7 +309,11 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
         p_str := Str.of(pattern)
         dir_len := p_str.len
         if dir_len > 0 and (*(p_str.ptr + dir_len - 1) == ('*' as u8)) { dir_len = dir_len - 1 }
-        if dir_len > 0 and (*(p_str.ptr + dir_len - 1) == ('/' as u8) or *(p_str.ptr + dir_len - 1) == ('\\' as u8)) { dir_len = dir_len - 1 }
+        if dir_len > 0 and
+            (
+                *(p_str.ptr + dir_len - 1) == ('/' as u8) or
+                    *(p_str.ptr + dir_len - 1) == ('\\' as u8)
+            ) { dir_len = dir_len - 1 }
         dir_cstr := malloc(dir_len + 1)
         idx: u64 = 0
         while idx < dir_len {
@@ -368,7 +384,10 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
             d.close()
             ret Maybe(u64).some(16)
         }
-        h := open_handle(path, .{ read: true, write: false, create: false, truncate: false, append: false })
+        h := open_handle(
+            path
+            .{ read: true, write: false, create: false, truncate: false, append: false }
+        )
         if h >= 0 {
             close_handle(h)
             ret Maybe(u64).some(128)

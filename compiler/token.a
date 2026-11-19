@@ -82,7 +82,8 @@ Token :: enum u8 {
 
 is_path_ident :: fn(tk Token) bool {
     k := tk as u8
-    (tk == Token.ident) or ((k >= (Token.kw_ret as u8)) and (k <= (Token.kw_extern as u8))) or (tk == Token.kw_enum)
+    (tk == Token.ident) or ((k >= (Token.kw_ret as u8)) and (k <= (Token.kw_extern as u8))) or
+        (tk == Token.kw_enum)
 }
 
 TokenStream :: struct {
@@ -92,7 +93,13 @@ TokenStream :: struct {
     texts           Vec(Str)
     newline_befores Vec(bool)
     new :: fn() TokenStream {
-        .{ kinds: Vec(u8).new(), starts: Vec(u32).new(), lens: Vec(u32).new(), texts: Vec(Str).new(), newline_befores: Vec(bool).new() }
+        .{
+            kinds: Vec(u8).new()
+            starts: Vec(u32).new()
+            lens: Vec(u32).new()
+            texts: Vec(Str).new()
+            newline_befores: Vec(bool).new()
+        }
     }
 
     destroy :: fn(self &Self) {

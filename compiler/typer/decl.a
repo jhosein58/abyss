@@ -417,7 +417,10 @@ synth_member :: fn(eng &Engine, id u32) {
         target_fid := db.get_module_fid(lhs_sym)
         target_sym := db.find_local_symbol(target_fid, name_id)
         if target_sym == id_none() {
-            printf("\n\033[1;31m[type error]\033[0m module has no member '{}'\n       --> ", .{ db.interner.get(name_id) })
+            printf(
+                "\n\033[1;31m[type error]\033[0m module has no member '{}'\n       --> "
+                .{ db.interner.get(name_id) }
+            )
             db.print_loc(id)
             print("")
             #fall
@@ -471,8 +474,12 @@ synth_member :: fn(eng &Engine, id u32) {
         ret
     }
     kind := types_ptr.kind(lhs_ty)
-    if (kind != TyKind.struct_) and (kind != TyKind.nominal) and (kind != TyKind.enum_) and (kind != TyKind.array) {
-        printf("\n\033[1;31m[type error]\033[0m member receiver must be a struct or enum, got '", .{})
+    if (kind != TyKind.struct_) and (kind != TyKind.nominal) and (kind != TyKind.enum_) and
+        (kind != TyKind.array) {
+        printf(
+            "\n\033[1;31m[type error]\033[0m member receiver must be a struct or enum, got '"
+            .{}
+        )
         types_ptr.print_type(lhs_ty)
         printf("'\n       --> ", .{})
         db.print_loc(id)
@@ -503,7 +510,9 @@ synth_member :: fn(eng &Engine, id u32) {
             } else {
                 Str.of("Iterator")
             }
-            creator_sym := db.resolve_sym(db.find_symbol(db.core_prelude, db.interner.intern(creator_name)))
+            creator_sym := db.resolve_sym(
+                db.find_symbol(db.core_prelude, db.interner.intern(creator_name))
+            )
             eng.ensure_resolved(creator_sym)
             c_args := Vec(u32).new()
             c_args.push(elem_ty)
@@ -519,7 +528,10 @@ synth_member :: fn(eng &Engine, id u32) {
             db.set_const_type(id, fn_ty)
             ret
         }
-        printf("\n\033[1;31m[type error]\033[0m array type has no field or method named '{}'\n       --> ", .{ db.interner.get(name_id) })
+        printf(
+            "\n\033[1;31m[type error]\033[0m array type has no field or method named '{}'\n       --> "
+            .{ db.interner.get(name_id) }
+        )
         db.print_loc(id)
         print("")
         #fall
@@ -608,7 +620,10 @@ synth_member :: fn(eng &Engine, id u32) {
                     }
                     receiver := func_has_self(db, func_node)
                     if is_type and receiver {
-                        db.type_error(id, Str.of("instance method requires a value; call it on an instance"))
+                        db.type_error(
+                            id
+                            Str.of("instance method requires a value; call it on an instance")
+                        )
                     }
                     if (not is_type) and (not receiver) {
                         db.type_error(id, Str.of("static method requires the type"))
@@ -616,7 +631,13 @@ synth_member :: fn(eng &Engine, id u32) {
                     creator_sym := types_ptr.get_nominal_creator_sym(origin)
                     if creator_sym != ty_id_none() {
                         func_node := tbl.extra(method)
-                        concrete_method_ty := specialize_nominal_method(eng, origin, struct_id, func_node, lhs_ty)
+                        concrete_method_ty := specialize_nominal_method(
+                            eng
+                            origin
+                            struct_id
+                            func_node
+                            lhs_ty
+                        )
                         method_sym := db.get_hir_symbol(method)
                         db.set_hir_symbol(id, method_sym)
                         db.set_const_type(id, concrete_method_ty)

@@ -1,5 +1,5 @@
-import core.target: Arch, Os
-import core.target_values: target_os as core_target_os, target_arch as core_target_arch
+import core.target:        Arch, Os
+import core.target_values: target_arch as core_target_arch, target_os as core_target_os
 
 host_os :: fn() Os { core_target_os }
 host_arch :: fn() Arch { core_target_arch }

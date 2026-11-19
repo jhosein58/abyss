@@ -6,11 +6,54 @@ import compiler.nexus.pool:  id_none
 import compiler.token:       Token
 
 import .common: set_span, span_of_hir
-import .core:   Parser, bump, curr_span, expect, is_eof, parse_error_at, peek, peek_n, peek_preceded_by_newline
-import .decl:   parse_binding, parse_call, parse_destructure, parse_enum, parse_extern, parse_fn, parse_member, parse_paren, parse_struct, parse_struct_init, parse_var_decl
-import .expr:   parse_array_lit, parse_array_type, parse_assign, parse_binary, parse_builtin, parse_char, parse_cstr, parse_false, parse_float, parse_ident, parse_index, parse_lit_int, parse_str, parse_true, parse_unary
+import .core:
+    Parser
+    bump
+    curr_span
+    expect
+    is_eof
+    parse_error_at
+    peek
+    peek_n
+    peek_preceded_by_newline
+import .decl:
+    parse_binding
+    parse_call
+    parse_destructure
+    parse_enum
+    parse_extern
+    parse_fn
+    parse_member
+    parse_paren
+    parse_struct
+    parse_struct_init
+    parse_var_decl
+import .expr:
+    parse_array_lit
+    parse_array_type
+    parse_assign
+    parse_binary
+    parse_builtin
+    parse_char
+    parse_cstr
+    parse_false
+    parse_float
+    parse_ident
+    parse_index
+    parse_lit_int
+    parse_str
+    parse_true
+    parse_unary
 import .prec:   bp_from_infix, is_soft, prec
-import .stmt:   parse_block, parse_break, parse_cont, parse_for, parse_if, parse_match, parse_return, parse_while
+import .stmt:
+    parse_block
+    parse_break
+    parse_cont
+    parse_for
+    parse_if
+    parse_match
+    parse_return
+    parse_while
 
 parse_expr :: fn(p &Parser, min_bp u8) u32 {
     lhs := dispatch_prefix(p, min_bp)
@@ -201,11 +244,14 @@ parse_splice :: fn(p &Parser, min_bp u8) u32 {
     if min < pr {
         min = pr
     }
-    expr := parse_expr(p, if has_paren {
-        0 as u8
-    } else {
-        min
-    })
+    expr := parse_expr(
+        p
+        if has_paren {
+            0 as u8
+        } else {
+            min
+        }
+    )
     if has_paren {
         if not expect(p, t.c_paren) {
             parse_error_at(p, c"expected ')' after '#' expression", curr_span(p))

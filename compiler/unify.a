@@ -19,7 +19,17 @@ UnifyStorage :: struct {
     hir_to_slot  Vec(u32)
     scratch      Vec(u32)
     new :: fn() Self {
-        .{ error_path: Str.empty(), error_source: Str.empty(), error_offset: 0, parents: Vec(u32).new(), ranks: Vec(u8).new(), types: Vec(u32).new(), origins: Vec(u32).new(), hir_to_slot: Vec(u32).new(), scratch: Vec(u32).new() }
+        .{
+            error_path: Str.empty()
+            error_source: Str.empty()
+            error_offset: 0
+            parents: Vec(u32).new()
+            ranks: Vec(u8).new()
+            types: Vec(u32).new()
+            origins: Vec(u32).new()
+            hir_to_slot: Vec(u32).new()
+            scratch: Vec(u32).new()
+        }
     }
 
     destroy :: fn(self &Self) {
@@ -83,7 +93,13 @@ UnifyStorage :: struct {
         printf("       --> {}:{}:{}\n", .{ self.error_path, pos.line, pos.col })
     }
 
-    type_contains_slot :: fn(self &Self, types &TypeStorage, ty u32, target u32, seen &Vec(u32)) bool {
+    type_contains_slot :: fn(
+        self &Self
+        types &TypeStorage
+        ty u32
+        target u32
+        seen &Vec(u32)
+    ) bool {
         if ty == ty_id_none() {
             ret false
         }
@@ -155,7 +171,9 @@ UnifyStorage :: struct {
         types.print_type(actual)
         print("'")
         if (types.kind(expected) == TyKind.nominal) or (types.kind(actual) == TyKind.nominal) {
-            print("       Named structs require the same declaration; only an anonymous struct literal may initialize one.")
+            print(
+                "       Named structs require the same declaration; only an anonymous struct literal may initialize one."
+            )
         }
         self.print_error_location()
         print("")
@@ -258,7 +276,8 @@ UnifyStorage :: struct {
     }
 
     unify_types :: fn(self &Self, types &TypeStorage, a u32, b u32) u32 {
-        if (a == ty_id_none()) or (b == ty_id_none()) or (a == ty_id_unknown()) or (b == ty_id_unknown()) {
+        if (a == ty_id_none()) or (b == ty_id_none()) or (a == ty_id_unknown()) or
+            (b == ty_id_unknown()) {
             ret ty_id_error()
         }
         if a == b {
@@ -291,11 +310,13 @@ UnifyStorage :: struct {
         if kind_b == TyKind.never {
             ret a
         }
-        is_num_b := (kind_b == TyKind.int) or (kind_b == TyKind.uint) or (kind_b == TyKind.float) or (kind_b == TyKind.untyped_float)
+        is_num_b := (kind_b == TyKind.int) or (kind_b == TyKind.uint) or (kind_b == TyKind.float) or
+            (kind_b == TyKind.untyped_float)
         if (kind_a == TyKind.untyped_int) and is_num_b {
             ret b
         }
-        is_num_a := (kind_a == TyKind.int) or (kind_a == TyKind.uint) or (kind_a == TyKind.float) or (kind_a == TyKind.untyped_float)
+        is_num_a := (kind_a == TyKind.int) or (kind_a == TyKind.uint) or (kind_a == TyKind.float) or
+            (kind_a == TyKind.untyped_float)
         if is_num_a and (kind_b == TyKind.untyped_int) {
             ret a
         }

@@ -1,4 +1,4 @@
-import core.target: Arch, Os
+import core.target:   Arch, Os
 import std.allocator: Arena
 import std.env:       Env
 import std.fs:        read_file, write_file
@@ -9,20 +9,20 @@ import compiler.codegen:    CCodeBuilder, CCodeGen, CCodeGen_destroy, CCodeGen_f
 import compiler.engine:     Engine
 import compiler.nexus.pool: id_none
 import compiler.platform:   host_arch, host_os, parse_arch, parse_os
+import compiler.types:      TyKind
 import compiler.vm.codegen: VmCodeBuilder, VmCodeGen
 import compiler.vm.vm:      Vm
-import compiler.types:      TyKind
 
 CompilerConfig :: struct {
-    src_path    &u8
-    out_path    &u8
-    is_vm_run   bool
-    import_dirs Vec(Str)
-    map_keys    Vec(Str)
-    map_values  Vec(Str)
-    target_os   Os
-    target_arch Arch
-    is_library  bool
+    src_path     &u8
+    out_path     &u8
+    is_vm_run    bool
+    import_dirs  Vec(Str)
+    map_keys     Vec(Str)
+    map_values   Vec(Str)
+    target_os    Os
+    target_arch  Arch
+    is_library   bool
     source_index i32
     from_env :: fn() Self {
         argc := Env.args_len()
@@ -104,14 +104,17 @@ CompilerConfig :: struct {
             i = i + 1
         }
 
-        target_arch := arch.unwrap_or(if target_os == Os.wasi {
-            Arch.wasm32
-        } else if host_arch() == Arch.wasm32 and target_os != Os.freestanding {
-            Arch.x86_64
-        } else {
-            host_arch()
-        })
-        if (target_os == Os.wasi and target_arch != Arch.wasm32) or (target_arch == Arch.wasm32 and target_os != Os.wasi and target_os != Os.freestanding) {
+        target_arch := arch.unwrap_or(
+            if target_os == Os.wasi {
+                Arch.wasm32
+            } else if host_arch() == Arch.wasm32 and target_os != Os.freestanding {
+                Arch.x86_64
+            } else {
+                host_arch()
+            }
+        )
+        if (target_os == Os.wasi and target_arch != Arch.wasm32) or
+            (target_arch == Arch.wasm32 and target_os != Os.wasi and target_os != Os.freestanding) {
             print("unsupported target OS and architecture combination")
             #fall
         }
@@ -119,7 +122,18 @@ CompilerConfig :: struct {
             print("VM execution requires a program for the host target")
             #fall
         }
-        .{ src_path: src, out_path: out, is_vm_run: vm_run, import_dirs: import_dirs, map_keys: map_keys, map_values: map_values, target_os: target_os, target_arch: target_arch, is_library: library, source_index: source_index }
+        .{
+            src_path: src
+            out_path: out
+            is_vm_run: vm_run
+            import_dirs: import_dirs
+            map_keys: map_keys
+            map_values: map_values
+            target_os: target_os
+            target_arch: target_arch
+            is_library: library
+            source_index: source_index
+        }
     }
 }
 
@@ -171,7 +185,8 @@ Driver :: struct {
             status := vm.run(&vcg.chunk, vcg.main_entry)
             vm.destroy()
             vcg.destroy()
-            if eng.nexus.types.kind(eng.nexus.types.func_return(eng.type_of(sym_id))) != TyKind.unit {
+            if eng.nexus.types.kind(eng.nexus.types.func_return(eng.type_of(sym_id))) !=
+                TyKind.unit {
                 exit_process(status as i32)
             }
             ret

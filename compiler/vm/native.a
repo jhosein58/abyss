@@ -1,7 +1,8 @@
 import core.target: Arch, Os, target_arch, target_os
-import std.mem: free, malloc, mem_copy, mem_set
-import std.sys: STDERR, exit_process, write_all
-import .ffi: FfiKind
+import std.mem:     free, malloc, mem_copy, mem_set
+import std.sys:     STDERR, exit_process, write_all
+
+import .ffi:    FfiKind
 import .loader: find_symbol, load_libffi, load_symbol
 
 VmCallback :: fn(&&u8, &u8, u32, &u64, u32) u64
@@ -15,52 +16,52 @@ ClosurePrepare :: fn(&u8, &u8, FfiTrampoline, &u8, &u8) u32
 CStrCall :: fn(&u8) i32
 
 FfiType :: extern struct {
-    size u64
+    size      u64
     alignment u16
-    kind u16
-    elements &&FfiType
+    kind      u16
+    elements  &&FfiType
 }
 
 FfiAllocation :: struct {
-    next &FfiAllocation
+    next     &FfiAllocation
     reserved u64
 }
 
 FfiSignature :: struct {
-    next &FfiSignature
-    key &u32
-    result &u32
-    params &&u32
+    next        &FfiSignature
+    key         &u32
+    result      &u32
+    params      &&u32
     param_types &&FfiType
     result_type &FfiType
-    arity u32
-    cif [8]u64
+    arity       u32
+    cif         [8]u64
 }
 
 FfiClosure :: struct {
-    next &FfiClosure
+    next      &FfiClosure
     signature &FfiSignature
-    context &u8
-    address &u8
-    scope &&u8
-    chunk &u8
-    invoke VmCallback
-    entry u32
+    context   &u8
+    address   &u8
+    scope     &&u8
+    chunk     &u8
+    invoke    VmCallback
+    entry     u32
 }
 
 FfiScope :: struct {
     allocations &FfiAllocation
-    signatures &FfiSignature
-    closures &FfiClosure
+    signatures  &FfiSignature
+    closures    &FfiClosure
 }
 
 FfiLibrary :: struct {
-    prepare FfiPrepare
-    call FfiCall
-    closure_alloc ClosureAlloc
-    closure_free ClosureFree
+    prepare         FfiPrepare
+    call            FfiCall
+    closure_alloc   ClosureAlloc
+    closure_free    ClosureFree
     closure_prepare ClosurePrepare
-    types [12]&FfiType
+    types           [12]&FfiType
 }
 
 ffi_library: &FfiLibrary = 0 as &FfiLibrary
@@ -217,7 +218,8 @@ ffi_signature :: fn(slot &&u8, key &u32) &FfiSignature {
         sig.params[index] = cursor
         sig.param_types[index] = ffi_type(slot, library, &cursor)
     }
-    if library.prepare(&sig.cif[0] as &u8, ffi_abi(), count, sig.result_type, sig.param_types) != 0 {
+    if library.prepare(&sig.cif[0] as &u8, ffi_abi(), count, sig.result_type, sig.param_types) !=
+        0 {
         ffi_error("invalid C ABI signature", Str.empty())
     }
     sig.next = scope.signatures
@@ -244,7 +246,14 @@ ffi_read :: fn(slot &&u8, kind FfiKind, data &u8, size u64) u64 {
     }
 }
 
-ffi_write :: fn(slot &&u8, invoke VmCallback, chunk &u8, descriptor &u32, dest &u8, value, size u64) {
+ffi_write :: fn(
+    slot &&u8
+    invoke VmCallback
+    chunk &u8
+    descriptor &u32
+    dest &u8
+    value, size u64
+) {
     kind := *descriptor as FfiKind
     match kind {
         unit {}
@@ -253,8 +262,12 @@ ffi_write :: fn(slot &&u8, invoke VmCallback, chunk &u8, descriptor &u32, dest &
         i32_, u32_, f32_ { *(dest as &u32) = value as u32, ret }
         callback {
             address := value
-            if (address >> 63) != 0 { address = ffi_callback(slot, invoke, chunk, address as u32, descriptor + 1) }
-            if (address >> 62) != 0 { ffi_error("foreign function value is not a native callback", Str.empty()) }
+            if (address >> 63) != 0 {
+                address = ffi_callback(slot, invoke, chunk, address as u32, descriptor + 1)
+            }
+            if (address >> 62) != 0 {
+                ffi_error("foreign function value is not a native callback", Str.empty())
+            }
             *(dest as &&u8) = address as &u8
             ret
         }
@@ -274,14 +287,27 @@ ffi_invoke :: fn(cif, out &u8, args &&u8, data &u8) {
     sig := closure.signature
     values: [MAX_PARAMS]u64
     for index in Range.new(0, sig.arity as i32) {
-        values[index] = ffi_read(closure.scope, *sig.params[index] as FfiKind, args[index], sig.param_types[index].size)
+        values[index] = ffi_read(
+            closure.scope
+            *sig.params[index] as FfiKind
+            args[index]
+            sig.param_types[index].size
+        )
     }
     result := closure.invoke(closure.scope, closure.chunk, closure.entry, &values[0], sig.arity)
     kind := *sig.result as FfiKind
     if ffi_is_narrow_integer(kind) {
         *(out as &u64) = result
     } else {
-        ffi_write(closure.scope, closure.invoke, closure.chunk, sig.result, out, result, sig.result_type.size)
+        ffi_write(
+            closure.scope
+            closure.invoke
+            closure.chunk
+            sig.result
+            out
+            result
+            sig.result_type.size
+        )
     }
 }
 
@@ -290,7 +316,9 @@ ffi_callback :: fn(slot &&u8, invoke VmCallback, chunk &u8, entry u32, key &u32)
     scope := ffi_scope(slot)
     cached := scope.closures
     while cached != (0 as &FfiClosure) {
-        if cached.chunk == chunk and cached.entry == entry and cached.signature == sig { ret cached.address as u64 }
+        if cached.chunk == chunk and cached.entry == entry and cached.signature == sig {
+            ret cached.address as u64
+        }
         cached = cached.next
     }
     closure := ffi_alloc(slot, @sizeof(FfiClosure)) as &FfiClosure
@@ -302,7 +330,15 @@ ffi_callback :: fn(slot &&u8, invoke VmCallback, chunk &u8, entry u32, key &u32)
     library := ffi_init()
     closure.context = library.closure_alloc(CLOSURE_STORAGE_BYTES, &closure.address)
     callback: FfiTrampoline = ffi_invoke
-    if closure.context == (0 as &u8) or library.closure_prepare(closure.context, &sig.cif[0] as &u8, callback, closure as &u8, closure.address) != 0 {
+    if closure.context == (0 as &u8) or
+        library.closure_prepare(
+            closure.context
+            &sig.cif[0] as &u8
+            callback
+            closure as &u8
+            closure.address
+        ) !=
+            0 {
         ffi_error("could not create a VM callback", Str.empty())
     }
     closure.next = scope.closures
@@ -310,10 +346,20 @@ ffi_callback :: fn(slot &&u8, invoke VmCallback, chunk &u8, entry u32, key &u32)
     closure.address as u64
 }
 
-ffi_call :: fn(slot &&u8, invoke VmCallback, chunk &u8, name &u8, address u64, key &u32, args &u64) u64 {
+ffi_call :: fn(
+    slot &&u8
+    invoke VmCallback
+    chunk &u8
+    name &u8
+    address u64
+    key &u32
+    args &u64
+) u64 {
     if name != (0 as &u8) { address = ffi_symbol_address(name) }
     if address == 0 { ffi_error("null foreign function pointer", Str.empty()) }
-    if name != (0 as &u8) and key != (0 as &u32) and key[0] == 1 and key[1] == (FfiKind.i32_ as u32) and key[2] == (FfiKind.pointer as u32) {
+    if name != (0 as &u8) and key != (0 as &u32) and key[0] == 1 and
+        key[1] == (FfiKind.i32_ as u32) and
+        key[2] == (FfiKind.pointer as u32) {
         text := Str.of(name)
         if text.eq("puts") or text.eq("remove") {
             call := ffi_pointer(CStrCall, address as &u8)
@@ -329,12 +375,22 @@ ffi_call :: fn(slot &&u8, invoke VmCallback, chunk &u8, name &u8, address u64, k
             values[index] = args[index] as &u8
         } else {
             values[index] = &slots[index] as &u8
-            ffi_write(slot, invoke, chunk, descriptor, values[index], args[index], sig.param_types[index].size)
+            ffi_write(
+                slot
+                invoke
+                chunk
+                descriptor
+                values[index]
+                args[index]
+                sig.param_types[index].size
+            )
         }
     }
     kind := *sig.result as FfiKind
     scalar: u64 = 0
-    result := if kind == FfiKind.record { ffi_alloc(slot, sig.result_type.size) } else { &scalar as &u8 }
+    result := if kind == FfiKind.record { ffi_alloc(slot, sig.result_type.size) } else {
+        &scalar as &u8
+    }
     library := ffi_init()
     library.call(&sig.cif[0] as &u8, ffi_pointer(FfiFunction, address as &u8), result, &values[0])
     if kind == FfiKind.record { ret result as u64 }

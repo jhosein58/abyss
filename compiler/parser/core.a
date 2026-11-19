@@ -19,8 +19,25 @@ Parser :: struct {
     env       ScopeEnv
 }
 
-Parser_new :: fn(db &Nexus, tokens &TokenStream, hir &HirTable, file_id u32, toplv_sym u32, start u32, count u32) Parser {
-    .{ db: db, tokens: tokens, hir: hir, cursor: start, end: start + count, file_id: file_id, toplv_sym: toplv_sym, env: ScopeEnv.new() }
+Parser_new :: fn(
+    db &Nexus
+    tokens &TokenStream
+    hir &HirTable
+    file_id u32
+    toplv_sym u32
+    start u32
+    count u32
+) Parser {
+    .{
+        db: db
+        tokens: tokens
+        hir: hir
+        cursor: start
+        end: start + count
+        file_id: file_id
+        toplv_sym: toplv_sym
+        env: ScopeEnv.new()
+    }
 }
 
 lookup_sym :: fn(p &Parser, name_id u32) u32 {
@@ -117,7 +134,10 @@ parse_error_at :: fn(p &Parser, msg &u8, sp Span) {
     path := (*p).db.get_file_path((*p).file_id)
     src := (*p).db.get_file_source((*p).file_id)
     pos := calc_pos(src, sp.start)
-    printf("\n\033[1;31m[syntax error]\033[0m {}\n       --> {}:{}:{}\n\n", .{ msg, path, pos.line, pos.col })
+    printf(
+        "\n\033[1;31m[syntax error]\033[0m {}\n       --> {}:{}:{}\n\n"
+        .{ msg, path, pos.line, pos.col }
+    )
     #fall
 }
 

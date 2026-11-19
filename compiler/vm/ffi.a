@@ -35,12 +35,16 @@ ffi_scalar_kind :: fn(types &TypeStorage, ty u32) FfiKind {
         ptr { FfiKind.pointer }
         float {
             width := types.payload(ty)
-            if width == 32 { FfiKind.f32_ } else if width == 64 { FfiKind.f64_ } else { FfiKind.invalid }
+            if width == 32 { FfiKind.f32_ } else if width == 64 { FfiKind.f64_ } else {
+                FfiKind.invalid
+            }
         }
         int, uint {
             width := types.payload(ty)
             if width == 8 or width == 16 or width == 32 or width == 64 {
-                base := if width == 8 { 0 } else if width == 16 { 2 } else if width == 32 { 4 } else { 6 }
+                base := if width == 8 { 0 } else if width == 16 { 2 } else if width == 32 {
+                    4
+                } else { 6 }
                 (base + (if kind == TyKind.int { 1 } else { 2 })) as FfiKind
             } else {
                 FfiKind.invalid

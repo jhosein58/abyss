@@ -181,12 +181,16 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         print("")
         #fall
     }
-    if (tbl.kind(expr) == hir_kind.struct_init) and ((kind == TyKind.nominal) or (kind == TyKind.struct_)) {
+    if (tbl.kind(expr) == hir_kind.struct_init) and
+        ((kind == TyKind.nominal) or (kind == TyKind.struct_)) {
         target := types.get_struct_fields(expected)
         names := db.get_list(tbl.lhs(expr))
         values := db.get_list(tbl.rhs(expr))
         if (names.len != target.len / 2) or (values.len != names.len) {
-            printf("\n\033[1;31m[type error]\033[0m struct literal has wrong number of fields for '", .{})
+            printf(
+                "\n\033[1;31m[type error]\033[0m struct literal has wrong number of fields for '"
+                .{}
+            )
             types.print_type(expected)
             printf("'\n       --> ", .{})
             db.print_loc(expr)
@@ -207,7 +211,10 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
                 j = j + 1
             }
             if field_ty == ty_id_none() {
-                printf("\n\033[1;31m[type error]\033[0m unexpected field '{}' in struct literal for '", .{ db.interner.get(name_id) })
+                printf(
+                    "\n\033[1;31m[type error]\033[0m unexpected field '{}' in struct literal for '"
+                    .{ db.interner.get(name_id) }
+                )
                 types.print_type(expected)
                 printf("'\n       --> ", .{})
                 db.print_loc(*(names.ptr + i))

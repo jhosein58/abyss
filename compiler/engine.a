@@ -60,7 +60,15 @@ Engine :: struct {
 
         hir_start := self.nexus.hir.len()
 
-        parser := Parser_new(&self.nexus, &self.nexus.tokens, &self.nexus.hir, file_id, sym_id, tok_start, count)
+        parser := Parser_new(
+            &self.nexus
+            &self.nexus.tokens
+            &self.nexus.hir
+            file_id
+            sym_id
+            tok_start
+            count
+        )
 
         parse_expr(&parser, 0)
         if peek(&parser) != Token.eof {
@@ -282,17 +290,23 @@ Engine :: struct {
             if start == id_none() {
                 cont
             }
-            if self.nexus.sym_file(i) != fid and self.nexus.tokens.kind(start + 1) != Token.colon and self.nexus.tokens.kind(start + 2) != Token.kw_extern {
+            if self.nexus.sym_file(i) != fid and
+                self.nexus.tokens.kind(start + 1) != Token.colon and
+                self.nexus.tokens.kind(start + 2) != Token.kw_extern {
                 cont
             }
             self.ensure_resolved(i)
             node := self.nexus.get_fn_node(i)
-            if node == id_none() or not self.nexus.is_extern_fn(node) or self.nexus.hir.extra(node) == hir_none() {
+            if node == id_none() or not self.nexus.is_extern_fn(node) or
+                self.nexus.hir.extra(node) == hir_none() {
                 cont
             }
             name := self.nexus.extern_link_name(i, node)
             if executable and self.nexus.interner.get(name).eq("main") {
-                self.nexus.type_error(node, "the C symbol 'main' is reserved for the program entry point")
+                self.nexus.type_error(
+                    node
+                    "the C symbol 'main' is reserved for the program entry point"
+                )
             }
             if exports.get(name) != (0 as &u32) {
                 self.nexus.type_error(node, "duplicate exported C symbol")
@@ -307,7 +321,16 @@ Engine :: struct {
 
     compile :: fn(self &Self, B type, L type, backend &B, builder &L, arena &Arena, sym_id u32) {
         visited := HashSet(u32).new()
-        lower_function(&self.nexus, backend, builder, backend.empty_value(), arena, sym_id, &visited, true)
+        lower_function(
+            &self.nexus
+            backend
+            builder
+            backend.empty_value()
+            arena
+            sym_id
+            &visited
+            true
+        )
         if not backend.is_vm() {
             for index in Range.new(0, self.nexus.sym_count() as i32) {
                 i := index as u32
@@ -315,12 +338,21 @@ Engine :: struct {
                     cont
                 }
                 node := self.nexus.get_fn_node(i)
-                if node != id_none() and self.nexus.is_extern_fn(node) and self.nexus.hir.extra(node) != hir_none() {
-                    lower_function(&self.nexus, backend, builder, backend.empty_value(), arena, i, &visited, false)
+                if node != id_none() and self.nexus.is_extern_fn(node) and
+                    self.nexus.hir.extra(node) != hir_none() {
+                    lower_function(
+                        &self.nexus
+                        backend
+                        builder
+                        backend.empty_value()
+                        arena
+                        i
+                        &visited
+                        false
+                    )
                 }
             }
         }
         visited.destroy()
     }
-
 }

@@ -4,7 +4,16 @@ import compiler.engine:      Engine
 import compiler.hir:         HirTable, hir_kind, hir_none
 import compiler.nexus.nexus: Nexus
 import compiler.nexus.pool:  id_none
-import compiler.types:       TyKind, TypeStorage, ty_id_error, ty_id_never, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_float, ty_id_untyped_int
+import compiler.types:
+    TyKind
+    TypeStorage
+    ty_id_error
+    ty_id_never
+    ty_id_none
+    ty_id_type
+    ty_id_unit
+    ty_id_untyped_float
+    ty_id_untyped_int
 import compiler.unify:       UnifyStorage, slot_none
 
 import .tyck: type_check
@@ -157,7 +166,10 @@ specialize_nominal_from_creator :: fn(eng &Engine, callee_sym u32, concrete_args
             f_ty_node := *(types_nodes.ptr + f_i)
             f_ty := eval_type_expr(eng, f_ty_node)
             if (f_ty == ty_id_none()) or (f_ty == ty_id_unit()) or (f_ty == ty_id_type()) {
-                db.type_error(f_ty_node, Str.of("generic struct field requires a runtime value type"))
+                db.type_error(
+                    f_ty_node
+                    Str.of("generic struct field requires a runtime value type")
+                )
             }
             fields_vec.push(f_name_id)
             fields_vec.push(f_ty)
@@ -349,7 +361,13 @@ eval_type_expr :: fn(eng &Engine, id u32) u32 {
     synth_type_node(eng, id)
 }
 
-specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_node u32, lhs_ty u32) u32 {
+specialize_nominal_method :: fn(
+    eng &Engine
+    origin u32
+    struct_id u32
+    func_node u32
+    lhs_ty u32
+) u32 {
     db := &eng.nexus
     tbl := &db.hir
     types_ptr := &db.types
@@ -427,7 +445,15 @@ specialize_nominal_method :: fn(eng &Engine, origin u32, struct_id u32, func_nod
     concrete_method_ty
 }
 
-transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec(u32), unify_ptr &UnifyStorage, types &TypeStorage, is_instantiate bool) u32 {
+transform_type :: fn(
+    eng &Engine
+    ty u32
+    tmpl_slots &Vec(u32)
+    fresh_slots &Vec(u32)
+    unify_ptr &UnifyStorage
+    types &TypeStorage
+    is_instantiate bool
+) u32 {
     if ty == ty_id_none() {
         ret ty_id_none()
     }
@@ -477,13 +503,29 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec
     }
     if kind == TyKind.ptr {
         inner := types.payload(ty)
-        res_inner := transform_type(eng, inner, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+        res_inner := transform_type(
+            eng
+            inner
+            tmpl_slots
+            fresh_slots
+            unify_ptr
+            types
+            is_instantiate
+        )
         ret types.alloc_ptr(res_inner)
     }
     if kind == TyKind.array {
         inner := types.get_array_type(ty)
         len := types.get_array_len(ty)
-        res_inner := transform_type(eng, inner, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+        res_inner := transform_type(
+            eng
+            inner
+            tmpl_slots
+            fresh_slots
+            unify_ptr
+            types
+            is_instantiate
+        )
         ret types.alloc_array(res_inner, len)
     }
     if kind == TyKind.struct_ {
@@ -495,7 +537,15 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec
             fields = types.get_struct_fields(ty)
             f_name := *(fields.ptr + (i * 2))
             f_ty := *(fields.ptr + (i * 2) + 1)
-            new_f_ty := transform_type(eng, f_ty, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+            new_f_ty := transform_type(
+                eng
+                f_ty
+                tmpl_slots
+                fresh_slots
+                unify_ptr
+                types
+                is_instantiate
+            )
             fields_vec.push(f_name)
             fields_vec.push(new_f_ty)
             i = i + 1
@@ -509,13 +559,31 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec
             ret ty
         }
         count := types.func_params(ty).len
-        ret_ty := transform_type(eng, types.func_return(ty), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+        ret_ty := transform_type(
+            eng
+            types.func_return(ty)
+            tmpl_slots
+            fresh_slots
+            unify_ptr
+            types
+            is_instantiate
+        )
         is_ext := types.func_is_extern(ty)
         params_vec := Vec(u32).new()
         i: u64 = 0
         while i < count {
             params := types.func_params(ty)
-            params_vec.push(transform_type(eng, *(params.ptr + i), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate))
+            params_vec.push(
+                transform_type(
+                    eng
+                    *(params.ptr + i)
+                    tmpl_slots
+                    fresh_slots
+                    unify_ptr
+                    types
+                    is_instantiate
+                )
+            )
             i = i + 1
         }
         result := types.alloc_func(params_vec.as_slice(), ret_ty, is_ext)
@@ -528,7 +596,15 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec
         i: u64 = 0
         while i < count {
             members := types.union_members(ty)
-            member := transform_type(eng, *(members.ptr + i), tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+            member := transform_type(
+                eng
+                *(members.ptr + i)
+                tmpl_slots
+                fresh_slots
+                unify_ptr
+                types
+                is_instantiate
+            )
             if result == ty_id_none() {
                 result = member
             } else {
@@ -567,7 +643,15 @@ transform_type :: fn(eng &Engine, ty u32, tmpl_slots &Vec(u32), fresh_slots &Vec
                 }
                 new_arg := c_arg
                 if is_type_arg {
-                    new_arg = transform_type(eng, c_arg, tmpl_slots, fresh_slots, unify_ptr, types, is_instantiate)
+                    new_arg = transform_type(
+                        eng
+                        c_arg
+                        tmpl_slots
+                        fresh_slots
+                        unify_ptr
+                        types
+                        is_instantiate
+                    )
                 }
                 if new_arg != c_arg {
                     changed = true

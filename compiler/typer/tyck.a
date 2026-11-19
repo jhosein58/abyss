@@ -15,9 +15,35 @@ import compiler.types:         TyKind, TypeStorage, ty_id_none, ty_id_type
 import compiler.unify:         slot_none
 
 import .common:     unescape_splice_str
-import .control:    prepare_match_bindings, synth_block, synth_break_cont, synth_for, synth_if, synth_match, synth_while
+import .control:
+    prepare_match_bindings
+    synth_block
+    synth_break_cont
+    synth_for
+    synth_if
+    synth_match
+    synth_while
 import .decl:       synth_enum, synth_member, synth_struct, synth_struct_init
-import .expr:       synth_array_init, synth_array_type, synth_assign, synth_binary, synth_binary_comp, synth_builtin_call, synth_cast, synth_index, synth_lit_bool, synth_lit_char, synth_lit_cstr, synth_lit_float, synth_lit_int, synth_lit_str, synth_logic_and_or, synth_unary_addr_of, synth_unary_deref, synth_unary_not, synth_unary_num
+import .expr:
+    synth_array_init
+    synth_array_type
+    synth_assign
+    synth_binary
+    synth_binary_comp
+    synth_builtin_call
+    synth_cast
+    synth_index
+    synth_lit_bool
+    synth_lit_char
+    synth_lit_cstr
+    synth_lit_float
+    synth_lit_int
+    synth_lit_str
+    synth_logic_and_or
+    synth_unary_addr_of
+    synth_unary_deref
+    synth_unary_not
+    synth_unary_num
 import .fn:         synth_call, synth_func, synth_return
 import .reflection: macro_template, reflection_read
 import .specialize: resolve_ty_id
@@ -126,10 +152,20 @@ synth_node :: fn(eng &Engine, id u32) {
     if (curr == k.binary_and) or (curr == k.binary_or) {
         synth_logic_and_or(db, tbl, id)
     }
-    if (curr == k.binary_add) or (curr == k.binary_sub) or (curr == k.binary_mul) or (curr == k.binary_div) or (curr == k.binary_mod) or (curr == k.binary_bit_and) or (curr == k.binary_bit_or) or (curr == k.binary_bit_xor) or (curr == k.binary_shl) or (curr == k.binary_shr) {
+    if (curr == k.binary_add) or (curr == k.binary_sub) or (curr == k.binary_mul) or
+        (curr == k.binary_div) or
+        (curr == k.binary_mod) or
+        (curr == k.binary_bit_and) or
+        (curr == k.binary_bit_or) or
+        (curr == k.binary_bit_xor) or
+        (curr == k.binary_shl) or
+        (curr == k.binary_shr) {
         synth_binary(db, tbl, id)
     }
-    if (curr == k.binary_eq_eq) or (curr == k.binary_neq) or (curr == k.binary_lt) or (curr == k.binary_lt_eq) or (curr == k.binary_gt) or (curr == k.binary_gt_eq) {
+    if (curr == k.binary_eq_eq) or (curr == k.binary_neq) or (curr == k.binary_lt) or
+        (curr == k.binary_lt_eq) or
+        (curr == k.binary_gt) or
+        (curr == k.binary_gt_eq) {
         synth_binary_comp(db, tbl, id)
     }
     if curr == k.k_cmpt {
@@ -185,7 +221,8 @@ synth_splice :: fn(eng &Engine, id u32) {
                 ret
             }
         }
-        if (child_ty != ty_id_none()) and (str_ty != ty_id_none()) and (child_ty != str_ty) and (tbl.kind(child) != hir_kind.lit_str) {
+        if (child_ty != ty_id_none()) and (str_ty != ty_id_none()) and (child_ty != str_ty) and
+            (tbl.kind(child) != hir_kind.lit_str) {
             db.type_error(id, Str.of("macro expression must evaluate to Str"))
         }
         process_mono_funcs(eng)
@@ -491,7 +528,10 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
             if (ty != ty_id_none()) and (not db.types.func_has_type_param(ty)) {
                 resolved := resolve_ty_id(eng, &db.unify, &db.types, ty)
                 if type_has_infer(&db.types, resolved) {
-                    db.type_error(node, Str.of("cannot infer generic type argument; pass the type explicitly"))
+                    db.type_error(
+                        node
+                        Str.of("cannot infer generic type argument; pass the type explicitly")
+                    )
                 }
                 root := db.unify.find(slot)
                 db.unify.types.set(root as u64, resolved)
@@ -501,7 +541,10 @@ finalize_inferred_types :: fn(eng &Engine, func_id u32) {
         if (value_ty != ty_id_none()) and (not db.types.func_has_type_param(value_ty)) {
             resolved := resolve_ty_id(eng, &db.unify, &db.types, value_ty)
             if type_has_infer(&db.types, resolved) {
-                db.type_error(node, Str.of("cannot infer generic type argument; pass the type explicitly"))
+                db.type_error(
+                    node
+                    Str.of("cannot infer generic type argument; pass the type explicitly")
+                )
             }
             db.set_const_type(node, resolved)
             if value_ty != resolved {
@@ -661,7 +704,8 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
                     }
                 }
                 arg_ty_node := tbl.rhs(arg_node)
-                if (not is_type_param) and (arg_ty_node != hir_none()) and (tbl.kind(arg_ty_node) == hir_kind.ident) {
+                if (not is_type_param) and (arg_ty_node != hir_none()) and
+                    (tbl.kind(arg_ty_node) == hir_kind.ident) {
                     type_name_id := tbl.lhs(arg_ty_node)
                     if db.interner.get(type_name_id).eq(Str.of("type")) {
                         is_type_param = true
@@ -693,7 +737,11 @@ tyck_mono_function :: fn(eng &Engine, sym_id u32) {
         }
     }
     if has_type_param {
-        orig_func_ty = db.types.alloc_func(orig_p_vec.as_slice(), db.types.func_return(mono_func_ty), false)
+        orig_func_ty = db.types.alloc_func(
+            orig_p_vec.as_slice()
+            db.types.func_return(mono_func_ty)
+            false
+        )
     }
     orig_p_vec.destroy()
 

@@ -1,7 +1,17 @@
 import compiler.hir:           hir_kind, hir_none
 import compiler.nexus.nexus:   span_merge
 import compiler.nexus.pool:    id_none
-import compiler.parser.core:   Parser, bump, curr_span, expect, is_eof, optional, parse_error_at, peek, peek_preceded_by_newline, prev_span
+import compiler.parser.core:
+    Parser
+    bump
+    curr_span
+    expect
+    is_eof
+    optional
+    parse_error_at
+    peek
+    peek_preceded_by_newline
+    prev_span
 import compiler.parser.parser: parse_expr
 import compiler.parser.prec:   prec
 import compiler.token:         Token
@@ -129,7 +139,11 @@ parse_block :: fn(p &Parser) u32 {
                 first = p.hir.lhs(first)
             }
             if (p.hir.kind(first) == k.ident) and (p.db.get_hir_symbol(first) == id_none()) {
-                parse_error_at(p, c"field declarations require 'struct { ... }'; use ':' for local variable declarations", span_of_hir(p, first))
+                parse_error_at(
+                    p
+                    c"field declarations require 'struct { ... }'; use ':' for local variable declarations"
+                    span_of_hir(p, first)
+                )
             }
         }
         glob_stack.push(expr)
@@ -160,7 +174,8 @@ parse_return :: fn(p &Parser) u32 {
     bump(p)
 
     val := hir_none()
-    if (not peek_preceded_by_newline(p)) and (peek(p) != t.comma) and (peek(p) != t.c_brace) and (peek(p) != t.eof) {
+    if (not peek_preceded_by_newline(p)) and (peek(p) != t.comma) and (peek(p) != t.c_brace) and
+        (peek(p) != t.eof) {
         val = parse_expr(p, 0 as u8)
         sp_end = span_of_hir(p, val)
     }

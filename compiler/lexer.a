@@ -279,7 +279,8 @@ Lexer :: struct {
             has_sign := (self.peek() == '+') or (self.peek() == '-')
             has_exp_digits := false
             if has_sign {
-                if (self.cursor + 2 < self.source.len) and Ascii.is_digit(*(self.source.ptr + self.cursor + 2)) {
+                if (self.cursor + 2 < self.source.len) and
+                    Ascii.is_digit(*(self.source.ptr + self.cursor + 2)) {
                     has_exp_digits = true
                 }
             } else if Ascii.is_digit(self.peek()) {

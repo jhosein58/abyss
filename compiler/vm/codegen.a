@@ -1,6 +1,6 @@
-import core.target: target_ptr_bits
+import core.target:   target_ptr_bits
 import std.allocator: Arena
-import std.mem: mem_set
+import std.mem:       mem_set
 import std.string:    Str, String
 
 import compiler.hir:   HirExprKind, hir_kind, hir_none
@@ -125,7 +125,33 @@ VmCodeGen :: struct {
     fn_ptr_fixups_idx   Vec(u32)
     fn_ptr_fixups_sym   Vec(u32)
     new :: fn(arena &Arena) Self {
-        .{ arena: arena, chunk: Chunk.new(), main_sym: 0, main_entry: 0, current_fn: 0, current_fn_ret_type: 0, local_count: 0, current_loop_start: 0, data_cells: HashMap(u32, u64).new(), globals_entry: hir_none(), types: 0 as &TypeStorage, local_types: Vec(u32).new(), init_field_ids: Vec(u32).new(), local_syms: Vec(u32).new(), fn_syms: Vec(u32).new(), fn_ips: Vec(u32).new(), call_fixups_ip: Vec(u32).new(), call_fixups_sym: Vec(u32).new(), if_patches: Vec(u32).new(), loop_breaks: Vec(u32).new(), field_ids: Vec(u32).new(), field_offsets: Vec(u32).new(), ffi_signatures: HashMap(u32, u16).new(), fn_ptr_fixups_idx: Vec(u32).new(), fn_ptr_fixups_sym: Vec(u32).new() }
+        .{
+            arena: arena
+            chunk: Chunk.new()
+            main_sym: 0
+            main_entry: 0
+            current_fn: 0
+            current_fn_ret_type: 0
+            local_count: 0
+            current_loop_start: 0
+            data_cells: HashMap(u32, u64).new()
+            globals_entry: hir_none()
+            types: 0 as &TypeStorage
+            local_types: Vec(u32).new()
+            init_field_ids: Vec(u32).new()
+            local_syms: Vec(u32).new()
+            fn_syms: Vec(u32).new()
+            fn_ips: Vec(u32).new()
+            call_fixups_ip: Vec(u32).new()
+            call_fixups_sym: Vec(u32).new()
+            if_patches: Vec(u32).new()
+            loop_breaks: Vec(u32).new()
+            field_ids: Vec(u32).new()
+            field_offsets: Vec(u32).new()
+            ffi_signatures: HashMap(u32, u16).new()
+            fn_ptr_fixups_idx: Vec(u32).new()
+            fn_ptr_fixups_sym: Vec(u32).new()
+        }
     }
 
     destroy :: fn(self &Self) {
@@ -303,27 +329,31 @@ VmCodeGen :: struct {
     }
 
     emit_load :: fn(self &Self, size u64) {
-        self.chunk.inst(if size == 1 {
-            OpCode.load8
-        } else if size == 2 {
-            OpCode.load16
-        } else if size == 4 {
-            OpCode.load32
-        } else {
-            OpCode.load64
-        })
+        self.chunk.inst(
+            if size == 1 {
+                OpCode.load8
+            } else if size == 2 {
+                OpCode.load16
+            } else if size == 4 {
+                OpCode.load32
+            } else {
+                OpCode.load64
+            }
+        )
     }
 
     emit_store :: fn(self &Self, size u64) {
-        self.chunk.inst(if size == 1 {
-            OpCode.store8
-        } else if size == 2 {
-            OpCode.store16
-        } else if size == 4 {
-            OpCode.store32
-        } else {
-            OpCode.store64
-        })
+        self.chunk.inst(
+            if size == 1 {
+                OpCode.store8
+            } else if size == 2 {
+                OpCode.store16
+            } else if size == 4 {
+                OpCode.store32
+            } else {
+                OpCode.store64
+            }
+        )
     }
 
     emit_alloc_ffi :: fn(self &Self, size u64) {
@@ -631,7 +661,14 @@ VmCodeGen :: struct {
 
     declare_function :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal) {}
 
-    declare_foreign :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal, module Str, name Str) {}
+    declare_foreign :: fn(
+        self &Self
+        fn_name VmVal
+        ret_type VmVal
+        params VmVal
+        module Str
+        name Str
+    ) {}
     begin_inline_scope :: fn(self &Self) {}
     end_inline_scope :: fn(self &Self) {}
 
@@ -750,7 +787,8 @@ VmCodeGen :: struct {
                 if self.types.kind(t) == TyKind.struct_ {
                     allocation_size = self.struct_alloc_size(ty_id)
                 } else if self.types.kind(t) == TyKind.array {
-                    allocation_size = vm_element_size(self.types, self.types.get_array_type(t)) * (self.types.get_array_len(t) as u64)
+                    allocation_size = vm_element_size(self.types, self.types.get_array_type(t)) *
+                        (self.types.get_array_len(t) as u64)
                 }
             }
             if allocation_size > 0 {
@@ -822,7 +860,13 @@ VmCodeGen :: struct {
     }
 
     begin_loop :: fn(self &Self, id u32) VmLoopScope {
-        .{ loop_start_ip: 0, prev_loop_start: self.current_loop_start, id: id, break_mark: self.loop_breaks.len as u32, iterator: false }
+        .{
+            loop_start_ip: 0
+            prev_loop_start: self.current_loop_start
+            id: id
+            break_mark: self.loop_breaks.len as u32
+            iterator: false
+        }
     }
 
     start_loop :: fn(self &Self, arena &Arena, scope &VmLoopScope) {
@@ -958,11 +1002,13 @@ VmCodeGen :: struct {
         }
         self.chunk.inst(OpCode.cast_integer)
         self.chunk.emit_u8(width as u8)
-        self.chunk.emit_u8(if self.types.kind(ty) == TyKind.int {
-            1 as u8
-        } else {
-            0 as u8
-        })
+        self.chunk.emit_u8(
+            if self.types.kind(ty) == TyKind.int {
+                1 as u8
+            } else {
+                0 as u8
+            }
+        )
     }
 
     expr_typed_cast :: fn(self &Self, arena &Arena, target VmVal, inner VmVal, source u32) VmVal {
@@ -971,7 +1017,8 @@ VmCodeGen :: struct {
         dst_kind := self.types.kind(ty)
         src_float := (src_kind == TyKind.float) or (src_kind == TyKind.untyped_float)
         dst_float := dst_kind == TyKind.float
-        src_int := (src_kind == TyKind.int) or (src_kind == TyKind.uint) or (src_kind == TyKind.untyped_int)
+        src_int := (src_kind == TyKind.int) or (src_kind == TyKind.uint) or
+            (src_kind == TyKind.untyped_int)
         dst_int := (dst_kind == TyKind.int) or (dst_kind == TyKind.uint)
         if (src_float or src_int) and (dst_float or dst_int) {
             self.ensure_on_stack(inner)
@@ -1038,11 +1085,13 @@ VmCodeGen :: struct {
     }
 
     expr_bool :: fn(self &Self, val bool) VmVal {
-        VmVal.const_int(if val {
-            1
-        } else {
-            0
-        })
+        VmVal.const_int(
+            if val {
+                1
+            } else {
+                0
+            }
+        )
     }
 
     expr_char_lit :: fn(self &Self, arena &Arena, raw Str) VmVal {
@@ -1095,7 +1144,14 @@ VmCodeGen :: struct {
         .{ kind: VmValKind.const_int, elem_size: 0, id: dst as u32, raw: buf as u64 }
     }
 
-    expr_str_lit :: fn(self &Self, arena &Arena, struct_name VmVal, ptr_id u32, len_id u32, raw Str) VmVal {
+    expr_str_lit :: fn(
+        self &Self
+        arena &Arena
+        struct_name VmVal
+        ptr_id u32
+        len_id u32
+        raw Str
+    ) VmVal {
         cstr_val := self.expr_cstr_lit(arena, raw)
         cstr_ptr := cstr_val.raw
         str_len := cstr_val.id as u64
@@ -1342,7 +1398,14 @@ VmCodeGen :: struct {
         VmVal.stack()
     }
 
-    expr_typed_binary_kind :: fn(self &Self, arena &Arena, kind HirExprKind, lhs VmVal, rhs VmVal, ty u32) VmVal {
+    expr_typed_binary_kind :: fn(
+        self &Self
+        arena &Arena
+        kind HirExprKind
+        lhs VmVal
+        rhs VmVal
+        ty u32
+    ) VmVal {
         start := self.chunk.buf.len
         base := self.unwrap_nominal(ty)
         result := self.expr_binary_kind(arena, kind, lhs, rhs)
@@ -1592,7 +1655,14 @@ VmCodeGen :: struct {
         self.expr_typed_member(arena, lhs, depth, field_id, struct_ty)
     }
 
-    expr_typed_member :: fn(self &Self, arena &Arena, lhs VmVal, depth u32, field_id u32, struct_ty u32) VmVal {
+    expr_typed_member :: fn(
+        self &Self
+        arena &Arena
+        lhs VmVal
+        depth u32
+        field_id u32
+        struct_ty u32
+    ) VmVal {
         value := lhs
         if (value.kind == VmValKind.deref) and self.is_struct_type(struct_ty) {
             self.ensure_on_stack(value)
@@ -1638,7 +1708,12 @@ VmCodeGen :: struct {
             ret .{ kind: VmValKind.ffi_field, elem_size: elem_sz, id: address, raw: ty as u64 }
         }
         if depth <= 1 and value.kind == VmValKind.local {
-            ret .{ kind: VmValKind.member_local, elem_size: elem_sz, id: value.id, raw: offset as u64 }
+            ret .{
+                kind: VmValKind.member_local
+                elem_size: elem_sz
+                id: value.id
+                raw: offset as u64
+            }
         }
         self.ensure_on_stack(value)
         d := depth
@@ -1702,7 +1777,14 @@ VmCodeGen :: struct {
         val
     }
 
-    expr_array_init :: fn(self &Self, arena &Arena, arr_name VmVal, elems_body VmVal, elem_ty u32, count u32) VmVal {
+    expr_array_init :: fn(
+        self &Self
+        arena &Arena
+        arr_name VmVal
+        elems_body VmVal
+        elem_ty u32
+        count u32
+    ) VmVal {
         c := count as u64
         elem_size: u64 = 8
         if (self.types != (0 as &TypeStorage)) and (elem_ty != 0) {
@@ -1745,7 +1827,14 @@ VmCodeGen :: struct {
         VmVal.stack()
     }
 
-    expr_array_index :: fn(self &Self, arena &Arena, value VmVal, index VmVal, elem_ty u32, is_ptr bool) VmVal {
+    expr_array_index :: fn(
+        self &Self
+        arena &Arena
+        value VmVal
+        index VmVal
+        elem_ty u32
+        is_ptr bool
+    ) VmVal {
         self.expr_ptr_index(arena, value, index, elem_ty)
     }
 
@@ -1795,7 +1884,14 @@ VmCodeGen :: struct {
         .{ kind: VmValKind.deref, elem_size: elem_size as u16, id: temp_addr, raw: 0 }
     }
 
-    expr_slice_index :: fn(self &Self, arena &Arena, value VmVal, index VmVal, elem_ty u32, ptr_id u32) VmVal {
+    expr_slice_index :: fn(
+        self &Self
+        arena &Arena
+        value VmVal
+        index VmVal
+        elem_ty u32
+        ptr_id u32
+    ) VmVal {
         elem_size: u64 = 8
         if (self.types != (0 as &TypeStorage)) and (elem_ty != 0) {
             elem_size = vm_element_size(self.types, elem_ty)
@@ -1977,7 +2073,8 @@ VmCodeGen :: struct {
         total := types.len()
         while t < total {
             k := types.kind(t)
-            if (k == TyKind.struct_) or ((k == TyKind.nominal) and (types.nominal_base(t) != ty_id_none())) {
+            if (k == TyKind.struct_) or
+                ((k == TyKind.nominal) and (types.nominal_base(t) != ty_id_none())) {
                 self.define_struct(types, arena, t)
             }
             t = t + 1
@@ -2094,7 +2191,10 @@ vm_data_size :: fn(types &TypeStorage, ty u32) u64 {
     base := vm_data_base(types, ty)
     match types.kind(base) {
         union_ { ret 16 }
-        array { ret vm_element_size(types, types.get_array_type(base)) * (types.get_array_len(base) as u64) }
+        array {
+            ret vm_element_size(types, types.get_array_type(base)) *
+                (types.get_array_len(base) as u64)
+        }
         struct_ {
             if types.struct_is_extern(base) {
                 ret type_size(types, base)
