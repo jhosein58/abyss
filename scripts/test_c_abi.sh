@@ -13,17 +13,18 @@ CC="${ABYSS_FFI_CC:-gcc}"
 trap 'if [[ $? -ne 0 ]]; then printf "C ABI test artifacts: %s\n" "${WORK_DIR}" >&2; fi' EXIT
 
 timeout 30s "${COMPILER}" b "${FIXTURES}/interop.a" "${WORK_DIR}/interop.c"
+timeout 30s "${COMPILER}" b --library "${FIXTURES}/fixture.a" "${WORK_DIR}/fixture.c"
 "${CC}" -std=c99 -D_POSIX_C_SOURCE=200809L -Werror=implicit-function-declaration -Werror=incompatible-pointer-types \
-    -Dmain=abyss_generated_main -c "${WORK_DIR}/interop.c" -o "${WORK_DIR}/interop.o"
-"${CC}" -std=c99 -Wall -Wextra -Wpedantic -Werror \
-    "${WORK_DIR}/interop.o" "${FIXTURES}/fixture.c" "${FIXTURES}/native.c" -o "${WORK_DIR}/interop"
+    "${WORK_DIR}/interop.c" "${WORK_DIR}/fixture.c" -o "${WORK_DIR}/interop"
 printf 'extern ABI verified\n' > "${WORK_DIR}/expected"
 timeout 10s "${WORK_DIR}/interop" > "${WORK_DIR}/native.out"
 diff -u "${WORK_DIR}/expected" "${WORK_DIR}/native.out"
 
 if [[ "${ABYSS_TEST_WINE:-false}" != true ]]; then
-    "${CC}" -std=c99 -Wall -Wextra -Wpedantic -Werror -fPIC -shared \
-        "${FIXTURES}/fixture.c" -o "${WORK_DIR}/fixture.so"
+    timeout 30s "${COMPILER}" b --library "${FIXTURES}/interop.a" "${WORK_DIR}/exports.c"
+    "${CC}" -std=c99 -D_POSIX_C_SOURCE=200809L -fPIC -shared "${WORK_DIR}/exports.c" -o "${WORK_DIR}/exports.so"
+    "${CC}" -std=c99 -D_POSIX_C_SOURCE=200809L -fPIC -shared "${WORK_DIR}/fixture.c" -o "${WORK_DIR}/fixture.so"
+    python3 "${FIXTURES}/check_native.py" "${WORK_DIR}/exports.so" "${WORK_DIR}/fixture.so"
     timeout 10s env LD_PRELOAD="${WORK_DIR}/fixture.so" "${COMPILER}" r "${FIXTURES}/interop.a" > "${WORK_DIR}/vm.out"
     diff -u "${WORK_DIR}/expected" "${WORK_DIR}/vm.out"
 fi

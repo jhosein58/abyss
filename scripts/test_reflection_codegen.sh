@@ -76,25 +76,27 @@ main :: fn() {
     }
 }
 ABYSS
-cat > "${WORK_DIR}/balance.c" <<'C'
-#include <stddef.h>
-#include <stdint.h>
-void *__real_malloc(size_t size);
-void __real_free(void *ptr);
-static uint64_t active_allocations;
-void *__wrap_malloc(size_t size) {
-    void *ptr = __real_malloc(size);
-    if (ptr) active_allocations++;
-    return ptr;
+cat > "${WORK_DIR}/allocator.a" <<'ABYSS'
+real_malloc :: extern "__real_malloc" fn(size u64) &u8
+real_free :: extern "__real_free" fn(ptr &u8)
+
+active_allocations: u64
+
+wrap_malloc :: extern "__wrap_malloc" fn(size u64) &u8 {
+    ptr := real_malloc(size)
+    if ptr != (0 as &u8) { active_allocations = active_allocations + 1 }
+    ptr
 }
-void __wrap_free(void *ptr) {
-    if (ptr) active_allocations--;
-    __real_free(ptr);
+
+wrap_free :: extern "__wrap_free" fn(ptr &u8) {
+    if ptr != (0 as &u8) { active_allocations = active_allocations - 1 }
+    real_free(ptr)
 }
-uint64_t allocation_balance(void) { return active_allocations; }
-C
-printf '#include <stdint.h>\nuint64_t allocation_balance(void);\n' > "${WORK_DIR}/balance.h"
+
+allocation_balance :: extern fn() u64 { active_allocations }
+ABYSS
+"${COMPILER}" b --library "${WORK_DIR}/allocator.a" "${WORK_DIR}/allocator.c"
 "${COMPILER}" b "${WORK_DIR}/balance.a" "${WORK_DIR}/balance_program.c"
-gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 -include "${WORK_DIR}/balance.h" "${WORK_DIR}/balance_program.c" "${WORK_DIR}/balance.c" -Wl,--wrap=malloc,--wrap=free -o "${WORK_DIR}/balance"
+gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 "${WORK_DIR}/balance_program.c" "${WORK_DIR}/allocator.c" -Wl,--wrap=malloc,--wrap=free -o "${WORK_DIR}/balance"
 "${WORK_DIR}/balance" > "${WORK_DIR}/balance.out"
 printf "  \033[1;32m✔ PASS\033[0m  %-36s \033[0;90m[Memory]\033[0m\n" "temporary_arena_allocation_balance"

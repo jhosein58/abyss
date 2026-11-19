@@ -95,7 +95,7 @@ test_cpu_features :: fn(t &Test) {
 
 main :: fn() {
     arena := Arena.new(4096)
-    suite := Suite.new(&arena, "SIMD Advanced Math & SLEEF Suite")
+    suite := Suite.new(&arena, "SIMD Fast Math Suite")
     suite.add("fast_math_sp", test_fast_math_sp)
     suite.add("inverse_and_hyperbolic", test_inverse_and_hyperbolic)
     suite.add("powers_and_logs", test_powers_and_logs)

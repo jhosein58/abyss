@@ -38,4 +38,4 @@ cc -shared -fPIC helper.c -o helper.so
 LD_PRELOAD="$PWD/helper.so" ./abyss r main.a
 ```
 
-Typed VM foreign calls require a compiler built with the libffi headers available, plus a libffi shared library at runtime. The VM bridge supports booleans, 8- to 64-bit integers, `f32`, `f64`, pointers, callbacks, and records made from those types. Keep callbacks on the VM's owning thread and call them only while that VM is alive. WebAssembly does not load native libraries.
+Typed VM foreign calls load the platform libffi shared library at runtime. Building the compiler does not require libffi headers. The VM bridge supports booleans, 8- to 64-bit integers, `f32`, `f64`, pointers, callbacks, and records made from those types. Keep callbacks on the VM's owning thread and call them only while that VM is alive. WebAssembly does not load native libraries.

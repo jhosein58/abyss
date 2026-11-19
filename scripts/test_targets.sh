@@ -41,6 +41,24 @@ printf 'linux\nfalse\nfalse\n64\n' > "${WORK_DIR}/expected"
 "${WORK_DIR}/linux" > "${WORK_DIR}/actual"
 cmp "${WORK_DIR}/expected" "${WORK_DIR}/actual"
 
+cat > "${WORK_DIR}/args.a" <<'ABYSS'
+import std.env: Env
+
+main :: fn() i32 {
+    if Env.args_len() != 3 or Env.arg(-1) != (0 as &u8) or Env.arg(3) != (0 as &u8) { ret 1 }
+    if not Str.of(Env.arg(1)).eq("first") { ret 2 }
+    Env.shift_args(1)
+    if Env.args_len() != 2 or not Str.of(Env.arg(0)).eq("first") { ret 3 }
+    if not Str.of(Env.arg(1)).eq("second") { ret 4 }
+    42
+}
+ABYSS
+"${COMPILER}" b "${WORK_DIR}/args.a" "${WORK_DIR}/args.c"
+"${CC:-gcc}" -std=gnu99 -O0 "${WORK_DIR}/args.c" -o "${WORK_DIR}/args"
+status=0
+"${WORK_DIR}/args" first second || status=$?
+[[ "${status}" == 42 ]]
+
 cat > "${WORK_DIR}/library.a" <<'ABYSS'
 copy :: extern fn(dest, from_ptr &u8, size u64) {
     @memcpy(dest, from_ptr, size)

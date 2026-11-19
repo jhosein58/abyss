@@ -1,3 +1,4 @@
+import core.target: target_ptr_bits
 import std.allocator: Arena
 import std.mem: mem_set
 import std.string:    Str, String
@@ -592,7 +593,7 @@ VmCodeGen :: struct {
         self.fn_ptr_fixups_sym.clear()
     }
 
-    start_function :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal) {
+    start_function :: fn(self &Self, fn_name VmVal, ret_type VmVal, params VmVal, exported bool) {
         self.current_fn = fn_name.id
         self.current_fn_ret_type = ret_type.raw as u32
         entry_ip := self.chunk.buf.len as u32
@@ -2025,7 +2026,8 @@ type_align :: fn(types &TypeStorage, ty_id u32) u64 {
             }
             8
         }
-        ptr, func, type_, untyped_int, untyped_float, unknown, infer {
+        ptr { (target_ptr_bits as u64) / 8 }
+        func, type_, untyped_int, untyped_float, unknown, infer {
             8
         }
         unit, never, error {
@@ -2144,7 +2146,8 @@ type_size :: fn(types &TypeStorage, ty_id u32) u64 {
             }
             8
         }
-        ptr, func, type_, untyped_int, untyped_float, unknown, infer {
+        ptr { (target_ptr_bits as u64) / 8 }
+        func, type_, untyped_int, untyped_float, unknown, infer {
             8
         }
         unit, never, error {

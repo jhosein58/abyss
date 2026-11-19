@@ -9,7 +9,7 @@ description: >-
 
 # Abyss Programming Language Guide
 
-Abyss is a statically typed, expression-oriented systems programming language featuring orthogonal struct namespaces, compile-time reflection, arena memory management, and zero-cost abstractions. Abyss compiles directly to ISO C99, native bytecode VM, and WebAssembly.
+Abyss is a statically typed, expression-oriented systems programming language featuring orthogonal struct namespaces, compile-time reflection, arena memory management, and zero-cost abstractions. Abyss emits C99 for native and WASI targets and executes bytecode on its VM. Compiler and standard-library runtime implementations are written in Abyss.
 
 ---
 
@@ -199,13 +199,13 @@ Command | Purpose
 `./abyss r <file.a>` | Run `.a` file on Bytecode VM (fast development loop).
 `./abyss b <file.a>` | Compile `.a` file to optimized native binary via C backend.
 `./abyss br <file.a>` | Build and immediately execute native binary.
-`./abyss test [filter]` | Run compiler test suite across C and VM backends (201 tests).
+`./abyss test [filter]` | Run the compiler test suite across C and VM backends.
 `./abyss bootstrap [n]` | Verify multi-generation bit-identical self-hosting fixed-point.
 `./abyss promote [n]` | Verify and promote compiler binary to `./abyssc`.
 `./abyss fmt <file.a>` | Format source file in place using CST formatter.
 `./abyss sonar <cmd>` | Sonar package manager (or invoke `./sonar` directly): `init`, `add`, `update`, `vendor`, `build`, `run`.
 `./abyss sonar-test` | Run Sonar automated unit and integration test suite.
-`./abyss wasm` | Build WebAssembly compiler and VFS bundle (`dist/abyssc.wasm`, `dist/vfs_bundle.json`).
+`./abyss wasm` | Build the WebAssembly compiler with embedded core and std pods (`dist/abyssc.wasm`).
 `./abyss release [n]` | Build full release packages in `dist/` (Linux tar.gz, Windows zip, Wasm, SHA256).
 
 ---
@@ -316,7 +316,7 @@ main :: fn() {
 
 ## 6. Modern SIMD Vector Pod (`pods/simd`)
 
-Abyss includes a first-class, zero-cost, cross-platform SIMD vector library (`pods/simd`) powered by native C intrinsics and an embedded SLEEF-style high-performance transcendental mathematical runtime.
+The SIMD pod (`pods/simd`) implements fixed-width vectors and lane operations in Abyss. Exact scalar math calls the platform math library through typed `extern fn` declarations. The fast variants use Abyss approximations where applicable.
 
 ### Modular Architecture
 - `pods/simd/simd.a`: Entry point re-exporting the entire public API.
@@ -324,7 +324,7 @@ Abyss includes a first-class, zero-cost, cross-platform SIMD vector library (`po
 - `pods/simd/mask.a`: `SimdMask(cmpt N u64)` boolean predicate masks and lane manipulation.
 - `pods/simd/math.a`: Functional math API wrappers (`sin(v)`, `cos_fast(v)`, `exp(v)`, etc.).
 - `pods/simd/aliases.a`: Standard vector types (`f32x4`, `f32x8`, `f64x2`, `f64x4`, `i32x4`, `i32x8`, `u32x4`, `u32x8`, `i64x2`, `i64x4`, `i16x8`, `u16x8`, `i8x16`, `u8x16`, `m2`, `m4`, `m8`, `m16`).
-- `pods/simd/runtime/`: Modular C99 SLEEF-grade runtime (`simd_core.c`, `simd_math_sp.c`, `simd_math_dp.c`).
+- `pods/simd/scalar.a`: Scalar math ABI declarations and approximations in Abyss.
 
 ### Vector Operations & APIs
 - **Constructors:** `splat(val)`, `from_array(arr)`, `zero()`, `load(ptr)`, `store(ptr)`
@@ -335,10 +335,10 @@ Abyss includes a first-class, zero-cost, cross-platform SIMD vector library (`po
 - **Comparisons & Masks:** `cmp_eq` / `cmpeq`, `cmp_ne` / `cmpne`, `cmp_lt` / `cmplt`, `cmp_le` / `cmple`, `cmp_gt` / `cmpgt`, `cmp_ge` / `cmpge`
 - **Mask Predicates:** `mask.all()`, `mask.any()`, `mask.none()`, `mask.count_ones()`, `mask.get(idx)`, `mask.set(idx, val)`
 - **Selection:** `Simd(T, N).select(mask, on_true, on_false)` chooses lane values based on boolean mask.
-- **Hardware Features:** `abyss_simd_cpu_features()` queries active hardware acceleration flags.
-- **Dual-Precision Vector Math (SLEEF):**
-  - **1.0-ULP High Precision:** `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `exp`, `exp2`, `ln`, `log2`, `log10`, `pow`, `sqrt`, `rsqrt`, `cbrt`, `hypot`, `sinh`, `cosh`, `tanh`
-  - **3.5-ULP Ultra-Fast Real-Time (Audio/DSP/Gaming):** `sin_fast`, `cos_fast`, `tan_fast`, `exp_fast`, `ln_fast`, `rsqrt_fast`
+- **Target Features:** `abyss_simd_cpu_features()` reports portable and target baseline flags.
+- **Dual-Precision Vector Math:**
+  - **System math:** `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `exp`, `exp2`, `ln`, `log2`, `log10`, `pow`, `sqrt`, `rsqrt`, `cbrt`, `hypot`, `sinh`, `cosh`, `tanh`
+  - **Fast variants:** `sin_fast`, `cos_fast`, `tan_fast`, `exp_fast`, `ln_fast`, `rsqrt_fast`
 
 ### Example SIMD Usage
 ```abyss
@@ -445,7 +445,14 @@ apply :: fn(cb Callback, val i32) bool {
 }
 ```
 
-### 7.5 Strict FFI Constraints & Type Diagnostics
+### 7.5 Runtime Boundaries
+
+- Use `extern "module" "name" fn(...)` for a WASI import. Define platform entry points and ABI shims with exported Abyss functions. Only `extern` definitions are public in emitted native objects.
+- Keep hosted process argument state in `std.sys.process`. The C backend emits the hosted entry adapter; WASI startup and freestanding memory routines are in `std.sys.start.wasi` and `std.sys.memory.wasi`.
+- The VM binding code is in `compiler/vm/native.a`. It loads libffi at runtime on native targets. Compiler builds do not use libffi headers.
+- Use `@memcpy` to copy the bits of an ABI pointer or scalar between equal-size storage types when a numeric cast would change its value.
+
+### 7.6 Strict FFI Constraints & Type Diagnostics
 
 - **No Generics in Extern Functions**: External C functions cannot have generic type parameters (`T type`). Generic extern declarations trigger a compile-time error: `external functions cannot be generic`.
 - **No Variadics (`...`)**: C-style variadic arguments (`...`) are strictly prohibited in function declarations: `variadic parameters are not supported; use tuples for type-safe formatting`.

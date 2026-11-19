@@ -1959,7 +1959,7 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
         ccg.declare_foreign(sig.fn_name, ret_str, sig.params_str, db.extern_module(func_id), db.interner.get(db.extern_link_name(real_sym, func_id)))
         ret
     }
-    ccg.start_function(sig.fn_name, ret_str, sig.params_str)
+    ccg.start_function(sig.fn_name, ret_str, sig.params_str, is_extern)
     body_val := lower_body(ctx, body_id)
     if db.types.kind(ret_ty) == TyKind.unit {
         if ccg.has_value(body_val) {
