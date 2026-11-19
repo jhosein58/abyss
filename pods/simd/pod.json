@@ -2,16 +2,9 @@
   "name": "simd",
   "version": "0.1.0",
   "entry": "simd.a",
-  "description": "High-performance generic SIMD vector primitives and vectorized SLEEF math for Abyss",
+  "description": "Generic SIMD vector primitives and math for Abyss",
   "dependencies": {},
   "c_build": {
-    "sources": [
-      "runtime/simd_core.c",
-      "runtime/simd_math_sp.c",
-      "runtime/simd_math_dp.c"
-    ],
-    "include_dirs": ["runtime"],
-    "c_flags": ["-O3", "-fomit-frame-pointer"],
     "ld_flags": ["-lm"]
   }
 }

@@ -505,13 +505,14 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
             cmd_run.push_char(' ' as u8)
             oi = oi + 1
         }
+        cmd_run.push_str("/tmp/_sonar_t.c ")
         li: u64 = 0
         while li < ld_flags.len {
             cmd_run.push_str(ld_flags.get(li))
             cmd_run.push_char(' ' as u8)
             li = li + 1
         }
-        cmd_run.push_str("/tmp/_sonar_t.c -o /tmp/_sonar_t_bin >/dev/null 2>&1 && /tmp/_sonar_t_bin")
+        cmd_run.push_str("-o /tmp/_sonar_t_bin >/dev/null 2>&1 && /tmp/_sonar_t_bin")
 
         status := system(to_cstr(arena, cmd_run.as_str()))
         if status == 0 {

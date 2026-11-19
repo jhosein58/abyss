@@ -21,6 +21,9 @@ Builder :: struct {
     }
 
     compile_manifest_c_sources :: fn(self &Self, base_dir Str, pod_name Str, c_build CBuildInfo, objects &Vec(Str), ld_flags &Vec(Str)) bool {
+        for flag in c_build.ld_flags {
+            ld_flags.push(flag)
+        }
         if c_build.sources.len == 0 {
             ret true
         }
@@ -68,12 +71,6 @@ Builder :: struct {
             si = si + 1
         }
 
-        li: u64 = 0
-        while li < c_build.ld_flags.len {
-            flag := c_build.ld_flags.get(li)
-            ld_flags.push(flag)
-            li = li + 1
-        }
         true
     }
 

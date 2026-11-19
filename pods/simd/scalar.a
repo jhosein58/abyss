@@ -1,0 +1,106 @@
+scalar_sin_f32 :: extern "sinf" fn(f32) f32
+scalar_sin_f64 :: extern "sin" fn(f64) f64
+scalar_cos_f32 :: extern "cosf" fn(f32) f32
+scalar_cos_f64 :: extern "cos" fn(f64) f64
+scalar_tan_f32 :: extern "tanf" fn(f32) f32
+scalar_tan_f64 :: extern "tan" fn(f64) f64
+scalar_asin_f32 :: extern "asinf" fn(f32) f32
+scalar_asin_f64 :: extern "asin" fn(f64) f64
+scalar_acos_f32 :: extern "acosf" fn(f32) f32
+scalar_acos_f64 :: extern "acos" fn(f64) f64
+scalar_atan_f32 :: extern "atanf" fn(f32) f32
+scalar_atan_f64 :: extern "atan" fn(f64) f64
+scalar_exp_f32 :: extern "expf" fn(f32) f32
+scalar_exp_f64 :: extern "exp" fn(f64) f64
+scalar_exp2_f32 :: extern "exp2f" fn(f32) f32
+scalar_exp2_f64 :: extern "exp2" fn(f64) f64
+scalar_ln_f32 :: extern "logf" fn(f32) f32
+scalar_ln_f64 :: extern "log" fn(f64) f64
+scalar_log2_f32 :: extern "log2f" fn(f32) f32
+scalar_log2_f64 :: extern "log2" fn(f64) f64
+scalar_log10_f32 :: extern "log10f" fn(f32) f32
+scalar_log10_f64 :: extern "log10" fn(f64) f64
+scalar_sqrt_f32 :: extern "sqrtf" fn(f32) f32
+scalar_sqrt_f64 :: extern "sqrt" fn(f64) f64
+scalar_cbrt_f32 :: extern "cbrtf" fn(f32) f32
+scalar_cbrt_f64 :: extern "cbrt" fn(f64) f64
+scalar_sinh_f32 :: extern "sinhf" fn(f32) f32
+scalar_sinh_f64 :: extern "sinh" fn(f64) f64
+scalar_cosh_f32 :: extern "coshf" fn(f32) f32
+scalar_cosh_f64 :: extern "cosh" fn(f64) f64
+scalar_tanh_f32 :: extern "tanhf" fn(f32) f32
+scalar_tanh_f64 :: extern "tanh" fn(f64) f64
+scalar_atan2_f32 :: extern "atan2f" fn(f32, f32) f32
+scalar_atan2_f64 :: extern "atan2" fn(f64, f64) f64
+scalar_pow_f32 :: extern "powf" fn(f32, f32) f32
+scalar_pow_f64 :: extern "pow" fn(f64, f64) f64
+scalar_hypot_f32 :: extern "hypotf" fn(f32, f32) f32
+scalar_hypot_f64 :: extern "hypot" fn(f64, f64) f64
+scalar_fma_f32 :: extern "fmaf" fn(f32, f32, f32) f32
+scalar_fma_f64 :: extern "fma" fn(f64, f64, f64) f64
+scalar_round :: extern "round" fn(f64) f64
+
+bits_as :: fn(From type, To type, value From) To {
+    result: To
+    @memcpy(&result as &u8, &value as &u8, @sizeof(To))
+    result
+}
+
+sin_cos_approx :: fn(x f64, offset i32) f64 {
+    quadrant := scalar_round(x * 0.636619772367581343)
+    index := (quadrant as i32 + offset) & 3
+    r := x - quadrant * 1.570796326794896619
+    square := r * r
+    lane := if (index & 1) == 0 {
+        r * (1.0 + square * (-0.1666666666666663 + square * (0.00833333333330 + square * (-0.000198412698 + square * 0.00000275573))))
+    } else {
+        1.0 + square * (-0.5 + square * (0.04166666666666 + square * (-0.00138888888888 + square * 0.000024801587)))
+    }
+    if (index & 2) == 0 { lane } else { -lane }
+}
+
+sin_approx :: fn(x f64) f64 {
+    if x >= -1000000.0 and x <= 1000000.0 { ret sin_cos_approx(x, 0) }
+    scalar_sin_f64(x)
+}
+
+cos_approx :: fn(x f64) f64 {
+    if x >= -1000000.0 and x <= 1000000.0 { ret sin_cos_approx(x, 1) }
+    scalar_cos_f64(x)
+}
+
+tan_approx :: fn(x f64) f64 {
+    if x >= -1000000.0 and x <= 1000000.0 {
+        cosine := sin_cos_approx(x, 1)
+        if cosine < -0.001 or cosine > 0.001 { ret sin_cos_approx(x, 0) / cosine }
+    }
+    scalar_tan_f64(x)
+}
+
+exp_approx :: fn(x f64) f64 {
+    if not (x >= -700.0 and x <= 700.0) { ret scalar_exp_f64(x) }
+    exponent := scalar_round(x * 1.442695040888963407)
+    r := x - exponent * 0.693147180559945309
+    polynomial := 1.0 + r * (1.0 + r * (0.5 + r * (0.1666666666666667 + r * 0.04166666666666667)))
+    bits := ((exponent as i64 + 1023) as u64) << 52
+    polynomial * bits_as(u64, f64, bits)
+}
+
+ln_approx :: fn(x f64) f64 {
+    bits := bits_as(f64, u64, x)
+    exponent := (bits >> 52) & 0x7ff
+    if not (x > 0.0) or exponent == 0 or exponent == 0x7ff { ret scalar_ln_f64(x) }
+    normalized := (bits & (((1 as u64) << 52) - 1)) | ((1023 as u64) << 52)
+    mantissa := bits_as(u64, f64, normalized)
+    u := (mantissa - 1.0) / (mantissa + 1.0)
+    square := u * u
+    (exponent as i32 - 1023) as f64 * 0.693147180559945309 + u * (2.0 + square * (0.6666666666666667 + square * 0.4))
+}
+
+rsqrt_approx :: fn(x f32) f32 {
+    bits := bits_as(f32, u32, x)
+    if bits < 0x00800000 or bits >= 0x7f800000 { ret 1.0 / scalar_sqrt_f32(x) }
+    estimate := 0x5f3759df - (bits >> 1)
+    y := bits_as(u32, f32, estimate)
+    y * (1.5 - 0.5 * x * y * y)
+}

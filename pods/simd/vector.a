@@ -1,110 +1,22 @@
+import core.target: Arch, target_arch
 import .mask: SimdMask
+import .scalar:
+    scalar_sin_f32, scalar_sin_f64, scalar_cos_f32, scalar_cos_f64, scalar_tan_f32,
+    scalar_tan_f64, scalar_asin_f32, scalar_asin_f64, scalar_acos_f32, scalar_acos_f64,
+    scalar_atan_f32, scalar_atan_f64, scalar_exp_f32, scalar_exp_f64, scalar_exp2_f32,
+    scalar_exp2_f64, scalar_ln_f32, scalar_ln_f64, scalar_log2_f32, scalar_log2_f64,
+    scalar_log10_f32, scalar_log10_f64, scalar_sqrt_f32, scalar_sqrt_f64, scalar_cbrt_f32,
+    scalar_cbrt_f64, scalar_sinh_f32, scalar_sinh_f64, scalar_cosh_f32, scalar_cosh_f64,
+    scalar_tanh_f32, scalar_tanh_f64, scalar_atan2_f32, scalar_atan2_f64, scalar_pow_f32,
+    scalar_pow_f64, scalar_hypot_f32, scalar_hypot_f64, scalar_fma_f32, scalar_fma_f64,
+    sin_approx, cos_approx, tan_approx, exp_approx, ln_approx,
+    rsqrt_approx
 
-abyss_simd_sin_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_sin_fast_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_cos_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_cos_fast_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_tan_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_tan_fast_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_asin_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_acos_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_atan_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_atan2_f32x4 :: extern fn(dst &f32, y &f32, x &f32)
-
-abyss_simd_exp_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_exp_fast_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_exp2_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_ln_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_ln_fast_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_log2_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_log10_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_pow_f32x4 :: extern fn(dst &f32, a &f32, b &f32)
-
-abyss_simd_sqrt_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_rsqrt_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_rsqrt_fast_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_cbrt_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_hypot_f32x4 :: extern fn(dst &f32, a &f32, b &f32)
-
-abyss_simd_sinh_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_cosh_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_tanh_f32x4 :: extern fn(dst &f32, src &f32)
-
-abyss_simd_fma_f32x4 :: extern fn(dst &f32, a &f32, b &f32, c &f32)
-
-abyss_simd_sin_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_sin_fast_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_cos_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_cos_fast_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_tan_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_asin_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_acos_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_atan_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_atan2_f64x2 :: extern fn(dst &f64, y &f64, x &f64)
-
-abyss_simd_exp_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_exp_fast_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_exp2_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_ln_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_ln_fast_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_log2_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_log10_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_pow_f64x2 :: extern fn(dst &f64, a &f64, b &f64)
-
-abyss_simd_sqrt_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_rsqrt_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_cbrt_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_hypot_f64x2 :: extern fn(dst &f64, a &f64, b &f64)
-
-abyss_simd_sinh_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_cosh_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_tanh_f64x2 :: extern fn(dst &f64, src &f64)
-
-abyss_simd_fma_f64x2 :: extern fn(dst &f64, a &f64, b &f64, c &f64)
-
-abyss_simd_cpu_features :: extern fn() u32
+abyss_simd_cpu_features :: fn() u32 {
+    if target_arch == Arch.x86_64 { ret 3 }
+    if target_arch == Arch.aarch64 { ret 17 }
+    1
+}
 
 Simd :: fn(T type, cmpt N u64) type {
     struct {
@@ -267,16 +179,18 @@ Simd :: fn(T type, cmpt N u64) type {
         }
 
         fma :: fn(self Self, b Self, c Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_fma_f32x4(&res.data as &f32, &self.data as &f32, &b.data as &f32, &c.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            if not (single_precision or double_precision) { ret self.mul(b).add(c) }
+            result: Self
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_fma_f32(self.data[lane] as f32, b.data[lane] as f32, c.data[lane] as f32) as T
+                } else {
+                    scalar_fma_f64(self.data[lane] as f64, b.data[lane] as f64, c.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_fma_f64x2(&res.data as &f64, &self.data as &f64, &b.data as &f64, &c.data as &f64)
-                ret res
-            }
-            self.mul(b).add(c)
+            result
         }
 
         bit_and :: fn(self Self, other Self) Self {
@@ -570,333 +484,363 @@ Simd :: fn(T type, cmpt N u64) type {
         }
 
         sin :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_sin_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_sin_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_sin_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_sin_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
-        }
-
-        sin_fast :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_sin_fast_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
-            }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_sin_fast_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            self.sin()
+            result
         }
 
         cos :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_cos_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_cos_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_cos_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_cos_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
-        }
-
-        cos_fast :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_cos_fast_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
-            }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_cos_fast_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            self.cos()
+            result
         }
 
         tan :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_tan_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_tan_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_tan_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_tan_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
-        }
-
-        tan_fast :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_tan_fast_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
-            }
-            self.tan()
+            result
         }
 
         asin :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_asin_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_asin_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_asin_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_asin_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
+            result
         }
 
         acos :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_acos_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_acos_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_acos_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_acos_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
+            result
         }
 
         atan :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_atan_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_atan_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_atan_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_atan_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
-        }
-
-        atan2 :: fn(self Self, x Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_atan2_f32x4(&res.data as &f32, &self.data as &f32, &x.data as &f32)
-                ret res
-            }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_atan2_f64x2(&res.data as &f64, &self.data as &f64, &x.data as &f64)
-                ret res
-            }
-            res
+            result
         }
 
         exp :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_exp_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_exp_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_exp_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_exp_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
-        }
-
-        exp_fast :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_exp_fast_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
-            }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_exp_fast_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            self.exp()
+            result
         }
 
         exp2 :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_exp2_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_exp2_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_exp2_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_exp2_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
+            result
         }
 
         ln :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_ln_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_ln_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_ln_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_ln_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
-        }
-
-        ln_fast :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_ln_fast_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
-            }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_ln_fast_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            self.ln()
+            result
         }
 
         log2 :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_log2_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_log2_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_log2_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_log2_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
+            result
         }
 
         log10 :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_log10_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_log10_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_log10_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_log10_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
-        }
-
-        pow :: fn(self Self, exp_vec Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_pow_f32x4(&res.data as &f32, &self.data as &f32, &exp_vec.data as &f32)
-                ret res
-            }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_pow_f64x2(&res.data as &f64, &self.data as &f64, &exp_vec.data as &f64)
-                ret res
-            }
-            res
+            result
         }
 
         sqrt :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_sqrt_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_sqrt_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_sqrt_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_sqrt_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
-        }
-
-        rsqrt :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_rsqrt_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
-            }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_rsqrt_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
-        }
-
-        rsqrt_fast :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_rsqrt_fast_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
-            }
-            self.rsqrt()
+            result
         }
 
         cbrt :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_cbrt_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_cbrt_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_cbrt_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_cbrt_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
-        }
-
-        hypot :: fn(self Self, other Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_hypot_f32x4(&res.data as &f32, &self.data as &f32, &other.data as &f32)
-                ret res
-            }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_hypot_f64x2(&res.data as &f64, &self.data as &f64, &other.data as &f64)
-                ret res
-            }
-            res
+            result
         }
 
         sinh :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_sinh_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_sinh_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_sinh_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_sinh_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
+            result
         }
 
         cosh :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_cosh_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_cosh_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_cosh_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_cosh_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
-            }
-            res
+            result
         }
 
         tanh :: fn(self Self) Self {
-            res: Self
-            if (N == 4) and (@sizeof(T) == 4) {
-                abyss_simd_tanh_f32x4(&res.data as &f32, &self.data as &f32)
-                ret res
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_tanh_f32(self.data[lane] as f32) as T
+                } else {
+                    scalar_tanh_f64(self.data[lane] as f64) as T
+                }
             }
-            if (N == 2) and (@sizeof(T) == 8) {
-                abyss_simd_tanh_f64x2(&res.data as &f64, &self.data as &f64)
-                ret res
+            result
+        }
+
+        atan2 :: fn(self Self, other Self) Self {
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_atan2_f32(self.data[lane] as f32, other.data[lane] as f32) as T
+                } else {
+                    scalar_atan2_f64(self.data[lane] as f64, other.data[lane] as f64) as T
+                }
             }
-            res
+            result
+        }
+
+        pow :: fn(self Self, other Self) Self {
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_pow_f32(self.data[lane] as f32, other.data[lane] as f32) as T
+                } else {
+                    scalar_pow_f64(self.data[lane] as f64, other.data[lane] as f64) as T
+                }
+            }
+            result
+        }
+
+        hypot :: fn(self Self, other Self) Self {
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    scalar_hypot_f32(self.data[lane] as f32, other.data[lane] as f32) as T
+                } else {
+                    scalar_hypot_f64(self.data[lane] as f64, other.data[lane] as f64) as T
+                }
+            }
+            result
+        }
+
+        sin_fast :: fn(self Self) Self {
+            result: Self
+            if not ((@type_name(T).eq("f32")) or (@type_name(T).eq("f64"))) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = sin_approx(self.data[lane] as f64) as T
+            }
+            result
+        }
+
+        cos_fast :: fn(self Self) Self {
+            result: Self
+            if not ((@type_name(T).eq("f32")) or (@type_name(T).eq("f64"))) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = cos_approx(self.data[lane] as f64) as T
+            }
+            result
+        }
+
+        tan_fast :: fn(self Self) Self {
+            result: Self
+            if not ((@type_name(T).eq("f32")) or (@type_name(T).eq("f64"))) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = tan_approx(self.data[lane] as f64) as T
+            }
+            result
+        }
+
+        exp_fast :: fn(self Self) Self {
+            result: Self
+            if not ((@type_name(T).eq("f32")) or (@type_name(T).eq("f64"))) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = exp_approx(self.data[lane] as f64) as T
+            }
+            result
+        }
+
+        ln_fast :: fn(self Self) Self {
+            result: Self
+            if not ((@type_name(T).eq("f32")) or (@type_name(T).eq("f64"))) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = ln_approx(self.data[lane] as f64) as T
+            }
+            result
+        }
+
+        rsqrt :: fn(self Self) Self {
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    (1.0 / scalar_sqrt_f32(self.data[lane] as f32)) as T
+                } else {
+                    (1.0 / scalar_sqrt_f64(self.data[lane] as f64)) as T
+                }
+            }
+            result
+        }
+
+        rsqrt_fast :: fn(self Self) Self {
+            single_precision := @type_name(T).eq("f32")
+            double_precision := @type_name(T).eq("f64")
+            result: Self
+            if not (single_precision or double_precision) { ret result }
+            for lane in Range.new(0, N as i32) {
+                result.data[lane] = if single_precision {
+                    rsqrt_approx(self.data[lane] as f32) as T
+                } else {
+                    (1.0 / scalar_sqrt_f64(self.data[lane] as f64)) as T
+                }
+            }
+            result
         }
     }
 }
