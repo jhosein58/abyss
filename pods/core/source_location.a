@@ -1,0 +1,7 @@
+import core.string: Str
+
+SourceLocation :: struct {
+    file Str
+    line u32
+    column u32
+}

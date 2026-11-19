@@ -803,6 +803,16 @@ Nexus :: struct {
         p.end = end
     }
 
+    set_expansion_loc :: fn(self &Self, first u32, end u32, origin u32) {
+        file := self.get_hir_file(origin)
+        span := self.get_hir_span(origin)
+        node := first
+        while node < end {
+            self.set_node_loc(node, file, span.start, span.end)
+            node = node + 1
+        }
+    }
+
     set_hir_span :: fn(self &Self, hir_id u32, start u32, end u32) {
         idx := hir_id as u64
         while self.node_locs.len <= idx {

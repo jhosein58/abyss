@@ -286,14 +286,10 @@ synth_splice :: fn(eng &Engine, id u32) {
         fall()
     }
     tbl.set_extra(id, parsed_node)
-    macro_sp := db.get_hir_span(id)
+    db.set_expansion_loc(node_start, node_end, id)
     prepare_match_bindings(eng, node_start, node_end)
     m_idx := node_start
     while m_idx < node_end {
-        sp := db.get_hir_span(m_idx)
-        if (sp.start == 0) and (sp.end == 0) {
-            db.set_node_loc(m_idx, fid, macro_sp.start, macro_sp.end)
-        }
         synth_node(eng, m_idx)
         m_idx = m_idx + 1
     }

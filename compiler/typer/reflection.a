@@ -513,7 +513,6 @@ reflection_quote :: fn(db &Nexus, value Str) Str {
         c := *(value.ptr + i)
         if (c == '"') or (c == '\\') {
             out.push_char('\\')
-            ,
             out.push_char(c)
         } else if c == '\n' {
             out.push_str("\\n")

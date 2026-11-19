@@ -66,6 +66,7 @@ process_methods :: fn(eng &Engine, id u32, methods_id u32, sym_id u32) u32 {
                 sub_p := Parser_new(db, &tokens, tbl, fid, sym_id, 0, tok_count)
                 expanded_methods := Vec(u32).new()
                 t := Token
+                node_start := tbl.len()
                 while (not is_eof(&sub_p)) and (peek(&sub_p) != t.eof) {
                     m_name := parse_ident(&sub_p)
                     if peek(&sub_p) == t.colon_colon {
@@ -73,6 +74,7 @@ process_methods :: fn(eng &Engine, id u32, methods_id u32, sym_id u32) u32 {
                     }
                     check_separator(&sub_p, t.eof, c"expected separator")
                 }
+                db.set_expansion_loc(node_start, tbl.len(), method)
                 sub_p.env.destroy()
                 tokens.destroy()
                 e_i: u64 = 0

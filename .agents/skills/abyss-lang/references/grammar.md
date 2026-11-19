@@ -19,6 +19,7 @@ This reference details the grammar, tokenization, type system, and AST/HIR rules
 - Sequencing: `,` (separates multiple expressions/statements on a single line, e.g. `{ a := 1, a + 2 }`; completely optional whenever breaking to a new line)
 - Splice: `#` (compile-time D-style mixin splice; expands string expressions into AST; supports nested multi-level splices `##`, `###`, `####`)
 - Builtins:
+  - `@source_location()`: Returns a compile-time `SourceLocation` containing the source path and 1-based line and byte column. In generated code, the location is the enclosing splice invocation.
   - `@sizeof(T)`: Evaluates memory size of type `T` in bytes as `u64`.
   - `@typeof(x)`: Evaluates the static type of expression `x`.
   - `@is(val, Type)`: Tests if tagged union `val` currently holds variant `Type` (returns `bool`).

@@ -1,0 +1,28 @@
+top :: @source_location()
+global: SourceLocation = @source_location()
+inner :: "@source_location()"
+outer :: "#inner"
+
+Generated :: struct {
+    value i32
+    #`where :: fn() SourceLocation { @source_location() }`
+}
+
+generic :: fn(T type, value T) SourceLocation { @source_location() }
+
+main :: fn() {
+    direct := @source_location()
+    folded := cmpt @source_location()
+    nested := #outer
+    print(direct.file.ends_with("tests/74_source_location.a"))
+    printf("{}:{}\n", .{ direct.line, direct.column })
+    printf("{}:{}\n", .{ top.line, top.column })
+    printf("{}:{}\n", .{ global.line, global.column })
+    print(folded.file.eq(direct.file))
+    printf("{}:{}\n", .{ folded.line, folded.column })
+    printf("{}:{}\n", .{ nested.line, nested.column })
+    method := Generated.where()
+    printf("{}:{}\n", .{ method.line, method.column })
+    print(generic(1).line)
+    print(generic(true).line)
+}

@@ -7,7 +7,7 @@ import compiler.lexer: decode_char_lit
 import compiler.lower: eval_const
 import compiler.nexus.nexus: Nexus
 import compiler.nexus.pool: id_none
-import compiler.typer.reflection: synth_reflection_builtin
+import compiler.typer.reflection: reflection_quote, synth_reflection_builtin
 import compiler.typer.specialize: resolve_ty_id
 import compiler.typer.tyck: synth_node
 import compiler.types: TyKind, TypeStorage, ty_id_bool, ty_id_error, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_float, ty_id_untyped_int
@@ -408,6 +408,43 @@ synth_cast :: fn(eng &Engine, id u32) {
     }
 }
 
+synth_source_location :: fn(eng &Engine, id u32, slot u32) {
+    db := &eng.nexus
+    name := db.interner.intern("SourceLocation")
+    sym := db.find_symbol(db.core_prelude, name)
+    eng.ensure_resolved(sym)
+    ty := db.get_const_type(db.get_sym_hir(db.resolve_sym(sym)))
+    db.bind_type(slot, ty)
+    db.set_is_const(id, true)
+
+    if db.hir.extra(id) != hir_none() {
+        ret
+    }
+
+    path := db.get_file_path(db.get_hir_file(id))
+    pos := db.get_pos(id)
+    tbl := &db.hir
+    file := tbl.push(hir_kind.lit_str, db.interner.intern(reflection_quote(db, path)), hir_none(), hir_none())
+    line := tbl.push(hir_kind.lit_int, pos.line, hir_none(), hir_none())
+    column := tbl.push(hir_kind.lit_int, pos.col, hir_none(), hir_none())
+    synth_lit_str(eng, file)
+    u32_ty := db.types.alloc_uint(32)
+    db.bind_type(db.ensure_slot(line), u32_ty)
+    db.bind_type(db.ensure_slot(column), u32_ty)
+
+    fields: [3]u32 = .[
+        tbl.push(hir_kind.ident, db.interner.intern("file"), hir_none(), hir_none())
+        tbl.push(hir_kind.ident, db.interner.intern("line"), hir_none(), hir_none())
+        tbl.push(hir_kind.ident, db.interner.intern("column"), hir_none(), hir_none())
+    ]
+    values: [3]u32 = .[file, line, column]
+    field_list := db.add_list(Slice(u32).new(&fields[0], 3))
+    value_list := db.add_list(Slice(u32).new(&values[0], 3))
+    literal := tbl.push(hir_kind.struct_init, field_list, value_list, hir_none())
+    db.bind_type(db.ensure_slot(literal), ty)
+    db.hir.set_extra(id, literal)
+}
+
 synth_builtin_call :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
@@ -423,6 +460,11 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
     args_list_id := (tbl).rhs(id)
     args := db.get_list(args_list_id)
 
+    if name.eq("source_location") {
+        if args.len != 0 { db.type_error(id, "@source_location expects no arguments") }
+        synth_source_location(eng, id, slot)
+        ret
+    }
     if synth_reflection_builtin(eng, id, name, args) {
         ret
     }

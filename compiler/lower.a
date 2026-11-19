@@ -306,7 +306,7 @@ lower_builtin_call :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32)
         }
         ret ccg.expr_comptime_pointer(arena, reflection_value(db, id))
     }
-    if name.eq("type_name") {
+    if name.eq("type_name") or name.eq("source_location") {
         ret lower_expr(ctx, db.hir.extra(id))
     }
     if name.eq("field_type") or name.eq("element_type") or name.eq("type_from_id") {
@@ -1568,13 +1568,15 @@ lower_const_record :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32,
         kind := db.types.kind(field_type)
         bits := *((value + index * 8) as &u64)
         item := ctx.empty
-        if kind == TyKind.bool {
+        if field_type == db.str_type {
+            item = lower_global_constant(ctx, id, field_type, field_type, bits)
+        } else if kind == TyKind.bool {
             item = ccg.expr_bool(bits != 0)
         } else if kind == TyKind.int or kind == TyKind.uint or kind == TyKind.enum_ {
             add_type_to_queue(db, field_type, ctx.type_queue)
             item = ccg.expr_cast(arena, ccg.type_str(&db.types, arena, field_type), ccg.expr_u64(arena, bits))
         } else {
-            reflection_error(db, id, c"compile-time records require integer, enum or boolean fields")
+            reflection_error(db, id, c"compile-time records require string, integer, enum or boolean fields")
         }
         ctx.builder.append_list_item(&items, ccg.expr_struct_init_field(arena, field, item), index == 0)
         index = index + 1
@@ -1718,6 +1720,12 @@ global_init_source :: fn(db &Nexus, id u32) u32 {
         }
         splice {
             ret global_init_source(db, tbl.extra(id))
+        }
+        builtin_call {
+            if db.interner.get(tbl.lhs(id)).eq("source_location") {
+                ret tbl.extra(id)
+            }
+            ret id
         }
         else { ret id }
     }

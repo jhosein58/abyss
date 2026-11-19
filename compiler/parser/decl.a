@@ -492,13 +492,13 @@ parse_struct :: fn(p &Parser) u32 {
             }
             if peek(p) == t.hash {
                 ensure_type_node(p, &struct_node, k.struct_, struct_toplv)
+                sp_start := curr_span(p)
                 bump(p)
                 has_paren := false
                 if peek(p) == t.o_paren {
                     has_paren = true
                     bump(p)
                 }
-                sp_start := curr_span(p)
                 expr := parse_expr(p, if has_paren {
                     0 as u8
                 } else {
@@ -690,13 +690,13 @@ parse_enum :: fn(p &Parser) u32 {
         }
         if peek(p) == t.hash {
             ensure_type_node(p, &enum_node, k.enum_, enum_toplv)
+            sp_start := curr_span(p)
             bump(p)
             has_paren := false
             if peek(p) == t.o_paren {
                 has_paren = true
                 bump(p)
             }
-            sp_start := curr_span(p)
             expr := parse_expr(p, if has_paren {
                 0 as u8
             } else {
