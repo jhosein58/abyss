@@ -284,6 +284,46 @@ EOF
             (cd "${DIST_DIR}" && sha256sum abyss-windows-x86_64.zip > abyss-windows-x86_64.zip.sha256 2>/dev/null || true)
         fi
 
+        echo "Packaging multi-platform C bootstrap bundle..."
+        "${COMPILER_BIN}" b --target darwin --arch x86_64 "${ROOT_DIR}/compiler/main.a" "${DIST_DIR}/darwin_bootstrap.c"
+        BOOTSTRAP_BUNDLE="${ROOT_DIR}/tmp/abyss-bootstrap-c"
+        rm -rf "${BOOTSTRAP_BUNDLE}"
+        mkdir -p "${BOOTSTRAP_BUNDLE}"
+        cp "${DIST_DIR}/bootstrap.c" "${BOOTSTRAP_BUNDLE}/bootstrap-linux-x86_64.c"
+        if [ -f "${DIST_DIR}/windows_bootstrap.c" ]; then
+            cp "${DIST_DIR}/windows_bootstrap.c" "${BOOTSTRAP_BUNDLE}/bootstrap-windows-x86_64.c"
+        else
+            "${COMPILER_BIN}" b --target windows --arch x86_64 "${ROOT_DIR}/compiler/main.a" "${BOOTSTRAP_BUNDLE}/bootstrap-windows-x86_64.c"
+        fi
+        cp "${DIST_DIR}/darwin_bootstrap.c" "${BOOTSTRAP_BUNDLE}/bootstrap-darwin-x86_64.c"
+        if [ -f "${DIST_DIR}/abyssc-wasi.c" ]; then
+            cp "${DIST_DIR}/abyssc-wasi.c" "${BOOTSTRAP_BUNDLE}/bootstrap-wasi.c"
+        else
+            "${COMPILER_BIN}" b --target wasi "${ROOT_DIR}/compiler/main.a" "${BOOTSTRAP_BUNDLE}/bootstrap-wasi.c"
+        fi
+        cat << 'EOF' > "${BOOTSTRAP_BUNDLE}/README.md"
+# Abyss C Bootstrap Sources
+
+Standalone ISO C99 source files to bootstrap the Abyss compiler (`abyssc`) on any platform without an existing binary.
+
+## Compiling
+
+- **Linux (x86_64):**
+  `gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer bootstrap-linux-x86_64.c -o abyssc`
+
+- **macOS (Darwin x86_64 / arm64):**
+  `clang -std=c99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer bootstrap-darwin-x86_64.c -o abyssc`
+
+- **Windows (x86_64):**
+  `gcc -std=gnu99 -O3 -fomit-frame-pointer bootstrap-windows-x86_64.c -o abyssc.exe`
+
+- **WebAssembly (WASI):**
+  `clang --target=wasm32-wasi -ffreestanding -nostdlib -O3 bootstrap-wasi.c -o abyssc.wasm`
+EOF
+        tar -czf "${DIST_DIR}/abyss-bootstrap-c.tar.gz" -C "${ROOT_DIR}/tmp" "abyss-bootstrap-c"
+        rm -rf "${BOOTSTRAP_BUNDLE}"
+        (cd "${DIST_DIR}" && sha256sum abyss-bootstrap-c.tar.gz > abyss-bootstrap-c.tar.gz.sha256 2>/dev/null || true)
+
         echo "Release artifacts generated in ${DIST_DIR}:"
         ls -lh "${DIST_DIR}"
         ;;

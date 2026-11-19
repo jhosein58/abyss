@@ -121,40 +121,16 @@ Directory :: struct {
     }
 }
 
-CachedEnv :: extern struct {
-    name_ptr &u8
-    name_len u64
-    value &u8
-    next &CachedEnv
-}
-
-win_cached_env: &CachedEnv
-
 environment :: fn(key &u8) &u8 {
     if key == (0 as &u8) { ret 0 as &u8 }
-    name := Str.of(key)
-    head := win_cached_env
-    entry := head
-    while entry != (0 as &CachedEnv) {
-        if Str.new(entry.name_ptr, entry.name_len).eq(name) { ret entry.value }
-        entry = entry.next
-    }
     size := GetEnvironmentVariableA(key, 0 as &u8, 0)
     if size == 0 { ret 0 as &u8 }
-    block := malloc(@sizeof(CachedEnv) + name.len + (size as u64)) as &CachedEnv
-    if block == (0 as &CachedEnv) { ret 0 as &u8 }
-    name_copy := (block as &u8) + @sizeof(CachedEnv)
-    value := name_copy + name.len
-    for index in Range.new(0, name.len as i32) { name_copy[index] = name.ptr[index] }
-    count := GetEnvironmentVariableA(key, value, size)
-    if count >= size { free(block as &u8), ret 0 as &u8 }
-    value[count] = 0
-    block.name_ptr = name_copy
-    block.name_len = name.len
-    block.value = value
-    block.next = head
-    win_cached_env = block
-    value
+    buf := malloc((size as u64) + 1)
+    if buf == (0 as &u8) { ret 0 as &u8 }
+    count := GetEnvironmentVariableA(key, buf, size + 1)
+    if count == 0 or count > size { free(buf), ret 0 as &u8 }
+    buf[count] = 0
+    buf
 }
 
 host_call :: fn(name Str, args &u64) Maybe(u64) {
