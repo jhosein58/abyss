@@ -1,0 +1,19 @@
+GetModuleHandleA :: extern fn(name &u8) &u8
+LoadLibraryA :: extern fn(name &u8) &u8
+GetProcAddress :: extern fn(module, name &u8) &u8
+
+load_symbol :: fn(handle, name &u8) &u8 { GetProcAddress(handle, name) }
+
+find_symbol :: fn(name &u8) &u8 {
+    symbol := GetProcAddress(GetModuleHandleA(0 as &u8), name)
+    if symbol != (0 as &u8) { ret symbol }
+    crt := GetModuleHandleA(c"msvcrt.dll")
+    if crt == (0 as &u8) { ret 0 as &u8 }
+    GetProcAddress(crt, name)
+}
+
+load_libffi :: fn() &u8 {
+    handle := LoadLibraryA(c"libffi-8.dll")
+    if handle != (0 as &u8) { ret handle }
+    LoadLibraryA(c"libffi.dll")
+}

@@ -1,0 +1,11 @@
+dlopen :: extern fn(path &u8, mode i32) &u8
+dlsym :: extern fn(handle, name &u8) &u8
+
+load_symbol :: fn(handle, name &u8) &u8 { dlsym(handle, name) }
+find_symbol :: fn(name &u8) &u8 { dlsym(-2 as &u8, name) }
+
+load_libffi :: fn() &u8 {
+    handle := dlopen(c"libffi.dylib", 6)
+    if handle != (0 as &u8) { ret handle }
+    dlopen(c"/usr/lib/libffi.dylib", 6)
+}

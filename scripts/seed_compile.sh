@@ -2,40 +2,30 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPILER="$1"
-OUTPUT="$2"
-BUILD_DIR="$(dirname "${OUTPUT}")"
+COMPILER="$(realpath "$1")"
+mkdir -p "$(dirname "$2")"
+OUTPUT="$(realpath "$2")"
+cd "${ROOT_DIR}"
+export ABYSS_DEV="${ROOT_DIR}"
 
-if "${COMPILER}" --version 2>/dev/null | grep -qx 'abyssc target-aware'; then
-    exec "${COMPILER}" "${ROOT_DIR}/compiler/main.a" "${OUTPUT}"
+if ! "${COMPILER}" --version 2>/dev/null | grep -qx 'abyssc target-aware'; then
+    BRIDGE_REV=ec958cf93edcd0c877177f52286ee8cdace6f1d8
+    BRIDGE_DIR=$(mktemp -d "$(dirname "${OUTPUT}")/seed-bridge.XXXXXX")
+    trap 'rm -rf "${BRIDGE_DIR}"' EXIT
+    if ! git archive "${BRIDGE_REV}" compiler pods scripts/seed_compile.sh | tar -x -C "${BRIDGE_DIR}"; then
+        printf 'This seed predates target support. Use a target-aware compiler or a checkout containing %s.\n' "${BRIDGE_REV}" >&2
+        exit 1
+    fi
+    (
+        cd "${BRIDGE_DIR}"
+        bash scripts/seed_compile.sh "${COMPILER}" "${BRIDGE_DIR}/bootstrap.c"
+    )
+    if command -v tcc >/dev/null 2>&1; then
+        tcc -std=c99 -D_POSIX_C_SOURCE=200809L "${BRIDGE_DIR}/bootstrap.c" -o "${BRIDGE_DIR}/abyssc"
+    else
+        "${CC:-cc}" -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 "${BRIDGE_DIR}/bootstrap.c" -o "${BRIDGE_DIR}/abyssc"
+    fi
+    COMPILER="${BRIDGE_DIR}/abyssc"
 fi
 
-case "$(uname -s)" in
-    Linux) ABI=linux ;;
-    Darwin) ABI=darwin ;;
-    *) printf 'The legacy seed requires a Linux or Darwin host.\n' >&2; exit 1 ;;
-esac
-
-SDK="${BUILD_DIR}/seed-sdk"
-mkdir -p "${SDK}/pods/std/sys"
-ln -s "${ROOT_DIR}/pods/std/sys/sys.${ABI}.a" "${SDK}/pods/std/sys/sys.a"
-ln -s "${ROOT_DIR}/pods/std/sys/abi.${ABI}.a" "${SDK}/pods/std/sys/abi.a"
-
-source_literal() {
-    awk -v declaration="$2 :: fn() Str {" '
-        $0 == declaration { getline; sub(/^[[:blank:]]*`/, ""); print; body = 1; next }
-        body && /^`$/ { exit }
-        body { print }
-    ' "$1"
-}
-
-SEED_HEADER="${SDK}/seed.h"
-{
-    printf '%s\n' '#define _GNU_SOURCE' '#include <stdint.h>' '#include <stdbool.h>' '#include <stddef.h>' '#include <stdio.h>' '#include <stdlib.h>' '#include <string.h>' '#ifdef __TINYC__' '#define __int128 long long' 'typedef uint16_t _Float16;' '#endif'
-    printf '%s\n' '#define abyss_process_argc abyss_argc' '#define abyss_process_argv abyss_argv'
-    source_literal "${ROOT_DIR}/compiler/platform_c.a" process_source
-    source_literal "${ROOT_DIR}/compiler/vm/native.a" vm_ffi_source
-} > "${SEED_HEADER}"
-
-cd "${ROOT_DIR}"
-ABYSS_DEV="${SDK}" ABYSS_PRELUDE="${SEED_HEADER}" "${COMPILER}" "${ROOT_DIR}/compiler/main.a" "${OUTPUT}"
+"${COMPILER}" "${ROOT_DIR}/compiler/main.a" "${OUTPUT}"

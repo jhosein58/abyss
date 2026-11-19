@@ -1,0 +1,14 @@
+dlopen :: extern fn(path &u8, mode i32) &u8
+dlsym :: extern fn(handle, name &u8) &u8
+
+load_symbol :: fn(handle, name &u8) &u8 { dlsym(handle, name) }
+find_symbol :: fn(name &u8) &u8 { dlsym(0 as &u8, name) }
+
+load_libffi :: fn() &u8 {
+    names := .[c"libffi.so.8", c"libffi.so.7", c"libffi.so.6", c"libffi.so"]
+    for index in Range.new(0, 4) {
+        handle := dlopen(names[index], 2)
+        if handle != (0 as &u8) { ret handle }
+    }
+    0 as &u8
+}

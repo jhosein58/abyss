@@ -39,7 +39,7 @@ prepare_compiler() {
 
     SEED_COMPILER="${ROOT_DIR}/abyssc"
     COMPILER_BIN="${ROOT_DIR}/tmp/abyssc-current"
-    if [ ! -x "${COMPILER_BIN}" ] || [ "${SEED_COMPILER}" -nt "${COMPILER_BIN}" ] || [ -n "$(find "${ROOT_DIR}/compiler" "${ROOT_DIR}/pods" -type f -newer "${COMPILER_BIN}" 2>/dev/null)" ]; then
+    if [ ! -x "${COMPILER_BIN}" ] || [ "${SEED_COMPILER}" -nt "${COMPILER_BIN}" ] || [ -n "$(find "${ROOT_DIR}/compiler" "${ROOT_DIR}/pods" -type f -not -path '*/.vendor/*' -newer "${COMPILER_BIN}" 2>/dev/null)" ]; then
         BUILD_DIR=$(mktemp -d "${ROOT_DIR}/tmp/embed_build.XXXXXX")
         if ! bash "${ROOT_DIR}/scripts/seed_compile.sh" "${SEED_COMPILER}" "${BUILD_DIR}/stage1.c" >"${BUILD_DIR}/stage1_compile.log" 2>&1; then
             echo "[ERROR] Stage 1 failed: Current seed compiler failed to compile compiler sources!" >&2
@@ -258,7 +258,7 @@ EOF
         cp "${DIST_DIR}/sonar-linux-x86_64" "${LINUX_BUNDLE}/bin/sonar"
         cp "${DIST_DIR}/abyssfmt-linux-x86_64" "${LINUX_BUNDLE}/bin/abyssfmt"
         ln -sf abyssfmt "${LINUX_BUNDLE}/bin/abyss-fmt"
-        cp -r "${ROOT_DIR}/pods" "${LINUX_BUNDLE}/pods"
+        tar --exclude=.vendor -C "${ROOT_DIR}" -cf - pods | tar -xf - -C "${LINUX_BUNDLE}"
         cp "${ROOT_DIR}/README.md" "${LINUX_BUNDLE}/" 2>/dev/null || true
         cp "${ROOT_DIR}/LICENSE" "${LINUX_BUNDLE}/" 2>/dev/null || true
         tar -czf "${DIST_DIR}/abyss-linux-x86_64.tar.gz" -C "${ROOT_DIR}/tmp" "abyss"
@@ -272,7 +272,7 @@ EOF
             cp "${DIST_DIR}/sonar-windows-x86_64.exe" "${WIN_BUNDLE}/bin/sonar.exe"
             cp "${DIST_DIR}/abyssfmt-windows-x86_64.exe" "${WIN_BUNDLE}/bin/abyssfmt.exe"
             cp "${DIST_DIR}/abyssfmt-windows-x86_64.exe" "${WIN_BUNDLE}/bin/abyss-fmt.exe"
-            cp -r "${ROOT_DIR}/pods" "${WIN_BUNDLE}/pods"
+            tar --exclude=.vendor -C "${ROOT_DIR}" -cf - pods | tar -xf - -C "${WIN_BUNDLE}"
             cp "${ROOT_DIR}/README.md" "${WIN_BUNDLE}/" 2>/dev/null || true
             cp "${ROOT_DIR}/LICENSE" "${WIN_BUNDLE}/" 2>/dev/null || true
             (cd "${ROOT_DIR}/tmp" && zip -rq "${DIST_DIR}/abyss-windows-x86_64.zip" "abyss")
@@ -286,6 +286,7 @@ EOF
 
         echo "Packaging multi-platform C bootstrap bundle..."
         "${COMPILER_BIN}" b --target darwin --arch x86_64 "${ROOT_DIR}/compiler/main.a" "${DIST_DIR}/darwin_bootstrap.c"
+        "${COMPILER_BIN}" b --target darwin --arch aarch64 "${ROOT_DIR}/compiler/main.a" "${DIST_DIR}/darwin_arm_bootstrap.c"
         BOOTSTRAP_BUNDLE="${ROOT_DIR}/tmp/abyss-bootstrap-c"
         rm -rf "${BOOTSTRAP_BUNDLE}"
         mkdir -p "${BOOTSTRAP_BUNDLE}"
@@ -296,6 +297,7 @@ EOF
             "${COMPILER_BIN}" b --target windows --arch x86_64 "${ROOT_DIR}/compiler/main.a" "${BOOTSTRAP_BUNDLE}/bootstrap-windows-x86_64.c"
         fi
         cp "${DIST_DIR}/darwin_bootstrap.c" "${BOOTSTRAP_BUNDLE}/bootstrap-darwin-x86_64.c"
+        cp "${DIST_DIR}/darwin_arm_bootstrap.c" "${BOOTSTRAP_BUNDLE}/bootstrap-darwin-aarch64.c"
         if [ -f "${DIST_DIR}/abyssc-wasi.c" ]; then
             cp "${DIST_DIR}/abyssc-wasi.c" "${BOOTSTRAP_BUNDLE}/bootstrap-wasi.c"
         else
@@ -312,13 +314,13 @@ Standalone ISO C99 source files to bootstrap the Abyss compiler (`abyssc`) on an
   `gcc -std=gnu99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer bootstrap-linux-x86_64.c -o abyssc`
 
 - **macOS (Darwin x86_64 / arm64):**
-  `clang -std=c99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer bootstrap-darwin-x86_64.c -o abyssc`
+  `clang -std=c99 -D_POSIX_C_SOURCE=200809L -O3 -fomit-frame-pointer "bootstrap-darwin-$(uname -m | sed s/arm64/aarch64/).c" -o abyssc`
 
 - **Windows (x86_64):**
   `gcc -std=gnu99 -O3 -fomit-frame-pointer bootstrap-windows-x86_64.c -o abyssc.exe`
 
 - **WebAssembly (WASI):**
-  `clang --target=wasm32-wasi -ffreestanding -nostdlib -O3 bootstrap-wasi.c -o abyssc.wasm`
+  `clang --target=wasm32-wasi -ffreestanding -nostdlib -O3 -Wl,-z,stack-size=2097152 bootstrap-wasi.c -o abyssc.wasm`
 EOF
         tar -czf "${DIST_DIR}/abyss-bootstrap-c.tar.gz" -C "${ROOT_DIR}/tmp" "abyss-bootstrap-c"
         rm -rf "${BOOTSTRAP_BUNDLE}"

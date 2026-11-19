@@ -1,0 +1,20 @@
+process_argc: i32 = 0
+process_argv: &&u8 = 0 as &&u8
+
+abyss_process_set_args :: extern fn(argc i32, argv &&u8) {
+    process_argc = argc
+    process_argv = argv
+}
+
+abyss_process_arg_count :: extern fn() i32 {
+    process_argc
+}
+
+abyss_process_arg :: extern fn(index i32) &u8 {
+    if index < 0 or index >= process_argc { ret 0 as &u8 }
+    process_argv[index]
+}
+
+abyss_process_args :: extern fn() &&u8 {
+    process_argv
+}

@@ -1,4 +1,5 @@
 import .chunk: Chunk
+import .native: VmCallback, ffi_alloc, ffi_call, ffi_callback, ffi_destroy, ffi_symbol_address
 import .host: HostDirSlot, dispatch_host_call
 import .op:    OpCode
 import .codegen: vm_data_base, vm_data_size, vm_entry_tag, vm_extern_tag, vm_is_aggregate, vm_is_indirect
@@ -8,14 +9,6 @@ import compiler.types: TyKind, TypeStorage
 import std.env: Env
 import std.mem: free, malloc, mem_copy, realloc
 import std.sys: fall, host_call
-
-VmCallback :: fn(&&u8, &u8, u32, &u64, u32) u64
-
-abyss_ffi_call :: extern fn(scope &&u8, invoke VmCallback, chunk &u8, name &u8, address u64, signature &u32, args &u64) u64
-abyss_ffi_callback :: extern fn(scope &&u8, invoke VmCallback, chunk &u8, entry u32, signature &u32) u64
-abyss_ffi_alloc :: extern fn(scope &&u8, size u64) &u8
-abyss_ffi_destroy :: extern fn(scope &u8)
-abyss_ffi_symbol_address :: extern fn(name &u8) u64
 
 invoke_vm_callback :: fn(scope &&u8, chunk &u8, entry u32, argv &u64, argc u32) u64 {
     vm := Vm.new()
@@ -57,7 +50,7 @@ copy_vm_data :: fn(scope &&u8, types &TypeStorage, ty u32, dest, src &u8) &u8 {
     size := vm_data_size(types, base)
     fresh := dest == (0 as &u8)
     target := if fresh {
-        abyss_ffi_alloc(scope, if size == 0 { 1 } else { size })
+        ffi_alloc(scope, if size == 0 { 1 } else { size })
     } else {
         dest
     }
@@ -125,7 +118,7 @@ Vm :: struct {
             i = i + 1
         }
         self.dirs.destroy()
-        abyss_ffi_destroy(self.ffi_scope)
+        ffi_destroy(self.ffi_scope)
     }
 
     ensure_local_slot :: fn(self &Self, idx u32) {
@@ -185,7 +178,7 @@ Vm :: struct {
         value := if result.is_some() {
             result.unwrap()
         } else {
-            abyss_ffi_call(self.scope(), invoke, prog as &u8, name, address, signature, args)
+            ffi_call(self.scope(), invoke, prog as &u8, name, address, signature, args)
         }
         self.stack.reset(start)
         self.stack.push(value)
@@ -530,7 +523,7 @@ Vm :: struct {
                 ffi_symbol {
                     foreign := prog.externs.get(prog.read_u16(ip) as u64)
                     ip = ip + 2
-                    self.stack.push(abyss_ffi_symbol_address(foreign.name))
+                    self.stack.push(ffi_symbol_address(foreign.name))
                 }
                 ffi_callback {
                     sig := prog.const.get(prog.read_u16(ip) as u64) as &u32
@@ -538,7 +531,7 @@ Vm :: struct {
                     value := self.stack.pop()
                     if (value & vm_entry_tag()) != 0 {
                         invoke: VmCallback = invoke_vm_callback
-                        value = abyss_ffi_callback(self.scope(), invoke, prog as &u8, value as u32, sig)
+                        value = ffi_callback(self.scope(), invoke, prog as &u8, value as u32, sig)
                     }
                     self.stack.push(value)
                 }
@@ -556,7 +549,7 @@ Vm :: struct {
                 }
                 alloc_ffi {
                     size := self.stack.pop()
-                    self.stack.push(abyss_ffi_alloc(self.scope(), size) as u64)
+                    self.stack.push(ffi_alloc(self.scope(), size) as u64)
                 }
                 copy_ffi {
                     size := prog.const.get(prog.read_u16(ip) as u64)

@@ -1,0 +1,119 @@
+import std.mem: mem_copy, mem_set
+
+memory_size :: extern "__builtin_wasm_memory_size" fn(u32) u32
+memory_grow :: extern "__builtin_wasm_memory_grow" fn(u32, u32) u32
+
+memcpy :: extern fn(dest, source &u8, size u32) &u8 {
+    mem_copy(dest, source, size as u64)
+    dest
+}
+
+memset :: extern fn(dest &u8, value i32, size u32) &u8 {
+    mem_set(dest, value as u8, size as u64)
+    dest
+}
+
+memmove :: extern fn(dest, source &u8, size u32) &u8 {
+    if (dest as u32) <= (source as u32) {
+        ret memcpy(dest, source, size)
+    }
+    remaining := size
+    while remaining != 0 {
+        remaining = remaining - 1
+        dest[remaining] = source[remaining]
+    }
+    dest
+}
+
+HeapBlock :: struct {
+    size u32
+    next &HeapBlock
+}
+
+ALIGNMENT :: 16
+HEADER :: 16
+PAGE_BITS :: 16
+MAX_ADDRESS :: 0xffffffff as u32
+
+heap_free: &HeapBlock = 0 as &HeapBlock
+heap_end: u32 = 0
+
+block_payload :: fn(block &HeapBlock) &u8 {
+    (block as &u8) + HEADER
+}
+
+block_end :: fn(block &HeapBlock) u32 {
+    (block as u32) + HEADER + block.size
+}
+
+malloc :: extern fn(request u32) &u8 {
+    if request > MAX_ADDRESS - (HEADER + ALIGNMENT - 1) { ret 0 as &u8 }
+    size := if request == 0 { ALIGNMENT as u32 } else { (request + ALIGNMENT - 1) & ~(ALIGNMENT - 1) }
+    link := &heap_free
+    block := *link
+    while block != (0 as &HeapBlock) and block.size < size {
+        link = &block.next
+        block = *link
+    }
+    if block != (0 as &HeapBlock) {
+        if block.size - size >= HEADER + ALIGNMENT {
+            rest := (block_payload(block) + size) as &HeapBlock
+            rest.size = block.size - size - HEADER
+            rest.next = block.next
+            *link = rest
+            block.size = size
+        } else {
+            *link = block.next
+        }
+    } else {
+        present := memory_size(0)
+        start := if heap_end == 0 { (present as u64) << PAGE_BITS } else { heap_end as u64 }
+        end := start + (HEADER as u64) + (size as u64)
+        if end > (MAX_ADDRESS as u64) { ret 0 as &u8 }
+        pages := (((end - 1) >> PAGE_BITS) + 1) as u32
+        if pages > present and memory_grow(0, pages - present) == MAX_ADDRESS { ret 0 as &u8 }
+        block = start as &HeapBlock
+        block.size = size
+        heap_end = end as u32
+    }
+    block_payload(block)
+}
+
+free :: extern fn(ptr &u8) {
+    if ptr == (0 as &u8) { ret }
+    block := (ptr - HEADER) as &HeapBlock
+    previous := 0 as &HeapBlock
+    link := &heap_free
+    next := *link
+    while next != (0 as &HeapBlock) and (next as u32) < (block as u32) {
+        previous = next
+        link = &next.next
+        next = *link
+    }
+    block.next = next
+    *link = block
+    if next != (0 as &HeapBlock) and block_end(block) == (next as u32) {
+        block.size = block.size + HEADER + next.size
+        block.next = next.next
+    }
+    if previous != (0 as &HeapBlock) and block_end(previous) == (block as u32) {
+        previous.size = previous.size + HEADER + block.size
+        previous.next = block.next
+    }
+}
+
+realloc :: extern fn(ptr &u8, size u32) &u8 {
+    if ptr == (0 as &u8) { ret malloc(size) }
+    if size == 0 {
+        free(ptr)
+        ret 0 as &u8
+    }
+    block := (ptr - HEADER) as &HeapBlock
+    if size <= block.size { ret ptr }
+    next := malloc(size)
+    if next != (0 as &u8) {
+        memcpy(next, ptr, block.size)
+        free(ptr)
+    }
+    next
+}

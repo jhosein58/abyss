@@ -1,0 +1,28 @@
+import .process: abyss_process_set_args
+import std.mem: free, malloc
+import std.sys: exit_process
+
+args_sizes_get :: extern "wasi_snapshot_preview1" "args_sizes_get" fn(count, bytes &u32) u32
+args_get :: extern "wasi_snapshot_preview1" "args_get" fn(entries &&u8, buffer &u8) u32
+abyss_main :: extern fn() i32
+
+_start :: extern fn() {
+    count: u32 = 0
+    bytes: u32 = 0
+    if args_sizes_get(&count, &bytes) != 0 {
+        exit_process(1)
+        ret
+    }
+    argv := malloc(((count as u64) + 1) * @sizeof(&u8)) as &&u8
+    buffer := malloc(bytes as u64)
+    if argv == (0 as &&u8) or buffer == (0 as &u8) or args_get(argv, buffer) != 0 {
+        exit_process(1)
+        ret
+    }
+    argv[count] = 0 as &u8
+    abyss_process_set_args(count as i32, argv)
+    status := abyss_main()
+    free(buffer)
+    free(argv as &u8)
+    if status != 0 { exit_process(status) }
+}

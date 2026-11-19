@@ -33,7 +33,7 @@ grep -q '"fallback"' "${WORK_DIR}/darwin.c"
 grep -q '"wasi"' "${WORK_DIR}/wasi.c"
 grep -q 'import_module("wasi_snapshot_preview1")' "${WORK_DIR}/wasi.c"
 grep -q '^void _start(' "${WORK_DIR}/wasi.c"
-grep -q '^int main(int argc, char \*\*argv) { return (int)abyss_main(argc, (uint8_t \*\*)argv); }$' "${WORK_DIR}/linux.c"
+grep -q '^int main(int argc, char \*\*argv) { abyss_process_set_args(argc, (uint8_t \*\*)argv);' "${WORK_DIR}/linux.c"
 if grep -q '^int main(' "${WORK_DIR}/wasi.c"; then exit 1; fi
 
 "${CC:-gcc}" -std=gnu99 -O0 "${WORK_DIR}/linux.c" -o "${WORK_DIR}/linux"

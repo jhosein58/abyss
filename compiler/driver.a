@@ -150,8 +150,10 @@ Driver :: struct {
             eng.nexus.map_values.push(self.config.map_values.get(j))
             j = j + 1
         }
-        fid := eng.add_file(self.arena, Str.of(self.config.src_path), source)
         executable := not self.config.is_library and self.config.target_os != Os.freestanding
+        eng.nexus.native_executable = executable and not self.config.is_vm_run
+        eng.nexus.native_wasi = self.config.target_os == Os.wasi and not self.config.is_vm_run
+        fid := eng.add_file(self.arena, Str.of(self.config.src_path), source)
         sym_id := eng.build_entry(fid, executable)
 
         if self.config.is_vm_run {
