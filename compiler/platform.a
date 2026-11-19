@@ -1,7 +1,8 @@
-import core.target: Arch, Os, target
+import core.target: Arch, Os
+import core.target_values: target_os as core_target_os, target_arch as core_target_arch
 
-host_os :: fn() Os { target.os }
-host_arch :: fn() Arch { target.arch }
+host_os :: fn() Os { core_target_os }
+host_arch :: fn() Arch { core_target_arch }
 
 os_name :: fn(os Os) Str {
     match os {

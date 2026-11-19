@@ -50,9 +50,8 @@ Every formal release publishes a deterministic, curated set of artifacts:
 | `abyssc.wasm` | WebAssembly (WASI) | Standalone WebAssembly compiler with pure compile-time embedded standard library; zero external file dependencies. |
 | `abyss-bootstrap-c.tar.gz` | Multi-Platform | Standalone ISO C99 bootstrap sources for Linux, macOS (Darwin), Windows, and WebAssembly with build documentation. |
 | `abyss-bootstrap-c.tar.gz.sha256` | Multi-Platform | SHA-256 checksum for the bootstrap bundle. |
-| `bootstrap.c` | Linux (x86_64) | Single-file C99 bootstrap source for Linux hosts. |
 
-*Note: Ephemeral, redundant, or virtual filesystem bundles (such as `vfs_bundle.json`) are permanently excluded.*
+*Note: Ephemeral, redundant, or virtual filesystem bundles (such as `vfs_bundle.json`) and individual OS bootstrap files (subsumed by `abyss-bootstrap-c.tar.gz`) are permanently excluded.*
 
 ---
 
@@ -98,7 +97,6 @@ Every formal release publishes a deterministic, curated set of artifacts:
 | `abyss-windows-x86_64.zip` | `<SIZE>` | Complete Windows x86_64 toolchain and standard library pods |
 | `abyssc.wasm` | `<SIZE>` | Self-contained WebAssembly compiler with embedded stdlib |
 | `abyss-bootstrap-c.tar.gz` | `<SIZE>` | Standalone C99 bootstrap sources for Linux, macOS, Windows, WASI |
-| `bootstrap.c` | `<SIZE>` | Single-file Linux C99 bootstrap compiler source |
 
 ## Installation & Quickstart
 
