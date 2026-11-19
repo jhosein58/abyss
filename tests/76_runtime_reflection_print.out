@@ -1,0 +1,11 @@
+TypeInfo { name: "i32", bits: 32 }
+i32
+TypeInfo { name: "[3]u16", length: 3, element: u16 }
+Node
+node: TypeInfo { name: "Node", fields: { next: &Node, weight: i32 } }
+TypeInfo { name: "Status", element: u8, fields: { ready: 0, waiting: 1 } }
+TypeInfo { name: "fn(i32, bool) Node", params: [i32, bool], result: Node }
+TypeInfo { name: "bool | i32", members: [bool, i32] }
+null
+<TypeInfo { name: "Node", fields: { next: &Node, weight: i32 } }>
+TypeInfo { name: "Node", fields: { next: &Node, weight: i32 } }

@@ -335,10 +335,9 @@ lower_builtin_call :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32)
         ret ccg.intrinsic_memcpy(arena, ctx.builder.finish_list(&values))
     }
     if name.eq("type_info") {
-        if db.comptime_depth == 0 {
-            reflection_error(db, id, c"@type_info is compile-time only; use cmpt or a macro")
-        }
-        ret ccg.expr_comptime_pointer(arena, reflection_value(db, id))
+        ty := db.get_node_type(id)
+        add_type_to_queue(db, ty, ctx.type_queue)
+        ret ccg.expr_reflection(arena, db, db.types.payload(ty), reflection_value(db, id))
     }
     if name.eq("type_name") or name.eq("source_location") {
         ret lower_expr(ctx, db.hir.extra(id))
@@ -1665,14 +1664,15 @@ lower_for :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
         if structural_flags.get(i) != 0 {
             next_name := value_names.get(i)
             value = ccg.expr_field_value(arena, next_name, value_id)
-        } else if iterator_is_ref(db, iter_ty) {
-            ptr := ccg.expr_field_value(arena, iter_name, ptr_id)
-            index := ccg.expr_field_value(arena, iter_name, index_id)
-            value = ccg.expr_add(arena, ptr, index)
         } else {
             ptr := ccg.expr_field_value(arena, iter_name, ptr_id)
             index := ccg.expr_field_value(arena, iter_name, index_id)
-            value = ccg.expr_deref(arena, ccg.expr_add(arena, ptr, index))
+            if iterator_is_ref(db, iter_ty) {
+                value = ccg.expr_add(arena, ptr, index)
+            } else {
+                items := db.types.get_nominal_creator_args(db.types.nominal_origin(iter_ty))
+                value = ccg.expr_ptr_index(arena, ptr, index, items.ptr[0])
+            }
         }
         ccg.create_variable(var_name, var_ty_str, value, true)
         if structural_flags.get(i) == 0 {

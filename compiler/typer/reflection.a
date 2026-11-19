@@ -375,7 +375,7 @@ reflection_build :: fn(db &Nexus, ty u32, info_ty u32, field_ty u32, seen &Vec(u
     }
     if fields.len > 0 {
         count := fields.len / 2
-        items := db.comptime_arena.alloc(count * 8) as &u64
+        items := db.comptime_arena.alloc(count * @sizeof(&u8)) as &&u8
         i = 0
         while i < count {
             field_name := fields.get(i * 2)
@@ -384,7 +384,7 @@ reflection_build :: fn(db &Nexus, ty u32, info_ty u32, field_ty u32, seen &Vec(u
             reflection_set(db, field, field_ty, "name", reflection_string(db, db.interner.get(field_name)))
             child := reflection_build(db, field_type, info_ty, field_ty, seen, pointers)
             reflection_set(db, field, field_ty, "type_info", child)
-            *(items + i) = field as u64
+            items[i] = field
             i = i + 1
         }
         reflection_set(db, ptr, info_ty, "fields", items as u64)
@@ -406,7 +406,7 @@ reflection_build :: fn(db &Nexus, ty u32, info_ty u32, field_ty u32, seen &Vec(u
     if kind == TyKind.enum_ {
         variants := db.types.enum_variants(ty)
         count := variants.len / 2
-        items := db.comptime_arena.alloc(count * 8) as &u64
+        items := db.comptime_arena.alloc(count * @sizeof(&u8)) as &&u8
         i = 0
         while i < count {
             field := reflection_alloc(db, field_ty)
@@ -414,7 +414,7 @@ reflection_build :: fn(db &Nexus, ty u32, info_ty u32, field_ty u32, seen &Vec(u
             reflection_set(db, field, field_ty, "value", *(variants.ptr + i * 2 + 1) as u64)
             backing := reflection_build(db, db.types.enum_backing(ty), info_ty, field_ty, seen, pointers)
             reflection_set(db, field, field_ty, "type_info", backing)
-            *(items + i) = field as u64
+            items[i] = field
             i = i + 1
         }
         reflection_set(db, ptr, info_ty, "fields", items as u64)
@@ -434,18 +434,21 @@ reflection_build :: fn(db &Nexus, ty u32, info_ty u32, field_ty u32, seen &Vec(u
                 reflection_set(db, ptr, info_ty, "is_extern", 1)
             }
         }
-        items := db.comptime_arena.alloc(children.len * 8) as &u64
-        i = 0
-        while i < children.len {
-            *(items + i) = reflection_build(db, children.get(i), info_ty, field_ty, seen, pointers)
-            i = i + 1
-        }
-        if kind == TyKind.union_ {
-            reflection_set(db, ptr, info_ty, "members", items as u64)
-            reflection_set(db, ptr, info_ty, "member_count", children.len)
-        } else {
-            reflection_set(db, ptr, info_ty, "params", items as u64)
-            reflection_set(db, ptr, info_ty, "param_count", children.len)
+        if children.len > 0 {
+            items := db.comptime_arena.alloc(children.len * @sizeof(&u8)) as &&u8
+            i = 0
+            while i < children.len {
+                child := reflection_build(db, children.get(i), info_ty, field_ty, seen, pointers)
+                items[i] = child as &u8
+                i = i + 1
+            }
+            if kind == TyKind.union_ {
+                reflection_set(db, ptr, info_ty, "members", items as u64)
+                reflection_set(db, ptr, info_ty, "member_count", children.len)
+            } else {
+                reflection_set(db, ptr, info_ty, "params", items as u64)
+                reflection_set(db, ptr, info_ty, "param_count", children.len)
+            }
         }
         children.destroy()
     }

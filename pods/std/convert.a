@@ -149,6 +149,66 @@ Convert :: struct {
         out.push_str(")\n")
     }
 
+    type_list :: fn(out &String, label Str, items &&TypeInfo(), count u64) {
+        out.push_str(label)
+        out.push_char('[')
+        i: u64 = 0
+        while i < count {
+            if i > 0 { out.push_str(", ") }
+            out.push_str(items[i].name)
+            i = i + 1
+        }
+        out.push_char(']')
+    }
+
+    type_info :: fn(out &String, info &TypeInfo()) {
+        if info == (0 as &TypeInfo()) {
+            out.push_str("null")
+            ret
+        }
+        out.push_str("TypeInfo { name: ")
+        Convert.quoted(out, info.name)
+        if info.bits > 0 {
+            out.push_str(", bits: ")
+            Convert.unsigned64(out, info.bits as u64)
+        }
+        if info.kind == TypeKind.array {
+            out.push_str(", length: ")
+            Convert.unsigned64(out, info.length)
+        }
+        if info.element != (0 as &TypeInfo()) {
+            out.push_str(", element: ")
+            out.push_str(info.element.name)
+        }
+        if info.field_count > 0 {
+            out.push_str(", fields: { ")
+            i: u64 = 0
+            while i < info.field_count {
+                if i > 0 { out.push_str(", ") }
+                field := info.fields[i]
+                out.push_str(field.name)
+                out.push_str(": ")
+                if info.kind == TypeKind.enum_ {
+                    Convert.unsigned64(out, field.value)
+                } else {
+                    out.push_str(field.type_info.name)
+                }
+                i = i + 1
+            }
+            out.push_str(" }")
+        }
+        if info.kind == TypeKind.union_ {
+            Convert.type_list(out, ", members: ", info.members, info.member_count)
+        }
+        if info.kind == TypeKind.func {
+            Convert.type_list(out, ", params: ", info.params, info.param_count)
+            out.push_str(", result: ")
+            out.push_str(info.result.name)
+            if info.is_extern { out.push_str(", is_extern: true") }
+        }
+        out.push_str(" }")
+    }
+
     value :: fn(out &String, info &TypeInfo(), value Str, depth u32) {
         kind := info.kind
         if (kind == TypeKind.int) or (kind == TypeKind.uint) or (kind == TypeKind.untyped_int) {
@@ -204,7 +264,9 @@ Convert :: struct {
             ret
         }
         if kind == TypeKind.ptr {
-            if (info.element.kind == TypeKind.uint) and (info.element.bits == 8) {
+            if info.element.name.eq("TypeInfo") and info.element.id == @type_info(TypeInfo()).id {
+                Convert.call(out, "type_info", value)
+            } else if (info.element.kind == TypeKind.uint) and (info.element.bits == 8) {
                 out.push_str("if ")
                 out.push_str(value)
                 out.push_str(" == (0 as &u8) {\n")
@@ -220,6 +282,14 @@ Convert :: struct {
                 out.push_str(" as u64)\n")
                 Convert.literal(out, ")")
             }
+            ret
+        }
+        if kind == TypeKind.struct_ and info.name.eq("TypeInfo") and info.id == @type_info(TypeInfo()).id {
+            expr := String.new(out.arena)
+            expr.push_str("&(")
+            expr.push_str(value)
+            expr.push_char(')')
+            Convert.call(out, "type_info", expr.as_str())
             ret
         }
         if kind == TypeKind.enum_ {

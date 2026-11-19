@@ -547,9 +547,10 @@ VmCodeGen :: struct {
             ty := val.raw as u32
             if not self.is_struct_type(ty) {
                 self.emit_load(type_size(self.types, ty))
-                if self.types.kind(ty) == TyKind.int {
+                kind := self.types.kind(ty)
+                if kind == TyKind.int {
                     self.emit_integer_cast(ty)
-                } else if self.types.kind(ty) == TyKind.enum_ {
+                } else if kind == TyKind.enum_ {
                     self.emit_integer_cast(self.types.enum_backing(ty))
                 }
             }
@@ -983,7 +984,7 @@ VmCodeGen :: struct {
         VmVal.empty()
     }
 
-    expr_comptime_pointer :: fn(self &Self, arena &Arena, value u64) VmVal {
+    expr_reflection :: fn(self &Self, D type, arena &Arena, db &D, ty u32, value u64) VmVal {
         VmVal.const_int(value)
     }
 
@@ -1560,6 +1561,10 @@ VmCodeGen :: struct {
             self.chunk.emit_u16(slot as u16)
             ret .{ kind: VmValKind.ffi_field, elem_size: 0, id: slot, raw: base as u64 }
         }
+        if inner.kind == VmValKind.const_int {
+            self.ensure_on_stack(inner)
+            ret self.capture_data_ref(ty)
+        }
         self.expr_deref(arena, inner)
     }
 
@@ -1878,7 +1883,7 @@ VmCodeGen :: struct {
         self.chunk.inst(OpCode.store_local)
         self.chunk.emit_u16(temp_addr as u16)
 
-        if self.types.struct_is_extern(elem_ty) {
+        if not vm_is_indirect(self.types, elem_ty) {
             ret .{ kind: VmValKind.ffi_field, elem_size: 0, id: temp_addr, raw: elem_ty as u64 }
         }
         .{ kind: VmValKind.deref, elem_size: elem_size as u16, id: temp_addr, raw: 0 }

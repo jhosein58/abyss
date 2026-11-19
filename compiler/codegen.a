@@ -4,8 +4,10 @@ import std.fmt:       Fmt
 import std.string:    Str, String
 import std.sys:       fall
 
-import .hir:   HirExprKind, hir_kind, hir_none
+import .hir: HirExprKind, hir_kind, hir_none
 import .lexer: decode_char_lit
+import .nexus.nexus: Nexus
+import .typer.reflection: reflection_quote, reflection_read
 import .types: TyKind, TypeStorage, ty_id_none
 
 append_str :: fn(v &String, s Str) {
@@ -72,6 +74,7 @@ CCodeGen :: struct {
     func_decls           String
     global_decls         String
     global_defs          String
+    reflection_count     u32
     static_init          bool
     code                 String
     emitted_structs      Vec(u32)
@@ -91,6 +94,7 @@ CCodeGen :: struct {
             func_decls: String.new(arena)
             global_decls: String.new(arena)
             global_defs: String.new(arena)
+            reflection_count: 0
             static_init: false
             code: String.new(arena)
             emitted_structs: Vec(u32).new()
@@ -1067,8 +1071,119 @@ typedef uint16_t _Float16;
         fmt.as_str()
     }
 
-    expr_comptime_pointer :: fn(self &Self, arena &Arena, value u64) Str {
-        Str.empty()
+    reflection_symbol :: fn(self &Self, arena &Arena) Str {
+        count := self.reflection_count
+        self.reflection_count = count + 1
+        out := Fmt.new(arena)
+        out.cstr(c"abyss_reflection_").uint32(count)
+        out.as_str()
+    }
+
+    reflection_record :: fn(
+        self &Self
+        arena &Arena
+        db &Nexus
+        records &HashMap(u64, Str)
+        ty u32
+        value u64
+    ) Str {
+        if value == 0 {
+            ret "0"
+        }
+        prior := records.get(value)
+        if prior != (0 as &Str) {
+            ret *prior
+        }
+        name := self.reflection_symbol(arena)
+        address := self.expr_address(arena, name)
+        records.insert(value, address)
+        type_name := self.type_str(&db.types, arena, ty)
+        self.declare_global(0, ty, name, type_name)
+
+        out := Fmt.new(arena)
+        out.cstr(c"{")
+        fields := db.types.get_struct_fields(ty)
+        for index in Range.new(0, (fields.len / 2) as i32) {
+            i := index as u64
+            field := fields.ptr[i * 2]
+            field_ty := fields.ptr[i * 2 + 1]
+            bits := (value as &u64)[i]
+            out.cstr(c"._f").uint32(field).cstr(c" = ")
+            if field_ty == db.str_type {
+                ptr := reflection_read(db, bits, field_ty, "ptr") as &u8
+                len := reflection_read(db, bits, field_ty, "len")
+                raw := reflection_quote(db, Str.new(ptr, len))
+                out.str(
+                    self.expr_str_lit(
+                        arena
+                        self.type_str(&db.types, arena, field_ty)
+                        db.interner.intern("ptr")
+                        db.interner.intern("len")
+                        raw
+                    )
+                )
+            } else if db.types.kind(field_ty) == TyKind.ptr {
+                child := db.types.payload(field_ty)
+                if db.types.kind(child) != TyKind.ptr {
+                    out.str(self.reflection_record(arena, db, records, child, bits))
+                } else {
+                    field_name := db.interner.get(field)
+                    count_name := if field_name.eq("fields") {
+                        "field_count"
+                    } else if field_name.eq("members") {
+                        "member_count"
+                    } else {
+                        "param_count"
+                    }
+                    count := reflection_read(db, value, ty, count_name)
+                    out.str(self.reflection_list(arena, db, records, child, bits, count))
+                }
+            } else {
+                out.str(self.expr_u64(arena, bits))
+            }
+            out.cstr(c", ")
+        }
+        out.cstr(c"}")
+        self.initialize_global(name, type_name, out.as_str())
+        address
+    }
+
+    reflection_list :: fn(
+        self &Self
+        arena &Arena
+        db &Nexus
+        records &HashMap(u64, Str)
+        ty u32
+        value u64
+        count u64
+    ) Str {
+        if count == 0 {
+            ret "0"
+        }
+        name := self.reflection_symbol(arena)
+        out := Fmt.new(arena)
+        out.cstr(c"static ").str(self.type_str(&db.types, arena, ty)).char(' ').str(name).cstr(
+            c"[] = {"
+        )
+        item_ty := db.types.payload(ty)
+        items := value as &&u8
+        for index in Range.new(0, count as i32) {
+            out.str(self.reflection_record(arena, db, records, item_ty, items[index] as u64))
+            out.cstr(c", ")
+        }
+        out.cstr(c"};\n")
+        self.global_defs.push_str(out.as_str())
+        name
+    }
+
+    expr_reflection :: fn(self &Self, arena &Arena, db &Nexus, ty u32, value u64) Str {
+        previous := self.static_init
+        self.static_init = true
+        records := HashMap(u64, Str).new()
+        address := self.reflection_record(arena, db, &records, ty, value)
+        records.destroy()
+        self.static_init = previous
+        address
     }
 
     expr_sizeof :: fn(self &Self, arena &Arena, ty Str) Str {

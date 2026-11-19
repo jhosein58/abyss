@@ -12,7 +12,10 @@ import compiler.parser.core: Parser_new, is_eof, peek
 import compiler.parser.expr: parse_ident
 import compiler.token: Token, TokenStream
 import compiler.typer.reflection: reflection_read
-import compiler.typer.specialize: specialize_nominal_from_creator, specialize_nominal_method
+import compiler.typer.specialize:
+    resolve_ty_id
+    specialize_nominal_from_creator
+    specialize_nominal_method
 import compiler.typer.tyck: process_mono_funcs, synth_node, type_check
 import compiler.types: TyKind, ty_id_none, ty_id_type, ty_id_unit
 import compiler.unify: slot_none
@@ -490,7 +493,6 @@ synth_member :: fn(eng &Engine, id u32) {
     name_id := tbl.lhs(rhs_id)
 
     if kind == TyKind.array {
-        elem_ty := types_ptr.get_array_type(lhs_ty)
         arr_len := types_ptr.get_array_len(lhs_ty)
         len_id := db.interner.intern(Str.of("len"))
         iter_id := db.interner.intern(Str.of("iter"))
@@ -504,6 +506,12 @@ synth_member :: fn(eng &Engine, id u32) {
             ret
         }
         if (name_id == iter_id) or (name_id == iter_ref_id) {
+            source_ty := types_ptr.unwrap_ptr(unify_ptr.resolve_type(lhs_slot))
+            if types_ptr.kind(source_ty) != TyKind.array {
+                source_ty = lhs_ty
+            }
+            array_ty := resolve_ty_id(eng, unify_ptr, types_ptr, source_ty)
+            elem_ty := types_ptr.get_array_type(array_ty)
             is_ref := name_id == iter_ref_id
             creator_name := if is_ref {
                 Str.of("RefIterator")
@@ -520,7 +528,7 @@ synth_member :: fn(eng &Engine, id u32) {
             c_args.destroy()
 
             p_slice := Vec(u32).new()
-            p_slice.push(types_ptr.alloc_ptr(lhs_ty))
+            p_slice.push(types_ptr.alloc_ptr(array_ty))
             fn_ty := types_ptr.alloc_func(p_slice.as_slice(), iter_ty, false)
             p_slice.destroy()
 

@@ -25,7 +25,7 @@ This reference details the grammar, tokenization, type system, and AST/HIR rules
   - `@is(val, Type)`: Tests if tagged union `val` currently holds variant `Type` (returns `bool`).
   - `@tag(val)`: Returns the numeric discriminant tag of tagged union `val` (`u32`).
   - `@type_name(T)`: Returns the canonical name of type `T` as a compile-time `Str` literal.
-  - `@type_info(T)`: Returns a pointer `&TypeInfo()` with full compile-time/runtime reflection metadata.
+  - `@type_info(T)`: Returns `&TypeInfo()` at compile time or runtime. At runtime, call the builtin directly to get metadata owned by the program; a pointer produced by an explicit `cmpt` expression cannot escape into runtime code. `print(@type_info(T))`, `fmt`, and `String.of` show the type name and shape. References to other types are displayed by name, so recursive types format without following cycles.
   - `@type_from_id(id)`: Reconstructs a `type` from a compile-time integer type ID.
   - `@element_type(ArrayOrPtr)`: Extracts the underlying element type from an array `[N]T` or pointer `&T`.
   - `@field_type(StructOrTuple, name_or_index)`: Extracts the type of a struct field by name string or tuple field by index.
