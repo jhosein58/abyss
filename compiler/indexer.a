@@ -550,11 +550,12 @@ Indexer :: struct {
 
         db.core_prelude = self.resolve_and_load(Str.empty(), "core/prelude", root_fid, 0)
         db.std_prelude = self.resolve_and_load(Str.empty(), "std/prelude", root_fid, 0)
-        if db.native_wasi {
-            self.resolve_and_load(Str.empty(), "std/sys/memory", root_fid, 0)
-        }
-        if db.native_executable {
-            runtime := if db.native_wasi { "std/sys/start" } else { "std/sys/process" }
+        if db.native_output {
+            wasi := db.target_os == Os.wasi
+            if wasi {
+                self.resolve_and_load(Str.empty(), "std/sys/memory", root_fid, 0)
+            }
+            runtime := if wasi and db.native_executable { "std/sys/start" } else { "std/sys/process" }
             self.resolve_and_load(Str.empty(), runtime, root_fid, 0)
         }
 

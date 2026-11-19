@@ -60,6 +60,10 @@ status=0
 [[ "${status}" == 42 ]]
 
 cat > "${WORK_DIR}/library.a" <<'ABYSS'
+import std.env: Env
+
+library_arg_count :: extern fn() i32 { Env.args_len() }
+
 copy :: extern fn(dest, from_ptr &u8, size u64) {
     @memcpy(dest, from_ptr, size)
 }
@@ -70,6 +74,16 @@ for output in library free; do
     if grep -Eq '^int main\(|^void _start\(' "${WORK_DIR}/${output}.c"; then exit 1; fi
     "${CC:-gcc}" -std=gnu99 -ffreestanding -c "${WORK_DIR}/${output}.c" -o "${WORK_DIR}/${output}.o"
 done
+
+"${CC:-gcc}" -std=gnu99 -shared -fPIC -Wl,--no-undefined "${WORK_DIR}/library.c" -o "${WORK_DIR}/library.so"
+python3 - "${WORK_DIR}/library.so" <<'PYTHON'
+import ctypes
+import sys
+
+library = ctypes.CDLL(sys.argv[1])
+assert library.library_arg_count() == 0
+assert not hasattr(library, "abyss_process_arg_count")
+PYTHON
 
 printf 'import core.foreign\nmain :: fn() {}\n' > "${WORK_DIR}/reject.a"
 printf 'Forbidden :: extern struct { value i32 }\n' > "${WORK_DIR}/sdk/pods/core/foreign.a"
