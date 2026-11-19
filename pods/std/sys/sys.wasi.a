@@ -3,7 +3,7 @@ import .decimal: format_float
 import std.mem: free, malloc
 
 Ciovec :: extern struct {
-    address u32
+    address &u8
     len u32
 }
 
@@ -115,14 +115,14 @@ open_handle :: fn(path &u8, mode OpenMode) i64 {
 }
 
 read_handle :: fn(handle i64, buf &u8, len u64) i64 {
-    vector: Ciovec = .{ address: buf as u32, len: if len > 0xffffffff { 0xffffffff } else { len as u32 } }
+    vector: Ciovec = .{ address: buf, len: if len > 0xffffffff { 0xffffffff } else { len as u32 } }
     received: u32 = 0
     if not record_status(fd_read(handle as u32, &vector, 1, &received)) { ret -1 }
     received as i64
 }
 
 write_handle :: fn(handle i64, buf &u8, len u64) i64 {
-    vector: Ciovec = .{ address: buf as u32, len: if len > 0xffffffff { 0xffffffff } else { len as u32 } }
+    vector: Ciovec = .{ address: buf, len: if len > 0xffffffff { 0xffffffff } else { len as u32 } }
     sent: u32 = 0
     if not record_status(fd_write(handle as u32, &vector, 1, &sent)) { ret -1 }
     sent as i64

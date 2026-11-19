@@ -463,7 +463,6 @@ Embed :: struct {
         sort_strings(&files)
 
         out := String.new(a)
-        out.push_str("fn(mod_path Str) Str {\n")
         i: u64 = 0
         while i < files.len {
             rel_p := files.get(i)
@@ -472,15 +471,15 @@ Embed :: struct {
                 full_p := Path.join(a, pods_prefix, rel_p)
                 c_full := to_cstr(a, full_p)
                 content := read_file(a, c_full)
-                out.push_str("    if mod_path.eq(Str.of(")
+                out.push_str("if mod_path.eq(Str.of(")
                 Convert.quote_source(&out, rel_p)
-                out.push_str(")) {\n        ret Str.of(")
+                out.push_str(")) {\n    ret Str.of(")
                 Convert.quote_source(&out, content)
-                out.push_str(")\n    }\n")
+                out.push_str(")\n}\n")
             }
             i = i + 1
         }
-        out.push_str("    Str.empty()\n}")
+        out.push_str("Str.empty()\n")
         out.as_str()
     }
 }

@@ -89,7 +89,6 @@ prepare_compiler() {
 build_wasi() {
     local dist_dir="${ROOT_DIR}/dist"
     mkdir -p "${dist_dir}"
-    "${COMPILER_BIN}" r "${ROOT_DIR}/scripts/generate_embedded.a"
     "${COMPILER_BIN}" b --target wasi "${ROOT_DIR}/compiler/main.a" "${dist_dir}/abyssc-wasi.c"
     clang -w --target=wasm32-wasi -ffreestanding -nostdlib -O3 -Wl,-z,stack-size=2097152 "${dist_dir}/abyssc-wasi.c" -o "${dist_dir}/abyssc.wasm"
     echo "Built ${dist_dir}/abyssc.wasm"

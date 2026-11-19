@@ -1,4 +1,5 @@
 import .chunk: Chunk
+import .host: HostDirSlot, dispatch_host_call
 import .op:    OpCode
 import .codegen: vm_data_base, vm_data_size, vm_entry_tag, vm_extern_tag, vm_is_aggregate, vm_is_indirect
 
@@ -103,10 +104,11 @@ Vm :: struct {
     locals    Vec(u64)
     frames_ip Vec(u32)
     frames_fp Vec(u32)
+    dirs      Vec(HostDirSlot)
     ffi_scope &u8
     ffi_owner &&u8
     new :: fn() Self {
-        .{ stack: Vec(u64).with_cap(4096), locals: Vec(u64).with_cap(4096), frames_ip: Vec(u32).with_cap(1024), frames_fp: Vec(u32).with_cap(1024), ffi_scope: 0 as &u8, ffi_owner: 0 as &&u8 }
+        .{ stack: Vec(u64).with_cap(4096), locals: Vec(u64).with_cap(4096), frames_ip: Vec(u32).with_cap(1024), frames_fp: Vec(u32).with_cap(1024), dirs: Vec(HostDirSlot).new(), ffi_scope: 0 as &u8, ffi_owner: 0 as &&u8 }
     }
 
     destroy :: fn(self &Self) {
@@ -114,6 +116,15 @@ Vm :: struct {
         self.locals.destroy()
         self.frames_ip.destroy()
         self.frames_fp.destroy()
+        i: u64 = 0
+        while i < self.dirs.len {
+            s := self.dirs.as_slice().ptr + i
+            if s.active {
+                s.dir.close()
+            }
+            i = i + 1
+        }
+        self.dirs.destroy()
         abyss_ffi_destroy(self.ffi_scope)
     }
 
@@ -165,7 +176,12 @@ Vm :: struct {
         start := self.stack.len - (argc as u64)
         args := self.stack.as_slice().ptr + start
         invoke: VmCallback = invoke_vm_callback
-        result := if name != (0 as &u8) { host_call(Str.of(name), args) } else { Maybe(u64).none() }
+        result := if name != (0 as &u8) {
+            host_res := host_call(Str.of(name), args)
+            if host_res.is_some() { host_res } else { dispatch_host_call(&self.dirs, Str.of(name), args) }
+        } else {
+            Maybe(u64).none()
+        }
         value := if result.is_some() {
             result.unwrap()
         } else {
