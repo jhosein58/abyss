@@ -1,18 +1,30 @@
-import core.target: Arch, Os
+import core.target: Arch, Os, target_os
 import std.allocator: Arena
 import std.env:       Env
-import std.fs:        File
+import std.fs:        Embed, File
 import std.path:      Path
 import std.string:    Str, String
 import std.sys:       fall
 
-import .embedded:    lookup_embedded
 import .lexer:       lex
 import .nexus.nexus: Nexus, calc_pos
 import .nexus.pool:  id_none
 import .platform:    arch_name, os_name
 import .token:       Token, is_path_ident
 import .typer.decl:  is_core_source
+
+make_embedded_fn :: fn() Str {
+    if target_os == Os.wasi {
+        arena := Arena.new(1024 * 1024 * 64)
+        Embed.sources(&arena)
+    } else {
+        "Str.empty()\n"
+    }
+}
+
+lookup_embedded :: fn(mod_path Str) Str {
+    #make_embedded_fn()
+}
 
 QueuedFile :: struct {
     fid       u32
