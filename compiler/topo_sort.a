@@ -26,7 +26,7 @@ topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8),
             db.print_loc(node)
             print("")
         }
-        fall()
+        #fall
     }
     if st != (0 as u8) {
         ret

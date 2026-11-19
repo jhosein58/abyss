@@ -55,7 +55,7 @@ index_error :: fn(db &Nexus, file_id u32, offset u32, msg &u8, detail Str) {
     } else {
         printf("\n[import error] {}\n       --> {}:{}:{}\n\n", .{ msg, path, pos.line, pos.col })
     }
-    fall()
+    #fall
 }
 
 is_embedded_path :: fn(path Str) bool {

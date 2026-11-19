@@ -87,7 +87,7 @@ Suite :: struct {
     run_and_exit :: fn(self &Self) {
         ok := self.run()
         if not ok {
-            fall()
+            #fall
         }
     }
 }

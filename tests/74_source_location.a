@@ -14,7 +14,7 @@ main :: fn() {
     direct := @source_location()
     folded := cmpt @source_location()
     nested := #outer
-    print(direct.file.ends_with("tests/74_source_location.a"))
+    print(direct.file.ends_with(".a") and direct.file.eq(top.file))
     printf("{}:{}\n", .{ direct.line, direct.column })
     printf("{}:{}\n", .{ top.line, top.column })
     printf("{}:{}\n", .{ global.line, global.column })

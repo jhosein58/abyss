@@ -17,7 +17,7 @@ match_error :: fn(db &Nexus, msg &u8, id u32) {
     printf("\n\033[1;31m[type error]\033[0m {}\n       --> ", .{ msg })
     db.print_loc(id)
     print("")
-    fall()
+    #fall
 }
 
 synth_match :: fn(eng &Engine, id u32) {

@@ -68,6 +68,18 @@ if depth > 1000 {
 }
 ```
 
+### Source locations and fatal errors
+
+`@source_location()` gives you a compile-time value with a file path, a line, and a byte column. Lines and columns start at 1. Use `#fall` to print the location of a fatal error to stderr and exit with status 1.
+
+```abyss
+import std.sys: fall
+
+check_depth :: fn(depth i32) {
+    if depth < 0 { #fall }
+}
+```
+
 ### `while`
 Straightforward loops without surprises. For formatted, newline-free printing, use `printf`:
 

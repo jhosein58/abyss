@@ -21,9 +21,9 @@ import std.fs: Dir, File
 import std.sys: fall
 
 main :: fn() {
-    if not Dir.create(c"scratch") { fall() }
-    if not File.write_string("scratch/value", "first") { fall() }
-    if not File.append_string("scratch/value", "-second") { fall() }
+    if not Dir.create(c"scratch") { #fall }
+    if not File.write_string("scratch/value", "first") { #fall }
+    if not File.append_string("scratch/value", "-second") { #fall }
     arena := Arena.new(4096)
     print(File.read_to_string(&arena, "/scratch/value").unwrap())
     entries := Dir.open(c"scratch").unwrap()
@@ -66,11 +66,18 @@ async function run(args, entry = source, module = wasm, expectedStatus = 0) {
     const instance = await WebAssembly.instantiate(module, { wasi_snapshot_preview1: wasi.wasiImport });
     const result = wasi.start(instance);
     assert.equal(result, expectedStatus, [...stdout, ...stderr].join("\n"));
-    return { stdout, root };
+    return { stdout, stderr, root };
 }
 
 const interpreted = await run(["r", "main.a", "vm-argument"]);
 assert.deepEqual(interpreted.stdout, ["first-second", "value", "vm-argument", "environment", "true", "1.250000"]);
+const failed = await run(["r", "main.a"], `import std.sys: fall
+main :: fn() {
+    #fall
+}
+`, wasm, 1);
+assert.deepEqual(failed.stdout, []);
+assert.ok(failed.stderr.includes("       at main.a:3:5"), failed.stderr.join("\n"));
 const compiled = await run(["b", "main.a", "out.c"]);
 const emitted = new TextDecoder().decode(compiled.root.dir.contents.get("out.c").data);
 assert.match(emitted, /import_module\("wasi_snapshot_preview1"\), import_name\("fd_write"\)/);

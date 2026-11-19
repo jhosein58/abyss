@@ -707,7 +707,7 @@ typedef uint16_t _Float16;
     type_str :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) Str {
         if ty_id == ty_id_none() {
             print("\n[codegen error] missing type")
-            fall()
+            #fall
         }
         kind := types.kind(ty_id)
         payload := types.payload(ty_id)
@@ -738,7 +738,7 @@ typedef uint16_t _Float16;
                 ret Str.of("__int128")
             }
             print("\n[codegen error] unsupported integer width")
-            fall()
+            #fall
             ret Str.empty()
         }
         if kind == TyKind.uint {
@@ -758,7 +758,7 @@ typedef uint16_t _Float16;
                 ret Str.of("unsigned __int128")
             }
             print("\n[codegen error] unsupported integer width")
-            fall()
+            #fall
             ret Str.empty()
         }
         if kind == TyKind.float {
@@ -769,7 +769,7 @@ typedef uint16_t _Float16;
                 ret Str.of("double")
             }
             print("\n[codegen error] unsupported float width")
-            fall()
+            #fall
             ret Str.empty()
         }
         if kind == TyKind.untyped_int {
@@ -790,10 +790,10 @@ typedef uint16_t _Float16;
         }
         if (kind == TyKind.infer) or (kind == TyKind.unknown) or (kind == TyKind.error) {
             print("\n[codegen error] unresolved type")
-            fall()
+            #fall
         }
         print("\n[codegen error] unsupported type")
-        fall()
+        #fall
         Str.empty()
     }
 

@@ -61,7 +61,7 @@ handler: Handler
 c_register :: extern fn(value Handler) { handler = value }
 
 c_dispatch :: extern fn(value &Packet) Packet {
-    if handler.id != 6 { fall() }
+    if handler.id != 6 { #fall }
     update := handler.update
     update(*value, 3.0)
 }
@@ -73,6 +73,6 @@ c_call_select :: extern fn(select Select) { select() }
 mixed :: extern "C_ABI_Mixed_widths_0123456789" fn(a i8, b, c u16, d i32, e u8, f i64, g u32, h u64, i f32, j f64, k bool) f64 {
     if a != -5 or b != 65000 or c != 30000 or d != -90000 or e != 250 or
         f != -((1 as i64) << 32) or g != 4000000000 or h != ((1 as u64) << 63) or
-        i != 1.25 or j != -2.5 or not k { fall() }
+        i != 1.25 or j != -2.5 or not k { #fall }
     j - (i as f64)
 }

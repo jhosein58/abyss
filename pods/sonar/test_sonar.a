@@ -17,7 +17,7 @@ expect :: fn(cond bool, msg Str) {
         print("[FAIL] ")
         print(msg)
         print("\n")
-        fall()
+        #fall
     }
 }
 

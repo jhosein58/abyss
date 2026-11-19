@@ -97,7 +97,7 @@ synth_unary_num :: fn(db &Nexus, tbl &HirTable, id u32) {
     printf("\n[type error] invalid unary operand\n       --> ", .{})
     db.print_loc(id)
     print("")
-    fall()
+    #fall
 }
 
 synth_unary_not :: fn(db &Nexus, tbl &HirTable, id u32) {
@@ -171,7 +171,7 @@ synth_unary_deref :: fn(db &Nexus, tbl &HirTable, id u32) {
             printf("\n[type error] cannot dereference non-pointer\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
         }
     }
 }
@@ -234,12 +234,12 @@ synth_binary :: fn(db &Nexus, tbl &HirTable, id u32) {
         printf("\n[type error] invalid arithmetic operands\n       --> ", .{})
         db.print_loc(id)
         print("")
-        fall()
+        #fall
     } else {
         printf("\n[type error] missing arithmetic operand\n       --> ", .{})
         db.print_loc(id)
         print("")
-        fall()
+        #fall
     }
 }
 
@@ -256,14 +256,14 @@ synth_assign :: fn(db &Nexus, tbl &HirTable, id u32) {
                 printf("\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ", .{})
                 db.print_loc(id)
                 print("")
-                fall()
+                #fall
             }
         }
     } else if db.is_const(lhs) {
         printf("\n\033[1;31m[type error]\033[0m cannot assign to constant\n       --> ", .{})
         db.print_loc(id)
         print("")
-        fall()
+        #fall
     }
     lhs_slot := db.unify.get_slot(lhs)
     rhs_slot := db.unify.get_slot(rhs)
@@ -307,13 +307,13 @@ synth_binary_comp :: fn(db &Nexus, tbl &HirTable, id u32) {
             printf("\n[type error] invalid comparison operands\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
         }
     } else {
         printf("\n[type error] invalid comparison operands\n       --> ", .{})
         db.print_loc(id)
         print("")
-        fall()
+        #fall
     }
     db.unify.bind_type(&db.types, slot, ty_id_bool())
     if db.is_const(lhs) and db.is_const(rhs) {
@@ -383,7 +383,7 @@ synth_cast :: fn(eng &Engine, id u32) {
             printf("\n[type error] union does not contain target type in cast\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
         }
         if (src == TyKind.enum_) or (dst == TyKind.enum_) {
             src_valid := src_int or (src == TyKind.enum_)
@@ -397,14 +397,14 @@ synth_cast :: fn(eng &Engine, id u32) {
             printf("\n[type error] invalid cast\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
         }
         db.unify.bind_type(&db.types, slot, rhs_type)
     } else {
         printf("\n[type error] cast target is not a type\n       --> ", .{})
         db.print_loc(id)
         print("")
-        fall()
+        #fall
     }
 }
 
@@ -487,7 +487,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
             printf("\n\033[1;31m[type error]\033[0m @sizeof expects exactly 1 argument\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
         }
         arg_node := *(args.ptr + 0)
         target_ty := synth_type_node(eng, arg_node)
@@ -495,7 +495,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
             printf("\n\033[1;31m[type error]\033[0m @sizeof argument must be a type\n       --> ", .{})
             db.print_loc(arg_node)
             print("")
-            fall()
+            #fall
         }
         u64_ty := (&(*types_ptr)).alloc_uint(64)
         (&(*db).unify).bind_type(&(*db).types, slot, u64_ty)
@@ -508,7 +508,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
             printf("\n\033[1;31m[type error]\033[0m @typeof expects exactly 1 argument\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
         }
         arg_node := *(args.ptr + 0)
         synth_node(eng, arg_node)
@@ -524,7 +524,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
             printf("\n\033[1;31m[type error]\033[0m cannot determine type for @typeof\n       --> ", .{})
             db.print_loc(arg_node)
             print("")
-            fall()
+            #fall
         }
         (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
         db.set_const_type(id, arg_ty)
@@ -536,7 +536,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
             printf("\n\033[1;31m[type error]\033[0m @is expects exactly 2 arguments (val, Type)\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
         }
         val_node := *(args.ptr + 0)
         ty_node := *(args.ptr + 1)
@@ -546,7 +546,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
             printf("\n\033[1;31m[type error]\033[0m second argument to @is must be a type\n       --> ", .{})
             db.print_loc(ty_node)
             print("")
-            fall()
+            #fall
         }
         (&(*db).unify).bind_type(&(*db).types, slot, ty_id_bool())
         db.set_const_type(id, target_ty)
@@ -557,7 +557,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
             printf("\n\033[1;31m[type error]\033[0m @tag expects exactly 1 argument\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
         }
         val_node := *(args.ptr + 0)
         synth_node(eng, val_node)
@@ -568,7 +568,7 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
     printf("\n\033[1;31m[type error]\033[0m unknown builtin function '@{}'\n       --> ", .{ name })
     db.print_loc(id)
     print("")
-    fall()
+    #fall
 }
 
 synth_array_type_node :: fn(eng &Engine, id u32) u32 {
@@ -584,7 +584,7 @@ synth_array_type_node :: fn(eng &Engine, id u32) u32 {
         printf("\n[type error] invalid array element type\n       --> ", .{})
         db.print_loc(elem_node)
         print("")
-        fall()
+        #fall
     }
     synth_node(eng, len_node)
     len_val := eval_const(db, len_node)
@@ -605,7 +605,7 @@ synth_array_type_node :: fn(eng &Engine, id u32) u32 {
         printf("\n[type error] array length must be a constant integer > 0\n       --> ", .{})
         db.print_loc(len_node)
         print("")
-        fall()
+        #fall
     }
     arr_ty := types_ptr.alloc_array(elem_ty, len_val as u32)
     db.set_const_type(id, arr_ty)
@@ -674,7 +674,7 @@ synth_index :: fn(eng &Engine, id u32) {
         printf("\n[type error] array index must be an integer\n       --> ", .{})
         db.print_loc(idx)
         print("")
-        fall()
+        #fall
     }
     if (idx_k == TyKind.untyped_int) or (idx_k == TyKind.infer) {
         unify_ptr.bind_type(types_ptr, idx_slot, types_ptr.alloc_uint(64))
@@ -700,7 +700,7 @@ synth_index :: fn(eng &Engine, id u32) {
                 printf("\n[type error] array index out of bounds\n       --> ", .{})
                 db.print_loc(idx)
                 print("")
-                fall()
+                #fall
             }
         }
         res_slot := unify_ptr.new_slot(id)
@@ -751,5 +751,5 @@ synth_index :: fn(eng &Engine, id u32) {
     printf("\n[type error] cannot index non-array type\n       --> ", .{})
     db.print_loc(lhs)
     print("")
-    fall()
+    #fall
 }

@@ -83,7 +83,7 @@ cmd_vendor :: fn(arena &Arena) Vec(Str) {
     manifest_opt := PodManifest.load_file(arena, "pod.json")
     if manifest_opt.is_none() {
         print_line("error: cannot find or parse pod.json in current directory")
-        fall()
+        #fall
     }
     manifest := manifest_opt.unwrap()
 
@@ -96,7 +96,7 @@ cmd_vendor :: fn(arena &Arena) Vec(Str) {
             print_line(res.errors.get(i))
             i = i + 1
         }
-        fall()
+        #fall
     }
     vm := VendorManager.new(arena, ".vendor")
     map_args := vm.vendor_all(res.pods)
@@ -107,12 +107,12 @@ cmd_vendor :: fn(arena &Arena) Vec(Str) {
 cmd_add :: fn(arena &Arena, pod_name Str, ver_arg Str) {
     if pod_name.len == 0 {
         print_line("[sonar error] pod name required for 'sonar add'")
-        fall()
+        #fall
     }
     idx_dir := find_index_dir(arena)
     if idx_dir.len == 0 {
         print_line("[sonar error] cannot locate pod index repository (abyss-index)")
-        fall()
+        #fall
     }
     pod_meta_path := String.new(arena)
     pod_meta_path.push_str(idx_dir)
@@ -125,12 +125,12 @@ cmd_add :: fn(arena &Arena, pod_name Str, ver_arg Str) {
         print_str("[sonar error] pod '")
         print_str(pod_name)
         print_line("' not found in index")
-        fall()
+        #fall
     }
     meta_json_opt := parse_json(arena, meta_src_opt.unwrap())
     if meta_json_opt.is_none() {
         print_line("[sonar error] corrupted index entry")
-        fall()
+        #fall
     }
     meta_json := meta_json_opt.unwrap()
 
@@ -199,7 +199,7 @@ cmd_update :: fn(arena &Arena) {
     idx_dir := find_index_dir(arena)
     if idx_dir.len == 0 {
         print_line("[sonar error] cannot locate pod index")
-        fall()
+        #fall
     }
     cmd := String.new(arena)
     cmd.push_str("git -C ")
@@ -245,7 +245,7 @@ cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
     manifest_opt := PodManifest.load_file(arena, "pod.json")
     if manifest_opt.is_none() {
         print_line("error: cannot find or parse pod.json in current directory")
-        fall()
+        #fall
     }
     manifest := manifest_opt.unwrap()
 
@@ -269,7 +269,7 @@ cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
             print_line(res.errors.get(i))
             i = i + 1
         }
-        fall()
+        #fall
     }
     vm := VendorManager.new(arena, ".vendor")
     map_args := vm.vendor_all(res.pods)
@@ -281,18 +281,18 @@ cmd_build :: fn(arena &Arena, target_arg Str, out_arg Str) Str {
     c_ok := builder.compile_c_sources(res.pods, &objects, &ld_flags)
     if not c_ok {
         print_line("[sonar error] failed to compile native C sources")
-        fall()
+        #fall
     }
     c_root_ok := builder.compile_manifest_c_sources(".", manifest.name, manifest.c_build, &objects, &ld_flags)
     if not c_root_ok {
         print_line("[sonar error] failed to compile native C sources for root pod")
-        fall()
+        #fall
     }
     abyssc_bin := find_abyssc()
     ok := builder.build_target(abyssc_bin, target_src, out_bin, map_args, objects, ld_flags)
     if not ok {
         print_line("[sonar error] build failed")
-        fall()
+        #fall
     }
     print_str("[sonar] successfully built ")
     print_line(out_bin)
@@ -367,7 +367,7 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
         if not File.exists(target_arg) {
             print_str("[sonar error] test file not found: ")
             print_line(target_arg)
-            fall()
+            #fall
         }
         test_files.push(target_arg)
         pod_root = Path.dir(target_arg)
@@ -534,7 +534,7 @@ cmd_test :: fn(arena &Arena, target_arg Str) {
         print_str(" of ")
         write(passed_count + failed_count)
         print_line(" test suite(s) failed")
-        fall()
+        #fall
     }
 }
 
@@ -615,6 +615,6 @@ main :: fn() {
         print_str("unknown command '")
         print_str(cmd)
         print_line("'. Run 'sonar help' for usage.")
-        fall()
+        #fall
     }
 }

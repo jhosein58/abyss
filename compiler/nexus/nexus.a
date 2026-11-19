@@ -580,7 +580,7 @@ Nexus :: struct {
         printf("\n\033[1;31m[type error]\033[0m {}\n       --> ", .{ msg })
         self.print_loc(id)
         print("")
-        fall()
+        #fall
     }
 
     set_method_owner :: fn(self &Self, hir_id u32, struct_id u32) {

@@ -8,24 +8,35 @@ OUTPUT="$(realpath "$2")"
 cd "${ROOT_DIR}"
 export ABYSS_DEV="${ROOT_DIR}"
 
-if ! "${COMPILER}" --version 2>/dev/null | grep -qx 'abyssc target-aware'; then
-    BRIDGE_REV=ec958cf93edcd0c877177f52286ee8cdace6f1d8
-    BRIDGE_DIR=$(mktemp -d "$(dirname "${OUTPUT}")/seed-bridge.XXXXXX")
-    trap 'rm -rf "${BRIDGE_DIR}"' EXIT
-    if ! git archive "${BRIDGE_REV}" compiler pods scripts/seed_compile.sh | tar -x -C "${BRIDGE_DIR}"; then
-        printf 'This seed predates target support. Use a target-aware compiler or a checkout containing %s.\n' "${BRIDGE_REV}" >&2
+WORK_DIR=$(mktemp -d "$(dirname "${OUTPUT}")/seed-bridge.XXXXXX")
+trap 'rm -rf "${WORK_DIR}"' EXIT
+
+build_bridge() {
+    local revision="$1"
+    local label="$2"
+    local bridge_dir="${WORK_DIR}/${label}"
+    mkdir -p "${bridge_dir}"
+    if ! git archive "${revision}" compiler pods scripts/seed_compile.sh | tar -x -C "${bridge_dir}"; then
+        printf 'This seed lacks %s support. Use a newer compiler or a checkout containing %s.\n' "${label}" "${revision}" >&2
         exit 1
     fi
-    (
-        cd "${BRIDGE_DIR}"
-        bash scripts/seed_compile.sh "${COMPILER}" "${BRIDGE_DIR}/bootstrap.c"
-    )
+    bash "${bridge_dir}/scripts/seed_compile.sh" "${COMPILER}" "${bridge_dir}/bootstrap.c"
     if command -v tcc >/dev/null 2>&1; then
-        tcc -std=c99 -D_POSIX_C_SOURCE=200809L "${BRIDGE_DIR}/bootstrap.c" -o "${BRIDGE_DIR}/abyssc"
+        tcc -std=c99 -D_POSIX_C_SOURCE=200809L "${bridge_dir}/bootstrap.c" -o "${bridge_dir}/abyssc"
     else
-        "${CC:-cc}" -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 "${BRIDGE_DIR}/bootstrap.c" -o "${BRIDGE_DIR}/abyssc"
+        "${CC:-cc}" -std=gnu99 -D_POSIX_C_SOURCE=200809L -O0 "${bridge_dir}/bootstrap.c" -o "${bridge_dir}/abyssc"
     fi
-    COMPILER="${BRIDGE_DIR}/abyssc"
+    COMPILER="${bridge_dir}/abyssc"
+}
+
+if ! "${COMPILER}" --version 2>/dev/null | grep -qx 'abyssc target-aware'; then
+    build_bridge ec958cf93edcd0c877177f52286ee8cdace6f1d8 target
+fi
+
+printf '%s\n' 'main :: fn() i32 { @source_location().line as i32 }' > "${WORK_DIR}/probe.a"
+if ! "${COMPILER}" "${WORK_DIR}/probe.a" "${WORK_DIR}/probe.c" > "${WORK_DIR}/probe.log" 2>&1 &&
+    grep -aFq "unknown builtin function '@source_location'" "${WORK_DIR}/probe.log"; then
+    build_bridge 1c10ec868b91068e42dad421c9fccfbc7f0cb0ed source-location
 fi
 
 "${COMPILER}" "${ROOT_DIR}/compiler/main.a" "${OUTPUT}"

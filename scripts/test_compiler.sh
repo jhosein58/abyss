@@ -241,6 +241,17 @@ if [[ -z "${FILTER}" || extern == *"${FILTER}"* ]]; then
     fi
 fi
 
+if [[ -z "${FILTER}" || fall == *"${FILTER}"* ]]; then
+    TOTAL=$((TOTAL + 1))
+    if bash "${ROOT_DIR}/scripts/test_fall.sh" "${COMPILER}" "${C_COMPILER}" "${WORK_DIR}/fall"; then
+        printf "  ${GREEN}✔ PASS${RESET}  %-36s ${DIM}[C+VM]${RESET}\n" "fall_source_location"
+        PASSED=$((PASSED + 1))
+    else
+        printf "  ${RED}✘ FAIL${RESET}  %-36s ${RED}[C+VM]${RESET}\n" "fall_source_location"
+        FAILED=$((FAILED + 1))
+    fi
+fi
+
 if [[ ${TOTAL} -eq 0 ]]; then
     echo -e "${YELLOW}No tests matched: ${FILTER}${RESET}"
     exit 1

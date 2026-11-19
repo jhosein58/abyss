@@ -19,8 +19,35 @@ write_console :: fn(text Str) {
     write_all(STDOUT, text.ptr, text.len)
 }
 
-fall :: fn() {
-    message := Str.of("\n\x1b[1;35m[fall]\x1b[0m unfathomable.\n\n")
-    write_all(STDERR, message.ptr, message.len)
+fall :: `{
+    import std.sys as fall_runtime
+    fall_runtime.fall_at(@source_location())
+}`
+
+write_stderr :: fn(text Str) {
+    write_all(STDERR, text.ptr, text.len)
+}
+
+write_location_number :: fn(value u32) {
+    digits: [10]u8 = .[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    start: u32 = 10
+    remaining := value
+    while true {
+        start = start - 1
+        digits[start] = '0' + ((remaining % 10) as u8)
+        remaining = remaining / 10
+        if remaining == 0 { break }
+    }
+    write_stderr(Str.new(&digits[start], (10 - start) as u64))
+}
+
+fall_at :: fn(location SourceLocation) {
+    write_stderr("\n[fall] unfathomable.\n       at ")
+    write_stderr(location.file)
+    write_stderr(":")
+    write_location_number(location.line)
+    write_stderr(":")
+    write_location_number(location.column)
+    write_stderr("\n\n")
     exit_process(1)
 }

@@ -18,7 +18,7 @@ assert :: fn(cond bool, hint Str) {
             Color.reset()
             print(hint)
         }
-        fall()
+        #fall
     }
 }
 
@@ -56,7 +56,7 @@ assert_eq :: fn(T type, actual T, expected T, hint Str) {
             print(hint)
         }
         arena.destroy()
-        fall()
+        #fall
     }
 }
 
@@ -82,7 +82,7 @@ assert_ne :: fn(T type, actual T, expected T, hint Str) {
             print(hint)
         }
         arena.destroy()
-        fall()
+        #fall
     }
 }
 
@@ -108,7 +108,7 @@ assert_gt :: fn(T type, actual T, expected T, hint Str) {
             print(hint)
         }
         arena.destroy()
-        fall()
+        #fall
     }
 }
 
@@ -134,7 +134,7 @@ assert_ge :: fn(T type, actual T, expected T, hint Str) {
             print(hint)
         }
         arena.destroy()
-        fall()
+        #fall
     }
 }
 
@@ -160,7 +160,7 @@ assert_lt :: fn(T type, actual T, expected T, hint Str) {
             print(hint)
         }
         arena.destroy()
-        fall()
+        #fall
     }
 }
 
@@ -186,7 +186,7 @@ assert_le :: fn(T type, actual T, expected T, hint Str) {
             print(hint)
         }
         arena.destroy()
-        fall()
+        #fall
     }
 }
 
@@ -212,7 +212,7 @@ assert_str_eq :: fn(actual Str, expected Str, hint Str) {
             Color.reset()
             print(hint)
         }
-        fall()
+        #fall
     }
 }
 
@@ -233,7 +233,7 @@ assert_str_ne :: fn(actual Str, expected Str, hint Str) {
             Color.reset()
             print(hint)
         }
-        fall()
+        #fall
     }
 }
 
@@ -249,7 +249,7 @@ assert_null :: fn(T type, ptr &T, hint Str) {
             Color.reset()
             print(hint)
         }
-        fall()
+        #fall
     }
 }
 
@@ -265,6 +265,6 @@ assert_not_null :: fn(T type, ptr &T, hint Str) {
             Color.reset()
             print(hint)
         }
-        fall()
+        #fall
     }
 }

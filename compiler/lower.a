@@ -477,7 +477,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             printf("\n[codegen error] undefined identifier\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
             ret empty
         }
         var {
@@ -492,7 +492,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 printf("\n[type error] variable cannot have void type\n       --> ", .{})
                 db.print_loc(id)
                 print("")
-                fall()
+                #fall
             }
             ty_str := ccg.type_str(&db.types, arena, var_ty)
             var_name := ccg.sym_name(arena, sym_id)
@@ -502,7 +502,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                     printf("\n[codegen error] initializer does not produce a value\n       --> ", .{})
                     db.print_loc(id)
                     print("")
-                    fall()
+                    #fall
                 }
                 ccg.create_variable(var_name, ty_str, val_str, true)
             } else {
@@ -518,7 +518,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 printf("\n[codegen error] initializer does not produce a value\n       --> ", .{})
                 db.print_loc(id)
                 print("")
-                fall()
+                #fall
             }
             rhs_ty := db.get_node_type(rhs_node)
             add_type_to_queue(db, rhs_ty, type_queue)
@@ -542,7 +542,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                     printf("\n[type error] variable cannot have void type\n       --> ", .{})
                     db.print_loc(id)
                     print("")
-                    fall()
+                    #fall
                 }
                 add_type_to_queue(db, var_ty, type_queue)
                 ty_str := ccg.type_str(&db.types, arena, var_ty)
@@ -919,7 +919,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 printf("\n[type error] methods must be called directly; method values are not supported\n       --> ", .{})
                 db.print_loc(id)
                 print("")
-                fall()
+                #fall
             }
             lhs_ty := db.get_node_type(lhs_id)
             if db.types.kind(lhs_ty) == TyKind.type_ {
@@ -1027,7 +1027,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             printf("\n[codegen error] unsupported expression\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
             ret empty
         }
     }

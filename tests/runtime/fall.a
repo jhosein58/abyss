@@ -1,0 +1,9 @@
+import std.sys: fall as stop
+
+fall_at :: fn(location SourceLocation) {
+    print("shadowed runtime helper")
+}
+
+main :: fn() {
+    #stop
+}

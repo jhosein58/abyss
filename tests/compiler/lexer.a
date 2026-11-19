@@ -3,7 +3,7 @@ import compiler.lexer: lex, decode_char_lit
 import std.sys: fall
 
 expect :: fn(cond bool) {
-    if not cond { fall() }
+    if not cond { #fall }
 }
 
 check_tok :: fn(s &TokenStream, idx u32, kind Tk, text Str, newline bool) {

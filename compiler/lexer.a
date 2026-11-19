@@ -204,7 +204,7 @@ Lexer :: struct {
     error :: fn(self &Self, msg Str, offset u64) {
         pos := calc_pos(self.source, offset as u32)
         printf("\n[lex error] {}\n       --> {}:{}:{}\n", .{ msg, self.path, pos.line, pos.col })
-        fall()
+        #fall
     }
 
     emit :: fn(self &Self, stream &TokenStream, kind Tk, offset u64) {

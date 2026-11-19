@@ -17,7 +17,7 @@ reflection_error :: fn(db &Nexus, id u32, message &u8) {
     printf("\n[type error] {}\n       --> ", .{ message })
     db.print_loc(id)
     print("")
-    fall()
+    #fall
 }
 
 reflection_core_type :: fn(eng &Engine, name Str) u32 {

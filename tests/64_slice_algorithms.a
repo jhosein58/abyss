@@ -3,7 +3,7 @@ import std.hash: hash_combine, hash_words
 import std.sys: fall
 import std.io: print
 
-expect :: fn(condition bool) { if not condition { fall() } }
+expect :: fn(condition bool) { if not condition { #fall } }
 
 main :: fn() {
     empty := Slice(u32).empty()

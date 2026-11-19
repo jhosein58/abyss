@@ -51,7 +51,7 @@ Engine :: struct {
     parse :: fn(self &Self, sym_id u32) {
         if sym_id == id_none() {
             print("\n[syntax error] symbol not found")
-            fall()
+            #fall
         }
         file_id := self.nexus.sym_file(sym_id)
         tok_start := self.nexus.sym_tok_start(sym_id)
@@ -244,16 +244,16 @@ Engine :: struct {
         types := &self.nexus.types
         if types.kind(ty) != TyKind.func {
             print("\n[type error] main must be a function")
-            fall()
+            #fall
         }
         if ((&(*types)).func_params_len(ty) != 0) or (&(*types)).func_is_extern(ty) {
             print("\n[type error] main must be a defined function with no arguments")
-            fall()
+            #fall
         }
         result := types.func_return(ty)
         if types.kind(result) != TyKind.unit and result != types.alloc_int(32) {
             print("\n[type error] main must return i32 or no value")
-            fall()
+            #fall
         }
     }
 

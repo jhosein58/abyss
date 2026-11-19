@@ -170,7 +170,7 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
             printf("'\n       --> ", .{})
             db.print_loc(expr)
             print("")
-            fall()
+            #fall
         }
         printf("\n\033[1;31m[type error]\033[0m type '", .{})
         types.print_type(val_ty)
@@ -179,7 +179,7 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         printf("'\n       --> ", .{})
         db.print_loc(expr)
         print("")
-        fall()
+        #fall
     }
     if (tbl.kind(expr) == hir_kind.struct_init) and ((kind == TyKind.nominal) or (kind == TyKind.struct_)) {
         target := types.get_struct_fields(expected)
@@ -191,7 +191,7 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
             printf("'\n       --> ", .{})
             db.print_loc(expr)
             print("")
-            fall()
+            #fall
         }
         i: u64 = 0
         while i < names.len {
@@ -212,7 +212,7 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
                 printf("'\n       --> ", .{})
                 db.print_loc(*(names.ptr + i))
                 print("")
-                fall()
+                #fall
             }
             check_value(db, *(values.ptr + i), field_ty)
             i = i + 1
@@ -277,7 +277,7 @@ check_bool_operand :: fn(db &Nexus, id u32, desc &u8) {
             printf("'\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
         }
         db.unify.bind_type(&db.types, slot, ty_id_bool())
     }

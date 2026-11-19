@@ -32,7 +32,7 @@ synth_ident :: fn(eng &Engine, id u32) {
             printf("\n\033[1;31m[type error]\033[0m Self requires a named struct or enum method\n       --> ", .{})
             db.print_loc(id)
             print("")
-            fall()
+            #fall
         }
         db.unify.bind_type(&db.types, slot, ty_id_type())
         db.set_const_type(id, self_ty)
@@ -250,7 +250,7 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
             printf("\n\033[1;31m[type error]\033[0m declaration annotation is not a resolved type\n       --> ", .{})
             db.print_loc(type_id)
             print("")
-            fall()
+            #fall
         }
         (&(*db).unify).bind_type(&(*db).types, ident_slot, type_value)
         db.set_const_type(ident_id, type_value)
@@ -268,7 +268,7 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
                 printf("\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> ", .{})
                 db.print_loc(actual_val)
                 print("")
-                fall()
+                #fall
             }
             named := structural
             if kind == TyKind.struct_ {
@@ -306,7 +306,7 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
                     printf("\n\033[1;31m[type error]\033[0m type value cannot be resolved\n       --> ", .{})
                     db.print_loc(value_id)
                     print("")
-                    fall()
+                    #fall
                 }
                 db.set_const_type(ident_id, type_val)
                 db.set_const_type(id, type_val)
@@ -402,7 +402,7 @@ synth_destructure :: fn(eng &Engine, id u32) {
         printf("\n\033[1;31m[type error]\033[0m expected tuple on right-hand side of destructuring\n       --> ", .{})
         db.print_loc(rhs_node)
         print("")
-        fall()
+        #fall
     }
     fields := (*types_ptr).get_struct_fields(t)
     field_count := fields.len / 2
@@ -414,7 +414,7 @@ synth_destructure :: fn(eng &Engine, id u32) {
         printf("\n\033[1;31m[type error]\033[0m mismatched number of elements in tuple destructuring\n       --> ", .{})
         db.print_loc(id)
         print("")
-        fall()
+        #fall
     }
     i: u64 = 0
     while i < idents.len {

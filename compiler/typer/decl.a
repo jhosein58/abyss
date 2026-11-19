@@ -420,7 +420,7 @@ synth_member :: fn(eng &Engine, id u32) {
             printf("\n\033[1;31m[type error]\033[0m module has no member '{}'\n       --> ", .{ db.interner.get(name_id) })
             db.print_loc(id)
             print("")
-            fall()
+            #fall
         }
         if db.global_var(target_sym) != hir_none() and db.is_sym_resolving(target_sym) {
             db.type_error(id, "circular reference in mutable global declaration")
@@ -477,7 +477,7 @@ synth_member :: fn(eng &Engine, id u32) {
         printf("'\n       --> ", .{})
         db.print_loc(id)
         print("")
-        fall()
+        #fall
     }
     rhs_id := tbl.rhs(id)
     name_id := tbl.lhs(rhs_id)
@@ -522,7 +522,7 @@ synth_member :: fn(eng &Engine, id u32) {
         printf("\n\033[1;31m[type error]\033[0m array type has no field or method named '{}'\n       --> ", .{ db.interner.get(name_id) })
         db.print_loc(id)
         print("")
-        fall()
+        #fall
     }
     if kind == TyKind.enum_ {
         if is_type {
@@ -646,5 +646,5 @@ synth_member :: fn(eng &Engine, id u32) {
     printf("' has no field or method named '{}'\n       --> ", .{ db.interner.get(name_id) })
     db.print_loc(id)
     print("")
-    fall()
+    #fall
 }

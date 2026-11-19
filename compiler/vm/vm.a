@@ -149,12 +149,12 @@ Vm :: struct {
         } else if id == 26 {
             self.stack.push(Env.arg(self.stack.pop() as i32) as u64)
         } else if id == 29 {
-            fall()
+            #fall
         } else if id >= 100 {
             foreign := prog.externs.get((id - 100) as u64)
             self.call_foreign(prog, foreign.name, 0, foreign.signature, arg_count)
         } else {
-            fall()
+            #fall
         }
     }
 

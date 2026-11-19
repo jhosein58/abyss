@@ -159,7 +159,7 @@ UnifyStorage :: struct {
         }
         self.print_error_location()
         print("")
-        fall()
+        #fall
     }
 
     find :: fn(self &Self, slot u32) u32 {
@@ -244,7 +244,7 @@ UnifyStorage :: struct {
         if recursive {
             print("\n[type error] recursive generic inference would create an infinite type")
             self.print_error_location()
-            fall()
+            #fall
         }
         unified := ty
         if existing != ty_id_none() {

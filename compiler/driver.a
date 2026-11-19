@@ -54,7 +54,7 @@ CompilerConfig :: struct {
                 os := parse_os(Str.of(Env.arg(i)))
                 if os.is_none() {
                     print("--target expects linux, windows, darwin, wasi, or freestanding")
-                    fall()
+                    #fall
                 }
                 target_os = os.unwrap()
             } else if arg_str.eq("--arch") {
@@ -62,7 +62,7 @@ CompilerConfig :: struct {
                 arch = parse_arch(Str.of(Env.arg(i)))
                 if arch.is_none() {
                     print("--arch expects x86_64, aarch64, or wasm32")
-                    fall()
+                    #fall
                 }
             } else if arg_str.eq("--library") {
                 library = true
@@ -113,11 +113,11 @@ CompilerConfig :: struct {
         })
         if (target_os == Os.wasi and target_arch != Arch.wasm32) or (target_arch == Arch.wasm32 and target_os != Os.wasi and target_os != Os.freestanding) {
             print("unsupported target OS and architecture combination")
-            fall()
+            #fall
         }
         if vm_run and (library or target_os != host_os() or target_arch != host_arch()) {
             print("VM execution requires a program for the host target")
-            fall()
+            #fall
         }
         .{ src_path: src, out_path: out, is_vm_run: vm_run, import_dirs: import_dirs, map_keys: map_keys, map_values: map_values, target_os: target_os, target_arch: target_arch, is_library: library, source_index: source_index }
     }

@@ -4,7 +4,7 @@ import std.allocator: Arena
 import std.string: String
 import std.sys: fall
 
-expect :: fn(condition bool) { if not condition { fall() } }
+expect :: fn(condition bool) { if not condition { #fall } }
 
 expect_name :: fn(types &TypeStorage, id u32, expected Str) {
     arena := Arena.new(64)

@@ -71,7 +71,7 @@ main :: fn() {
     while i < 1000 {
         print(i)
         printf("v={}\n", .{i})
-        if allocation_balance() != 0 { fall() }
+        if allocation_balance() != 0 { #fall }
         i = i + 1
     }
 }

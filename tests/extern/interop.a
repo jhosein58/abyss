@@ -60,7 +60,7 @@ mix :: extern "C_ABI_Mixed_widths_0123456789" fn(
 require :: fn(ok bool, name Str) {
     if not ok {
         print(name)
-        fall()
+        #fall
     }
 }
 

@@ -283,7 +283,7 @@ synth_splice :: fn(eng &Engine, id u32) {
         printf("\n[syntax error] macro expansion produced no expression\n       --> ", .{})
         db.print_loc(id)
         print("")
-        fall()
+        #fall
     }
     tbl.set_extra(id, parsed_node)
     db.set_expansion_loc(node_start, node_end, id)

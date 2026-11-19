@@ -358,5 +358,5 @@ value_code :: fn(info &TypeInfo(), value Str) Str {
 
 conversion_error :: fn(message Str) {
     write_console(message)
-    fall()
+    #fall
 }
