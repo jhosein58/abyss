@@ -275,7 +275,10 @@ EOF
             tar --exclude=.vendor -C "${ROOT_DIR}" -cf - pods | tar -xf - -C "${WIN_BUNDLE}"
             cp "${ROOT_DIR}/README.md" "${WIN_BUNDLE}/" 2>/dev/null || true
             cp "${ROOT_DIR}/LICENSE" "${WIN_BUNDLE}/" 2>/dev/null || true
-            (cd "${ROOT_DIR}/tmp" && zip -rq "${DIST_DIR}/abyss-windows-x86_64.zip" "abyss")
+            ZIP_WORK="$(mktemp -d "${DIST_DIR}/windows_package.XXXXXX")"
+            (cd "${ROOT_DIR}/tmp" && zip -rq "${ZIP_WORK}/abyss-windows-x86_64.zip" "abyss")
+            mv -f "${ZIP_WORK}/abyss-windows-x86_64.zip" "${DIST_DIR}/abyss-windows-x86_64.zip"
+            rmdir "${ZIP_WORK}"
             rm -rf "${WIN_BUNDLE}"
         fi
 
