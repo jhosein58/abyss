@@ -17,7 +17,7 @@ This document establishes the project standards, community communication guideli
 Abyss is built upon five inviolable design principles:
 1. **Zero Runtime Overhead & Zero Bloat**: Emitted binaries contain only the exact code, structs, and symbols needed. No runtime metadata or background machinery is bundled unless explicitly invoked.
 2. **Deterministic & Bit-Identical Reproducibility**: Compiler self-hosting must always reach a verified multi-generation fixed point where subsequent compilation rounds generate bit-identical C source code.
-3. **Pure Compile-Time Evaluation (Comptime)**: Metaprogramming, source generation, and reflection occur at compile time using standard language constructs (`cmpt`, `#`, splices) without separate scripting environments.
+3. **Pure Compile-Time Evaluation (Comptime)**: Metaprogramming, source generation, and reflection are available at compile time through standard language constructs (`cmpt`, `#`, splices). Explicit runtime use of `@type_info` includes only the requested type information.
 4. **Transparent Bootstrap**: The entire compiler can bootstrap from clean, standalone ISO C99 on any standard platform without needing external binaries.
 5. **Orthogonal Simplicity**: Features remain orthogonal, explicit, and expression-oriented.
 
@@ -56,6 +56,8 @@ Every formal release publishes a deterministic, curated set of artifacts:
 ---
 
 ## 4. Release Notes Tone & Specification
+
+Use the sizes of the published assets and report only verification that ran. To update an existing GitHub release, wait for the tag workflow to publish its artifacts, then run `gh release edit <VERSION> --notes-file <FILE>`.
 
 ### Voice & Tone
 - **Minimalist & Structured**: Concise, logical, and cleanly segmented.
@@ -100,7 +102,7 @@ Every formal release publishes a deterministic, curated set of artifacts:
 
 ## Installation & Quickstart
 
-### Linux & macOS (Bash)
+### Linux x86_64 (Bash)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/abysslang/abyss/main/scripts/install.sh | bash
 ```
@@ -110,7 +112,10 @@ curl -fsSL https://raw.githubusercontent.com/abysslang/abyss/main/scripts/instal
 irm https://raw.githubusercontent.com/abysslang/abyss/main/scripts/install.ps1 | iex
 ```
 
-### Bootstrap from C (Zero Dependencies)
+### Bootstrap from C (Linux, macOS, Windows, WASI)
+
+Extract `abyss-bootstrap-c.tar.gz` and follow its `README.md` for your target. On Linux x86_64:
+
 ```bash
 tar -xzf abyss-bootstrap-c.tar.gz
 cd abyss-bootstrap-c
