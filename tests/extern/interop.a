@@ -1,5 +1,5 @@
-import .exports: abyss_unreferenced
-import std.sys: fall
+abyss_unreferenced :: @import("./exports").abyss_unreferenced
+fall :: @import("std/sys").fall
 
 Unary :: fn(i32) i32
 mapper :: fn(i32) Unary

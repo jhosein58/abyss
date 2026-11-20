@@ -1,7 +1,7 @@
-import std.io: write as print
-import std.allocator: Arena
-import std.fmt: Fmt
-import core.string: Str
+print :: @import("std/io").write
+Arena :: @import("std/allocator").Arena
+Fmt :: @import("std/fmt").Fmt
+Str :: @import("core/string").Str
 
 Counter :: struct {
     value i32

@@ -1,4 +1,5 @@
-import .aliases: f32x4, f64x2
+f32x4 :: @import("./aliases").f32x4
+f64x2 :: @import("./aliases").f64x2
 
 sin :: fn(v f32x4) f32x4 {
     v.sin()

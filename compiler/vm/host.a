@@ -1,18 +1,18 @@
-import core.maybe:          Maybe
-import std.collections.vec: Vec
-import std.mem:             free, malloc
-import std.string:          Str
-import std.sys:
-    Directory
-    OpenMode
-    close_handle
-    environment
-    exit_process
-    make_directory
-    open_handle
-    read_handle
-    seek_handle
-    write_handle
+Maybe :: @import("core/maybe").Maybe
+Vec :: @import("std/collections/vec").Vec
+free :: @import("std/mem").free
+malloc :: @import("std/mem").malloc
+Str :: @import("std/string").Str
+Directory :: @import("std/sys").Directory
+OpenMode :: @import("std/sys").OpenMode
+close_handle :: @import("std/sys").close_handle
+environment :: @import("std/sys").environment
+exit_process :: @import("std/sys").exit_process
+make_directory :: @import("std/sys").make_directory
+open_handle :: @import("std/sys").open_handle
+read_handle :: @import("std/sys").read_handle
+seek_handle :: @import("std/sys").seek_handle
+write_handle :: @import("std/sys").write_handle
 
 HostDirSlot :: struct {
     dir    Directory

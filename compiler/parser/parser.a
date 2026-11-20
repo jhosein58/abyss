@@ -1,59 +1,95 @@
-import std.string: Str
+Str :: @import("std/string").Str
 
-import compiler.hir:         hir_kind, hir_none
-import compiler.nexus.nexus: span_merge
-import compiler.nexus.pool:  id_none
-import compiler.token:       Token
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+span_merge :: @import("compiler/nexus/nexus").span_merge
+id_none :: @import("compiler/nexus/pool").id_none
+Token :: @import("compiler/token").Token
 
-import .common: set_span, span_of_hir
-import .core:
-    Parser
-    bump
-    curr_span
-    expect
-    is_eof
-    parse_error_at
-    peek
-    peek_n
-    peek_preceded_by_newline
-import .decl:
-    parse_binding
-    parse_call
-    parse_destructure
-    parse_enum
-    parse_extern
-    parse_fn
-    parse_member
-    parse_paren
-    parse_struct
-    parse_struct_init
-    parse_var_decl
-import .expr:
-    parse_array_lit
-    parse_array_type
-    parse_assign
-    parse_binary
-    parse_builtin
-    parse_char
-    parse_cstr
-    parse_false
-    parse_float
-    parse_ident
-    parse_index
-    parse_lit_int
-    parse_str
-    parse_true
-    parse_unary
-import .prec:   bp_from_infix, is_soft, prec
-import .stmt:
-    parse_block
-    parse_break
-    parse_cont
-    parse_for
-    parse_if
-    parse_match
-    parse_return
-    parse_while
+check_separator :: @import("./common").check_separator
+set_span :: @import("./common").set_span
+span_of_hir :: @import("./common").span_of_hir
+Parser :: @import("./core").Parser
+begins_declaration :: @import("./core").begins_declaration
+bump :: @import("./core").bump
+capture_splice_scope :: @import("./core").capture_splice_scope
+curr_span :: @import("./core").curr_span
+curr_text :: @import("./core").curr_text
+expect :: @import("./core").expect
+is_eof :: @import("./core").is_eof
+parse_error_at :: @import("./core").parse_error_at
+peek :: @import("./core").peek
+peek_n :: @import("./core").peek_n
+peek_preceded_by_newline :: @import("./core").peek_preceded_by_newline
+parse_binding :: @import("./decl").parse_binding
+parse_call :: @import("./decl").parse_call
+parse_destructure :: @import("./decl").parse_destructure
+parse_enum :: @import("./decl").parse_enum
+parse_extern :: @import("./decl").parse_extern
+parse_fn :: @import("./decl").parse_fn
+parse_member :: @import("./decl").parse_member
+parse_paren :: @import("./decl").parse_paren
+parse_struct :: @import("./decl").parse_struct
+parse_struct_init :: @import("./decl").parse_struct_init
+parse_var_decl :: @import("./decl").parse_var_decl
+parse_array_lit :: @import("./expr").parse_array_lit
+parse_array_type :: @import("./expr").parse_array_type
+parse_assign :: @import("./expr").parse_assign
+parse_binary :: @import("./expr").parse_binary
+parse_builtin :: @import("./expr").parse_builtin
+parse_char :: @import("./expr").parse_char
+parse_cstr :: @import("./expr").parse_cstr
+parse_false :: @import("./expr").parse_false
+parse_float :: @import("./expr").parse_float
+parse_ident :: @import("./expr").parse_ident
+parse_index :: @import("./expr").parse_index
+parse_lit_int :: @import("./expr").parse_lit_int
+parse_str :: @import("./expr").parse_str
+parse_true :: @import("./expr").parse_true
+parse_unary :: @import("./expr").parse_unary
+bp_from_infix :: @import("./prec").bp_from_infix
+is_soft :: @import("./prec").is_soft
+prec :: @import("./prec").prec
+parse_block :: @import("./stmt").parse_block
+parse_break :: @import("./stmt").parse_break
+parse_cont :: @import("./stmt").parse_cont
+parse_for :: @import("./stmt").parse_for
+parse_if :: @import("./stmt").parse_if
+parse_match :: @import("./stmt").parse_match
+parse_return :: @import("./stmt").parse_return
+parse_while :: @import("./stmt").parse_while
+
+parse_file :: fn(p &Parser) {
+    p.file_scope = true
+    db := p.db
+    while not is_eof(p) {
+        if peek(p) == Token.comma {
+            parse_error_at(p, c"expected declaration before ','", curr_span(p))
+        }
+        if not begins_declaration(p) {
+            parse_error_at(p, c"expected a top-level declaration", curr_span(p))
+        }
+        name := db.interner.intern(curr_text(p))
+        if db.find_local_symbol(p.file_id, name) != id_none() {
+            parse_error_at(p, c"duplicate declaration", curr_span(p))
+        }
+        sym := db.alloc_symbol(p.file_id, name, p.cursor)
+        p.toplv_sym = sym
+        start := db.hir.len()
+        root := parse_expr(p, 0)
+        db.set_sym_hir_range(sym, start, db.hir.len())
+        if db.hir.kind(root) == hir_kind.binding {
+            db.set_sym_is_const(sym, true)
+            value := db.hir.extra(root)
+            if db.hir.kind(value) == hir_kind.ident {
+                db.hir.set_rhs(value, sym)
+            } else if db.hir.kind(value) == hir_kind.member {
+                db.hir.set_extra(value, sym)
+            }
+        }
+        check_separator(p, Token.eof, c"expected ',' or newline between top-level declarations")
+    }
+}
 
 parse_expr :: fn(p &Parser, min_bp u8) u32 {
     lhs := dispatch_prefix(p, min_bp)
@@ -259,6 +295,7 @@ parse_splice :: fn(p &Parser, min_bp u8) u32 {
     }
     sp_end := span_of_hir(p, expr)
     node := p.hir.push(k.splice, expr, hir_none(), hir_none())
+    capture_splice_scope(p, node)
     set_span(p, node, span_merge(sp_start, sp_end))
     if p.toplv_sym != id_none() {
         p.db.set_hir_symbol(node, p.toplv_sym)

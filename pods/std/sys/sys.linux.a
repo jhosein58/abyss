@@ -1,6 +1,14 @@
-import .posix: Directory, close_handle, dispatch_syscall, exit_process, make_directory, open_handle, read_handle, seek_handle, write_handle
+Directory :: @import("./posix").Directory
+close_handle :: @import("./posix").close_handle
+dispatch_syscall :: @import("./posix").dispatch_syscall
+exit_process :: @import("./posix").exit_process
+make_directory :: @import("./posix").make_directory
+open_handle :: @import("./posix").open_handle
+read_handle :: @import("./posix").read_handle
+seek_handle :: @import("./posix").seek_handle
+write_handle :: @import("./posix").write_handle
 
-import .decimal: format_float
+format_float :: @import("./decimal").format_float
 
 getenv :: extern fn(name &u8) &u8
 errno_location :: extern "__errno_location" fn() &i32

@@ -1,8 +1,9 @@
-import std.ascii: Ascii
-import std.sys:   fall
+Ascii :: @import("std/ascii").Ascii
+fall :: @import("std/sys").fall
 
-import .nexus.nexus: calc_pos
-import .token:       Token as Tk, TokenStream
+calc_pos :: @import("./nexus/nexus").calc_pos
+Tk :: @import("./token").Token
+TokenStream :: @import("./token").TokenStream
 
 match_keyword :: fn(text Str) Tk {
     if text.len == 2 {
@@ -70,9 +71,6 @@ match_keyword :: fn(text Str) Tk {
     if text.len == 6 {
         if text.eq("struct") {
             ret Tk.kw_struct
-        }
-        if text.eq("import") {
-            ret Tk.kw_import
         }
         if text.eq("extern") {
             ret Tk.kw_extern

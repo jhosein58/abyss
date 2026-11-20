@@ -1,6 +1,8 @@
-import compiler.token: Token as Tk, TokenStream
-import compiler.lexer: lex, decode_char_lit
-import std.sys: fall
+Tk :: @import("compiler/token").Token
+TokenStream :: @import("compiler/token").TokenStream
+lex :: @import("compiler/lexer").lex
+decode_char_lit :: @import("compiler/lexer").decode_char_lit
+fall :: @import("std/sys").fall
 
 expect :: fn(cond bool) {
     if not cond { #fall }
@@ -25,7 +27,7 @@ test_keywords :: fn() {
     check_tok(&s, 4, Tk.kw_break, "break", false)
     check_tok(&s, 5, Tk.kw_cont, "cont", false)
     check_tok(&s, 6, Tk.kw_struct, "struct", false)
-    check_tok(&s, 7, Tk.kw_import, "import", false)
+    check_tok(&s, 7, Tk.ident, "import", false)
     check_tok(&s, 8, Tk.kw_true, "true", false)
     check_tok(&s, 9, Tk.kw_false, "false", false)
     check_tok(&s, 10, Tk.kw_as, "as", false)

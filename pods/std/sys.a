@@ -1,5 +1,16 @@
-import std.sys.sys: Directory, close_handle, environment, exit_process, format_float, host_call, last_error, make_directory, open_handle, read_handle, seek_handle, write_handle
-import std.sys.types: OpenMode
+Directory :: @import("std/sys/sys").Directory
+close_handle :: @import("std/sys/sys").close_handle
+environment :: @import("std/sys/sys").environment
+exit_process :: @import("std/sys/sys").exit_process
+format_float :: @import("std/sys/sys").format_float
+host_call :: @import("std/sys/sys").host_call
+last_error :: @import("std/sys/sys").last_error
+make_directory :: @import("std/sys/sys").make_directory
+open_handle :: @import("std/sys/sys").open_handle
+read_handle :: @import("std/sys/sys").read_handle
+seek_handle :: @import("std/sys/sys").seek_handle
+write_handle :: @import("std/sys/sys").write_handle
+OpenMode :: @import("std/sys/types").OpenMode
 
 STDIN :: 0
 STDOUT :: 1
@@ -20,7 +31,7 @@ write_console :: fn(text Str) {
 }
 
 fall :: `{
-    import std.sys as fall_runtime
+    fall_runtime :: @import("std/sys")
     fall_runtime.fall_at(@source_location())
 }`
 

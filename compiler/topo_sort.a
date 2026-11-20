@@ -1,7 +1,8 @@
-import std.sys: fall
+fall :: @import("std/sys").fall
 
-import .nexus.nexus: Nexus
-import .types:       TyKind, TypeStorage
+Nexus :: @import("./nexus/nexus").Nexus
+TyKind :: @import("./types").TyKind
+TypeStorage :: @import("./types").TypeStorage
 
 is_composite_type :: fn(k TyKind) bool {
     (k == TyKind.struct_) or (k == TyKind.nominal) or (k == TyKind.func) or (k == TyKind.array) or

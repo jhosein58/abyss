@@ -1,19 +1,33 @@
-import std.string: Str
-import std.sys:    fall
+Str :: @import("std/string").Str
+fall :: @import("std/sys").fall
 
-import compiler.engine: Engine
-import compiler.hir: HirTable, hir_kind, hir_none
-import compiler.lower: eval_const
-import compiler.nexus.nexus: Nexus
-import compiler.nexus.pool: id_none
-import compiler.typer.reflection: reflection_error, reflection_read
-import compiler.typer.specialize: instantiate_type, resolve_ty_id, specialize_nominal_from_creator
-import compiler.typer.tyck: synth_node
-import compiler.types: TyKind, TypeStorage, ty_id_error, ty_id_never, ty_id_none, ty_id_type, ty_id_unit, ty_id_untyped_float, ty_id_untyped_int
-import compiler.unify: UnifyStorage, slot_none
+Engine :: @import("compiler/engine").Engine
+HirTable :: @import("compiler/hir").HirTable
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+eval_const :: @import("compiler/lower").eval_const
+Nexus :: @import("compiler/nexus/nexus").Nexus
+id_none :: @import("compiler/nexus/pool").id_none
+reflection_error :: @import("compiler/typer/reflection").reflection_error
+reflection_read :: @import("compiler/typer/reflection").reflection_read
+instantiate_type :: @import("compiler/typer/specialize").instantiate_type
+resolve_ty_id :: @import("compiler/typer/specialize").resolve_ty_id
+specialize_nominal_from_creator :: @import("compiler/typer/specialize").specialize_nominal_from_creator
+synth_node :: @import("compiler/typer/tyck").synth_node
+TyKind :: @import("compiler/types").TyKind
+TypeStorage :: @import("compiler/types").TypeStorage
+ty_id_error :: @import("compiler/types").ty_id_error
+ty_id_never :: @import("compiler/types").ty_id_never
+ty_id_none :: @import("compiler/types").ty_id_none
+ty_id_type :: @import("compiler/types").ty_id_type
+ty_id_unit :: @import("compiler/types").ty_id_unit
+ty_id_untyped_float :: @import("compiler/types").ty_id_untyped_float
+ty_id_untyped_int :: @import("compiler/types").ty_id_untyped_int
+UnifyStorage :: @import("compiler/unify").UnifyStorage
+slot_none :: @import("compiler/unify").slot_none
 
-import .common: check_value
-import .var:    synth_type_node
+check_value :: @import("./common").check_value
+synth_type_node :: @import("./var").synth_type_node
 
 constant_argument :: fn(db &Nexus, id u32) bool {
     kind := db.hir.kind(id)
@@ -349,6 +363,7 @@ check_method_receiver :: fn(db &Nexus, callee u32, params &Slice(u32), lhs_is_in
         ret 0
     }
     callee_lhs := tbl.lhs(callee)
+    if db.module_receiver(callee_lhs) != id_none() { ret 0 }
     m_sym := db.get_hir_symbol(callee)
     if m_sym == id_none() {
         lhs_slot := unify_ptr.get_slot(callee_lhs)

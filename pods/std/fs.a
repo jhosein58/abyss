@@ -1,11 +1,23 @@
-import core.maybe:          Maybe
-import std.allocator:       Arena
-import std.collections.vec: Vec
-import std.convert:         Convert
-import std.mem:             free, malloc
-import std.path:            Path
-import std.string:          Str, String
-import std.sys:             Directory, OpenMode, close_handle, environment, fall, make_directory, open_handle, read_handle, seek_handle, write_all, write_console
+Maybe :: @import("core/maybe").Maybe
+Arena :: @import("std/allocator").Arena
+Vec :: @import("std/collections/vec").Vec
+Convert :: @import("std/convert").Convert
+free :: @import("std/mem").free
+malloc :: @import("std/mem").malloc
+Path :: @import("std/path").Path
+Str :: @import("std/string").Str
+String :: @import("std/string").String
+Directory :: @import("std/sys").Directory
+OpenMode :: @import("std/sys").OpenMode
+close_handle :: @import("std/sys").close_handle
+environment :: @import("std/sys").environment
+fall :: @import("std/sys").fall
+make_directory :: @import("std/sys").make_directory
+open_handle :: @import("std/sys").open_handle
+read_handle :: @import("std/sys").read_handle
+seek_handle :: @import("std/sys").seek_handle
+write_all :: @import("std/sys").write_all
+write_console :: @import("std/sys").write_console
 
 SEEK_SET :: fn() i32 {
     0

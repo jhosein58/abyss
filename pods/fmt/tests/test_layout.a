@@ -1,7 +1,9 @@
-import std.allocator: Arena
+Arena :: @import("std/allocator").Arena
 
-import fmt:  format_source, format_source_with_width
-import test: Suite, Test
+format_source :: @import("fmt").format_source
+format_source_with_width :: @import("fmt").format_source_with_width
+Suite :: @import("test").Suite
+Test :: @import("test").Test
 
 assert_layout :: fn(t &Test, source Str, expected Str, width u64, hint Str) {
     arena := Arena.new(65536)
@@ -16,8 +18,8 @@ assert_layout :: fn(t &Test, source Str, expected Str, width u64, hint Str) {
 }
 
 test_comments_and_blank_lines :: fn(t &Test) {
-    input := `import zed: Z  -- package binding
-import std.mem: malloc
+    input := `Z :: @import("zed").Z  -- package binding
+malloc :: @import("std/mem").malloc
 
 
 Value::struct{ -- fields
@@ -48,8 +50,8 @@ z:.[ 1, 2, -- numbers
 ret 0 -- done
 }
 `
-    expected := `import zed: Z -- package binding
-import std.mem: malloc
+    expected := `Z :: @import("zed").Z -- package binding
+malloc :: @import("std/mem").malloc
 
 Value :: struct { -- fields
     short  i32 -- exported
@@ -83,48 +85,6 @@ make :: fn( -- args
 }
 `
     assert_layout(t, input, expected, 100, "comments and intentional blank lines survive")
-}
-
-test_import_barriers :: fn(t &Test) {
-    input := `import zed: Z
--- native bindings
-import std.mem: malloc, -- allocate pages
-    free
-import std.allocator: Arena
-
-run :: fn() { ret }
-
-import .local: path
-`
-    expected := `import zed: Z
-
--- native bindings
-import std.allocator: Arena
-import std.mem:
-    malloc -- allocate pages
-    free
-
-run :: fn() { ret }
-
-import .local: path
-`
-    assert_layout(t, input, expected, 100, "imports stay in their original section")
-    multiline := "import std.fs:\n-- file access\nFile\n\nDir\n"
-    multiline_expected := "import std.fs:\n    -- file access\n    File\n\n    Dir\n"
-    assert_layout(
-        t
-        multiline
-        multiline_expected
-        100
-        "comments and spacing inside symbol lists survive"
-    )
-    sections := "import std.foo:\n    Zed\n\n    Aye\n"
-    assert_layout(t, sections, sections, 100, "blank lines separate groups of imported names")
-    collision := "import std.collections.vec: Vec as Item\nimport core.string: Str as Item\n"
-    assert_layout(t, collision, collision, 100, "ordering of conflicting aliases is stable")
-    aliases := "import .local: Path as Third, Path as First, Path as Third, Path as Second\n"
-    alias_expected := "import .local: Path as First, Path as Second, Path as Third\n"
-    assert_layout(t, aliases, alias_expected, 100, "deduplication preserves distinct aliases")
 }
 
 test_wrapping :: fn(t &Test) {
@@ -259,7 +219,6 @@ main :: fn() {
     arena := Arena.new(65536)
     suite := Suite.new(&arena, "Formatter Layout")
     suite.add("comments and blank lines", test_comments_and_blank_lines)
-    suite.add("import barriers", test_import_barriers)
     suite.add("wrapping", test_wrapping)
     suite.add("nested lists", test_nested_lists)
     suite.add("token boundaries", test_token_boundaries)

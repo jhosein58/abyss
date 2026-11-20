@@ -1,4 +1,4 @@
-import compiler.token: Token
+Token :: @import("compiler/token").Token
 
 Precedence :: struct {
     none       u8

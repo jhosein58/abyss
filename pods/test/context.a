@@ -1,6 +1,7 @@
-import std.allocator: Arena
-import std.fmt:       fmt
-import std.string:    Str, String
+Arena :: @import("std/allocator").Arena
+fmt :: @import("std/fmt").fmt
+Str :: @import("std/string").Str
+String :: @import("std/string").String
 
 Test :: struct {
     name            Str

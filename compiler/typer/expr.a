@@ -1,29 +1,34 @@
-import std.string: Str
-import std.sys:    fall
+Str :: @import("std/string").Str
+fall :: @import("std/sys").fall
 
-import compiler.engine: Engine
-import compiler.hir: HirTable, hir_kind, hir_none
-import compiler.lexer: decode_char_lit
-import compiler.lower: eval_const
-import compiler.nexus.nexus: Nexus
-import compiler.nexus.pool: id_none
-import compiler.typer.reflection: reflection_quote, synth_reflection_builtin
-import compiler.typer.specialize: resolve_ty_id
-import compiler.typer.tyck: synth_node
-import compiler.types:
-    TyKind
-    TypeStorage
-    ty_id_bool
-    ty_id_error
-    ty_id_none
-    ty_id_type
-    ty_id_unit
-    ty_id_untyped_float
-    ty_id_untyped_int
-import compiler.unify: slot_none
+Engine :: @import("compiler/engine").Engine
+HirTable :: @import("compiler/hir").HirTable
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+decode_char_lit :: @import("compiler/lexer").decode_char_lit
+eval_const :: @import("compiler/lower").eval_const
+Nexus :: @import("compiler/nexus/nexus").Nexus
+id_none :: @import("compiler/nexus/pool").id_none
+reflection_quote :: @import("compiler/typer/reflection").reflection_quote
+reflection_read :: @import("compiler/typer/reflection").reflection_read
+synth_reflection_builtin :: @import("compiler/typer/reflection").synth_reflection_builtin
+resolve_ty_id :: @import("compiler/typer/specialize").resolve_ty_id
+process_mono_funcs :: @import("compiler/typer/tyck").process_mono_funcs
+synth_node :: @import("compiler/typer/tyck").synth_node
+TyKind :: @import("compiler/types").TyKind
+TypeStorage :: @import("compiler/types").TypeStorage
+ty_id_bool :: @import("compiler/types").ty_id_bool
+ty_id_error :: @import("compiler/types").ty_id_error
+ty_id_none :: @import("compiler/types").ty_id_none
+ty_id_type :: @import("compiler/types").ty_id_type
+ty_id_unit :: @import("compiler/types").ty_id_unit
+ty_id_untyped_float :: @import("compiler/types").ty_id_untyped_float
+ty_id_untyped_int :: @import("compiler/types").ty_id_untyped_int
+slot_none :: @import("compiler/unify").slot_none
 
-import .common: check_bool_operand, check_value
-import .var:    synth_type_node
+check_bool_operand :: @import("./common").check_bool_operand
+check_value :: @import("./common").check_value
+synth_type_node :: @import("./var").synth_type_node
 
 synth_lit_int :: fn(db &Nexus, tbl &HirTable, id u32) {
     unify_ptr := &(*db).unify
@@ -482,6 +487,52 @@ synth_source_location :: fn(eng &Engine, id u32, slot u32) {
     db.hir.set_extra(id, literal)
 }
 
+import_path :: fn(eng &Engine, id u32) Str {
+    db := &eng.nexus
+    if db.hir.kind(id) == hir_kind.lit_str {
+        raw := db.interner.get(db.hir.lhs(id))
+        if raw.ptr[0] == '`' {
+            ret raw.trim_quotes()
+        }
+        escaped := false
+        for ch in raw {
+            if ch == '\\' {
+                escaped = true
+                break
+            }
+        }
+        if not escaped { ret raw.trim_quotes() }
+    }
+    ty := eng.get_str_type()
+    kind := db.hir.kind(id)
+    binding := kind == hir_kind.ident or (kind == hir_kind.member and db.is_const(id))
+    constant := kind == hir_kind.lit_str or db.has_const_val(id) or
+        (binding and db.is_sym_const(db.get_hir_symbol(id)))
+    if db.get_node_type(id) != ty or not constant {
+        db.type_error(id, "@import path must be a compile-time Str")
+    }
+    process_mono_funcs(eng)
+    bits := eval_const(db, id)
+    if bits == 0 {
+        db.type_error(id, "@import path must be a compile-time Str")
+    }
+    Str.new(reflection_read(db, bits, ty, "ptr") as &u8, reflection_read(db, bits, ty, "len"))
+}
+
+synth_import :: fn(eng &Engine, id, slot u32, args Slice(u32)) {
+    db := &eng.nexus
+    if args.len != 1 {
+        db.type_error(id, "@import expects one path")
+    }
+    arg := args.ptr[0]
+    path := import_path(eng, arg)
+    fid := db.get_hir_file(id)
+    module := eng.load_module(fid, db.get_hir_span(arg).start, db.get_file_path(fid), path)
+    ty := db.module_type(module)
+    db.bind_type(slot, ty)
+    db.set_is_const(id, true)
+}
+
 synth_builtin_call :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
     tbl := &(*db).hir
@@ -497,6 +548,10 @@ synth_builtin_call :: fn(eng &Engine, id u32) {
     args_list_id := (tbl).rhs(id)
     args := db.get_list(args_list_id)
 
+    if name.eq("import") {
+        synth_import(eng, id, slot, args)
+        ret
+    }
     if name.eq("source_location") {
         if args.len != 0 { db.type_error(id, "@source_location expects no arguments") }
         synth_source_location(eng, id, slot)

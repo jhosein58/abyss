@@ -1,4 +1,4 @@
-import std.io: write as print
+print :: @import("std/io").write
 
 A :: 10
 B :: 20

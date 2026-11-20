@@ -1,6 +1,7 @@
-import .process: abyss_process_set_args
-import std.mem: free, malloc
-import std.sys: exit_process
+abyss_process_set_args :: @import("./process").abyss_process_set_args
+free :: @import("std/mem").free
+malloc :: @import("std/mem").malloc
+exit_process :: @import("std/sys").exit_process
 
 args_sizes_get :: extern "wasi_snapshot_preview1" "args_sizes_get" fn(count, bytes &u32) u32
 args_get :: extern "wasi_snapshot_preview1" "args_get" fn(entries &&u8, buffer &u8) u32

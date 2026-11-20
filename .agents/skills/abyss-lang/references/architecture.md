@@ -14,7 +14,7 @@ abyss/
 │   ├── engine.a        # Core compilation session state
 │   ├── token.a         # Token definitions, TokenStream structure
 │   ├── lexer.a         # Fast lexical analyzer
-│   ├── indexer.a       # Module import resolver, multi-file symbol indexer
+│   ├── modules.a       # Cached module resolution and source loading
 │   ├── hir.a           # High-Level Intermediate Representation (HIR) nodes
 │   ├── parser/         # Recursive-descent parser producing HIR
 │   ├── typer/          # Type synthesis, unification, comptime & reflection
@@ -32,7 +32,7 @@ abyss/
 └── scripts/            # Test and multi-generation bootstrap scripts
 ```
 
-`pods/fmt/syntax/` tokenizes source without losing whitespace or comments. `parser.a` keeps significant line breaks and distinguishes trailing comments from standalone ones. `formatter.a` builds layout groups, `layout.a` measures and renders them, and `imports.a` organizes imports within contiguous sections while preserving conflicting bindings. Keep raw string bytes intact. When the formatter cannot parse a source, return the original bytes. Verify a second formatting pass and run `./abyss test-pods` for native and VM formatter coverage.
+`pods/fmt/syntax/` tokenizes source without losing whitespace or comments. `parser.a` keeps significant line breaks and distinguishes trailing comments from standalone ones. `formatter.a` builds layout groups, and `layout.a` measures and renders them. Keep raw string bytes intact. When the formatter cannot parse a source, return the original bytes. Verify a second formatting pass and run `./abyss test-pods` for native and VM formatter coverage.
 
 ---
 
@@ -46,14 +46,11 @@ Source Files (.a)
        ▼ [Lexer]
 TokenStream
        │
-       ▼ [Indexer]
-Multi-Module Dependency Graph, Top-Level Symbols, Preludes (core/std)
-       │
        ▼ [Parser]
-HirTable (AST / High-Level IR)
+HirTable, file declarations and lexical scopes
        │
        ▼ [Typer]
-Type Checking, Unification, Comptime Reflection, Macro Splices
+On-demand module loading, type checking, unification, comptime and splices
        │
        ▼ [Lowering]
 Canonicalized HIR
@@ -76,11 +73,12 @@ The single source of truth for the compilation session:
 - **HirTable**: Flat pool of HIR nodes (kind, left, right, type).
 - **Types**: Unified type table containing primitive, struct, union, and pointer types.
 
-### 2. `Indexer` (`compiler/indexer.a`)
-- Resolves dotted import paths (relative `.` and absolute).
-- Automatically resolves folder modules (`std.test` -> `std/test/test.a`).
-- Discovers top-level symbol declarations across all imported files before parsing function bodies.
-- Injects `core/prelude` and `std/prelude`.
+### 2. Module Loading (`compiler/modules.a`)
+
+- The normal parser registers all declarations in a loaded file and releases its tokens afterward.
+- The typer resolves `@import` expressions and looks up members by the receiver's namespace type.
+- Normalized paths, file symbols, and namespace types are cached per compilation.
+- Declarations are typed on demand, so files can refer to each other. The engine loads the core and std preludes before type checking the entry file.
 
 ### 3. `Typer` (`compiler/typer/`)
 - Bidirectional Hindley-Milner-inspired type inference and constraint unification (`unify.a`).

@@ -2,13 +2,17 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPILER="$1"
+COMPILER="$(realpath "$1")"
+export ABYSS_DEV="${ABYSS_DEV:-${ROOT_DIR}}"
 WORK_DIR=$(mktemp -d "${ROOT_DIR}/tmp/target_test.XXXXXX")
 mkdir -p "${WORK_DIR}/platform" "${WORK_DIR}/sdk/pods/core"
 
 cat > "${WORK_DIR}/main.a" <<'ABYSS'
-import .platform: marker
-import core.target: Arch, Os, Target, target
+marker :: @import("./platform").marker
+Arch :: @import("core/target").Arch
+Os :: @import("core/target").Os
+Target :: @import("core/target").Target
+target :: @import("core/target").target
 main :: fn() {
     profile: Target = target
     print(marker())
@@ -42,7 +46,7 @@ printf 'linux\nfalse\nfalse\n64\n' > "${WORK_DIR}/expected"
 cmp "${WORK_DIR}/expected" "${WORK_DIR}/actual"
 
 cat > "${WORK_DIR}/args.a" <<'ABYSS'
-import std.env: Env
+Env :: @import("std/env").Env
 
 main :: fn() i32 {
     if Env.args_len() != 3 or Env.arg(-1) != (0 as &u8) or Env.arg(3) != (0 as &u8) { ret 1 }
@@ -60,7 +64,7 @@ status=0
 [[ "${status}" == 42 ]]
 
 cat > "${WORK_DIR}/library.a" <<'ABYSS'
-import std.env: Env
+Env :: @import("std/env").Env
 
 library_arg_count :: extern fn() i32 { Env.args_len() }
 
@@ -85,11 +89,62 @@ assert library.library_arg_count() == 0
 assert not hasattr(library, "abyss_process_arg_count")
 PYTHON
 
-printf 'import core.foreign\nmain :: fn() {}\n' > "${WORK_DIR}/reject.a"
+printf 'main :: fn() { @import("core/foreign") }\n' > "${WORK_DIR}/reject.a"
 printf 'Forbidden :: extern struct { value i32 }\n' > "${WORK_DIR}/sdk/pods/core/foreign.a"
 if ABYSS_DEV="${WORK_DIR}/sdk" "${COMPILER}" b "${WORK_DIR}/reject.a" "${WORK_DIR}/reject.c" >"${WORK_DIR}/reject.log" 2>&1; then
     echo 'FAIL target checks: unused extern in core was accepted'
     exit 1
 fi
 grep -q 'core modules cannot declare extern' "${WORK_DIR}/reject.log"
+mkdir -p "${WORK_DIR}/imports/deps/probe"
+cat > "${WORK_DIR}/imports/deps/probe/probe.a" <<'ABYSS'
+calls: i32 = 0
+
+module_probe :: extern fn() i32 {
+    calls = calls + 1
+    calls
+}
+ABYSS
+cat > "${WORK_DIR}/imports/main.a" <<ABYSS
+main :: fn() {
+    first := @import("probe")
+    second: @typeof(first) = @import("alias")
+    third: @typeof(first) = @import("./deps/probe/./probe.a")
+    fourth: @typeof(first) = @import("${WORK_DIR}/imports/deps/probe/probe.a")
+    print(first.module_probe())
+    print(second.module_probe())
+    print(third.module_probe())
+    print(fourth.module_probe())
+}
+ABYSS
+(
+    cd "${WORK_DIR}/imports"
+    "${COMPILER}" b --map alias=deps/probe/probe -I deps main.a modules.c
+    [[ $(grep -c '^int32_t module_probe(void) {' modules.c) -eq 1 ]]
+    "${CC:-gcc}" -std=gnu99 -O0 modules.c -o modules
+    printf '1\n2\n3\n4\n' > expected
+    ./modules > native.out
+    "${COMPILER}" r --map alias=deps/probe/probe -I deps main.a > vm.out
+    cmp expected native.out
+    cmp expected vm.out
+)
+cat > "${WORK_DIR}/imports/relative.a" <<'ABYSS'
+main :: fn() {
+    print(@import("probe").module_probe())
+    print(@import("./probe").module_probe())
+}
+ABYSS
+cat > "${WORK_DIR}/imports/explicit.a" <<'ABYSS'
+main :: fn() {
+    print(@import("./deps/probe").module_probe())
+    print(@import("./deps/probe.a").module_probe())
+}
+ABYSS
+(
+    cd "${WORK_DIR}/imports"
+    if "${COMPILER}" b -I deps relative.a relative.c > relative.log 2>&1; then exit 1; fi
+    grep -Fq 'cannot open module: ./probe' relative.log
+    if "${COMPILER}" b explicit.a explicit.c > explicit.log 2>&1; then exit 1; fi
+    grep -Fq 'cannot open module: ./deps/probe.a' explicit.log
+)
 printf '  ✔ PASS  %-36s [Targets]\n' 'platform_module_resolution_and_abi'

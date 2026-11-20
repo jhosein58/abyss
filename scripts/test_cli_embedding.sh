@@ -6,12 +6,12 @@ COMPILER="${1:-${ABYSS_COMPILER:-${ROOT_DIR}/abyssc}}"
 WORK_DIR=$(mktemp -d "${ROOT_DIR}/tmp/cli_embedding_test.XXXXXX")
 cp -r "${ROOT_DIR}/compiler" "${ROOT_DIR}/pods" "${WORK_DIR}/"
 mkdir "${WORK_DIR}/scripts"
-cp "${ROOT_DIR}/scripts/seed_compile.sh" "${WORK_DIR}/scripts/"
+cp "${ROOT_DIR}/scripts/seed_compile.sh" "${ROOT_DIR}/scripts/seed_imports.awk" "${WORK_DIR}/scripts/"
 cp "${ROOT_DIR}/abyss" "${WORK_DIR}/"
 cp "${COMPILER}" "${WORK_DIR}/abyssc"
 (
     cd "${WORK_DIR}"
-    printf 'import std.io: write as print, embedding_probe\nmain :: fn() { print("automatic embedding\\n"), print(embedding_probe()), print(" "), print(true), print("\\n") }\n' > program.a
+    printf 'print :: @import("std/io").write\nembedding_probe :: @import("std/io").embedding_probe\nmain :: fn() { print("automatic embedding\\n"), print(embedding_probe()), print(" "), print(true), print("\\n") }\n' > program.a
     printf '\nembedding_probe :: fn() i32 { 7 }\n' >> pods/std/io.a
     printf 'invalid user program\n' > main.a
     timeout 120s ./abyss b program.a

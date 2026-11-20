@@ -1,7 +1,7 @@
-import std.allocator: Arena
-import std.fmt:       fmt
-import std.string:    String
-import std.sys:       write_console
+Arena :: @import("std/allocator").Arena
+fmt :: @import("std/fmt").fmt
+String :: @import("std/string").String
+write_console :: @import("std/sys").write_console
 
 write_str :: fn(value Str) {
     write_console(value)

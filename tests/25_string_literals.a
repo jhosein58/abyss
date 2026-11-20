@@ -1,7 +1,11 @@
-import std.io: write_str
-import core.string: Str
+write_str :: @import("std/io").write_str
+Str :: @import("core/string").Str
 
-import std.io: write as print_cstr, write_byte as print_char, write as print_u32, write as print_u64, write as print_bool
+print_cstr :: @import("std/io").write
+print_char :: @import("std/io").write_byte
+print_u32 :: @import("std/io").write
+print_u64 :: @import("std/io").write
+print_bool :: @import("std/io").write
 
 main :: fn() {
     s := "hello world"

@@ -1,0 +1,8 @@
+Left :: struct { right &right.Right }
+
+even :: fn(value i32) bool {
+    if value == 0 { ret true }
+    right.odd(value - 1)
+}
+
+right :: @import("./right")

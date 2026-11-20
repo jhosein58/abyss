@@ -1,188 +1,29 @@
-import std.allocator: Arena
-import std.fs:        Dir, File
-import std.string:    Str
+Arena :: @import("std/allocator").Arena
+Dir :: @import("std/fs").Dir
+File :: @import("std/fs").File
+Str :: @import("std/string").Str
 
-import fmt:  format_path, format_source, format_source_with_width
-import test: Suite, Test
+format_path :: @import("fmt").format_path
+format_source :: @import("fmt").format_source
+format_source_with_width :: @import("fmt").format_source_with_width
+Suite :: @import("test").Suite
+Test :: @import("test").Test
 
-test_imports :: fn(t &Test) {
-    arena := Arena.new(65536)
+test_import_expressions :: fn(t &Test) {
+    arena := Arena.new(4096)
+    source := `ns::@import("./local")
+Alias ::@import("std/fs").File
 
-    src1 := "import std.allocator: Arena\n"
-    res1 := format_source(&arena, src1)
-    t.assert_str_eq(res1, src1, "import basic")
+run::fn(){ chosen:=@import("std"), print(chosen.print) }
+`
+    expected := `ns :: @import("./local")
+Alias :: @import("std/fs").File
 
-    src2 := "import .path.to: x as y, z\n"
-    res2 := format_source(&arena, src2)
-    t.assert_str_eq(res2, src2, "import relative alias")
-
-    src3 := "import std.mem as mem\n"
-    res3 := format_source(&arena, src3)
-    t.assert_str_eq(res3, src3, "import module alias")
-
-    src4 := "import std.mem\n"
-    res4 := format_source(&arena, src4)
-    t.assert_str_eq(res4, src4, "import whole module")
-
-    arena.destroy()
-}
-
-test_import_spacing_and_aliases :: fn(t &Test) {
-    arena := Arena.new(65536)
-
-    src1 := "import   std.allocator   :   Arena\n"
-    res1 := format_source(&arena, src1)
-    exp1 := "import std.allocator: Arena\n"
-    t.assert_str_eq(res1, exp1, "excess colon whitespace")
-
-    src2 := "import std.fs\t:\tFile, Dir\n"
-    res2 := format_source(&arena, src2)
-    exp2 := "import std.fs: Dir, File\n"
-    t.assert_str_eq(res2, exp2, "tabular spacing around colon")
-
-    src3 := "import std.io:print,printf\n"
-    res3 := format_source(&arena, src3)
-    exp3 := "import std.io: print, printf\n"
-    t.assert_str_eq(res3, exp3, "spacing without spaces")
-
-    src4 := "import std.fs: File, Dir,\n"
-    res4 := format_source(&arena, src4)
-    exp4 := "import std.fs: Dir, File\n"
-    t.assert_str_eq(res4, exp4, "trailing comma stripped")
-
-    src5 := "import   std.mem\n"
-    res5 := format_source(&arena, src5)
-    exp5 := "import std.mem\n"
-    t.assert_str_eq(res5, exp5, "bare module spacing")
-
-    src6 := "import   std.mem   as   mem\n"
-    res6 := format_source(&arena, src6)
-    exp6 := "import std.mem as mem\n"
-    t.assert_str_eq(res6, exp6, "module alias spacing")
-
-    src7 := "import test : Suite , assert_eq   as   eq\n"
-    res7 := format_source(&arena, src7)
-    exp7 := "import test: Suite, assert_eq as eq\n"
-    t.assert_str_eq(res7, exp7, "symbol alias spacing")
-
-    src8 := "import   .path.to :   x   as   y ,   z\n"
-    res8 := format_source(&arena, src8)
-    exp8 := "import .path.to: x as y, z\n"
-    t.assert_str_eq(res8, exp8, "relative import alias spacing")
-
-    arena.destroy()
-}
-
-test_import_symbol_sorting_and_dedup :: fn(t &Test) {
-    arena := Arena.new(65536)
-
-    src1 := "import std.fs: to_cstr, File, Dir\n"
-    res1 := format_source(&arena, src1)
-    exp1 := "import std.fs: Dir, File, to_cstr\n"
-    t.assert_str_eq(res1, exp1, "ascii mixed case symbol sorting")
-
-    src2 := "import std.fs: File, Dir, File, to_cstr, Dir\n"
-    res2 := format_source(&arena, src2)
-    exp2 := "import std.fs: Dir, File, to_cstr\n"
-    t.assert_str_eq(res2, exp2, "duplicate symbol deduplication")
-
-    src3 := "import test: Test, Suite, assert_eq as eq\n"
-    res3 := format_source(&arena, src3)
-    exp3 := "import test: Suite, Test, assert_eq as eq\n"
-    t.assert_str_eq(res3, exp3, "symbols with aliases sorted by symbol name")
-
-    src4 := "import std.fs:\n    File,\n    Dir,\n    to_cstr\n"
-    res4 := format_source(&arena, src4)
-    exp4 := "import std.fs:\n    Dir\n    File\n    to_cstr\n"
-    t.assert_str_eq(res4, exp4, "multiline symbol list with commas")
-
-    src5 := "import std.mem:\n    malloc\n    free\n"
-    res5 := format_source(&arena, src5)
-    exp5 := "import std.mem:\n    free\n    malloc\n"
-    t.assert_str_eq(res5, exp5, "multiline symbol list without commas")
-
-    arena.destroy()
-}
-
-test_import_three_group_partitioning :: fn(t &Test) {
-    arena := Arena.new(65536)
-
-    src_g1 := "import std.string: Str\nimport core.allocator: Arena\nimport std.fs: File\n"
-    res_g1 := format_source(&arena, src_g1)
-    exp_g1 := "import core.allocator: Arena\nimport std.fs:         File\nimport std.string:     Str\n"
-    t.assert_str_eq(res_g1, exp_g1, "group 1 only sorted")
-
-    src_g2 := "import test: Suite\nimport json: Parser\nimport sonar: Builder\n"
-    res_g2 := format_source(&arena, src_g2)
-    exp_g2 := "import json:  Parser\nimport sonar: Builder\nimport test:  Suite\n"
-    t.assert_str_eq(res_g2, exp_g2, "group 2 only sorted")
-
-    src_g3 := "import .types: TypeKind\nimport .lexer: Lexer\nimport .hir: HirNode\n"
-    res_g3 := format_source(&arena, src_g3)
-    exp_g3 := "import .hir:   HirNode\nimport .lexer: Lexer\nimport .types: TypeKind\n"
-    t.assert_str_eq(res_g3, exp_g3, "group 3 only sorted")
-
-    src_12 := "import test: Suite\nimport std.fs: File\nimport json: Parser\nimport std.allocator: Arena\n"
-    res_12 := format_source(&arena, src_12)
-    exp_12 := "import std.allocator: Arena\nimport std.fs:        File\n\nimport json: Parser\nimport test: Suite\n"
-    t.assert_str_eq(res_12, exp_12, "group 1 and group 2 separated")
-
-    src_13 := "import .token: Token\nimport std.fs: File\nimport .lexer: Lexer\nimport std.allocator: Arena\n"
-    res_13 := format_source(&arena, src_13)
-    exp_13 := "import std.allocator: Arena\nimport std.fs:        File\n\nimport .lexer: Lexer\nimport .token: Token\n"
-    t.assert_str_eq(res_13, exp_13, "group 1 and group 3 separated")
-
-    src_23 := "import .lexer: Lexer\nimport json: Parser\nimport .cst: CstNode\nimport test: Suite\n"
-    res_23 := format_source(&arena, src_23)
-    exp_23 := "import json: Parser\nimport test: Suite\n\nimport .cst:   CstNode\nimport .lexer: Lexer\n"
-    t.assert_str_eq(res_23, exp_23, "group 2 and group 3 separated")
-
-    src_123 := "import .lexer: Lexer\nimport test: Suite\nimport std.fs: File\nimport .cst: CstNode\nimport json: Parser\nimport core.allocator: Arena\n"
-    res_123 := format_source(&arena, src_123)
-    exp_123 := "import core.allocator: Arena\nimport std.fs:         File\n\nimport json: Parser\nimport test: Suite\n\nimport .cst:   CstNode\nimport .lexer: Lexer\n"
-    t.assert_str_eq(res_123, exp_123, "all three groups partitioned and separated")
-
-    src_collapse := "import std.fs: File\n\n\n\nimport test: Suite\n"
-    res_collapse := format_source(&arena, src_collapse)
-    exp_collapse := "import std.fs: File\n\nimport test: Suite\n"
-    t.assert_str_eq(res_collapse, exp_collapse, "multiple blank lines between groups collapsed")
-
-    src_thresh := "import std.a: A\nimport std.very_long_module_path_exceeding_twelve_chars: B\n"
-    res_thresh := format_source(&arena, src_thresh)
-    exp_thresh := "import std.a: A\nimport std.very_long_module_path_exceeding_twelve_chars: B\n"
-    t.assert_str_eq(res_thresh, exp_thresh, "gap threshold fallback to single space")
-
-    arena.destroy()
-}
-
-test_import_code_separation_and_edge_cases :: fn(t &Test) {
-    arena := Arena.new(65536)
-
-    src_code0 := "import std.fs: File\nimport .token: Token\nmain :: fn() {\n    ret 0\n}\n"
-    res_code0 := format_source(&arena, src_code0)
-    exp_code0 := "import std.fs: File\n\nimport .token: Token\n\nmain :: fn() {\n    ret 0\n}\n"
-    t.assert_str_eq(res_code0, exp_code0, "zero blank lines before code normalized to one")
-
-    src_code4 := "import std.fs: File\n\n\n\nmain :: fn() {\n    ret 0\n}\n"
-    res_code4 := format_source(&arena, src_code4)
-    exp_code4 := "import std.fs: File\n\nmain :: fn() {\n    ret 0\n}\n"
-    t.assert_str_eq(res_code4, exp_code4, "excess blank lines before code collapsed to one")
-
-    src_only := "import std.fs: File\nimport test: Suite\n"
-    res_only := format_source(&arena, src_only)
-    exp_only := "import std.fs: File\n\nimport test: Suite\n"
-    t.assert_str_eq(res_only, exp_only, "imports only no trailing blank line")
-
-    src_nocode := "main :: fn() {\n    ret 0\n}\n"
-    res_nocode := format_source(&arena, src_nocode)
-    exp_nocode := "main :: fn() {\n    ret 0\n}\n"
-    t.assert_str_eq(res_nocode, exp_nocode, "file without imports unchanged")
-
-    complex_src := "import .lexer: Lexer\nimport test: Suite, Test\nimport std.fs: to_cstr, File\n\nmain :: fn() {\n    ret 0\n}\n"
-    pass1 := format_source(&arena, complex_src)
-    pass2 := format_source(&arena, pass1)
-    t.assert_str_eq(pass1, pass2, "three group formatting idempotency")
-
+run :: fn() { chosen := @import("std"), print(chosen.print) }
+`
+    result := format_source(&arena, source)
+    t.assert_str_eq(result, expected, "import is formatted as an ordinary expression")
+    t.assert_str_eq(format_source(&arena, result), result, "second pass is unchanged")
     arena.destroy()
 }
 
@@ -337,7 +178,7 @@ test_file_and_directory_formatting :: fn(t &Test) {
 
 test_extern :: fn(t &Test) {
     arena := Arena.new(65536)
-    source := `import core
+    source := `core :: @import("core")
 
 Packet::extern struct{
 tag u8
@@ -355,7 +196,7 @@ adjust::extern fn(x i32) i32{
 x+1
 }
 `
-    expected := `import core
+    expected := `core :: @import("core")
 
 Packet :: extern struct {
     tag   u8
@@ -382,11 +223,7 @@ adjust :: extern fn(x i32) i32 {
 main :: fn() {
     arena := Arena.new(65536)
     suite := Suite.new(&arena, "Fmt Code Formatter Test Suite")
-    suite.add("imports", test_imports)
-    suite.add("import_spacing_and_aliases", test_import_spacing_and_aliases)
-    suite.add("import_symbol_sorting_and_dedup", test_import_symbol_sorting_and_dedup)
-    suite.add("import_three_group_partitioning", test_import_three_group_partitioning)
-    suite.add("import_code_separation_and_edge_cases", test_import_code_separation_and_edge_cases)
+    suite.add("import expressions", test_import_expressions)
     suite.add("struct_and_enum", test_struct_and_enum)
     suite.add("control_flow", test_control_flow)
     suite.add("struct_init_and_tuples", test_struct_init_and_tuples)

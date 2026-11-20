@@ -1,6 +1,7 @@
-import std.collections.vec: Vec
+Vec :: @import("std/collections/vec").Vec
 
-import std.io: write as print_u32, write as print_cstr
+print_u32 :: @import("std/io").write
+print_cstr :: @import("std/io").write
 
 Marker0 :: struct { value u32 }
 Marker1 :: struct { value u32 }

@@ -1,28 +1,40 @@
-import std.string: Str
-import std.sys:    fall
+Str :: @import("std/string").Str
+fall :: @import("std/sys").fall
 
-import compiler.engine: Engine
-import compiler.hir: HirTable, hir_kind, hir_none
-import compiler.lexer: lex
-import compiler.lower: eval_const
-import compiler.nexus.nexus: Nexus
-import compiler.nexus.pool: id_none
-import compiler.parser.common: check_separator, parse_method
-import compiler.parser.core: Parser_new, is_eof, peek
-import compiler.parser.expr: parse_ident
-import compiler.token: Token, TokenStream
-import compiler.typer.reflection: reflection_read
-import compiler.typer.specialize:
-    resolve_ty_id
-    specialize_nominal_from_creator
-    specialize_nominal_method
-import compiler.typer.tyck: process_mono_funcs, synth_node, type_check
-import compiler.types: TyKind, ty_id_none, ty_id_type, ty_id_unit
-import compiler.unify: slot_none
+Engine :: @import("compiler/engine").Engine
+HirTable :: @import("compiler/hir").HirTable
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+lex :: @import("compiler/lexer").lex
+eval_const :: @import("compiler/lower").eval_const
+Nexus :: @import("compiler/nexus/nexus").Nexus
+id_none :: @import("compiler/nexus/pool").id_none
+check_separator :: @import("compiler/parser/common").check_separator
+parse_method :: @import("compiler/parser/common").parse_method
+Parser_new :: @import("compiler/parser/core").Parser_new
+restore_splice_scope :: @import("compiler/parser/core").restore_splice_scope
+is_eof :: @import("compiler/parser/core").is_eof
+peek :: @import("compiler/parser/core").peek
+parse_ident :: @import("compiler/parser/expr").parse_ident
+Token :: @import("compiler/token").Token
+TokenStream :: @import("compiler/token").TokenStream
+reflection_read :: @import("compiler/typer/reflection").reflection_read
+resolve_ty_id :: @import("compiler/typer/specialize").resolve_ty_id
+specialize_nominal_from_creator :: @import("compiler/typer/specialize").specialize_nominal_from_creator
+specialize_nominal_method :: @import("compiler/typer/specialize").specialize_nominal_method
+process_mono_funcs :: @import("compiler/typer/tyck").process_mono_funcs
+synth_node :: @import("compiler/typer/tyck").synth_node
+type_check :: @import("compiler/typer/tyck").type_check
+TyKind :: @import("compiler/types").TyKind
+ty_id_none :: @import("compiler/types").ty_id_none
+ty_id_type :: @import("compiler/types").ty_id_type
+ty_id_unit :: @import("compiler/types").ty_id_unit
+slot_none :: @import("compiler/unify").slot_none
 
-import .common: unescape_splice_str
-import .fn:     func_has_self, synth_func
-import .var:    synth_type_node
+unescape_splice_str :: @import("./common").unescape_splice_str
+func_has_self :: @import("./fn").func_has_self
+synth_func :: @import("./fn").synth_func
+synth_type_node :: @import("./var").synth_type_node
 
 process_methods :: fn(eng &Engine, id u32, methods_id u32, sym_id u32) u32 {
     db := &eng.nexus
@@ -67,6 +79,7 @@ process_methods :: fn(eng &Engine, id u32, methods_id u32, sym_id u32) u32 {
                 }
                 fid := db.get_hir_file(id)
                 sub_p := Parser_new(db, &tokens, tbl, fid, sym_id, 0, tok_count)
+                restore_splice_scope(&sub_p, method)
                 expanded_methods := Vec(u32).new()
                 t := Token
                 node_start := tbl.len()
@@ -413,66 +426,39 @@ synth_member :: fn(eng &Engine, id u32) {
     }
     db.set_auto_deref_depth(id, deref_depth)
 
-    lhs_sym := db.get_hir_symbol(lhs_id)
-    if (lhs_sym != id_none()) and db.is_module_sym(lhs_sym) {
-        rhs_id := tbl.rhs(id)
-        name_id := tbl.lhs(rhs_id)
-        target_fid := db.get_module_fid(lhs_sym)
-        target_sym := db.find_local_symbol(target_fid, name_id)
-        if target_sym == id_none() {
-            printf(
-                "\n\033[1;31m[type error]\033[0m module has no member '{}'\n       --> "
-                .{ db.interner.get(name_id) }
-            )
+    target_fid := db.module_file(lhs_ty)
+    if target_fid != id_none() {
+        name := tbl.lhs(tbl.rhs(id))
+        target := db.find_local_symbol(target_fid, name)
+        if target == id_none() {
+            printf("\n[type error] module has no member '{}'\n       --> ", .{ db.interner.get(name) })
             db.print_loc(id)
             print("")
             #fall
         }
-        if db.global_var(target_sym) != hir_none() and db.is_sym_resolving(target_sym) {
+        if db.global_var(target) != hir_none() and db.is_sym_resolving(target) {
             db.type_error(id, "circular reference in mutable global declaration")
         }
-        eng.ensure_resolved(target_sym)
-        target_slot := eng.slot_of(target_sym)
-        target_hir := db.get_sym_hir(target_sym)
-        if db.is_module_sym(target_sym) {
-            sub_fid := db.get_module_fid(target_sym)
-            sub_ty := db.get_module_type(sub_fid)
-            if sub_ty == ty_id_none() {
-                sub_name := db.interner.get(name_id)
-                sub_ty = db.types.alloc_nominal(ty_id_none(), sub_name, id_none())
-                db.set_module_type(sub_fid, sub_ty)
-            }
-            db.set_hir_symbol(id, target_sym)
-            db.set_const_type(id, sub_ty)
-            db.set_is_const(id, true)
-            db.bind_type(slot, ty_id_type())
-            ret
+        if db.is_const(lhs_id) {
+            db.forward_binding(tbl.extra(id), target)
         }
-        if db.is_sym_const(target_sym) {
-            db.set_is_const(id, true)
-            if (target_hir != id_none()) and db.has_const_val(target_hir) {
-                db.set_const_val(id, db.get_const_val(target_hir))
-            }
-            if target_hir != id_none() {
-                c_ty := db.get_const_type(target_hir)
-                if c_ty != ty_id_none() {
-                    db.set_const_type(id, c_ty)
+        target_slot := eng.slot_of(target)
+        target = db.resolve_sym(target)
+        db.set_hir_symbol(id, target)
+        if target_slot == slot_none() or
+            (db.is_sym_resolving(target) and db.unify.resolve_type(target_slot) == ty_id_none()) {
+            db.type_error(id, "circular reference in module binding")
+        }
+        db.union(slot, target_slot)
+        if db.is_sym_const(target) {
+            origin := db.get_sym_hir(target)
+            db.set_const_type(id, db.get_const_type(origin))
+            if is_type or db.is_const(lhs_id) {
+                db.set_is_const(id, true)
+                if db.has_const_val(origin) {
+                    db.set_const_val(id, db.get_const_val(origin))
                 }
             }
-            if target_slot != slot_none() {
-                sym_ty := db.unify.resolve_type(target_slot)
-                if sym_ty == ty_id_type() {
-                    db.bind_type(slot, ty_id_type())
-                } else if sym_ty != ty_id_none() {
-                    db.union(slot, target_slot)
-                }
-            }
-            db.set_hir_symbol(id, target_sym)
-            ret
-        }
-        db.set_hir_symbol(id, target_sym)
-        if target_slot != slot_none() {
-            db.union(slot, target_slot)
         }
         ret
     }

@@ -1,5 +1,6 @@
-import std.allocator: Arena
-import std.fs: read_file, write_file
+Arena :: @import("std/allocator").Arena
+read_file :: @import("std/fs").read_file
+write_file :: @import("std/fs").write_file
 
 puts :: extern fn(s &u8) i32
 remove :: extern fn(path &u8) i32

@@ -1,7 +1,9 @@
-import std.collections.hash_set: HashSet
-import std.collections.hash_map: HashMap
+HashSet :: @import("std/collections/hash_set").HashSet
+HashMap :: @import("std/collections/hash_map").HashMap
 
-import std.io: write as print_cstr, write as print_u32, write as print_bool
+print_cstr :: @import("std/io").write
+print_u32 :: @import("std/io").write
+print_bool :: @import("std/io").write
 
 println_u32 :: fn(v u32) {
     print_u32(v)

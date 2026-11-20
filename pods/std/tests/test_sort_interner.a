@@ -1,9 +1,14 @@
-import core.slice:    Slice
-import std.allocator: Arena
-import std.interner:  Interner
-import std.sort:      sort
+Slice :: @import("core/slice").Slice
+Arena :: @import("std/allocator").Arena
+Interner :: @import("std/interner").Interner
+sort :: @import("std/sort").sort
 
-import test: Suite, Test, assert_eq, assert_false, assert_ne, assert_true
+Suite :: @import("test").Suite
+Test :: @import("test").Test
+assert_eq :: @import("test").assert_eq
+assert_false :: @import("test").assert_false
+assert_ne :: @import("test").assert_ne
+assert_true :: @import("test").assert_true
 
 test_sort_slice :: fn(t &Test) {
     arr: [6]i32 = .[ 50, 10, 40, 20, 60, 30 ]

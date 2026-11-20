@@ -1,5 +1,5 @@
-import std.allocator: Arena
-import std.string:    String
+Arena :: @import("std/allocator").Arena
+String :: @import("std/string").String
 
 TokenKind :: enum u8 {
     eof
@@ -32,7 +32,6 @@ TokenKind :: enum u8 {
     kw_not
     kw_true
     kw_false
-    kw_import
     kw_cmpt
     kw_extern
     plus

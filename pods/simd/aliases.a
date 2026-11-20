@@ -1,5 +1,5 @@
-import .mask:   SimdMask
-import .vector: Simd
+SimdMask :: @import("./mask").SimdMask
+Simd :: @import("./vector").Simd
 
 f32x4 :: Simd(f32, 4)
 f32x8 :: Simd(f32, 8)

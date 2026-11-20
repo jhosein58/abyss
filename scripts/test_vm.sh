@@ -7,6 +7,8 @@ FILTER="${2:-}"
 PASSED=0
 FAILED=0
 TOTAL=0
+ACTUAL=$(mktemp)
+trap 'rm -f "${ACTUAL}"' EXIT
 
 for TEST_FILE in $(find "${ROOT_DIR}/tests" -maxdepth 1 -name '*.a' | sort); do
     TEST_NAME=$(basename "${TEST_FILE}" .a)
@@ -18,13 +20,13 @@ for TEST_FILE in $(find "${ROOT_DIR}/tests" -maxdepth 1 -name '*.a' | sort); do
         continue
     fi
     TOTAL=$((TOTAL + 1))
-    ACTUAL=$(ABYSS_VM=1 "${COMPILER}" "${TEST_FILE}" 2>&1 || true)
-    if diff -u "${OUT_FILE}" <(echo "${ACTUAL}") > /dev/null 2>&1; then
+    ABYSS_VM=1 "${COMPILER}" "${TEST_FILE}" >"${ACTUAL}" 2>&1 || true
+    if cmp -s "${OUT_FILE}" "${ACTUAL}"; then
         echo "PASS ${TEST_NAME}"
         PASSED=$((PASSED + 1))
     else
         echo "FAIL ${TEST_NAME}"
-        diff -u "${OUT_FILE}" <(echo "${ACTUAL}") || true
+        diff -u "${OUT_FILE}" "${ACTUAL}" || true
         FAILED=$((FAILED + 1))
     fi
 done

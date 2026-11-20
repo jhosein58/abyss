@@ -1,0 +1,13 @@
+count: i32 = 0
+
+step :: fn(self i32) i32 {
+    count = count + self
+    count
+}
+
+Record :: struct { value i32 }
+Color :: enum { red, blue }
+
+twice :: fn(T type, value T) T { value + value }
+
+answer :: "answer"

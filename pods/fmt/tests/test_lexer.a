@@ -1,9 +1,13 @@
-import std.allocator: Arena
-import std.fs:        File
+Arena :: @import("std/allocator").Arena
+File :: @import("std/fs").File
 
-import fmt.syntax.lexer: Lexer, tokenize
-import fmt.syntax.token: Token, TokenKind, TokenList
-import test:             Suite, Test
+Lexer :: @import("fmt/syntax/lexer").Lexer
+tokenize :: @import("fmt/syntax/lexer").tokenize
+Token :: @import("fmt/syntax/token").Token
+TokenKind :: @import("fmt/syntax/token").TokenKind
+TokenList :: @import("fmt/syntax/token").TokenList
+Suite :: @import("test").Suite
+Test :: @import("test").Test
 
 test_basic_tokens :: fn(t &Test) {
     src := "x := 42 + 3.14\n"
@@ -93,7 +97,7 @@ test_operators :: fn(t &Test) {
 }
 
 test_lossless_roundtrip :: fn(t &Test) {
-    src := "import std.allocator: Arena\n\n-- Lossless CST test\nPoint :: struct {\n    x i32\n    y i32\n\n    new :: fn(x, y i32) Self {\n        .{ x: x, y: y }\n    }\n}\n\nmain :: fn() {\n    p := Point.new(10, 20)\n    if p.x > 0 and p.y > 0 {\n        printf(\"ok\\n\", .{})\n    }\n}\n"
+    src := "Arena :: @import(\"std/allocator\").Arena\n\n-- Lossless CST test\nPoint :: struct {\n    x i32\n    y i32\n\n    new :: fn(x, y i32) Self {\n        .{ x: x, y: y }\n    }\n}\n\nmain :: fn() {\n    p := Point.new(10, 20)\n    if p.x > 0 and p.y > 0 {\n        printf(\"ok\\n\", .{})\n    }\n}\n"
     tokens := tokenize(src)
 
     arena := Arena.new(1024 * 64)

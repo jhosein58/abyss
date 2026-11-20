@@ -1,7 +1,8 @@
-import core.maybe:          Maybe
-import std.allocator:       Arena
-import std.collections.vec: Vec
-import std.string:          Str, String
+Maybe :: @import("core/maybe").Maybe
+Arena :: @import("std/allocator").Arena
+Vec :: @import("std/collections/vec").Vec
+Str :: @import("std/string").Str
+String :: @import("std/string").String
 
 JsonKind :: enum u8 {
     null_val

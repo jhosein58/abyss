@@ -1,6 +1,8 @@
-import .decimal: format_float
-import .types: DirectoryEntry, OpenMode
-import std.mem: free, malloc
+format_float :: @import("./decimal").format_float
+DirectoryEntry :: @import("./types").DirectoryEntry
+OpenMode :: @import("./types").OpenMode
+free :: @import("std/mem").free
+malloc :: @import("std/mem").malloc
 
 FindData :: extern struct {
     attributes u32

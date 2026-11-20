@@ -1,18 +1,26 @@
-import core.target: Arch, Os
-import std.allocator: Arena
-import std.collections.hash_map: HashMap
-import std.interner: Interner
-import std.string: Str
-import std.sys: fall
+Arch :: @import("core/target").Arch
+Os :: @import("core/target").Os
+Arena :: @import("std/allocator").Arena
+HashMap :: @import("std/collections/hash_map").HashMap
+Interner :: @import("std/interner").Interner
+Str :: @import("std/string").Str
+fall :: @import("std/sys").fall
 
-import compiler.hir:        HirTable, hir_kind, hir_none
-import compiler.token:      TokenStream
-import compiler.types:      TyKind, TypeStorage, ty_id_none
-import compiler.unify:      UnifyStorage, slot_none
-import compiler.vm.codegen: VmCodeGen
-import compiler.vm.vm:      Vm
+HirTable :: @import("compiler/hir").HirTable
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+TyKind :: @import("compiler/types").TyKind
+TypeStorage :: @import("compiler/types").TypeStorage
+ty_id_none :: @import("compiler/types").ty_id_none
+ty_id_type :: @import("compiler/types").ty_id_type
+UnifyStorage :: @import("compiler/unify").UnifyStorage
+slot_none :: @import("compiler/unify").slot_none
+VmCodeGen :: @import("compiler/vm/codegen").VmCodeGen
+Vm :: @import("compiler/vm/vm").Vm
 
-import .pool: PoolU32, PoolU64, id_none
+PoolU32 :: @import("./pool").PoolU32
+PoolU64 :: @import("./pool").PoolU64
+id_none :: @import("./pool").id_none
 
 MonoFunc :: struct {
     orig_sym   u32
@@ -41,7 +49,7 @@ MonoNodeAttr :: struct {
     slot_ty    u32
     const_ty   u32
     const_val  u64
-    is_const   bool
+    const_state u32
     union_val  u64
     auto_deref u32
     rhs        u32
@@ -105,17 +113,14 @@ Symbol :: struct {
     name      u32
     file      u32
     tok_start u32
-    tok_end   u32
     hir_start u32
     hir_end   u32
     target    u32
     node      u32
-    mod_fid   u32
     flags     u32
 }
 
 Nexus :: struct {
-    tokens                    TokenStream
     hir                       HirTable
     glob_stack                Vec(u32)
     u32_items                 Vec(u32)
@@ -133,12 +138,18 @@ Nexus :: struct {
     hir_to_symbol             PoolU32
     const_types               HashMap(u32, u32)
     method_owner              HashMap(u32, u32)
-    mod_types                 HashMap(u32, u32)
+    module_types              PoolU32
+    module_files              HashMap(u32, u32)
+    module_paths              HashMap(u64, u32)
+    files_by_path             HashMap(u32, u32)
+    cwd                       Str
+    file_symbols              HashMap(u64, u32)
     core_prelude              u32
     std_prelude               u32
     file_sources              Vec(Str)
     file_paths                Vec(Str)
     node_locs                 Vec(NodeLoc)
+    splice_scopes             HashMap(u32, u32)
     type_specialization_depth u32
     mono_funcs                Vec(MonoFunc)
     sym_to_mono               PoolU32
@@ -161,7 +172,6 @@ Nexus :: struct {
     comptime_vm               &Vm
     new :: fn() Self {
         .{
-            tokens: TokenStream.new()
             hir: HirTable.new()
             glob_stack: Vec(u32).new()
             u32_items: Vec(u32).new()
@@ -179,7 +189,12 @@ Nexus :: struct {
             hir_to_symbol: PoolU32.new()
             const_types: HashMap(u32, u32).new()
             method_owner: HashMap(u32, u32).new()
-            mod_types: HashMap(u32, u32).new()
+            module_types: PoolU32.new()
+            module_files: HashMap(u32, u32).new()
+            module_paths: HashMap(u64, u32).new()
+            files_by_path: HashMap(u32, u32).new()
+            cwd: Str.empty()
+            file_symbols: HashMap(u64, u32).new()
             extern_fns: HashMap(u32, u32).new()
             extern_modules: HashMap(u32, u32).new()
             extern_structs: HashMap(u32, u32).new()
@@ -188,6 +203,7 @@ Nexus :: struct {
             file_sources: Vec(Str).new()
             file_paths: Vec(Str).new()
             node_locs: Vec(NodeLoc).new()
+            splice_scopes: HashMap(u32, u32).new()
             type_specialization_depth: 0
             mono_funcs: Vec(MonoFunc).new()
             sym_to_mono: PoolU32.new()
@@ -209,6 +225,12 @@ Nexus :: struct {
     }
 
     destroy :: fn(self &Self) {
+        self.splice_scopes.destroy()
+        self.module_types.destroy()
+        self.module_files.destroy()
+        self.module_paths.destroy()
+        self.files_by_path.destroy()
+        self.file_symbols.destroy()
         self.extern_fns.destroy()
         self.extern_modules.destroy()
         self.extern_structs.destroy()
@@ -227,22 +249,21 @@ Nexus :: struct {
         .{ ptr: self.u32_items.ptr_at((start as u64) + 1), len: len as u64 }
     }
 
-    alloc_symbol :: fn(self &Self, file_id u32, name_id u32, tok_start u32, tok_end u32) u32 {
+    alloc_symbol :: fn(self &Self, file_id u32, name_id u32, tok_start u32) u32 {
         id := self.symbols.len as u32
         self.symbols.push(
             .{
                 name: name_id
                 file: file_id
                 tok_start: tok_start
-                tok_end: tok_end
                 hir_start: id_none()
                 hir_end: id_none()
                 target: id_none()
                 node: id_none()
-                mod_fid: id_none()
                 flags: 0
             }
         )
+        self.file_symbols.insert(((file_id as u64) << 32) | (name_id as u64), id)
         id
     }
 
@@ -253,12 +274,10 @@ Nexus :: struct {
                 name: name_id
                 file: file_id
                 tok_start: id_none()
-                tok_end: id_none()
                 hir_start: id_none()
                 hir_end: id_none()
                 target: id_none()
                 node: hir_id
-                mod_fid: id_none()
                 flags: 0
             }
         )
@@ -266,87 +285,46 @@ Nexus :: struct {
         id
     }
 
-    alloc_symbol_alias :: fn(self &Self, file_id u32, name_id u32, target_sym u32) u32 {
-        id := self.symbols.len as u32
-        self.symbols.push(
-            .{
-                name: name_id
-                file: file_id
-                tok_start: id_none()
-                tok_end: id_none()
-                hir_start: id_none()
-                hir_end: id_none()
-                target: target_sym
-                node: id_none()
-                mod_fid: id_none()
-                flags: 0
+    forward_binding :: fn(self &Self, sym, target u32) {
+        if sym != id_none() and self.is_sym_const(target) {
+            real := self.resolve_sym(target)
+            if real != sym {
+                self.symbols.ptr_at(sym as u64).target = real
             }
-        )
-        id
+        }
     }
 
-    alloc_module_symbol :: fn(self &Self, file_id u32, name_id u32, target_fid u32) u32 {
-        id := self.symbols.len as u32
-        self.symbols.push(
-            .{
-                name: name_id
-                file: file_id
-                tok_start: id_none()
-                tok_end: id_none()
-                hir_start: id_none()
-                hir_end: id_none()
-                target: id_none()
-                node: id_none()
-                mod_fid: target_fid
-                flags: 0
-            }
-        )
-        id
+    find_file_id :: fn(self &Self, path u32) u32 {
+        file := self.files_by_path.get(path)
+        if file == (0 as &u32) { ret id_none() }
+        *file
     }
 
-    is_module_sym :: fn(self &Self, sym_id u32) bool {
-        if sym_id == id_none() {
-            ret false
+    module_type :: fn(self &Self, fid u32) u32 {
+        if fid < self.module_types.count() {
+            existing := self.module_types.get(fid)
+            if existing != ty_id_none() { ret existing }
         }
-        real_s := self.resolve_sym(sym_id)
-        if real_s >= (self.symbols.len as u32) {
-            ret false
-        }
-        self.symbols.get(real_s as u64).mod_fid != id_none()
+        fields := Slice(u32).empty()
+        list := self.add_list(fields)
+        origin := self.hir.push(hir_kind.struct_, list, list, hir_none())
+        base := self.types.alloc_struct(fields)
+        ty := self.types.alloc_nominal(base, self.get_file_path(fid), origin)
+        self.module_types.set_safe(fid, ty, ty_id_none())
+        self.module_files.insert(ty, fid)
+        ty
     }
 
-    get_module_fid :: fn(self &Self, sym_id u32) u32 {
-        if sym_id == id_none() {
-            ret id_none()
-        }
-        real_s := self.resolve_sym(sym_id)
-        if real_s >= (self.symbols.len as u32) {
-            ret id_none()
-        }
-        self.symbols.get(real_s as u64).mod_fid
+    module_file :: fn(self &Self, ty u32) u32 {
+        file := self.module_files.get(ty)
+        if file == (0 as &u32) { ret id_none() }
+        *file
     }
 
-    get_module_type :: fn(self &Self, fid u32) u32 {
-        p := self.mod_types.get(fid)
-        if p == (0 as &u32) {
-            ret ty_id_none()
-        }
-        *p
-    }
-
-    set_module_type :: fn(self &Self, fid u32, ty u32) {
-        self.mod_types.insert(fid, ty)
-    }
-
-    find_file_id :: fn(self &Self, path Str) u32 {
-        i: u64 = 0
-        while i < self.file_paths.len {
-            if self.file_paths.get(i).eq(path) {
-                ret i as u32
-            }
-            i = i + 1
-        }
-        id_none()
+    module_receiver :: fn(self &Self, node u32) u32 {
+        ty := self.get_node_type(node)
+        if ty == ty_id_type() { ret self.module_file(self.get_const_type(node)) }
+        self.module_file(self.types.unwrap_ptr(ty))
     }
 
     find_symbol :: fn(self &Self, file_id u32, name_id u32) u32 {
@@ -367,16 +345,9 @@ Nexus :: struct {
     }
 
     find_local_symbol :: fn(self &Self, file_id u32, name_id u32) u32 {
-        count := self.symbols.len as u32
-        i: u32 = 0
-        while i < count {
-            s := self.symbols.get(i as u64)
-            if (s.file == file_id) and (s.name == name_id) {
-                ret self.resolve_sym(i)
-            }
-            i = i + 1
-        }
-        id_none()
+        sym := self.file_symbols.get(((file_id as u64) << 32) | (name_id as u64))
+        if sym == (0 as &u32) { ret id_none() }
+        self.resolve_sym(*sym)
     }
 
     resolve_sym :: fn(self &Self, sym_id u32) u32 {
@@ -526,13 +497,6 @@ Nexus :: struct {
             ret id_none()
         }
         self.symbols.get(sym_id as u64).tok_start
-    }
-
-    sym_tok_end :: fn(self &Self, sym_id u32) u32 {
-        if sym_id >= (self.symbols.len as u32) {
-            ret id_none()
-        }
-        self.symbols.get(sym_id as u64).tok_end
     }
 
     sym_hir_start :: fn(self &Self, sym_id u32) u32 {
@@ -836,9 +800,6 @@ Nexus :: struct {
         if real_s == id_none() {
             ret false
         }
-        if self.is_module_sym(real_s) {
-            ret true
-        }
         if real_s >= (self.symbols.len as u32) {
             ret false
         }
@@ -947,8 +908,9 @@ Nexus :: struct {
         .{ start: loc.start, end: loc.end }
     }
 
-    add_file :: fn(self &Self, path Str, source Str) u32 {
+    add_file :: fn(self &Self, path, source Str, key u32) u32 {
         id := self.file_sources.len as u32
+        self.files_by_path.insert(key, id)
         self.file_paths.push(path)
         self.file_sources.push(source)
         id
@@ -1110,12 +1072,10 @@ Nexus :: struct {
                 name: name_id
                 file: file_id
                 tok_start: id_none()
-                tok_end: id_none()
                 hir_start: id_none()
                 hir_end: id_none()
                 target: id_none()
                 node: id_none()
-                mod_fid: id_none()
                 flags: 0
             }
         )
@@ -1286,7 +1246,7 @@ Nexus :: struct {
         slot_ty := self.get_node_type(n)
         const_ty := self.get_const_type(n)
         const_val := self.get_const_val(n)
-        is_c := self.is_const(n)
+        state := if self.has_const_val(n) { 2 as u32 } else { self.is_const(n) as u32 }
         u_val: u64 = 0
         p_u := self.union_coerce.get(n)
         if p_u != (0 as &u64) {
@@ -1306,7 +1266,7 @@ Nexus :: struct {
                 slot_ty: slot_ty
                 const_ty: const_ty
                 const_val: const_val
-                is_const: is_c
+                const_state: state
                 union_val: u_val
                 auto_deref: deref
                 rhs: rhs
@@ -1455,7 +1415,7 @@ Nexus :: struct {
             }
             self.set_const_type(n, attr.const_ty)
             self.set_const_val(n, attr.const_val)
-            self.set_is_const(n, attr.is_const)
+            self.const_status.set_safe(n, attr.const_state, 0)
             if attr.union_val != 0 {
                 self.union_coerce.insert(n, attr.union_val)
             } else {

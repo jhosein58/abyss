@@ -1,10 +1,16 @@
-import std.allocator:            Arena
-import std.collections.hash_map: HashMap
-import std.collections.hash_set: HashSet
-import std.collections.vec:      Vec
-import std.collections.worklist: Worklist
+Arena :: @import("std/allocator").Arena
+HashMap :: @import("std/collections/hash_map").HashMap
+HashSet :: @import("std/collections/hash_set").HashSet
+Vec :: @import("std/collections/vec").Vec
+Worklist :: @import("std/collections/worklist").Worklist
 
-import test: Suite, Test, assert_eq, assert_false, assert_ne, assert_str_eq, assert_true
+Suite :: @import("test").Suite
+Test :: @import("test").Test
+assert_eq :: @import("test").assert_eq
+assert_false :: @import("test").assert_false
+assert_ne :: @import("test").assert_ne
+assert_str_eq :: @import("test").assert_str_eq
+assert_true :: @import("test").assert_true
 
 test_hash_map_crud :: fn(t &Test) {
     m := HashMap(i32, i32).new()

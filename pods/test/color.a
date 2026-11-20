@@ -1,4 +1,5 @@
-import std.io: write_byte, write
+write_byte :: @import("std/io").write_byte
+write :: @import("std/io").write
 
 Color :: struct {
     reset :: fn() {

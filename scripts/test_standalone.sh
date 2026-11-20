@@ -31,9 +31,6 @@ cp "${ROOT_DIR}/tests/23_embedded_core.a" "${WORK_DIR}/main.a"
     timeout 5s ./program > actual.out
     diff -u "${ROOT_DIR}/tests/23_embedded_core.out" actual.out
     for TEST_FILE in "${ROOT_DIR}"/tests/[0-9]*.a; do
-        if [[ "${TEST_FILE}" == */22_import_aliases.a || "${TEST_FILE}" == */70_modules_and_imports.a ]]; then
-            continue
-        fi
         cp "${TEST_FILE}" main.a
         timeout 30s ./abyssc main.a relocated.c
         "${C_COMPILER}" ${C_FLAGS} relocated.c -o relocated
@@ -46,7 +43,7 @@ cp "${ROOT_DIR}/tests/23_embedded_core.a" "${WORK_DIR}/main.a"
     printf 'this is invalid Abyss\n' > core/prelude.a
     timeout 30s ./abyssc main.a shadow.c
     cmp out.c shadow.c
-    printf 'import std.missing: Missing\nmain :: fn() {}\n' > missing.a
+    printf 'main :: fn() { @import("std/missing").Missing() }\n' > missing.a
     printf 'Missing :: fn() u32 { 99 }\n' > std/missing.a
     if timeout 30s ./abyssc missing.a missing.c > missing.log 2>&1; then
         echo 'FAIL standalone: missing embedded module loaded from disk'

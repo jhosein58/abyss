@@ -1,4 +1,5 @@
-import core.target: Arch, Os
+Arch :: @import("core/target").Arch
+Os :: @import("core/target").Os
 
 target_os :: Os.linux
 target_arch :: Arch.x86_64

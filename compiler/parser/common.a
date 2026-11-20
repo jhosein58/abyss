@@ -1,23 +1,21 @@
-import std.allocator: Arena
-import std.path:      Path
-import std.string:    Str, String
 
-import compiler.hir:           HirExprKind, hir_kind, hir_none
-import compiler.indexer:       module_path
-import compiler.nexus.nexus:   Span, span_merge
-import compiler.nexus.pool:    id_none
-import compiler.parser.core:
-    Parser
-    bump
-    curr_span
-    optional
-    parse_error_at
-    peek
-    peek_n
-    peek_preceded_by_newline
-import compiler.parser.parser: parse_expr
-import compiler.parser.prec:   prec
-import compiler.token:         Token, is_path_ident
+HirExprKind :: @import("compiler/hir").HirExprKind
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+Span :: @import("compiler/nexus/nexus").Span
+span_merge :: @import("compiler/nexus/nexus").span_merge
+id_none :: @import("compiler/nexus/pool").id_none
+Parser :: @import("compiler/parser/core").Parser
+bump :: @import("compiler/parser/core").bump
+curr_span :: @import("compiler/parser/core").curr_span
+optional :: @import("compiler/parser/core").optional
+parse_error_at :: @import("compiler/parser/core").parse_error_at
+peek :: @import("compiler/parser/core").peek
+peek_n :: @import("compiler/parser/core").peek_n
+peek_preceded_by_newline :: @import("compiler/parser/core").peek_preceded_by_newline
+parse_expr :: @import("compiler/parser/parser").parse_expr
+prec :: @import("compiler/parser/prec").prec
+Token :: @import("compiler/token").Token
 
 span_of_hir :: fn(p &Parser, hir_id u32) Span {
     p.db.get_hir_span(hir_id)
@@ -122,146 +120,4 @@ finish_type_node :: fn(
     }
     bind_method_owners(p, *node, methods)
     set_span(p, *node, sp)
-}
-
-parse_scoped_import :: fn(p &Parser) {
-    arena := Arena.new(4096)
-    t := Token
-    bump(p)
-    dot_count: u32 = 0
-    path_start_span := curr_span(p)
-    while peek(p) == t.dot {
-        dot_count = dot_count + 1
-        bump(p)
-    }
-
-    if dot_count > 1 {
-        arena.destroy()
-        parse_error_at(
-            p
-            c"parent directory imports ('..') are not allowed; use absolute paths"
-            path_start_span
-        )
-    }
-    path_buf := String.new(&arena)
-    if dot_count == 1 {
-        path_buf.push_str(Str.of("./"))
-    }
-    if not is_path_ident(peek(p)) {
-        arena.destroy()
-        parse_error_at(p, c"expected module path", curr_span(p))
-    }
-    last_seg_name := p.tokens.text(p.cursor)
-    last_seg_id := p.db.interner.intern(last_seg_name)
-    path_buf.push_str(last_seg_name)
-    bump(p)
-
-    while peek(p) == t.dot {
-        bump(p)
-        if not is_path_ident(peek(p)) {
-            arena.destroy()
-            parse_error_at(p, c"expected module path segment after '.'", curr_span(p))
-        }
-        path_buf.push_char(47 as u8)
-        last_seg_name = p.tokens.text(p.cursor)
-        last_seg_id = p.db.interner.intern(last_seg_name)
-        path_buf.push_str(last_seg_name)
-        bump(p)
-    }
-
-    import_path := path_buf.as_str()
-    curr_path := p.db.get_file_path(p.file_id)
-    target_path := module_path(
-        p.db
-        &arena
-        p.file_id
-        p.tokens.start(p.cursor)
-        curr_path
-        import_path
-    )
-    target_fid := p.db.find_file_id(target_path)
-    if target_fid == id_none() {
-        if target_path.ends_with(".a") {
-            no_ext := target_path.sub(0, target_path.len - 2)
-            dir_name := Path.base(no_ext)
-            folder_file := Path.join(
-                &arena
-                no_ext
-                Path.ensure_ext(&arena, dir_name, Str.of(".a"))
-            )
-            target_fid = p.db.find_file_id(folder_file)
-        }
-    }
-    if target_fid == id_none() {
-        arena.destroy()
-        parse_error_at(p, c"cannot find loaded module for scoped import", curr_span(p))
-    }
-    mod_alias := last_seg_id
-    if peek(p) == t.kw_as {
-        bump(p)
-        if (peek(p) != t.ident) or peek_preceded_by_newline(p) {
-            arena.destroy()
-            parse_error_at(p, c"expected import alias after 'as'", curr_span(p))
-        }
-        mod_alias = p.db.interner.intern(p.tokens.text(p.cursor))
-        bump(p)
-        mod_sym := p.db.alloc_module_symbol(p.file_id, mod_alias, target_fid)
-        p.env.define(mod_alias, mod_sym)
-        arena.destroy()
-        ret
-    }
-    if peek(p) == t.colon {
-        bump(p)
-        while (peek(p) != t.c_brace) and (peek(p) != t.eof) {
-            if peek(p) != t.ident {
-                break
-            }
-            sym_name := p.tokens.text(p.cursor)
-            sym_name_id := p.db.interner.intern(sym_name)
-            sym := p.db.find_local_symbol(target_fid, sym_name_id)
-            if sym == id_none() {
-                break
-            }
-            bump(p)
-            sym_local_id := sym_name_id
-            if peek(p) == t.kw_as {
-                bump(p)
-                if (peek(p) != t.ident) or peek_preceded_by_newline(p) {
-                    arena.destroy()
-                    parse_error_at(p, c"expected symbol alias after 'as'", curr_span(p))
-                }
-                sym_local_id = p.db.interner.intern(p.tokens.text(p.cursor))
-                bump(p)
-            }
-            p.env.define(sym_local_id, sym)
-            if optional(p, t.comma) {
-                if peek_preceded_by_newline(p) {
-                    if peek(p) == t.ident {
-                        next_name := p.db.interner.intern(p.tokens.text(p.cursor))
-                        if p.db.find_local_symbol(target_fid, next_name) == id_none() {
-                            break
-                        }
-                    } else {
-                        break
-                    }
-                }
-            } else if peek_preceded_by_newline(p) {
-                if peek(p) == t.ident {
-                    next_name := p.db.interner.intern(p.tokens.text(p.cursor))
-                    if p.db.find_local_symbol(target_fid, next_name) == id_none() {
-                        break
-                    }
-                } else {
-                    break
-                }
-            } else {
-                break
-            }
-        }
-        arena.destroy()
-        ret
-    }
-    mod_sym := p.db.alloc_module_symbol(p.file_id, last_seg_id, target_fid)
-    p.env.define(last_seg_id, mod_sym)
-    arena.destroy()
 }

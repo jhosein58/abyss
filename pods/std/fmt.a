@@ -1,7 +1,9 @@
-import std.allocator: Arena
-import std.convert:   Convert, conversion_error
-import std.string:    Str, String
-import std.sys:       write_console
+Arena :: @import("std/allocator").Arena
+Convert :: @import("std/convert").Convert
+conversion_error :: @import("std/convert").conversion_error
+Str :: @import("std/string").Str
+String :: @import("std/string").String
+write_console :: @import("std/sys").write_console
 
 Escape :: struct {
     reset             &u8

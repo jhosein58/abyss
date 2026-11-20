@@ -39,8 +39,8 @@ Str :: struct {
 Always use the high-level `File` struct with `Str` paths:
 
 ```abyss
-import std.fs: File
-import std.allocator: Arena
+File :: @import("std/fs").File
+Arena :: @import("std/allocator").Arena
 
 read_and_process :: fn(path Str) {
     arena := Arena.new(65536)
@@ -66,8 +66,8 @@ read_and_process :: fn(path Str) {
 Abyss favors scoped arena allocation over pervasive individual heap allocations:
 
 ```abyss
-import std.allocator: Arena
-import std.collections.vec: Vec
+Arena :: @import("std/allocator").Arena
+Vec :: @import("std/collections/vec").Vec
 
 process_batch :: fn(items &Vec(Str)) {
     -- 1. Create a local scratch arena
@@ -89,7 +89,7 @@ process_batch :: fn(items &Vec(Str)) {
 `Vec(T)` is a dynamically resizable array:
 
 ```abyss
-import std.collections.vec: Vec
+Vec :: @import("std/collections/vec").Vec
 
 list := Vec(u32).new()
 list.push(10)
@@ -248,10 +248,9 @@ result := compute_heavy(
     configuration_flags
 )
 
--- Multiline imports without commas:
-import std.collections.hash_map:
-    HashMap
-    MapEntry
+maps :: @import("std/collections/hash_map")
+HashMap :: maps.HashMap
+MapEntry :: maps.MapEntry
 ```
 Omit commas across newlines to produce clean, vertical, modern Abyss code.
 

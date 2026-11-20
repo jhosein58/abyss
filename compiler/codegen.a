@@ -1,14 +1,20 @@
-import core.target:   Os
-import std.allocator: Arena
-import std.fmt:       Fmt
-import std.string:    Str, String
-import std.sys:       fall
+Os :: @import("core/target").Os
+Arena :: @import("std/allocator").Arena
+Fmt :: @import("std/fmt").Fmt
+Str :: @import("std/string").Str
+String :: @import("std/string").String
+fall :: @import("std/sys").fall
 
-import .hir: HirExprKind, hir_kind, hir_none
-import .lexer: decode_char_lit
-import .nexus.nexus: Nexus
-import .typer.reflection: reflection_quote, reflection_read
-import .types: TyKind, TypeStorage, ty_id_none
+HirExprKind :: @import("./hir").HirExprKind
+hir_kind :: @import("./hir").hir_kind
+hir_none :: @import("./hir").hir_none
+decode_char_lit :: @import("./lexer").decode_char_lit
+Nexus :: @import("./nexus/nexus").Nexus
+reflection_quote :: @import("./typer/reflection").reflection_quote
+reflection_read :: @import("./typer/reflection").reflection_read
+TyKind :: @import("./types").TyKind
+TypeStorage :: @import("./types").TypeStorage
+ty_id_none :: @import("./types").ty_id_none
 
 append_str :: fn(v &String, s Str) {
     v.push_str(s)
@@ -1063,10 +1069,11 @@ typedef uint16_t _Float16;
 
     expr_struct_init :: fn(self &Self, arena &Arena, struct_name Str, fields_body Str) Str {
         fmt := Fmt.new(arena)
+        body := if fields_body.len > 0 { fields_body } else { "0" }
         if self.static_init {
-            fmt.cstr(c"{").str(if fields_body.len > 0 { fields_body } else { "0" }).cstr(c"}")
+            fmt.cstr(c"{").str(body).cstr(c"}")
         } else {
-            fmt.cstr(c"((").str(struct_name).cstr(c"){").str(fields_body).cstr(c"})")
+            fmt.cstr(c"((").str(struct_name).cstr(c"){").str(body).cstr(c"})")
         }
         fmt.as_str()
     }

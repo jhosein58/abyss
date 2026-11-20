@@ -1,7 +1,7 @@
-import std.io: write as print
-import std.string: String
-import std.convert: Convert
-import std.allocator: Arena
+print :: @import("std/io").write
+String :: @import("std/string").String
+Convert :: @import("std/convert").Convert
+Arena :: @import("std/allocator").Arena
 
 Address :: struct {
     city Str

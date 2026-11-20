@@ -1,11 +1,13 @@
-import std.collections.vec: Vec as Buffer
-import .modules.reexport: Forwarded as OtherBuffer, Choice as Option, forwarded_value as renamed, text
-import core.string: Str as Text
-import std.string: Str as SameText
-import std.prelude: print as output_print
-import std.collections.vec: Vec as Buffer
-import std.allocator: Arena as Memory
-import std.string: String as Builder
+Buffer :: @import("std/collections/vec").Vec
+OtherBuffer :: @import("./modules/reexport").Forwarded
+Option :: @import("./modules/reexport").Choice
+renamed :: @import("./modules/reexport").forwarded_value
+text :: @import("./modules/reexport").text
+Text :: @import("core/string").Str
+SameText :: @import("std/string").Str
+output_print :: @import("std/prelude").print
+Memory :: @import("std/allocator").Arena
+Builder :: @import("std/string").String
 
 Vec :: fn() u32 { 5 }
 value :: fn() u32 { 6 }

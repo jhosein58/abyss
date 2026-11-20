@@ -1,5 +1,5 @@
-import std.allocator: Arena
-import std.string:    String
+Arena :: @import("std/allocator").Arena
+String :: @import("std/string").String
 
 LayoutKind :: enum u8 {
     text

@@ -1,9 +1,12 @@
-import core.choice:       Choice
-import core.iterator:     Iterator
-import core.maybe:        Maybe
-import core.range:        Range
-import core.ref_iterator: RefIterator
-import core.reflection:   FieldInfo, TypeInfo, TypeKind
-import core.slice:        Slice
-import core.source_location: SourceLocation
-import core.string:       CharIter, Str
+Choice :: @import("core/choice").Choice
+Iterator :: @import("core/iterator").Iterator
+Maybe :: @import("core/maybe").Maybe
+Range :: @import("core/range").Range
+RefIterator :: @import("core/ref_iterator").RefIterator
+FieldInfo :: @import("core/reflection").FieldInfo
+TypeInfo :: @import("core/reflection").TypeInfo
+TypeKind :: @import("core/reflection").TypeKind
+Slice :: @import("core/slice").Slice
+SourceLocation :: @import("core/source_location").SourceLocation
+CharIter :: @import("core/string").CharIter
+Str :: @import("core/string").Str

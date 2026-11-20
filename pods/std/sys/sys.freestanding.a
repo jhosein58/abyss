@@ -1,5 +1,6 @@
-import .types: DirectoryEntry, OpenMode
-import .decimal: format_float
+DirectoryEntry :: @import("./types").DirectoryEntry
+OpenMode :: @import("./types").OpenMode
+format_float :: @import("./decimal").format_float
 
 open_handle :: fn(path &u8, mode OpenMode) i64 { -1 }
 read_handle :: fn(handle i64, buf &u8, len u64) i64 { -1 }

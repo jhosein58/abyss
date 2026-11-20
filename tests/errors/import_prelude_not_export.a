@@ -1,2 +1,1 @@
-import std.collections.vec: Maybe
-main :: fn() {}
+main :: fn() { @import("std/collections/vec").Maybe }

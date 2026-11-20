@@ -1,8 +1,8 @@
-import std.io: print
-import std.io: write_str as emit
-import core.range: Range as Counter
-import std.collections.vec: Vec as Buffer
-import std.string: Str as Text
+print :: @import("std/io").print
+emit :: @import("std/io").write_str
+Counter :: @import("core/range").Range
+Buffer :: @import("std/collections/vec").Vec
+Text :: @import("std/string").Str
 
 main :: fn() {
     print("extensionless")

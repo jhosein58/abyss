@@ -1,15 +1,20 @@
-import core.target:   target_ptr_bits
-import std.allocator: Arena
-import std.mem:       mem_set
-import std.string:    Str, String
+target_ptr_bits :: @import("core/target").target_ptr_bits
+Arena :: @import("std/allocator").Arena
+mem_set :: @import("std/mem").mem_set
+Str :: @import("std/string").Str
+String :: @import("std/string").String
 
-import compiler.hir:   HirExprKind, hir_kind, hir_none
-import compiler.lexer: decode_char_lit
-import compiler.types: TyKind, TypeStorage, ty_id_none
+HirExprKind :: @import("compiler/hir").HirExprKind
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+decode_char_lit :: @import("compiler/lexer").decode_char_lit
+TyKind :: @import("compiler/types").TyKind
+TypeStorage :: @import("compiler/types").TypeStorage
+ty_id_none :: @import("compiler/types").ty_id_none
 
-import .chunk: Chunk
-import .ffi:   append_ffi_signature
-import .op:    OpCode
+Chunk :: @import("./chunk").Chunk
+append_ffi_signature :: @import("./ffi").append_ffi_signature
+OpCode :: @import("./op").OpCode
 
 malloc :: extern fn(size u64) &u8
 

@@ -1,6 +1,6 @@
-import std.allocator: Arena
+Arena :: @import("std/allocator").Arena
 
-import compiler.driver: Driver
+Driver :: @import("compiler/driver").Driver
 
 main :: fn() {
     arena := Arena.new(1024 * 1024 * 16)

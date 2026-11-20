@@ -1,62 +1,72 @@
-import std.ascii:  Ascii
-import std.string: parse_u32
+Ascii :: @import("std/ascii").Ascii
+parse_u32 :: @import("std/string").parse_u32
 
-import compiler.hir:           hir_kind, hir_none
-import compiler.nexus.nexus:   Span, span_merge
-import compiler.nexus.pool:    id_none
-import compiler.parser.core:
-    Parser
-    bump
-    curr_span
-    curr_text
-    expect
-    is_eof
-    lookup_sym
-    optional
-    parse_error_at
-    peek
-    peek_n
-    peek_preceded_by_newline
-    prev_span
-import compiler.parser.parser: parse_expr
-import compiler.parser.prec:   prec
-import compiler.token:         Token
-import compiler.typer.common:  parse_builtin_type
-import compiler.typer.decl:    is_core_source
-import compiler.types:         ty_id_none
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+Span :: @import("compiler/nexus/nexus").Span
+span_merge :: @import("compiler/nexus/nexus").span_merge
+id_none :: @import("compiler/nexus/pool").id_none
+Parser :: @import("compiler/parser/core").Parser
+begins_declaration :: @import("compiler/parser/core").begins_declaration
+bump :: @import("compiler/parser/core").bump
+capture_splice_scope :: @import("compiler/parser/core").capture_splice_scope
+curr_span :: @import("compiler/parser/core").curr_span
+curr_text :: @import("compiler/parser/core").curr_text
+expect :: @import("compiler/parser/core").expect
+is_eof :: @import("compiler/parser/core").is_eof
+lookup_sym :: @import("compiler/parser/core").lookup_sym
+optional :: @import("compiler/parser/core").optional
+parse_error_at :: @import("compiler/parser/core").parse_error_at
+peek :: @import("compiler/parser/core").peek
+peek_n :: @import("compiler/parser/core").peek_n
+peek_preceded_by_newline :: @import("compiler/parser/core").peek_preceded_by_newline
+prev_span :: @import("compiler/parser/core").prev_span
+parse_expr :: @import("compiler/parser/parser").parse_expr
+prec :: @import("compiler/parser/prec").prec
+Token :: @import("compiler/token").Token
+parse_builtin_type :: @import("compiler/typer/common").parse_builtin_type
+is_core_source :: @import("compiler/typer/decl").is_core_source
+ty_id_none :: @import("compiler/types").ty_id_none
 
-import .common:
-    add_list
-    add_methods_id
-    bind_method_owners
-    check_separator
-    ensure_type_node
-    finish_type_node
-    parse_method
-    parse_scoped_import
-    set_span
-    span_of_hir
-import .expr:   parse_ident
-import .stmt:   parse_block
+add_list :: @import("./common").add_list
+add_methods_id :: @import("./common").add_methods_id
+bind_method_owners :: @import("./common").bind_method_owners
+check_separator :: @import("./common").check_separator
+ensure_type_node :: @import("./common").ensure_type_node
+finish_type_node :: @import("./common").finish_type_node
+parse_method :: @import("./common").parse_method
+set_span :: @import("./common").set_span
+span_of_hir :: @import("./common").span_of_hir
+parse_ident :: @import("./expr").parse_ident
+parse_block :: @import("./stmt").parse_block
 
 parse_binding :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     k := hir_kind
     sp_lhs := span_of_hir(p, lhs)
 
-    name_id := p.hir.lhs(lhs)
-    sym_id := lookup_sym(p, name_id)
-
-    if sym_id != id_none() {
-        curr_hir := p.db.get_sym_hir(sym_id)
-        if curr_hir == id_none() {
-            p.db.set_sym_hir(sym_id, lhs)
-        }
+    if p.hir.kind(lhs) != k.ident {
+        parse_error_at(p, c"left-hand side of declaration must be an identifier", sp_lhs)
+    }
+    name := p.hir.lhs(lhs)
+    sym_id := p.toplv_sym
+    tok := p.db.sym_tok_start(sym_id)
+    if tok != id_none() and p.file_scope and p.tokens.start(tok) == sp_lhs.start {
+        p.db.set_sym_hir(sym_id, lhs)
         p.db.set_hir_symbol(lhs, sym_id)
+    } else {
+        sym_id = p.db.alloc_local_symbol(p.file_id, name, lhs)
+        p.env.define(name, sym_id)
     }
     saved_toplv := p.toplv_sym
     p.toplv_sym = sym_id
+    if tok != id_none() and peek_preceded_by_newline(p) and begins_declaration(p) {
+        parse_error_at(p, c"expected a declaration after '::'", prev_span(p))
+    }
     rhs := parse_expr(p, right_bp)
     p.toplv_sym = saved_toplv
+    if rhs == hir_none() {
+        parse_error_at(p, c"expected a declaration after '::'", curr_span(p))
+    }
     sp_rhs := span_of_hir(p, rhs)
 
     binding_id := p.hir.push(k.binding, lhs, hir_none(), rhs)
@@ -84,7 +94,7 @@ parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     name_id := p.hir.lhs(lhs)
     sym_id := p.toplv_sym
     tok_start := p.db.sym_tok_start(sym_id)
-    if (tok_start != id_none()) and (sp_lhs.start == p.tokens.start(tok_start)) {
+    if p.file_scope and tok_start != id_none() and sp_lhs.start == p.tokens.start(tok_start) {
         p.db.set_sym_hir(sym_id, lhs)
         p.db.set_hir_symbol(lhs, sym_id)
     } else {
@@ -101,6 +111,9 @@ parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     sp_end := sp_lhs
     if optional(p, t.eq) {
         has_init = true
+        if tok_start != id_none() and peek_preceded_by_newline(p) and begins_declaration(p) {
+            parse_error_at(p, c"expected an initializer after declaration operator", prev_span(p))
+        }
         val = parse_expr(p, 0)
     } else {
         ty = parse_expr(p, prec().var_def + (1 as u8))
@@ -535,11 +548,6 @@ parse_struct :: fn(p &Parser) u32 {
         }
     } else {
         while (peek(p) != t.c_brace) and (not is_eof(p)) {
-            if peek(p) == t.kw_import {
-                parse_scoped_import(p)
-                check_separator(p, t.c_brace, c"expected ',' or newline after import in struct")
-                cont
-            }
             if peek(p) == t.hash {
                 ensure_type_node(p, &struct_node, k.struct_, struct_toplv)
                 sp_start := curr_span(p)
@@ -563,7 +571,8 @@ parse_struct :: fn(p &Parser) u32 {
                     }
                 }
                 splice_node := p.hir.push(k.splice, expr, struct_node, hir_none())
-                set_span(p, splice_node, span_merge(sp_start, prev_span(p)))
+                capture_splice_scope(p, splice_node)
+            set_span(p, splice_node, span_merge(sp_start, prev_span(p)))
                 if struct_toplv != id_none() {
                     p.db.set_hir_symbol(splice_node, struct_toplv)
                     p.db.set_method_owner(splice_node, struct_toplv)
@@ -717,6 +726,9 @@ parse_member :: fn(p &Parser, lhs u32, right_bp u8) u32 {
         ret node
     } else if p.hir.kind(rhs) != k.ident {
         parse_error_at(p, c"member name must be an identifier", sp_rhs)
+    } else {
+        p.hir.set_extra(rhs, hir_none())
+        p.db.set_hir_symbol(rhs, id_none())
     }
     node := p.hir.push(k.member, lhs, rhs, hir_none())
     set_span(p, node, span_merge(sp_lhs, sp_rhs))
@@ -746,11 +758,6 @@ parse_enum :: fn(p &Parser) u32 {
     p.toplv_sym = id_none()
 
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
-        if peek(p) == t.kw_import {
-            parse_scoped_import(p)
-            check_separator(p, t.c_brace, c"expected ',' or newline after import in enum")
-            cont
-        }
         if peek(p) == t.hash {
             ensure_type_node(p, &enum_node, k.enum_, enum_toplv)
             sp_start := curr_span(p)
@@ -774,6 +781,7 @@ parse_enum :: fn(p &Parser) u32 {
                 }
             }
             splice_node := p.hir.push(k.splice, expr, enum_node, hir_none())
+            capture_splice_scope(p, splice_node)
             set_span(p, splice_node, span_merge(sp_start, prev_span(p)))
             if enum_toplv != id_none() {
                 p.db.set_hir_symbol(splice_node, enum_toplv)

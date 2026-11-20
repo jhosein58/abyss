@@ -1,5 +1,5 @@
-import std.io: write as emit
-import std.string: Str
+emit :: @import("std/io").write
+Str :: @import("std/string").Str
 
 Pair :: struct { i32, Str }
 

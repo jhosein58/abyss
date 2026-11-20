@@ -1,6 +1,6 @@
-import std.string: String
-import std.allocator: Arena
-import std.io: print
+String :: @import("std/string").String
+Arena :: @import("std/allocator").Arena
+print :: @import("std/io").print
 
 convert :: fn(T type, value T) {
     arena := Arena.new(32)

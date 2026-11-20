@@ -1,27 +1,35 @@
-import std.allocator: Arena
-import std.path:      Path
-import std.string:    Str
-import std.sys:       fall
+Os :: @import("core/target").Os
+Arena :: @import("std/allocator").Arena
+Path :: @import("std/path").Path
+Str :: @import("std/string").Str
+fall :: @import("std/sys").fall
+current_dir :: @import("std/sys/current_dir").current_dir
 
-import .hir:           hir_kind, hir_none
-import .indexer:       index_file
-import .lexer:         lex
-import .lower:         lower_function
-import .nexus.nexus:   Nexus
-import .nexus.pool:    id_none
-import .parser.core:   Parser_new, curr_span, parse_error_at, peek
-import .parser.parser: parse_expr
-import .token:         Token, TokenStream
-import .typer.global:  check_global_var
-import .typer.tyck:    finalize_inferred_types, process_mono_funcs, type_check
-import .types:         TyKind, ty_id_none, ty_id_type
-import .unify:         slot_none
+hir_kind :: @import("./hir").hir_kind
+hir_none :: @import("./hir").hir_none
+file_key :: @import("./modules").file_key
+resolve_module :: @import("./modules").resolve_module
+lex :: @import("./lexer").lex
+lower_function :: @import("./lower").lower_function
+Nexus :: @import("./nexus/nexus").Nexus
+id_none :: @import("./nexus/pool").id_none
+Parser_new :: @import("./parser/core").Parser_new
+parse_file :: @import("./parser/parser").parse_file
+TokenStream :: @import("./token").TokenStream
+check_global_var :: @import("./typer/global").check_global_var
+finalize_inferred_types :: @import("./typer/tyck").finalize_inferred_types
+process_mono_funcs :: @import("./typer/tyck").process_mono_funcs
+type_check :: @import("./typer/tyck").type_check
+TyKind :: @import("./types").TyKind
+ty_id_none :: @import("./types").ty_id_none
+ty_id_type :: @import("./types").ty_id_type
+slot_none :: @import("./unify").slot_none
 
 Engine :: struct {
     nexus      Nexus
-    file_count u32
+    arena      &Arena
     new :: fn(arena &Arena) Self {
-        res: Self = .{ nexus: Nexus.new(), file_count: 0 }
+        res: Self = .{ nexus: Nexus.new(), arena: arena }
         res.nexus.init_tuple_names()
         res
     }
@@ -30,55 +38,42 @@ Engine :: struct {
         self.nexus.destroy()
     }
 
-    add_file :: fn(self &Self, arena &Arena, path Str, source Str) u32 {
-        norm_path := Path.normalize(arena, path)
-        file_id := self.nexus.add_file(norm_path, source)
-        self.file_count = file_id + 1
-
-        tok_start := self.nexus.tokens.count()
-        lex(&self.nexus.tokens, source, norm_path)
-        tok_end := self.nexus.tokens.count()
-
-        index_file(&self.nexus, arena, file_id, norm_path, tok_start as u32, tok_end as u32)
-        file_id
-    }
-
-    get_symbol_id :: fn(self &Self, file_id u32, sym_name Str) u32 {
-        name_id := self.nexus.interner.intern(sym_name)
-        self.nexus.find_symbol(file_id, name_id)
-    }
-
-    parse :: fn(self &Self, sym_id u32) {
-        if sym_id == id_none() {
-            print("\n[syntax error] symbol not found")
-            #fall
-        }
-        file_id := self.nexus.sym_file(sym_id)
-        tok_start := self.nexus.sym_tok_start(sym_id)
-        tok_end := self.nexus.sym_tok_end(sym_id)
-        count := tok_end - tok_start
-
-        hir_start := self.nexus.hir.len()
-
-        parser := Parser_new(
-            &self.nexus
-            &self.nexus.tokens
-            &self.nexus.hir
-            file_id
-            sym_id
-            tok_start
-            count
-        )
-
-        parse_expr(&parser, 0)
-        if peek(&parser) != Token.eof {
-            parse_error_at(&parser, c"unexpected token after declaration", curr_span(&parser))
-        }
+    parse_module :: fn(self &Self, fid u32) {
+        db := &self.nexus
+        tokens := TokenStream.new()
+        lex(&tokens, db.get_file_source(fid), db.get_file_path(fid))
+        parser := Parser_new(db, &tokens, &db.hir, fid, id_none(), 0, (tokens.count() as u32) - 1)
+        parse_file(&parser)
         parser.env.destroy()
+        tokens.destroy()
+    }
 
-        hir_end := self.nexus.hir.len()
+    load_module :: fn(self &Self, fid u32, offset u32, base, path Str) u32 {
+        count := self.nexus.file_paths.len as u32
+        module := resolve_module(&self.nexus, self.arena, fid, offset, base, path)
+        if module == count {
+            self.parse_module(module)
+        }
+        module
+    }
 
-        self.nexus.set_sym_hir_range(sym_id, hir_start, hir_end)
+    add_file :: fn(self &Self, path, source Str) u32 {
+        db := &self.nexus
+        db.cwd = Path.normalize(self.arena, current_dir(self.arena))
+        normalized := Path.normalize(self.arena, path)
+        fid := db.add_file(normalized, source, file_key(db, self.arena, normalized))
+        self.parse_module(fid)
+        db.core_prelude = self.load_module(fid, 0, Str.empty(), "core/prelude")
+        db.std_prelude = self.load_module(fid, 0, Str.empty(), "std/prelude")
+        if db.native_output {
+            wasi := db.target_os == Os.wasi
+            if wasi {
+                self.load_module(fid, 0, Str.empty(), "std/sys/memory")
+            }
+            runtime := if wasi and db.native_executable { "std/sys/start" } else { "std/sys/process" }
+            self.load_module(fid, 0, Str.empty(), runtime)
+        }
+        fid
     }
 
     type_check :: fn(self &Self, sym_id u32) {
@@ -138,6 +133,7 @@ Engine :: struct {
         db.set_const_type(value_node, named)
         db.set_const_type(decl_hir, named)
         db.set_is_const(decl_hir, true)
+        db.set_sym_is_const(sym_id, true)
 
         slot := (&db.unify).get_slot(decl_hir)
         if slot == slot_none() {
@@ -171,13 +167,6 @@ Engine :: struct {
         if db.is_sym_resolving(real_sym) {
             ret
         }
-        hir_start := db.sym_hir_start(real_sym)
-        if hir_start == id_none() {
-            db.set_sym_resolving(real_sym, true)
-            self.parse(real_sym)
-            db.set_sym_resolving(real_sym, false)
-        }
-        decl_hir = db.get_sym_hir(real_sym)
         if decl_hir != id_none() {
             s := (&db.unify).get_slot(decl_hir)
             if s == slot_none() {
@@ -272,31 +261,39 @@ Engine :: struct {
     build_entry :: fn(self &Self, fid u32, executable bool) u32 {
         sym_id := id_none()
         if executable {
-            sym_id = self.get_symbol_id(fid, Str.of("main"))
-            self.parse(sym_id)
+            sym_id = self.nexus.find_local_symbol(fid, self.nexus.interner.intern("main"))
+            if sym_id == id_none() {
+                print("\n[syntax error] symbol not found")
+                #fall
+            }
             global := self.nexus.global_var(sym_id)
             if global != hir_none() {
                 self.nexus.type_error(global, "main must be a function declaration")
             }
-            self.type_check(sym_id)
+            self.ensure_resolved(sym_id)
             self.validate_main(sym_id)
+            sym_id = self.nexus.resolve_sym(sym_id)
         }
 
-        total := self.nexus.sym_count()
         exports := HashMap(u32, u32).new()
-        for index in Range.new(0, total as i32) {
-            i := index as u32
-            start := self.nexus.sym_tok_start(i)
-            if start == id_none() {
+        index: u32 = 0
+        while true {
+            if index == self.nexus.sym_count() {
+                process_mono_funcs(self)
+                if index == self.nexus.sym_count() { break }
+            }
+            i := index
+            index = index + 1
+            if self.nexus.sym_tok_start(i) == id_none() or self.nexus.resolve_sym(i) != i {
                 cont
             }
-            if self.nexus.sym_file(i) != fid and
-                self.nexus.tokens.kind(start + 1) != Token.colon and
-                self.nexus.tokens.kind(start + 2) != Token.kw_extern {
+            node := self.nexus.get_fn_node(i)
+            exported := node != id_none() and self.nexus.is_extern_fn(node) and
+                self.nexus.hir.extra(node) != hir_none()
+            if self.nexus.sym_file(i) != fid and self.nexus.global_var(i) == hir_none() and not exported {
                 cont
             }
             self.ensure_resolved(i)
-            node := self.nexus.get_fn_node(i)
             if node == id_none() or not self.nexus.is_extern_fn(node) or
                 self.nexus.hir.extra(node) == hir_none() {
                 cont
@@ -314,7 +311,6 @@ Engine :: struct {
             exports.insert(name, i)
         }
         exports.destroy()
-        process_mono_funcs(self)
 
         sym_id
     }
@@ -334,7 +330,7 @@ Engine :: struct {
         if not backend.is_vm() {
             for index in Range.new(0, self.nexus.sym_count() as i32) {
                 i := index as u32
-                if self.nexus.sym_tok_start(i) == id_none() {
+                if self.nexus.sym_tok_start(i) == id_none() or self.nexus.resolve_sym(i) != i {
                     cont
                 }
                 node := self.nexus.get_fn_node(i)

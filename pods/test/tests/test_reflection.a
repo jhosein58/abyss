@@ -1,6 +1,11 @@
-import std.allocator: Arena
+Arena :: @import("std/allocator").Arena
 
-import test: Suite, Test, assert_eq, assert_ne, assert_str_eq, assert_true
+Suite :: @import("test").Suite
+Test :: @import("test").Test
+assert_eq :: @import("test").assert_eq
+assert_ne :: @import("test").assert_ne
+assert_str_eq :: @import("test").assert_str_eq
+assert_true :: @import("test").assert_true
 
 Point :: struct {
     x i32

@@ -1,4 +1,4 @@
-import core.string: Str
+Str :: @import("core/string").Str
 
 SourceLocation :: struct {
     file Str

@@ -14,19 +14,21 @@ assert.ok(imports.length > 0);
 assert.ok(imports.every(entry => entry.module === "wasi_snapshot_preview1"));
 assert.ok(WebAssembly.Module.exports(wasm).some(entry => entry.name === "_start"));
 
-const source = `import core.target: Arch, Os, target
-import std.allocator: Arena
-import std.env: Env
-import std.fs: Dir, File
-import std.sys: fall
+const source = `Arch :: @import("core/target").Arch
+Os :: @import("core/target").Os
+target :: @import("core/target").target
+Arena :: @import("std/allocator").Arena
+Env :: @import("std/env").Env
+fs :: @import("std").fs
+fall :: @import("std/sys").fall
 
 main :: fn() {
-    if not Dir.create(c"scratch") { #fall }
-    if not File.write_string("scratch/value", "first") { #fall }
-    if not File.append_string("scratch/value", "-second") { #fall }
+    if not fs.Dir.create(c"scratch") { #fall }
+    if not fs.File.write_string("scratch/value", "first") { #fall }
+    if not fs.File.append_string("scratch/value", "-second") { #fall }
     arena := Arena.new(4096)
-    print(File.read_to_string(&arena, "/scratch/value").unwrap())
-    entries := Dir.open(c"scratch").unwrap()
+    print(fs.File.read_to_string(&arena, "/scratch/value").unwrap())
+    entries := fs.Dir.open(c"scratch").unwrap()
     print(entries.next().unwrap().name)
     entries.close()
     print(Env.arg(1))
@@ -71,7 +73,7 @@ async function run(args, entry = source, module = wasm, expectedStatus = 0) {
 
 const interpreted = await run(["r", "main.a", "vm-argument"]);
 assert.deepEqual(interpreted.stdout, ["first-second", "value", "vm-argument", "environment", "true", "1.250000"]);
-const failed = await run(["r", "main.a"], `import std.sys: fall
+const failed = await run(["r", "main.a"], `fall :: @import("std/sys").fall
 main :: fn() {
     #fall
 }
@@ -82,8 +84,10 @@ const compiled = await run(["b", "main.a", "out.c"]);
 const emitted = new TextDecoder().decode(compiled.root.dir.contents.get("out.c").data);
 assert.match(emitted, /import_module\("wasi_snapshot_preview1"\), import_name\("fd_write"\)/);
 assert.match(emitted, /void _start\(void\)/);
-const memorySource = `import std.env: Env
-import std.mem: free, malloc, realloc
+const memorySource = `Env :: @import("std/env").Env
+free :: @import("std/mem").free
+malloc :: @import("std/mem").malloc
+realloc :: @import("std/mem").realloc
 
 shift_bytes :: extern "memmove" fn(dest, source &u8, count u32) &u8
 

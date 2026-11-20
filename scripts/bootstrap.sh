@@ -41,7 +41,12 @@ for i in $(seq 1 "${ROUNDS}"); do
     echo -e "\n${YELLOW}>>> [Round ${i}/${ROUNDS}] Compiling compiler with: $(basename "${CURRENT_COMPILER}")...${RESET}"
 
     OUT_C="${WORK_DIR}/gen_${i}.c"
-    if ! "${CURRENT_COMPILER}" "${ROOT_DIR}/compiler/main.a" "${OUT_C}"; then
+    if [ "${i}" -eq 1 ]; then
+        COMMAND=(bash "${ROOT_DIR}/scripts/seed_compile.sh" "${CURRENT_COMPILER}" "${OUT_C}")
+    else
+        COMMAND=("${CURRENT_COMPILER}" "${ROOT_DIR}/compiler/main.a" "${OUT_C}")
+    fi
+    if ! "${COMMAND[@]}"; then
         if [ "${i}" -eq 1 ]; then
             echo -e "${RED}[FAIL] Seed compiler failed to compile Generation 1!${RESET}"
         else

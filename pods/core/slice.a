@@ -1,6 +1,6 @@
-import core.chunks:       Chunks
-import core.iterator:     Iterator as Iter
-import core.ref_iterator: RefIterator as RefIter
+Chunks :: @import("core/chunks").Chunks
+Iter :: @import("core/iterator").Iterator
+RefIter :: @import("core/ref_iterator").RefIterator
 
 Slice :: fn(T type) type {
     struct {

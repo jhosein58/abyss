@@ -1,7 +1,13 @@
-import std.allocator:       Arena
-import std.collections.vec: Vec
+Arena :: @import("std/allocator").Arena
+Vec :: @import("std/collections/vec").Vec
 
-import test: Suite, Test, assert_eq, assert_false, assert_ne, assert_str_eq, assert_true
+Suite :: @import("test").Suite
+Test :: @import("test").Test
+assert_eq :: @import("test").assert_eq
+assert_false :: @import("test").assert_false
+assert_ne :: @import("test").assert_ne
+assert_str_eq :: @import("test").assert_str_eq
+assert_true :: @import("test").assert_true
 
 Pair :: struct {
     a i32

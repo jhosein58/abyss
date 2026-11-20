@@ -1,4 +1,4 @@
-import std.sys: fall
+fall :: @import("std/sys").fall
 
 Point :: extern struct {
     fraction f32

@@ -1,12 +1,15 @@
-import core.maybe: Maybe
-import std.allocator: Arena
-import std.collections.vec: Vec
-import std.fs: File
-import std.string: Str, String
+Maybe :: @import("core/maybe").Maybe
+Arena :: @import("std/allocator").Arena
+Vec :: @import("std/collections/vec").Vec
+File :: @import("std/fs").File
+Str :: @import("std/string").Str
+String :: @import("std/string").String
 
-import json: JsonKind, JsonVal, parse_json
+JsonKind :: @import("json").JsonKind
+JsonVal :: @import("json").JsonVal
+parse_json :: @import("json").parse_json
 
-import .semver: SemVer
+SemVer :: @import("./semver").SemVer
 
 Dependency :: struct {
     name        Str

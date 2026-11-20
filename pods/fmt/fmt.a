@@ -1,12 +1,22 @@
-import std.allocator: Arena
-import std.fs:        Dir, File, to_cstr
-import std.string:    String
+Arena :: @import("std/allocator").Arena
+Dir :: @import("std/fs").Dir
+File :: @import("std/fs").File
+to_cstr :: @import("std/fs").to_cstr
+String :: @import("std/string").String
 
-import .cst:          CstKind, CstNode
-import .formatter:    Formatter, default_width, format_cst, format_cst_with_width
-import .parser:       CstParser, parse_to_cst
-import .syntax.lexer: Lexer, tokenize
-import .syntax.token: Token, TokenKind, TokenList
+CstKind :: @import("./cst").CstKind
+CstNode :: @import("./cst").CstNode
+Formatter :: @import("./formatter").Formatter
+default_width :: @import("./formatter").default_width
+format_cst :: @import("./formatter").format_cst
+format_cst_with_width :: @import("./formatter").format_cst_with_width
+CstParser :: @import("./parser").CstParser
+parse_to_cst :: @import("./parser").parse_to_cst
+Lexer :: @import("./syntax/lexer").Lexer
+tokenize :: @import("./syntax/lexer").tokenize
+Token :: @import("./syntax/token").Token
+TokenKind :: @import("./syntax/token").TokenKind
+TokenList :: @import("./syntax/token").TokenList
 
 format_source :: fn(arena &Arena, source Str) Str {
     format_source_with_width(arena, source, default_width)

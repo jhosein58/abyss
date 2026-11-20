@@ -1,2 +1,2 @@
-import std.io: write as print_cstr
+print_cstr :: @import("std/io").write
 main :: fn() { print_cstr(c"a") print_cstr(c"b") }

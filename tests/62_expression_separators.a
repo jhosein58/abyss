@@ -1,6 +1,6 @@
-import std.io: write as print
-       printf
-import core.range: Range,
+print :: @import("std/io").write
+printf :: @import("std/io").printf
+Range :: @import("core/range").Range
 Base :: 2, Offset :: 3,
 Values :: .[1, 2],
 

@@ -1,2 +1,1 @@
-import std..escape: Missing
-main :: fn() {}
+main :: fn() { @import("std/../escape") }

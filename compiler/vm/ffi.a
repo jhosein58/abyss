@@ -1,4 +1,5 @@
-import compiler.types: TyKind, TypeStorage
+TyKind :: @import("compiler/types").TyKind
+TypeStorage :: @import("compiler/types").TypeStorage
 
 FfiKind :: enum u32 {
     unit

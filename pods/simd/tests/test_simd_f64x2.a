@@ -1,7 +1,10 @@
-import std.allocator: Arena
+Arena :: @import("std/allocator").Arena
 
-import simd: Simd, f64x2
-import test: Suite, Test, assert_true
+Simd :: @import("simd").Simd
+f64x2 :: @import("simd").f64x2
+Suite :: @import("test").Suite
+Test :: @import("test").Test
+assert_true :: @import("test").assert_true
 
 test_f64x2_math :: fn(t &Test) {
     a := f64x2.splat(4.0)

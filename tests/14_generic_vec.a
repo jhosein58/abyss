@@ -1,6 +1,10 @@
-import std.collections.vec: Vec
+Vec :: @import("std/collections/vec").Vec
 
-import std.io: write as print_cstr, write as print_u32, write as print_u64, write as print_i32, write as print_bool
+print_cstr :: @import("std/io").write
+print_u32 :: @import("std/io").write
+print_u64 :: @import("std/io").write
+print_i32 :: @import("std/io").write
+print_bool :: @import("std/io").write
 
 println_u32 :: fn(v u32) {
     print_u32(v)

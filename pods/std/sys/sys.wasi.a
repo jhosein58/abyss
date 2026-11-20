@@ -1,6 +1,8 @@
-import .types: DirectoryEntry, OpenMode
-import .decimal: format_float
-import std.mem: free, malloc
+DirectoryEntry :: @import("./types").DirectoryEntry
+OpenMode :: @import("./types").OpenMode
+format_float :: @import("./decimal").format_float
+free :: @import("std/mem").free
+malloc :: @import("std/mem").malloc
 
 Ciovec :: extern struct {
     address &u8

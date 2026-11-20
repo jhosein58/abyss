@@ -1,6 +1,8 @@
-import std.allocator: Arena
-import std.string:    String
-import std.sys:       fall, format_float, write_console
+Arena :: @import("std/allocator").Arena
+String :: @import("std/string").String
+fall :: @import("std/sys").fall
+format_float :: @import("std/sys").format_float
+write_console :: @import("std/sys").write_console
 
 Convert :: struct {
     unsigned64 :: fn(out &String, value u64) {

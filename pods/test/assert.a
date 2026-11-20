@@ -1,10 +1,12 @@
-import std.allocator: Arena
-import std.fmt:       fmt
-import std.io:        print, write
-import std.string:    Str, String
-import std.sys:       fall
+Arena :: @import("std/allocator").Arena
+fmt :: @import("std/fmt").fmt
+print :: @import("std/io").print
+write :: @import("std/io").write
+Str :: @import("std/string").Str
+String :: @import("std/string").String
+fall :: @import("std/sys").fall
 
-import .color: Color
+Color :: @import("./color").Color
 
 assert :: fn(cond bool, hint Str) {
     if not cond {

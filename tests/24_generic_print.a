@@ -1,5 +1,5 @@
-import std.io: write as emit
-import std.collections.vec: Vec
+emit :: @import("std/io").write
+Vec :: @import("std/collections/vec").Vec
 
 forward :: fn(T type, value T) {
     emit(value)

@@ -1,53 +1,71 @@
-import std.mem:    malloc
-import std.string: Str
-import std.sys:    fall
+malloc :: @import("std/mem").malloc
+Str :: @import("std/string").Str
+fall :: @import("std/sys").fall
 
-import compiler.engine:        Engine
-import compiler.hir:           HirTable, hir_kind, hir_none
-import compiler.lexer:         lex
-import compiler.lower:         eval_const
-import compiler.nexus.pool:    id_none
-import compiler.parser.common: check_separator
-import compiler.parser.core:   Parser_new, bump, is_eof, peek
-import compiler.parser.parser: parse_expr
-import compiler.token:         Token, TokenStream
-import compiler.types:         TyKind, TypeStorage, ty_id_none, ty_id_type
-import compiler.unify:         slot_none
+Engine :: @import("compiler/engine").Engine
+HirTable :: @import("compiler/hir").HirTable
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+lex :: @import("compiler/lexer").lex
+eval_const :: @import("compiler/lower").eval_const
+id_none :: @import("compiler/nexus/pool").id_none
+check_separator :: @import("compiler/parser/common").check_separator
+Parser_new :: @import("compiler/parser/core").Parser_new
+restore_splice_scope :: @import("compiler/parser/core").restore_splice_scope
+bump :: @import("compiler/parser/core").bump
+is_eof :: @import("compiler/parser/core").is_eof
+peek :: @import("compiler/parser/core").peek
+parse_expr :: @import("compiler/parser/parser").parse_expr
+Token :: @import("compiler/token").Token
+TokenStream :: @import("compiler/token").TokenStream
+TyKind :: @import("compiler/types").TyKind
+TypeStorage :: @import("compiler/types").TypeStorage
+ty_id_none :: @import("compiler/types").ty_id_none
+ty_id_type :: @import("compiler/types").ty_id_type
+slot_none :: @import("compiler/unify").slot_none
 
-import .common:     unescape_splice_str
-import .control:
-    prepare_match_bindings
-    synth_block
-    synth_break_cont
-    synth_for
-    synth_if
-    synth_match
-    synth_while
-import .decl:       synth_enum, synth_member, synth_struct, synth_struct_init
-import .expr:
-    synth_array_init
-    synth_array_type
-    synth_assign
-    synth_binary
-    synth_binary_comp
-    synth_builtin_call
-    synth_cast
-    synth_index
-    synth_lit_bool
-    synth_lit_char
-    synth_lit_cstr
-    synth_lit_float
-    synth_lit_int
-    synth_lit_str
-    synth_logic_and_or
-    synth_unary_addr_of
-    synth_unary_deref
-    synth_unary_not
-    synth_unary_num
-import .fn:         synth_call, synth_func, synth_return
-import .reflection: macro_template, reflection_read
-import .specialize: resolve_ty_id
-import .var:        synth_arg, synth_destructure, synth_ident, synth_type_node, synth_var_or_binding
+unescape_splice_str :: @import("./common").unescape_splice_str
+prepare_match_bindings :: @import("./control").prepare_match_bindings
+synth_block :: @import("./control").synth_block
+synth_break_cont :: @import("./control").synth_break_cont
+synth_for :: @import("./control").synth_for
+synth_if :: @import("./control").synth_if
+synth_match :: @import("./control").synth_match
+synth_while :: @import("./control").synth_while
+synth_enum :: @import("./decl").synth_enum
+synth_member :: @import("./decl").synth_member
+synth_struct :: @import("./decl").synth_struct
+synth_struct_init :: @import("./decl").synth_struct_init
+synth_array_init :: @import("./expr").synth_array_init
+synth_array_type :: @import("./expr").synth_array_type
+synth_assign :: @import("./expr").synth_assign
+synth_binary :: @import("./expr").synth_binary
+synth_binary_comp :: @import("./expr").synth_binary_comp
+synth_builtin_call :: @import("./expr").synth_builtin_call
+synth_cast :: @import("./expr").synth_cast
+synth_index :: @import("./expr").synth_index
+synth_lit_bool :: @import("./expr").synth_lit_bool
+synth_lit_char :: @import("./expr").synth_lit_char
+synth_lit_cstr :: @import("./expr").synth_lit_cstr
+synth_lit_float :: @import("./expr").synth_lit_float
+synth_lit_int :: @import("./expr").synth_lit_int
+synth_lit_str :: @import("./expr").synth_lit_str
+synth_logic_and_or :: @import("./expr").synth_logic_and_or
+synth_unary_addr_of :: @import("./expr").synth_unary_addr_of
+synth_unary_deref :: @import("./expr").synth_unary_deref
+synth_unary_not :: @import("./expr").synth_unary_not
+synth_unary_num :: @import("./expr").synth_unary_num
+synth_call :: @import("./fn").synth_call
+synth_func :: @import("./fn").synth_func
+synth_return :: @import("./fn").synth_return
+macro_template :: @import("./reflection").macro_template
+reflection_read :: @import("./reflection").reflection_read
+resolve_ty_id :: @import("./specialize").resolve_ty_id
+synth_arg :: @import("./var").synth_arg
+synth_destructure :: @import("./var").synth_destructure
+synth_ident :: @import("./var").synth_ident
+synth_type_node :: @import("./var").synth_type_node
+synth_var_or_binding :: @import("./var").synth_var_or_binding
 
 synth_node :: fn(eng &Engine, id u32) {
     db := &eng.nexus
@@ -248,51 +266,7 @@ synth_splice :: fn(eng &Engine, id u32) {
     fid := db.get_hir_file(id)
     macro_sym := db.get_hir_symbol(id)
     sub_p := Parser_new(db, &tokens, tbl, fid, macro_sym, 0, tok_count)
-    fn_start: u32 = 0
-    s_idx := id
-    while s_idx > 0 {
-        s_idx = s_idx - 1
-        if tbl.kind(s_idx) == hir_kind.function {
-            fn_start = s_idx
-            break
-        }
-    }
-    if fn_start != 0 {
-        params_id := tbl.lhs(fn_start)
-        if params_id != hir_none() {
-            params := db.get_list(params_id)
-            p_i: u64 = 0
-            while p_i < params.len {
-                arg_node := *(params.ptr + p_i)
-                if tbl.kind(arg_node) == hir_kind.arg {
-                    ident_node := tbl.lhs(arg_node)
-                    if tbl.kind(ident_node) == hir_kind.ident {
-                        name_id := tbl.lhs(ident_node)
-                        sym_id := db.get_hir_symbol(arg_node)
-                        if sym_id != id_none() {
-                            sub_p.env.define(name_id, sym_id)
-                        }
-                    }
-                }
-                p_i = p_i + 1
-            }
-        }
-    }
-    n := fn_start
-    while n < id {
-        nk := tbl.kind(n)
-        if (nk == hir_kind.var) or (nk == hir_kind.binding) or (nk == hir_kind.arg) {
-            ident_node := tbl.lhs(n)
-            if tbl.kind(ident_node) == hir_kind.ident {
-                name_id := tbl.lhs(ident_node)
-                sym_id := db.get_hir_symbol(n)
-                if sym_id != id_none() {
-                    sub_p.env.define(name_id, sym_id)
-                }
-            }
-        }
-        n = n + 1
-    }
+    restore_splice_scope(&sub_p, id)
 
     node_start := tbl.len()
     first_node := parse_expr(&sub_p, 0 as u8)

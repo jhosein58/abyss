@@ -1,4 +1,4 @@
-import std.io: write as print
+print :: @import("std/io").write
 
 Container :: fn(T type, N u64) type {
     struct {

@@ -1,9 +1,24 @@
-import std.allocator: Arena
-import std.ascii:     Ascii, hex_digit_value, is_alpha, is_alphanumeric, is_digit, is_hex_digit, is_whitespace, to_lower, to_upper
-import std.path:      Path
-import std.string:    String, parse_u32
+Arena :: @import("std/allocator").Arena
+Ascii :: @import("std/ascii").Ascii
+hex_digit_value :: @import("std/ascii").hex_digit_value
+is_alpha :: @import("std/ascii").is_alpha
+is_alphanumeric :: @import("std/ascii").is_alphanumeric
+is_digit :: @import("std/ascii").is_digit
+is_hex_digit :: @import("std/ascii").is_hex_digit
+is_whitespace :: @import("std/ascii").is_whitespace
+to_lower :: @import("std/ascii").to_lower
+to_upper :: @import("std/ascii").to_upper
+Path :: @import("std/path").Path
+String :: @import("std/string").String
+parse_u32 :: @import("std/string").parse_u32
 
-import test: Suite, Test, assert_eq, assert_false, assert_ne, assert_str_eq, assert_true
+Suite :: @import("test").Suite
+Test :: @import("test").Test
+assert_eq :: @import("test").assert_eq
+assert_false :: @import("test").assert_false
+assert_ne :: @import("test").assert_ne
+assert_str_eq :: @import("test").assert_str_eq
+assert_true :: @import("test").assert_true
 
 test_ascii_predicates :: fn(t &Test) {
     t.assert_true(is_digit('0'), "")

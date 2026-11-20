@@ -1,4 +1,6 @@
-import core.target_values: target_os, target_arch, target_ptr_bits
+target_os :: @import("core/target_values").target_os
+target_arch :: @import("core/target_values").target_arch
+target_ptr_bits :: @import("core/target_values").target_ptr_bits
 
 Os :: enum u8 {
     linux

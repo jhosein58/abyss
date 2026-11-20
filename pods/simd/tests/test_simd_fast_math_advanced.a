@@ -1,7 +1,24 @@
-import std.allocator: Arena
+Arena :: @import("std/allocator").Arena
 
-import simd: Simd, abyss_simd_cpu_features, cos, cos_fast, exp, exp_fast, f32x4, f64x2, ln, ln_fast, rsqrt, rsqrt_fast, sin, sin_fast, sqrt
-import test: Suite, Test, assert_eq, assert_true
+Simd :: @import("simd").Simd
+abyss_simd_cpu_features :: @import("simd").abyss_simd_cpu_features
+cos :: @import("simd").cos
+cos_fast :: @import("simd").cos_fast
+exp :: @import("simd").exp
+exp_fast :: @import("simd").exp_fast
+f32x4 :: @import("simd").f32x4
+f64x2 :: @import("simd").f64x2
+ln :: @import("simd").ln
+ln_fast :: @import("simd").ln_fast
+rsqrt :: @import("simd").rsqrt
+rsqrt_fast :: @import("simd").rsqrt_fast
+sin :: @import("simd").sin
+sin_fast :: @import("simd").sin_fast
+sqrt :: @import("simd").sqrt
+Suite :: @import("test").Suite
+Test :: @import("test").Test
+assert_eq :: @import("test").assert_eq
+assert_true :: @import("test").assert_true
 
 approx_eq :: fn(a f32, b f32, eps f32) bool {
     diff := a - b

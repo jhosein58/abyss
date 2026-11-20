@@ -1,4 +1,6 @@
-import std.mem: free, malloc, mem_set
+free :: @import("std/mem").free
+malloc :: @import("std/mem").malloc
+mem_set :: @import("std/mem").mem_set
 
 HashSet :: fn(T type) type {
     struct {

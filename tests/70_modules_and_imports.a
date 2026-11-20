@@ -1,24 +1,24 @@
-import .modules.exporter as exp
-import .modules.pkg
-import .modules.circ_a
-import .modules.circ_b
-import std.ascii: is_digit, is_alpha
-import std.ascii as asc
-import .modules.exporter:
-    PI
-    calc
+exp :: @import("./modules/exporter")
+pkg :: @import("./modules/pkg")
+circ_a :: @import("./modules/circ_a")
+circ_b :: @import("./modules/circ_b")
+is_digit :: @import("std/ascii").is_digit
+is_alpha :: @import("std/ascii").is_alpha
+asc :: @import("std/ascii")
+PI :: @import("./modules/exporter").PI
+calc :: @import("./modules/exporter").calc
 
 test_scoped :: fn() {
-    import .modules.pkg: PKG_VAL
+    PKG_VAL :: @import("./modules/pkg").PKG_VAL
     print(PKG_VAL)
     print("\n")
     val := 10
     {
-        import .modules.circ_a: A_CONST as val
+        val :: @import("./modules/circ_a").A_CONST
         print(val)
         print("\n")
         {
-            import .modules.circ_b: B_CONST as val
+            val :: @import("./modules/circ_b").B_CONST
             print(val)
             print("\n")
         }

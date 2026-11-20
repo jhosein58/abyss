@@ -1,6 +1,8 @@
-import std.ascii: Ascii
+Ascii :: @import("std/ascii").Ascii
 
-import .token: Token, TokenKind, TokenList
+Token :: @import("./token").Token
+TokenKind :: @import("./token").TokenKind
+TokenList :: @import("./token").TokenList
 
 match_keyword :: fn(text Str) TokenKind {
     if text.len == 2 {
@@ -68,9 +70,6 @@ match_keyword :: fn(text Str) TokenKind {
     if text.len == 6 {
         if text.eq("struct") {
             ret TokenKind.kw_struct
-        }
-        if text.eq("import") {
-            ret TokenKind.kw_import
         }
         if text.eq("extern") {
             ret TokenKind.kw_extern

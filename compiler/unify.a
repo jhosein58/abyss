@@ -1,8 +1,13 @@
-import std.string: Str
-import std.sys:    fall
+Str :: @import("std/string").Str
+fall :: @import("std/sys").fall
 
-import .nexus.nexus: calc_pos
-import .types:       TyKind, TypeStorage, ty_id_error, ty_id_never, ty_id_none, ty_id_unknown
+calc_pos :: @import("./nexus/nexus").calc_pos
+TyKind :: @import("./types").TyKind
+TypeStorage :: @import("./types").TypeStorage
+ty_id_error :: @import("./types").ty_id_error
+ty_id_never :: @import("./types").ty_id_never
+ty_id_none :: @import("./types").ty_id_none
+ty_id_unknown :: @import("./types").ty_id_unknown
 
 slot_none :: fn() u32 {
     4294967295 as u32

@@ -1,2 +1,1 @@
-import std.not_found: Missing
-main :: fn() {}
+main :: fn() { @import("std/not_found") }

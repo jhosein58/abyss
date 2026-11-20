@@ -1,0 +1,2 @@
+load :: fn(path Str) { @import(path) }
+main :: fn() { load("std") }

@@ -1,7 +1,11 @@
-import std.allocator: Arena
+Arena :: @import("std/allocator").Arena
 
-import simd: Simd, i32x4
-import test: Suite, Test, assert_eq, assert_true
+Simd :: @import("simd").Simd
+i32x4 :: @import("simd").i32x4
+Suite :: @import("test").Suite
+Test :: @import("test").Test
+assert_eq :: @import("test").assert_eq
+assert_true :: @import("test").assert_true
 
 test_i32x4_arithmetic :: fn(t &Test) {
     a := i32x4.splat(20)

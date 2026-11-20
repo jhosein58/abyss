@@ -1,4 +1,4 @@
-import std.sys: fall as stop
+stop :: @import("std/sys").fall
 
 fall_at :: fn(location SourceLocation) {
     print("shadowed runtime helper")

@@ -1,9 +1,11 @@
-import compiler.engine: Engine
-import compiler.hir: hir_kind, hir_none
-import compiler.lower: eval_const
-import compiler.nexus.nexus: Nexus
-import compiler.typer.specialize: resolve_ty_id
-import compiler.types: TyKind, ty_id_none
+Engine :: @import("compiler/engine").Engine
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+eval_const :: @import("compiler/lower").eval_const
+Nexus :: @import("compiler/nexus/nexus").Nexus
+resolve_ty_id :: @import("compiler/typer/specialize").resolve_ty_id
+TyKind :: @import("compiler/types").TyKind
+ty_id_none :: @import("compiler/types").ty_id_none
 
 static_address :: fn(db &Nexus, id u32) bool {
     tbl := &db.hir

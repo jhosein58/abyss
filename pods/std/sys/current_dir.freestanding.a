@@ -1,0 +1,3 @@
+Arena :: @import("std/allocator").Arena
+
+current_dir :: fn(arena &Arena) Str { Str.empty() }

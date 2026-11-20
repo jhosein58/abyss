@@ -1,6 +1,7 @@
-import core.maybe:    Maybe
-import std.allocator: Arena
-import std.string:    Str, String
+Maybe :: @import("core/maybe").Maybe
+Arena :: @import("std/allocator").Arena
+Str :: @import("std/string").Str
+String :: @import("std/string").String
 
 SemVer :: struct {
     major u32

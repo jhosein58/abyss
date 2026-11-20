@@ -1,5 +1,9 @@
-import core.prelude: Iterator as Iter, RefIterator as RefIter
-import std.mem:      free, malloc, mem_copy, realloc
+Iter :: @import("core/prelude").Iterator
+RefIter :: @import("core/prelude").RefIterator
+free :: @import("std/mem").free
+malloc :: @import("std/mem").malloc
+mem_copy :: @import("std/mem").mem_copy
+realloc :: @import("std/mem").realloc
 
 Vec :: fn(T type) type {
     struct {

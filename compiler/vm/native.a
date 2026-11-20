@@ -1,9 +1,19 @@
-import core.target: Arch, Os, target_arch, target_os
-import std.mem:     free, malloc, mem_copy, mem_set
-import std.sys:     STDERR, exit_process, write_all
+Arch :: @import("core/target").Arch
+Os :: @import("core/target").Os
+target_arch :: @import("core/target").target_arch
+target_os :: @import("core/target").target_os
+free :: @import("std/mem").free
+malloc :: @import("std/mem").malloc
+mem_copy :: @import("std/mem").mem_copy
+mem_set :: @import("std/mem").mem_set
+STDERR :: @import("std/sys").STDERR
+exit_process :: @import("std/sys").exit_process
+write_all :: @import("std/sys").write_all
 
-import .ffi:    FfiKind
-import .loader: find_symbol, load_libffi, load_symbol
+FfiKind :: @import("./ffi").FfiKind
+find_symbol :: @import("./loader").find_symbol
+load_libffi :: @import("./loader").load_libffi
+load_symbol :: @import("./loader").load_symbol
 
 VmCallback :: fn(&&u8, &u8, u32, &u64, u32) u64
 FfiFunction :: fn()

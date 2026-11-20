@@ -1,1 +1,4 @@
-import .aliases: Items as Forwarded, Optional as Choice, value as forwarded_value, text
+Forwarded :: @import("./aliases").Items
+Choice :: @import("./aliases").Optional
+forwarded_value :: @import("./aliases").value
+text :: @import("./aliases").text

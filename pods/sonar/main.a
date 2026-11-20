@@ -1,19 +1,27 @@
-import std.allocator: Arena
-import std.collections.vec: Vec
-import std.env: Env
-import std.fs: Dir, File, to_cstr
-import std.io: print, write
-import std.path: Path
-import std.string: Str, String
-import std.sys: fall
+Arena :: @import("std/allocator").Arena
+Vec :: @import("std/collections/vec").Vec
+Env :: @import("std/env").Env
+Dir :: @import("std/fs").Dir
+File :: @import("std/fs").File
+to_cstr :: @import("std/fs").to_cstr
+print :: @import("std/io").print
+write :: @import("std/io").write
+Path :: @import("std/path").Path
+Str :: @import("std/string").Str
+String :: @import("std/string").String
+fall :: @import("std/sys").fall
 
-import json: JsonKind, JsonVal, parse_json
+JsonKind :: @import("json").JsonKind
+JsonVal :: @import("json").JsonVal
+parse_json :: @import("json").parse_json
 
-import .builder:  Builder
-import .manifest: CBuildInfo, Dependency, PodManifest
-import .resolver: Resolver
-import .semver:   SemVer
-import .vendor:   VendorManager
+Builder :: @import("./builder").Builder
+CBuildInfo :: @import("./manifest").CBuildInfo
+Dependency :: @import("./manifest").Dependency
+PodManifest :: @import("./manifest").PodManifest
+Resolver :: @import("./resolver").Resolver
+SemVer :: @import("./semver").SemVer
+VendorManager :: @import("./vendor").VendorManager
 
 system :: extern fn(cmd &u8) i32
 

@@ -1,11 +1,13 @@
-import std.allocator: Arena
-import std.collections.vec: Vec
-import std.io: print, write
-import std.string: Str, String
-import std.sys: fall
+Arena :: @import("std/allocator").Arena
+Vec :: @import("std/collections/vec").Vec
+print :: @import("std/io").print
+write :: @import("std/io").write
+Str :: @import("std/string").Str
+String :: @import("std/string").String
+fall :: @import("std/sys").fall
 
-import .color:   Color
-import .context: Test
+Color :: @import("./color").Color
+Test :: @import("./context").Test
 
 TestFunc :: fn(t &Test) 
 

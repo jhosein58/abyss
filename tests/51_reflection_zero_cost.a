@@ -1,4 +1,4 @@
-import std.io: write as print
+print :: @import("std/io").write
 
 Record :: struct {
     pair struct { i32, bool }

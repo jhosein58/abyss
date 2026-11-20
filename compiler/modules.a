@@ -1,0 +1,221 @@
+Arch :: @import("core/target").Arch
+Os :: @import("core/target").Os
+target_os :: @import("core/target").target_os
+Arena :: @import("std/allocator").Arena
+Env :: @import("std/env").Env
+Embed :: @import("std/fs").Embed
+File :: @import("std/fs").File
+Path :: @import("std/path").Path
+String :: @import("std/string").String
+fall :: @import("std/sys").fall
+
+Nexus :: @import("./nexus/nexus").Nexus
+calc_pos :: @import("./nexus/nexus").calc_pos
+id_none :: @import("./nexus/pool").id_none
+arch_name :: @import("./platform").arch_name
+os_name :: @import("./platform").os_name
+
+make_embedded_fn :: fn() Str {
+    if target_os == Os.wasi {
+        arena := Arena.new(1024 * 1024 * 64)
+        Embed.sources(&arena)
+    } else {
+        "Str.empty()\n"
+    }
+}
+
+lookup_embedded :: fn(mod_path Str) Str {
+    #make_embedded_fn()
+}
+
+import_error :: fn(db &Nexus, fid u32, offset u32, message, detail Str) {
+    pos := calc_pos(db.get_file_source(fid), offset)
+    printf(
+        "\n[import error] {}: {}\n       --> {}:{}:{}\n\n"
+        .{ message, detail, db.get_file_path(fid), pos.line, pos.col }
+    )
+    #fall
+}
+
+is_embedded_path :: fn(path Str) bool {
+    path.eq("std") or path.eq("core") or path.starts_with("std/") or path.starts_with("core/") or
+        path.starts_with("std\\") or path.starts_with("core\\")
+}
+
+try_load_source :: fn(db &Nexus, arena &Arena, target_path Str) Str {
+    os := os_name(db.target_os)
+    arch := arch_name(db.target_arch)
+    if target_path.eq("core/target_values.a") {
+        source := String.new(arena)
+        source.push_str("Arch :: @import(\"core/target\").Arch\nOs :: @import(\"core/target\").Os\ntarget_os :: Os.")
+        source.push_str(os)
+        source.push_str("\ntarget_arch :: Arch.")
+        source.push_str(arch)
+        source.push_str("\ntarget_ptr_bits :: ")
+        source.push_str(if db.target_arch == Arch.wasm32 { "32" } else { "64" })
+        source.push_str(" as u8\n")
+        ret source.as_str()
+    }
+    stem := target_path.sub(0, target_path.len - 2)
+    candidate := String.new(arena)
+    candidate.push_str(stem)
+    candidate.push_char('.')
+    candidate.push_str(os)
+    candidate.push_char('.')
+    candidate.push_str(arch)
+    candidate.push_str(".a")
+    source := load_source(arena, candidate.as_str())
+    if source.ptr != (0 as &u8) { ret source }
+    candidate.len = stem.len + 1 + os.len
+    candidate.push_str(".a")
+    source = load_source(arena, candidate.as_str())
+    if source.ptr != (0 as &u8) { ret source }
+    load_source(arena, target_path)
+}
+
+load_source :: fn(arena &Arena, target_path Str) Str {
+    embedded := lookup_embedded(target_path)
+    if embedded.ptr != (0 as &u8) {
+        ret embedded
+    }
+    if is_embedded_path(target_path) {
+        env_dev := Env.get(c"ABYSS_DEV")
+        pod_rel := Path.join(arena, "pods", target_path)
+        if env_dev != (0 as &u8) {
+            dev_str := Str.of(env_dev)
+            if (not dev_str.eq("1")) and (not dev_str.eq("true")) {
+                dev_pod := Path.join(arena, dev_str, pod_rel)
+                opt_dp := File.read_to_string(arena, dev_pod)
+                if opt_dp.is_some() {
+                    ret opt_dp.unwrap()
+                }
+            }
+        }
+        opt_pod := File.read_to_string(arena, pod_rel)
+        if opt_pod.is_some() {
+            ret opt_pod.unwrap()
+        }
+        if Env.args_len() > 0 {
+            arg0 := Env.arg(0)
+            if arg0 != (0 as &u8) {
+                arg0_str := Str.of(arg0)
+                bin_dir := Path.dir(arg0_str)
+                if bin_dir.len > 0 {
+                    cand_parent := Path.normalize(
+                        arena
+                        Path.join(arena, bin_dir, Str.of(".."))
+                    )
+                    opt_parent := File.read_to_string(
+                        arena
+                        Path.join(arena, cand_parent, pod_rel)
+                    )
+                    if opt_parent.is_some() {
+                        ret opt_parent.unwrap()
+                    }
+                    cand_bin := Path.join(arena, bin_dir, pod_rel)
+                    opt_bin := File.read_to_string(arena, cand_bin)
+                    if opt_bin.is_some() {
+                        ret opt_bin.unwrap()
+                    }
+                }
+            }
+        }
+        ret Str.empty()
+    }
+    file_opt := File.read_to_string(arena, target_path)
+    if file_opt.is_some() {
+        file_opt.unwrap()
+    } else {
+        Str.empty()
+    }
+}
+
+remap_module :: fn(db &Nexus, arena &Arena, path Str) Str {
+    for index in Range.new(0, db.map_keys.len as i32) {
+        i := index as u64
+        key := db.map_keys.get(i)
+        if path.eq(key) {
+            ret db.map_values.get(i)
+        }
+        if path.starts_with(key) and path.len > key.len and path.ptr[key.len] == '/' {
+            ret Path.join(arena, db.map_values.get(i), path.sub(key.len + 1, path.len - key.len - 1))
+        }
+    }
+    path
+}
+
+file_key :: fn(db &Nexus, arena &Arena, path Str) u32 {
+    if is_embedded_path(path) or Path.is_absolute(path) or db.cwd.len == 0 {
+        ret db.interner.intern(path)
+    }
+    full := Path.join(arena, db.cwd, path)
+    db.interner.intern(if path.starts_with("../") { Path.normalize(arena, full) } else { full })
+}
+
+load_candidate :: fn(db &Nexus, arena &Arena, path Str) u32 {
+    key := file_key(db, arena, path)
+    known := db.find_file_id(key)
+    if known != id_none() { ret known }
+    source := try_load_source(db, arena, path)
+    if source.ptr == (0 as &u8) { ret id_none() }
+    db.add_file(path, source, key)
+}
+
+resolve_module :: fn(db &Nexus, arena &Arena, fid u32, offset u32, base, request Str) u32 {
+    if request.len == 0 {
+        import_error(db, fid, offset, "empty module path", request)
+    }
+    for byte in request {
+        if byte == 0 {
+            import_error(db, fid, offset, "module path contains a NUL byte", request)
+        }
+    }
+    relative := request.starts_with("./") or request.starts_with("../") or
+        request.starts_with(".\\") or request.starts_with("..\\")
+    stem := if relative {
+        Path.resolve(arena, base, request)
+    } else {
+        logical := Path.normalize(arena, request)
+        if is_embedded_path(request) and not is_embedded_path(logical) {
+            import_error(db, fid, offset, "embedded import escapes library root", request)
+        }
+        path := remap_module(db, arena, logical)
+        if is_embedded_path(base) and not is_embedded_path(path) {
+            Path.resolve(arena, base, path)
+        } else if path.ptr == logical.ptr {
+            logical
+        } else {
+            Path.normalize(arena, path)
+        }
+    }
+    if is_embedded_path(base) and not is_embedded_path(stem) {
+        import_error(db, fid, offset, "embedded import escapes library root", request)
+    }
+    if stem.len == 0 {
+        import_error(db, fid, offset, "empty module path", request)
+    }
+    direct := Path.ensure_ext(arena, stem, ".a")
+    key := (db.interner.intern(stem) as u64) * 2 + (if relative { 1 } else { 0 })
+    cached := db.module_paths.get(key)
+    if cached != (0 as &u32) { ret *cached }
+    folder := if stem.ends_with(".a") { Str.empty() } else {
+        Path.join(arena, stem, Path.ensure_ext(arena, Path.base(stem), ".a"))
+    }
+    for candidate in .[direct, folder] {
+        if candidate.len == 0 { cont }
+        loaded := load_candidate(db, arena, candidate)
+        if loaded == id_none() and not relative and not Path.is_absolute(candidate) and not is_embedded_path(candidate) {
+            for dir in db.import_dirs {
+                loaded = load_candidate(db, arena, Path.normalize(arena, Path.join(arena, dir, candidate)))
+                if loaded != id_none() { break }
+            }
+        }
+        if loaded != id_none() {
+            db.module_paths.insert(key, loaded)
+            ret loaded
+        }
+    }
+    message := if is_embedded_path(direct) { "embedded module not found" } else { "cannot open module" }
+    import_error(db, fid, offset, message, request)
+    id_none()
+}

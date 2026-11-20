@@ -15,7 +15,6 @@ Token :: enum u8 {
     kw_break
     kw_cont
     kw_struct
-    kw_import
     kw_true
     kw_false
     kw_as
@@ -78,12 +77,6 @@ Token :: enum u8 {
     kw_enum
     at
     lit_cstr
-}
-
-is_path_ident :: fn(tk Token) bool {
-    k := tk as u8
-    (tk == Token.ident) or ((k >= (Token.kw_ret as u8)) and (k <= (Token.kw_extern as u8))) or
-        (tk == Token.kw_enum)
 }
 
 TokenStream :: struct {

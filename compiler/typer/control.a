@@ -1,24 +1,26 @@
-import std.string: Str
-import std.sys:    fall
+Str :: @import("std/string").Str
+fall :: @import("std/sys").fall
 
-import compiler.engine:      Engine
-import compiler.hir:         HirTable, hir_kind, hir_none
-import compiler.lower:       eval_const
-import compiler.nexus.nexus: Nexus
-import compiler.nexus.pool:  id_none
-import compiler.typer.tyck:  synth_node
-import compiler.types:
-    TyKind
-    ty_id_bool
-    ty_id_error
-    ty_id_never
-    ty_id_none
-    ty_id_type
-    ty_id_unit
-import compiler.unify:       slot_none
+Engine :: @import("compiler/engine").Engine
+HirTable :: @import("compiler/hir").HirTable
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+eval_const :: @import("compiler/lower").eval_const
+Nexus :: @import("compiler/nexus/nexus").Nexus
+id_none :: @import("compiler/nexus/pool").id_none
+synth_node :: @import("compiler/typer/tyck").synth_node
+TyKind :: @import("compiler/types").TyKind
+ty_id_bool :: @import("compiler/types").ty_id_bool
+ty_id_error :: @import("compiler/types").ty_id_error
+ty_id_never :: @import("compiler/types").ty_id_never
+ty_id_none :: @import("compiler/types").ty_id_none
+ty_id_type :: @import("compiler/types").ty_id_type
+ty_id_unit :: @import("compiler/types").ty_id_unit
+slot_none :: @import("compiler/unify").slot_none
 
-import .common: check_bool_operand, check_value
-import .var:    synth_type_node
+check_bool_operand :: @import("./common").check_bool_operand
+check_value :: @import("./common").check_value
+synth_type_node :: @import("./var").synth_type_node
 
 match_error :: fn(db &Nexus, msg &u8, id u32) {
     printf("\n\033[1;31m[type error]\033[0m {}\n       --> ", .{ msg })
@@ -270,6 +272,8 @@ iterator_kind :: fn(eng &Engine, ty u32, id u32) u8 {
     iterator_sym := db.find_symbol(db.core_prelude, name_id)
     ref_name_id := db.interner.intern(Str.of("RefIterator"))
     ref_iterator_sym := db.find_symbol(db.core_prelude, ref_name_id)
+    eng.ensure_resolved(iterator_sym)
+    eng.ensure_resolved(ref_iterator_sym)
     origin := types.nominal_origin(ty)
     creator := types.get_nominal_creator_sym(origin)
     creator = db.resolve_sym(creator)
@@ -358,6 +362,7 @@ maybe_item_type :: fn(eng &Engine, ty u32, id u32) u32 {
     }
     maybe_name := db.interner.intern(Str.of("Maybe"))
     maybe_sym := db.find_symbol(db.core_prelude, maybe_name)
+    eng.ensure_resolved(maybe_sym)
     origin := types.nominal_origin(ty)
     creator := db.resolve_sym(types.get_nominal_creator_sym(origin))
     if (maybe_sym == id_none()) or (creator != db.resolve_sym(maybe_sym)) {

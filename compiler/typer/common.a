@@ -1,11 +1,18 @@
-import std.allocator: malloc
-import std.string:    Str
-import std.sys:       fall
+malloc :: @import("std/allocator").malloc
+Str :: @import("std/string").Str
+fall :: @import("std/sys").fall
 
-import compiler.hir:         HirTable, hir_kind, hir_none
-import compiler.nexus.nexus: Nexus
-import compiler.types:       TyKind, TypeStorage, ty_id_bool, ty_id_none, ty_id_type
-import compiler.unify:       UnifyStorage, slot_none
+HirTable :: @import("compiler/hir").HirTable
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+Nexus :: @import("compiler/nexus/nexus").Nexus
+TyKind :: @import("compiler/types").TyKind
+TypeStorage :: @import("compiler/types").TypeStorage
+ty_id_bool :: @import("compiler/types").ty_id_bool
+ty_id_none :: @import("compiler/types").ty_id_none
+ty_id_type :: @import("compiler/types").ty_id_type
+UnifyStorage :: @import("compiler/unify").UnifyStorage
+slot_none :: @import("compiler/unify").slot_none
 
 parse_builtin_type :: fn(types &TypeStorage, name Str) u32 {
     if name.eq(Str.of("bool")) {

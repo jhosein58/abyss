@@ -1,4 +1,4 @@
-import std.collections.vec: Vec
+Vec :: @import("std/collections/vec").Vec
 
 main :: fn() {
     values := Vec(i32).new()

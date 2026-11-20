@@ -1,10 +1,13 @@
-import std.allocator: Arena
-import std.collections.vec: Vec
-import std.fs: Dir, File, to_cstr
-import std.path: Path
-import std.string: Str, String
+Arena :: @import("std/allocator").Arena
+Vec :: @import("std/collections/vec").Vec
+Dir :: @import("std/fs").Dir
+File :: @import("std/fs").File
+to_cstr :: @import("std/fs").to_cstr
+Path :: @import("std/path").Path
+Str :: @import("std/string").Str
+String :: @import("std/string").String
 
-import .resolver: ResolvedPod
+ResolvedPod :: @import("./resolver").ResolvedPod
 
 system :: extern fn(cmd &u8) i32
 

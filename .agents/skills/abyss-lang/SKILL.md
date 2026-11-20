@@ -21,13 +21,12 @@ Abyss is a statically typed, expression-oriented systems programming language fe
    - Only use `c"..."` (`&u8`) at the lowest boundary interfacing with external C runtime functions (`fopen`, `printf`).
    - Convert `&u8` to `Str` with `Str.of(cstr)`. Convert `Str` to null-terminated C string with `to_cstr(&arena, str)`.
 
-2. **Dotted Import Syntax (`import <path>: <symbols>`):**
-   - **Never** use the `from` keyword (it is completely eradicated from Abyss).
-   - Absolute import: `import std.allocator: Arena` or `import std.fs: File`
-   - Relative import: Single leading dot only: `import .token: Token` or `import .nexus.nexus: Nexus`
-   - Parent directory relative imports (`..`) are strictly forbidden; use project-root absolute paths.
-   - Module as namespace struct: `import std.mem` or `import std.string as string`
-   - Scoped imports: Allowed inside functions, structs, enums, or blocks to keep bindings local.
+2. **Import modules as namespace values:**
+   - Write `std :: @import("std")` for a namespace or `Arena :: @import("std/allocator").Arena` to bind a member.
+   - Paths are compile-time `Str` expressions. Use `./` or `../` relative to the current file and slash-separated workspace paths for other imports.
+   - Resolution tries `name.a` first and then `name/name.a`. Pass an explicit `.a` path to select a file directly.
+   - Imports work in any expression. Module values are nominal structs with static members, so `@typeof(@import("path"))` is usable as a parameter or return type.
+   - The compiler caches modules by resolved path. Aliases share state, and module cycles are valid when their declarations can be resolved independently.
 
 3. **No Semicolons for Top-Level & Match Arms:**
    - Declarations and statements are separated by newlines or commas.
@@ -38,12 +37,12 @@ Abyss is a statically typed, expression-oriented systems programming language fe
    - Methods taking `self &Self` are invoked with dot syntax (`stream.close()`).
 
 5. **Memory & Allocations:**
-   - Use `Arena` (`import std.allocator: Arena`) for temporary and phase-oriented allocations.
+   - Use `Arena` (`Arena :: @import("std/allocator").Arena`) for temporary and phase-oriented allocations.
    - Pass `&Arena` explicitly to functions that construct dynamic data.
    - Call `.destroy()` on heap objects (`Vec`, `Arena`) when their lifecycle ends.
 
 6. **Leverage `core` and `std` Prelude Primitives:**
-   - **Zero-Import Preludes**: The compiler automatically injects `core/prelude` and `std/prelude` into all source files. The following symbols are **globally available without any `import` statement**:
+   - **Zero-Import Preludes**: The compiler automatically injects `core/prelude` and `std/prelude` into source files. The following symbols are **available without calling `@import`**:
      - From `core/prelude`: `Maybe`, `Str`, `CharIter`, `Iterator`, `RefIterator`, `Range`, `Choice`, `Slice`, `SourceLocation`, `TypeInfo`, `FieldInfo`, `TypeKind`.
      - From `std/prelude`: `Vec`, `HashSet`, `HashMap`, `Worklist`, `print`, `printf`.
    - **`print` vs `write` Output Semantics**:
@@ -83,8 +82,7 @@ Abyss is a statically typed, expression-oriented systems programming language fe
         ```
       - Struct literals: `.{ x: 10 \n y: 20 }`
       - Function arguments / parameters: `foo(a \n b)`
-      - Imports: `import std.mem: \n malloc \n free`
-    - Keep commas within grouped names such as `a, b i32` and within multiple match patterns on the same line.
+     - Keep commas within grouped names such as `a, b i32` and within multiple match patterns on the same line.
     - Keep trailing comments on the line they describe and retain a blank line between related groups of statements or fields. Keep short literals compact and put one entry per line when a list needs to wrap.
 
 11. **Deferred Type Inference & Lean Annotations:**
@@ -281,15 +279,19 @@ Sonar is the official package manager, registry client, and polyglot build orche
 Abyss features an integrated unit testing and assertion framework built around compile-time reflection, ANSI color diagnostics, and non-fatal context tracking.
 
 ### Core Modules & Primitives
-- **Import:** `import test: Suite, Test, assert_eq, assert_ne, assert_str_eq, assert_true, assert_false, assert_gt, assert_lt`
+- **Import:** `testing :: @import("test")`
 - **Fatal Assertions:** Standalone functions that halt test execution immediately on failure (`assert_eq(T, actual, expected, hint)`, `assert_str_eq(actual, expected, hint)`, `assert_null(T, ptr, hint)`, etc.) with colored diffs and type names via `@type_name(T)`.
 - **`Test` Context:** Non-fatal assertions attached to `t &Test` (`t.assert_eq`, `t.assert_str_eq`, `t.assert_true`, etc.) that collect all assertion failures within a test case without premature exit.
 - **`Suite` Runner:** Registers and executes test cases (`suite.add("name", test_func)`), tracks passed/failed counts, prints formatted status lines (`✓`/`✗`), and exits with appropriate process exit code via `suite.run_and_exit()`.
 
 ### Example Test Suite (`tests/test_example.a`)
 ```abyss
-import std.allocator: Arena
-import test: Suite, Test, assert_eq, assert_str_eq, assert_true
+Arena :: @import("std/allocator").Arena
+Suite :: @import("test").Suite
+Test :: @import("test").Test
+assert_eq :: @import("test").assert_eq
+assert_str_eq :: @import("test").assert_str_eq
+assert_true :: @import("test").assert_true
 
 test_math_operations :: fn(t &Test) {
     t.assert_eq(i32, 2 + 2, 4, "addition must be correct")
@@ -345,7 +347,12 @@ The SIMD pod (`pods/simd`) implements fixed-width vectors and lane operations in
 
 ### Example SIMD Usage
 ```abyss
-import simd: f32x4, f64x2, i32x4, Simd, sin_fast, rsqrt_fast
+f32x4 :: @import("simd").f32x4
+f64x2 :: @import("simd").f64x2
+i32x4 :: @import("simd").i32x4
+Simd :: @import("simd").Simd
+sin_fast :: @import("simd").sin_fast
+rsqrt_fast :: @import("simd").rsqrt_fast
 
 run_simd :: fn() {
     a := f32x4.splat(1.5)

@@ -9,8 +9,6 @@ This tour will get you comfortable with Abyss syntax in less than ten minutes.
 Every Abyss program starts at `main`:
 
 ```abyss
-import std.io: print
-
 main :: fn() {
     print("Hello from the deep!")
 }
@@ -73,7 +71,7 @@ if depth > 1000 {
 `@source_location()` gives you a compile-time value with a file path, a line, and a byte column. Lines and columns start at 1. Use `#fall` to print the location of a fatal error to stderr and exit with status 1.
 
 ```abyss
-import std.sys: fall
+fall :: @import("std/sys").fall
 
 check_depth :: fn(depth i32) {
     if depth < 0 { #fall }
@@ -84,7 +82,8 @@ check_depth :: fn(depth i32) {
 Straightforward loops without surprises. For formatted, newline-free printing, use `printf`:
 
 ```abyss
-import std.io: printf, print
+printf :: @import("std/io").printf
+print :: @import("std/io").print
 
 i := 0
 while i < 5 {
@@ -102,7 +101,7 @@ print("")
 Functions are declared with `:: fn(...) [ReturnType]`:
 
 ```abyss
-import std.io: printf
+printf :: @import("std/io").printf
 
 add :: fn(a i32, b i32) i32 {
     a + b
@@ -192,6 +191,32 @@ print(coordinate)
 ```
 
 No template error messages stretching across five terminal screens. Types are just code.
+
+## 9. Modules
+
+Use `@import` anywhere an expression is allowed. It takes a compile-time `Str`
+and returns a namespace struct for the file. Top-level bindings are available as
+members, including types, functions, constants, and mutable globals.
+
+```abyss
+std :: @import("std")
+Arena :: @import("std/allocator").Arena
+
+main :: fn() {
+    fs := @import("std/fs")
+    print(@type_name(fs.File))
+    print(std.ascii.is_digit('7'))
+}
+```
+
+Use `./` or `../` for paths relative to the importing file. Other paths resolve
+from the working directory and configured module search paths. The compiler
+tries `name.a` before `name/name.a`. Use an explicit `.a` to select a specific file.
+
+Each resolved file has one module identity per compilation. You can pass, store,
+or return its namespace value using `@typeof(@import("path"))` as the type. Aliases
+share the same definitions and mutable globals. Files can import each other and
+use forward references; a binding whose value depends on itself is an error.
 
 ---
 

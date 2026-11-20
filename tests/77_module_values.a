@@ -1,0 +1,55 @@
+main :: fn() {
+    print(forward())
+    print(@import("./modules/imports/folder").value)
+    print(@import("./modules/imports/priority").value)
+    print(@import("./modules/imports/priority/priority.a").value)
+    print(@import(cmpt { "./modules/imports/folder" }).value)
+    print(load_value("./modules/imports/folder"))
+    print(load_value("./modules/imports/priority"))
+    print(left.even(20))
+    print(right.odd(19))
+    print(@sizeof(left.Left) == @sizeof(right.Right))
+
+    selected := if true { counter } else { @import(path) }
+    same: Counter = selected
+    print(read(&same))
+    print(return_counter().step(3))
+    print(@import("./modules/imports/folder/../counter.a").count)
+    step := Counter.step
+    print(step(4))
+    print(read(&same))
+    print(return_counter().count)
+    print(calls)
+
+    selected.count = 9
+    print(@import(path).step(1))
+    print(selected.twice(i32, 11))
+    val: selected.Record = .{ value: 13 }
+    print(val.value)
+    print(selected.answer)
+    print(selected.Color.red == counter.Color.red)
+    print(std.ascii.is_digit('9'))
+    print(core.Str.new("ok".ptr, 2))
+    print(@type_info(@typeof(@import("./modules/imports/empty"))).field_count)
+    print(#`@import("./modules/imports/folder").value`)
+}
+
+load_value :: fn(cmpt module_path Str) i32 { @import(module_path).value }
+
+forward :: fn() i32 { counter.count }
+read :: fn(value &Counter) i32 { value.count }
+
+calls: i32 = 0
+
+return_counter :: fn() Counter {
+    calls = calls + 1
+    @import(path)
+}
+
+Counter :: @typeof(@import("./modules/imports/counter"))
+counter :: @import("./modules/imports/counter")
+path :: "./modules/imports/counter.a"
+left :: @import("./modules/imports/left")
+right :: @import("./modules/imports/right")
+std :: @import("std")
+core :: @import("core")

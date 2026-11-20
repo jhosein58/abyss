@@ -1,5 +1,9 @@
-import .abi: Dirent, O_APPEND, O_CREAT, O_TRUNC
-import .types: DirectoryEntry, OpenMode
+Dirent :: @import("./abi").Dirent
+O_APPEND :: @import("./abi").O_APPEND
+O_CREAT :: @import("./abi").O_CREAT
+O_TRUNC :: @import("./abi").O_TRUNC
+DirectoryEntry :: @import("./types").DirectoryEntry
+OpenMode :: @import("./types").OpenMode
 
 O_RDONLY :: 0
 O_WRONLY :: 1

@@ -1,4 +1,4 @@
-import std.env: Env
+Env :: @import("std/env").Env
 
 main :: fn() {
     val := Env.get_or(c"NONEXISTENT_ENV_KEY_12345", c"default_value")

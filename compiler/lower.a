@@ -1,29 +1,34 @@
-import std.allocator: Arena
-import std.string:    Str
-import std.sys:       fall
+Arena :: @import("std/allocator").Arena
+Str :: @import("std/string").Str
+fall :: @import("std/sys").fall
 
-import .hir: HirExprKind, HirTable, hir_kind, hir_none
-import .lexer: decode_char_lit
-import .nexus.nexus: Nexus
-import .nexus.pool: id_none
-import .topo_sort: topo_sort
-import .typer.fn: func_has_self
-import .typer.reflection:
-    macro_template
-    reflection_error
-    reflection_quote
-    reflection_read
-    reflection_value
-import .types:
-    TyKind
-    TypeStorage
-    ty_id_bool
-    ty_id_none
-    ty_id_type
-    ty_id_unit
-    ty_id_untyped_int
-import .vm.codegen: VmCodeBuilder, VmCodeGen, VmVal, VmValKind, vm_element_size
-import .vm.op: OpCode
+HirExprKind :: @import("./hir").HirExprKind
+HirTable :: @import("./hir").HirTable
+hir_kind :: @import("./hir").hir_kind
+hir_none :: @import("./hir").hir_none
+decode_char_lit :: @import("./lexer").decode_char_lit
+Nexus :: @import("./nexus/nexus").Nexus
+id_none :: @import("./nexus/pool").id_none
+topo_sort :: @import("./topo_sort").topo_sort
+func_has_self :: @import("./typer/fn").func_has_self
+macro_template :: @import("./typer/reflection").macro_template
+reflection_error :: @import("./typer/reflection").reflection_error
+reflection_quote :: @import("./typer/reflection").reflection_quote
+reflection_read :: @import("./typer/reflection").reflection_read
+reflection_value :: @import("./typer/reflection").reflection_value
+TyKind :: @import("./types").TyKind
+TypeStorage :: @import("./types").TypeStorage
+ty_id_bool :: @import("./types").ty_id_bool
+ty_id_none :: @import("./types").ty_id_none
+ty_id_type :: @import("./types").ty_id_type
+ty_id_unit :: @import("./types").ty_id_unit
+ty_id_untyped_int :: @import("./types").ty_id_untyped_int
+VmCodeBuilder :: @import("./vm/codegen").VmCodeBuilder
+VmCodeGen :: @import("./vm/codegen").VmCodeGen
+VmVal :: @import("./vm/codegen").VmVal
+VmValKind :: @import("./vm/codegen").VmValKind
+vm_element_size :: @import("./vm/codegen").vm_element_size
+OpCode :: @import("./vm/op").OpCode
 
 LowerCtx :: fn(B type, L type, V type) type {
     struct {
@@ -187,6 +192,12 @@ emit_method_receiver :: fn(
         ret empty
     }
     callee_lhs := db.hir.lhs(callee_id)
+    if db.module_receiver(callee_lhs) != id_none() {
+        if not db.is_const(callee_lhs) {
+            ccg.expr(lower_expr(ctx, callee_lhs))
+        }
+        ret empty
+    }
     lhs_ty := db.get_node_type(callee_lhs)
     if (lhs_ty == ty_id_none()) or (lhs_ty == ty_id_type()) {
         ret empty
@@ -324,6 +335,12 @@ lower_builtin_call :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32)
     name := db.interner.get(name_id)
     args := db.get_list(db.hir.rhs(id))
 
+    if name.eq("import") {
+        ty := db.get_node_type(id)
+        add_type_to_queue(db, ty, ctx.type_queue)
+        fields := ctx.builder.new_list(arena)
+        ret ccg.expr_struct_init(arena, ccg.type_str(&db.types, arena, ty), ctx.builder.finish_list(&fields))
+    }
     if name.eq("trap") {
         ret ccg.intrinsic_trap()
     }
@@ -391,6 +408,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
     queue := ctx.queue
     type_queue := ctx.type_queue
     match db.hir.kind(id) {
+        binding { ret empty }
         builtin_call {
             ret lower_builtin_call(ctx, id)
         }
@@ -961,6 +979,15 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             if db.get_hir_symbol(id) != id_none() {
                 method_sym := db.get_hir_symbol(id)
                 real_sym := db.resolve_sym(method_sym)
+                if db.module_receiver(lhs_id) != id_none() {
+                    fn_node := db.get_fn_node(real_sym)
+                    if fn_node != hir_none() {
+                        ty := db.get_node_type(id)
+                        add_type_to_queue(db, ty, type_queue)
+                        if not queue.contains(real_sym) { queue.push(real_sym) }
+                        ret lower_function_name(ctx, real_sym, fn_node, ty)
+                    }
+                }
                 method_hir := db.get_sym_hir(real_sym)
                 if (method_hir != id_none()) and (db.hir.kind(method_hir) != hir_kind.function) {
                     if db.is_const(id) and db.has_const_val(id) {
@@ -1962,6 +1989,12 @@ lower_global_projection :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id
 lower_expr :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     db := ctx.db
     kind := db.hir.kind(id)
+    if kind == hir_kind.member and db.get_node_type(id) != ty_id_type() {
+        receiver := db.hir.lhs(id)
+        if db.module_receiver(receiver) != id_none() and not db.is_const(receiver) {
+            ctx.ccg.expr(lower_expr(ctx, receiver))
+        }
+    }
     val_str := ctx.empty
     if kind == hir_kind.ident or kind == hir_kind.member {
         sym := db.resolve_sym(db.get_hir_symbol(id))

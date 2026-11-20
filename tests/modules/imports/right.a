@@ -1,0 +1,8 @@
+Right :: struct { left &left.Left }
+
+odd :: fn(value i32) bool {
+    if value == 0 { ret false }
+    left.even(value - 1)
+}
+
+left :: @import("././left.a")

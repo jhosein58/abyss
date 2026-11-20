@@ -1,6 +1,6 @@
-import std.io: write as print
-import std.string: String
-import std.allocator: Arena
+print :: @import("std/io").write
+String :: @import("std/string").String
+Arena :: @import("std/allocator").Arena
 
 Record :: struct { value i32 }
 

@@ -33,10 +33,26 @@ if ! "${COMPILER}" --version 2>/dev/null | grep -qx 'abyssc target-aware'; then
     build_bridge ec958cf93edcd0c877177f52286ee8cdace6f1d8 target
 fi
 
+printf '%s\n' 'main :: fn() i32 { @import("core/target").target.ptr_bits as i32 }' > "${WORK_DIR}/probe.a"
+if "${COMPILER}" "${WORK_DIR}/probe.a" "${WORK_DIR}/probe.c" > "${WORK_DIR}/probe.log" 2>&1; then
+    "${COMPILER}" "${ROOT_DIR}/compiler/main.a" "${OUTPUT}"
+    exit
+fi
+
+STAGE="${WORK_DIR}/legacy"
+mkdir -p "${STAGE}/pods"
+cp -R compiler "${STAGE}/compiler"
+cp -R pods/core pods/std "${STAGE}/pods/"
+while IFS= read -r -d '' source; do
+    awk -f "${ROOT_DIR}/scripts/seed_imports.awk" "${source}" > "${source}.seed"
+    mv "${source}.seed" "${source}"
+done < <(find "${STAGE}/compiler" "${STAGE}/pods" -name '*.a' -print0)
+
 printf '%s\n' 'main :: fn() i32 { @source_location().line as i32 }' > "${WORK_DIR}/probe.a"
-if ! "${COMPILER}" "${WORK_DIR}/probe.a" "${WORK_DIR}/probe.c" > "${WORK_DIR}/probe.log" 2>&1 &&
+if ! (cd "${STAGE}" && ABYSS_DEV="${STAGE}" "${COMPILER}" "${WORK_DIR}/probe.a" "${WORK_DIR}/probe.c") > "${WORK_DIR}/probe.log" 2>&1 &&
     grep -aFq "unknown builtin function '@source_location'" "${WORK_DIR}/probe.log"; then
     build_bridge 1c10ec868b91068e42dad421c9fccfbc7f0cb0ed source-location
 fi
 
-"${COMPILER}" "${ROOT_DIR}/compiler/main.a" "${OUTPUT}"
+cd "${STAGE}"
+ABYSS_DEV="${STAGE}" "${COMPILER}" compiler/main.a "${OUTPUT}"

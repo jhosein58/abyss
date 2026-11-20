@@ -1,4 +1,4 @@
-import std.io: write as print
+print :: @import("std/io").write
 
 Empty :: struct {}
 foreign :: extern fn(value &u16, flag bool) i32

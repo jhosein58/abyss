@@ -1,0 +1,10 @@
+Arena :: @import("std/allocator").Arena
+
+getcwd :: extern "_getcwd" fn(buffer &u8, size i32) &u8
+
+current_dir :: fn(arena &Arena) Str {
+    buffer := arena.alloc(4096)
+    path := getcwd(buffer, 4096)
+    if path == (0 as &u8) { ret Str.empty() }
+    Str.of(path)
+}

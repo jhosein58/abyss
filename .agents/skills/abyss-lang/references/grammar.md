@@ -7,7 +7,7 @@ This reference details the grammar, tokenization, type system, and AST/HIR rules
 ## 1. Keywords & Tokens
 
 ### Keywords
-`fn`, `struct`, `enum`, `union`, `import`, `as`, `if`, `else`, `while`, `for`, `in`, `match`, `ret`, `break`, `cont`, `cmpt`, `Self`, `true`, `false`, `null`.
+`fn`, `struct`, `enum`, `union`, `as`, `if`, `else`, `while`, `for`, `in`, `match`, `ret`, `break`, `cont`, `cmpt`, `Self`, `true`, `false`, `null`.
 
 ### Operators & Delimiters
 - Comments: `--` (single-line only, up to the end of the line)
@@ -15,7 +15,7 @@ This reference details the grammar, tokenization, type system, and AST/HIR rules
 - Arithmetic: `+`, `-`, `*`, `/`, `%`
 - Comparison: `==`, `!=`, `<`, `<=`, `>`, `>=`
 - Logical: `and`, `or`, `not`
-- Access: `.` (member access with automatic deep pointer dereferencing), `:` (type annotation / import symbol list), `::` (comptime / namespace)
+- Access: `.` (member access with automatic deep pointer dereferencing), `:` (type annotation), `::` (comptime / namespace)
 - Sequencing: `,` (separates multiple expressions/statements on a single line, e.g. `{ a := 1, a + 2 }`; completely optional whenever breaking to a new line)
 - Splice: `#` (compile-time D-style mixin splice; expands string expressions into AST; supports nested multi-level splices `##`, `###`, `####`)
 - Builtins:
@@ -33,29 +33,21 @@ This reference details the grammar, tokenization, type system, and AST/HIR rules
 
 ---
 
-## 2. Imports Grammar
+## 2. Modules
 
-The import grammar is orthogonal, strict, and scoped:
+`@import(path)` is a builtin expression that takes a compile-time `Str`. It
+returns a nominal namespace struct value. Every top-level declaration can be
+accessed with normal member syntax. Prelude names are available for unqualified
+lookup but are not exported automatically.
 
-```ebnf
-ImportDecl ::= "import" ( RelativePath | AbsolutePath ) [ "as" Ident ] [ ":" SymbolList ]
+A leading `./` or `../` resolves relative to the importing file. Other paths are
+resolved from the working directory, with support for `--map` and `-I`. An
+extensionless path first tries `name.a`, then `name/name.a`; each candidate also
+supports platform-specific source variants. An explicit `.a` selects a file.
 
-RelativePath ::= "." Ident ( "." Ident )*
-AbsolutePath ::= Ident ( "." Ident )*
-
-SymbolList ::= SymbolEntry ( ( "," | Newline ) SymbolEntry )* [ "," ]
-SymbolEntry ::= Ident [ "as" Ident ]
-```
-
-### Path Resolution
-1. **Leading `.`**: Indicates a relative path starting from the directory of the current file.
-2. **No leading `.`**: Absolute path rooted at the project workspace directory (e.g., `std`, `core`, `compiler`).
-3. **Multiple dots (`..`)**: Forbidden by the compiler.
-4. **Directory resolution**: If a path refers to a directory `<dir>`, the compiler automatically looks for `<dir>/<basename>.a` (e.g. `std.test` resolves to `std/test/test.a` if `std/test.a` does not exist).
-5. **No `.a` in import path**: Import paths must omit the `.a` extension.
-6. **Scoped Imports**: Can appear at top-level, or inside any block `{ ... }`, function `fn`, or struct declaration, shadowing higher-level symbols only within that scope.
-
----
+A resolved file has one module identity per compilation. Pass a namespace as a
+runtime value or use its type through `@typeof(@import(path))`. Circular module
+references are allowed, but circular value initialization is rejected.
 
 ## 3. Types
 
@@ -110,7 +102,7 @@ Math :: struct {
 }
 ```
 
-- When an imported module has no symbol list (`import std.math`), the module is loaded as a struct whose fields are the module's exported declarations.
+- A module namespace provides its top-level declarations as static members.
 - Method calls `val.method(args)` are syntactic sugar for `Type.method(&val, args)` when the first parameter is `self &Self`.
 
 ---

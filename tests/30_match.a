@@ -1,6 +1,7 @@
-import std.io: write as print
+print :: @import("std/io").write
 
-import std.io: write as print_i32, write as print_bool
+print_i32 :: @import("std/io").write
+print_bool :: @import("std/io").write
 
 Color :: enum { red, green, blue }
 

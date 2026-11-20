@@ -1,5 +1,7 @@
-import std.mem:    free, malloc, mem_set
-import std.string: Str
+free :: @import("std/mem").free
+malloc :: @import("std/mem").malloc
+mem_set :: @import("std/mem").mem_set
+Str :: @import("std/string").Str
 
 hash_str :: fn(s Str) u32 {
     h: u32 = 2166136261 as u32

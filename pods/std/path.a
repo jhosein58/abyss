@@ -1,5 +1,6 @@
-import std.allocator: Arena
-import std.string:    Str, String
+Arena :: @import("std/allocator").Arena
+Str :: @import("std/string").Str
+String :: @import("std/string").String
 
 Path :: struct {
     to_cstr :: fn(arena &Arena, path Str) &u8 {
@@ -68,6 +69,15 @@ Path :: struct {
         }
         out.push_str(rel)
         out.as_str()
+    }
+
+    is_absolute :: fn(path Str) bool {
+        if path.len == 0 { ret false }
+        first := path.ptr[0]
+        if first == '/' or first == '\\' { ret true }
+        letter := (first >= 'a' and first <= 'z') or (first >= 'A' and first <= 'Z')
+        path.len >= 3 and letter and path.ptr[1] == ':' and
+            (path.ptr[2] == '/' or path.ptr[2] == '\\')
     }
 
     normalize :: fn(arena &Arena, path Str) Str {
@@ -150,13 +160,9 @@ Path :: struct {
     }
 
     resolve :: fn(arena &Arena, base Str, rel Str) Str {
-        if base.len == 0 {
-            ret Path.normalize(arena, rel)
-        }
-        d := Path.dir(base)
-        if d.len == 0 {
-            ret Path.normalize(arena, rel)
-        }
-        Path.normalize(arena, Path.join(arena, d, rel))
+        if Path.is_absolute(rel) { ret Path.normalize(arena, rel) }
+        dir := Path.dir(base)
+        if dir.len == 0 and Path.is_absolute(base) { dir = "/" }
+        Path.normalize(arena, Path.join(arena, dir, rel))
     }
 }

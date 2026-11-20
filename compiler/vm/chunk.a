@@ -1,6 +1,6 @@
-import compiler.types: TypeStorage
+TypeStorage :: @import("compiler/types").TypeStorage
 
-import .op: OpCode
+OpCode :: @import("./op").OpCode
 
 VmExtern :: struct {
     name      &u8

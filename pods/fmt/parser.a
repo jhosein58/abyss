@@ -1,10 +1,16 @@
-import std.allocator: Arena
-import std.ascii:     Ascii
-import std.string:    String
+Arena :: @import("std/allocator").Arena
+Ascii :: @import("std/ascii").Ascii
 
-import .cst:          CstKind, CstNode, cst_binary, cst_leaf, cst_new, cst_unary
-import .syntax.lexer: tokenize
-import .syntax.token: Token, TokenKind, TokenList
+CstKind :: @import("./cst").CstKind
+CstNode :: @import("./cst").CstNode
+cst_binary :: @import("./cst").cst_binary
+cst_leaf :: @import("./cst").cst_leaf
+cst_new :: @import("./cst").cst_new
+cst_unary :: @import("./cst").cst_unary
+tokenize :: @import("./syntax/lexer").tokenize
+Token :: @import("./syntax/token").Token
+TokenKind :: @import("./syntax/token").TokenKind
+TokenList :: @import("./syntax/token").TokenList
 
 CstParser :: struct {
     tokens TokenList
@@ -197,11 +203,6 @@ CstParser :: struct {
         false
     }
 
-    is_path_token :: fn(self &Self, k TokenKind) bool {
-        k == TokenKind.ident or
-            ((k as u8) >= (TokenKind.kw_if as u8) and (k as u8) <= (TokenKind.kw_extern as u8))
-    }
-
     is_type_token :: fn(self &Self, k TokenKind) bool {
         (k == TokenKind.amp) or (k == TokenKind.star) or (k == TokenKind.o_bracket) or
             (k == TokenKind.at) or
@@ -230,8 +231,7 @@ CstParser :: struct {
         idx := self.cursor
         while self.tokens.get(idx).is_trivia() { idx = idx + 1 }
         kind := self.tokens.get(idx).kind
-        if kind == TokenKind.c_brace or kind == TokenKind.eof or kind == TokenKind.hash or
-            kind == TokenKind.kw_import {
+        if kind == TokenKind.c_brace or kind == TokenKind.eof or kind == TokenKind.hash {
             ret false
         }
         while kind == TokenKind.ident {
@@ -250,97 +250,6 @@ CstParser :: struct {
             if kind == TokenKind.eof { ret true }
         }
         true
-    }
-
-    import_symbols_continue :: fn(self &Self, indent u64, allow_unindented bool) bool {
-        idx := self.cursor
-        newline := false
-        while idx < self.tokens.len() {
-            token := self.tokens.get(idx)
-            if token.is_newline() {
-                newline = true
-            } else if token.is_comment() {
-                if newline and not allow_unindented and
-                    self.line_indent(token.start as u64) <= indent { ret false }
-            } else if not token.is_whitespace() {
-                if not newline or token.kind != TokenKind.ident { ret false }
-                if not allow_unindented and self.line_indent(token.start as u64) <= indent {
-                    ret false
-                }
-                idx = idx + 1
-                while self.tokens.get(idx).is_whitespace() { idx = idx + 1 }
-                next := self.tokens.get(idx).kind
-                ret next != TokenKind.colon and next != TokenKind.colon_colon and
-                    next != TokenKind.eq and
-                    next != TokenKind.dot and
-                    next != TokenKind.o_paren and
-                    next != TokenKind.o_bracket
-            }
-            idx = idx + 1
-        }
-        false
-    }
-
-    line_indent :: fn(self &Self, start u64) u64 {
-        pos := start
-        while pos > 0 and not Ascii.is_newline(*(self.source.ptr + pos - 1)) {
-            pos = pos - 1
-        }
-        width: u64 = 0
-        while pos < self.source.len and Ascii.is_whitespace(*(self.source.ptr + pos)) {
-            width = width + (if *(self.source.ptr + pos) == '\t' { 4 as u64 } else { 1 as u64 })
-            pos = pos + 1
-        }
-        width
-    }
-
-    parse_import :: fn(self &Self, top_level bool) &CstNode {
-        start := self.bump().start as u64
-        path := String.new(self.arena)
-        if self.consume_if(TokenKind.dot) { path.push_char('.') }
-        if not self.is_path_token(self.peek()) { self.failed = true }
-        path.push_str(self.bump().text)
-
-        while self.consume_if(TokenKind.dot) {
-            if not self.is_path_token(self.peek()) {
-                self.failed = true
-                break
-            }
-            path.push_char('.')
-            path.push_str(self.bump().text)
-        }
-
-        node := cst_new(self.arena, CstKind.import_stmt, path.as_str())
-        if self.consume_if(TokenKind.kw_as) {
-            if self.peek() != TokenKind.ident { self.failed = true }
-            node.add_child(cst_leaf(self.arena, CstKind.ident, self.bump().text))
-        } else if self.consume_if(TokenKind.colon) {
-            indent := self.line_indent(start)
-            has_symbol := false
-            while not self.is_eof() {
-                kind := self.peek()
-                if kind == TokenKind.newline or kind == TokenKind.comment {
-                    if not self.import_symbols_continue(indent, top_level or not has_symbol) {
-                        break
-                    }
-                    self.read_trivia(node, TokenKind.eof)
-                }
-                if self.peek() != TokenKind.ident or self.is_binding() or self.is_var_decl() {
-                    break
-                }
-                symbol := cst_new(self.arena, CstKind.import_symbol, self.bump().text)
-                if self.consume_if(TokenKind.kw_as) {
-                    if self.peek() != TokenKind.ident { self.failed = true }
-                    symbol.add_child(cst_leaf(self.arena, CstKind.ident, self.bump().text))
-                }
-                node.add_child(symbol)
-                has_symbol = true
-                if not self.consume_if(TokenKind.comma) and
-                    not self.import_symbols_continue(indent, top_level) { break }
-            }
-            if not has_symbol { self.failed = true }
-        }
-        node
     }
 
     parse_binding :: fn(self &Self) &CstNode {
@@ -412,15 +321,12 @@ CstParser :: struct {
         while not self.is_eof() {
             self.read_trivia(node, end)
             if self.is_eof() or self.peek() == end { break }
-            node.add_child(self.parse_stmt(node.kind == CstKind.file))
+            node.add_child(self.parse_stmt())
             self.list_separator(end)
         }
     }
 
-    parse_stmt :: fn(self &Self, top_level bool) &CstNode {
-        if self.peek() == TokenKind.kw_import {
-            ret self.parse_import(top_level)
-        }
+    parse_stmt :: fn(self &Self) &CstNode {
         if self.is_binding() {
             ret self.parse_binding()
         }
@@ -570,10 +476,6 @@ CstParser :: struct {
         while not self.is_eof() {
             self.read_trivia(struct_node, TokenKind.c_brace)
             if self.is_eof() or self.peek() == TokenKind.c_brace { break }
-            if self.peek() == TokenKind.kw_import {
-                struct_node.add_child(self.parse_import(false))
-                cont
-            }
             if self.peek() == TokenKind.hash {
                 struct_node.add_child(self.parse_expr(0 as u8))
                 self.list_separator(TokenKind.c_brace)
@@ -623,10 +525,6 @@ CstParser :: struct {
         while not self.is_eof() {
             self.read_trivia(enum_node, TokenKind.c_brace)
             if self.is_eof() or self.peek() == TokenKind.c_brace { break }
-            if self.peek() == TokenKind.kw_import {
-                enum_node.add_child(self.parse_import(false))
-                cont
-            }
             if self.peek() == TokenKind.hash {
                 enum_node.add_child(self.parse_expr(0 as u8))
                 self.list_separator(TokenKind.c_brace)

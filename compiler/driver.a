@@ -1,17 +1,28 @@
-import core.target:   Arch, Os
-import std.allocator: Arena
-import std.env:       Env
-import std.fs:        read_file, write_file
-import std.string:    Str
-import std.sys:       exit_process, fall
+Arch :: @import("core/target").Arch
+Os :: @import("core/target").Os
+Arena :: @import("std/allocator").Arena
+Env :: @import("std/env").Env
+read_file :: @import("std/fs").read_file
+write_file :: @import("std/fs").write_file
+Str :: @import("std/string").Str
+exit_process :: @import("std/sys").exit_process
+fall :: @import("std/sys").fall
 
-import compiler.codegen:    CCodeBuilder, CCodeGen, CCodeGen_destroy, CCodeGen_finish, CCodeGen_new
-import compiler.engine:     Engine
-import compiler.nexus.pool: id_none
-import compiler.platform:   host_arch, host_os, parse_arch, parse_os
-import compiler.types:      TyKind
-import compiler.vm.codegen: VmCodeBuilder, VmCodeGen
-import compiler.vm.vm:      Vm
+CCodeBuilder :: @import("compiler/codegen").CCodeBuilder
+CCodeGen :: @import("compiler/codegen").CCodeGen
+CCodeGen_destroy :: @import("compiler/codegen").CCodeGen_destroy
+CCodeGen_finish :: @import("compiler/codegen").CCodeGen_finish
+CCodeGen_new :: @import("compiler/codegen").CCodeGen_new
+Engine :: @import("compiler/engine").Engine
+id_none :: @import("compiler/nexus/pool").id_none
+host_arch :: @import("compiler/platform").host_arch
+host_os :: @import("compiler/platform").host_os
+parse_arch :: @import("compiler/platform").parse_arch
+parse_os :: @import("compiler/platform").parse_os
+TyKind :: @import("compiler/types").TyKind
+VmCodeBuilder :: @import("compiler/vm/codegen").VmCodeBuilder
+VmCodeGen :: @import("compiler/vm/codegen").VmCodeGen
+Vm :: @import("compiler/vm/vm").Vm
 
 CompilerConfig :: struct {
     src_path     &u8
@@ -167,7 +178,7 @@ Driver :: struct {
         executable := not self.config.is_library and self.config.target_os != Os.freestanding
         eng.nexus.native_output = not self.config.is_vm_run
         eng.nexus.native_executable = executable and eng.nexus.native_output
-        fid := eng.add_file(self.arena, Str.of(self.config.src_path), source)
+        fid := eng.add_file(Str.of(self.config.src_path), source)
         sym_id := eng.build_entry(fid, executable)
 
         if self.config.is_vm_run {

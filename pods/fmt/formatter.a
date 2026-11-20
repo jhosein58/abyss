@@ -1,8 +1,8 @@
-import std.allocator: Arena
+Arena :: @import("std/allocator").Arena
 
-import .cst:     CstKind, CstNode
-import .imports: can_sort_imports, import_align, import_group, sort_imports, sort_symbols
-import .layout:  Layout
+CstKind :: @import("./cst").CstKind
+CstNode :: @import("./cst").CstNode
+Layout :: @import("./layout").Layout
 
 default_width :: 100
 
@@ -16,14 +16,6 @@ Formatter :: struct {
     format_node :: fn(self &Self, node &CstNode, level u32) {
         match node.kind {
             file { self.format_file(node) }
-            import_stmt { self.format_import(node, level, 0) }
-            import_symbol {
-                self.layout.push_str(node.text)
-                if node.child_count() > 0 {
-                    self.layout.push_str(" as ")
-                    self.layout.push_str(node.child(0).text)
-                }
-            }
             binding_stmt {
                 self.layout.push_str(node.text)
                 self.layout.space_and_text("::")
@@ -420,106 +412,20 @@ Formatter :: struct {
         )
     }
 
-    format_import :: fn(self &Self, node &CstNode, level u32, align u64) {
-        self.layout.push_str("import ")
-        self.layout.push_str(node.text)
-        if node.child_count() == 0 { ret }
-        if node.child(0).kind == CstKind.ident {
-            self.layout.push_str(" as ")
-            self.layout.push_str(node.child(0).text)
-            ret
-        }
-        symbols := Vec(&CstNode).new()
-        preserve_order := false
-        for child in node.children {
-            if child.is_comment() or child.kind == CstKind.empty_line { preserve_order = true }
-            symbols.push(child)
-        }
-        if not preserve_order { sort_symbols(&symbols) }
-        mark := self.layout.start_group()
-        self.layout.push_str(":")
-        padding := if align > node.text.len { align - node.text.len + 1 } else { 1 as u64 }
-        self.format_entries(symbols.as_slice(), padding, level + 1)
-        self.layout.end_group(mark, node.multiline)
-        symbols.destroy()
-    }
-
     format_file :: fn(self &Self, node &CstNode) {
-        i: u64 = 0
-        count := node.child_count()
-        previous_import := false
-        while i < count {
+        for index in Range.new(0, node.child_count() as i32) {
+            i := index as u64
             child := node.child(i)
             if child.kind == CstKind.inline_comment {
                 self.layout.comment(child.text, true)
             } else if child.kind == CstKind.empty_line {
-                if not previous_import { self.layout.line(0) }
+                self.layout.line(0)
             } else {
                 if i > 0 { self.layout.line(0) }
-                if previous_import and child.kind != CstKind.import_stmt { self.layout.line(0) }
-                previous_import = child.kind == CstKind.import_stmt
-                if previous_import {
-                    i = self.format_import_run(node, i)
-                    cont
-                }
                 self.format_node(child, 0)
             }
-            i = i + 1
         }
-        if count > 0 { self.layout.line(0) }
-    }
-
-    format_import_run :: fn(self &Self, file &CstNode, start u64) u64 {
-        imports := Vec(&CstNode).new()
-        end := start
-        while end < file.child_count() {
-            node := file.child(end)
-            if node.kind == CstKind.empty_line {
-                next := file.child(end + 1)
-                if next == (0 as &CstNode) or next.kind != CstKind.import_stmt { break }
-                end = end + 1
-                cont
-            }
-            if node.kind != CstKind.import_stmt { break }
-            if end + 1 < file.child_count() and file.child(end + 1).kind == CstKind.inline_comment {
-                if end != start { break }
-                self.format_import(node, 0, 0)
-                imports.destroy()
-                ret end + 1
-            }
-            imports.push(node)
-            end = end + 1
-        }
-        if not can_sort_imports(imports.as_slice()) {
-            i := start
-            while i < end {
-                if i > start { self.layout.line(0) }
-                child := file.child(i)
-                if child.kind == CstKind.import_stmt { self.format_import(child, 0, 0) }
-                i = i + 1
-            }
-            imports.destroy()
-            ret end
-        }
-        sort_imports(&imports)
-        i: u64 = 0
-        while i < imports.len {
-            group := import_group(imports.get(i).text)
-            j := i + 1
-            while j < imports.len and import_group(imports.get(j).text) == group { j = j + 1 }
-            if i > 0 {
-                self.layout.line(0)
-                self.layout.line(0)
-            }
-            align := import_align(imports.as_slice().sub(i, j - i))
-            while i < j {
-                self.format_import(imports.get(i), 0, align)
-                i = i + 1
-                if i < j { self.layout.line(0) }
-            }
-        }
-        imports.destroy()
-        end
+        if node.child_count() > 0 { self.layout.line(0) }
     }
 }
 

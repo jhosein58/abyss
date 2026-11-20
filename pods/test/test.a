@@ -1,4 +1,18 @@
-import .assert:  assert, assert_eq, assert_false, assert_ge, assert_gt, assert_le, assert_lt, assert_ne, assert_not_null, assert_null, assert_str_eq, assert_str_ne, assert_true
-import .color:   Color
-import .context: Test
-import .suite:   Suite, TestEntry, TestFunc
+assert :: @import("./assert").assert
+assert_eq :: @import("./assert").assert_eq
+assert_false :: @import("./assert").assert_false
+assert_ge :: @import("./assert").assert_ge
+assert_gt :: @import("./assert").assert_gt
+assert_le :: @import("./assert").assert_le
+assert_lt :: @import("./assert").assert_lt
+assert_ne :: @import("./assert").assert_ne
+assert_not_null :: @import("./assert").assert_not_null
+assert_null :: @import("./assert").assert_null
+assert_str_eq :: @import("./assert").assert_str_eq
+assert_str_ne :: @import("./assert").assert_str_ne
+assert_true :: @import("./assert").assert_true
+Color :: @import("./color").Color
+Test :: @import("./context").Test
+Suite :: @import("./suite").Suite
+TestEntry :: @import("./suite").TestEntry
+TestFunc :: @import("./suite").TestFunc

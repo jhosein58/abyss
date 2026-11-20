@@ -1,4 +1,4 @@
-import core.maybe: Maybe
+Maybe :: @import("core/maybe").Maybe
 
 CharIter :: struct {
     ptr   &u8

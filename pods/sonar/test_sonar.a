@@ -1,16 +1,25 @@
-import std.allocator: Arena
-import std.collections.vec: Vec
-import std.fs: Dir, File
-import std.io: print
-import std.string: Str, String
-import std.sys: fall
+Arena :: @import("std/allocator").Arena
+Vec :: @import("std/collections/vec").Vec
+Dir :: @import("std/fs").Dir
+File :: @import("std/fs").File
+print :: @import("std/io").print
+Str :: @import("std/string").Str
+String :: @import("std/string").String
+fall :: @import("std/sys").fall
 
-import json: JsonKind, JsonVal, parse_json
+JsonKind :: @import("json").JsonKind
+JsonVal :: @import("json").JsonVal
+parse_json :: @import("json").parse_json
 
-import .manifest: CBuildInfo, Dependency, PodManifest
-import .resolver: ResolutionResult, ResolvedPod, Resolver
-import .semver:   SemVer
-import .vendor:   VendorManager, ensure_dir_all
+CBuildInfo :: @import("./manifest").CBuildInfo
+Dependency :: @import("./manifest").Dependency
+PodManifest :: @import("./manifest").PodManifest
+ResolutionResult :: @import("./resolver").ResolutionResult
+ResolvedPod :: @import("./resolver").ResolvedPod
+Resolver :: @import("./resolver").Resolver
+SemVer :: @import("./semver").SemVer
+VendorManager :: @import("./vendor").VendorManager
+ensure_dir_all :: @import("./vendor").ensure_dir_all
 
 expect :: fn(cond bool, msg Str) {
     if not cond {

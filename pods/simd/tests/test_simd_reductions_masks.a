@@ -1,7 +1,13 @@
-import std.allocator: Arena
+Arena :: @import("std/allocator").Arena
 
-import simd: Simd, SimdMask, f32x4
-import test: Suite, Test, assert_eq, assert_false, assert_true
+Simd :: @import("simd").Simd
+SimdMask :: @import("simd").SimdMask
+f32x4 :: @import("simd").f32x4
+Suite :: @import("test").Suite
+Test :: @import("test").Test
+assert_eq :: @import("test").assert_eq
+assert_false :: @import("test").assert_false
+assert_true :: @import("test").assert_true
 
 test_simd_mask_queries :: fn(t &Test) {
     a := f32x4.splat(10.0)

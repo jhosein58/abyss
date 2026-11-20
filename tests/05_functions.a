@@ -1,4 +1,5 @@
-import std.io: write as print_cstr, write as print_i32
+print_cstr :: @import("std/io").write
+print_i32 :: @import("std/io").write
 
 println_i32 :: fn(v i32) {
     print_i32(v)

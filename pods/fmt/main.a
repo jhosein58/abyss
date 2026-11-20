@@ -1,7 +1,8 @@
-import std.allocator: Arena
-import std.env:       Env
+Arena :: @import("std/allocator").Arena
+Env :: @import("std/env").Env
 
-import .fmt: default_width, format_path_with_width
+default_width :: @import("./fmt").default_width
+format_path_with_width :: @import("./fmt").format_path_with_width
 
 print_help :: fn() {
     print("usage: abyssfmt [--width N] <path> ... (or: abyss fmt [--width N] <path> ...)")

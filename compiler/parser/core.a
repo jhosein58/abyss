@@ -1,12 +1,18 @@
-import std.string: Str
-import std.sys:    fall
+Str :: @import("std/string").Str
+fall :: @import("std/sys").fall
 
-import compiler.hir:         HirTable
-import compiler.nexus.nexus: Nexus, Pos, Span, calc_pos, span_merge, span_new
-import compiler.nexus.pool:  id_none
-import compiler.token:       Token, TokenStream
+HirTable :: @import("compiler/hir").HirTable
+Nexus :: @import("compiler/nexus/nexus").Nexus
+Pos :: @import("compiler/nexus/nexus").Pos
+Span :: @import("compiler/nexus/nexus").Span
+calc_pos :: @import("compiler/nexus/nexus").calc_pos
+span_merge :: @import("compiler/nexus/nexus").span_merge
+span_new :: @import("compiler/nexus/nexus").span_new
+id_none :: @import("compiler/nexus/pool").id_none
+Token :: @import("compiler/token").Token
+TokenStream :: @import("compiler/token").TokenStream
 
-import .env: ScopeEnv
+ScopeEnv :: @import("./env").ScopeEnv
 
 Parser :: struct {
     db        &Nexus
@@ -16,6 +22,7 @@ Parser :: struct {
     end       u32
     file_id   u32
     toplv_sym u32
+    file_scope bool
     env       ScopeEnv
 }
 
@@ -36,16 +43,28 @@ Parser_new :: fn(
         end: start + count
         file_id: file_id
         toplv_sym: toplv_sym
+        file_scope: false
         env: ScopeEnv.new()
     }
 }
 
 lookup_sym :: fn(p &Parser, name_id u32) u32 {
-    sym := p.env.lookup(name_id)
-    if sym != id_none() {
-        ret sym
+    p.env.lookup(name_id)
+}
+
+capture_splice_scope :: fn(p &Parser, node u32) {
+    if p.env.syms.len > 0 {
+        scope := p.db.add_list(p.env.syms.as_slice())
+        p.db.splice_scopes.insert(node, scope)
     }
-    (*p).db.find_symbol((*p).file_id, name_id)
+}
+
+restore_splice_scope :: fn(p &Parser, node u32) {
+    scope := p.db.splice_scopes.get(node)
+    if scope == (0 as &u32) { ret }
+    for sym in p.db.get_list(*scope) {
+        p.env.define(p.db.sym_name(sym), sym)
+    }
 }
 
 is_eof :: fn(p &Parser) bool {
@@ -65,6 +84,10 @@ peek_n :: fn(p &Parser, n u32) Token {
         ret Token.eof
     }
     p.tokens.kind(target)
+}
+
+begins_declaration :: fn(p &Parser) bool {
+    peek(p) == Token.ident and (peek_n(p, 1) == Token.colon or peek_n(p, 1) == Token.colon_colon)
 }
 
 bump :: fn(p &Parser) u32 {

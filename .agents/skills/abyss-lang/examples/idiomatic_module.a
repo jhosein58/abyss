@@ -1,7 +1,7 @@
-import std.allocator: Arena
-import std.string: Str
-import std.collections.vec: Vec
-import core.maybe: Maybe
+Arena :: @import("std/allocator").Arena
+Str :: @import("std/string").Str
+Vec :: @import("std/collections/vec").Vec
+Maybe :: @import("core/maybe").Maybe
 
 Record :: struct {
     id   u32

@@ -1,7 +1,5 @@
-import .modules.global_state as state
-import .modules.global_state:
-    count as imported_count
-    step
+state :: @import("./modules/global_state")
+step :: @import("./modules/global_state").step
 
 limit := base * 2
 base :: 21
@@ -44,11 +42,11 @@ main :: fn() {
     print(callback(8))
     callback = double
     print(callback(8))
-    print(imported_count)
+    print(state.count)
     state.count = 5
     step()
-    print(imported_count)
-    imported_count = 12
+    print(state.count)
+    state.count = 12
     print(state.count)
     print(state.initial)
 }

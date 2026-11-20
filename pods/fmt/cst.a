@@ -1,9 +1,7 @@
-import std.allocator: Arena
+Arena :: @import("std/allocator").Arena
 
 CstKind :: enum u16 {
     file
-    import_stmt
-    import_symbol
     binding_stmt
     var_decl_stmt
     destructure_stmt

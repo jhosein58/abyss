@@ -1,23 +1,26 @@
-import compiler.hir:           hir_kind, hir_none
-import compiler.nexus.nexus:   span_merge
-import compiler.nexus.pool:    id_none
-import compiler.parser.core:
-    Parser
-    bump
-    curr_span
-    expect
-    is_eof
-    optional
-    parse_error_at
-    peek
-    peek_preceded_by_newline
-    prev_span
-import compiler.parser.parser: parse_expr
-import compiler.parser.prec:   prec
-import compiler.token:         Token
+hir_kind :: @import("compiler/hir").hir_kind
+hir_none :: @import("compiler/hir").hir_none
+span_merge :: @import("compiler/nexus/nexus").span_merge
+id_none :: @import("compiler/nexus/pool").id_none
+Parser :: @import("compiler/parser/core").Parser
+bump :: @import("compiler/parser/core").bump
+curr_span :: @import("compiler/parser/core").curr_span
+expect :: @import("compiler/parser/core").expect
+is_eof :: @import("compiler/parser/core").is_eof
+optional :: @import("compiler/parser/core").optional
+parse_error_at :: @import("compiler/parser/core").parse_error_at
+peek :: @import("compiler/parser/core").peek
+peek_preceded_by_newline :: @import("compiler/parser/core").peek_preceded_by_newline
+prev_span :: @import("compiler/parser/core").prev_span
+parse_expr :: @import("compiler/parser/parser").parse_expr
+prec :: @import("compiler/parser/prec").prec
+Token :: @import("compiler/token").Token
 
-import .common: add_list, check_separator, parse_scoped_import, set_span, span_of_hir
-import .expr:   parse_ident
+add_list :: @import("./common").add_list
+check_separator :: @import("./common").check_separator
+set_span :: @import("./common").set_span
+span_of_hir :: @import("./common").span_of_hir
+parse_ident :: @import("./expr").parse_ident
 
 parse_if :: fn(p &Parser) u32 {
     t := Token
@@ -127,11 +130,6 @@ parse_block :: fn(p &Parser) u32 {
     bump(p)
 
     while (peek(p) != t.c_brace) and (not is_eof(p)) {
-        if peek(p) == t.kw_import {
-            parse_scoped_import(p)
-            check_separator(p, t.c_brace, c"expected ',' or newline between block expressions")
-            cont
-        }
         expr := parse_expr(p, 0)
         if (peek(p) == t.ident) and (not peek_preceded_by_newline(p)) {
             first := expr

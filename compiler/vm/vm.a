@@ -1,20 +1,30 @@
-import std.env: Env
-import std.mem: free, malloc, mem_copy, realloc
-import std.sys: fall, host_call
+Env :: @import("std/env").Env
+free :: @import("std/mem").free
+malloc :: @import("std/mem").malloc
+mem_copy :: @import("std/mem").mem_copy
+realloc :: @import("std/mem").realloc
+fall :: @import("std/sys").fall
+host_call :: @import("std/sys").host_call
 
-import compiler.types: TyKind, TypeStorage
+TyKind :: @import("compiler/types").TyKind
+TypeStorage :: @import("compiler/types").TypeStorage
 
-import .chunk:   Chunk
-import .codegen:
-    vm_data_base
-    vm_data_size
-    vm_entry_tag
-    vm_extern_tag
-    vm_is_aggregate
-    vm_is_indirect
-import .host:    HostDirSlot, dispatch_host_call
-import .native:  VmCallback, ffi_alloc, ffi_call, ffi_callback, ffi_destroy, ffi_symbol_address
-import .op:      OpCode
+Chunk :: @import("./chunk").Chunk
+vm_data_base :: @import("./codegen").vm_data_base
+vm_data_size :: @import("./codegen").vm_data_size
+vm_entry_tag :: @import("./codegen").vm_entry_tag
+vm_extern_tag :: @import("./codegen").vm_extern_tag
+vm_is_aggregate :: @import("./codegen").vm_is_aggregate
+vm_is_indirect :: @import("./codegen").vm_is_indirect
+HostDirSlot :: @import("./host").HostDirSlot
+dispatch_host_call :: @import("./host").dispatch_host_call
+VmCallback :: @import("./native").VmCallback
+ffi_alloc :: @import("./native").ffi_alloc
+ffi_call :: @import("./native").ffi_call
+ffi_callback :: @import("./native").ffi_callback
+ffi_destroy :: @import("./native").ffi_destroy
+ffi_symbol_address :: @import("./native").ffi_symbol_address
+OpCode :: @import("./op").OpCode
 
 invoke_vm_callback :: fn(scope &&u8, chunk &u8, entry u32, argv &u64, argc u32) u64 {
     vm := Vm.new()
