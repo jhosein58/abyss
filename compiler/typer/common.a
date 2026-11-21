@@ -1,32 +1,24 @@
 malloc :: @import("std/allocator").malloc
-Str :: @import("std/string").Str
 fall :: @import("std/sys").fall
 
-HirTable :: @import("compiler/hir").HirTable
-hir_kind :: @import("compiler/hir").hir_kind
-hir_none :: @import("compiler/hir").hir_none
+hir :: @import("compiler/hir")
 Nexus :: @import("compiler/nexus/nexus").Nexus
-TyKind :: @import("compiler/types").TyKind
-TypeStorage :: @import("compiler/types").TypeStorage
-ty_id_bool :: @import("compiler/types").ty_id_bool
-ty_id_none :: @import("compiler/types").ty_id_none
-ty_id_type :: @import("compiler/types").ty_id_type
-UnifyStorage :: @import("compiler/unify").UnifyStorage
+type_defs :: @import("compiler/types")
 slot_none :: @import("compiler/unify").slot_none
 
-parse_builtin_type :: fn(types &TypeStorage, name Str) u32 {
+parse_builtin_type :: fn(types &type_defs.TypeStorage, name Str) u32 {
     if name.eq(Str.of("bool")) {
-        ret TypeStorage.alloc_bool()
+        ret type_defs.TypeStorage.alloc_bool()
     }
     if name.eq(Str.of("type")) {
-        ret TypeStorage.alloc_type()
+        ret type_defs.TypeStorage.alloc_type()
     }
     if name.len < 2 {
-        ret ty_id_none()
+        ret type_defs.ty_id_none()
     }
     first := *(name.ptr)
     if (first != 105) and (first != 117) and (first != 102) {
-        ret ty_id_none()
+        ret type_defs.ty_id_none()
     }
     bits := 0
     i := 1
@@ -35,17 +27,17 @@ parse_builtin_type :: fn(types &TypeStorage, name Str) u32 {
         c := *(name.ptr + i)
 
         if (c < 48) or (c > 57) {
-            ret ty_id_none()
+            ret type_defs.ty_id_none()
         }
         bits = (bits * 10) + ((c - 48) as u32)
         i = i + 1
     }
 
     if (bits != 8) and (bits != 16) and (bits != 32) and (bits != 64) and (bits != 128) {
-        ret ty_id_none()
+        ret type_defs.ty_id_none()
     }
     if (first == 102) and (bits != 32) and (bits != 64) {
-        ret ty_id_none()
+        ret type_defs.ty_id_none()
     }
     if first == 105 {
         ret types.alloc_int(bits as u16)
@@ -56,7 +48,7 @@ parse_builtin_type :: fn(types &TypeStorage, name Str) u32 {
     if first == 102 {
         ret types.alloc_float(bits as u16)
     }
-    ty_id_none()
+    type_defs.ty_id_none()
 }
 
 check_value :: fn(db &Nexus, expr u32, expected u32) {
@@ -69,32 +61,32 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
     if slot == slot_none() {
         ret
     }
-    if tbl.kind(expr) == hir_kind.splice {
+    if tbl.kind(expr) == hir.hir_kind.splice {
         gen_id := tbl.extra(expr)
-        if gen_id != hir_none() {
+        if gen_id != hir.hir_none() {
             check_value(db, gen_id, expected)
         }
         result_slot := unify_ptr.new_slot(expr)
         unify_ptr.bind_type(types, result_slot, expected)
         ret
     }
-    if tbl.kind(expr) == hir_kind.k_cmpt {
+    if tbl.kind(expr) == hir.hir_kind.k_cmpt {
         check_value(db, tbl.lhs(expr), expected)
         result_slot := unify_ptr.new_slot(expr)
         unify_ptr.bind_type(types, result_slot, expected)
         ret
     }
-    if tbl.kind(expr) == hir_kind.k_if {
+    if tbl.kind(expr) == hir.hir_kind.k_if {
         check_value(db, tbl.rhs(expr), expected)
         elseb := tbl.extra(expr)
-        if elseb != hir_none() {
+        if elseb != hir.hir_none() {
             check_value(db, elseb, expected)
         }
         result_slot := unify_ptr.new_slot(expr)
         unify_ptr.bind_type(types, result_slot, expected)
         ret
     }
-    if tbl.kind(expr) == hir_kind.block {
+    if tbl.kind(expr) == hir.hir_kind.block {
         items := db.get_list(tbl.lhs(expr))
         if items.len > 0 {
             check_value(db, *(items.ptr + items.len - 1), expected)
@@ -104,7 +96,7 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         }
     }
     kind := types.kind(expected)
-    if kind == TyKind.union_ {
+    if kind == type_defs.TyKind.union_ {
         val_ty := unify_ptr.resolve_type_deep(types, slot)
         if val_ty == expected {
             ret
@@ -112,20 +104,20 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         members := types.union_members(expected)
         match_count: u32 = 0
         match_idx: u32 = 0
-        match_member_ty := ty_id_none()
+        match_member_ty := type_defs.ty_id_none()
         val_k := types.kind(val_ty)
         infer_count: u32 = 0
         infer_idx: u32 = 0
-        infer_member := ty_id_none()
+        infer_member := type_defs.ty_id_none()
 
         m_i: u64 = 0
         while m_i < members.len {
             members = types.union_members(expected)
             m_ty := *(members.ptr + m_i)
             m_k := types.kind(m_ty)
-            if m_k == TyKind.infer {
+            if m_k == type_defs.TyKind.infer {
                 resolved := unify_ptr.resolve_type_deep(types, types.infer_slot(m_ty))
-                if resolved == ty_id_none() {
+                if resolved == type_defs.ty_id_none() {
                     infer_count = infer_count + 1
                     infer_idx = m_i as u32
                     infer_member = m_ty
@@ -137,12 +129,12 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
             matches := false
             if val_ty == m_ty {
                 matches = true
-            } else if val_k == TyKind.untyped_int {
-                if (m_k == TyKind.int) or (m_k == TyKind.uint) {
+            } else if val_k == type_defs.TyKind.untyped_int {
+                if (m_k == type_defs.TyKind.int) or (m_k == type_defs.TyKind.uint) {
                     matches = true
                 }
-            } else if val_k == TyKind.untyped_float {
-                if m_k == TyKind.float {
+            } else if val_k == type_defs.TyKind.untyped_float {
+                if m_k == type_defs.TyKind.float {
                     matches = true
                 }
             }
@@ -163,7 +155,8 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
             match_count = infer_count
         }
         if match_count == 1 {
-            if (val_k == TyKind.untyped_int) or (val_k == TyKind.untyped_float) {
+            if (val_k == type_defs.TyKind.untyped_int) or
+                (val_k == type_defs.TyKind.untyped_float) {
                 db.unify.bind_type(&db.types, slot, match_member_ty)
             }
             result_slot := unify_ptr.new_slot(expr)
@@ -188,8 +181,8 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         print("")
         #fall
     }
-    if (tbl.kind(expr) == hir_kind.struct_init) and
-        ((kind == TyKind.nominal) or (kind == TyKind.struct_)) {
+    if (tbl.kind(expr) == hir.hir_kind.struct_init) and
+        ((kind == type_defs.TyKind.nominal) or (kind == type_defs.TyKind.struct_)) {
         target := types.get_struct_fields(expected)
         names := db.get_list(tbl.lhs(expr))
         values := db.get_list(tbl.rhs(expr))
@@ -208,7 +201,7 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         while i < names.len {
             target = types.get_struct_fields(expected)
             name_id := tbl.lhs(*(names.ptr + i))
-            field_ty := ty_id_none()
+            field_ty := type_defs.ty_id_none()
             j: u64 = 0
             while j < target.len / 2 {
                 if *(target.ptr + j * 2) == name_id {
@@ -217,7 +210,7 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
                 }
                 j = j + 1
             }
-            if field_ty == ty_id_none() {
+            if field_ty == type_defs.ty_id_none() {
                 printf(
                     "\n\033[1;31m[type error]\033[0m unexpected field '{}' in struct literal for '"
                     .{ db.interner.get(name_id) }
@@ -233,7 +226,7 @@ check_value :: fn(db &Nexus, expr u32, expected u32) {
         }
         root := unify_ptr.find(slot)
         existing := unify_ptr.resolve_type(slot)
-        if types.kind(existing) == TyKind.nominal {
+        if types.kind(existing) == type_defs.TyKind.nominal {
             db.unify.bind_type(&db.types, slot, expected)
             ret
         }
@@ -281,11 +274,11 @@ unescape_splice_str :: fn(s Str) Str {
 }
 
 check_bool_operand :: fn(db &Nexus, id u32, desc &u8) {
-    check_value(db, id, ty_id_bool())
+    check_value(db, id, type_defs.ty_id_bool())
     slot := db.unify.get_slot(id)
     if slot != slot_none() {
         ty := db.unify.resolve_type_deep(&db.types, slot)
-        if (ty != ty_id_none()) and (ty != ty_id_bool()) {
+        if (ty != type_defs.ty_id_none()) and (ty != type_defs.ty_id_bool()) {
             printf("\n\033[1;31m[type error]\033[0m {} must be bool, got '", .{ desc })
             db.types.print_type(ty)
             printf("'\n       --> ", .{})
@@ -293,6 +286,6 @@ check_bool_operand :: fn(db &Nexus, id u32, desc &u8) {
             print("")
             #fall
         }
-        db.unify.bind_type(&db.types, slot, ty_id_bool())
+        db.unify.bind_type(&db.types, slot, type_defs.ty_id_bool())
     }
 }

@@ -1,20 +1,13 @@
 Convert :: @import("std/convert").Convert
-Str :: @import("std/string").Str
 String :: @import("std/string").String
 fall :: @import("std/sys").fall
 
 Engine :: @import("compiler/engine").Engine
-hir_kind :: @import("compiler/hir").hir_kind
-hir_none :: @import("compiler/hir").hir_none
+hir :: @import("compiler/hir")
 eval_const :: @import("compiler/lower").eval_const
 Nexus :: @import("compiler/nexus/nexus").Nexus
-id_none :: @import("compiler/nexus/pool").id_none
-TyKind :: @import("compiler/types").TyKind
-ty_id_none :: @import("compiler/types").ty_id_none
-ty_id_type :: @import("compiler/types").ty_id_type
-
-synth_node :: @import("./tyck").synth_node
-type_has_infer :: @import("./tyck").type_has_infer
+type_defs :: @import("compiler/types")
+tyck :: @import("./tyck")
 synth_type_node :: @import("./var").synth_type_node
 
 reflection_error :: fn(db &Nexus, id u32, message &u8) {
@@ -28,20 +21,20 @@ reflection_core_type :: fn(eng &Engine, name Str) u32 {
     db := &eng.nexus
     sym := db.find_symbol(db.core_prelude, db.interner.intern(name))
     eng.ensure_resolved(sym)
-    ident := db.hir.push(hir_kind.ident, db.interner.intern(name), hir_none(), hir_none())
+    ident := db.hir.push(hir.hir_kind.ident, db.interner.intern(name), hir.hir_none(), hir.hir_none())
     db.set_hir_symbol(ident, sym)
-    call := db.hir.push(hir_kind.call, ident, hir_none(), hir_none())
+    call := db.hir.push(hir.hir_kind.call, ident, hir.hir_none(), hir.hir_none())
     synth_type_node(eng, call)
 }
 
 reflection_target :: fn(eng &Engine, node u32) u32 {
     db := &eng.nexus
-    synth_node(eng, node)
+    tyck.synth_node(eng, node)
     ty := db.get_node_type(node)
-    if ty == ty_id_type() {
+    if ty == type_defs.ty_id_type() {
         ty = synth_type_node(eng, node)
     }
-    if type_has_infer(&db.types, ty) {
+    if tyck.type_has_infer(&db.types, ty) {
         reflection_error(db, node, c"reflection requires a fully resolved type")
     }
     ty
@@ -51,15 +44,15 @@ reflection_name :: fn(db &Nexus, ty u32) Str {
     types := &db.types
     kind := types.kind(ty)
     s := String.new(&db.comptime_arena)
-    if kind == TyKind.ptr {
+    if kind == type_defs.TyKind.ptr {
         s.push_str("&")
         s.push_str(reflection_name(db, types.payload(ty)))
-    } else if kind == TyKind.array {
+    } else if kind == type_defs.TyKind.array {
         s.push_str("[")
         s.push_u32(types.get_array_len(ty))
         s.push_str("]")
         s.push_str(reflection_name(db, types.get_array_type(ty)))
-    } else if kind == TyKind.nominal {
+    } else if kind == type_defs.TyKind.nominal {
         types.name_to_buf(&s, ty)
         args := types.get_nominal_creator_args(types.nominal_origin(ty))
         if args.len > 0 {
@@ -72,11 +65,11 @@ reflection_name :: fn(db &Nexus, ty u32) Str {
                 creator := types.get_nominal_creator_sym(types.nominal_origin(ty))
                 func := db.get_fn_node(creator)
                 type_arg := true
-                if func != hir_none() {
+                if func != hir.hir_none() {
                     params := db.get_list(db.hir.lhs(func))
                     if i < params.len {
                         param := *(params.ptr + i)
-                        type_arg = db.get_const_type(db.hir.rhs(param)) == ty_id_type()
+                        type_arg = db.get_const_type(db.hir.rhs(param)) == type_defs.ty_id_type()
                     }
                 }
                 if type_arg {
@@ -88,7 +81,7 @@ reflection_name :: fn(db &Nexus, ty u32) Str {
             }
             s.push_str(")")
         }
-    } else if kind == TyKind.func {
+    } else if kind == type_defs.TyKind.func {
         s.push_str("fn(")
         params := types.func_params(ty)
         i: u64 = 0
@@ -101,7 +94,7 @@ reflection_name :: fn(db &Nexus, ty u32) Str {
         }
         s.push_str(") ")
         s.push_str(reflection_name(db, types.func_return(ty)))
-    } else if kind == TyKind.struct_ {
+    } else if kind == type_defs.TyKind.struct_ {
         s.push_str("struct { ")
         fields := types.get_struct_fields(ty)
         i: u64 = 0
@@ -115,7 +108,7 @@ reflection_name :: fn(db &Nexus, ty u32) Str {
             i = i + 1
         }
         s.push_str(" }")
-    } else if kind == TyKind.union_ {
+    } else if kind == type_defs.TyKind.union_ {
         members := types.union_members(ty)
         i: u64 = 0
         while i < members.len {
@@ -134,13 +127,13 @@ reflection_name :: fn(db &Nexus, ty u32) Str {
 reflection_fields :: fn(db &Nexus, ty u32) Vec(u32) {
     stored := db.types.get_struct_fields(ty)
     result := Vec(u32).new()
-    if db.types.kind(ty) == TyKind.nominal {
+    if db.types.kind(ty) == type_defs.TyKind.nominal {
         origin := db.types.nominal_origin(ty)
         node := origin
         if (origin & 2147483648) != 0 {
             node = db.types.get_nominal_struct_node(origin)
         }
-        if (node != hir_none()) and (db.hir.kind(node) == hir_kind.struct_) {
+        if (node != hir.hir_none()) and (db.hir.kind(node) == hir.hir_kind.struct_) {
             names := db.get_list(db.hir.lhs(node))
             i: u64 = 0
             while i < names.len {
@@ -161,7 +154,7 @@ reflection_fields :: fn(db &Nexus, ty u32) Vec(u32) {
         result.clear()
         result.extend(stored.ptr, stored.len)
     }
-    if db.types.kind(ty) == TyKind.struct_ {
+    if db.types.kind(ty) == type_defs.TyKind.struct_ {
         ordered := Vec(u32).new()
         i: u64 = 0
         while i < stored.len / 2 {
@@ -192,23 +185,23 @@ synth_reflection_builtin :: fn(eng &Engine, id u32, name Str, args Slice(u32)) b
             reflection_error(db, id, c"@type_from_id expects exactly 1 argument")
         }
         arg := *(args.ptr)
-        synth_node(eng, arg)
+        tyck.synth_node(eng, arg)
         if not db.is_const(arg) {
             reflection_error(db, arg, c"@type_from_id requires a compile-time constant")
         }
         arg_kind := db.types.kind(db.get_node_type(arg))
-        if (arg_kind != TyKind.int) and (arg_kind != TyKind.uint) and (arg_kind != TyKind.untyped_int) {
+        if (arg_kind != type_defs.TyKind.int) and (arg_kind != type_defs.TyKind.uint) and (arg_kind != type_defs.TyKind.untyped_int) {
             reflection_error(db, arg, c"@type_from_id requires an integer type id")
         }
         value := eval_const(db, arg)
         if value >= db.types.len() as u64 {
             reflection_error(db, arg, c"invalid reflected type id")
         }
-        if type_has_infer(&db.types, value as u32) {
+        if tyck.type_has_infer(&db.types, value as u32) {
             reflection_error(db, arg, c"invalid reflected type id")
         }
         slot := db.unify.new_slot(id)
-        db.unify.bind_type(&db.types, slot, ty_id_type())
+        db.unify.bind_type(&db.types, slot, type_defs.ty_id_type())
         db.set_const_type(id, value as u32)
         db.set_is_const(id, true)
         ret true
@@ -246,33 +239,33 @@ synth_reflection_builtin :: fn(eng &Engine, id u32, name Str, args Slice(u32)) b
         quoted.push_str("\"")
         quoted.push_str(raw)
         quoted.push_str("\"")
-        literal := db.hir.push(hir_kind.lit_str, db.interner.intern(quoted.as_str()), hir_none(), hir_none())
-        synth_node(eng, literal)
+        literal := db.hir.push(hir.hir_kind.lit_str, db.interner.intern(quoted.as_str()), hir.hir_none(), hir.hir_none())
+        tyck.synth_node(eng, literal)
         db.hir.set_extra(id, literal)
         db.set_is_const(id, true)
         ret true
     }
-    result := ty_id_none()
+    result := type_defs.ty_id_none()
     kind := db.types.kind(target)
     if is_element {
-        if kind == TyKind.ptr {
+        if kind == type_defs.TyKind.ptr {
             result = db.types.payload(target)
         }
-        if kind == TyKind.array {
+        if kind == type_defs.TyKind.array {
             result = db.types.get_array_type(target)
         }
-        if result == ty_id_none() {
+        if result == type_defs.ty_id_none() {
             reflection_error(db, id, c"@element_type requires an array or pointer type")
         }
     } else {
-        if (kind != TyKind.nominal) and (kind != TyKind.struct_) {
+        if (kind != type_defs.TyKind.nominal) and (kind != type_defs.TyKind.struct_) {
             reflection_error(db, id, c"@field_type requires a struct or tuple type")
         }
         key := *(args.ptr + 1)
-        synth_node(eng, key)
+        tyck.synth_node(eng, key)
         ordered_fields := reflection_fields(db, target)
         fields := ordered_fields.as_slice()
-        if db.hir.kind(key) == hir_kind.lit_str {
+        if db.hir.kind(key) == hir.hir_kind.lit_str {
             key_name := db.interner.get(db.hir.lhs(key)).trim_quotes()
             i: u64 = 0
             while i < fields.len / 2 {
@@ -286,7 +279,7 @@ synth_reflection_builtin :: fn(eng &Engine, id u32, name Str, args Slice(u32)) b
                 reflection_error(db, key, c"reflection field index must be a compile-time constant")
             }
             index_kind := db.types.kind(db.get_node_type(key))
-            if (index_kind != TyKind.int) and (index_kind != TyKind.uint) and (index_kind != TyKind.untyped_int) {
+            if (index_kind != type_defs.TyKind.int) and (index_kind != type_defs.TyKind.uint) and (index_kind != type_defs.TyKind.untyped_int) {
                 reflection_error(db, key, c"reflection field index must be an integer or string literal")
             }
             index := eval_const(db, key)
@@ -295,11 +288,11 @@ synth_reflection_builtin :: fn(eng &Engine, id u32, name Str, args Slice(u32)) b
             }
         }
         ordered_fields.destroy()
-        if result == ty_id_none() {
+        if result == type_defs.ty_id_none() {
             reflection_error(db, id, c"reflection field does not exist")
         }
     }
-    db.unify.bind_type(&db.types, slot, ty_id_type())
+    db.unify.bind_type(&db.types, slot, type_defs.ty_id_type())
     db.set_const_type(id, result)
     db.set_is_const(id, true)
     true
@@ -349,11 +342,11 @@ reflection_build :: fn(db &Nexus, ty u32, info_ty u32, field_ty u32, seen &Vec(u
     pointers.push(ptr as u64)
     kind := db.types.kind(ty)
     reflected_kind := kind as u64
-    if kind == TyKind.nominal {
-        reflected_kind = TyKind.struct_ as u64
+    if kind == type_defs.TyKind.nominal {
+        reflected_kind = type_defs.TyKind.struct_ as u64
     }
     fields := Vec(u32).new()
-    if (kind == TyKind.struct_) or (kind == TyKind.nominal) {
+    if (kind == type_defs.TyKind.struct_) or (kind == type_defs.TyKind.nominal) {
         fields.destroy()
         fields = reflection_fields(db, ty)
         is_tuple := fields.len > 0
@@ -374,7 +367,7 @@ reflection_build :: fn(db &Nexus, ty u32, info_ty u32, field_ty u32, seen &Vec(u
     reflection_set(db, ptr, info_ty, "id", ty as u64)
     reflection_set(db, ptr, info_ty, "kind", reflected_kind)
     reflection_set(db, ptr, info_ty, "name", reflection_string(db, reflection_name(db, ty)))
-    if (kind == TyKind.int) or (kind == TyKind.uint) or (kind == TyKind.float) {
+    if (kind == type_defs.TyKind.int) or (kind == type_defs.TyKind.uint) or (kind == type_defs.TyKind.float) {
         reflection_set(db, ptr, info_ty, "bits", db.types.payload(ty) as u64)
     }
     if fields.len > 0 {
@@ -395,19 +388,19 @@ reflection_build :: fn(db &Nexus, ty u32, info_ty u32, field_ty u32, seen &Vec(u
         reflection_set(db, ptr, info_ty, "field_count", count)
     }
     fields.destroy()
-    if (kind == TyKind.ptr) or (kind == TyKind.array) or (kind == TyKind.enum_) {
+    if (kind == type_defs.TyKind.ptr) or (kind == type_defs.TyKind.array) or (kind == type_defs.TyKind.enum_) {
         child_ty := db.types.payload(ty)
-        if kind == TyKind.array {
+        if kind == type_defs.TyKind.array {
             child_ty = db.types.get_array_type(ty)
             reflection_set(db, ptr, info_ty, "length", db.types.get_array_len(ty) as u64)
         }
-        if kind == TyKind.enum_ {
+        if kind == type_defs.TyKind.enum_ {
             child_ty = db.types.enum_backing(ty)
         }
         child := reflection_build(db, child_ty, info_ty, field_ty, seen, pointers)
         reflection_set(db, ptr, info_ty, "element", child)
     }
-    if kind == TyKind.enum_ {
+    if kind == type_defs.TyKind.enum_ {
         variants := db.types.enum_variants(ty)
         count := variants.len / 2
         items := db.comptime_arena.alloc(count * @sizeof(&u8)) as &&u8
@@ -424,9 +417,9 @@ reflection_build :: fn(db &Nexus, ty u32, info_ty u32, field_ty u32, seen &Vec(u
         reflection_set(db, ptr, info_ty, "fields", items as u64)
         reflection_set(db, ptr, info_ty, "field_count", count)
     }
-    if (kind == TyKind.union_) or (kind == TyKind.func) {
+    if (kind == type_defs.TyKind.union_) or (kind == type_defs.TyKind.func) {
         children := Vec(u32).new()
-        if kind == TyKind.union_ {
+        if kind == type_defs.TyKind.union_ {
             ms := db.types.union_members(ty)
             children.extend(ms.ptr, ms.len)
         } else {
@@ -446,7 +439,7 @@ reflection_build :: fn(db &Nexus, ty u32, info_ty u32, field_ty u32, seen &Vec(u
                 items[i] = child as &u8
                 i = i + 1
             }
-            if kind == TyKind.union_ {
+            if kind == type_defs.TyKind.union_ {
                 reflection_set(db, ptr, info_ty, "members", items as u64)
                 reflection_set(db, ptr, info_ty, "member_count", children.len)
             } else {
@@ -462,7 +455,7 @@ reflection_build :: fn(db &Nexus, ty u32, info_ty u32, field_ty u32, seen &Vec(u
 reflection_value :: fn(db &Nexus, id u32) u64 {
     info_ty := db.types.payload(db.get_node_type(id))
     fields := db.types.get_struct_fields(info_ty)
-    field_ty := ty_id_none()
+    field_ty := type_defs.ty_id_none()
     i: u64 = 0
     while i < fields.len / 2 {
         if db.interner.get(*(fields.ptr + i * 2)).eq("fields") {
@@ -480,24 +473,24 @@ reflection_value :: fn(db &Nexus, id u32) u64 {
 
 macro_template :: fn(db &Nexus, sym u32) u32 {
     func := db.get_fn_node(db.resolve_sym(sym))
-    if func == hir_none() {
-        ret hir_none()
+    if func == hir.hir_none() {
+        ret hir.hir_none()
     }
     body := db.hir.extra(func)
-    if body == hir_none() {
-        ret hir_none()
+    if body == hir.hir_none() {
+        ret hir.hir_none()
     }
-    if db.hir.kind(body) == hir_kind.block {
+    if db.hir.kind(body) == hir.hir_kind.block {
         items := db.get_list(db.hir.lhs(body))
         if items.len != 1 {
-            ret hir_none()
+            ret hir.hir_none()
         }
         body = *(items.ptr)
     }
-    if db.hir.kind(body) == hir_kind.splice {
+    if db.hir.kind(body) == hir.hir_kind.splice {
         ret body
     }
-    hir_none()
+    hir.hir_none()
 }
 
 reflection_read :: fn(db &Nexus, ptr u64, ty u32, name Str) u64 {

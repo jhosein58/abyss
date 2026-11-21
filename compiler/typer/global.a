@@ -1,30 +1,29 @@
 Engine :: @import("compiler/engine").Engine
-hir_kind :: @import("compiler/hir").hir_kind
-hir_none :: @import("compiler/hir").hir_none
+hir :: @import("compiler/hir")
 eval_const :: @import("compiler/lower").eval_const
 Nexus :: @import("compiler/nexus/nexus").Nexus
 resolve_ty_id :: @import("compiler/typer/specialize").resolve_ty_id
-TyKind :: @import("compiler/types").TyKind
-ty_id_none :: @import("compiler/types").ty_id_none
+type_defs :: @import("compiler/types")
 
 static_address :: fn(db &Nexus, id u32) bool {
     tbl := &db.hir
-    if db.global_var(db.get_hir_symbol(id)) != hir_none() {
+    if db.global_var(db.get_hir_symbol(id)) != hir.hir_none() {
         ret true
     }
     lhs := tbl.lhs(id)
-    if tbl.kind(id) == hir_kind.member {
+    if tbl.kind(id) == hir.hir_kind.member {
         ret db.get_auto_deref_depth(id) == 0 and static_address(db, lhs)
     }
-    if tbl.kind(id) == hir_kind.index {
-        ret db.types.kind(db.get_node_type(lhs)) == TyKind.array and static_address(db, lhs) and
+    if tbl.kind(id) == hir.hir_kind.index {
+        ret db.types.kind(db.get_node_type(lhs)) == type_defs.TyKind.array and
+            static_address(db, lhs) and
             global_initializer_is_const(db, tbl.rhs(id))
     }
     false
 }
 
 global_initializer_is_const :: fn(db &Nexus, id u32) bool {
-    if id == hir_none() {
+    if id == hir.hir_none() {
         ret false
     }
     tbl := &db.hir
@@ -32,28 +31,28 @@ global_initializer_is_const :: fn(db &Nexus, id u32) bool {
     match kind {
         ident, member {
             sym := db.get_hir_symbol(id)
-            if db.global_var(sym) != hir_none() {
+            if db.global_var(sym) != hir.hir_none() {
                 ret false
             }
             value := db.binding_value(sym)
-            if value != hir_none() {
+            if value != hir.hir_none() {
                 ret global_initializer_is_const(db, value)
             }
-            if kind == hir_kind.member and not db.is_const(id) {
+            if kind == hir.hir_kind.member and not db.is_const(id) {
                 lhs := tbl.lhs(id)
                 ret db.get_auto_deref_depth(id) == 0 and global_initializer_is_const(db, lhs)
             }
             ret db.is_const(id)
         }
         function {
-            ret tbl.extra(id) != hir_none() or db.is_extern_fn(id)
+            ret tbl.extra(id) != hir.hir_none() or db.is_extern_fn(id)
         }
         unary_addr_of {
             ret static_address(db, tbl.lhs(id))
         }
         block, array_init, struct_init {
-            list := if kind == hir_kind.struct_init { tbl.rhs(id) } else { tbl.lhs(id) }
-            if list != hir_none() {
+            list := if kind == hir.hir_kind.struct_init { tbl.rhs(id) } else { tbl.lhs(id) }
+            if list != hir.hir_none() {
                 for item in db.get_list(list) {
                     if not global_initializer_is_const(db, item) {
                         ret false
@@ -75,7 +74,7 @@ global_initializer_is_const :: fn(db &Nexus, id u32) bool {
         }
         index {
             lhs := tbl.lhs(id)
-            ret db.types.kind(db.get_node_type(lhs)) == TyKind.array and
+            ret db.types.kind(db.get_node_type(lhs)) == type_defs.TyKind.array and
                 global_initializer_is_const(db, lhs) and
                 global_initializer_is_const(db, tbl.rhs(id))
         }
@@ -90,7 +89,7 @@ global_initializer_is_const :: fn(db &Nexus, id u32) bool {
                 ret false
             }
             kind := db.types.kind(db.get_node_type(right))
-            if kind != TyKind.float and kind != TyKind.untyped_float and
+            if kind != type_defs.TyKind.float and kind != type_defs.TyKind.untyped_float and
                 eval_const(db, right) == 0 {
                 db.type_error(right, "division by zero in mutable global initializer")
             }
@@ -140,17 +139,18 @@ check_global_var :: fn(eng &Engine, node u32) {
     slot := db.unify.get_slot(ident)
     ty := resolve_ty_id(eng, &db.unify, &db.types, db.get_node_type(ident))
     kind := db.types.kind(ty)
-    if kind == TyKind.unit or kind == TyKind.type_ or kind == TyKind.never {
+    if kind == type_defs.TyKind.unit or kind == type_defs.TyKind.type_ or
+        kind == type_defs.TyKind.never {
         db.type_error(ident, "mutable global must have a runtime value type")
     }
-    if ty == ty_id_none() or db.types.has_infer(ty) or kind == TyKind.error or
-        kind == TyKind.unknown {
+    if ty == type_defs.ty_id_none() or db.types.has_infer(ty) or kind == type_defs.TyKind.error or
+        kind == type_defs.TyKind.unknown {
         db.type_error(ident, "cannot infer the type of mutable global")
     }
-    if init != hir_none() and not global_initializer_is_const(db, init) {
+    if init != hir.hir_none() and not global_initializer_is_const(db, init) {
         db.type_error(init, "mutable global initializer must be a compile-time constant")
     }
-    if db.hir.rhs(node) == hir_none() {
+    if db.hir.rhs(node) == hir.hir_none() {
         ty = default_global_type(db, ty)
     }
     db.unify.types.set(db.unify.find(slot) as u64, ty)

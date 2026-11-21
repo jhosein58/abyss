@@ -1,10 +1,7 @@
 Arena :: @import("std/allocator").Arena
 fmt :: @import("std/fmt").fmt
-hash_combine :: @import("std/hash").hash_combine
-hash_words :: @import("std/hash").hash_words
-sort :: @import("std/sort").sort
-sort_chunks :: @import("std/sort").sort_chunks
-Str :: @import("std/string").Str
+hash :: @import("std/hash")
+sorting :: @import("std/sort")
 String :: @import("std/string").String
 
 TyKind :: enum u8 {
@@ -177,7 +174,7 @@ TypeStorage :: struct {
 
     intern_type :: fn(self &Self, kind TyKind, header Slice(u32), items Slice(u32)) u32 {
         inline := (kind != TyKind.array) and (kind != TyKind.func) and (kind != TyKind.struct_) and (kind != TyKind.union_)
-        h := hash_words(items, hash_words(header, hash_combine(2166136261, kind as u32)))
+        h := hash.hash_words(items, hash.hash_words(header, hash.hash_combine(2166136261, kind as u32)))
         bucket := self.intern.get(h)
         first := if bucket == (0 as &u32) {
             ty_id_none()
@@ -335,7 +332,7 @@ TypeStorage :: struct {
     }
 
     alloc_struct :: fn(self &Self, fields Slice(u32)) u32 {
-        sort_chunks(fields, 2)
+        sorting.sort_chunks(fields, 2)
         count := ((fields.len / 2) as u32) << 1
         self.intern_type(TyKind.struct_, Slice(u32).new(&count, 1), fields)
     }
@@ -397,7 +394,7 @@ TypeStorage :: struct {
     }
 
     alloc_union :: fn(self &Self, members Slice(u32)) u32 {
-        sort(members)
+        sorting.sort(members)
         count := members.len as u32
         self.intern_type(TyKind.union_, Slice(u32).new(&count, 1), members)
     }
@@ -443,7 +440,7 @@ TypeStorage :: struct {
         members := Vec(u32).new()
         self.extend_union(&members, a)
         self.extend_union(&members, b)
-        sort(members.as_slice())
+        sorting.sort(members.as_slice())
         members.dedup()
         result := if members.len == 1 {
             members.get(0)

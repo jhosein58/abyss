@@ -1,33 +1,15 @@
 Arena :: @import("std/allocator").Arena
-Str :: @import("std/string").Str
 fall :: @import("std/sys").fall
 
-HirExprKind :: @import("./hir").HirExprKind
-HirTable :: @import("./hir").HirTable
-hir_kind :: @import("./hir").hir_kind
-hir_none :: @import("./hir").hir_none
+hir :: @import("./hir")
 decode_char_lit :: @import("./lexer").decode_char_lit
 Nexus :: @import("./nexus/nexus").Nexus
 id_none :: @import("./nexus/pool").id_none
 topo_sort :: @import("./topo_sort").topo_sort
 func_has_self :: @import("./typer/fn").func_has_self
-macro_template :: @import("./typer/reflection").macro_template
-reflection_error :: @import("./typer/reflection").reflection_error
-reflection_quote :: @import("./typer/reflection").reflection_quote
-reflection_read :: @import("./typer/reflection").reflection_read
-reflection_value :: @import("./typer/reflection").reflection_value
-TyKind :: @import("./types").TyKind
-TypeStorage :: @import("./types").TypeStorage
-ty_id_bool :: @import("./types").ty_id_bool
-ty_id_none :: @import("./types").ty_id_none
-ty_id_type :: @import("./types").ty_id_type
-ty_id_unit :: @import("./types").ty_id_unit
-ty_id_untyped_int :: @import("./types").ty_id_untyped_int
-VmCodeBuilder :: @import("./vm/codegen").VmCodeBuilder
-VmCodeGen :: @import("./vm/codegen").VmCodeGen
-VmVal :: @import("./vm/codegen").VmVal
-VmValKind :: @import("./vm/codegen").VmValKind
-vm_element_size :: @import("./vm/codegen").vm_element_size
+reflection :: @import("./typer/reflection")
+type_defs :: @import("./types")
+vm_codegen :: @import("./vm/codegen")
 OpCode :: @import("./vm/op").OpCode
 
 LowerCtx :: fn(B type, L type, V type) type {
@@ -46,7 +28,7 @@ LowerCtx :: fn(B type, L type, V type) type {
 
 iterator_is_ref :: fn(db &Nexus, ty_id u32) bool {
     types := &db.types
-    if (ty_id == ty_id_none()) or (types.kind(ty_id) != TyKind.nominal) {
+    if (ty_id == type_defs.ty_id_none()) or (types.kind(ty_id) != type_defs.TyKind.nominal) {
         ret false
     }
     name_id := db.interner.intern(Str.of("RefIterator"))
@@ -61,33 +43,33 @@ iterator_is_ref :: fn(db &Nexus, ty_id u32) bool {
 
 is_lvalue :: fn(db &Nexus, id u32) bool {
     kind := db.hir.kind(id)
-    if kind == hir_kind.ident {
-        ret db.get_node_type(id) != ty_id_type()
+    if kind == hir.hir_kind.ident {
+        ret db.get_node_type(id) != type_defs.ty_id_type()
     }
-    if kind == hir_kind.unary_deref {
+    if kind == hir.hir_kind.unary_deref {
         ret true
     }
-    if kind == hir_kind.struct_init {
+    if kind == hir.hir_kind.struct_init {
         ret true
     }
-    if kind == hir_kind.member {
+    if kind == hir.hir_kind.member {
         lhs := db.hir.lhs(id)
-        if lhs == hir_none() {
+        if lhs == hir.hir_none() {
             ret true
         }
-        if db.types.kind(db.get_node_type(lhs)) == TyKind.ptr {
+        if db.types.kind(db.get_node_type(lhs)) == type_defs.TyKind.ptr {
             ret true
         }
         ret is_lvalue(db, lhs)
     }
-    if kind == hir_kind.index {
+    if kind == hir.hir_kind.index {
         ret true
     }
     false
 }
 
 add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
-    if ty_id == ty_id_none() {
+    if ty_id == type_defs.ty_id_none() {
         ret
     }
     if db.types.has_infer(ty_id) {
@@ -95,7 +77,7 @@ add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
     }
     kind := db.types.kind(ty_id)
 
-    if (kind == TyKind.struct_) or (kind == TyKind.nominal) {
+    if (kind == type_defs.TyKind.struct_) or (kind == type_defs.TyKind.nominal) {
         if not queue.contains(ty_id) {
             queue.push(ty_id)
             fields := db.types.get_struct_fields(ty_id)
@@ -107,16 +89,16 @@ add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
                 i = i + 1
             }
         }
-    } else if kind == TyKind.array {
+    } else if kind == type_defs.TyKind.array {
         if not queue.contains(ty_id) {
             queue.push(ty_id)
             inner := db.types.get_array_type(ty_id)
             add_type_to_queue(db, inner, queue)
         }
-    } else if kind == TyKind.ptr {
+    } else if kind == type_defs.TyKind.ptr {
         inner := db.types.payload(ty_id)
         add_type_to_queue(db, inner, queue)
-    } else if kind == TyKind.func {
+    } else if kind == type_defs.TyKind.func {
         if not queue.contains(ty_id) {
             queue.push(ty_id)
             ret_ty := db.types.func_return(ty_id)
@@ -128,7 +110,7 @@ add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
                 i = i + 1
             }
         }
-    } else if kind == TyKind.union_ {
+    } else if kind == type_defs.TyKind.union_ {
         if not queue.contains(ty_id) {
             queue.push(ty_id)
             members := db.types.union_members(ty_id)
@@ -138,7 +120,7 @@ add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
                 i = i + 1
             }
         }
-    } else if kind == TyKind.enum_ {
+    } else if kind == type_defs.TyKind.enum_ {
         if not queue.contains(ty_id) {
             queue.push(ty_id)
             backing := db.types.enum_backing(ty_id)
@@ -149,17 +131,17 @@ add_type_to_queue :: fn(db &Nexus, ty_id u32, queue &Vec(u32)) {
 
 resolve_call_symbol :: fn(db &Nexus, id u32, callee_id u32, queue &Vec(u32)) u32 {
     target_sym := db.get_hir_symbol(callee_id)
-    if (target_sym == id_none()) and (db.hir.kind(callee_id) == hir_kind.function) {
+    if (target_sym == id_none()) and (db.hir.kind(callee_id) == hir.hir_kind.function) {
         target_sym = db.get_hir_symbol(callee_id)
     }
     if target_sym != id_none() {
         target_sym = db.resolve_sym(target_sym)
     }
-    if target_sym == id_none() or db.global_var(target_sym) != hir_none() {
+    if target_sym == id_none() or db.global_var(target_sym) != hir.hir_none() {
         ret id_none()
     }
     mono_func_ty := db.get_const_type(id)
-    if mono_func_ty != ty_id_none() {
+    if mono_func_ty != type_defs.ty_id_none() {
         mono_sym := db.find_mono_sym(target_sym, mono_func_ty)
         if mono_sym == id_none() {
             mono_sym = db.alloc_mono_sym(target_sym, mono_func_ty)
@@ -188,7 +170,7 @@ emit_method_receiver :: fn(
     ccg := ctx.ccg
     arena := ctx.arena
     empty := ctx.empty
-    if db.hir.kind(callee_id) != hir_kind.member {
+    if db.hir.kind(callee_id) != hir.hir_kind.member {
         ret empty
     }
     callee_lhs := db.hir.lhs(callee_id)
@@ -199,7 +181,7 @@ emit_method_receiver :: fn(
         ret empty
     }
     lhs_ty := db.get_node_type(callee_lhs)
-    if (lhs_ty == ty_id_none()) or (lhs_ty == ty_id_type()) {
+    if (lhs_ty == type_defs.ty_id_none()) or (lhs_ty == type_defs.ty_id_type()) {
         ret empty
     }
     target_sym := call_sym
@@ -214,20 +196,20 @@ emit_method_receiver :: fn(
     if not func_has_self(db, func_node) {
         ret empty
     }
-    func_ty := ty_id_none()
+    func_ty := type_defs.ty_id_none()
     if (call_sym != id_none()) and db.is_mono_sym(call_sym) {
         func_ty = db.get_mono_type(call_sym)
     }
-    if func_ty == ty_id_none() {
+    if func_ty == type_defs.ty_id_none() {
         func_ty = db.get_const_type(id)
     }
-    if func_ty == ty_id_none() {
+    if func_ty == type_defs.ty_id_none() {
         func_ty = db.get_node_type(callee_id)
     }
-    if func_ty == ty_id_none() {
+    if func_ty == type_defs.ty_id_none() {
         func_ty = db.get_node_type(func_node)
     }
-    if (func_ty == ty_id_none()) or (db.types.kind(func_ty) != TyKind.func) {
+    if (func_ty == type_defs.ty_id_none()) or (db.types.kind(func_ty) != type_defs.TyKind.func) {
         ret empty
     }
     params := db.types.func_params(func_ty)
@@ -294,12 +276,12 @@ lower_array_iter_call :: fn(
 
     lhs_val := lower_expr(ctx, c_lhs)
     curr_ty := db.get_node_type(c_lhs)
-    while (db.types.kind(curr_ty) == TyKind.ptr) and
-        (db.types.kind(db.types.payload(curr_ty)) == TyKind.ptr) {
+    while (db.types.kind(curr_ty) == type_defs.TyKind.ptr) and
+        (db.types.kind(db.types.payload(curr_ty)) == type_defs.TyKind.ptr) {
         lhs_val = ccg.expr_deref(arena, lhs_val)
         curr_ty = db.types.payload(curr_ty)
     }
-    if db.types.kind(curr_ty) != TyKind.ptr {
+    if db.types.kind(curr_ty) != type_defs.TyKind.ptr {
         if not is_lvalue(db, c_lhs) {
             add_type_to_queue(db, curr_ty, type_queue)
             ty_str := ccg.type_str(&db.types, arena, curr_ty)
@@ -339,7 +321,11 @@ lower_builtin_call :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32)
         ty := db.get_node_type(id)
         add_type_to_queue(db, ty, ctx.type_queue)
         fields := ctx.builder.new_list(arena)
-        ret ccg.expr_struct_init(arena, ccg.type_str(&db.types, arena, ty), ctx.builder.finish_list(&fields))
+        ret ccg.expr_struct_init(
+            arena
+            ccg.type_str(&db.types, arena, ty)
+            ctx.builder.finish_list(&fields)
+        )
     }
     if name.eq("trap") {
         ret ccg.intrinsic_trap()
@@ -354,7 +340,12 @@ lower_builtin_call :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32)
     if name.eq("type_info") {
         ty := db.get_node_type(id)
         add_type_to_queue(db, ty, ctx.type_queue)
-        ret ccg.expr_reflection(arena, db, db.types.payload(ty), reflection_value(db, id))
+        ret ccg.expr_reflection(
+            arena
+            db
+            db.types.payload(ty)
+            reflection.reflection_value(db, id)
+        )
     }
     if name.eq("type_name") or name.eq("source_location") {
         ret lower_expr(ctx, db.hir.extra(id))
@@ -378,7 +369,7 @@ lower_builtin_call :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32)
         val_node := *(args.ptr + 0)
         target_ty := db.get_const_type(id)
         val_ty := db.get_node_type(val_node)
-        if db.types.kind(val_ty) == TyKind.union_ {
+        if db.types.kind(val_ty) == type_defs.TyKind.union_ {
             if not db.types.union_contains(val_ty, target_ty) {
                 ret ccg.expr_bool(false)
             }
@@ -414,7 +405,8 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
         }
         lit_int {
             ty_id := db.get_node_type(id)
-            if (ty_id != ty_id_none()) and (db.types.kind(ty_id) == TyKind.float) {
+            if (ty_id != type_defs.ty_id_none()) and
+                (db.types.kind(ty_id) == type_defs.TyKind.float) {
                 ret ccg.expr_float_from_int(arena, db.hir.lhs(id), ty_id)
             }
             ret ccg.expr_int(arena, db.hir.lhs(id))
@@ -438,13 +430,13 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
         lit_str {
             raw := db.interner.get(db.hir.lhs(id))
             str_ty := db.str_type
-            if str_ty == ty_id_none() {
+            if str_ty == type_defs.ty_id_none() {
                 str_ty = db.get_node_type(id)
             }
             struct_name := empty
             ptr_id: u32 = 0
             len_id: u32 = 0
-            if str_ty != ty_id_none() {
+            if str_ty != type_defs.ty_id_none() {
                 add_type_to_queue(db, str_ty, type_queue)
                 struct_name = ccg.type_str(&db.types, arena, str_ty)
                 ptr_id = db.interner.intern(Str.of("ptr"))
@@ -458,7 +450,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             if sym == id_none() or db.types.func_has_type_param(func_ty) {
                 ret empty
             }
-            if db.hir.extra(id) == hir_none() and not db.is_extern_fn(id) {
+            if db.hir.extra(id) == hir.hir_none() and not db.is_extern_fn(id) {
                 ret empty
             }
             add_type_to_queue(db, func_ty, type_queue)
@@ -469,17 +461,17 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
         }
         ident {
             ty := db.get_node_type(id)
-            if ty == ty_id_type() {
+            if ty == type_defs.ty_id_type() {
                 if ccg.is_vm() {
                     c_ty := db.get_const_type(id)
-                    if c_ty != ty_id_none() {
+                    if c_ty != type_defs.ty_id_none() {
                         ret ccg.expr_int(arena, c_ty)
                     }
                 }
                 ret empty
             }
             sym_id := db.get_hir_symbol(id)
-            if db.types.kind(ty) == TyKind.func {
+            if db.types.kind(ty) == type_defs.TyKind.func {
                 if sym_id != id_none() {
                     real_sym := db.resolve_sym(sym_id)
                     if not db.types.func_has_type_param(ty) {
@@ -507,9 +499,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                     }
                     k := db.types.kind(ty)
                     if ty == db.str_type {
-                        ptr := reflection_read(db, val, ty, "ptr") as &u8
-                        len := reflection_read(db, val, ty, "len")
-                        raw := reflection_quote(db, Str.new(ptr, len))
+                        ptr := reflection.reflection_read(db, val, ty, "ptr") as &u8
+                        len := reflection.reflection_read(db, val, ty, "len")
+                        raw := reflection.reflection_quote(db, Str.new(ptr, len))
                         add_type_to_queue(db, ty, type_queue)
                         ret ccg.expr_str_lit(
                             arena
@@ -519,13 +511,13 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                             raw
                         )
                     }
-                    if k == TyKind.bool {
+                    if k == type_defs.TyKind.bool {
                         if val != 0 {
                             ret ccg.expr_bool(true)
                         }
                         ret ccg.expr_bool(false)
                     }
-                    if (k == TyKind.struct_ or k == TyKind.nominal) and
+                    if (k == type_defs.TyKind.struct_ or k == type_defs.TyKind.nominal) and
                         not db.types.struct_is_extern(ty) {
                         ret lower_const_record(ctx, id, ty, val)
                     }
@@ -548,10 +540,10 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             val_id := db.hir.extra(id)
             sym_id := db.get_hir_symbol(ident_id)
             var_ty := db.get_node_type(ident_id)
-            if (var_ty == ty_id_type()) or db.types.func_has_type_param(var_ty) {
+            if (var_ty == type_defs.ty_id_type()) or db.types.func_has_type_param(var_ty) {
                 ret empty
             }
-            if db.types.kind(var_ty) == TyKind.unit {
+            if db.types.kind(var_ty) == type_defs.TyKind.unit {
                 printf("\n[type error] variable cannot have void type\n       --> ", .{})
                 db.print_loc(id)
                 print("")
@@ -559,7 +551,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             }
             ty_str := ccg.type_str(&db.types, arena, var_ty)
             var_name := ccg.sym_name(arena, sym_id)
-            if val_id != hir_none() {
+            if val_id != hir.hir_none() {
                 val_str := lower_expr(ctx, val_id)
                 if not ccg.has_value(val_str) {
                     printf(
@@ -600,11 +592,11 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 ident_node := *(idents.ptr + i)
                 sym_id := db.get_hir_symbol(ident_node)
                 var_ty := db.get_node_type(ident_node)
-                if (var_ty == ty_id_type()) or db.types.func_has_type_param(var_ty) {
+                if (var_ty == type_defs.ty_id_type()) or db.types.func_has_type_param(var_ty) {
                     i = i + 1
                     cont
                 }
-                if db.types.kind(var_ty) == TyKind.unit {
+                if db.types.kind(var_ty) == type_defs.TyKind.unit {
                     printf("\n[type error] variable cannot have void type\n       --> ", .{})
                     db.print_loc(id)
                     print("")
@@ -641,9 +633,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             if ctx.global_init and not ccg.is_vm() {
                 lhs := lower_expr(ctx, db.hir.lhs(id))
                 rhs := lower_expr(ctx, db.hir.rhs(id))
-                ret ccg.expr_binary_kind(arena, hir_kind.binary_and, lhs, rhs)
+                ret ccg.expr_binary_kind(arena, hir.hir_kind.binary_and, lhs, rhs)
             }
-            ty_str := ccg.type_str(&db.types, arena, ty_id_bool())
+            ty_str := ccg.type_str(&db.types, arena, type_defs.ty_id_bool())
             temp_var := ccg.new_temp(arena, ty_str)
             lhs_val := lower_expr(ctx, db.hir.lhs(id))
             ccg.start_if(lhs_val)
@@ -658,9 +650,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             if ctx.global_init and not ccg.is_vm() {
                 lhs := lower_expr(ctx, db.hir.lhs(id))
                 rhs := lower_expr(ctx, db.hir.rhs(id))
-                ret ccg.expr_binary_kind(arena, hir_kind.binary_or, lhs, rhs)
+                ret ccg.expr_binary_kind(arena, hir.hir_kind.binary_or, lhs, rhs)
             }
-            ty_str := ccg.type_str(&db.types, arena, ty_id_bool())
+            ty_str := ccg.type_str(&db.types, arena, type_defs.ty_id_bool())
             temp_var := ccg.new_temp(arena, ty_str)
             lhs_val := lower_expr(ctx, db.hir.lhs(id))
             ccg.start_if(lhs_val)
@@ -675,11 +667,11 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
         }
         call {
             callee_id := db.hir.lhs(id)
-            if db.hir.kind(callee_id) == hir_kind.member {
+            if db.hir.kind(callee_id) == hir.hir_kind.member {
                 c_lhs := db.hir.lhs(callee_id)
                 c_lhs_ty := db.get_node_type(c_lhs)
                 c_lhs_ty = db.types.unwrap_ptr(c_lhs_ty)
-                if db.types.kind(c_lhs_ty) == TyKind.array {
+                if db.types.kind(c_lhs_ty) == type_defs.TyKind.array {
                     m_name_id := db.hir.lhs(db.hir.rhs(callee_id))
                     iter_id := db.interner.intern(Str.of("iter"))
                     iter_ref_id := db.interner.intern(Str.of("iter_ref"))
@@ -695,7 +687,8 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 }
             }
             callee_ty := db.get_node_type(callee_id)
-            if (db.get_node_type(id) == ty_id_type()) and db.types.func_has_type_param(callee_ty) {
+            if (db.get_node_type(id) == type_defs.ty_id_type()) and
+                db.types.func_has_type_param(callee_ty) {
                 ret empty
             }
             call_sym := resolve_call_symbol(db, id, callee_id, queue)
@@ -711,7 +704,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 builder.append_list_item(&args_fmt, rec_str, first_arg)
                 first_arg = false
             }
-            if db.hir.rhs(id) != hir_none() {
+            if db.hir.rhs(id) != hir.hir_none() {
                 args := db.get_list(db.hir.rhs(id))
                 i: u64 = 0
                 while i < args.len {
@@ -722,7 +715,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                     if is_comptime {
                         cont
                     }
-                    if db.get_node_type(arg_node) == ty_id_type() {
+                    if db.get_node_type(arg_node) == type_defs.ty_id_type() {
                         cont
                     }
                     builder.append_list_item(&args_fmt, lower_expr(ctx, arg_node), first_arg)
@@ -761,7 +754,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             lhs_node := db.hir.lhs(id)
             child_v := lower_expr(ctx, lhs_node)
             child_ty := db.get_node_type(lhs_node)
-            if (child_ty != ty_id_none()) and (child_ty == db.str_type) {
+            if (child_ty != type_defs.ty_id_none()) and (child_ty == db.str_type) {
                 ptr_id := db.interner.intern(Str.of("ptr"))
                 ret ccg.expr_str_deref(arena, child_v, ptr_id)
             }
@@ -778,7 +771,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
         cast {
             lhs_node := db.hir.lhs(id)
             lhs_ty := db.get_node_type(lhs_node)
-            if db.types.kind(lhs_ty) == TyKind.union_ {
+            if db.types.kind(lhs_ty) == type_defs.TyKind.union_ {
                 target_ty := db.get_const_type(db.hir.rhs(id))
                 member_idx := db.types.union_member_index(lhs_ty, target_ty)
                 lhs_v := lower_expr(ctx, lhs_node)
@@ -786,13 +779,13 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             }
             lhs_v := lower_expr(ctx, lhs_node)
             ty_str := ccg.type_str(&db.types, arena, db.get_const_type(db.hir.rhs(id)))
-            if (db.hir.kind(lhs_node) == hir_kind.lit_int) or
-                (db.hir.kind(lhs_node) == hir_kind.lit_char) {
-                lhs_ty = ty_id_untyped_int()
+            if (db.hir.kind(lhs_node) == hir.hir_kind.lit_int) or
+                (db.hir.kind(lhs_node) == hir.hir_kind.lit_char) {
+                lhs_ty = type_defs.ty_id_untyped_int()
             }
-            if (db.hir.kind(lhs_node) == hir_kind.unary_neg) and
-                (db.hir.kind(db.hir.lhs(lhs_node)) == hir_kind.lit_int) {
-                lhs_ty = ty_id_untyped_int()
+            if (db.hir.kind(lhs_node) == hir.hir_kind.unary_neg) and
+                (db.hir.kind(db.hir.lhs(lhs_node)) == hir.hir_kind.lit_int) {
+                lhs_ty = type_defs.ty_id_untyped_int()
             }
             ret ccg.expr_typed_cast(arena, ty_str, lhs_v, lhs_ty)
         }
@@ -802,7 +795,8 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 source := db.hir.rhs(id)
                 child := db.hir.lhs(id)
                 bits := eval_const(db, id)
-                if db.types.kind(ty) == TyKind.union_ and db.types.kind(source) != TyKind.union_ and
+                if db.types.kind(ty) == type_defs.TyKind.union_ and
+                    db.types.kind(source) != type_defs.TyKind.union_ and
                     db.has_union_coerce(child) {
                     tag := db.get_union_coerce_idx(child)
                     member := db.types.union_members(ty).ptr[tag]
@@ -812,10 +806,10 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 }
                 ret lower_global_constant(ctx, id, source, ty, bits)
             }
-            if (ty == ty_id_type()) or (db.types.kind(ty) == TyKind.type_) {
+            if (ty == type_defs.ty_id_type()) or (db.types.kind(ty) == type_defs.TyKind.type_) {
                 if ccg.is_vm() {
                     c_ty := db.get_const_type(id)
-                    if c_ty != ty_id_none() {
+                    if c_ty != type_defs.ty_id_none() {
                         ret ccg.expr_int(arena, c_ty)
                     }
                 }
@@ -823,34 +817,39 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             }
             if ty == db.str_type {
                 child := db.hir.lhs(id)
-                if db.hir.kind(child) == hir_kind.lit_str {
+                if db.hir.kind(child) == hir.hir_kind.lit_str {
                     ret lower_expr(ctx, child)
                 }
                 value := eval_const(db, id)
-                ptr := reflection_read(db, value, ty, "ptr") as &u8
-                len := reflection_read(db, value, ty, "len")
-                raw := reflection_quote(db, Str.new(ptr, len))
+                ptr := reflection.reflection_read(db, value, ty, "ptr") as &u8
+                len := reflection.reflection_read(db, value, ty, "len")
+                raw := reflection.reflection_quote(db, Str.new(ptr, len))
                 add_type_to_queue(db, ty, type_queue)
                 ty_str := ccg.type_str(&db.types, arena, ty)
                 ptr_id := db.interner.intern("ptr")
                 len_id := db.interner.intern("len")
                 ret ccg.expr_str_lit(arena, ty_str, ptr_id, len_id, raw)
             }
-            if db.types.kind(ty) == TyKind.ptr {
-                reflection_error(db, id, c"compile-time pointers cannot escape into runtime code")
+            if db.types.kind(ty) == type_defs.TyKind.ptr {
+                reflection.reflection_error(
+                    db
+                    id
+                    c"compile-time pointers cannot escape into runtime code"
+                )
             }
             val := eval_const(db, id)
             k := db.types.kind(ty)
-            if (k == TyKind.struct_ or k == TyKind.nominal) and not db.types.struct_is_extern(ty) {
+            if (k == type_defs.TyKind.struct_ or k == type_defs.TyKind.nominal) and
+                not db.types.struct_is_extern(ty) {
                 ret lower_const_record(ctx, id, ty, val)
             }
-            if k == TyKind.bool {
+            if k == type_defs.TyKind.bool {
                 if val != 0 {
                     ret ccg.expr_bool(true)
                 }
                 ret ccg.expr_bool(false)
             }
-            if k == TyKind.float {
+            if k == type_defs.TyKind.float {
                 ret ccg.expr_float_from_int(arena, val as u32, ty)
             }
             ret ccg.expr_int(arena, val as u32)
@@ -860,7 +859,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 ret lower_macro_template(ctx, db.hir.extra(id))
             }
             gen_id := db.hir.extra(id)
-            if gen_id != hir_none() {
+            if gen_id != hir.hir_none() {
                 ret lower_body(ctx, gen_id)
             }
             ret empty
@@ -868,10 +867,10 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
         k_if {
             if_ty := db.get_node_type(id)
             elseb_id := db.hir.extra(id)
-            is_expr := (elseb_id != hir_none()) and (if_ty != ty_id_none()) and
-                (db.types.kind(if_ty) != TyKind.unit) and
-                (db.types.kind(if_ty) != TyKind.never) and
-                (ccg.is_vm() or (db.types.kind(if_ty) != TyKind.type_))
+            is_expr := (elseb_id != hir.hir_none()) and (if_ty != type_defs.ty_id_none()) and
+                (db.types.kind(if_ty) != type_defs.TyKind.unit) and
+                (db.types.kind(if_ty) != type_defs.TyKind.never) and
+                (ccg.is_vm() or (db.types.kind(if_ty) != type_defs.TyKind.type_))
             if is_expr {
                 add_type_to_queue(db, if_ty, type_queue)
                 ty_str := ccg.type_str(&db.types, arena, if_ty)
@@ -896,7 +895,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             if ccg.has_value(then_val) {
                 ccg.expr(then_val)
             }
-            if elseb_id != hir_none() {
+            if elseb_id != hir.hir_none() {
                 ccg.else_()
                 else_val := lower_body(ctx, elseb_id)
                 if ccg.has_value(else_val) {
@@ -928,7 +927,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
         }
         k_ret {
             val_id := db.hir.lhs(id)
-            if val_id != hir_none() {
+            if val_id != hir.hir_none() {
                 val_str := lower_expr(ctx, val_id)
                 ccg.gen_return(val_str, true)
             } else {
@@ -967,10 +966,10 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
         member {
             lhs_id := db.hir.lhs(id)
             rhs_id := db.hir.rhs(id)
-            if db.get_node_type(id) == ty_id_type() {
+            if db.get_node_type(id) == type_defs.ty_id_type() {
                 if ccg.is_vm() {
                     c_ty := db.get_const_type(id)
-                    if c_ty != ty_id_none() {
+                    if c_ty != type_defs.ty_id_none() {
                         ret ccg.expr_int(arena, c_ty)
                     }
                 }
@@ -981,7 +980,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 real_sym := db.resolve_sym(method_sym)
                 if db.module_receiver(lhs_id) != id_none() {
                     fn_node := db.get_fn_node(real_sym)
-                    if fn_node != hir_none() {
+                    if fn_node != hir.hir_none() {
                         ty := db.get_node_type(id)
                         add_type_to_queue(db, ty, type_queue)
                         if not queue.contains(real_sym) { queue.push(real_sym) }
@@ -989,15 +988,16 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                     }
                 }
                 method_hir := db.get_sym_hir(real_sym)
-                if (method_hir != id_none()) and (db.hir.kind(method_hir) != hir_kind.function) {
+                if (method_hir != id_none()) and
+                    (db.hir.kind(method_hir) != hir.hir_kind.function) {
                     if db.is_const(id) and db.has_const_val(id) {
                         ty := db.get_node_type(id)
                         val := db.get_const_val(id)
                         k := db.types.kind(ty)
                         if ty == db.str_type {
-                            ptr := reflection_read(db, val, ty, "ptr") as &u8
-                            len := reflection_read(db, val, ty, "len")
-                            raw := reflection_quote(db, Str.new(ptr, len))
+                            ptr := reflection.reflection_read(db, val, ty, "ptr") as &u8
+                            len := reflection.reflection_read(db, val, ty, "len")
+                            raw := reflection.reflection_quote(db, Str.new(ptr, len))
                             add_type_to_queue(db, ty, type_queue)
                             ret ccg.expr_str_lit(
                                 arena
@@ -1007,13 +1007,14 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                                 raw
                             )
                         }
-                        if k == TyKind.bool {
+                        if k == type_defs.TyKind.bool {
                             if val != 0 {
                                 ret ccg.expr_bool(true)
                             }
                             ret ccg.expr_bool(false)
                         }
-                        if (k == TyKind.int) or (k == TyKind.uint) or (k == TyKind.untyped_int) {
+                        if (k == type_defs.TyKind.int) or (k == type_defs.TyKind.uint) or
+                            (k == type_defs.TyKind.untyped_int) {
                             ret ccg.expr_cast(
                                 arena
                                 ccg.type_str(&db.types, arena, ty)
@@ -1032,9 +1033,9 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 #fall
             }
             lhs_ty := db.get_node_type(lhs_id)
-            if db.types.kind(lhs_ty) == TyKind.type_ {
+            if db.types.kind(lhs_ty) == type_defs.TyKind.type_ {
                 actual_ty := db.get_const_type(lhs_id)
-                if db.types.kind(actual_ty) == TyKind.enum_ {
+                if db.types.kind(actual_ty) == type_defs.TyKind.enum_ {
                     field_name_id := db.hir.lhs(rhs_id)
                     if db.types.enum_has_variant(actual_ty, field_name_id) {
                         var_val := db.types.enum_variant_val(actual_ty, field_name_id)
@@ -1045,13 +1046,13 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
                 }
             }
             depth := db.get_auto_deref_depth(id)
-            if (depth == 0) and (db.types.kind(lhs_ty) == TyKind.ptr) {
+            if (depth == 0) and (db.types.kind(lhs_ty) == type_defs.TyKind.ptr) {
                 p_depth: u32 = 0
                 db.types.unwrap_ptr_depth(lhs_ty, &p_depth)
                 depth = p_depth
             }
             target_lhs := lhs_id
-            while db.hir.kind(target_lhs) == hir_kind.unary_deref {
+            while db.hir.kind(target_lhs) == hir.hir_kind.unary_deref {
                 target_lhs = db.hir.lhs(target_lhs)
                 depth = depth + 1
             }
@@ -1059,7 +1060,8 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             field_name_id := db.hir.lhs(rhs_id)
             len_id := db.interner.intern(Str.of("len"))
             base_lhs_ty := db.types.unwrap_ptr(lhs_ty)
-            if (db.types.kind(base_lhs_ty) == TyKind.array) and (field_name_id == len_id) {
+            if (db.types.kind(base_lhs_ty) == type_defs.TyKind.array) and
+                (field_name_id == len_id) {
                 arr_len := db.types.get_array_len(base_lhs_ty)
                 ret ccg.expr_u64(arena, arr_len as u64)
             }
@@ -1073,7 +1075,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             elems_fmt := builder.new_list(arena)
             count: u32 = 0
             list_id := db.hir.lhs(id)
-            if list_id != hir_none() {
+            if list_id != hir.hir_none() {
                 elements := db.get_list(list_id)
                 count = elements.len as u32
                 i: u64 = 0
@@ -1104,39 +1106,39 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
             rhs_val := lower_expr(ctx, rhs_node)
             lhs_ty := db.get_node_type(lhs_node)
             is_ptr := false
-            if db.types.kind(lhs_ty) == TyKind.ptr {
+            if db.types.kind(lhs_ty) == type_defs.TyKind.ptr {
                 inner := db.types.payload(lhs_ty)
-                if db.types.kind(inner) == TyKind.array {
+                if db.types.kind(inner) == type_defs.TyKind.array {
                     lhs_ty = inner
                     is_ptr = true
                 }
             }
-            if db.types.kind(lhs_ty) == TyKind.array {
+            if db.types.kind(lhs_ty) == type_defs.TyKind.array {
                 elem_ty := db.types.get_array_type(lhs_ty)
                 ret ccg.expr_array_index(arena, lhs_val, rhs_val, elem_ty, is_ptr)
             }
             t := lhs_ty
-            while db.types.kind(t) == TyKind.nominal {
+            while db.types.kind(t) == type_defs.TyKind.nominal {
                 t = db.types.nominal_base(t)
             }
-            if db.types.kind(t) == TyKind.struct_ {
+            if db.types.kind(t) == type_defs.TyKind.struct_ {
                 ptr_name := db.interner.intern(Str.of("ptr"))
                 fields := db.types.get_struct_fields(t)
                 count := fields.len / 2
-                found_elem_ty := ty_id_none()
+                found_elem_ty := type_defs.ty_id_none()
                 f_i: u64 = 0
                 while f_i < count {
                     f_name := *(fields.ptr + (f_i * 2))
                     if f_name == ptr_name {
                         f_ty := *(fields.ptr + (f_i * 2) + 1)
-                        if db.types.kind(f_ty) == TyKind.ptr {
+                        if db.types.kind(f_ty) == type_defs.TyKind.ptr {
                             found_elem_ty = db.types.payload(f_ty)
                             break
                         }
                     }
                     f_i = f_i + 1
                 }
-                if found_elem_ty != ty_id_none() {
+                if found_elem_ty != type_defs.ty_id_none() {
                     ret ccg.expr_slice_index(arena, lhs_val, rhs_val, found_elem_ty, ptr_name)
                 }
             }
@@ -1156,7 +1158,7 @@ lower_expr_node :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V 
 lower_body :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     db := ctx.db
     ccg := ctx.ccg
-    if db.hir.kind(id) != hir_kind.block {
+    if db.hir.kind(id) != hir.hir_kind.block {
         ret lower_expr(ctx, id)
     }
     source_items := db.get_list(db.hir.lhs(id))
@@ -1184,61 +1186,61 @@ lower_body :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
 }
 
 eval_const :: fn(db &Nexus, id u32) u64 {
-    if id == hir_none() {
+    if id == hir.hir_none() {
         ret 0
     }
     if db.has_const_val(id) {
         ret db.get_const_val(id)
     }
     k := db.hir.kind(id)
-    if k == hir_kind.lit_int {
+    if k == hir.hir_kind.lit_int {
         val := db.hir.lhs(id) as u64
         db.set_const_val(id, val)
         ret val
     }
-    if k == hir_kind.lit_bool_true {
+    if k == hir.hir_kind.lit_bool_true {
         db.set_const_val(id, 1)
         ret 1
     }
-    if k == hir_kind.lit_bool_false {
+    if k == hir.hir_kind.lit_bool_false {
         db.set_const_val(id, 0)
         ret 0
     }
-    if k == hir_kind.lit_char {
+    if k == hir.hir_kind.lit_char {
         raw := db.interner.get(db.hir.lhs(id))
         val: u64 = decode_char_lit(raw) as u64
         db.set_const_val(id, val)
         ret val
     }
-    if db.get_node_type(id) == ty_id_type() {
+    if db.get_node_type(id) == type_defs.ty_id_type() {
         c_ty := db.get_const_type(id)
-        if c_ty != ty_id_none() {
+        if c_ty != type_defs.ty_id_none() {
             val := c_ty as u64
             db.set_const_val(id, val)
             ret val
         }
     }
-    if k == hir_kind.k_cmpt {
+    if k == hir.hir_kind.k_cmpt {
         child := db.hir.lhs(id)
         val := eval_const(db, child)
         db.set_const_val(id, val)
         ret val
     }
-    if k == hir_kind.splice {
+    if k == hir.hir_kind.splice {
         gen_id := db.hir.extra(id)
-        if gen_id != hir_none() {
+        if gen_id != hir.hir_none() {
             val := eval_const(db, gen_id)
             db.set_const_val(id, val)
             ret val
         }
     }
-    if k == hir_kind.index {
+    if k == hir.hir_kind.index {
         lhs := db.hir.lhs(id)
         idx := db.hir.rhs(id)
         idx_val := eval_const(db, idx)
-        if db.hir.kind(lhs) == hir_kind.array_init {
+        if db.hir.kind(lhs) == hir.hir_kind.array_init {
             list_id := db.hir.lhs(lhs)
-            if list_id != hir_none() {
+            if list_id != hir.hir_none() {
                 elems := db.get_list(list_id)
                 if idx_val < (elems.len as u64) {
                     elem_node := *(elems.ptr + idx_val)
@@ -1248,16 +1250,16 @@ eval_const :: fn(db &Nexus, id u32) u64 {
                 }
             }
         }
-        if db.hir.kind(lhs) == hir_kind.ident {
+        if db.hir.kind(lhs) == hir.hir_kind.ident {
             sym_id := db.get_hir_symbol(lhs)
             if sym_id != id_none() {
                 real_s := db.resolve_sym(sym_id)
                 hir_node := db.get_sym_hir(real_s)
-                if (hir_node != id_none()) and (db.hir.kind(hir_node) == hir_kind.binding) {
+                if (hir_node != id_none()) and (db.hir.kind(hir_node) == hir.hir_kind.binding) {
                     rhs := db.hir.extra(hir_node)
-                    if (rhs != hir_none()) and (db.hir.kind(rhs) == hir_kind.array_init) {
+                    if (rhs != hir.hir_none()) and (db.hir.kind(rhs) == hir.hir_kind.array_init) {
                         list_id := db.hir.lhs(rhs)
-                        if list_id != hir_none() {
+                        if list_id != hir.hir_none() {
                             elems := db.get_list(list_id)
                             if idx_val < (elems.len as u64) {
                                 elem_node := *(elems.ptr + idx_val)
@@ -1271,7 +1273,7 @@ eval_const :: fn(db &Nexus, id u32) u64 {
             }
         }
     }
-    if k == hir_kind.ident {
+    if k == hir.hir_kind.ident {
         sym_id := db.get_hir_symbol(id)
         if sym_id != id_none() {
             real_s := db.resolve_sym(sym_id)
@@ -1282,25 +1284,25 @@ eval_const :: fn(db &Nexus, id u32) u64 {
                     db.set_const_val(id, val)
                     ret val
                 }
-                if db.hir.kind(hir_node) == hir_kind.binding {
+                if db.hir.kind(hir_node) == hir.hir_kind.binding {
                     rhs := db.hir.extra(hir_node)
-                    if rhs != hir_none() {
+                    if rhs != hir.hir_none() {
                         val := eval_const(db, rhs)
                         db.set_const_val(id, val)
                         ret val
                     }
                 }
             }
-            if db.get_node_type(id) == ty_id_type() {
+            if db.get_node_type(id) == type_defs.ty_id_type() {
                 c_type := db.get_const_type(id)
-                if c_type != ty_id_none() {
+                if c_type != type_defs.ty_id_none() {
                     val := c_type as u64
                     db.set_const_val(id, val)
                     ret val
                 }
                 if (hir_node != id_none()) and (hir_node != id) {
                     c_ty := db.get_const_type(hir_node)
-                    if c_ty != ty_id_none() {
+                    if c_ty != type_defs.ty_id_none() {
                         val := c_ty as u64
                         db.set_const_val(id, val)
                         ret val
@@ -1310,9 +1312,9 @@ eval_const :: fn(db &Nexus, id u32) u64 {
             hir_end := db.sym_hir_end(real_s)
             if (hir_end != 0) and (hir_end != id_none()) {
                 b_id := hir_end - 1
-                if db.hir.kind(b_id) == hir_kind.binding {
+                if db.hir.kind(b_id) == hir.hir_kind.binding {
                     rhs := db.hir.extra(b_id)
-                    if rhs != hir_none() {
+                    if rhs != hir.hir_none() {
                         val := eval_const(db, rhs)
                         db.set_const_val(id, val)
                         ret val
@@ -1321,9 +1323,9 @@ eval_const :: fn(db &Nexus, id u32) u64 {
             }
             if (real_s & 2147483648) != 0 {
                 b_id := real_s & 2147483647
-                if db.hir.kind(b_id) == hir_kind.binding {
+                if db.hir.kind(b_id) == hir.hir_kind.binding {
                     rhs := db.hir.extra(b_id)
-                    if rhs != hir_none() {
+                    if rhs != hir.hir_none() {
                         val := eval_const(db, rhs)
                         db.set_const_val(id, val)
                         ret val
@@ -1336,21 +1338,21 @@ eval_const :: fn(db &Nexus, id u32) u64 {
     saved_vm := db.comptime_vm
     nested := db.comptime_depth > 0
     if nested {
-        db.comptime_cg = 0 as &VmCodeGen
+        db.comptime_cg = 0 as &vm_codegen.VmCodeGen
     }
     db.init_comptime()
     db.comptime_depth = db.comptime_depth + 1
     db.comptime_cg.reset_locals()
-    builder := VmCodeBuilder.new(db.comptime_cg)
+    builder := vm_codegen.VmCodeBuilder.new(db.comptime_cg)
     start_ip := db.comptime_cg.chunk.buf.len as u32
     visited := HashSet(u32).new()
     queue := Vec(u32).new()
     type_queue := Vec(u32).new()
-    ctx: LowerCtx(VmCodeGen, VmCodeBuilder, VmVal) = .{
+    ctx: LowerCtx(vm_codegen.VmCodeGen, vm_codegen.VmCodeBuilder, vm_codegen.VmVal) = .{
         db: db
         ccg: db.comptime_cg
         builder: &builder
-        empty: VmVal.empty()
+        empty: vm_codegen.VmVal.empty()
         arena: &db.comptime_arena
         visited: &visited
         queue: &queue
@@ -1358,7 +1360,7 @@ eval_const :: fn(db &Nexus, id u32) u64 {
         global_init: false
     }
     res_val := lower_body(&ctx, id)
-    if res_val.kind != VmValKind.none {
+    if res_val.kind != vm_codegen.VmValKind.none {
         db.comptime_cg.ensure_on_stack(res_val)
     } else {
         db.comptime_cg.chunk.inst(OpCode.push_0)
@@ -1391,7 +1393,8 @@ lower_scoped_expr :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32, 
     arena := ctx.arena
     empty := ctx.empty
     kind := db.types.kind(expected)
-    if (expected == ty_id_none()) or (kind == TyKind.unit) or (kind == TyKind.never) {
+    if (expected == type_defs.ty_id_none()) or (kind == type_defs.TyKind.unit) or
+        (kind == type_defs.TyKind.never) {
         val := lower_body(ctx, id)
         if ccg.has_value(val) {
             ccg.expr(val)
@@ -1430,9 +1433,9 @@ lower_match_condition :: fn(
     while i < patterns.len {
         pat := *(patterns.ptr + i)
         condition := empty
-        if db.types.kind(value_ty) == TyKind.enum_ {
+        if db.types.kind(value_ty) == type_defs.TyKind.enum_ {
             name_id := db.hir.lhs(pat)
-            if db.hir.kind(pat) == hir_kind.member {
+            if db.hir.kind(pat) == hir.hir_kind.member {
                 name_id = db.hir.lhs(db.hir.rhs(pat))
             }
             val := db.types.enum_variant_val(value_ty, name_id)
@@ -1466,7 +1469,7 @@ lower_match_binding :: fn(
     ccg := ctx.ccg
     arena := ctx.arena
     binder := db.hir.extra(arm)
-    if binder == hir_none() {
+    if binder == hir.hir_none() {
         ret
     }
     sym := db.get_hir_symbol(binder)
@@ -1474,13 +1477,13 @@ lower_match_binding :: fn(
         ret
     }
     bind_ty := db.get_node_type(binder)
-    if bind_ty == ty_id_none() {
+    if bind_ty == type_defs.ty_id_none() {
         ret
     }
     add_type_to_queue(db, bind_ty, ctx.type_queue)
     bound_val := value_str
     patterns := db.get_list(db.hir.lhs(arm))
-    if (db.types.kind(value_ty) == TyKind.union_) and (patterns.len == 1) {
+    if (db.types.kind(value_ty) == type_defs.TyKind.union_) and (patterns.len == 1) {
         pat := *(patterns.ptr + 0)
         pat_ty := db.get_const_type(pat)
         idx := db.types.union_member_index(value_ty, pat_ty)
@@ -1505,8 +1508,9 @@ lower_match :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     value_ty := db.get_node_type(value_id)
     arms := db.get_list(db.hir.rhs(id))
     match_ty := db.get_node_type(id)
-    is_expr := (match_ty != ty_id_none()) and (db.types.kind(match_ty) != TyKind.unit) and
-        (db.types.kind(match_ty) != TyKind.never)
+    is_expr := (match_ty != type_defs.ty_id_none()) and
+        (db.types.kind(match_ty) != type_defs.TyKind.unit) and
+        (db.types.kind(match_ty) != type_defs.TyKind.never)
 
     temp_var := empty
     if is_expr {
@@ -1516,7 +1520,7 @@ lower_match :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     }
     value_val := lower_expr(ctx, value_id)
     value_str := value_val
-    if (db.hir.kind(value_id) != hir_kind.ident) and ccg.has_value(value_val) {
+    if (db.hir.kind(value_id) != hir.hir_kind.ident) and ccg.has_value(value_val) {
         val_ty_str := ccg.type_str(&db.types, arena, value_ty)
         match_val_var := ccg.new_temp(arena, val_ty_str)
         ccg.expr(ccg.expr_assign(arena, match_val_var, value_val))
@@ -1570,7 +1574,7 @@ for_method_receiver :: fn(
     arena := ctx.arena
     callee := db.hir.lhs(call_id)
     func_ty := db.get_node_type(callee)
-    if db.types.kind(func_ty) != TyKind.func {
+    if db.types.kind(func_ty) != type_defs.TyKind.func {
         ret source_name
     }
     params := db.types.func_params(func_ty)
@@ -1618,7 +1622,7 @@ lower_for :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
         iters = db.get_list(db.hir.rhs(id))
         iter := *(iters.ptr + i)
         source := iter
-        if db.hir.kind(iter) == hir_kind.for_iter {
+        if db.hir.kind(iter) == hir.hir_kind.for_iter {
             source = db.hir.lhs(iter)
         }
         iter_ty := db.get_node_type(source)
@@ -1627,7 +1631,7 @@ lower_for :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
         iter_name := ccg.iterator_name(arena, id, i as u32)
         iter_names.push(iter_name)
         ccg.create_variable(iter_name, ccg.type_str(&db.types, arena, iter_ty), value, true)
-        if db.hir.kind(iter) == hir_kind.for_iter {
+        if db.hir.kind(iter) == hir.hir_kind.for_iter {
             structural_flags.push(1 as u8)
         } else {
             structural_flags.push(0 as u8)
@@ -1659,7 +1663,7 @@ lower_for :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
             args_list := builder.new_list(arena)
             builder.append_list_item(&args_list, receiver, true)
             next_args := builder.finish_list(&args_list)
-            next_expr := ccg.expr_call(arena, callee_name, next_args, ty_id_none())
+            next_expr := ccg.expr_call(arena, callee_name, next_args, type_defs.ty_id_none())
             next_name := ccg.iterator_next_name(arena, id, i as u32)
             ccg.create_variable(next_name, ccg.type_str(&db.types, arena, next_ty), next_expr, true)
             value_names.push(next_name)
@@ -1743,9 +1747,10 @@ lower_const_record :: fn(
         item := ctx.empty
         if field_type == db.str_type {
             item = lower_global_constant(ctx, id, field_type, field_type, bits)
-        } else if kind == TyKind.bool {
+        } else if kind == type_defs.TyKind.bool {
             item = ccg.expr_bool(bits != 0)
-        } else if kind == TyKind.int or kind == TyKind.uint or kind == TyKind.enum_ {
+        } else if kind == type_defs.TyKind.int or kind == type_defs.TyKind.uint or
+            kind == type_defs.TyKind.enum_ {
             add_type_to_queue(db, field_type, ctx.type_queue)
             item = ccg.expr_cast(
                 arena
@@ -1753,7 +1758,7 @@ lower_const_record :: fn(
                 ccg.expr_u64(arena, bits)
             )
         } else {
-            reflection_error(
+            reflection.reflection_error(
                 db
                 id
                 c"compile-time records require string, integer, enum or boolean fields"
@@ -1803,9 +1808,9 @@ lower_global_constant :: fn(
     type_name := cg.type_str(types, arena, ty)
     kind := types.kind(ty)
     if ty == db.str_type {
-        ptr := reflection_read(db, bits, ty, "ptr") as &u8
-        len := reflection_read(db, bits, ty, "len")
-        raw := reflection_quote(db, Str.new(ptr, len))
+        ptr := reflection.reflection_read(db, bits, ty, "ptr") as &u8
+        len := reflection.reflection_read(db, bits, ty, "len")
+        raw := reflection.reflection_quote(db, Str.new(ptr, len))
         ret cg.expr_str_lit(
             arena
             type_name
@@ -1814,10 +1819,10 @@ lower_global_constant :: fn(
             raw
         )
     }
-    if kind == TyKind.bool {
+    if kind == type_defs.TyKind.bool {
         ret cg.expr_bool(bits != 0)
     }
-    if kind == TyKind.float or kind == TyKind.untyped_float {
+    if kind == type_defs.TyKind.float or kind == type_defs.TyKind.untyped_float {
         value := if types.payload(source) == 32 {
             (*(&bits as &f32)) as f64
         } else {
@@ -1825,11 +1830,11 @@ lower_global_constant :: fn(
         }
         ret cg.expr_folded_float(arena, value, types.payload(ty) == 32)
     }
-    if kind == TyKind.ptr or kind == TyKind.func {
+    if kind == type_defs.TyKind.ptr or kind == type_defs.TyKind.func {
         if bits != 0 {
             db.type_error(id, "compile-time pointers cannot escape into runtime storage")
         }
-    } else if kind == TyKind.struct_ or kind == TyKind.nominal {
+    } else if kind == type_defs.TyKind.struct_ or kind == type_defs.TyKind.nominal {
         if types.struct_is_extern(ty) {
             db.type_error(id, "compile-time extern records cannot initialize mutable globals")
         }
@@ -1854,11 +1859,11 @@ lower_global_constant :: fn(
             i = i + 1
         }
         ret cg.expr_struct_init(arena, type_name, ctx.builder.finish_list(&items))
-    } else if kind == TyKind.array {
+    } else if kind == type_defs.TyKind.array {
         elem := types.get_array_type(ty)
         source_elem := types.get_array_type(source)
         count := types.get_array_len(ty)
-        size := vm_element_size(types, source_elem)
+        size := vm_codegen.vm_element_size(types, source_elem)
         items := ctx.builder.new_list(arena)
         for index in Range.new(0, count as i32) {
             ptr := (bits + (index as u64) * size) as &u8
@@ -1867,7 +1872,7 @@ lower_global_constant :: fn(
             ctx.builder.append_list_item(&items, cg.expr_array_init_elem(arena, value), index == 0)
         }
         ret cg.expr_array_init(arena, type_name, ctx.builder.finish_list(&items), elem, count)
-    } else if kind == TyKind.union_ {
+    } else if kind == type_defs.TyKind.union_ {
         tag := *(bits as &u64) as u32
         members := types.union_members(ty)
         source_members := types.union_members(source)
@@ -1884,19 +1889,19 @@ lower_global_constant :: fn(
 }
 
 global_init_source :: fn(db &Nexus, id u32) u32 {
-    if id == hir_none() {
+    if id == hir.hir_none() {
         ret id
     }
     tbl := &db.hir
     match tbl.kind(id) {
         ident, member {
             value := db.binding_value(db.get_hir_symbol(id))
-            if value != hir_none() {
+            if value != hir.hir_none() {
                 ret global_init_source(db, value)
             }
-            if tbl.kind(id) == hir_kind.member and tbl.lhs(id) != hir_none() {
+            if tbl.kind(id) == hir.hir_kind.member and tbl.lhs(id) != hir.hir_none() {
                 source := global_init_source(db, tbl.lhs(id))
-                if tbl.kind(source) == hir_kind.struct_init {
+                if tbl.kind(source) == hir.hir_kind.struct_init {
                     field := tbl.lhs(tbl.rhs(id))
                     names := db.get_list(tbl.lhs(source))
                     values := db.get_list(tbl.rhs(source))
@@ -1924,7 +1929,7 @@ global_init_source :: fn(db &Nexus, id u32) u32 {
         }
         index {
             source := global_init_source(db, tbl.lhs(id))
-            if tbl.kind(source) == hir_kind.array_init {
+            if tbl.kind(source) == hir.hir_kind.array_init {
                 index := eval_const(db, tbl.rhs(id))
                 items := db.get_list(tbl.lhs(source))
                 if index >= items.len {
@@ -1952,26 +1957,26 @@ lower_global_projection :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id
     tbl := &db.hir
     types := &db.types
     receiver := global_init_source(db, tbl.lhs(id))
-    if receiver == hir_none() {
+    if receiver == hir.hir_none() {
         ret ctx.empty
     }
     kind := tbl.kind(receiver)
-    if kind != hir_kind.k_cmpt and kind != hir_kind.lit_str {
+    if kind != hir.hir_kind.k_cmpt and kind != hir.hir_kind.lit_str {
         ret ctx.empty
     }
-    source_ty := if kind == hir_kind.k_cmpt { tbl.rhs(receiver) } else { db.str_type }
+    source_ty := if kind == hir.hir_kind.k_cmpt { tbl.rhs(receiver) } else { db.str_type }
     ty := expression_value_type(db, id)
-    if tbl.kind(id) == hir_kind.index and types.kind(source_ty) == TyKind.array {
+    if tbl.kind(id) == hir.hir_kind.index and types.kind(source_ty) == type_defs.TyKind.array {
         index := eval_const(db, tbl.rhs(id))
         if index >= types.get_array_len(source_ty) as u64 {
             db.type_error(id, "array index out of bounds")
         }
         elem := types.get_array_type(source_ty)
-        size := vm_element_size(types, elem)
+        size := vm_codegen.vm_element_size(types, elem)
         ptr := (eval_const(db, receiver) + index * size) as &u8
         ret lower_global_constant(ctx, id, elem, ty, read_vm_constant(ptr, size))
     }
-    if tbl.kind(id) == hir_kind.member and not types.struct_is_extern(source_ty) {
+    if tbl.kind(id) == hir.hir_kind.member and not types.struct_is_extern(source_ty) {
         field := tbl.lhs(tbl.rhs(id))
         fields := types.get_struct_fields(source_ty)
         i: u64 = 0
@@ -1989,16 +1994,16 @@ lower_global_projection :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id
 lower_expr :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     db := ctx.db
     kind := db.hir.kind(id)
-    if kind == hir_kind.member and db.get_node_type(id) != ty_id_type() {
+    if kind == hir.hir_kind.member and db.get_node_type(id) != type_defs.ty_id_type() {
         receiver := db.hir.lhs(id)
         if db.module_receiver(receiver) != id_none() and not db.is_const(receiver) {
             ctx.ccg.expr(lower_expr(ctx, receiver))
         }
     }
     val_str := ctx.empty
-    if kind == hir_kind.ident or kind == hir_kind.member {
+    if kind == hir.hir_kind.ident or kind == hir.hir_kind.member {
         sym := db.resolve_sym(db.get_hir_symbol(id))
-        if db.global_var(sym) != hir_none() {
+        if db.global_var(sym) != hir.hir_none() {
             if db.comptime_depth > 0 {
                 db.type_error(id, "mutable global cannot be accessed at compile time")
             }
@@ -2008,7 +2013,7 @@ lower_expr :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), id u32) V {
     if not ctx.ccg.has_value(val_str) {
         source := if ctx.global_init { global_init_source(db, id) } else { id }
         if source == id {
-            if ctx.global_init and (kind == hir_kind.member or kind == hir_kind.index) {
+            if ctx.global_init and (kind == hir.hir_kind.member or kind == hir.hir_kind.index) {
                 val_str = lower_global_projection(ctx, id)
             }
             if not ctx.ccg.has_value(val_str) {
@@ -2050,7 +2055,7 @@ lower_function_name :: fn(
     db := ctx.db
     ccg := ctx.ccg
     if node != id_none() and db.is_extern_fn(node) and
-        (not ccg.is_vm() or db.hir.extra(node) == hir_none()) {
+        (not ccg.is_vm() or db.hir.extra(node) == hir.hir_none()) {
         if not ccg.is_vm() and db.extern_module(node).len > 0 {
             ret ccg.sym_name(ctx.arena, sym)
         }
@@ -2086,7 +2091,7 @@ format_func_signature :: fn(
     params := builder.new_list(arena)
     first := true
     orig_params: Slice(u32) = .{ ptr: 0 as &u32, len: 0 }
-    if orig_func_ty != ty_id_none() {
+    if orig_func_ty != type_defs.ty_id_none() {
         orig_params = db.types.func_params(orig_func_ty)
     }
     i: u64 = 0
@@ -2096,20 +2101,21 @@ format_func_signature :: fn(
             i = i + 1
             cont
         }
-        if is_mono and (i < orig_params.len) and (*(orig_params.ptr + i) == ty_id_type()) {
+        if is_mono and (i < orig_params.len) and
+            (*(orig_params.ptr + i) == type_defs.ty_id_type()) {
             i = i + 1
             cont
         }
         p_ty := ccg.type_str(&db.types, arena, *(params_slice.ptr + i))
         name := ccg.parameter_name(arena, i as u32)
         body_id := db.hir.extra(func_id)
-        if (not is_extern) or (body_id != hir_none()) {
+        if (not is_extern) or (body_id != hir.hir_none()) {
             args_list_id := db.hir.lhs(func_id)
-            if args_list_id != hir_none() {
+            if args_list_id != hir.hir_none() {
                 args := db.get_list(args_list_id)
                 if i < args.len {
                     arg_ident := db.hir.lhs(*(args.ptr + i))
-                    if arg_ident != hir_none() {
+                    if arg_ident != hir.hir_none() {
                         arg_sym := db.get_hir_symbol(arg_ident)
                         if arg_sym != id_none() {
                             name = ccg.sym_name(arena, arg_sym)
@@ -2166,32 +2172,32 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
     arena := ctx.arena
     is_mono := db.is_mono_sym(sym_id)
     orig_sym := sym_id
-    mono_func_ty := ty_id_none()
+    mono_func_ty := type_defs.ty_id_none()
     if is_mono {
         orig_sym = db.get_mono_orig_sym(sym_id)
         mono_func_ty = db.get_mono_type(sym_id)
     }
     real_sym := db.resolve_sym(orig_sym)
     func_id := db.get_fn_node(real_sym)
-    if (func_id == id_none()) or (db.hir.kind(func_id) != hir_kind.function) {
+    if (func_id == id_none()) or (db.hir.kind(func_id) != hir.hir_kind.function) {
         ret
     }
     saved_orig_ty := db.get_const_type(func_id)
     orig_func_ty := saved_orig_ty
-    if (orig_func_ty == ty_id_none()) and is_mono {
+    if (orig_func_ty == type_defs.ty_id_none()) and is_mono {
         orig_func_ty = mono_func_ty
     }
-    if (not is_mono) and (orig_func_ty != ty_id_none()) and
+    if (not is_mono) and (orig_func_ty != type_defs.ty_id_none()) and
         db.types.func_has_type_param(orig_func_ty) {
         ret
     }
-    if (not ccg.is_vm()) and (orig_func_ty != ty_id_none()) and
-        (db.types.func_return(orig_func_ty) == ty_id_type()) {
+    if (not ccg.is_vm()) and (orig_func_ty != type_defs.ty_id_none()) and
+        (db.types.func_return(orig_func_ty) == type_defs.ty_id_type()) {
         ret
     }
     if is_mono {
         db.restore_mono_func(sym_id)
-        if (db.get_const_type(func_id) != ty_id_none()) and
+        if (db.get_const_type(func_id) != type_defs.ty_id_none()) and
             db.types.func_has_type_param(db.get_const_type(func_id)) {
             orig_func_ty = db.get_const_type(func_id)
         }
@@ -2200,12 +2206,12 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
     if is_mono {
         func_ty = mono_func_ty
     }
-    if func_ty == ty_id_none() {
+    if func_ty == type_defs.ty_id_none() {
         ret
     }
     body_id := db.hir.extra(func_id)
     is_extern := db.is_extern_fn(func_id)
-    if body_id == hir_none() {
+    if body_id == hir.hir_none() {
         if not is_extern or ccg.is_vm() or
             is_libc_fn(db.interner.get(db.extern_link_name(real_sym, func_id))) {
             ret
@@ -2228,7 +2234,7 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
         add_type_to_queue(db, param, ctx.type_queue)
     }
     ret_str := ccg.type_str(&db.types, arena, ret_ty)
-    if body_id == hir_none() {
+    if body_id == hir.hir_none() {
         ccg.declare_foreign(
             sig.fn_name
             ret_str
@@ -2240,7 +2246,7 @@ lower_one_function :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), sym_id 
     }
     ccg.start_function(sig.fn_name, ret_str, sig.params_str, is_extern)
     body_val := lower_body(ctx, body_id)
-    if db.types.kind(ret_ty) == TyKind.unit {
+    if db.types.kind(ret_ty) == type_defs.TyKind.unit {
         if ccg.has_value(body_val) {
             ccg.expr(body_val)
         }
@@ -2265,11 +2271,11 @@ lower_globals :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V)) {
             cont
         }
         node := db.global_var(sym)
-        if node != hir_none() {
+        if node != hir.hir_none() {
             ty := db.get_node_type(db.hir.lhs(node))
             add_type_to_queue(db, ty, ctx.type_queue)
             cg.declare_global(sym, ty, cg.sym_name(arena, sym), cg.type_str(&db.types, arena, ty))
-            if db.hir.extra(node) != hir_none() {
+            if db.hir.extra(node) != hir.hir_none() {
                 globals.push(sym)
             }
         }
@@ -2392,7 +2398,7 @@ lower_macro_template :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), call 
     while i < args.len {
         arg := args.get(i)
         ty := db.get_node_type(arg)
-        if (ty != ty_id_type()) and (not db.is_const_call_arg(call, i as u32)) {
+        if (ty != type_defs.ty_id_type()) and (not db.is_const_call_arg(call, i as u32)) {
             value := lower_expr(ctx, arg)
             add_type_to_queue(db, ty, ctx.type_queue)
             temp := ccg.new_temp(arena, ccg.type_str(&db.types, arena, ty))
@@ -2413,9 +2419,9 @@ lower_macro_template :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), call 
     while p < params.len {
         param := *(params.ptr + p)
         type_node := db.hir.rhs(param)
-        if (db.get_const_type(type_node) != ty_id_type()) and (db.hir.extra(param) != 1) {
+        if (db.get_const_type(type_node) != type_defs.ty_id_type()) and (db.hir.extra(param) != 1) {
             if i >= values.len {
-                reflection_error(db, call, c"macro template argument mismatch")
+                reflection.reflection_error(db, call, c"macro template argument mismatch")
             }
             ident := db.hir.lhs(param)
             sym := db.get_hir_symbol(ident)
@@ -2426,7 +2432,7 @@ lower_macro_template :: fn(B type, L type, V type, ctx &LowerCtx(B, L, V), call 
         }
         p = p + 1
     }
-    template := macro_template(db, original)
+    template := reflection.macro_template(db, original)
     result := lower_body(ctx, template)
     if ccg.has_value(result) {
         ccg.expr(result)

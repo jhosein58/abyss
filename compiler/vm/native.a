@@ -1,19 +1,9 @@
-Arch :: @import("core/target").Arch
-Os :: @import("core/target").Os
-target_arch :: @import("core/target").target_arch
-target_os :: @import("core/target").target_os
-free :: @import("std/mem").free
-malloc :: @import("std/mem").malloc
-mem_copy :: @import("std/mem").mem_copy
-mem_set :: @import("std/mem").mem_set
-STDERR :: @import("std/sys").STDERR
-exit_process :: @import("std/sys").exit_process
-write_all :: @import("std/sys").write_all
+target :: @import("core/target")
+mem :: @import("std/mem")
+sys :: @import("std/sys")
 
 FfiKind :: @import("./ffi").FfiKind
-find_symbol :: @import("./loader").find_symbol
-load_libffi :: @import("./loader").load_libffi
-load_symbol :: @import("./loader").load_symbol
+loader :: @import("./loader")
 
 VmCallback :: fn(&&u8, &u8, u32, &u64, u32) u64
 FfiFunction :: fn()
@@ -82,18 +72,21 @@ CLOSURE_STORAGE_BYTES :: 64
 
 ffi_error :: fn(message, name Str) {
     prefix := "\n\x1b[1;31m[vm error]\x1b[0m "
-    write_all(STDERR, prefix.ptr, prefix.len)
-    write_all(STDERR, message.ptr, message.len)
-    if name.len != 0 { write_all(STDERR, c": ", 2), write_all(STDERR, name.ptr, name.len) }
-    write_all(STDERR, c"\n", 1)
-    exit_process(1)
+    sys.write_all(sys.STDERR, prefix.ptr, prefix.len)
+    sys.write_all(sys.STDERR, message.ptr, message.len)
+    if name.len != 0 {
+        sys.write_all(sys.STDERR, c": ", 2)
+        sys.write_all(sys.STDERR, name.ptr, name.len)
+    }
+    sys.write_all(sys.STDERR, c"\n", 1)
+    sys.exit_process(1)
 }
 
 ffi_scope :: fn(slot &&u8) &FfiScope {
     if *slot == (0 as &u8) {
-        *slot = malloc(@sizeof(FfiScope))
+        *slot = mem.malloc(@sizeof(FfiScope))
         if *slot == (0 as &u8) { ffi_error("foreign call allocation failed", Str.empty()) }
-        mem_set(*slot, 0, @sizeof(FfiScope))
+        mem.mem_set(*slot, 0, @sizeof(FfiScope))
     }
     *slot as &FfiScope
 }
@@ -101,24 +94,24 @@ ffi_scope :: fn(slot &&u8) &FfiScope {
 ffi_alloc :: fn(slot &&u8, size u64) &u8 {
     scope := ffi_scope(slot)
     header := @sizeof(FfiAllocation)
-    item := malloc(header + size) as &FfiAllocation
+    item := mem.malloc(header + size) as &FfiAllocation
     if item == (0 as &FfiAllocation) { ffi_error("foreign call allocation failed", Str.empty()) }
     item.next = scope.allocations
     scope.allocations = item
     data := (item as &u8) + header
-    mem_set(data, 0, size)
+    mem.mem_set(data, 0, size)
     data
 }
 
 ffi_symbol_address :: fn(name &u8) u64 {
-    address := find_symbol(name)
+    address := loader.find_symbol(name)
     if address != (0 as &u8) { ret address as u64 }
     ffi_error("undefined external symbol", Str.of(name))
     0
 }
 
 ffi_load :: fn(handle, name &u8) &u8 {
-    address := load_symbol(handle, name)
+    address := loader.load_symbol(handle, name)
     if address == (0 as &u8) { ffi_error("missing libffi symbol", Str.of(name)) }
     address
 }
@@ -131,9 +124,9 @@ ffi_pointer :: fn(T type, address &u8) T {
 
 ffi_init :: fn() &FfiLibrary {
     if ffi_library != (0 as &FfiLibrary) { ret ffi_library }
-    handle := load_libffi()
+    handle := loader.load_libffi()
     if handle == (0 as &u8) { ffi_error("VM foreign calls require libffi", Str.empty()) }
-    library := malloc(@sizeof(FfiLibrary)) as &FfiLibrary
+    library := mem.malloc(@sizeof(FfiLibrary)) as &FfiLibrary
     if library == (0 as &FfiLibrary) { ffi_error("foreign call allocation failed", Str.empty()) }
     library.prepare = ffi_pointer(FfiPrepare, ffi_load(handle, c"ffi_prep_cif"))
     library.call = ffi_pointer(FfiCall, ffi_load(handle, c"ffi_call"))
@@ -197,11 +190,11 @@ ffi_type :: fn(slot &&u8, library &FfiLibrary, cursor &&u32) &FfiType {
 }
 
 ffi_abi :: fn() u32 {
-    if target_os == Os.windows {
-        if target_arch == Arch.aarch64 { ret 2 }
+    if target.target_os == target.Os.windows {
+        if target.target_arch == target.Arch.aarch64 { ret 2 }
         ret 1
     }
-    if target_arch == Arch.x86_64 { ret 2 }
+    if target.target_arch == target.Arch.x86_64 { ret 2 }
     1
 }
 
@@ -249,7 +242,7 @@ ffi_read :: fn(slot &&u8, kind FfiKind, data &u8, size u64) u64 {
         pointer, callback { *(data as &&u8) as u64 }
         record {
             copy := ffi_alloc(slot, size)
-            mem_copy(copy, data, size)
+            mem.mem_copy(copy, data, size)
             copy as u64
         }
         else { *(data as &u64) }
@@ -282,7 +275,7 @@ ffi_write :: fn(
             ret
         }
         pointer { *(dest as &&u8) = value as &u8, ret }
-        record { mem_copy(dest, value as &u8, size) }
+        record { mem.mem_copy(dest, value as &u8, size) }
         else { *(dest as &u64) = value, ret }
     }
 }
@@ -419,8 +412,8 @@ ffi_destroy :: fn(ptr &u8) {
     item := scope.allocations
     while item != (0 as &FfiAllocation) {
         next := item.next
-        free(item as &u8)
+        mem.free(item as &u8)
         item = next
     }
-    free(ptr)
+    mem.free(ptr)
 }

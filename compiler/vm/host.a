@@ -1,21 +1,8 @@
-Maybe :: @import("core/maybe").Maybe
-Vec :: @import("std/collections/vec").Vec
-free :: @import("std/mem").free
-malloc :: @import("std/mem").malloc
-Str :: @import("std/string").Str
-Directory :: @import("std/sys").Directory
-OpenMode :: @import("std/sys").OpenMode
-close_handle :: @import("std/sys").close_handle
-environment :: @import("std/sys").environment
-exit_process :: @import("std/sys").exit_process
-make_directory :: @import("std/sys").make_directory
-open_handle :: @import("std/sys").open_handle
-read_handle :: @import("std/sys").read_handle
-seek_handle :: @import("std/sys").seek_handle
-write_handle :: @import("std/sys").write_handle
+mem :: @import("std/mem")
+sys :: @import("std/sys")
 
 HostDirSlot :: struct {
-    dir    Directory
+    dir    sys.Directory
     active bool
 }
 
@@ -46,7 +33,7 @@ Win32FindData :: extern struct {
     short_name [14]u8
 }
 
-alloc_dir_slot :: fn(dirs &Vec(HostDirSlot), dir Directory) u32 {
+alloc_dir_slot :: fn(dirs &Vec(HostDirSlot), dir sys.Directory) u32 {
     i: u64 = 0
     while i < dirs.len {
         slot := dirs.as_slice().ptr + i
@@ -89,7 +76,7 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
         rights := args[5]
         behavior := args[7] as u32
         opened := args[8] as &u32
-        cstr := malloc((path_len as u64) + 1)
+        cstr := mem.malloc((path_len as u64) + 1)
         i: u64 = 0
         while i < (path_len as u64) {
             *(cstr + i) = *(path_ptr + i)
@@ -98,8 +85,8 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
         *(cstr + (path_len as u64)) = 0 as u8
         is_dir := (flags & 2) != 0 or (rights & 16384) != 0
         if is_dir {
-            opt_dir := Directory.open(cstr)
-            free(cstr)
+            opt_dir := sys.Directory.open(cstr)
+            mem.free(cstr)
             if opt_dir.is_none() {
                 ret Maybe(u64).some(44)
             }
@@ -107,15 +94,15 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
             opened[0] = 1000 + slot
             ret Maybe(u64).some(0)
         }
-        mode: OpenMode = .{
+        mode: sys.OpenMode = .{
             read: (rights & 2) != 0
             write: (rights & 64) != 0
             create: (flags & 1) != 0
             truncate: (flags & 8) != 0
             append: (behavior & 1) != 0
         }
-        h := open_handle(cstr, mode)
-        free(cstr)
+        h := sys.open_handle(cstr, mode)
+        mem.free(cstr)
         if h < 0 {
             ret Maybe(u64).some(44)
         }
@@ -131,7 +118,7 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
         j: u32 = 0
         while j < count {
             iov := iovs + (j as u64)
-            n := read_handle(fd as i64, iov.address, iov.len as u64)
+            n := sys.read_handle(fd as i64, iov.address, iov.len as u64)
             if n <= 0 { break }
             total = total + (n as u64)
             j = j + 1
@@ -148,7 +135,7 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
         j: u32 = 0
         while j < count {
             iov := iovs + (j as u64)
-            n := write_handle(fd as i64, iov.address, iov.len as u64)
+            n := sys.write_handle(fd as i64, iov.address, iov.len as u64)
             if n <= 0 { break }
             total = total + (n as u64)
             j = j + 1
@@ -169,7 +156,7 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
             }
             ret Maybe(u64).some(0)
         }
-        close_handle(fd as i64)
+        sys.close_handle(fd as i64)
         ret Maybe(u64).some(0)
     }
     if name.eq("fd_seek") {
@@ -177,7 +164,7 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
         offset := args[1] as i64
         whence := args[2] as u32
         position := args[3] as &u64
-        pos := seek_handle(fd as i64, offset, whence as i32)
+        pos := sys.seek_handle(fd as i64, offset, whence as i32)
         if pos < 0 { ret Maybe(u64).some(29) }
         position[0] = pos as u64
         ret Maybe(u64).some(0)
@@ -222,15 +209,15 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
     if name.eq("path_create_directory") {
         path_ptr := args[1] as &u8
         path_len := args[2] as u32
-        cstr := malloc((path_len as u64) + 1)
+        cstr := mem.malloc((path_len as u64) + 1)
         k: u64 = 0
         while k < (path_len as u64) {
             *(cstr + k) = *(path_ptr + k)
             k = k + 1
         }
         *(cstr + (path_len as u64)) = 0 as u8
-        ok := make_directory(cstr)
-        free(cstr)
+        ok := sys.make_directory(cstr)
+        mem.free(cstr)
         ret Maybe(u64).some(if ok { 0 } else { 1 })
     }
     if name.eq("environ_sizes_get") {
@@ -244,21 +231,21 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
         ret Maybe(u64).some(0)
     }
     if name.eq("proc_exit") {
-        exit_process(args[0] as i32)
+        sys.exit_process(args[0] as i32)
         ret Maybe(u64).some(0)
     }
     if name.eq("CreateFileA") {
         path := args[0] as &u8
         access := args[1] as u32
         disp := args[4] as u32
-        mode: OpenMode = .{
+        mode: sys.OpenMode = .{
             read: (access & 0x80000000) != 0
             write: (access & 0x40000000) != 0 or (access & 4) != 0
             create: disp == 2 or disp == 4
             truncate: disp == 2
             append: (access & 4) != 0
         }
-        h := open_handle(path, mode)
+        h := sys.open_handle(path, mode)
         if h < 0 { ret Maybe(u64).some(0xffffffffffffffff) }
         ret Maybe(u64).some(h as u64)
     }
@@ -267,7 +254,7 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
         buf := args[1] as &u8
         count := args[2] as u32
         received := args[3] as &u32
-        n := read_handle(h, buf, count as u64)
+        n := sys.read_handle(h, buf, count as u64)
         if n < 0 { ret Maybe(u64).some(0) }
         if received != (0 as &u32) { received[0] = n as u32 }
         ret Maybe(u64).some(1)
@@ -277,21 +264,21 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
         buf := args[1] as &u8
         count := args[2] as u32
         sent := args[3] as &u32
-        n := write_handle(h, buf, count as u64)
+        n := sys.write_handle(h, buf, count as u64)
         if n < 0 { ret Maybe(u64).some(0) }
         if sent != (0 as &u32) { sent[0] = n as u32 }
         ret Maybe(u64).some(1)
     }
     if name.eq("CloseHandle") {
         h := args[0] as i64
-        ret Maybe(u64).some(if close_handle(h) { 1 } else { 0 })
+        ret Maybe(u64).some(if sys.close_handle(h) { 1 } else { 0 })
     }
     if name.eq("SetFilePointerEx") {
         h := args[0] as i64
         offset := args[1] as i64
         position := args[2] as &i64
         whence := args[3] as u32
-        pos := seek_handle(h, offset, whence as i32)
+        pos := sys.seek_handle(h, offset, whence as i32)
         if pos < 0 { ret Maybe(u64).some(0) }
         if position != (0 as &i64) { position[0] = pos }
         ret Maybe(u64).some(1)
@@ -314,15 +301,15 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
                 *(p_str.ptr + dir_len - 1) == ('/' as u8) or
                     *(p_str.ptr + dir_len - 1) == ('\\' as u8)
             ) { dir_len = dir_len - 1 }
-        dir_cstr := malloc(dir_len + 1)
+        dir_cstr := mem.malloc(dir_len + 1)
         idx: u64 = 0
         while idx < dir_len {
             *(dir_cstr + idx) = *(p_str.ptr + idx)
             idx = idx + 1
         }
         *(dir_cstr + dir_len) = 0 as u8
-        opt_dir := Directory.open(dir_cstr)
-        free(dir_cstr)
+        opt_dir := sys.Directory.open(dir_cstr)
+        mem.free(dir_cstr)
         if opt_dir.is_none() { ret Maybe(u64).some(0xffffffffffffffff) }
         slot := alloc_dir_slot(dirs, opt_dir.unwrap())
         slot_ptr := dirs.as_slice().ptr + (slot as u64)
@@ -378,29 +365,29 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
     }
     if name.eq("GetFileAttributesA") {
         path := args[0] as &u8
-        opt_dir := Directory.open(path)
+        opt_dir := sys.Directory.open(path)
         if opt_dir.is_some() {
             d := opt_dir.unwrap()
             d.close()
             ret Maybe(u64).some(16)
         }
-        h := open_handle(
+        h := sys.open_handle(
             path
             .{ read: true, write: false, create: false, truncate: false, append: false }
         )
         if h >= 0 {
-            close_handle(h)
+            sys.close_handle(h)
             ret Maybe(u64).some(128)
         }
         ret Maybe(u64).some(0xffffffff)
     }
     if name.eq("CreateDirectoryA") {
         path := args[0] as &u8
-        ret Maybe(u64).some(if make_directory(path) { 1 } else { 0 })
+        ret Maybe(u64).some(if sys.make_directory(path) { 1 } else { 0 })
     }
     if name.eq("GetEnvironmentVariableA") {
         key := args[0] as &u8
-        val := environment(key)
+        val := sys.environment(key)
         if val == (0 as &u8) { ret Maybe(u64).some(0) }
         val_str := Str.of(val)
         buf := args[1] as &u8
@@ -415,7 +402,7 @@ dispatch_host_call :: fn(dirs &Vec(HostDirSlot), name Str, args &u64) Maybe(u64)
         ret Maybe(u64).some(val_str.len)
     }
     if name.eq("ExitProcess") {
-        exit_process(args[0] as i32)
+        sys.exit_process(args[0] as i32)
         ret Maybe(u64).some(0)
     }
     if name.eq("_errno") {

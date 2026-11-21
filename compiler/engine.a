@@ -1,14 +1,11 @@
 Os :: @import("core/target").Os
 Arena :: @import("std/allocator").Arena
 Path :: @import("std/path").Path
-Str :: @import("std/string").Str
 fall :: @import("std/sys").fall
 current_dir :: @import("std/sys/current_dir").current_dir
 
-hir_kind :: @import("./hir").hir_kind
-hir_none :: @import("./hir").hir_none
-file_key :: @import("./modules").file_key
-resolve_module :: @import("./modules").resolve_module
+hir :: @import("./hir")
+modules :: @import("./modules")
 lex :: @import("./lexer").lex
 lower_function :: @import("./lower").lower_function
 Nexus :: @import("./nexus/nexus").Nexus
@@ -17,17 +14,13 @@ Parser_new :: @import("./parser/core").Parser_new
 parse_file :: @import("./parser/parser").parse_file
 TokenStream :: @import("./token").TokenStream
 check_global_var :: @import("./typer/global").check_global_var
-finalize_inferred_types :: @import("./typer/tyck").finalize_inferred_types
-process_mono_funcs :: @import("./typer/tyck").process_mono_funcs
-type_check :: @import("./typer/tyck").type_check
-TyKind :: @import("./types").TyKind
-ty_id_none :: @import("./types").ty_id_none
-ty_id_type :: @import("./types").ty_id_type
+tyck :: @import("./typer/tyck")
+type_defs :: @import("./types")
 slot_none :: @import("./unify").slot_none
 
 Engine :: struct {
-    nexus      Nexus
-    arena      &Arena
+    nexus Nexus
+    arena &Arena
     new :: fn(arena &Arena) Self {
         res: Self = .{ nexus: Nexus.new(), arena: arena }
         res.nexus.init_tuple_names()
@@ -50,7 +43,7 @@ Engine :: struct {
 
     load_module :: fn(self &Self, fid u32, offset u32, base, path Str) u32 {
         count := self.nexus.file_paths.len as u32
-        module := resolve_module(&self.nexus, self.arena, fid, offset, base, path)
+        module := modules.resolve_module(&self.nexus, self.arena, fid, offset, base, path)
         if module == count {
             self.parse_module(module)
         }
@@ -61,7 +54,7 @@ Engine :: struct {
         db := &self.nexus
         db.cwd = Path.normalize(self.arena, current_dir(self.arena))
         normalized := Path.normalize(self.arena, path)
-        fid := db.add_file(normalized, source, file_key(db, self.arena, normalized))
+        fid := db.add_file(normalized, source, modules.file_key(db, self.arena, normalized))
         self.parse_module(fid)
         db.core_prelude = self.load_module(fid, 0, Str.empty(), "core/prelude")
         db.std_prelude = self.load_module(fid, 0, Str.empty(), "std/prelude")
@@ -70,7 +63,9 @@ Engine :: struct {
             if wasi {
                 self.load_module(fid, 0, Str.empty(), "std/sys/memory")
             }
-            runtime := if wasi and db.native_executable { "std/sys/start" } else { "std/sys/process" }
+            runtime := if wasi and db.native_executable { "std/sys/start" } else {
+                "std/sys/process"
+            }
             self.load_module(fid, 0, Str.empty(), runtime)
         }
         fid
@@ -80,14 +75,14 @@ Engine :: struct {
         hir_start := self.nexus.sym_hir_start(sym_id)
         hir_end := self.nexus.sym_hir_end(sym_id)
 
-        type_check(self, hir_start, hir_end)
+        tyck.type_check(self, hir_start, hir_end)
         global := self.nexus.global_var(sym_id)
-        if global != hir_none() {
+        if global != hir.hir_none() {
             check_global_var(self, global)
         }
         fn_node := self.nexus.get_fn_node(sym_id)
         if fn_node != id_none() {
-            finalize_inferred_types(self, fn_node)
+            tyck.finalize_inferred_types(self, fn_node)
         }
     }
 
@@ -102,11 +97,11 @@ Engine :: struct {
             ret
         }
         root := hir_end - 1
-        if db.hir.kind(root) != hir_kind.binding {
+        if db.hir.kind(root) != hir.hir_kind.binding {
             ret
         }
         value_node := db.hir.extra(root)
-        if (value_node == id_none()) or (db.hir.kind(value_node) != hir_kind.struct_) {
+        if (value_node == id_none()) or (db.hir.kind(value_node) != hir.hir_kind.struct_) {
             ret
         }
         names_list := db.hir.lhs(value_node)
@@ -114,7 +109,7 @@ Engine :: struct {
             names := db.get_list(names_list)
             if names.len > 0 {
                 first_ident := *(names.ptr)
-                if (first_ident != id_none()) and (db.hir.kind(first_ident) == hir_kind.ident) {
+                if (first_ident != id_none()) and (db.hir.kind(first_ident) == hir.hir_kind.ident) {
                     first_name_id := db.hir.lhs(first_ident)
                     if db.is_tuple_name(first_name_id) {
                         ret
@@ -123,12 +118,12 @@ Engine :: struct {
             }
         }
         existing := db.get_const_type(decl_hir)
-        if existing != ty_id_none() {
+        if existing != type_defs.ty_id_none() {
             ret
         }
         name_id := db.sym_name(sym_id)
         name := db.interner.get(name_id)
-        named := db.types.alloc_nominal(ty_id_none(), name, value_node)
+        named := db.types.alloc_nominal(type_defs.ty_id_none(), name, value_node)
 
         db.set_const_type(value_node, named)
         db.set_const_type(decl_hir, named)
@@ -139,7 +134,7 @@ Engine :: struct {
         if slot == slot_none() {
             slot = (&db.unify).new_slot(decl_hir)
         }
-        (&db.unify).bind_type(&db.types, slot, ty_id_type())
+        (&db.unify).bind_type(&db.types, slot, type_defs.ty_id_type())
     }
 
     ensure_resolved :: fn(self &Self, sym_id u32) {
@@ -159,7 +154,7 @@ Engine :: struct {
             s := (&db.unify).get_slot(decl_hir)
             if s != slot_none() {
                 ty := (&db.unify).resolve_type(s)
-                if ty != ty_id_none() {
+                if ty != type_defs.ty_id_none() {
                     ret
                 }
             }
@@ -207,23 +202,23 @@ Engine :: struct {
     type_of :: fn(self &Self, sym_id u32) u32 {
         slot := self.slot_of(sym_id)
         if slot == slot_none() {
-            ret ty_id_none()
+            ret type_defs.ty_id_none()
         }
         (&self.nexus.unify).resolve_type(slot)
     }
 
     get_str_type :: fn(self &Self) u32 {
         db := &self.nexus
-        if (*db).str_type != ty_id_none() {
+        if (*db).str_type != type_defs.ty_id_none() {
             ret (*db).str_type
         }
         if (*db).core_prelude == id_none() {
-            ret ty_id_none()
+            ret type_defs.ty_id_none()
         }
         name_id := (*db).interner.intern(Str.of("Str"))
         sym_str := (*db).find_symbol((*db).core_prelude, name_id)
         if sym_str == id_none() {
-            ret ty_id_none()
+            ret type_defs.ty_id_none()
         }
         self.ensure_resolved(sym_str)
         real_sym := (*db).resolve_sym(sym_str)
@@ -233,13 +228,13 @@ Engine :: struct {
             (*db).str_type = str_ty
             ret str_ty
         }
-        ty_id_none()
+        type_defs.ty_id_none()
     }
 
     validate_main :: fn(self &Self, sym_id u32) {
         ty := self.type_of(sym_id)
         types := &self.nexus.types
-        if types.kind(ty) != TyKind.func {
+        if types.kind(ty) != type_defs.TyKind.func {
             print("\n[type error] main must be a function")
             #fall
         }
@@ -248,7 +243,7 @@ Engine :: struct {
             #fall
         }
         result := types.func_return(ty)
-        if types.kind(result) != TyKind.unit and result != types.alloc_int(32) {
+        if types.kind(result) != type_defs.TyKind.unit and result != types.alloc_int(32) {
             print("\n[type error] main must return i32 or no value")
             #fall
         }
@@ -267,7 +262,7 @@ Engine :: struct {
                 #fall
             }
             global := self.nexus.global_var(sym_id)
-            if global != hir_none() {
+            if global != hir.hir_none() {
                 self.nexus.type_error(global, "main must be a function declaration")
             }
             self.ensure_resolved(sym_id)
@@ -279,7 +274,7 @@ Engine :: struct {
         index: u32 = 0
         while true {
             if index == self.nexus.sym_count() {
-                process_mono_funcs(self)
+                tyck.process_mono_funcs(self)
                 if index == self.nexus.sym_count() { break }
             }
             i := index
@@ -289,13 +284,14 @@ Engine :: struct {
             }
             node := self.nexus.get_fn_node(i)
             exported := node != id_none() and self.nexus.is_extern_fn(node) and
-                self.nexus.hir.extra(node) != hir_none()
-            if self.nexus.sym_file(i) != fid and self.nexus.global_var(i) == hir_none() and not exported {
+                self.nexus.hir.extra(node) != hir.hir_none()
+            if self.nexus.sym_file(i) != fid and self.nexus.global_var(i) == hir.hir_none() and
+                not exported {
                 cont
             }
             self.ensure_resolved(i)
             if node == id_none() or not self.nexus.is_extern_fn(node) or
-                self.nexus.hir.extra(node) == hir_none() {
+                self.nexus.hir.extra(node) == hir.hir_none() {
                 cont
             }
             name := self.nexus.extern_link_name(i, node)
@@ -335,7 +331,7 @@ Engine :: struct {
                 }
                 node := self.nexus.get_fn_node(i)
                 if node != id_none() and self.nexus.is_extern_fn(node) and
-                    self.nexus.hir.extra(node) != hir_none() {
+                    self.nexus.hir.extra(node) != hir.hir_none() {
                     lower_function(
                         &self.nexus
                         backend

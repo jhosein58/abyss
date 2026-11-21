@@ -1,23 +1,14 @@
-Str :: @import("std/string").Str
 fall :: @import("std/sys").fall
 
 Engine :: @import("compiler/engine").Engine
-HirTable :: @import("compiler/hir").HirTable
-hir_kind :: @import("compiler/hir").hir_kind
-hir_none :: @import("compiler/hir").hir_none
+hir :: @import("compiler/hir")
 eval_const :: @import("compiler/lower").eval_const
 Nexus :: @import("compiler/nexus/nexus").Nexus
 id_none :: @import("compiler/nexus/pool").id_none
 synth_node :: @import("compiler/typer/tyck").synth_node
-TyKind :: @import("compiler/types").TyKind
-TypeStorage :: @import("compiler/types").TypeStorage
-ty_id_none :: @import("compiler/types").ty_id_none
-ty_id_type :: @import("compiler/types").ty_id_type
-ty_id_unit :: @import("compiler/types").ty_id_unit
+types :: @import("compiler/types")
 slot_none :: @import("compiler/unify").slot_none
-
-check_value :: @import("./common").check_value
-parse_builtin_type :: @import("./common").parse_builtin_type
+type_common :: @import("./common")
 
 synth_ident :: fn(eng &Engine, id u32) {
     db := &(*eng).nexus
@@ -33,10 +24,10 @@ synth_ident :: fn(eng &Engine, id u32) {
         slot = (unify_ptr).new_slot(id)
     }
     owner := db.get_method_owner(id)
-    if (owner != hir_none()) and name.eq(Str.of("Self")) {
+    if (owner != hir.hir_none()) and name.eq(Str.of("Self")) {
         self_ty := db.get_const_type(owner)
-        if (types_ptr.kind(self_ty) != TyKind.nominal) and
-            (types_ptr.kind(self_ty) != TyKind.enum_) {
+        if (types_ptr.kind(self_ty) != types.TyKind.nominal) and
+            (types_ptr.kind(self_ty) != types.TyKind.enum_) {
             printf(
                 "\n\033[1;31m[type error]\033[0m Self requires a named struct or enum method\n       --> "
                 .{}
@@ -45,14 +36,14 @@ synth_ident :: fn(eng &Engine, id u32) {
             print("")
             #fall
         }
-        db.unify.bind_type(&db.types, slot, ty_id_type())
+        db.unify.bind_type(&db.types, slot, types.ty_id_type())
         db.set_const_type(id, self_ty)
         db.set_is_const(id, true)
         ret
     }
-    builtin_ty := parse_builtin_type(types_ptr, name)
-    if builtin_ty != ty_id_none() {
-        (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+    builtin_ty := type_common.parse_builtin_type(types_ptr, name)
+    if builtin_ty != types.ty_id_none() {
+        (&(*db).unify).bind_type(&(*db).types, slot, types.ty_id_type())
         db.set_const_type(id, builtin_ty)
         db.set_is_const(id, true)
         ret
@@ -75,18 +66,21 @@ synth_ident :: fn(eng &Engine, id u32) {
         if origin_hir == id {
             ret
         }
-        if db.global_var(real_sym) != hir_none() and db.is_sym_resolving(real_sym) {
+        if db.global_var(real_sym) != hir.hir_none() and db.is_sym_resolving(real_sym) {
             db.type_error(id, "circular reference in mutable global declaration")
         }
         origin_slot := eng.slot_of(sym_id)
         if db.is_sym_resolving(real_sym) and
-            (origin_slot == slot_none() or db.unify.resolve_type(origin_slot) == ty_id_none()) {
+            (
+                origin_slot == slot_none() or
+                    db.unify.resolve_type(origin_slot) == types.ty_id_none()
+            ) {
             db.type_error(id, "circular reference in binding")
         }
         if origin_slot != slot_none() {
             (&(*db).unify).union(&(*db).types, slot, origin_slot)
         }
-        if db.global_var(real_sym) != hir_none() {
+        if db.global_var(real_sym) != hir.hir_none() {
             ret
         }
         resolved_hir := db.get_sym_hir(db.resolve_sym(sym_id))
@@ -98,7 +92,7 @@ synth_ident :: fn(eng &Engine, id u32) {
                 }
             }
             const_val := db.get_const_type(resolved_hir)
-            if const_val != ty_id_none() {
+            if const_val != types.ty_id_none() {
                 db.set_const_type(id, const_val)
                 db.set_is_const(id, true)
             }
@@ -107,22 +101,22 @@ synth_ident :: fn(eng &Engine, id u32) {
 }
 
 synth_type_node :: fn(eng &Engine, id u32) u32 {
-    if id == hir_none() {
-        ret ty_id_none()
+    if id == hir.hir_none() {
+        ret types.ty_id_none()
     }
     db := &(*eng).nexus
     existing := db.get_const_type(id)
-    if existing != ty_id_none() {
+    if existing != types.ty_id_none() {
         ret existing
     }
     tbl := &(*db).hir
-    k := hir_kind
+    k := hir.hir_kind
     curr := (tbl).kind(id)
 
     if curr == k.ident {
         synth_ident(eng, id)
         res := db.get_const_type(id)
-        if res != ty_id_none() {
+        if res != types.ty_id_none() {
             ret res
         }
         name_id := (tbl).lhs(id)
@@ -154,7 +148,7 @@ synth_type_node :: fn(eng &Engine, id u32) u32 {
         if name.eq(Str.of("size_t")) {
             db.type_error(id, Str.of("unknown type 'size_t'; did you mean 'u64'?"))
         }
-        ret ty_id_none()
+        ret types.ty_id_none()
     }
     if curr == k.member {
         synth_node(eng, id)
@@ -175,14 +169,14 @@ synth_type_node :: fn(eng &Engine, id u32) u32 {
     if curr == k.unary_addr_of {
         child := (tbl).lhs(id)
         child_ty := synth_type_node(eng, child)
-        if child_ty != ty_id_none() {
+        if child_ty != types.ty_id_none() {
             ptr_ty := (&(*db).types).alloc_ptr(child_ty)
             db.set_const_type(id, ptr_ty)
             slot := (&(*db).unify).get_slot(id)
             if slot == slot_none() {
                 slot = (&(*db).unify).new_slot(id)
             }
-            (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+            (&(*db).unify).bind_type(&(*db).types, slot, types.ty_id_type())
             ret ptr_ty
         }
     }
@@ -191,14 +185,14 @@ synth_type_node :: fn(eng &Engine, id u32) u32 {
         rhs := (tbl).rhs(id)
         lhs_ty := synth_type_node(eng, lhs)
         rhs_ty := synth_type_node(eng, rhs)
-        if (lhs_ty != ty_id_none()) and (rhs_ty != ty_id_none()) {
+        if (lhs_ty != types.ty_id_none()) and (rhs_ty != types.ty_id_none()) {
             union_ty := (&(*db).types).make_union_2(lhs_ty, rhs_ty)
             db.set_const_type(id, union_ty)
             slot := (&(*db).unify).get_slot(id)
             if slot == slot_none() {
                 slot = (&(*db).unify).new_slot(id)
             }
-            (&(*db).unify).bind_type(&(*db).types, slot, ty_id_type())
+            (&(*db).unify).bind_type(&(*db).types, slot, types.ty_id_type())
             ret union_ty
         }
     }
@@ -234,28 +228,28 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
     if ident_slot == slot_none() {
         ident_slot = (unify_ptr).new_slot(ident_id)
     }
-    if type_id != hir_none() {
+    if type_id != hir.hir_none() {
         type_slot := (unify_ptr).get_slot(type_id)
         if type_slot != slot_none() {
-            (&(*db).unify).bind_type(&(*db).types, type_slot, ty_id_type())
+            (&(*db).unify).bind_type(&(*db).types, type_slot, types.ty_id_type())
         }
         type_value := db.get_const_type(type_id)
-        if type_value == ty_id_none() {
+        if type_value == types.ty_id_none() {
             type_value = synth_type_node(eng, type_id)
         }
-        if (type_value == ty_id_none()) and db.is_const(type_id) {
+        if (type_value == types.ty_id_none()) and db.is_const(type_id) {
             type_slot_chk := unify_ptr.get_slot(type_id)
             if type_slot_chk != slot_none() {
-                if unify_ptr.resolve_type_deep(types_ptr, type_slot_chk) == ty_id_type() {
+                if unify_ptr.resolve_type_deep(types_ptr, type_slot_chk) == types.ty_id_type() {
                     c_val := eval_const(db, type_id) as u32
-                    if (c_val != ty_id_none()) and (c_val < types_ptr.len()) {
+                    if (c_val != types.ty_id_none()) and (c_val < types_ptr.len()) {
                         type_value = c_val
                         db.set_const_type(type_id, type_value)
                     }
                 }
             }
         }
-        if type_value == ty_id_none() {
+        if type_value == types.ty_id_none() {
             printf(
                 "\n\033[1;31m[type error]\033[0m declaration annotation is not a resolved type\n       --> "
                 .{}
@@ -268,15 +262,17 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
         db.set_const_type(ident_id, type_value)
         db.set_const_type(id, type_value)
     }
-    if value_id != hir_none() {
+    if value_id != hir.hir_none() {
         actual_val := value_id
-        if (tbl.kind(actual_val) == hir_kind.splice) and (tbl.extra(actual_val) != hir_none()) {
+        if (tbl.kind(actual_val) == hir.hir_kind.splice) and
+            (tbl.extra(actual_val) != hir.hir_none()) {
             actual_val = tbl.extra(actual_val)
         }
-        if ((tbl).kind(id) == hir_kind.binding) and ((tbl).kind(actual_val) == hir_kind.struct_) {
+        if ((tbl).kind(id) == hir.hir_kind.binding) and
+            ((tbl).kind(actual_val) == hir.hir_kind.struct_) {
             structural := db.get_const_type(actual_val)
             kind := types_ptr.kind(structural)
-            if (kind != TyKind.struct_) and (kind != TyKind.nominal) {
+            if (kind != types.TyKind.struct_) and (kind != types.TyKind.nominal) {
                 printf(
                     "\n\033[1;31m[type error]\033[0m struct declaration could not be resolved\n       --> "
                     .{}
@@ -286,7 +282,7 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
                 #fall
             }
             named := structural
-            if kind == TyKind.struct_ {
+            if kind == types.TyKind.struct_ {
                 is_tuple := false
                 fields := types_ptr.get_struct_fields(structural)
                 if fields.len > 0 {
@@ -309,15 +305,16 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
         val_slot := unify_ptr.get_slot(value_id)
         if val_slot != slot_none() {
             val_ty := unify_ptr.resolve_type(val_slot)
-            if types_ptr.kind(val_ty) == TyKind.type_ {
+            if types_ptr.kind(val_ty) == types.TyKind.type_ {
                 type_val := db.get_const_type(value_id)
-                if (type_val == ty_id_none()) and (tbl.kind(value_id) == hir_kind.splice) {
+                if (type_val == types.ty_id_none()) and
+                    (tbl.kind(value_id) == hir.hir_kind.splice) {
                     gen_node := tbl.extra(value_id)
-                    if gen_node != hir_none() {
+                    if gen_node != hir.hir_none() {
                         type_val = db.get_const_type(gen_node)
                     }
                 }
-                if type_val == ty_id_none() {
+                if type_val == types.ty_id_none() {
                     printf(
                         "\n\033[1;31m[type error]\033[0m type value cannot be resolved\n       --> "
                         .{}
@@ -329,10 +326,10 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
                 db.set_const_type(ident_id, type_val)
                 db.set_const_type(id, type_val)
             }
-            if type_id != hir_none() {
+            if type_id != hir.hir_none() {
                 expected := db.get_const_type(type_id)
-                if expected != ty_id_none() {
-                    check_value(db, value_id, expected)
+                if expected != types.ty_id_none() {
+                    type_common.check_value(db, value_id, expected)
                 }
             }
             val_slot = (unify_ptr).get_slot(value_id)
@@ -341,7 +338,7 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
     }
     (&(*db).unify).union(&(*db).types, slot, ident_slot)
 
-    if (tbl).kind(id) == hir_kind.binding {
+    if (tbl).kind(id) == hir.hir_kind.binding {
         db.set_is_const(id, true)
         db.set_is_const(ident_id, true)
         sym_id := db.get_hir_symbol(ident_id)
@@ -361,22 +358,22 @@ synth_var_or_binding :: fn(eng &Engine, id u32) {
     }
 }
 
-synth_arg :: fn(db &Nexus, tbl &HirTable, id u32) {
+synth_arg :: fn(db &Nexus, tbl &hir.HirTable, id u32) {
     unify_ptr := &(*db).unify
     types_ptr := &(*db).types
 
     ident_id := (tbl).lhs(id)
     ty_id := (tbl).rhs(id)
 
-    if ident_id != hir_none() {
+    if ident_id != hir.hir_none() {
         ident_slot := (unify_ptr).get_slot(ident_id)
         if ident_slot == slot_none() {
             ident_slot = (unify_ptr).new_slot(ident_id)
         }
-        if ty_id != hir_none() {
+        if ty_id != hir.hir_none() {
             type_val := db.get_const_type(ty_id)
-            if type_val != ty_id_none() {
-                if type_val == ty_id_type() {
+            if type_val != types.ty_id_none() {
+                if type_val == types.ty_id_type() {
                     t_infer := (&(*types_ptr)).alloc_infer(ident_slot)
                     db.set_const_type(ident_id, t_infer)
                     db.set_const_type(id, t_infer)
@@ -388,9 +385,9 @@ synth_arg :: fn(db &Nexus, tbl &HirTable, id u32) {
             }
         }
     } else {
-        if ty_id != hir_none() {
+        if ty_id != hir.hir_none() {
             type_val := db.get_const_type(ty_id)
-            if type_val != ty_id_none() {
+            if type_val != types.ty_id_none() {
                 db.set_const_type(id, type_val)
             }
         }
@@ -407,19 +404,19 @@ synth_destructure :: fn(eng &Engine, id u32) {
     synth_node(eng, rhs_node)
 
     rhs_slot := (unify_ptr).get_slot(rhs_node)
-    rhs_ty := ty_id_none()
+    rhs_ty := types.ty_id_none()
     if rhs_slot != slot_none() {
         rhs_ty = (unify_ptr).resolve_type_deep(types_ptr, rhs_slot)
     }
-    if rhs_ty == ty_id_none() {
+    if rhs_ty == types.ty_id_none() {
         rhs_ty = db.get_node_type(rhs_node)
     }
     t := rhs_ty
-    while (*types_ptr).kind(t) == TyKind.nominal {
+    while (*types_ptr).kind(t) == types.TyKind.nominal {
         t = (*types_ptr).nominal_base(t)
     }
 
-    if (*types_ptr).kind(t) != TyKind.struct_ {
+    if (*types_ptr).kind(t) != types.TyKind.struct_ {
         printf(
             "\n\033[1;31m[type error]\033[0m expected tuple on right-hand side of destructuring\n       --> "
             .{}
@@ -448,7 +445,7 @@ synth_destructure :: fn(eng &Engine, id u32) {
         ident_node := *(idents.ptr + i)
         f_name_id := db.tuple_field_name(i as u32)
 
-        f_ty := ty_id_none()
+        f_ty := types.ty_id_none()
         f_i: u64 = 0
         while f_i < field_count {
             fn_id := *(fields.ptr + (f_i * 2))
@@ -459,7 +456,7 @@ synth_destructure :: fn(eng &Engine, id u32) {
             f_i = f_i + 1
         }
 
-        if f_ty == ty_id_none() {
+        if f_ty == types.ty_id_none() {
             f_ty = *(fields.ptr + (i * 2) + 1)
         }
         ident_slot := (unify_ptr).get_slot(ident_node)
@@ -473,6 +470,6 @@ synth_destructure :: fn(eng &Engine, id u32) {
     }
 
     destruct_slot := (unify_ptr).new_slot(id)
-    (unify_ptr).bind_type(types_ptr, destruct_slot, ty_id_unit())
-    db.set_const_type(id, ty_id_unit())
+    (unify_ptr).bind_type(types_ptr, destruct_slot, types.ty_id_unit())
+    db.set_const_type(id, types.ty_id_unit())
 }

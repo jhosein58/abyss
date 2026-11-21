@@ -1,27 +1,15 @@
-Arch :: @import("core/target").Arch
-Os :: @import("core/target").Os
+target :: @import("core/target")
 Arena :: @import("std/allocator").Arena
 Env :: @import("std/env").Env
-read_file :: @import("std/fs").read_file
-write_file :: @import("std/fs").write_file
-Str :: @import("std/string").Str
-exit_process :: @import("std/sys").exit_process
-fall :: @import("std/sys").fall
+fs :: @import("std/fs")
+sys :: @import("std/sys")
 
-CCodeBuilder :: @import("compiler/codegen").CCodeBuilder
-CCodeGen :: @import("compiler/codegen").CCodeGen
-CCodeGen_destroy :: @import("compiler/codegen").CCodeGen_destroy
-CCodeGen_finish :: @import("compiler/codegen").CCodeGen_finish
-CCodeGen_new :: @import("compiler/codegen").CCodeGen_new
+c_codegen :: @import("compiler/codegen")
 Engine :: @import("compiler/engine").Engine
 id_none :: @import("compiler/nexus/pool").id_none
-host_arch :: @import("compiler/platform").host_arch
-host_os :: @import("compiler/platform").host_os
-parse_arch :: @import("compiler/platform").parse_arch
-parse_os :: @import("compiler/platform").parse_os
+platform :: @import("compiler/platform")
 TyKind :: @import("compiler/types").TyKind
-VmCodeBuilder :: @import("compiler/vm/codegen").VmCodeBuilder
-VmCodeGen :: @import("compiler/vm/codegen").VmCodeGen
+vm_codegen :: @import("compiler/vm/codegen")
 Vm :: @import("compiler/vm/vm").Vm
 
 CompilerConfig :: struct {
@@ -31,8 +19,8 @@ CompilerConfig :: struct {
     import_dirs  Vec(Str)
     map_keys     Vec(Str)
     map_values   Vec(Str)
-    target_os    Os
-    target_arch  Arch
+    target_os    target.Os
+    target_arch  target.Arch
     is_library   bool
     source_index i32
     from_env :: fn() Self {
@@ -43,8 +31,8 @@ CompilerConfig :: struct {
         import_dirs := Vec(Str).new()
         map_keys := Vec(Str).new()
         map_values := Vec(Str).new()
-        target_os := host_os()
-        arch := Maybe(Arch).none()
+        target_os := platform.host_os()
+        arch := Maybe(target.Arch).none()
         library := false
 
         pos_idx: i32 = 0
@@ -59,21 +47,21 @@ CompilerConfig :: struct {
                 vm_run = false
             } else if arg_str.eq("--version") {
                 print("abyssc target-aware")
-                exit_process(0)
+                sys.exit_process(0)
             } else if arg_str.eq("--target") {
                 i = i + 1
-                os := parse_os(Str.of(Env.arg(i)))
+                os := platform.parse_os(Str.of(Env.arg(i)))
                 if os.is_none() {
                     print("--target expects linux, windows, darwin, wasi, or freestanding")
-                    #fall
+                    #sys.fall
                 }
                 target_os = os.unwrap()
             } else if arg_str.eq("--arch") {
                 i = i + 1
-                arch = parse_arch(Str.of(Env.arg(i)))
+                arch = platform.parse_arch(Str.of(Env.arg(i)))
                 if arch.is_none() {
                     print("--arch expects x86_64, aarch64, or wasm32")
-                    #fall
+                    #sys.fall
                 }
             } else if arg_str.eq("--library") {
                 library = true
@@ -116,22 +104,27 @@ CompilerConfig :: struct {
         }
 
         target_arch := arch.unwrap_or(
-            if target_os == Os.wasi {
-                Arch.wasm32
-            } else if host_arch() == Arch.wasm32 and target_os != Os.freestanding {
-                Arch.x86_64
+            if target_os == target.Os.wasi {
+                target.Arch.wasm32
+            } else if platform.host_arch() == target.Arch.wasm32 and
+                target_os != target.Os.freestanding {
+                target.Arch.x86_64
             } else {
-                host_arch()
+                platform.host_arch()
             }
         )
-        if (target_os == Os.wasi and target_arch != Arch.wasm32) or
-            (target_arch == Arch.wasm32 and target_os != Os.wasi and target_os != Os.freestanding) {
+        if (target_os == target.Os.wasi and target_arch != target.Arch.wasm32) or
+            (
+                target_arch == target.Arch.wasm32 and target_os != target.Os.wasi and
+                    target_os != target.Os.freestanding
+            ) {
             print("unsupported target OS and architecture combination")
-            #fall
+            #sys.fall
         }
-        if vm_run and (library or target_os != host_os() or target_arch != host_arch()) {
+        if vm_run and
+            (library or target_os != platform.host_os() or target_arch != platform.host_arch()) {
             print("VM execution requires a program for the host target")
-            #fall
+            #sys.fall
         }
         .{
             src_path: src
@@ -160,7 +153,7 @@ Driver :: struct {
     }
 
     run :: fn(self &Self) {
-        source := read_file(self.arena, self.config.src_path)
+        source := fs.read_file(self.arena, self.config.src_path)
         eng := Engine.new(self.arena)
         eng.nexus.target_os = self.config.target_os
         eng.nexus.target_arch = self.config.target_arch
@@ -175,16 +168,16 @@ Driver :: struct {
             eng.nexus.map_values.push(self.config.map_values.get(j))
             j = j + 1
         }
-        executable := not self.config.is_library and self.config.target_os != Os.freestanding
+        executable := not self.config.is_library and self.config.target_os != target.Os.freestanding
         eng.nexus.native_output = not self.config.is_vm_run
         eng.nexus.native_executable = executable and eng.nexus.native_output
         fid := eng.add_file(Str.of(self.config.src_path), source)
         sym_id := eng.build_entry(fid, executable)
 
         if self.config.is_vm_run {
-            vcg := VmCodeGen.new(self.arena)
+            vcg := vm_codegen.VmCodeGen.new(self.arena)
             vcg.init_types(&eng.nexus.types, self.arena)
-            vbuilder := VmCodeBuilder.new(&vcg)
+            vbuilder := vm_codegen.VmCodeBuilder.new(&vcg)
             vcg.abyss_main(sym_id)
             eng.compile(&vcg, &vbuilder, self.arena, sym_id)
             vcg.finish_linking()
@@ -198,12 +191,12 @@ Driver :: struct {
             vcg.destroy()
             if eng.nexus.types.kind(eng.nexus.types.func_return(eng.type_of(sym_id))) !=
                 TyKind.unit {
-                exit_process(status as i32)
+                sys.exit_process(status as i32)
             }
             ret
         }
-        ccg := CCodeGen_new(self.arena)
-        builder := CCodeBuilder.new()
+        ccg := c_codegen.CCodeGen_new(self.arena)
+        builder := c_codegen.CCodeBuilder.new()
         ccg.target_os = self.config.target_os
         if executable {
             ccg.abyss_main(sym_id)
@@ -211,8 +204,8 @@ Driver :: struct {
             ccg.main_returns_status = eng.nexus.types.kind(return_type) != TyKind.unit
         }
         eng.compile(&ccg, &builder, self.arena, sym_id)
-        c_code := CCodeGen_finish(&ccg)
-        write_file(self.config.out_path, c_code)
-        CCodeGen_destroy(&ccg)
+        c_code := c_codegen.CCodeGen_finish(&ccg)
+        fs.write_file(self.config.out_path, c_code)
+        c_codegen.CCodeGen_destroy(&ccg)
     }
 }

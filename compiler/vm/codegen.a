@@ -1,17 +1,12 @@
 target_ptr_bits :: @import("core/target").target_ptr_bits
 Arena :: @import("std/allocator").Arena
 mem_set :: @import("std/mem").mem_set
-Str :: @import("std/string").Str
-String :: @import("std/string").String
 
-HirExprKind :: @import("compiler/hir").HirExprKind
-hir_kind :: @import("compiler/hir").hir_kind
-hir_none :: @import("compiler/hir").hir_none
+hir :: @import("compiler/hir")
+HirExprKind :: hir.HirExprKind
 decode_char_lit :: @import("compiler/lexer").decode_char_lit
-TyKind :: @import("compiler/types").TyKind
-TypeStorage :: @import("compiler/types").TypeStorage
-ty_id_none :: @import("compiler/types").ty_id_none
-
+type_defs :: @import("compiler/types")
+TypeStorage :: type_defs.TypeStorage
 Chunk :: @import("./chunk").Chunk
 append_ffi_signature :: @import("./ffi").append_ffi_signature
 OpCode :: @import("./op").OpCode
@@ -140,7 +135,7 @@ VmCodeGen :: struct {
             local_count: 0
             current_loop_start: 0
             data_cells: HashMap(u32, u64).new()
-            globals_entry: hir_none()
+            globals_entry: hir.hir_none()
             types: 0 as &TypeStorage
             local_types: Vec(u32).new()
             init_field_ids: Vec(u32).new()
@@ -222,9 +217,9 @@ VmCodeGen :: struct {
         t := ty
         while true {
             k := self.types.kind(t)
-            if k == TyKind.nominal {
+            if k == type_defs.TyKind.nominal {
                 t = self.types.nominal_base(t)
-            } else if k == TyKind.ptr {
+            } else if k == type_defs.TyKind.ptr {
                 t = self.types.payload(t)
             } else {
                 break
@@ -238,7 +233,7 @@ VmCodeGen :: struct {
             ret self.get_field_offset(field_id)
         }
         ty := self.unwrap_base_type(struct_ty)
-        if self.types.kind(ty) != TyKind.struct_ {
+        if self.types.kind(ty) != type_defs.TyKind.struct_ {
             ret self.get_field_offset(field_id)
         }
         fields := self.types.get_struct_fields(ty)
@@ -290,7 +285,7 @@ VmCodeGen :: struct {
             ret 0
         }
         ty := self.unwrap_base_type(struct_ty)
-        if self.types.kind(ty) != TyKind.struct_ {
+        if self.types.kind(ty) != type_defs.TyKind.struct_ {
             ret 0
         }
         fields := self.types.get_struct_fields(ty)
@@ -299,10 +294,10 @@ VmCodeGen :: struct {
         while i < count {
             if *(fields.ptr + (i * 2)) == field_id {
                 t_f := *(fields.ptr + (i * 2) + 1)
-                while self.types.kind(t_f) == TyKind.nominal {
+                while self.types.kind(t_f) == type_defs.TyKind.nominal {
                     t_f = self.types.nominal_base(t_f)
                 }
-                if self.types.kind(t_f) == TyKind.ptr {
+                if self.types.kind(t_f) == type_defs.TyKind.ptr {
                     pointee := self.types.payload(t_f)
                     if self.is_struct_type(pointee) {
                         ret 8
@@ -322,7 +317,7 @@ VmCodeGen :: struct {
                 ret self.unwrap_nominal(field.get(1))
             }
         }
-        ty_id_none()
+        type_defs.ty_id_none()
     }
 
     emit_offset :: fn(self &Self, offset u64) {
@@ -373,7 +368,7 @@ VmCodeGen :: struct {
     }
 
     prepare_ffi_store :: fn(self &Self, ty u32) {
-        if self.types.kind(ty) == TyKind.func {
+        if self.types.kind(ty) == type_defs.TyKind.func {
             self.chunk.inst(OpCode.ffi_callback)
             self.chunk.emit_u16(self.ffi_signature(ty))
         }
@@ -392,10 +387,10 @@ VmCodeGen :: struct {
         ty := self.get_local_type(slot)
         if (self.types != (0 as &TypeStorage)) and (ty != 0) {
             t := ty
-            while self.types.kind(t) == TyKind.nominal {
+            while self.types.kind(t) == type_defs.TyKind.nominal {
                 t = self.types.nominal_base(t)
             }
-            if self.types.kind(t) == TyKind.ptr {
+            if self.types.kind(t) == type_defs.TyKind.ptr {
                 ret self.types.payload(t)
             }
         }
@@ -513,9 +508,9 @@ VmCodeGen :: struct {
             } else {
                 self.emit_load(type_size(self.types, ty))
                 k := self.types.kind(ty)
-                if k == TyKind.int {
+                if k == type_defs.TyKind.int {
                     self.emit_integer_cast(ty)
-                } else if k == TyKind.enum_ {
+                } else if k == type_defs.TyKind.enum_ {
                     self.emit_integer_cast(self.types.enum_backing(ty))
                 }
             }
@@ -553,9 +548,9 @@ VmCodeGen :: struct {
             if not self.is_struct_type(ty) {
                 self.emit_load(type_size(self.types, ty))
                 kind := self.types.kind(ty)
-                if kind == TyKind.int {
+                if kind == type_defs.TyKind.int {
                     self.emit_integer_cast(ty)
-                } else if kind == TyKind.enum_ {
+                } else if kind == type_defs.TyKind.enum_ {
                     self.emit_integer_cast(self.types.enum_backing(ty))
                 }
             }
@@ -684,7 +679,7 @@ VmCodeGen :: struct {
         mem_set(storage, 0, size)
         base := self.unwrap_nominal(ty)
         kind := self.types.kind(base)
-        if kind == TyKind.struct_ and not self.types.struct_is_extern(base) {
+        if kind == type_defs.TyKind.struct_ and not self.types.struct_is_extern(base) {
             fields := self.types.get_struct_fields(base)
             i: u64 = 0
             while i < fields.len / 2 {
@@ -694,14 +689,14 @@ VmCodeGen :: struct {
                 }
                 i = i + 1
             }
-        } else if kind == TyKind.array {
+        } else if kind == type_defs.TyKind.array {
             elem := self.types.get_array_type(base)
             if vm_is_indirect(self.types, elem) {
                 for i in Range.new(0, self.types.get_array_len(base) as i32) {
                     (storage as &u64)[i] = self.zero_global(elem) as u64
                 }
             }
-        } else if kind == TyKind.union_ {
+        } else if kind == type_defs.TyKind.union_ {
             member := self.types.union_members(base).ptr[0]
             if vm_is_aggregate(self.types, member) {
                 (storage as &u64)[1] = self.zero_global(member) as u64
@@ -790,9 +785,9 @@ VmCodeGen :: struct {
             ty_id := ty.raw as u32
             if (self.types != (0 as &TypeStorage)) and (ty_id != 0) {
                 t := self.unwrap_nominal(ty_id)
-                if self.types.kind(t) == TyKind.struct_ {
+                if self.types.kind(t) == type_defs.TyKind.struct_ {
                     allocation_size = self.struct_alloc_size(ty_id)
-                } else if self.types.kind(t) == TyKind.array {
+                } else if self.types.kind(t) == type_defs.TyKind.array {
                     allocation_size = vm_element_size(self.types, self.types.get_array_type(t)) *
                         (self.types.get_array_len(t) as u64)
                 }
@@ -930,7 +925,7 @@ VmCodeGen :: struct {
             ret *cached
         }
         ptr := 0 as &u32
-        if ty != ty_id_none() and self.types.kind(ty) == TyKind.func {
+        if ty != type_defs.ty_id_none() and self.types.kind(ty) == type_defs.TyKind.func {
             signature := Vec(u32).new()
             append_ffi_signature(self.types, &signature, ty)
             ptr = self.arena.alloc(signature.len * 4) as &u32
@@ -1009,7 +1004,7 @@ VmCodeGen :: struct {
         self.chunk.inst(OpCode.cast_integer)
         self.chunk.emit_u8(width as u8)
         self.chunk.emit_u8(
-            if self.types.kind(ty) == TyKind.int {
+            if self.types.kind(ty) == type_defs.TyKind.int {
                 1 as u8
             } else {
                 0 as u8
@@ -1021,11 +1016,12 @@ VmCodeGen :: struct {
         ty := target.raw as u32
         src_kind := self.types.kind(source)
         dst_kind := self.types.kind(ty)
-        src_float := (src_kind == TyKind.float) or (src_kind == TyKind.untyped_float)
-        dst_float := dst_kind == TyKind.float
-        src_int := (src_kind == TyKind.int) or (src_kind == TyKind.uint) or
-            (src_kind == TyKind.untyped_int)
-        dst_int := (dst_kind == TyKind.int) or (dst_kind == TyKind.uint)
+        src_float := (src_kind == type_defs.TyKind.float) or
+            (src_kind == type_defs.TyKind.untyped_float)
+        dst_float := dst_kind == type_defs.TyKind.float
+        src_int := (src_kind == type_defs.TyKind.int) or (src_kind == type_defs.TyKind.uint) or
+            (src_kind == type_defs.TyKind.untyped_int)
+        dst_int := (dst_kind == type_defs.TyKind.int) or (dst_kind == type_defs.TyKind.uint)
         if (src_float or src_int) and (dst_float or dst_int) {
             self.ensure_on_stack(inner)
             if src_float {
@@ -1040,7 +1036,7 @@ VmCodeGen :: struct {
                 self.chunk.inst(OpCode.f64_to_i64)
             }
             if src_int and dst_float {
-                if src_kind == TyKind.uint {
+                if src_kind == type_defs.TyKind.uint {
                     self.chunk.inst(OpCode.u64_to_f64)
                 } else {
                     self.chunk.inst(OpCode.i64_to_f64)
@@ -1201,7 +1197,7 @@ VmCodeGen :: struct {
 
     unwrap_nominal :: fn(self &Self, ty u32) u32 {
         t := ty
-        while (t != 0) and (self.types.kind(t) == TyKind.nominal) {
+        while (t != 0) and (self.types.kind(t) == type_defs.TyKind.nominal) {
             t = self.types.nominal_base(t)
         }
         t
@@ -1212,7 +1208,7 @@ VmCodeGen :: struct {
             ret false
         }
         k := self.types.kind(self.unwrap_nominal(ty_id))
-        (k == TyKind.struct_) or (k == TyKind.array)
+        (k == type_defs.TyKind.struct_) or (k == type_defs.TyKind.array)
     }
 
     struct_alloc_size :: fn(self &Self, ty_id u32) u64 {
@@ -1221,10 +1217,10 @@ VmCodeGen :: struct {
         }
         t := self.unwrap_nominal(ty_id)
         k := self.types.kind(t)
-        if k == TyKind.array {
+        if k == type_defs.TyKind.array {
             ret type_size(self.types, t)
         }
-        if k != TyKind.struct_ {
+        if k != type_defs.TyKind.struct_ {
             ret 8
         }
         if self.types.struct_is_extern(t) {
@@ -1323,7 +1319,7 @@ VmCodeGen :: struct {
             elem_sz = self.get_local_elem_size(lhs.id)
         } else if lhs.kind == VmValKind.data or lhs.kind == VmValKind.data_ref {
             ty := self.data_type(lhs)
-            if self.types.kind(ty) == TyKind.ptr {
+            if self.types.kind(ty) == type_defs.TyKind.ptr {
                 elem_sz = vm_element_size(self.types, self.types.payload(ty)) as u16
             }
         } else if lhs.kind == VmValKind.member_deref {
@@ -1344,20 +1340,20 @@ VmCodeGen :: struct {
             self.ensure_on_stack(lhs)
             self.ensure_on_stack(rhs)
         }
-        if (kind == hir_kind.binary_add) or (kind == hir_kind.binary_sub) {
+        if (kind == hir.hir_kind.binary_add) or (kind == hir.hir_kind.binary_sub) {
             if elem_sz > 1 {
                 c_sz := self.chunk.alloc_const(elem_sz as u64)
                 self.chunk.inst(OpCode.push_const)
                 self.chunk.emit_u16(c_sz)
                 self.chunk.inst(OpCode.mul)
-                if kind == hir_kind.binary_add {
+                if kind == hir.hir_kind.binary_add {
                     self.chunk.inst(OpCode.add)
                 } else {
                     self.chunk.inst(OpCode.sub)
                 }
                 ret .{ kind: VmValKind.stack, elem_size: elem_sz, id: 0, raw: 0 }
             } else if elem_sz == 1 {
-                if kind == hir_kind.binary_add {
+                if kind == hir.hir_kind.binary_add {
                     self.chunk.inst(OpCode.add)
                 } else {
                     self.chunk.inst(OpCode.sub)
@@ -1365,7 +1361,7 @@ VmCodeGen :: struct {
                 ret .{ kind: VmValKind.stack, elem_size: 1, id: 0, raw: 0 }
             }
         }
-        k := hir_kind
+        k := hir.hir_kind
         if kind == k.binary_add {
             self.chunk.inst(OpCode.add)
         } else if kind == k.binary_sub {
@@ -1419,25 +1415,25 @@ VmCodeGen :: struct {
             ret result
         }
         k := self.types.kind(base)
-        if k == TyKind.float or k == TyKind.untyped_float {
+        if k == type_defs.TyKind.float or k == type_defs.TyKind.untyped_float {
             last := (self.chunk.buf.len - 1)
             op := self.chunk.buf.get(last)
             self.chunk.buf.set(last, OpCode.float_binary as u8)
             self.chunk.emit_u8(op)
             self.chunk.emit_u8(self.types.payload(base) as u8)
-        } else if k == TyKind.uint {
+        } else if k == type_defs.TyKind.uint {
             op := OpCode.halt
-            if kind == hir_kind.binary_div {
+            if kind == hir.hir_kind.binary_div {
                 op = OpCode.udiv
-            } else if kind == hir_kind.binary_mod {
+            } else if kind == hir.hir_kind.binary_mod {
                 op = OpCode.umod
-            } else if kind == hir_kind.binary_lt {
+            } else if kind == hir.hir_kind.binary_lt {
                 op = OpCode.ult
-            } else if kind == hir_kind.binary_lt_eq {
+            } else if kind == hir.hir_kind.binary_lt_eq {
                 op = OpCode.ule
-            } else if kind == hir_kind.binary_gt {
+            } else if kind == hir.hir_kind.binary_gt {
                 op = OpCode.ugt
-            } else if kind == hir_kind.binary_gt_eq {
+            } else if kind == hir.hir_kind.binary_gt_eq {
                 op = OpCode.uge
             }
             if op != OpCode.halt {
@@ -1450,7 +1446,7 @@ VmCodeGen :: struct {
     expr_neg :: fn(self &Self, arena &Arena, inner VmVal, ty u32) VmVal {
         base := self.unwrap_nominal(ty)
         kind := self.types.kind(base)
-        if kind == TyKind.float or kind == TyKind.untyped_float {
+        if kind == type_defs.TyKind.float or kind == type_defs.TyKind.untyped_float {
             bit := if self.types.payload(base) == 32 { 31 } else { 63 }
             mask := (1 as u64) << bit
             if inner.kind == VmValKind.const_int {
@@ -1605,7 +1601,7 @@ VmCodeGen :: struct {
         ty_id := ty_str.raw as u32
         if (self.types != (0 as &TypeStorage)) and (ty_id != 0) {
             k := self.types.kind(ty_id)
-            if (k == TyKind.float) and (self.types.payload(ty_id) == 32) {
+            if (k == type_defs.TyKind.float) and (self.types.payload(ty_id) == 32) {
                 if inner.kind == VmValKind.const_int {
                     d := *(&inner.raw as &f64)
                     f := d as f32
@@ -1617,10 +1613,10 @@ VmCodeGen :: struct {
                 self.chunk.inst(OpCode.f64_to_f32)
                 ret .{ kind: VmValKind.stack, elem_size: 32, id: 0, raw: 0 }
             }
-            if (k == TyKind.int) or (k == TyKind.uint) {
+            if (k == type_defs.TyKind.int) or (k == type_defs.TyKind.uint) {
                 if inner.kind == VmValKind.local {
                     src_ty := self.get_local_type(inner.id)
-                    if (src_ty != 0) and (self.types.kind(src_ty) == TyKind.float) {
+                    if (src_ty != 0) and (self.types.kind(src_ty) == type_defs.TyKind.float) {
                         self.ensure_on_stack(inner)
                         self.chunk.inst(OpCode.f32_to_i32)
                         ret VmVal.stack()
@@ -1763,7 +1759,7 @@ VmCodeGen :: struct {
             ty := if is_extern {
                 self.find_struct_field_type(self.unwrap_base_type(struct_ty), field)
             } else {
-                ty_id_none()
+                type_defs.ty_id_none()
             }
             if is_extern {
                 self.prepare_ffi_store(ty)
@@ -2014,7 +2010,7 @@ VmCodeGen :: struct {
         if (self.types != (0 as &TypeStorage)) and (ty_id != 0) {
             backing := self.types.enum_backing(ty_id)
             k := self.types.kind(backing)
-            if (k == TyKind.uint) or (k == TyKind.int) {
+            if (k == type_defs.TyKind.uint) or (k == type_defs.TyKind.int) {
                 p := self.types.payload(backing)
                 if p <= 8 {
                     val = val & 255
@@ -2043,11 +2039,12 @@ VmCodeGen :: struct {
     }
 
     expr_add :: fn(self &Self, arena &Arena, lhs VmVal, rhs VmVal) VmVal {
-        self.expr_binary_kind(arena, hir_kind.binary_add, lhs, rhs)
+        self.expr_binary_kind(arena, hir.hir_kind.binary_add, lhs, rhs)
     }
 
     define_struct :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
-        if (types.kind(ty_id) == TyKind.nominal) and (types.nominal_base(ty_id) == ty_id_none()) {
+        if (types.kind(ty_id) == type_defs.TyKind.nominal) and
+            (types.nominal_base(ty_id) == type_defs.ty_id_none()) {
             ret
         }
         fields := types.get_struct_fields(ty_id)
@@ -2083,8 +2080,11 @@ VmCodeGen :: struct {
         total := types.len()
         while t < total {
             k := types.kind(t)
-            if (k == TyKind.struct_) or
-                ((k == TyKind.nominal) and (types.nominal_base(t) != ty_id_none())) {
+            if (k == type_defs.TyKind.struct_) or
+                (
+                    (k == type_defs.TyKind.nominal) and
+                        (types.nominal_base(t) != type_defs.ty_id_none())
+                ) {
                 self.define_struct(types, arena, t)
             }
             t = t + 1
@@ -2182,7 +2182,7 @@ type_align :: fn(types &TypeStorage, ty_id u32) u64 {
 }
 
 vm_data_base :: fn(types &TypeStorage, ty u32) u32 {
-    while types.kind(ty) == TyKind.nominal {
+    while types.kind(ty) == type_defs.TyKind.nominal {
         ty = types.nominal_base(ty)
     }
     ty
@@ -2190,7 +2190,8 @@ vm_data_base :: fn(types &TypeStorage, ty u32) u32 {
 
 vm_is_aggregate :: fn(types &TypeStorage, ty u32) bool {
     kind := types.kind(vm_data_base(types, ty))
-    kind == TyKind.struct_ or kind == TyKind.array or kind == TyKind.union_
+    kind == type_defs.TyKind.struct_ or kind == type_defs.TyKind.array or
+        kind == type_defs.TyKind.union_
 }
 
 vm_is_indirect :: fn(types &TypeStorage, ty u32) bool {
@@ -2217,14 +2218,15 @@ vm_data_size :: fn(types &TypeStorage, ty u32) u64 {
 
 vm_element_size :: fn(types &TypeStorage, ty u32) u64 {
     kind := types.kind(ty)
-    while kind == TyKind.nominal {
+    while kind == type_defs.TyKind.nominal {
         ty = types.nominal_base(ty)
         kind = types.kind(ty)
     }
     if types.struct_is_extern(ty) {
         ret type_size(types, ty)
     }
-    if (kind == TyKind.struct_) or (kind == TyKind.array) or (kind == TyKind.union_) {
+    if (kind == type_defs.TyKind.struct_) or (kind == type_defs.TyKind.array) or
+        (kind == type_defs.TyKind.union_) {
         ret 8
     }
     type_size(types, ty)

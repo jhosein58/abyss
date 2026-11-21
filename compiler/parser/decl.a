@@ -1,51 +1,26 @@
 Ascii :: @import("std/ascii").Ascii
 parse_u32 :: @import("std/string").parse_u32
 
-hir_kind :: @import("compiler/hir").hir_kind
-hir_none :: @import("compiler/hir").hir_none
-Span :: @import("compiler/nexus/nexus").Span
+hir :: @import("compiler/hir")
 span_merge :: @import("compiler/nexus/nexus").span_merge
 id_none :: @import("compiler/nexus/pool").id_none
-Parser :: @import("compiler/parser/core").Parser
-begins_declaration :: @import("compiler/parser/core").begins_declaration
-bump :: @import("compiler/parser/core").bump
-capture_splice_scope :: @import("compiler/parser/core").capture_splice_scope
-curr_span :: @import("compiler/parser/core").curr_span
-curr_text :: @import("compiler/parser/core").curr_text
-expect :: @import("compiler/parser/core").expect
-is_eof :: @import("compiler/parser/core").is_eof
-lookup_sym :: @import("compiler/parser/core").lookup_sym
-optional :: @import("compiler/parser/core").optional
-parse_error_at :: @import("compiler/parser/core").parse_error_at
-peek :: @import("compiler/parser/core").peek
-peek_n :: @import("compiler/parser/core").peek_n
-peek_preceded_by_newline :: @import("compiler/parser/core").peek_preceded_by_newline
-prev_span :: @import("compiler/parser/core").prev_span
+parse :: @import("compiler/parser/core")
 parse_expr :: @import("compiler/parser/parser").parse_expr
 prec :: @import("compiler/parser/prec").prec
 Token :: @import("compiler/token").Token
 parse_builtin_type :: @import("compiler/typer/common").parse_builtin_type
 is_core_source :: @import("compiler/typer/decl").is_core_source
 ty_id_none :: @import("compiler/types").ty_id_none
-
-add_list :: @import("./common").add_list
-add_methods_id :: @import("./common").add_methods_id
-bind_method_owners :: @import("./common").bind_method_owners
-check_separator :: @import("./common").check_separator
-ensure_type_node :: @import("./common").ensure_type_node
-finish_type_node :: @import("./common").finish_type_node
-parse_method :: @import("./common").parse_method
-set_span :: @import("./common").set_span
-span_of_hir :: @import("./common").span_of_hir
+parse_common :: @import("./common")
 parse_ident :: @import("./expr").parse_ident
 parse_block :: @import("./stmt").parse_block
 
-parse_binding :: fn(p &Parser, lhs u32, right_bp u8) u32 {
-    k := hir_kind
-    sp_lhs := span_of_hir(p, lhs)
+parse_binding :: fn(p &parse.Parser, lhs u32, right_bp u8) u32 {
+    k := hir.hir_kind
+    sp_lhs := parse_common.span_of_hir(p, lhs)
 
     if p.hir.kind(lhs) != k.ident {
-        parse_error_at(p, c"left-hand side of declaration must be an identifier", sp_lhs)
+        parse.parse_error_at(p, c"left-hand side of declaration must be an identifier", sp_lhs)
     }
     name := p.hir.lhs(lhs)
     sym_id := p.toplv_sym
@@ -59,18 +34,18 @@ parse_binding :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     }
     saved_toplv := p.toplv_sym
     p.toplv_sym = sym_id
-    if tok != id_none() and peek_preceded_by_newline(p) and begins_declaration(p) {
-        parse_error_at(p, c"expected a declaration after '::'", prev_span(p))
+    if tok != id_none() and parse.peek_preceded_by_newline(p) and parse.begins_declaration(p) {
+        parse.parse_error_at(p, c"expected a declaration after '::'", parse.prev_span(p))
     }
     rhs := parse_expr(p, right_bp)
     p.toplv_sym = saved_toplv
-    if rhs == hir_none() {
-        parse_error_at(p, c"expected a declaration after '::'", curr_span(p))
+    if rhs == hir.hir_none() {
+        parse.parse_error_at(p, c"expected a declaration after '::'", parse.curr_span(p))
     }
-    sp_rhs := span_of_hir(p, rhs)
+    sp_rhs := parse_common.span_of_hir(p, rhs)
 
-    binding_id := p.hir.push(k.binding, lhs, hir_none(), rhs)
-    set_span(p, binding_id, span_merge(sp_lhs, sp_rhs))
+    binding_id := p.hir.push(k.binding, lhs, hir.hir_none(), rhs)
+    parse_common.set_span(p, binding_id, span_merge(sp_lhs, sp_rhs))
 
     if sym_id != id_none() {
         p.db.set_hir_symbol(binding_id, sym_id)
@@ -78,18 +53,18 @@ parse_binding :: fn(p &Parser, lhs u32, right_bp u8) u32 {
     binding_id
 }
 
-parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
+parse_var_decl :: fn(p &parse.Parser, lhs u32, right_bp u8) u32 {
     t := Token
-    k := hir_kind
+    k := hir.hir_kind
 
     if p.hir.kind(lhs) != k.ident {
-        parse_error_at(
+        parse.parse_error_at(
             p
             c"left-hand side of declaration must be an identifier"
-            span_of_hir(p, lhs)
+            parse_common.span_of_hir(p, lhs)
         )
     }
-    sp_lhs := span_of_hir(p, lhs)
+    sp_lhs := parse_common.span_of_hir(p, lhs)
 
     name_id := p.hir.lhs(lhs)
     sym_id := p.toplv_sym
@@ -104,63 +79,72 @@ parse_var_decl :: fn(p &Parser, lhs u32, right_bp u8) u32 {
 
     saved_toplv := p.toplv_sym
     p.toplv_sym = id_none()
-    ty := hir_none()
-    val := hir_none()
+    ty := hir.hir_none()
+    val := hir.hir_none()
     kind := k.var
     has_init := false
     sp_end := sp_lhs
-    if optional(p, t.eq) {
+    if parse.optional(p, t.eq) {
         has_init = true
-        if tok_start != id_none() and peek_preceded_by_newline(p) and begins_declaration(p) {
-            parse_error_at(p, c"expected an initializer after declaration operator", prev_span(p))
+        if tok_start != id_none() and parse.peek_preceded_by_newline(p) and
+            parse.begins_declaration(p) {
+            parse.parse_error_at(
+                p
+                c"expected an initializer after declaration operator"
+                parse.prev_span(p)
+            )
         }
         val = parse_expr(p, 0)
     } else {
         ty = parse_expr(p, prec().var_def + (1 as u8))
-        if ty == hir_none() {
-            parse_error_at(p, c"expected a type after ':'", curr_span(p))
+        if ty == hir.hir_none() {
+            parse.parse_error_at(p, c"expected a type after ':'", parse.curr_span(p))
         }
-        sp_end = span_of_hir(p, ty)
-        if optional(p, t.eq) {
+        sp_end = parse_common.span_of_hir(p, ty)
+        if parse.optional(p, t.eq) {
             has_init = true
             val = parse_expr(p, 0)
-        } else if optional(p, t.colon) {
+        } else if parse.optional(p, t.colon) {
             kind = k.binding
             has_init = true
             val = parse_expr(p, 0)
         }
     }
-    if val != hir_none() {
-        sp_end = span_of_hir(p, val)
+    if val != hir.hir_none() {
+        sp_end = parse_common.span_of_hir(p, val)
     } else if has_init {
-        parse_error_at(p, c"expected an initializer after declaration operator", curr_span(p))
+        parse.parse_error_at(
+            p
+            c"expected an initializer after declaration operator"
+            parse.curr_span(p)
+        )
     }
     p.toplv_sym = saved_toplv
     node := p.hir.push(kind, lhs, ty, val)
-    set_span(p, node, span_merge(sp_lhs, sp_end))
+    parse_common.set_span(p, node, span_merge(sp_lhs, sp_end))
     p.db.set_hir_symbol(node, sym_id)
     node
 }
 
-parse_destructure :: fn(p &Parser) u32 {
+parse_destructure :: fn(p &parse.Parser) u32 {
     t := Token
-    k := hir_kind
-    sp_start := curr_span(p)
+    k := hir.hir_kind
+    sp_start := parse.curr_span(p)
 
     idents := Vec(u32).new()
 
     first := parse_ident(p)
     idents.push(first)
 
-    while optional(p, t.comma) {
+    while parse.optional(p, t.comma) {
         idents.push(parse_ident(p))
     }
 
-    expect(p, t.colon)
-    expect(p, t.eq)
+    parse.expect(p, t.colon)
+    parse.expect(p, t.eq)
 
     rhs := parse_expr(p, 0 as u8)
-    sp_end := span_of_hir(p, rhs)
+    sp_end := parse_common.span_of_hir(p, rhs)
 
     i: u64 = 0
     while i < idents.len {
@@ -172,18 +156,22 @@ parse_destructure :: fn(p &Parser) u32 {
         i = i + 1
     }
 
-    list_id := add_list(p, &idents)
+    list_id := parse_common.add_list(p, &idents)
     idents.destroy()
 
-    node := p.hir.push(k.destructure, list_id, hir_none(), rhs)
-    set_span(p, node, span_merge(sp_start, sp_end))
+    node := p.hir.push(k.destructure, list_id, hir.hir_none(), rhs)
+    parse_common.set_span(p, node, span_merge(sp_start, sp_end))
     node
 }
 
-define_param :: fn(p &Parser, name_hir u32) u32 {
-    k := hir_kind
+define_param :: fn(p &parse.Parser, name_hir u32) u32 {
+    k := hir.hir_kind
     if p.hir.kind(name_hir) != k.ident {
-        parse_error_at(p, c"parameter name must be an identifier", span_of_hir(p, name_hir))
+        parse.parse_error_at(
+            p
+            c"parameter name must be an identifier"
+            parse_common.span_of_hir(p, name_hir)
+        )
     }
     name_id := p.hir.lhs(name_hir)
     sym_id := p.db.alloc_local_symbol(p.file_id, name_id, name_hir)
@@ -192,100 +180,109 @@ define_param :: fn(p &Parser, name_hir u32) u32 {
     sym_id
 }
 
-push_arg :: fn(p &Parser, args &Vec(u32), name u32, ty u32) {
-    k := hir_kind
-    sp := span_of_hir(p, ty)
+push_arg :: fn(p &parse.Parser, args &Vec(u32), name u32, ty u32) {
+    k := hir.hir_kind
+    sp := parse_common.span_of_hir(p, ty)
     sym_id := id_none()
-    if name != hir_none() {
+    if name != hir.hir_none() {
         sym_id = define_param(p, name)
-        sp = span_merge(span_of_hir(p, name), sp)
+        sp = span_merge(parse_common.span_of_hir(p, name), sp)
     }
-    arg_id := p.hir.push(k.arg, name, ty, hir_none())
-    set_span(p, arg_id, sp)
+    arg_id := p.hir.push(k.arg, name, ty, hir.hir_none())
+    parse_common.set_span(p, arg_id, sp)
     if sym_id != id_none() {
         p.db.set_hir_symbol(arg_id, sym_id)
     }
     args.push(arg_id)
 }
 
-flush_anonymous_params :: fn(p &Parser, args, pending &Vec(u32)) {
+flush_anonymous_params :: fn(p &parse.Parser, args, pending &Vec(u32)) {
     for param in pending.as_slice() {
-        push_arg(p, args, hir_none(), param)
+        push_arg(p, args, hir.hir_none(), param)
     }
     pending.clear()
 }
 
-reject_ellipsis :: fn(p &Parser) {
-    if peek(p) == Token.dot and peek_n(p, 1) == Token.dot and peek_n(p, 2) == Token.dot {
-        parse_error_at(
+reject_ellipsis :: fn(p &parse.Parser) {
+    if parse.peek(p) == Token.dot and parse.peek_n(p, 1) == Token.dot and
+        parse.peek_n(p, 2) == Token.dot {
+        parse.parse_error_at(
             p
             c"variadic parameters are not supported; use tuples for type-safe formatting"
-            curr_span(p)
+            parse.curr_span(p)
         )
     }
 }
 
-parse_params :: fn(p &Parser) u32 {
+parse_params :: fn(p &parse.Parser) u32 {
     t := Token
-    k := hir_kind
+    k := hir.hir_kind
     args := Vec(u32).new()
     pending_names := Vec(u32).new()
 
-    while (peek(p) != t.c_paren) and (not is_eof(p)) {
+    while (parse.peek(p) != t.c_paren) and (not parse.is_eof(p)) {
         reject_ellipsis(p)
-        if pending_names.len > 0 and peek_preceded_by_newline(p) {
+        if pending_names.len > 0 and parse.peek_preceded_by_newline(p) {
             flush_anonymous_params(p, &args, &pending_names)
         }
-        if optional(p, t.kw_cmpt) {
+        if parse.optional(p, t.kw_cmpt) {
             if pending_names.len > 0 {
-                parse_error_at(
+                parse.parse_error_at(
                     p
                     c"compile-time parameters cannot share a type with preceding parameters"
-                    curr_span(p)
+                    parse.curr_span(p)
                 )
             }
             name := parse_ident(p)
             ty := parse_expr(p, prec().var_def + (1 as u8))
             push_arg(p, &args, name, ty)
             p.hir.set_extra(args.get(args.len - 1), 1)
-            check_separator(p, t.c_paren, c"expected ',' or newline after compile-time parameter")
+            parse_common.check_separator(
+                p
+                t.c_paren
+                c"expected ',' or newline after compile-time parameter"
+            )
             cont
         }
-        is_type_token := (peek(p) == t.amp) or (peek(p) == t.star) or (peek(p) == t.o_bracket) or
-            (peek(p) == t.at) or
-            (peek(p) == t.kw_fn) or
-            (peek(p) == t.kw_struct) or
-            (peek(p) == t.kw_enum)
+        is_type_token := (parse.peek(p) == t.amp) or (parse.peek(p) == t.star) or
+            (parse.peek(p) == t.o_bracket) or
+            (parse.peek(p) == t.at) or
+            (parse.peek(p) == t.kw_fn) or
+            (parse.peek(p) == t.kw_struct) or
+            (parse.peek(p) == t.kw_enum)
 
         if is_type_token or
-            (peek(p) == t.ident and peek_n(p, 1) == t.dot and peek_n(p, 2) == t.ident) {
+            (
+                parse.peek(p) == t.ident and parse.peek_n(p, 1) == t.dot and
+                    parse.peek_n(p, 2) == t.ident
+            ) {
             flush_anonymous_params(p, &args, &pending_names)
             ty := parse_expr(p, prec().var_def + (1 as u8))
-            push_arg(p, &args, hir_none(), ty)
-            check_separator(p, t.c_paren, c"expected ',' or newline after parameter")
+            push_arg(p, &args, hir.hir_none(), ty)
+            parse_common.check_separator(p, t.c_paren, c"expected ',' or newline after parameter")
             cont
         }
-        if peek(p) != t.ident {
-            parse_error_at(p, c"expected parameter name or type", curr_span(p))
+        if parse.peek(p) != t.ident {
+            parse.parse_error_at(p, c"expected parameter name or type", parse.curr_span(p))
         }
         name := parse_ident(p)
         pending_names.push(name)
         reject_ellipsis(p)
 
-        next_tk := peek(p)
+        next_tk := parse.peek(p)
         has_explicit_type := (next_tk == t.ident) or (next_tk == t.amp) or (next_tk == t.star) or
             (next_tk == t.o_bracket) or
             (next_tk == t.at) or
             (next_tk == t.kw_fn) or
             (next_tk == t.kw_struct) or
             (next_tk == t.kw_enum)
-        if has_explicit_type and not peek_preceded_by_newline(p) {
+        if has_explicit_type and not parse.peek_preceded_by_newline(p) {
             ty := parse_expr(p, prec().var_def + (1 as u8))
             for param in pending_names.as_slice() {
                 push_arg(p, &args, param, ty)
             }
             pending_names.clear()
-            check_separator(p, t.c_paren, c"expected ',' or newline after parameter")
+            parse_common.check_separator(p, t.c_paren, c"expected ',' or newline after parameter")
             cont
         }
 
@@ -293,37 +290,37 @@ parse_params :: fn(p &Parser) u32 {
         if parse_builtin_type(&p.db.types, name_text) != ty_id_none() {
             flush_anonymous_params(p, &args, &pending_names)
         }
-        if optional(p, t.comma) {
+        if parse.optional(p, t.comma) {
             cont
         }
-        if peek(p) == t.c_paren {
+        if parse.peek(p) == t.c_paren {
             break
         }
-        if peek_preceded_by_newline(p) {
+        if parse.peek_preceded_by_newline(p) {
             cont
         }
-        parse_error_at(p, c"expected parameter type or ','", curr_span(p))
+        parse.parse_error_at(p, c"expected parameter type or ','", parse.curr_span(p))
     }
 
-    expect(p, t.c_paren)
+    parse.expect(p, t.c_paren)
 
     flush_anonymous_params(p, &args, &pending_names)
     pending_names.destroy()
 
-    params := hir_none()
+    params := hir.hir_none()
     if args.len > 0 {
-        params = add_list(p, &args)
+        params = parse_common.add_list(p, &args)
     }
     args.destroy()
     params
 }
 
-parse_fn :: fn(p &Parser, min_bp u8) u32 {
+parse_fn :: fn(p &parse.Parser, min_bp u8) u32 {
     t := Token
-    k := hir_kind
-    sp_start := curr_span(p)
-    bump(p)
-    expect(p, t.o_paren)
+    k := hir.hir_kind
+    sp_start := parse.curr_span(p)
+    parse.bump(p)
+    parse.expect(p, t.o_paren)
 
     saved_toplv := p.toplv_sym
     p.toplv_sym = id_none()
@@ -331,11 +328,12 @@ parse_fn :: fn(p &Parser, min_bp u8) u32 {
     env_mark := p.env.mark()
     params := parse_params(p)
 
-    ret_ty := hir_none()
-    sp_end := prev_span(p)
+    ret_ty := hir.hir_none()
+    sp_end := parse.prev_span(p)
 
-    next := peek(p)
-    has_ret := (not is_eof(p)) and (not peek_preceded_by_newline(p)) and (next != t.o_brace) and
+    next := parse.peek(p)
+    has_ret := (not parse.is_eof(p)) and (not parse.peek_preceded_by_newline(p)) and
+        (next != t.o_brace) and
         (next != t.eq) and
         (next != t.comma) and
         (next != t.c_paren) and
@@ -344,7 +342,7 @@ parse_fn :: fn(p &Parser, min_bp u8) u32 {
 
     if has_ret {
         ret_ty = parse_expr(p, prec().var_def + (1 as u8))
-        sp_end = span_of_hir(p, ret_ty)
+        sp_end = parse_common.span_of_hir(p, ret_ty)
     }
     p.toplv_sym = saved_toplv
     is_toplv_fn := p.toplv_sym != id_none()
@@ -354,15 +352,15 @@ parse_fn :: fn(p &Parser, min_bp u8) u32 {
         fn_sym = p.toplv_sym
         p.toplv_sym = id_none()
     }
-    fn_node := p.hir.push(k.function, params, ret_ty, hir_none())
+    fn_node := p.hir.push(k.function, params, ret_ty, hir.hir_none())
     if is_toplv_fn {
         p.db.set_hir_symbol(fn_node, fn_sym)
     }
-    body := hir_none()
+    body := hir.hir_none()
     can_have_body := min_bp <= prec().var_def
-    if can_have_body and (peek(p) == t.o_brace) {
+    if can_have_body and (parse.peek(p) == t.o_brace) {
         body = parse_block(p)
-        sp_end = span_of_hir(p, body)
+        sp_end = parse_common.span_of_hir(p, body)
         p.hir.set_rhs(body, fn_node)
         if not is_toplv_fn {
             fn_sym = p.db.alloc_local_symbol(p.file_id, 0, fn_node)
@@ -372,112 +370,124 @@ parse_fn :: fn(p &Parser, min_bp u8) u32 {
     p.env.reset(env_mark)
 
     p.hir.set_extra(fn_node, body)
-    set_span(p, fn_node, span_merge(sp_start, sp_end))
+    parse_common.set_span(p, fn_node, span_merge(sp_start, sp_end))
 }
 
-extern_identifier :: fn(p &Parser) u32 {
-    raw := curr_text(p)
+extern_identifier :: fn(p &parse.Parser) u32 {
+    raw := parse.curr_text(p)
     name := raw.sub(1, raw.len - 2)
     if name.len == 0 or not Ascii.is_alpha(*name.ptr) {
-        parse_error_at(p, c"expected a C identifier for the external symbol", curr_span(p))
+        parse.parse_error_at(
+            p
+            c"expected a C identifier for the external symbol"
+            parse.curr_span(p)
+        )
     }
     for index in Range.new(1, name.len as i32) {
         if not Ascii.is_alphanumeric(*(name.ptr + index)) {
-            parse_error_at(p, c"expected a C identifier for the external symbol", curr_span(p))
+            parse.parse_error_at(
+                p
+                c"expected a C identifier for the external symbol"
+                parse.curr_span(p)
+            )
         }
     }
-    bump(p)
+    parse.bump(p)
     p.db.interner.intern(name)
 }
 
-parse_extern :: fn(p &Parser, min_bp u8) u32 {
+parse_extern :: fn(p &parse.Parser, min_bp u8) u32 {
     t := Token
-    start := curr_span(p)
+    start := parse.curr_span(p)
     if is_core_source(p.db.get_file_path(p.file_id)) {
-        parse_error_at(p, c"core modules cannot declare extern", start)
+        parse.parse_error_at(p, c"core modules cannot declare extern", start)
     }
-    bump(p)
+    parse.bump(p)
     custom_sym := id_none()
     import_module := id_none()
-    if peek(p) == t.lit_str {
+    if parse.peek(p) == t.lit_str {
         custom_sym = extern_identifier(p)
-        if peek(p) == t.lit_str {
+        if parse.peek(p) == t.lit_str {
             import_module = custom_sym
             custom_sym = extern_identifier(p)
         }
-        if peek(p) != t.kw_fn {
-            parse_error_at(p, c"expected 'fn' after custom extern symbol", curr_span(p))
+        if parse.peek(p) != t.kw_fn {
+            parse.parse_error_at(p, c"expected 'fn' after custom extern symbol", parse.curr_span(p))
         }
     }
-    if peek(p) == t.kw_fn {
+    if parse.peek(p) == t.kw_fn {
         if p.toplv_sym == id_none() or p.db.sym_tok_start(p.toplv_sym) == id_none() {
-            parse_error_at(p, c"external functions require a top-level binding", start)
+            parse.parse_error_at(p, c"external functions require a top-level binding", start)
         }
         fn_node := parse_fn(p, min_bp)
         if import_module != id_none() {
-            if p.hir.extra(fn_node) != hir_none() {
-                parse_error_at(p, c"WebAssembly imports cannot have a function body", start)
+            if p.hir.extra(fn_node) != hir.hir_none() {
+                parse.parse_error_at(p, c"WebAssembly imports cannot have a function body", start)
             }
             p.db.extern_modules.insert(fn_node, import_module)
         }
         p.db.set_extern_fn(fn_node, custom_sym)
         ret fn_node
     }
-    if peek(p) == t.kw_struct {
+    if parse.peek(p) == t.kw_struct {
         struct_node := parse_struct(p)
         p.db.set_extern_struct(struct_node)
         ret struct_node
     }
-    parse_error_at(p, c"expected 'fn' or 'struct' after 'extern'", curr_span(p))
-    hir_none()
+    parse.parse_error_at(p, c"expected 'fn' or 'struct' after 'extern'", parse.curr_span(p))
+    hir.hir_none()
 }
 
-parse_paren :: fn(p &Parser) u32 {
+parse_paren :: fn(p &parse.Parser) u32 {
     t := Token
-    sp_start := curr_span(p)
-    bump(p)
+    sp_start := parse.curr_span(p)
+    parse.bump(p)
     expr := parse_expr(p, 0 as u8)
-    expect(p, t.c_paren)
-    sp_end := prev_span(p)
-    set_span(p, expr, span_merge(sp_start, sp_end))
+    parse.expect(p, t.c_paren)
+    sp_end := parse.prev_span(p)
+    parse_common.set_span(p, expr, span_merge(sp_start, sp_end))
 }
 
-parse_call :: fn(p &Parser, lhs u32, right_bp u8) u32 {
+parse_call :: fn(p &parse.Parser, lhs u32, right_bp u8) u32 {
     t := Token
-    k := hir_kind
-    sp_lhs := span_of_hir(p, lhs)
+    k := hir.hir_kind
+    sp_lhs := parse_common.span_of_hir(p, lhs)
 
     args := Vec(u32).new()
-    if not optional(p, t.c_paren) {
+    if not parse.optional(p, t.c_paren) {
         while true {
-            if peek(p) == t.c_paren {
+            if parse.peek(p) == t.c_paren {
                 break
             }
-            if is_eof(p) {
-                parse_error_at(p, c"unclosed call, expected ')'", sp_lhs)
+            if parse.is_eof(p) {
+                parse.parse_error_at(p, c"unclosed call, expected ')'", sp_lhs)
             }
             arg := parse_expr(p, 0 as u8)
-            if arg == hir_none() {
-                parse_error_at(p, c"expected call argument", curr_span(p))
+            if arg == hir.hir_none() {
+                parse.parse_error_at(p, c"expected call argument", parse.curr_span(p))
             }
             args.push(arg)
 
-            if peek(p) == t.c_paren {
+            if parse.peek(p) == t.c_paren {
                 break
             }
-            check_separator(p, t.c_paren, c"expected ',' or newline after call argument")
+            parse_common.check_separator(
+                p
+                t.c_paren
+                c"expected ',' or newline after call argument"
+            )
         }
-        expect(p, t.c_paren)
+        parse.expect(p, t.c_paren)
     }
-    sp_end := prev_span(p)
-    args_list := add_list(p, &args)
+    sp_end := parse.prev_span(p)
+    args_list := parse_common.add_list(p, &args)
     args.destroy()
 
-    node := p.hir.push(k.call, lhs, args_list, hir_none())
-    set_span(p, node, span_merge(sp_lhs, sp_end))
+    node := p.hir.push(k.call, lhs, args_list, hir.hir_none())
+    parse_common.set_span(p, node, span_merge(sp_lhs, sp_end))
 }
 
-is_tuple_struct :: fn(p &Parser) bool {
+is_tuple_struct :: fn(p &parse.Parser) bool {
     t := Token
     scan := p.cursor
     if (scan >= p.end) or (p.tokens.kind(scan) == t.c_brace) {
@@ -509,13 +519,13 @@ is_tuple_struct :: fn(p &Parser) bool {
     false
 }
 
-parse_struct :: fn(p &Parser) u32 {
+parse_struct :: fn(p &parse.Parser) u32 {
     t := Token
-    k := hir_kind
-    sp_start := curr_span(p)
-    bump(p)
-    if not expect(p, t.o_brace) {
-        parse_error_at(p, c"expected '{' after struct", curr_span(p))
+    k := hir.hir_kind
+    sp_start := parse.curr_span(p)
+    parse.bump(p)
+    if not parse.expect(p, t.o_brace) {
+        parse.parse_error_at(p, c"expected '{' after struct", parse.curr_span(p))
     }
     env_mark := p.env.mark()
 
@@ -530,32 +540,36 @@ parse_struct :: fn(p &Parser) u32 {
 
     if is_tuple_struct(p) {
         idx: u32 = 0
-        while (peek(p) != t.c_brace) and (not is_eof(p)) {
-            sp_ty := curr_span(p)
+        while (parse.peek(p) != t.c_brace) and (not parse.is_eof(p)) {
+            sp_ty := parse.curr_span(p)
             ty := parse_expr(p, prec().var_def + (1 as u8))
-            if ty == hir_none() {
-                parse_error_at(p, c"expected a tuple field type", sp_ty)
+            if ty == hir.hir_none() {
+                parse.parse_error_at(p, c"expected a tuple field type", sp_ty)
             }
             f_name_id := p.db.tuple_field_name(idx)
-            f_ident := p.hir.push(k.ident, f_name_id, hir_none(), hir_none())
-            set_span(p, f_ident, sp_ty)
+            f_ident := p.hir.push(k.ident, f_name_id, hir.hir_none(), hir.hir_none())
+            parse_common.set_span(p, f_ident, sp_ty)
 
             names.push(f_ident)
             types.push(ty)
             idx = idx + 1
 
-            check_separator(p, t.c_brace, c"expected ',' or newline between tuple fields")
+            parse_common.check_separator(
+                p
+                t.c_brace
+                c"expected ',' or newline between tuple fields"
+            )
         }
     } else {
-        while (peek(p) != t.c_brace) and (not is_eof(p)) {
-            if peek(p) == t.hash {
-                ensure_type_node(p, &struct_node, k.struct_, struct_toplv)
-                sp_start := curr_span(p)
-                bump(p)
+        while (parse.peek(p) != t.c_brace) and (not parse.is_eof(p)) {
+            if parse.peek(p) == t.hash {
+                parse_common.ensure_type_node(p, &struct_node, k.struct_, struct_toplv)
+                sp_start := parse.curr_span(p)
+                parse.bump(p)
                 has_paren := false
-                if peek(p) == t.o_paren {
+                if parse.peek(p) == t.o_paren {
                     has_paren = true
-                    bump(p)
+                    parse.bump(p)
                 }
                 expr := parse_expr(
                     p
@@ -566,38 +580,50 @@ parse_struct :: fn(p &Parser) u32 {
                     }
                 )
                 if has_paren {
-                    if not expect(p, t.c_paren) {
-                        parse_error_at(p, c"expected ')' after macro expression", curr_span(p))
+                    if not parse.expect(p, t.c_paren) {
+                        parse.parse_error_at(
+                            p
+                            c"expected ')' after macro expression"
+                            parse.curr_span(p)
+                        )
                     }
                 }
-                splice_node := p.hir.push(k.splice, expr, struct_node, hir_none())
-                capture_splice_scope(p, splice_node)
-            set_span(p, splice_node, span_merge(sp_start, prev_span(p)))
+                splice_node := p.hir.push(k.splice, expr, struct_node, hir.hir_none())
+                parse.capture_splice_scope(p, splice_node)
+                parse_common.set_span(p, splice_node, span_merge(sp_start, parse.prev_span(p)))
                 if struct_toplv != id_none() {
                     p.db.set_hir_symbol(splice_node, struct_toplv)
                     p.db.set_method_owner(splice_node, struct_toplv)
                 }
                 methods.push(splice_node)
-                check_separator(p, t.c_brace, c"expected ',' or newline after '#' in struct")
+                parse_common.check_separator(
+                    p
+                    t.c_brace
+                    c"expected ',' or newline after '#' in struct"
+                )
                 cont
             }
             name := parse_ident(p)
-            if peek(p) == t.colon_colon {
-                ensure_type_node(p, &struct_node, k.struct_, struct_toplv)
-                parse_method(p, name, &methods)
+            if parse.peek(p) == t.colon_colon {
+                parse_common.ensure_type_node(p, &struct_node, k.struct_, struct_toplv)
+                parse_common.parse_method(p, name, &methods)
                 cont
             }
             field_names.push(name)
-            while optional(p, t.comma) {
+            while parse.optional(p, t.comma) {
                 field_names.push(parse_ident(p))
             }
 
-            if peek(p) == t.colon {
-                parse_error_at(p, c"struct fields use 'name Type' without ':'", curr_span(p))
+            if parse.peek(p) == t.colon {
+                parse.parse_error_at(
+                    p
+                    c"struct fields use 'name Type' without ':'"
+                    parse.curr_span(p)
+                )
             }
             ty := parse_expr(p, prec().var_def + (1 as u8))
-            if ty == hir_none() {
-                parse_error_at(p, c"expected a field type", curr_span(p))
+            if ty == hir.hir_none() {
+                parse.parse_error_at(p, c"expected a field type", parse.curr_span(p))
             }
             f_i: u64 = 0
             while f_i < field_names.len {
@@ -607,26 +633,30 @@ parse_struct :: fn(p &Parser) u32 {
             }
             field_names.clear()
 
-            check_separator(p, t.c_brace, c"expected ',' or newline between struct fields")
+            parse_common.check_separator(
+                p
+                t.c_brace
+                c"expected ',' or newline between struct fields"
+            )
         }
     }
 
-    if is_eof(p) and (peek(p) != t.c_brace) {
-        parse_error_at(p, c"unclosed struct definition, expected '}'", sp_start)
+    if parse.is_eof(p) and (parse.peek(p) != t.c_brace) {
+        parse.parse_error_at(p, c"unclosed struct definition, expected '}'", sp_start)
     }
-    expect(p, t.c_brace)
-    sp_end := prev_span(p)
+    parse.expect(p, t.c_brace)
+    sp_end := parse.prev_span(p)
 
-    names_id := add_list(p, &names)
-    types_id := add_list(p, &types)
+    names_id := parse_common.add_list(p, &names)
+    types_id := parse_common.add_list(p, &types)
     names.destroy()
     types.destroy()
     field_names.destroy()
 
     p.env.reset(env_mark)
 
-    methods_id := add_methods_id(p, &methods)
-    finish_type_node(
+    methods_id := parse_common.add_methods_id(p, &methods)
+    parse_common.finish_type_node(
         p
         &struct_node
         k.struct_
@@ -639,69 +669,69 @@ parse_struct :: fn(p &Parser) u32 {
     )
 }
 
-parse_struct_init :: fn(p &Parser) u32 {
+parse_struct_init :: fn(p &parse.Parser) u32 {
     t := Token
-    k := hir_kind
-    sp_start := curr_span(p)
-    bump(p)
-    expect(p, t.o_brace)
+    k := hir.hir_kind
+    sp_start := parse.curr_span(p)
+    parse.bump(p)
+    parse.expect(p, t.o_brace)
 
     fields := Vec(u32).new()
     values := Vec(u32).new()
 
     tup_idx: u32 = 0
-    while (peek(p) != t.c_brace) and (not is_eof(p)) {
-        is_named := (peek(p) == t.ident) and (peek_n(p, 1) == t.colon)
+    while (parse.peek(p) != t.c_brace) and (not parse.is_eof(p)) {
+        is_named := (parse.peek(p) == t.ident) and (parse.peek_n(p, 1) == t.colon)
         if is_named {
             f := parse_ident(p)
-            expect(p, t.colon)
+            parse.expect(p, t.colon)
             v := parse_expr(p, prec().var_def + (1 as u8))
             fields.push(f)
             values.push(v)
         } else {
-            sp_v := curr_span(p)
+            sp_v := parse.curr_span(p)
             v := parse_expr(p, prec().var_def + (1 as u8))
             f_name_id := p.db.tuple_field_name(tup_idx)
-            f := p.hir.push(k.ident, f_name_id, hir_none(), hir_none())
-            set_span(p, f, sp_v)
+            f := p.hir.push(k.ident, f_name_id, hir.hir_none(), hir.hir_none())
+            parse_common.set_span(p, f, sp_v)
             fields.push(f)
             values.push(v)
             tup_idx = tup_idx + 1
         }
 
-        check_separator(p, t.c_brace, c"expected ',' or newline between struct values")
+        parse_common.check_separator(p, t.c_brace, c"expected ',' or newline between struct values")
     }
 
-    if is_eof(p) and (peek(p) != t.c_brace) {
-        parse_error_at(p, c"unclosed struct literal, expected '}'", sp_start)
+    if parse.is_eof(p) and (parse.peek(p) != t.c_brace) {
+        parse.parse_error_at(p, c"unclosed struct literal, expected '}'", sp_start)
     }
-    expect(p, t.c_brace)
-    sp_end := prev_span(p)
+    parse.expect(p, t.c_brace)
+    sp_end := parse.prev_span(p)
 
-    fids := add_list(p, &fields)
-    vids := add_list(p, &values)
+    fids := parse_common.add_list(p, &fields)
+    vids := parse_common.add_list(p, &values)
 
     fields.destroy()
     values.destroy()
 
-    node := p.hir.push(k.struct_init, fids, vids, hir_none())
-    set_span(p, node, span_merge(sp_start, sp_end))
+    node := p.hir.push(k.struct_init, fids, vids, hir.hir_none())
+    parse_common.set_span(p, node, span_merge(sp_start, sp_end))
 }
 
-parse_member :: fn(p &Parser, lhs u32, right_bp u8) u32 {
-    k := hir_kind
-    sp_lhs := span_of_hir(p, lhs)
+parse_member :: fn(p &parse.Parser, lhs u32, right_bp u8) u32 {
+    k := hir.hir_kind
+    sp_lhs := parse_common.span_of_hir(p, lhs)
     rhs := parse_expr(p, right_bp)
-    if rhs == hir_none() {
-        parse_error_at(p, c"expected a member name after '.'", curr_span(p))
+    if rhs == hir.hir_none() {
+        parse.parse_error_at(p, c"expected a member name after '.'", parse.curr_span(p))
     }
-    sp_rhs := span_of_hir(p, rhs)
+    sp_rhs := parse_common.span_of_hir(p, rhs)
 
     if p.hir.kind(rhs) == k.lit_int {
         idx := p.hir.lhs(rhs)
         f_name_id := p.db.tuple_field_name(idx)
-        rhs = p.hir.push(k.ident, f_name_id, hir_none(), hir_none())
-        set_span(p, rhs, sp_rhs)
+        rhs = p.hir.push(k.ident, f_name_id, hir.hir_none(), hir.hir_none())
+        parse_common.set_span(p, rhs, sp_rhs)
     } else if p.hir.kind(rhs) == k.lit_float {
         name_id := p.hir.lhs(rhs)
         text := p.db.interner.get(name_id)
@@ -714,38 +744,38 @@ parse_member :: fn(p &Parser, lhs u32, right_bp u8) u32 {
         idx1 := parse_u32(part1).unwrap_or(0)
         idx2 := parse_u32(part2).unwrap_or(0)
         f1_id := p.db.tuple_field_name(idx1)
-        f1 := p.hir.push(k.ident, f1_id, hir_none(), hir_none())
-        set_span(p, f1, sp_rhs)
-        inner := p.hir.push(k.member, lhs, f1, hir_none())
-        set_span(p, inner, sp_rhs)
+        f1 := p.hir.push(k.ident, f1_id, hir.hir_none(), hir.hir_none())
+        parse_common.set_span(p, f1, sp_rhs)
+        inner := p.hir.push(k.member, lhs, f1, hir.hir_none())
+        parse_common.set_span(p, inner, sp_rhs)
         f2_id := p.db.tuple_field_name(idx2)
-        f2 := p.hir.push(k.ident, f2_id, hir_none(), hir_none())
-        set_span(p, f2, sp_rhs)
-        node := p.hir.push(k.member, inner, f2, hir_none())
-        set_span(p, node, span_merge(sp_lhs, sp_rhs))
+        f2 := p.hir.push(k.ident, f2_id, hir.hir_none(), hir.hir_none())
+        parse_common.set_span(p, f2, sp_rhs)
+        node := p.hir.push(k.member, inner, f2, hir.hir_none())
+        parse_common.set_span(p, node, span_merge(sp_lhs, sp_rhs))
         ret node
     } else if p.hir.kind(rhs) != k.ident {
-        parse_error_at(p, c"member name must be an identifier", sp_rhs)
+        parse.parse_error_at(p, c"member name must be an identifier", sp_rhs)
     } else {
-        p.hir.set_extra(rhs, hir_none())
+        p.hir.set_extra(rhs, hir.hir_none())
         p.db.set_hir_symbol(rhs, id_none())
     }
-    node := p.hir.push(k.member, lhs, rhs, hir_none())
-    set_span(p, node, span_merge(sp_lhs, sp_rhs))
+    node := p.hir.push(k.member, lhs, rhs, hir.hir_none())
+    parse_common.set_span(p, node, span_merge(sp_lhs, sp_rhs))
 }
 
-parse_enum :: fn(p &Parser) u32 {
+parse_enum :: fn(p &parse.Parser) u32 {
     t := Token
-    k := hir_kind
-    sp_start := curr_span(p)
-    bump(p)
+    k := hir.hir_kind
+    sp_start := parse.curr_span(p)
+    parse.bump(p)
 
-    backing_ty := hir_none()
-    if peek(p) != t.o_brace {
+    backing_ty := hir.hir_none()
+    if parse.peek(p) != t.o_brace {
         backing_ty = parse_expr(p, prec().var_def + (1 as u8))
     }
-    if not expect(p, t.o_brace) {
-        parse_error_at(p, c"expected '{' after enum", curr_span(p))
+    if not parse.expect(p, t.o_brace) {
+        parse.parse_error_at(p, c"expected '{' after enum", parse.curr_span(p))
     }
     env_mark := p.env.mark()
 
@@ -757,15 +787,15 @@ parse_enum :: fn(p &Parser) u32 {
     enum_toplv := p.toplv_sym
     p.toplv_sym = id_none()
 
-    while (peek(p) != t.c_brace) and (not is_eof(p)) {
-        if peek(p) == t.hash {
-            ensure_type_node(p, &enum_node, k.enum_, enum_toplv)
-            sp_start := curr_span(p)
-            bump(p)
+    while (parse.peek(p) != t.c_brace) and (not parse.is_eof(p)) {
+        if parse.peek(p) == t.hash {
+            parse_common.ensure_type_node(p, &enum_node, k.enum_, enum_toplv)
+            sp_start := parse.curr_span(p)
+            parse.bump(p)
             has_paren := false
-            if peek(p) == t.o_paren {
+            if parse.peek(p) == t.o_paren {
                 has_paren = true
-                bump(p)
+                parse.bump(p)
             }
             expr := parse_expr(
                 p
@@ -776,57 +806,61 @@ parse_enum :: fn(p &Parser) u32 {
                 }
             )
             if has_paren {
-                if not expect(p, t.c_paren) {
-                    parse_error_at(p, c"expected ')' after macro expression", curr_span(p))
+                if not parse.expect(p, t.c_paren) {
+                    parse.parse_error_at(
+                        p
+                        c"expected ')' after macro expression"
+                        parse.curr_span(p)
+                    )
                 }
             }
-            splice_node := p.hir.push(k.splice, expr, enum_node, hir_none())
-            capture_splice_scope(p, splice_node)
-            set_span(p, splice_node, span_merge(sp_start, prev_span(p)))
+            splice_node := p.hir.push(k.splice, expr, enum_node, hir.hir_none())
+            parse.capture_splice_scope(p, splice_node)
+            parse_common.set_span(p, splice_node, span_merge(sp_start, parse.prev_span(p)))
             if enum_toplv != id_none() {
                 p.db.set_hir_symbol(splice_node, enum_toplv)
                 p.db.set_method_owner(splice_node, enum_toplv)
             }
             methods.push(splice_node)
-            check_separator(p, t.c_brace, c"expected ',' or newline after '#' in enum")
+            parse_common.check_separator(p, t.c_brace, c"expected ',' or newline after '#' in enum")
             cont
         }
         name := parse_ident(p)
-        if peek(p) == t.colon_colon {
-            ensure_type_node(p, &enum_node, k.enum_, enum_toplv)
-            parse_method(p, name, &methods)
+        if parse.peek(p) == t.colon_colon {
+            parse_common.ensure_type_node(p, &enum_node, k.enum_, enum_toplv)
+            parse_common.parse_method(p, name, &methods)
             cont
         }
-        val_expr := hir_none()
-        if optional(p, t.eq) {
+        val_expr := hir.hir_none()
+        if parse.optional(p, t.eq) {
             val_expr = parse_expr(p, prec().assignment + (1 as u8))
         }
         names.push(name)
         vals.push(val_expr)
 
-        check_separator(p, t.c_brace, c"expected ',' or newline between enum variants")
+        parse_common.check_separator(p, t.c_brace, c"expected ',' or newline between enum variants")
     }
 
-    if is_eof(p) and (peek(p) != t.c_brace) {
-        parse_error_at(p, c"unclosed enum definition, expected '}'", sp_start)
+    if parse.is_eof(p) and (parse.peek(p) != t.c_brace) {
+        parse.parse_error_at(p, c"unclosed enum definition, expected '}'", sp_start)
     }
-    expect(p, t.c_brace)
-    sp_end := prev_span(p)
+    parse.expect(p, t.c_brace)
+    sp_end := parse.prev_span(p)
 
-    names_id := add_list(p, &names)
-    vals_id := add_list(p, &vals)
+    names_id := parse_common.add_list(p, &names)
+    vals_id := parse_common.add_list(p, &vals)
     names.destroy()
     vals.destroy()
 
-    methods_id := add_methods_id(p, &methods)
+    methods_id := parse_common.add_methods_id(p, &methods)
     meta := Vec(u32).new()
     meta.push(backing_ty)
     meta.push(methods_id)
-    meta_id := add_list(p, &meta)
+    meta_id := parse_common.add_list(p, &meta)
     meta.destroy()
 
     p.env.reset(env_mark)
-    finish_type_node(
+    parse_common.finish_type_node(
         p
         &enum_node
         k.enum_

@@ -1,5 +1,4 @@
-TyKind :: @import("compiler/types").TyKind
-TypeStorage :: @import("compiler/types").TypeStorage
+type_defs :: @import("compiler/types")
 
 FfiKind :: enum u32 {
     unit
@@ -19,7 +18,7 @@ FfiKind :: enum u32 {
     invalid
 }
 
-append_ffi_signature :: fn(types &TypeStorage, signature &Vec(u32), ty u32) {
+append_ffi_signature :: fn(types &type_defs.TypeStorage, signature &Vec(u32), ty u32) {
     params := types.func_params(ty)
     signature.push(params.len as u32)
     append_ffi_type(types, signature, types.func_return(ty))
@@ -28,7 +27,7 @@ append_ffi_signature :: fn(types &TypeStorage, signature &Vec(u32), ty u32) {
     }
 }
 
-ffi_scalar_kind :: fn(types &TypeStorage, ty u32) FfiKind {
+ffi_scalar_kind :: fn(types &type_defs.TypeStorage, ty u32) FfiKind {
     kind := types.kind(ty)
     match kind {
         unit { FfiKind.unit }
@@ -46,7 +45,7 @@ ffi_scalar_kind :: fn(types &TypeStorage, ty u32) FfiKind {
                 base := if width == 8 { 0 } else if width == 16 { 2 } else if width == 32 {
                     4
                 } else { 6 }
-                (base + (if kind == TyKind.int { 1 } else { 2 })) as FfiKind
+                (base + (if kind == type_defs.TyKind.int { 1 } else { 2 })) as FfiKind
             } else {
                 FfiKind.invalid
             }
@@ -55,11 +54,11 @@ ffi_scalar_kind :: fn(types &TypeStorage, ty u32) FfiKind {
     }
 }
 
-append_ffi_type :: fn(types &TypeStorage, signature &Vec(u32), ty u32) {
+append_ffi_type :: fn(types &type_defs.TypeStorage, signature &Vec(u32), ty u32) {
     kind := types.kind(ty)
-    if kind == TyKind.nominal {
+    if kind == type_defs.TyKind.nominal {
         append_ffi_type(types, signature, types.nominal_base(ty))
-    } else if kind == TyKind.enum_ {
+    } else if kind == type_defs.TyKind.enum_ {
         append_ffi_type(types, signature, types.enum_backing(ty))
     } else if types.struct_is_extern(ty) {
         fields := types.get_struct_fields(ty)
@@ -68,7 +67,7 @@ append_ffi_type :: fn(types &TypeStorage, signature &Vec(u32), ty u32) {
         for field in fields.chunks(2) {
             append_ffi_type(types, signature, field.get(1))
         }
-    } else if kind == TyKind.func {
+    } else if kind == type_defs.TyKind.func {
         signature.push(FfiKind.callback as u32)
         append_ffi_signature(types, signature, ty)
     } else {

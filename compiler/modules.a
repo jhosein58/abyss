@@ -1,24 +1,19 @@
-Arch :: @import("core/target").Arch
-Os :: @import("core/target").Os
-target_os :: @import("core/target").target_os
+target :: @import("core/target")
 Arena :: @import("std/allocator").Arena
 Env :: @import("std/env").Env
-Embed :: @import("std/fs").Embed
-File :: @import("std/fs").File
+fs :: @import("std/fs")
 Path :: @import("std/path").Path
 String :: @import("std/string").String
 fall :: @import("std/sys").fall
 
-Nexus :: @import("./nexus/nexus").Nexus
-calc_pos :: @import("./nexus/nexus").calc_pos
+nexus :: @import("./nexus/nexus")
 id_none :: @import("./nexus/pool").id_none
-arch_name :: @import("./platform").arch_name
-os_name :: @import("./platform").os_name
+platform :: @import("./platform")
 
 make_embedded_fn :: fn() Str {
-    if target_os == Os.wasi {
+    if target.target_os == target.Os.wasi {
         arena := Arena.new(1024 * 1024 * 64)
-        Embed.sources(&arena)
+        fs.Embed.sources(&arena)
     } else {
         "Str.empty()\n"
     }
@@ -28,8 +23,8 @@ lookup_embedded :: fn(mod_path Str) Str {
     #make_embedded_fn()
 }
 
-import_error :: fn(db &Nexus, fid u32, offset u32, message, detail Str) {
-    pos := calc_pos(db.get_file_source(fid), offset)
+import_error :: fn(db &nexus.Nexus, fid u32, offset u32, message, detail Str) {
+    pos := nexus.calc_pos(db.get_file_source(fid), offset)
     printf(
         "\n[import error] {}: {}\n       --> {}:{}:{}\n\n"
         .{ message, detail, db.get_file_path(fid), pos.line, pos.col }
@@ -39,20 +34,23 @@ import_error :: fn(db &Nexus, fid u32, offset u32, message, detail Str) {
 
 is_embedded_path :: fn(path Str) bool {
     path.eq("std") or path.eq("core") or path.starts_with("std/") or path.starts_with("core/") or
-        path.starts_with("std\\") or path.starts_with("core\\")
+        path.starts_with("std\\") or
+        path.starts_with("core\\")
 }
 
-try_load_source :: fn(db &Nexus, arena &Arena, target_path Str) Str {
-    os := os_name(db.target_os)
-    arch := arch_name(db.target_arch)
+try_load_source :: fn(db &nexus.Nexus, arena &Arena, target_path Str) Str {
+    os := platform.os_name(db.target_os)
+    arch := platform.arch_name(db.target_arch)
     if target_path.eq("core/target_values.a") {
         source := String.new(arena)
-        source.push_str("Arch :: @import(\"core/target\").Arch\nOs :: @import(\"core/target\").Os\ntarget_os :: Os.")
+        source.push_str(
+            "target_types :: @import(\"core/target\")\nArch :: target_types.Arch\nOs :: target_types.Os\ntarget_os :: Os."
+        )
         source.push_str(os)
         source.push_str("\ntarget_arch :: Arch.")
         source.push_str(arch)
         source.push_str("\ntarget_ptr_bits :: ")
-        source.push_str(if db.target_arch == Arch.wasm32 { "32" } else { "64" })
+        source.push_str(if db.target_arch == target.Arch.wasm32 { "32" } else { "64" })
         source.push_str(" as u8\n")
         ret source.as_str()
     }
@@ -85,13 +83,13 @@ load_source :: fn(arena &Arena, target_path Str) Str {
             dev_str := Str.of(env_dev)
             if (not dev_str.eq("1")) and (not dev_str.eq("true")) {
                 dev_pod := Path.join(arena, dev_str, pod_rel)
-                opt_dp := File.read_to_string(arena, dev_pod)
+                opt_dp := fs.File.read_to_string(arena, dev_pod)
                 if opt_dp.is_some() {
                     ret opt_dp.unwrap()
                 }
             }
         }
-        opt_pod := File.read_to_string(arena, pod_rel)
+        opt_pod := fs.File.read_to_string(arena, pod_rel)
         if opt_pod.is_some() {
             ret opt_pod.unwrap()
         }
@@ -105,7 +103,7 @@ load_source :: fn(arena &Arena, target_path Str) Str {
                         arena
                         Path.join(arena, bin_dir, Str.of(".."))
                     )
-                    opt_parent := File.read_to_string(
+                    opt_parent := fs.File.read_to_string(
                         arena
                         Path.join(arena, cand_parent, pod_rel)
                     )
@@ -113,7 +111,7 @@ load_source :: fn(arena &Arena, target_path Str) Str {
                         ret opt_parent.unwrap()
                     }
                     cand_bin := Path.join(arena, bin_dir, pod_rel)
-                    opt_bin := File.read_to_string(arena, cand_bin)
+                    opt_bin := fs.File.read_to_string(arena, cand_bin)
                     if opt_bin.is_some() {
                         ret opt_bin.unwrap()
                     }
@@ -122,7 +120,7 @@ load_source :: fn(arena &Arena, target_path Str) Str {
         }
         ret Str.empty()
     }
-    file_opt := File.read_to_string(arena, target_path)
+    file_opt := fs.File.read_to_string(arena, target_path)
     if file_opt.is_some() {
         file_opt.unwrap()
     } else {
@@ -130,7 +128,7 @@ load_source :: fn(arena &Arena, target_path Str) Str {
     }
 }
 
-remap_module :: fn(db &Nexus, arena &Arena, path Str) Str {
+remap_module :: fn(db &nexus.Nexus, arena &Arena, path Str) Str {
     for index in Range.new(0, db.map_keys.len as i32) {
         i := index as u64
         key := db.map_keys.get(i)
@@ -138,13 +136,17 @@ remap_module :: fn(db &Nexus, arena &Arena, path Str) Str {
             ret db.map_values.get(i)
         }
         if path.starts_with(key) and path.len > key.len and path.ptr[key.len] == '/' {
-            ret Path.join(arena, db.map_values.get(i), path.sub(key.len + 1, path.len - key.len - 1))
+            ret Path.join(
+                arena
+                db.map_values.get(i)
+                path.sub(key.len + 1, path.len - key.len - 1)
+            )
         }
     }
     path
 }
 
-file_key :: fn(db &Nexus, arena &Arena, path Str) u32 {
+file_key :: fn(db &nexus.Nexus, arena &Arena, path Str) u32 {
     if is_embedded_path(path) or Path.is_absolute(path) or db.cwd.len == 0 {
         ret db.interner.intern(path)
     }
@@ -152,7 +154,7 @@ file_key :: fn(db &Nexus, arena &Arena, path Str) u32 {
     db.interner.intern(if path.starts_with("../") { Path.normalize(arena, full) } else { full })
 }
 
-load_candidate :: fn(db &Nexus, arena &Arena, path Str) u32 {
+load_candidate :: fn(db &nexus.Nexus, arena &Arena, path Str) u32 {
     key := file_key(db, arena, path)
     known := db.find_file_id(key)
     if known != id_none() { ret known }
@@ -161,7 +163,7 @@ load_candidate :: fn(db &Nexus, arena &Arena, path Str) u32 {
     db.add_file(path, source, key)
 }
 
-resolve_module :: fn(db &Nexus, arena &Arena, fid u32, offset u32, base, request Str) u32 {
+resolve_module :: fn(db &nexus.Nexus, arena &Arena, fid u32, offset u32, base, request Str) u32 {
     if request.len == 0 {
         import_error(db, fid, offset, "empty module path", request)
     }
@@ -171,7 +173,8 @@ resolve_module :: fn(db &Nexus, arena &Arena, fid u32, offset u32, base, request
         }
     }
     relative := request.starts_with("./") or request.starts_with("../") or
-        request.starts_with(".\\") or request.starts_with("..\\")
+        request.starts_with(".\\") or
+        request.starts_with("..\\")
     stem := if relative {
         Path.resolve(arena, base, request)
     } else {
@@ -201,12 +204,17 @@ resolve_module :: fn(db &Nexus, arena &Arena, fid u32, offset u32, base, request
     folder := if stem.ends_with(".a") { Str.empty() } else {
         Path.join(arena, stem, Path.ensure_ext(arena, Path.base(stem), ".a"))
     }
-    for candidate in .[direct, folder] {
+    for candidate in .[ direct, folder ] {
         if candidate.len == 0 { cont }
         loaded := load_candidate(db, arena, candidate)
-        if loaded == id_none() and not relative and not Path.is_absolute(candidate) and not is_embedded_path(candidate) {
+        if loaded == id_none() and not relative and not Path.is_absolute(candidate) and
+            not is_embedded_path(candidate) {
             for dir in db.import_dirs {
-                loaded = load_candidate(db, arena, Path.normalize(arena, Path.join(arena, dir, candidate)))
+                loaded = load_candidate(
+                    db
+                    arena
+                    Path.normalize(arena, Path.join(arena, dir, candidate))
+                )
                 if loaded != id_none() { break }
             }
         }
@@ -215,7 +223,9 @@ resolve_module :: fn(db &Nexus, arena &Arena, fid u32, offset u32, base, request
             ret loaded
         }
     }
-    message := if is_embedded_path(direct) { "embedded module not found" } else { "cannot open module" }
+    message := if is_embedded_path(direct) { "embedded module not found" } else {
+        "cannot open module"
+    }
     import_error(db, fid, offset, message, request)
     id_none()
 }

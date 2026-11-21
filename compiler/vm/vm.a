@@ -1,29 +1,12 @@
 Env :: @import("std/env").Env
-free :: @import("std/mem").free
-malloc :: @import("std/mem").malloc
-mem_copy :: @import("std/mem").mem_copy
-realloc :: @import("std/mem").realloc
-fall :: @import("std/sys").fall
-host_call :: @import("std/sys").host_call
+mem :: @import("std/mem")
+sys :: @import("std/sys")
 
-TyKind :: @import("compiler/types").TyKind
-TypeStorage :: @import("compiler/types").TypeStorage
-
+type_defs :: @import("compiler/types")
 Chunk :: @import("./chunk").Chunk
-vm_data_base :: @import("./codegen").vm_data_base
-vm_data_size :: @import("./codegen").vm_data_size
-vm_entry_tag :: @import("./codegen").vm_entry_tag
-vm_extern_tag :: @import("./codegen").vm_extern_tag
-vm_is_aggregate :: @import("./codegen").vm_is_aggregate
-vm_is_indirect :: @import("./codegen").vm_is_indirect
-HostDirSlot :: @import("./host").HostDirSlot
-dispatch_host_call :: @import("./host").dispatch_host_call
-VmCallback :: @import("./native").VmCallback
-ffi_alloc :: @import("./native").ffi_alloc
-ffi_call :: @import("./native").ffi_call
-ffi_callback :: @import("./native").ffi_callback
-ffi_destroy :: @import("./native").ffi_destroy
-ffi_symbol_address :: @import("./native").ffi_symbol_address
+vm_codegen :: @import("./codegen")
+host :: @import("./host")
+native :: @import("./native")
 OpCode :: @import("./op").OpCode
 
 invoke_vm_callback :: fn(scope &&u8, chunk &u8, entry u32, argv &u64, argc u32) u64 {
@@ -57,27 +40,27 @@ float_binary :: fn(T type, op OpCode, a, b T) u64 {
     bits
 }
 
-copy_vm_data :: fn(scope &&u8, types &TypeStorage, ty u32, dest, src &u8) &u8 {
+copy_vm_data :: fn(scope &&u8, types &type_defs.TypeStorage, ty u32, dest, src &u8) &u8 {
     if dest == src {
         ret dest
     }
-    base := vm_data_base(types, ty)
+    base := vm_codegen.vm_data_base(types, ty)
     kind := types.kind(base)
-    size := vm_data_size(types, base)
+    size := vm_codegen.vm_data_size(types, base)
     fresh := dest == (0 as &u8)
     target := if fresh {
-        ffi_alloc(scope, if size == 0 { 1 } else { size })
+        native.ffi_alloc(scope, if size == 0 { 1 } else { size })
     } else {
         dest
     }
     input := src as &u64
     output := target as &u64
-    if kind == TyKind.struct_ and not types.struct_is_extern(base) {
+    if kind == type_defs.TyKind.struct_ and not types.struct_is_extern(base) {
         fields := types.get_struct_fields(base)
         i: u64 = 0
         while i < fields.len / 2 {
             field := fields.ptr[i * 2 + 1]
-            if vm_is_aggregate(types, field) {
+            if vm_codegen.vm_is_aggregate(types, field) {
                 dst := if fresh { 0 as &u8 } else { output[i] as &u8 }
                 output[i] = copy_vm_data(scope, types, field, dst, input[i] as &u8) as u64
             } else {
@@ -85,17 +68,18 @@ copy_vm_data :: fn(scope &&u8, types &TypeStorage, ty u32, dest, src &u8) &u8 {
             }
             i = i + 1
         }
-    } else if kind == TyKind.array and vm_is_indirect(types, types.get_array_type(base)) {
+    } else if kind == type_defs.TyKind.array and
+        vm_codegen.vm_is_indirect(types, types.get_array_type(base)) {
         elem := types.get_array_type(base)
         for i in Range.new(0, types.get_array_len(base) as i32) {
             dst := if fresh { 0 as &u8 } else { output[i] as &u8 }
             output[i] = copy_vm_data(scope, types, elem, dst, input[i] as &u8) as u64
         }
-    } else if kind == TyKind.union_ {
+    } else if kind == type_defs.TyKind.union_ {
         tag := input[0]
         member := types.union_members(base).ptr[tag]
         payload := input[1]
-        if vm_is_aggregate(types, member) {
+        if vm_codegen.vm_is_aggregate(types, member) {
             dst := if fresh or output[0] != tag { 0 as &u8 } else { output[1] as &u8 }
             output[1] = copy_vm_data(scope, types, member, dst, payload as &u8) as u64
         } else {
@@ -103,7 +87,7 @@ copy_vm_data :: fn(scope &&u8, types &TypeStorage, ty u32, dest, src &u8) &u8 {
         }
         output[0] = tag
     } else {
-        mem_copy(target, src, size)
+        mem.mem_copy(target, src, size)
     }
     target
 }
@@ -113,7 +97,7 @@ Vm :: struct {
     locals    Vec(u64)
     frames_ip Vec(u32)
     frames_fp Vec(u32)
-    dirs      Vec(HostDirSlot)
+    dirs      Vec(host.HostDirSlot)
     ffi_scope &u8
     ffi_owner &&u8
     new :: fn() Self {
@@ -122,7 +106,7 @@ Vm :: struct {
             locals: Vec(u64).with_cap(4096)
             frames_ip: Vec(u32).with_cap(1024)
             frames_fp: Vec(u32).with_cap(1024)
-            dirs: Vec(HostDirSlot).new()
+            dirs: Vec(host.HostDirSlot).new()
             ffi_scope: 0 as &u8
             ffi_owner: 0 as &&u8
         }
@@ -142,7 +126,7 @@ Vm :: struct {
             i = i + 1
         }
         self.dirs.destroy()
-        ffi_destroy(self.ffi_scope)
+        native.ffi_destroy(self.ffi_scope)
     }
 
     ensure_local_slot :: fn(self &Self, idx u32) {
@@ -154,31 +138,31 @@ Vm :: struct {
 
     dispatch_extern :: fn(self &Self, prog &Chunk, id u32, arg_count u8) {
         if id == 6 {
-            self.stack.push(malloc(self.stack.pop()) as u64)
+            self.stack.push(mem.malloc(self.stack.pop()) as u64)
         } else if id == 7 {
-            free(self.stack.pop() as &u8)
+            mem.free(self.stack.pop() as &u8)
             self.stack.push(0)
         } else if id == 8 {
             count := self.stack.pop()
             source := self.stack.pop() as &u8
             dest := self.stack.pop() as &u8
-            mem_copy(dest, source, count)
+            mem.mem_copy(dest, source, count)
             self.stack.push(0)
         } else if id == 16 {
             size := self.stack.pop()
             ptr := self.stack.pop() as &u8
-            self.stack.push(realloc(ptr, size) as u64)
+            self.stack.push(mem.realloc(ptr, size) as u64)
         } else if id == 25 {
             self.stack.push(Env.args_len() as u64)
         } else if id == 26 {
             self.stack.push(Env.arg(self.stack.pop() as i32) as u64)
         } else if id == 29 {
-            #fall
+            #sys.fall
         } else if id >= 100 {
             foreign := prog.externs.get((id - 100) as u64)
             self.call_foreign(prog, foreign.name, 0, foreign.signature, arg_count)
         } else {
-            #fall
+            #sys.fall
         }
     }
 
@@ -192,11 +176,11 @@ Vm :: struct {
     call_foreign :: fn(self &Self, prog &Chunk, name &u8, address u64, signature &u32, argc u8) {
         start := self.stack.len - (argc as u64)
         args := self.stack.as_slice().ptr + start
-        invoke: VmCallback = invoke_vm_callback
+        invoke: native.VmCallback = invoke_vm_callback
         result := if name != (0 as &u8) {
-            host_res := host_call(Str.of(name), args)
+            host_res := sys.host_call(Str.of(name), args)
             if host_res.is_some() { host_res } else {
-                dispatch_host_call(&self.dirs, Str.of(name), args)
+                host.dispatch_host_call(&self.dirs, Str.of(name), args)
             }
         } else {
             Maybe(u64).none()
@@ -204,7 +188,7 @@ Vm :: struct {
         value := if result.is_some() {
             result.unwrap()
         } else {
-            ffi_call(self.scope(), invoke, prog as &u8, name, address, signature, args)
+            native.ffi_call(self.scope(), invoke, prog as &u8, name, address, signature, args)
         }
         self.stack.reset(start)
         self.stack.push(value)
@@ -551,10 +535,10 @@ Vm :: struct {
                         self.stack.set(index, self.stack.get(index + 1))
                     }
                     self.stack.pop()
-                    if (address & vm_entry_tag()) != 0 {
+                    if (address & vm_codegen.vm_entry_tag()) != 0 {
                         fp = self.push_frame(ip, fp, argc as u32)
                         ip = address as u32
-                    } else if (address & vm_extern_tag()) != 0 {
+                    } else if (address & vm_codegen.vm_extern_tag()) != 0 {
                         self.dispatch_extern(prog, address as u32, argc)
                     } else {
                         self.call_foreign(prog, 0 as &u8, address, sig, argc)
@@ -563,15 +547,21 @@ Vm :: struct {
                 ffi_symbol {
                     foreign := prog.externs.get(prog.read_u16(ip) as u64)
                     ip = ip + 2
-                    self.stack.push(ffi_symbol_address(foreign.name))
+                    self.stack.push(native.ffi_symbol_address(foreign.name))
                 }
                 ffi_callback {
                     sig := prog.const.get(prog.read_u16(ip) as u64) as &u32
                     ip = ip + 2
                     value := self.stack.pop()
-                    if (value & vm_entry_tag()) != 0 {
-                        invoke: VmCallback = invoke_vm_callback
-                        value = ffi_callback(self.scope(), invoke, prog as &u8, value as u32, sig)
+                    if (value & vm_codegen.vm_entry_tag()) != 0 {
+                        invoke: native.VmCallback = invoke_vm_callback
+                        value = native.ffi_callback(
+                            self.scope()
+                            invoke
+                            prog as &u8
+                            value as u32
+                            sig
+                        )
                     }
                     self.stack.push(value)
                 }
@@ -589,7 +579,7 @@ Vm :: struct {
                 }
                 alloc_ffi {
                     size := self.stack.pop()
-                    self.stack.push(ffi_alloc(self.scope(), size) as u64)
+                    self.stack.push(native.ffi_alloc(self.scope(), size) as u64)
                 }
                 copy_ffi {
                     size := prog.const.get(prog.read_u16(ip) as u64)
@@ -597,7 +587,7 @@ Vm :: struct {
                     dest := self.stack.pop() as &u8
                     src := self.stack.pop() as &u8
                     if dest != src {
-                        mem_copy(dest, src, size)
+                        mem.mem_copy(dest, src, size)
                     }
                 }
                 copy_data {

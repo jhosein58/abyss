@@ -1,16 +1,23 @@
 fall :: @import("std/sys").fall
 
 Nexus :: @import("./nexus/nexus").Nexus
-TyKind :: @import("./types").TyKind
-TypeStorage :: @import("./types").TypeStorage
+type_defs :: @import("./types")
 
-is_composite_type :: fn(k TyKind) bool {
-    (k == TyKind.struct_) or (k == TyKind.nominal) or (k == TyKind.func) or (k == TyKind.array) or
-        (k == TyKind.union_) or
-        (k == TyKind.enum_)
+is_composite_type :: fn(k type_defs.TyKind) bool {
+    (k == type_defs.TyKind.struct_) or (k == type_defs.TyKind.nominal) or
+        (k == type_defs.TyKind.func) or
+        (k == type_defs.TyKind.array) or
+        (k == type_defs.TyKind.union_) or
+        (k == type_defs.TyKind.enum_)
 }
 
-topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8), ty_id u32) {
+topo_dfs :: fn(
+    db &Nexus
+    types &type_defs.TypeStorage
+    sorted &Vec(u32)
+    states &Vec(u8)
+    ty_id u32
+) {
     if (ty_id as u64) >= (*states).len {
         ret
     }
@@ -19,7 +26,7 @@ topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8),
         printf("\n[type error] recursive value type has infinite size: '", .{})
         types.print_type(ty_id)
         printf("'; use a pointer for the recursive field\n", .{})
-        if types.kind(ty_id) == TyKind.nominal {
+        if types.kind(ty_id) == type_defs.TyKind.nominal {
             origin := types.nominal_origin(ty_id)
             node := origin
             if (origin & 2147483648) != 0 {
@@ -38,7 +45,7 @@ topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8),
 
     kind := types.kind(ty_id)
 
-    if (kind == TyKind.struct_) or (kind == TyKind.nominal) {
+    if (kind == type_defs.TyKind.struct_) or (kind == type_defs.TyKind.nominal) {
         fields := types.get_struct_fields(ty_id)
         count := fields.len / 2
         i: u64 = 0
@@ -49,12 +56,12 @@ topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8),
             }
             i = i + 1
         }
-    } else if kind == TyKind.array {
+    } else if kind == type_defs.TyKind.array {
         inner_ty := types.get_array_type(ty_id)
         if is_composite_type(types.kind(inner_ty)) {
             topo_dfs(db, types, sorted, states, inner_ty)
         }
-    } else if kind == TyKind.func {
+    } else if kind == type_defs.TyKind.func {
         ret_ty := types.func_return(ty_id)
         if is_composite_type(types.kind(ret_ty)) {
             topo_dfs(db, types, sorted, states, ret_ty)
@@ -68,7 +75,7 @@ topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8),
             }
             i = i + 1
         }
-    } else if kind == TyKind.union_ {
+    } else if kind == type_defs.TyKind.union_ {
         members := types.union_members(ty_id)
         i: u64 = 0
         while i < members.len {
@@ -78,7 +85,7 @@ topo_dfs :: fn(db &Nexus, types &TypeStorage, sorted &Vec(u32), states &Vec(u8),
             }
             i = i + 1
         }
-    } else if kind == TyKind.enum_ {
+    } else if kind == type_defs.TyKind.enum_ {
         b_ty := types.enum_backing(ty_id)
         if is_composite_type(types.kind(b_ty)) {
             topo_dfs(db, types, sorted, states, b_ty)

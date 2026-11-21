@@ -1,12 +1,10 @@
-Arch :: @import("core/target").Arch
-Os :: @import("core/target").Os
-core_target_arch :: @import("core/target_values").target_arch
-core_target_os :: @import("core/target_values").target_os
+target :: @import("core/target")
+target_values :: @import("core/target_values")
 
-host_os :: fn() Os { core_target_os }
-host_arch :: fn() Arch { core_target_arch }
+host_os :: fn() target.Os { target_values.target_os }
+host_arch :: fn() target.Arch { target_values.target_arch }
 
-os_name :: fn(os Os) Str {
+os_name :: fn(os target.Os) Str {
     match os {
         linux { "linux" }
         darwin { "darwin" }
@@ -16,7 +14,7 @@ os_name :: fn(os Os) Str {
     }
 }
 
-arch_name :: fn(arch Arch) Str {
+arch_name :: fn(arch target.Arch) Str {
     match arch {
         x86_64 { "x86_64" }
         aarch64 { "aarch64" }
@@ -24,18 +22,18 @@ arch_name :: fn(arch Arch) Str {
     }
 }
 
-parse_os :: fn(name Str) Maybe(Os) {
+parse_os :: fn(name Str) Maybe(target.Os) {
     for code in Range.new(0, 5) {
-        os := code as Os
-        if os_name(os).eq(name) { ret Maybe(Os).some(os) }
+        os := code as target.Os
+        if os_name(os).eq(name) { ret Maybe(target.Os).some(os) }
     }
-    Maybe(Os).none()
+    Maybe(target.Os).none()
 }
 
-parse_arch :: fn(name Str) Maybe(Arch) {
+parse_arch :: fn(name Str) Maybe(target.Arch) {
     for code in Range.new(0, 3) {
-        arch := code as Arch
-        if arch_name(arch).eq(name) { ret Maybe(Arch).some(arch) }
+        arch := code as target.Arch
+        if arch_name(arch).eq(name) { ret Maybe(target.Arch).some(arch) }
     }
-    Maybe(Arch).none()
+    Maybe(target.Arch).none()
 }

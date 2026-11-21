@@ -1,34 +1,25 @@
-Str :: @import("std/string").Str
 fall :: @import("std/sys").fall
 
 HirTable :: @import("compiler/hir").HirTable
-Nexus :: @import("compiler/nexus/nexus").Nexus
-Pos :: @import("compiler/nexus/nexus").Pos
-Span :: @import("compiler/nexus/nexus").Span
-calc_pos :: @import("compiler/nexus/nexus").calc_pos
-span_merge :: @import("compiler/nexus/nexus").span_merge
-span_new :: @import("compiler/nexus/nexus").span_new
-id_none :: @import("compiler/nexus/pool").id_none
-Token :: @import("compiler/token").Token
-TokenStream :: @import("compiler/token").TokenStream
-
+nexus :: @import("compiler/nexus/nexus")
+token :: @import("compiler/token")
 ScopeEnv :: @import("./env").ScopeEnv
 
 Parser :: struct {
-    db        &Nexus
-    tokens    &TokenStream
-    hir       &HirTable
-    cursor    u32
-    end       u32
-    file_id   u32
-    toplv_sym u32
+    db         &nexus.Nexus
+    tokens     &token.TokenStream
+    hir        &HirTable
+    cursor     u32
+    end        u32
+    file_id    u32
+    toplv_sym  u32
     file_scope bool
-    env       ScopeEnv
+    env        ScopeEnv
 }
 
 Parser_new :: fn(
-    db &Nexus
-    tokens &TokenStream
+    db &nexus.Nexus
+    tokens &token.TokenStream
     hir &HirTable
     file_id u32
     toplv_sym u32
@@ -71,23 +62,24 @@ is_eof :: fn(p &Parser) bool {
     p.cursor >= p.end
 }
 
-peek :: fn(p &Parser) Token {
+peek :: fn(p &Parser) token.Token {
     if p.cursor >= p.end {
-        ret Token.eof
+        ret token.Token.eof
     }
     p.tokens.kind(p.cursor)
 }
 
-peek_n :: fn(p &Parser, n u32) Token {
+peek_n :: fn(p &Parser, n u32) token.Token {
     target := (*p).cursor + n
     if target >= (*p).end {
-        ret Token.eof
+        ret token.Token.eof
     }
     p.tokens.kind(target)
 }
 
 begins_declaration :: fn(p &Parser) bool {
-    peek(p) == Token.ident and (peek_n(p, 1) == Token.colon or peek_n(p, 1) == Token.colon_colon)
+    peek(p) == token.Token.ident and
+        (peek_n(p, 1) == token.Token.colon or peek_n(p, 1) == token.Token.colon_colon)
 }
 
 bump :: fn(p &Parser) u32 {
@@ -98,7 +90,7 @@ bump :: fn(p &Parser) u32 {
     c
 }
 
-optional :: fn(p &Parser, kind Token) bool {
+optional :: fn(p &Parser, kind token.Token) bool {
     if peek(p) == kind {
         bump(p)
         ret true
@@ -127,36 +119,36 @@ prev_text :: fn(p &Parser) Str {
     p.tokens.text(p.cursor - 1)
 }
 
-tok_span :: fn(p &Parser, idx u32) Span {
+tok_span :: fn(p &Parser, idx u32) nexus.Span {
     if idx >= (*p).end {
         if (*p).end > 0 {
             last := (*p).end - 1
             st := p.tokens.start(last)
             ln := p.tokens.len(last)
-            ret span_new(st + ln, st + ln)
+            ret nexus.span_new(st + ln, st + ln)
         }
-        ret span_new(0, 0)
+        ret nexus.span_new(0, 0)
     }
     st := p.tokens.start(idx)
     ln := p.tokens.len(idx)
-    span_new(st, st + ln)
+    nexus.span_new(st, st + ln)
 }
 
-curr_span :: fn(p &Parser) Span {
+curr_span :: fn(p &Parser) nexus.Span {
     tok_span(p, (*p).cursor)
 }
 
-prev_span :: fn(p &Parser) Span {
+prev_span :: fn(p &Parser) nexus.Span {
     if (*p).cursor == 0 {
-        ret span_new(0, 0)
+        ret nexus.span_new(0, 0)
     }
     tok_span(p, (*p).cursor - 1)
 }
 
-parse_error_at :: fn(p &Parser, msg &u8, sp Span) {
+parse_error_at :: fn(p &Parser, msg &u8, sp nexus.Span) {
     path := (*p).db.get_file_path((*p).file_id)
     src := (*p).db.get_file_source((*p).file_id)
-    pos := calc_pos(src, sp.start)
+    pos := nexus.calc_pos(src, sp.start)
     printf(
         "\n\033[1;31m[syntax error]\033[0m {}\n       --> {}:{}:{}\n\n"
         .{ msg, path, pos.line, pos.col }
@@ -164,7 +156,7 @@ parse_error_at :: fn(p &Parser, msg &u8, sp Span) {
     #fall
 }
 
-expect :: fn(p &Parser, kind Token) bool {
+expect :: fn(p &Parser, kind token.Token) bool {
     if peek(p) == kind {
         bump(p)
         ret true

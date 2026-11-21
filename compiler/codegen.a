@@ -1,20 +1,16 @@
 Os :: @import("core/target").Os
 Arena :: @import("std/allocator").Arena
 Fmt :: @import("std/fmt").Fmt
-Str :: @import("std/string").Str
 String :: @import("std/string").String
 fall :: @import("std/sys").fall
 
-HirExprKind :: @import("./hir").HirExprKind
-hir_kind :: @import("./hir").hir_kind
-hir_none :: @import("./hir").hir_none
+hir :: @import("./hir")
+HirExprKind :: hir.HirExprKind
 decode_char_lit :: @import("./lexer").decode_char_lit
 Nexus :: @import("./nexus/nexus").Nexus
-reflection_quote :: @import("./typer/reflection").reflection_quote
-reflection_read :: @import("./typer/reflection").reflection_read
-TyKind :: @import("./types").TyKind
-TypeStorage :: @import("./types").TypeStorage
-ty_id_none :: @import("./types").ty_id_none
+reflection :: @import("./typer/reflection")
+type_defs :: @import("./types")
+TypeStorage :: type_defs.TypeStorage
 
 append_str :: fn(v &String, s Str) {
     v.push_str(s)
@@ -109,7 +105,7 @@ CCodeGen :: struct {
             main_returns_status: false
             target_os: Os.linux
             indent: 0
-            loop_condition: .{ id: hir_none(), breaks: false, continues: false }
+            loop_condition: .{ id: hir.hir_none(), breaks: false, continues: false }
             temp_count: 0
         }
     }
@@ -434,7 +430,7 @@ CCodeGen :: struct {
     }
 
     emit_break :: fn(self &Self, arena &Arena) {
-        if self.loop_condition.id == hir_none() {
+        if self.loop_condition.id == hir.hir_none() {
             self.expr(Str.of("break"))
         } else {
             self.loop_condition.breaks = true
@@ -443,7 +439,7 @@ CCodeGen :: struct {
     }
 
     emit_cont :: fn(self &Self, arena &Arena) {
-        if self.loop_condition.id == hir_none() {
+        if self.loop_condition.id == hir.hir_none() {
             self.expr(Str.of("continue"))
         } else {
             self.loop_condition.continues = true
@@ -464,7 +460,7 @@ CCodeGen :: struct {
     start_loop :: fn(self &Self, arena &Arena, scope &LoopScope) {
         scope.breaks = self.loop_condition.breaks
         continues := self.loop_condition.continues
-        self.set_loop(hir_none(), false, false)
+        self.set_loop(hir.hir_none(), false, false)
         if continues {
             self.emit_label(arena, self.loop_begin_label(arena, scope.id))
         }
@@ -533,7 +529,8 @@ CCodeGen :: struct {
     }
 
     define_struct :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) {
-        if (types.kind(ty_id) == TyKind.nominal) and (types.nominal_base(ty_id) == ty_id_none()) {
+        if (types.kind(ty_id) == type_defs.TyKind.nominal) and
+            (types.nominal_base(ty_id) == type_defs.ty_id_none()) {
             ret
         }
         i: u64 = 0
@@ -740,23 +737,23 @@ typedef uint16_t _Float16;
     }
 
     type_str :: fn(self &Self, types &TypeStorage, arena &Arena, ty_id u32) Str {
-        if ty_id == ty_id_none() {
+        if ty_id == type_defs.ty_id_none() {
             print("\n[codegen error] missing type")
             #fall
         }
         kind := types.kind(ty_id)
         payload := types.payload(ty_id)
 
-        if kind == TyKind.unit {
+        if kind == type_defs.TyKind.unit {
             ret Str.of("void")
         }
-        if kind == TyKind.bool {
+        if kind == type_defs.TyKind.bool {
             ret Str.of("bool")
         }
-        if kind == TyKind.type_ {
+        if kind == type_defs.TyKind.type_ {
             ret Str.of("uint32_t")
         }
-        if kind == TyKind.int {
+        if kind == type_defs.TyKind.int {
             if payload == 8 {
                 ret Str.of("int8_t")
             }
@@ -776,7 +773,7 @@ typedef uint16_t _Float16;
             #fall
             ret Str.empty()
         }
-        if kind == TyKind.uint {
+        if kind == type_defs.TyKind.uint {
             if payload == 8 {
                 ret Str.of("uint8_t")
             }
@@ -796,7 +793,7 @@ typedef uint16_t _Float16;
             #fall
             ret Str.empty()
         }
-        if kind == TyKind.float {
+        if kind == type_defs.TyKind.float {
             if payload == 32 {
                 ret Str.of("float")
             }
@@ -807,26 +804,28 @@ typedef uint16_t _Float16;
             #fall
             ret Str.empty()
         }
-        if kind == TyKind.untyped_int {
+        if kind == type_defs.TyKind.untyped_int {
             ret Str.of("int32_t")
         }
-        if kind == TyKind.untyped_float {
+        if kind == type_defs.TyKind.untyped_float {
             ret Str.of("double")
         }
-        if kind == TyKind.ptr {
+        if kind == type_defs.TyKind.ptr {
             inner_ty := types.payload(ty_id)
             inner_str := self.type_str(types, arena, inner_ty)
             fmt := Fmt.new(arena)
             fmt.str(inner_str).cstr(c"*")
             ret fmt.as_str()
         }
-        if (kind == TyKind.struct_) or (kind == TyKind.nominal) or (kind == TyKind.func) or
-            (kind == TyKind.enum_) or
-            (kind == TyKind.union_) or
-            (kind == TyKind.array) {
+        if (kind == type_defs.TyKind.struct_) or (kind == type_defs.TyKind.nominal) or
+            (kind == type_defs.TyKind.func) or
+            (kind == type_defs.TyKind.enum_) or
+            (kind == type_defs.TyKind.union_) or
+            (kind == type_defs.TyKind.array) {
             ret TypeStorage.name(arena, ty_id)
         }
-        if (kind == TyKind.infer) or (kind == TyKind.unknown) or (kind == TyKind.error) {
+        if (kind == type_defs.TyKind.infer) or (kind == type_defs.TyKind.unknown) or
+            (kind == type_defs.TyKind.error) {
             print("\n[codegen error] unresolved type")
             #fall
         }
@@ -1117,9 +1116,9 @@ typedef uint16_t _Float16;
             bits := (value as &u64)[i]
             out.cstr(c"._f").uint32(field).cstr(c" = ")
             if field_ty == db.str_type {
-                ptr := reflection_read(db, bits, field_ty, "ptr") as &u8
-                len := reflection_read(db, bits, field_ty, "len")
-                raw := reflection_quote(db, Str.new(ptr, len))
+                ptr := reflection.reflection_read(db, bits, field_ty, "ptr") as &u8
+                len := reflection.reflection_read(db, bits, field_ty, "len")
+                raw := reflection.reflection_quote(db, Str.new(ptr, len))
                 out.str(
                     self.expr_str_lit(
                         arena
@@ -1129,9 +1128,9 @@ typedef uint16_t _Float16;
                         raw
                     )
                 )
-            } else if db.types.kind(field_ty) == TyKind.ptr {
+            } else if db.types.kind(field_ty) == type_defs.TyKind.ptr {
                 child := db.types.payload(field_ty)
-                if db.types.kind(child) != TyKind.ptr {
+                if db.types.kind(child) != type_defs.TyKind.ptr {
                     out.str(self.reflection_record(arena, db, records, child, bits))
                 } else {
                     field_name := db.interner.get(field)
@@ -1142,7 +1141,7 @@ typedef uint16_t _Float16;
                     } else {
                         "param_count"
                     }
-                    count := reflection_read(db, value, ty, count_name)
+                    count := reflection.reflection_read(db, value, ty, count_name)
                     out.str(self.reflection_list(arena, db, records, child, bits, count))
                 }
             } else {
@@ -1311,7 +1310,7 @@ typedef uint16_t _Float16;
     }
 
     binary_op :: fn(self &Self, kind HirExprKind) Str {
-        k := hir_kind
+        k := hir.hir_kind
         if kind == k.binary_add {
             ret Str.of(" + ")
         }

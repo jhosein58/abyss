@@ -2,8 +2,9 @@ Ascii :: @import("std/ascii").Ascii
 fall :: @import("std/sys").fall
 
 calc_pos :: @import("./nexus/nexus").calc_pos
-Tk :: @import("./token").Token
-TokenStream :: @import("./token").TokenStream
+token :: @import("./token")
+Tk :: token.Token
+TokenStream :: token.TokenStream
 
 match_keyword :: fn(text Str) Tk {
     if text.len == 2 {
